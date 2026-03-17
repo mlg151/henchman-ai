@@ -56,7 +56,7 @@ def setup_tech_lead(
         cluster_similarity_threshold=ctx.cluster_similarity_threshold,
         adaptive_compression=ctx.adaptive_compression,
     )
-    orch.tech_lead._stall.enabled = False  # noqa: SLF001
+    orch.tech_lead._stall.enabled = False
 
 
 def create_tech_lead_identity() -> Any:
@@ -65,7 +65,7 @@ def create_tech_lead_identity() -> Any:
     Returns:
         AgentIdentity: An identity object configured for the Tech Lead role.
     """
-    from henchman.agents.identity import AgentIdentity  # noqa: PLC0415
+    from henchman.agents.identity import AgentIdentity
 
     return AgentIdentity(
         id="tech_lead",

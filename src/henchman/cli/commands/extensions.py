@@ -1,7 +1,34 @@
 """Extensions command for listing registered extensions."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from henchman.cli.commands import Command, CommandContext
 from henchman.extensions.manager import ExtensionManager
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+
+def _print_loaded_extensions(
+    console: Console,
+    extension_names: list[str],
+    manager: ExtensionManager,
+) -> None:
+    """Print loaded extension details to the console.
+
+    Args:
+        console: Rich console for output.
+        extension_names: Names of registered extensions.
+        manager: Extension manager used to look up each extension.
+    """
+    console.print(f"[bold]Loaded Extensions ({len(extension_names)}):[/]")
+    for name in extension_names:
+        ext = manager.get(name)
+        # ext is guaranteed to exist since we iterate over registered names
+        assert ext is not None
+        console.print(f"  • [cyan]{ext.name}[/] v{ext.version} - {ext.description}")
 
 
 class ExtensionsCommand(Command):
@@ -11,7 +38,7 @@ class ExtensionsCommand(Command):
         /extensions - List all loaded extensions
     """
 
-    def __init__(self, manager: ExtensionManager) -> None:
+    def __init__(self: ExtensionsCommand, manager: ExtensionManager) -> None:
         """Initialize the extensions command.
 
         Args:
@@ -20,7 +47,7 @@ class ExtensionsCommand(Command):
         self._manager = manager
 
     @property
-    def name(self) -> str:
+    def name(self: ExtensionsCommand) -> str:
         """Command name.
 
         Returns:
@@ -29,7 +56,7 @@ class ExtensionsCommand(Command):
         return "extensions"
 
     @property
-    def description(self) -> str:
+    def description(self: ExtensionsCommand) -> str:
         """Command description.
 
         Returns:
@@ -38,7 +65,7 @@ class ExtensionsCommand(Command):
         return "List loaded extensions"
 
     @property
-    def usage(self) -> str:
+    def usage(self: ExtensionsCommand) -> str:
         """Command usage.
 
         Returns:
@@ -46,7 +73,7 @@ class ExtensionsCommand(Command):
         """
         return "/extensions"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: ExtensionsCommand, ctx: CommandContext) -> None:
         """Execute the command.
 
         Args:
@@ -61,9 +88,4 @@ class ExtensionsCommand(Command):
             ctx.console.print("[dim]No extensions loaded[/]")
             return
 
-        ctx.console.print(f"[bold]Loaded Extensions ({len(extensions)}):[/]")
-        for name in extensions:
-            ext = self._manager.get(name)
-            # ext is guaranteed to exist since we iterate over registered names
-            assert ext is not None
-            ctx.console.print(f"  • [cyan]{ext.name}[/] v{ext.version} - {ext.description}")
+        _print_loaded_extensions(ctx.console, extensions, self._manager)

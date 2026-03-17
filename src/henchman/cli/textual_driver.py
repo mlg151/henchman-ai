@@ -21,14 +21,14 @@ if sys.platform == "linux":
     try:
         from textual.drivers.linux_driver import LinuxDriver
     except ImportError:  # pragma: no cover
-        LinuxDriver = object  # type: ignore  # noqa: PGH003
+        LinuxDriver = object  # type: ignore
 
-    class RobustLinuxDriver(LinuxDriver):  # type: ignore  # noqa: PGH003
+    class RobustLinuxDriver(LinuxDriver):  # type: ignore
         """A Linux driver that handles Unicode decode errors gracefully."""
 
         def process_selector_events(
-            self, selector_events: list[tuple[int, int]], *, final: bool = False
-        ) -> None:  # noqa: E501
+            self, selector_events: list[tuple[int, int]], *, final: bool = False,
+        ) -> None:
             """Process selector events with error handling."""
             try:
                 super().process_selector_events(selector_events, final=final)

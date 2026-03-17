@@ -221,7 +221,7 @@ async def _run_pytest_with_config(config: PytestConfig) -> ToolResult:
         )
     except asyncio.CancelledError:  # pragma: no cover
         raise
-    except Exception as e:  # pragma: no cover  # noqa: BLE001
+    except Exception as e:  # pragma: no cover
         return ToolResult(
             content=f"Error running pytest: {e}",
             success=False,

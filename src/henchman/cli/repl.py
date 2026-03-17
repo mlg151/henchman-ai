@@ -63,7 +63,7 @@ class ReplConfig:
         agent_role: Target a specific agent role for all inputs.
     """
 
-    prompt: str = "❯ "  # noqa: RUF001
+    prompt: str = "❯ "
     system_prompt: str = ""
     auto_save: bool = True
     history_file: Path | None = None
@@ -119,7 +119,7 @@ async def _cleanup_monitor(
 ) -> None:
     """Signal monitor to stop and wait for it to finish with a timeout."""
     if hasattr(monitor, "_stop_event"):
-        monitor._stop_event.set()  # noqa: SLF001
+        monitor._stop_event.set()
     try:
         await asyncio.wait_for(monitor_task, timeout=1.0)
     except (asyncio.TimeoutError, asyncio.CancelledError):
@@ -152,7 +152,7 @@ class Repl:
         >>> await repl.run()
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self: Self,
         provider: ModelProvider,
         console: Console | None = None,
@@ -332,9 +332,9 @@ class Repl:
                     and self.settings.ui.mcp_logging
                 ):
                     self.renderer.success(
-                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",  # noqa: E501
+                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",
                     )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 # Always show errors, regardless of logging setting
                 self.renderer.error(f"Failed to connect to MCP servers: {e}")
 
@@ -478,7 +478,7 @@ class Repl:
             assistant_content: List to collect assistant content.
             status_msg: Status message to display.
         """
-        from henchman.cli.input import KeyMonitor  # noqa: PLC0415
+        from henchman.cli.input import KeyMonitor
 
         monitor = KeyMonitor()
         self.current_monitor = monitor
@@ -502,7 +502,7 @@ class Repl:
             elif stop_req:
                 self.renderer.warning("\n[Interrupted by Esc]")
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.renderer.error(f"Error: {e}")
         finally:
             await _cleanup_monitor(monitor, monitor_task)

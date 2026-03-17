@@ -149,7 +149,7 @@ class MessageClusterer:
         self: MessageClusterer,
         messages: list[Message],
         curr_cluster: list[int],
-        next_cluster: list[int],  # noqa: E501
+        next_cluster: list[int],
     ) -> bool:
         """Determine if two adjacent clusters should be merged.
 
@@ -261,7 +261,7 @@ class MessageClusterer:
                 words = msg.content.lower().split()
                 for word in words:
                     # Remove punctuation
-                    word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
+                    word = word.strip(".,!?;:\"'()[]{}")
                     if len(word) > self.minimum_word_length and not word.startswith("http"):
                         keywords.add(word)
         return keywords
@@ -377,8 +377,8 @@ class MessageClusterer:
         return len(common_words) >= self.minimum_shared_words
 
     def _extract_cluster_content(
-        self: MessageClusterer, messages: list[Message], cluster: list[int]
-    ) -> str:  # noqa: E501
+        self: MessageClusterer, messages: list[Message], cluster: list[int],
+    ) -> str:
         """Extract and concatenate content from messages in a cluster.
 
         Args:
@@ -407,7 +407,7 @@ class MessageClusterer:
         words = set()
         for word in text.split():
             # Remove punctuation
-            word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
+            word = word.strip(".,!?;:\"'()[]{}")
             if len(word) > self.minimum_word_length and not word.startswith("http"):
                 words.add(word)
         return words

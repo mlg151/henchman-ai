@@ -118,7 +118,7 @@ class SessionMetricsAnalyzer:
         Returns:
             Dictionary with session metrics summary.
         """
-        with self.storage._get_connection() as conn:  # noqa: SLF001
+        with self.storage._get_connection() as conn:
             cursor = conn.cursor()
 
             token_stats = self._get_session_metric_by_type(
@@ -514,7 +514,7 @@ class MetricsAggregator:
             ORDER BY period DESC
         """
 
-        with self.storage._get_connection() as conn:  # noqa: SLF001
+        with self.storage._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -547,7 +547,7 @@ class MetricsStorage:
         """
         if db_path is None:
             # Default to user data directory
-            import appdirs  # noqa: PLC0415
+            import appdirs
 
             data_dir = Path(appdirs.user_data_dir("henchman"))
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -755,7 +755,7 @@ class MetricsStorage:
             cursor.execute("DELETE FROM metrics WHERE timestamp < ?", (cutoff_str,))
             conn.commit()
 
-    def get_metrics(  # noqa: PLR0913
+    def get_metrics(
         self: MetricsStorage,
         metric_type: MetricType | None = None,
         session_id: str | None = None,

@@ -350,7 +350,7 @@ class FileOverviewTool(Tool):
         self: FileOverviewTool,
         path: str = "",
         depth: int = 2,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Get structural overview of a file.
 

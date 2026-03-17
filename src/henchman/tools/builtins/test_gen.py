@@ -349,7 +349,7 @@ class TestGenTool(Tool):
         path: str = "",
         output_path: str = "",
         style: Literal["class", "function"] = "class",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Generate test stubs for a Python file.
 

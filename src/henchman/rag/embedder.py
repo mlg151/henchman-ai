@@ -94,7 +94,7 @@ class FastEmbedProvider(EmbeddingProvider):
             model_name: Name of the FastEmbed model to use.
                 Defaults to BAAI/bge-small-en-v1.5 (384 dimensions).
         """
-        from fastembed import TextEmbedding  # noqa: PLC0415
+        from fastembed import TextEmbedding
 
         self._model_name = model_name
         self.model = TextEmbedding(model_name=model_name)

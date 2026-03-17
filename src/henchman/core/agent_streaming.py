@@ -225,7 +225,7 @@ async def generate_stream_events(
             elif chunk.content:
                 state.content_yielded = True
                 yield _make_event(EventType.CONTENT, chunk.content, ctx.source_agent)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         yield _make_event(EventType.ERROR, f"Provider error: {exc}", ctx.source_agent)
     finally:
         yield _make_event(EventType.FINISHED, state.create_finished_data(), ctx.source_agent)

@@ -51,7 +51,7 @@ class DuckDuckGoSearchTool(Tool):
         self: DuckDuckGoSearchTool,
         query: str = "",
         max_results: int = 5,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Execute web search.
 
@@ -64,8 +64,8 @@ class DuckDuckGoSearchTool(Tool):
             ToolResult with search results.
         """
         try:  # pragma: no cover
-            import aiohttp  # noqa: PLC0415
-            from bs4 import BeautifulSoup  # noqa: PLC0415
+            import aiohttp
+            from bs4 import BeautifulSoup
         except ImportError:  # pragma: no cover
             return ToolResult(
                 content="Error: aiohttp and beautifulsoup4 are required for web_search",
@@ -77,7 +77,7 @@ class DuckDuckGoSearchTool(Tool):
             # DuckDuckGo HTML search URL
             url = f"https://html.duckduckgo.com/html/?q={query}"
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",  # noqa: E501
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             }
 
             async with (
@@ -121,7 +121,7 @@ class DuckDuckGoSearchTool(Tool):
                     success=True,
                 )
 
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error performing search: {e}",
                 success=False,

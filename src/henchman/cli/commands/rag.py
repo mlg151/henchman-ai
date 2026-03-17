@@ -122,7 +122,7 @@ def _confirm_clear_all(console: object) -> bool:
     console.print("[yellow]Warning: This will delete ALL RAG indices![/]")  # type: ignore[union-attr]
     console.print("Type 'yes' to confirm: ", end="")  # type: ignore[union-attr]
     try:
-        confirm = input()  # noqa: ASYNC250
+        confirm = input()
     except (EOFError, KeyboardInterrupt):
         confirm = ""
     return confirm.lower() in ("yes", "y")
@@ -134,7 +134,7 @@ async def _clear_all_rag_indices(ctx: CommandContext) -> None:
     Args:
         ctx: Command context.
     """
-    from henchman.rag.repo_id import get_rag_cache_dir  # noqa: PLC0415
+    from henchman.rag.repo_id import get_rag_cache_dir
 
     console = ctx.console
     cache_dir = get_rag_cache_dir()
@@ -147,7 +147,7 @@ async def _clear_all_rag_indices(ctx: CommandContext) -> None:
         try:
             shutil.rmtree(cache_dir)
             console.print(f"[green]Cleared all RAG indices from {cache_dir}[/]")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             console.print(f"[red]Error clearing indices: {e}[/]")
     else:
         console.print("[dim]Operation cancelled[/]")
@@ -170,7 +170,7 @@ def _remove_old_rag_path(console: object, path: Path) -> str | None:
         else:
             path.unlink()
         return f"{label}: {path}"
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         console.print(f"[yellow]Error removing {path}: {e}[/]")  # type: ignore[union-attr]
         return None
 
@@ -181,7 +181,7 @@ async def _cleanup_old_rag_indices(ctx: CommandContext) -> None:
     Args:
         ctx: Command context.
     """
-    from henchman.rag.system import find_git_root  # noqa: PLC0415
+    from henchman.rag.system import find_git_root
 
     console = ctx.console
     git_root = find_git_root()

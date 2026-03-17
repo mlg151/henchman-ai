@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
 
+# Only summarize if it reduces tokens by at least this ratio (20% reduction required)
+MIN_TOKEN_REDUCTION_RATIO = 0.8
+
 
 # Constants duplicated from intelligent_context.py to avoid circular imports
 class CompressionStrategyConstants:
@@ -45,6 +48,87 @@ class CompressionStrategyConfig:
     medium_threshold: float
     preserve_tool_sequences: bool
     preserve_code_blocks: bool
+
+
+def _build_cluster_summary(cluster_messages: list[Message]) -> str:
+    """Generate summary text from a list of messages.
+
+    Args:
+        cluster_messages: Messages in the cluster.
+
+    Returns:
+        Summary text joining each message's role with a content preview.
+    """
+    if not cluster_messages:
+        return ""
+
+    preview_length = CompressionStrategyConstants.CLUSTER_PREVIEW_LENGTH
+    key_phrases = []
+    for msg in cluster_messages:
+        if msg.content:
+            preview = msg.content[:preview_length]
+            if len(msg.content) > preview_length:
+                preview += "..."
+            key_phrases.append(f"{msg.role}: {preview}")
+
+    return "; ".join(key_phrases)
+
+
+def _collect_code_block_messages(
+    messages: list[Message],
+    cluster: list[int],
+) -> list[Message]:
+    """Collect messages containing code blocks from a cluster.
+
+    Args:
+        messages: All messages.
+        cluster: Cluster indices.
+
+    Returns:
+        Messages that contain code blocks or function/class definitions.
+    """
+    code_markers = ("```", "def ", "class ")
+    return [
+        messages[idx]
+        for idx in cluster
+        if idx < len(messages)
+        and messages[idx].content
+        and any(marker in messages[idx].content for marker in code_markers)
+    ]
+
+
+# Strategy configurations keyed by conversation type, built at import time
+_csc = CompressionStrategyConstants
+_STRATEGY_CONFIGS: dict[str, CompressionStrategyConfig] = {
+    "coding": CompressionStrategyConfig(
+        name="coding",
+        high_threshold=_csc.CODING_HIGH_THRESHOLD,
+        medium_threshold=_csc.CODING_MEDIUM_THRESHOLD,
+        preserve_tool_sequences=True,
+        preserve_code_blocks=True,
+    ),
+    "debugging": CompressionStrategyConfig(
+        name="debugging",
+        high_threshold=_csc.DEBUGGING_HIGH_THRESHOLD,
+        medium_threshold=_csc.DEBUGGING_MEDIUM_THRESHOLD,
+        preserve_tool_sequences=True,
+        preserve_code_blocks=True,
+    ),
+    "research": CompressionStrategyConfig(
+        name="research",
+        high_threshold=_csc.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
+        medium_threshold=_csc.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+        preserve_tool_sequences=True,
+        preserve_code_blocks=False,
+    ),
+    "general": CompressionStrategyConfig(
+        name="general",
+        high_threshold=_csc.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
+        medium_threshold=_csc.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+        preserve_tool_sequences=True,
+        preserve_code_blocks=False,
+    ),
+}
 
 
 class CompressionStrategy:
@@ -90,55 +174,68 @@ class CompressionStrategy:
 
         for cluster_idx, cluster in enumerate(clusters):
             importance = cluster_importance.get(cluster_idx, 0.0)
-
             if importance >= self.config.high_threshold:
-                # Preserve high-importance clusters fully
                 compressed_messages.extend(
-                    messages[msg_idx] for msg_idx in cluster if msg_idx < len(messages)
+                    self._compress_high_importance(messages, cluster),
+                )
+            elif importance >= self.config.medium_threshold:
+                compressed_messages.extend(
+                    self._compress_medium_importance(messages, cluster, cluster_idx),
+                )
+            else:
+                compressed_messages.extend(
+                    self._compress_low_importance(messages, cluster),
                 )
 
-            elif importance >= self.config.medium_threshold:
-                # Summarize medium-importance clusters
-                summary = self._summarize_cluster(messages, cluster)
-                if summary:
-                    # Create a summary message
-                    summary_msg = Message(
-                        role="system",
-                        content=f"[Summarized cluster {cluster_idx}]: {summary}",
-                    )
-                    compressed_messages.append(summary_msg)
-                else:
-                    # If summarization doesn't reduce tokens, preserve original messages
-                    compressed_messages.extend(
-                        messages[msg_idx] for msg_idx in cluster if msg_idx < len(messages)
-                    )
-
-                # Also preserve tool sequences if requested
-                if self.config.preserve_tool_sequences:
-                    self._preserve_tool_sequences_in_cluster(
-                        messages,
-                        cluster,
-                        compressed_messages,
-                    )
-
-            else:
-                # Low-importance clusters: drop or minimal preservation
-                # Only preserve if they contain critical elements
-                if self.config.preserve_tool_sequences:
-                    self._preserve_tool_sequences_in_cluster(
-                        messages,
-                        cluster,
-                        compressed_messages,
-                    )
-
-                if self.config.preserve_code_blocks:
-                    self._preserve_code_blocks_in_cluster(
-                        messages,
-                        cluster,
-                        compressed_messages,
-                    )
-
         return compressed_messages
+
+    def _compress_high_importance(
+        self: CompressionStrategy,
+        messages: list[Message],
+        cluster: list[int],
+    ) -> list[Message]:
+        """Preserve all messages in a high-importance cluster."""
+        return [messages[idx] for idx in cluster if idx < len(messages)]
+
+    def _compress_medium_importance(
+        self: CompressionStrategy,
+        messages: list[Message],
+        cluster: list[int],
+        cluster_idx: int,
+    ) -> list[Message]:
+        """Summarize or preserve a medium-importance cluster."""
+        result: list[Message] = []
+        summary = self._summarize_cluster(messages, cluster)
+        if summary:
+            result.append(Message(
+                role="system",
+                content=f"[Summarized cluster {cluster_idx}]: {summary}",
+            ))
+        else:
+            # If summarization doesn't reduce tokens, preserve original messages
+            result.extend(messages[idx] for idx in cluster if idx < len(messages))
+
+        # Also preserve tool sequences if requested
+        if self.config.preserve_tool_sequences:
+            self._preserve_tool_sequences_in_cluster(messages, cluster, result)
+
+        return result
+
+    def _compress_low_importance(
+        self: CompressionStrategy,
+        messages: list[Message],
+        cluster: list[int],
+    ) -> list[Message]:
+        """Drop or minimally preserve a low-importance cluster."""
+        result: list[Message] = []
+
+        if self.config.preserve_tool_sequences:
+            self._preserve_tool_sequences_in_cluster(messages, cluster, result)
+
+        if self.config.preserve_code_blocks:
+            result.extend(_collect_code_block_messages(messages, cluster))
+
+        return result
 
     def _summarize_cluster(
         self: CompressionStrategy,
@@ -162,12 +259,9 @@ class CompressionStrategy:
 
         # Don't summarize if it would increase token count significantly
         # For very short clusters, preserving original messages is better
-
-        # Calculate original tokens
         original_tokens = self._calculate_cluster_tokens(cluster_messages)
 
-        # Generate summary
-        summary = self._generate_cluster_summary(cluster_messages)
+        summary = _build_cluster_summary(cluster_messages)
         summary_tokens = TokenCounter.count_text(summary) if summary else 0
 
         # Add overhead for summary message structure
@@ -175,14 +269,20 @@ class CompressionStrategy:
         total_summary_tokens = summary_tokens + summary_overhead
 
         # Only summarize if it reduces tokens by at least 20%
-        MIN_TOKEN_REDUCTION_RATIO = 0.8
         if total_summary_tokens < original_tokens * MIN_TOKEN_REDUCTION_RATIO:
             return summary
 
         # Return None to indicate no summarization should occur
         return None
 
-    def _calculate_cluster_tokens(self: CompressionStrategy, cluster_messages: list[Message]) -> int:
+    def _generate_cluster_summary(self: CompressionStrategy, cluster_messages: list[Message]) -> str:
+        """Backward-compatible wrapper for cluster-summary generation."""
+        return _build_cluster_summary(cluster_messages)
+
+    def _calculate_cluster_tokens(
+        self: CompressionStrategy,
+        cluster_messages: list[Message],
+    ) -> int:
         """Calculate total tokens in a cluster of messages.
 
         Args:
@@ -195,32 +295,6 @@ class CompressionStrategy:
             TokenCounter.count_text(msg.content or "")
             for msg in cluster_messages
         )
-
-    def _generate_cluster_summary(
-        self: CompressionStrategy, cluster_messages: list[Message]
-    ) -> str:  # noqa: E501
-        """Generate summary text from a list of messages.
-
-        Args:
-            cluster_messages: Messages in the cluster.
-
-        Returns:
-            Summary text.
-        """
-        if not cluster_messages:
-            return ""
-
-        # Simple extraction of key phrases
-        key_phrases = []
-        for msg in cluster_messages:
-            if msg.content:
-                # Take first 50 characters as preview
-                preview = msg.content[: CompressionStrategyConstants.CLUSTER_PREVIEW_LENGTH]
-                if len(msg.content) > CompressionStrategyConstants.CLUSTER_PREVIEW_LENGTH:
-                    preview += "..."
-                key_phrases.append(f"{msg.role}: {preview}")
-
-        return "; ".join(key_phrases)
 
     def _preserve_tool_sequences_in_cluster(
         self: CompressionStrategy,
@@ -236,14 +310,16 @@ class CompressionStrategy:
             compressed_messages: List to add preserved messages to.
         """
         for idx in cluster:
-            if idx < len(messages):
-                msg = messages[idx]
-                if msg.role == "assistant" and msg.tool_calls:
-                    # Preserve assistant message with tool calls
-                    compressed_messages.append(msg)
-                    # Also preserve the corresponding tool response if it exists
-                    if idx + 1 < len(messages) and messages[idx + 1].role == "tool":
-                        compressed_messages.append(messages[idx + 1])
+            if idx >= len(messages):
+                continue
+            msg = messages[idx]
+            if msg.role != "assistant" or not msg.tool_calls:
+                continue
+            # Preserve assistant message with tool calls
+            compressed_messages.append(msg)
+            # Also preserve the corresponding tool response if it exists
+            if idx + 1 < len(messages) and messages[idx + 1].role == "tool":
+                compressed_messages.append(messages[idx + 1])
 
     def _preserve_code_blocks_in_cluster(
         self: CompressionStrategy,
@@ -251,20 +327,8 @@ class CompressionStrategy:
         cluster: list[int],
         compressed_messages: list[Message],
     ) -> None:
-        """Preserve code blocks within a cluster.
-
-        Args:
-            messages: All messages.
-            cluster: Cluster indices.
-            compressed_messages: List to add preserved messages to.
-        """
-        for idx in cluster:
-            if idx < len(messages):
-                msg = messages[idx]
-                if msg.content and (
-                    "```" in msg.content or "def " in msg.content or "class " in msg.content
-                ):  # noqa: E501
-                    compressed_messages.append(msg)
+        """Backward-compatible wrapper for preserving code-block messages."""
+        compressed_messages.extend(_collect_code_block_messages(messages, cluster))
 
 
 class CompressionStrategyFactory:
@@ -281,45 +345,5 @@ class CompressionStrategyFactory:
         Returns:
             Compression strategy instance.
         """
-        CSC = CompressionStrategyConstants  # noqa: N806
-        csc_coding_high = CSC.CODING_HIGH_THRESHOLD
-        csc_coding_med = CSC.CODING_MEDIUM_THRESHOLD
-        csc_debug_high = CSC.DEBUGGING_HIGH_THRESHOLD
-        csc_debug_med = CSC.DEBUGGING_MEDIUM_THRESHOLD
-        csc_default_high = CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD
-        csc_default_med = CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD
-        if conversation_type == "coding":
-            config = CompressionStrategyConfig(
-                name="coding",
-                high_threshold=csc_coding_high,
-                medium_threshold=csc_coding_med,
-                preserve_tool_sequences=True,
-                preserve_code_blocks=True,
-            )
-        elif conversation_type == "debugging":
-            config = CompressionStrategyConfig(
-                name="debugging",
-                high_threshold=csc_debug_high,
-                medium_threshold=csc_debug_med,
-                preserve_tool_sequences=True,
-                preserve_code_blocks=True,
-            )
-        elif conversation_type == "research":
-            # Research uses general strategy with different documentation
-            config = CompressionStrategyConfig(
-                name="research",
-                high_threshold=csc_default_high,
-                medium_threshold=csc_default_med,
-                preserve_tool_sequences=True,
-                preserve_code_blocks=False,
-            )
-        else:  # general
-            config = CompressionStrategyConfig(
-                name="general",
-                high_threshold=csc_default_high,
-                medium_threshold=csc_default_med,
-                preserve_tool_sequences=True,
-                preserve_code_blocks=False,
-            )
-
+        config = _STRATEGY_CONFIGS.get(conversation_type, _STRATEGY_CONFIGS["general"])
         return CompressionStrategy(config)

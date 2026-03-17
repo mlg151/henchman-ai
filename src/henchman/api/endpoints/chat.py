@@ -452,7 +452,7 @@ async def chat_completion_stream(
             )
             yield f"data: {done_chunk.model_dump_json()}\n\n"
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             yield _handle_stream_error(e, index)
 
     return StreamingResponse(
@@ -470,8 +470,8 @@ async def get_chat_history(
     api_key: Annotated[str | None, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
     limit: Annotated[
-        int, Query(ge=1, le=1000, description="Maximum number of messages to return")
-    ] = 100,  # noqa: E501
+        int, Query(ge=1, le=1000, description="Maximum number of messages to return"),
+    ] = 100,
 ) -> list[ChatMessage]:
     """Get chat history.
 

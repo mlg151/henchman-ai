@@ -189,7 +189,7 @@ class LintCheckTool(Tool):
         linter: str = "both",
         *,
         fix: bool = False,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Run lint checks on the given path.
 
@@ -210,7 +210,7 @@ class LintCheckTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():  # noqa: ASYNC240
+        if not target.exists():
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,

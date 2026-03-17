@@ -427,7 +427,7 @@ class HenchmanTextArea(TextArea):
             # Cast app to HenchmanTextualApp to access its methods
 
             app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(-1)  # noqa: SLF001
+            app._navigate_history(-1)
         else:
             self.action_cursor_up()
 
@@ -442,7 +442,7 @@ class HenchmanTextArea(TextArea):
             # Cast app to HenchmanTextualApp to access its methods
 
             app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(1)  # noqa: SLF001
+            app._navigate_history(1)
         else:
             self.action_cursor_down()
 
@@ -958,7 +958,7 @@ class ChatPane(VerticalScroll):
             self.mount(widget)
         except (RuntimeError, AttributeError, MountError):
             # Widget not attached to an app — store as child directly
-            self._nodes._append(widget)  # noqa: SLF001
+            self._nodes._append(widget)
 
     def _try_scroll(self: Self) -> None:
         """Scroll to bottom, ignoring errors when not mounted."""
@@ -1040,9 +1040,9 @@ class ChatPane(VerticalScroll):
         """
         widget = self._active.pop(agent_name, None)
         if widget is None:
-            import logging  # noqa: PLC0415
+            import logging
 
-            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")  # noqa: G004, LOG015
+            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")
             return
         widget.finalize_as_markdown()
 
@@ -1151,8 +1151,8 @@ class ChatPane(VerticalScroll):
         for widget in thinking:
             try:
                 widget.remove()
-            except (RuntimeError, AttributeError, MountError):  # noqa: PERF203
-                self._nodes._remove(widget)  # noqa: SLF001
+            except (RuntimeError, AttributeError, MountError):
+                self._nodes._remove(widget)
 
     def clear_messages(self: Self) -> None:
         """Remove all messages from the pane.
@@ -1165,7 +1165,7 @@ class ChatPane(VerticalScroll):
         try:
             self.remove_children()
         except (RuntimeError, AttributeError, MountError):
-            self._nodes._clear()  # noqa: SLF001
+            self._nodes._clear()
 
 
 # ------------------------------------------------------------------ #

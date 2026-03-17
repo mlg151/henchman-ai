@@ -38,7 +38,7 @@ def _build_prompt(
     environment_context: str | None,
 ) -> str:
     """Build the Tech Lead prompt from agent configurations."""
-    from henchman.agents.prompts import get_agent_prompt  # noqa: PLC0415
+    from henchman.agents.prompts import get_agent_prompt
 
     enabled = _get_enabled_configs(agent_configs)
     members, descriptions, delegatable = _extract_team_info(enabled)

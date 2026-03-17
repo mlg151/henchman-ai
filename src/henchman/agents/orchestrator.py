@@ -175,7 +175,7 @@ class Orchestrator:
         mission: str | None = None,
     ) -> str:
         """Backward-compat delegate to DelegationRunner."""
-        return DelegationRunner._assemble_delegation_input(  # noqa: SLF001
+        return DelegationRunner._assemble_delegation_input(
             task,
             brief,
             mission,
@@ -184,7 +184,7 @@ class Orchestrator:
     @staticmethod
     def _parse_completion_report(summary: str) -> dict[str, str]:
         """Backward-compat delegate to DelegationRunner."""
-        return DelegationRunner._parse_completion_report(summary)  # noqa: SLF001
+        return DelegationRunner._parse_completion_report(summary)
 
     @staticmethod
     def _last_assistant_content(agent: Agent) -> str:

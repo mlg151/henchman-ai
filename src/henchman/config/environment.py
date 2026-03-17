@@ -92,7 +92,7 @@ def _run_cmd(*args: str) -> str | None:
         Stripped stdout string, or None if the command failed.
     """
     try:
-        result = subprocess.run(  # noqa: PLW1510
+        result = subprocess.run(
             args,
             capture_output=True,
             text=True,

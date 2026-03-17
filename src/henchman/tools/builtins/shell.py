@@ -22,7 +22,7 @@ from henchman.tools.security import (
 )
 
 # ---------------------------------------------------------------------------
-# Constants – replace magic numbers with named values  # noqa: RUF003
+# Constants – replace magic numbers with named values
 # ---------------------------------------------------------------------------
 _READ_CHUNK_SIZE = 64 * 1024
 """Bytes to read per chunk from subprocess pipes."""
@@ -236,7 +236,7 @@ async def _poll_until_exit(
                 process.kill()
             return True, elapsed
 
-        # Linux-specific zombie check – avoids waiting on open pipes.  # noqa: RUF003
+        # Linux-specific zombie check – avoids waiting on open pipes.
         if _is_process_dead(process.pid):
             return False, loop.time() - start
 
@@ -253,11 +253,11 @@ def _is_process_dead(pid: int) -> bool:
         ``True`` when the process can be considered finished.
     """
     try:
-        with open(f"/proc/{pid}/stat") as fh:  # noqa: PTH123
+        with open(f"/proc/{pid}/stat") as fh:
             return fh.read().split()[2] == "Z"
     except (FileNotFoundError, ProcessLookupError):
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -272,7 +272,7 @@ async def _drain_readers(*tasks: asyncio.Task[None]) -> bool:
     """
     try:
         await asyncio.wait_for(asyncio.gather(*tasks), timeout=_DRAIN_TIMEOUT)
-    except (asyncio.TimeoutError, Exception):  # noqa: BLE001
+    except (asyncio.TimeoutError, Exception):
         return False
     return True
 
@@ -284,14 +284,14 @@ def _force_close_pipes(process: asyncio.subprocess.Process) -> None:
         process: The subprocess whose pipes should be closed.
     """
     try:
-        trans = process._transport  # type: ignore[attr-defined]  # noqa: SLF001
+        trans = process._transport  # type: ignore[attr-defined]
         if trans is None:
             return
         for fd_num in (1, 2):
             pipe = trans.get_pipe_transport(fd_num)
             if pipe:
                 pipe.close()
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 
@@ -426,7 +426,7 @@ def _handle_pty_read(master_fd: int, accumulator: list[str]) -> None:
         master_fd: File descriptor of the PTY master side.
         accumulator: List to append decoded output to.
     """
-    import errno  # noqa: PLC0415
+    import errno
 
     try:
         chunk = os.read(master_fd, _PTY_READ_SIZE)
@@ -481,9 +481,9 @@ async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
     Returns:
         ToolResult with command output or error.
     """
-    import fcntl  # noqa: PLC0415
-    import pty  # noqa: PLC0415
-    import select  # noqa: PLC0415
+    import fcntl
+    import pty
+    import select
 
     try:
         master_fd, slave_fd = pty.openpty()
@@ -551,7 +551,7 @@ async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
             termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
             os.close(master_fd)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return ToolResult(
             content=f"Error executing sudo command: {e}",
             success=False,
@@ -685,7 +685,7 @@ class ShellTool(Tool):
             outcome = await _run_and_collect(process, effective_timeout)
             return _make_result(outcome, effective_timeout)
 
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             sanitized_error = sanitize_error_message(e)
             return ToolResult(
                 content=f"Error executing command: {sanitized_error}",

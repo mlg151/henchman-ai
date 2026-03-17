@@ -37,12 +37,12 @@ class MessageAnalyzer:
         self.config = config
         self.conversation_type_detector = ConversationTypeDetector()
         self.message_clusterer = MessageClusterer(
-            cluster_similarity_threshold=config.cluster_similarity_threshold
+            cluster_similarity_threshold=config.cluster_similarity_threshold,
         )
         self.importance_scorer = ImportanceScorer()
 
     def analyze_messages(
-        self: MessageAnalyzer, messages: list[Message]
+        self: MessageAnalyzer, messages: list[Message],
     ) -> tuple[dict[int, float], list[list[int]], str]:
         """Analyze messages to calculate importance scores and clusters.
 
@@ -67,7 +67,7 @@ class MessageAnalyzer:
         return importance_scores, clusters, conversation_type
 
     def _calculate_importance_scores(
-        self: MessageAnalyzer, messages: list[Message]
+        self: MessageAnalyzer, messages: list[Message],
     ) -> dict[int, float]:
         """Calculate importance scores for each message.
 
@@ -80,7 +80,7 @@ class MessageAnalyzer:
         return self.importance_scorer.calculate_importance_scores(messages)
 
     def _cluster_messages(
-        self: MessageAnalyzer, messages: list[Message]
+        self: MessageAnalyzer, messages: list[Message],
     ) -> list[list[int]]:
         """Cluster related messages together.
 

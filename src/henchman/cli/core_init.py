@@ -141,7 +141,7 @@ def initialize_mcp(context: CoreContext) -> None:
         None
     """
     if context.mcp_manager and not context.mcp_manager.clients:
-        import asyncio  # noqa: PLC0415
+        import asyncio
 
         mcp_manager = context.mcp_manager  # Captured for closure typing
 
@@ -152,9 +152,9 @@ def initialize_mcp(context: CoreContext) -> None:
                 # Register MCP tools with the tool registry
                 for tool in mcp_manager.get_all_tools():
                     context.tool_registry.register(tool)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 # Log error but don't crash
                 print(f"Failed to connect to MCP servers: {e}")
 
         # Run in background
-        asyncio.create_task(connect_mcp())  # noqa: RUF006
+        asyncio.create_task(connect_mcp())

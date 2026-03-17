@@ -101,7 +101,7 @@ def update_processing_state(
 def _display_tool_result(
     output_handler: OutputHandler,
     result_text: str,
-    success: bool,  # noqa: FBT001
+    success: bool,
 ) -> None:
     """Render a tool result with appropriate styling."""
     preview = result_text[:MAX_RESULT_PREVIEW_LENGTH]

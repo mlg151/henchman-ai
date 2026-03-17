@@ -12,6 +12,8 @@ from henchman.tools.base import Tool, ToolKind, ToolResult
 
 _MAX_FILE_SIZE = 500_000  # bytes - skip very large files
 _MAX_RESULTS_PER_CATEGORY = 50
+_MAX_SIGNATURE_LENGTH = 120  # chars - truncate long function signatures
+_MAX_ANNOTATIONS = 20  # max unique annotation strings to report
 
 
 @dataclass
@@ -74,7 +76,7 @@ class SymbolTraceResult:
     annotations: list[str] = field(default_factory=list)
 
 
-def _collect_python_files(root: Path, include_tests: bool) -> list[Path]:
+def _collect_python_files(root: Path, *, include_tests: bool) -> list[Path]:
     """Collect Python files to trace, optionally excluding test files.
 
     Args:
@@ -102,12 +104,44 @@ def _extract_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
         lines = sig.split("\n")
         for line in lines:
             if line.strip().startswith(("def ", "async def ")):
-                # Return the function signature line (truncated if needed)
-                return line[:120]
+                return line[:_MAX_SIGNATURE_LENGTH]
         # Fallback: return first line (for backward compatibility)
-        return lines[0][:120] if lines else f"def {node.name}(...)"
-    except Exception:  # noqa: BLE001
+        return lines[0][:_MAX_SIGNATURE_LENGTH] if lines else f"def {node.name}(...)"
+    except Exception:
         return f"def {node.name}(...)"
+
+
+def _definition_from_callable(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    path: Path,
+) -> SymbolDefinition:
+    """Build a SymbolDefinition from a function or class AST node."""
+    kind = "class" if isinstance(node, ast.ClassDef) else "function"
+    sig = (
+        f"class {node.name}(...)"
+        if kind == "class"
+        else _extract_signature(node)  # type: ignore[arg-type]
+    )
+    return SymbolDefinition(file=str(path), line=node.lineno, kind=kind, signature=sig)
+
+
+def _definitions_from_assignment(
+    node: ast.Assign | ast.AnnAssign,
+    symbol: str,
+    path: Path,
+) -> list[SymbolDefinition]:
+    """Build SymbolDefinitions from an assignment node if the symbol matches."""
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    return [
+        SymbolDefinition(
+            file=str(path),
+            line=node.lineno,
+            kind="variable",
+            signature=f"{symbol} = ...",
+        )
+        for target in targets
+        if isinstance(target, ast.Name) and target.id == symbol
+    ]
 
 
 def _find_definitions_in_file(
@@ -130,44 +164,43 @@ def _find_definitions_in_file(
         return []
 
     definitions: list[SymbolDefinition] = []
-
     for node in ast.walk(tree):
-        # Process function/class definitions
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if node.name != symbol:
-                continue
-
-            kind = "class" if isinstance(node, ast.ClassDef) else "function"
-            sig = (
-                f"class {node.name}(...)"
-                if kind == "class"
-                else _extract_signature(node)  # type: ignore[arg-type]
-            )
-
-            definitions.append(
-                SymbolDefinition(
-                    file=str(path),
-                    line=node.lineno,
-                    kind=kind,
-                    signature=sig,
-                )
-            )
-
-        # Process assignments
+            if node.name == symbol:
+                definitions.append(_definition_from_callable(node, path))
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            for target in targets:
-                if isinstance(target, ast.Name) and target.id == symbol:
-                    definitions.append(
-                        SymbolDefinition(
-                            file=str(path),
-                            line=node.lineno,
-                            kind="variable",
-                            signature=f"{symbol} = ...",
-                        )
-                    )
-
+            definitions.extend(_definitions_from_assignment(node, symbol, path))
     return definitions
+
+
+def _refs_from_import_from(
+    node: ast.ImportFrom,
+    symbol: str,
+    path: Path,
+    source_lines: list[str],
+) -> list[SymbolReference]:
+    """Build SymbolReferences from a 'from X import Y' statement."""
+    ctx = source_lines[node.lineno - 1].strip() if node.lineno - 1 < len(source_lines) else ""
+    return [
+        SymbolReference(file=str(path), line=node.lineno, context=ctx)
+        for alias in node.names
+        if alias.name == symbol or alias.asname == symbol
+    ]
+
+
+def _refs_from_import(
+    node: ast.Import,
+    symbol: str,
+    path: Path,
+    source_lines: list[str],
+) -> list[SymbolReference]:
+    """Build SymbolReferences from a plain 'import X' statement."""
+    ctx = source_lines[node.lineno - 1].strip() if node.lineno - 1 < len(source_lines) else ""
+    return [
+        SymbolReference(file=str(path), line=node.lineno, context=ctx)
+        for alias in node.names
+        if symbol in (alias.asname or alias.name, alias.name)
+    ]
 
 
 def _find_imports_in_file(path: Path, symbol: str) -> list[SymbolReference]:
@@ -186,25 +219,13 @@ def _find_imports_in_file(path: Path, symbol: str) -> list[SymbolReference]:
     except (SyntaxError, OSError):
         return []
 
+    source_lines = source.splitlines()
     refs: list[SymbolReference] = []
-    lines = source.splitlines()
-
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            for alias in node.names:
-                if alias.name == symbol or (alias.asname and alias.asname == symbol):
-                    line_idx = node.lineno - 1
-                    ctx = lines[line_idx].strip() if line_idx < len(lines) else ""
-                    refs.append(SymbolReference(file=str(path), line=node.lineno, context=ctx))
+            refs.extend(_refs_from_import_from(node, symbol, path, source_lines))
         elif isinstance(node, ast.Import):
-            for alias in node.names:
-                name = alias.asname or alias.name
-                if symbol in (name, alias.name):
-                    line_idx = node.lineno - 1
-                    ctx = lines[line_idx].strip() if line_idx < len(lines) else ""
-
-                    refs.append(SymbolReference(file=str(path), line=node.lineno, context=ctx))
-
+            refs.extend(_refs_from_import(node, symbol, path, source_lines))
     return refs
 
 
@@ -224,60 +245,55 @@ def _find_references_in_file(path: Path, symbol: str) -> list[SymbolReference]:
         return []
 
     pattern = re.compile(rf"\b{re.escape(symbol)}\b")
-    refs: list[SymbolReference] = []
-
-    for i, line in enumerate(lines, 1):
-        if pattern.search(line):
-            refs.append(SymbolReference(file=str(path), line=i, context=line.strip()))
-
-    return refs
+    return [
+        SymbolReference(file=str(path), line=i, context=line.strip())
+        for i, line in enumerate(lines, 1)
+        if pattern.search(line)
+    ]
 
 
 def _process_annotation_node(
-    ann_node: ast.expr, ann_pattern: re.Pattern[str], annotations: set[str]
+    ann_node: ast.expr,
+    ann_pattern: re.Pattern[str],
+    annotations: set[str],
 ) -> None:
-    """Helper to process an annotation node and add matching annotations."""
+    """Process an annotation node and add matching annotations."""
     try:
         ann_str = ast.unparse(ann_node)
         if ann_pattern.search(ann_str):
             annotations.add(ann_str)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 
+def _iter_function_annotations(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[ast.expr]:
+    """Return all annotation nodes from a function definition."""
+    annotations: list[ast.expr] = []
+    if node.returns:
+        annotations.append(node.returns)
+    args = node.args
+    all_args = args.posonlyargs + args.args + args.kwonlyargs
+    if args.vararg:
+        all_args = [*all_args, args.vararg]
+    if args.kwarg:
+        all_args = [*all_args, args.kwarg]
+    annotations.extend(arg.annotation for arg in all_args if arg.annotation)
+    return annotations
+
+
 def _collect_annotations_from_node(
-    node: ast.AST, ann_pattern: re.Pattern[str], annotations: set[str]
+    node: ast.AST,
+    ann_pattern: re.Pattern[str],
+    annotations: set[str],
 ) -> None:
     """Extract annotations from a node and its components."""
     if isinstance(node, ast.AnnAssign) and node.annotation:
         _process_annotation_node(node.annotation, ann_pattern, annotations)
     elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        if node.returns:
-            _process_annotation_node(node.returns, ann_pattern, annotations)
-
-        # Check all argument types for annotations
-        # Positional-only arguments (Python 3.8+)
-        for arg in node.args.posonlyargs:
-            if arg.annotation:
-                _process_annotation_node(arg.annotation, ann_pattern, annotations)
-
-        # Normal arguments
-        for arg in node.args.args:
-            if arg.annotation:
-                _process_annotation_node(arg.annotation, ann_pattern, annotations)
-
-        # *args parameter
-        if node.args.vararg and node.args.vararg.annotation:
-            _process_annotation_node(node.args.vararg.annotation, ann_pattern, annotations)
-
-        # Keyword-only arguments
-        for arg in node.args.kwonlyargs:
-            if arg.annotation:
-                _process_annotation_node(arg.annotation, ann_pattern, annotations)
-
-        # **kwargs parameter
-        if node.args.kwarg and node.args.kwarg.annotation:
-            _process_annotation_node(node.args.kwarg.annotation, ann_pattern, annotations)
+        for ann in _iter_function_annotations(node):
+            _process_annotation_node(ann, ann_pattern, annotations)
 
 
 def _collect_annotations(files: list[Path], symbol: str) -> list[str]:
@@ -302,7 +318,7 @@ def _collect_annotations(files: list[Path], symbol: str) -> list[str]:
         for node in ast.walk(tree):
             _collect_annotations_from_node(node, ann_pattern, annotations)
 
-    return sorted(annotations)[:20]
+    return sorted(annotations)[:_MAX_ANNOTATIONS]
 
 
 def _append_section(
@@ -317,12 +333,35 @@ def _append_section(
         return
 
     lines.append(f"## {header}")
-    for item in items[:max_items]:
-        lines.append(formatter(item))
+    lines.extend(formatter(item) for item in items[:max_items])
 
     if len(items) > max_items:
         lines.append(f"... ({len(items) - max_items} more)")
     lines.append("")
+
+
+def _format_definition(d: SymbolDefinition) -> str:
+    """Format a definition entry for the Markdown report."""
+    return f"- **{d.kind}** `{d.file}:{d.line}` — `{d.signature}`"
+
+
+def _format_reference(ref: SymbolReference) -> str:
+    """Format a reference entry for the Markdown report."""
+    return f"- `{ref.file}:{ref.line}` — `{ref.context}`"
+
+
+def _append_all_sections(lines: list[str], trace: SymbolTraceResult) -> None:
+    """Append all four provenance sections to the report lines."""
+    _append_section(lines, "Definitions", trace.definitions, _format_definition)
+    _append_section(lines, "Import sites", trace.imports, _format_reference)
+    _append_section(lines, "Reference sites", trace.references, _format_reference)
+    _append_section(
+        lines,
+        "Type annotations",
+        trace.annotations,
+        lambda ann: f"- `{ann}`",
+        max_items=_MAX_ANNOTATIONS,
+    )
 
 
 def _build_trace_report(trace: SymbolTraceResult) -> str:
@@ -334,49 +373,49 @@ def _build_trace_report(trace: SymbolTraceResult) -> str:
     Returns:
         Formatted Markdown report string.
     """
-    lines: list[str] = [f"# Symbol Trace: `{trace.symbol}`\n"]
-
-    summary = (
-        f"**Definitions:** {len(trace.definitions)} | "
-        f"**Import sites:** {len(trace.imports)} | "
-        f"**Reference sites:** {len(trace.references)}"
-    )
-    lines.append(summary)
-    lines.append("")
-
-    _append_section(
-        lines,
-        "Definitions",
-        trace.definitions,
-        lambda d: f"- **{d.kind}** `{d.file}:{d.line}` — `{d.signature}`",
-    )
-
-    _append_section(
-        lines,
-        "Import sites",
-        trace.imports,
-        lambda ref: f"- `{ref.file}:{ref.line}` — `{ref.context}`",
-    )
-
-    _append_section(
-        lines,
-        "Reference sites",
-        trace.references,
-        lambda ref: f"- `{ref.file}:{ref.line}` — `{ref.context}`",
-    )
-
-    _append_section(
-        lines,
-        "Type annotations",
-        trace.annotations,
-        lambda ann: f"- `{ann}`",
-        max_items=20,
-    )
-
+    lines: list[str] = [
+        f"# Symbol Trace: `{trace.symbol}`\n",
+        (
+            f"**Definitions:** {len(trace.definitions)} | "
+            f"**Import sites:** {len(trace.imports)} | "
+            f"**Reference sites:** {len(trace.references)}"
+        ),
+        "",
+    ]
+    _append_all_sections(lines, trace)
     if not any([trace.definitions, trace.imports, trace.references]):
         lines.append(f"Symbol `{trace.symbol}` not found in the searched files.")
-
     return "\n".join(lines).strip()
+
+
+def _gather_definitions_and_imports(
+    files: list[Path],
+    symbol: str,
+) -> tuple[list[SymbolDefinition], list[SymbolReference]]:
+    """Collect all definitions and import references for the symbol."""
+    definitions: list[SymbolDefinition] = []
+    imports: list[SymbolReference] = []
+    for file_path in files:
+        definitions.extend(_find_definitions_in_file(file_path, symbol))
+        imports.extend(_find_imports_in_file(file_path, symbol))
+    return definitions, imports
+
+
+def _gather_references(
+    files: list[Path],
+    trace: SymbolTraceResult,
+) -> list[SymbolReference]:
+    """Collect reference sites, excluding the definition lines themselves."""
+    defined_files = {d.file for d in trace.definitions}
+    refs: list[SymbolReference] = []
+    for file_path in files:
+        raw = _find_references_in_file(file_path, trace.symbol)
+        def_lines = {d.line for d in trace.definitions if d.file == str(file_path)}
+        refs.extend(
+            r for r in raw
+            if r.line not in def_lines or str(file_path) not in defined_files
+        )
+    return refs
 
 
 def _execute_symbol_trace(params: SymbolTraceParams) -> ToolResult:
@@ -397,35 +436,16 @@ def _execute_symbol_trace(params: SymbolTraceParams) -> ToolResult:
         )
 
     files = _collect_python_files(
-        root if root.is_dir() else root.parent, params.include_tests
+        root if root.is_dir() else root.parent,
+        include_tests=params.include_tests,
     )
     if root.is_file() and root.suffix == ".py":
         files = [root]
 
     trace = SymbolTraceResult(symbol=params.symbol)
-
-    for file_path in files:
-        defs = _find_definitions_in_file(file_path, params.symbol)
-        trace.definitions.extend(defs)
-
-        imps = _find_imports_in_file(file_path, params.symbol)
-        trace.imports.extend(imps)
-
-    # References: only search in files that aren't just definition files
-    defined_files = {d.file for d in trace.definitions}
-    for file_path in files:
-        refs = _find_references_in_file(file_path, params.symbol)
-        # Exclude lines that are the definition itself
-        def_lines = {d.line for d in trace.definitions if d.file == str(file_path)}
-        filtered = [
-            r
-            for r in refs
-            if r.line not in def_lines or str(file_path) not in defined_files
-        ]
-        trace.references.extend(filtered)
-
+    trace.definitions, trace.imports = _gather_definitions_and_imports(files, params.symbol)
+    trace.references = _gather_references(files, trace)
     trace.annotations = _collect_annotations(files, params.symbol)
-
     return ToolResult(content=_build_trace_report(trace), success=True)
 
 
@@ -472,6 +492,7 @@ class SymbolTraceTool(Tool):
             "all import statements, all call/reference sites, and type annotations. "
             "Replaces the manual combination of python_ast + grep + import_graph."
         )
+
     @property
     def kind(self: SymbolTraceTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
@@ -480,9 +501,10 @@ class SymbolTraceTool(Tool):
     async def execute(  # type: ignore[override]
         self: SymbolTraceTool,
         symbol: str = "",
-        path: str = ".",
+        path: str | Path = ".",
+        *,
         include_tests: bool = True,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Trace symbol provenance across the codebase.
 
@@ -504,7 +526,7 @@ class SymbolTraceTool(Tool):
 
         params = SymbolTraceParams(
             symbol=symbol,
-            path=path,
+            path=str(path),
             include_tests=include_tests,
         )
         return _execute_symbol_trace(params)

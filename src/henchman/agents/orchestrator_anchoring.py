@@ -66,10 +66,10 @@ def _parse_tool_call_count(raw_value: Any) -> int:
             return max(0, int(stripped))
         except (ValueError, TypeError) as err:
             raise TypeError(
-                f"_last_loop_tool_call_count must be integer, got string '{raw_value}'"
+                f"_last_loop_tool_call_count must be integer, got string '{raw_value}'",
             ) from err
     raise TypeError(
-        f"_last_loop_tool_call_count must be integer, got {type(raw_value).__name__}"
+        f"_last_loop_tool_call_count must be integer, got {type(raw_value).__name__}",
     )
 
 
@@ -127,7 +127,7 @@ def _is_truthy_failure(value: Any) -> bool:
 # ---------------------------------------------------------------------------
 
 _FAILURE_STATUS_TOKENS: frozenset[str] = frozenset(
-    {"failed", "blocked", "error", "incomplete", "failure"}
+    {"failed", "blocked", "error", "incomplete", "failure"},
 )
 """Lowercase status tokens that indicate the specialist did not succeed."""
 

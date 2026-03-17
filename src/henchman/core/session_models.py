@@ -163,7 +163,7 @@ class TurnSummaryRecord(AsDictMixin):
                 tuple(self.files_modified),
                 self.tool_count,
                 self.timestamp,
-            )
+            ),
         )
 
 

@@ -51,12 +51,12 @@ class LsTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]  # noqa: C901
+    async def execute(  # type: ignore[override]
         self: LsTool,
         path: str = ".",
         *,
         show_hidden: bool = False,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """List directory contents.
 
@@ -71,7 +71,7 @@ class LsTool(Tool):
         try:
             target = Path(path)
 
-            if not target.exists():  # noqa: ASYNC240
+            if not target.exists():
                 return ToolResult(
                     content=f"Error: Path not found: {path}",
                     success=False,
@@ -79,7 +79,7 @@ class LsTool(Tool):
                 )
 
             # If it's a file, just show the file
-            if target.is_file():  # noqa: ASYNC240
+            if target.is_file():
                 return ToolResult(
                     content=target.name,
                     success=True,
@@ -90,7 +90,7 @@ class LsTool(Tool):
             truncated = False
 
             # Use iterdir() which returns an iterator
-            iterator = target.iterdir()  # noqa: ASYNC240
+            iterator = target.iterdir()
             # We can't sort immediately if we want to limit processing,
             # but for consistent output on small dirs, sorting is better.
             # So we collect up to limit + 1
@@ -133,7 +133,7 @@ class LsTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error listing directory: {e}",
                 success=False,

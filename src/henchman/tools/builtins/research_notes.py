@@ -342,7 +342,7 @@ class ResearchNotesTool(Tool):
         tag: str = "",
         content: str = "",
         query: str = "",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Execute a research notes action.
 
@@ -362,6 +362,6 @@ class ResearchNotesTool(Tool):
                 tag=tag,
                 content=content,
                 query=query,
-                notes_dir=None
-            )
+                notes_dir=None,
+            ),
         )

@@ -33,7 +33,7 @@ class OutputHandler:
     - Show turn status
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self: Self,
         renderer: UIRenderer,
         tool_manager: ToolManager,
@@ -131,7 +131,7 @@ class OutputHandler:
             provider_name = self.provider.__class__.__name__.replace("Provider", "")
             model_name = getattr(self.provider, "default_model", "unknown")
             status.append(("", f" {provider_name}:{model_name} "))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def _add_token_status(
@@ -145,7 +145,7 @@ class OutputHandler:
             status: The status list to append to.
             agent: The agent to get token information from.
         """
-        from henchman.utils.tokens import TokenCounter  # noqa: PLC0415
+        from henchman.utils.tokens import TokenCounter
 
         try:
             if not agent or not hasattr(agent, "get_messages_for_api"):
@@ -159,7 +159,7 @@ class OutputHandler:
                 self._add_token_percentage_status(status, tokens, max_tokens)
             else:
                 status.append(("", f" Tokens: ~{tokens} "))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def _get_max_tokens(self: Self) -> int:
@@ -171,7 +171,7 @@ class OutputHandler:
         Returns:
             Maximum token limit, or 0 if not available.
         """
-        from henchman.utils.tokens import get_model_limit  # noqa: PLC0415
+        from henchman.utils.tokens import get_model_limit
 
         model = getattr(self.provider, "default_model", None)
         if model:
@@ -200,8 +200,8 @@ class OutputHandler:
             tokens: Current token count.
             max_tokens: Maximum token limit.
         """
-        LOW_THRESHOLD = 50  # noqa: N806
-        MEDIUM_THRESHOLD = 75  # noqa: N806
+        LOW_THRESHOLD = 50
+        MEDIUM_THRESHOLD = 75
 
         percentage = (tokens / max_tokens) * 100
 
@@ -224,7 +224,7 @@ class OutputHandler:
             if hasattr(self.tool_manager.registry, "list_tools"):
                 tool_count = len(self.tool_manager.registry.list_tools())
                 status.append(("", f" Tools: {tool_count} "))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def _add_mcp_status(self: Self, status: list[tuple[str, str]]) -> None:
@@ -243,7 +243,7 @@ class OutputHandler:
 
             connected_clients = self._count_connected_mcp_clients()
             status.append(("", f" MCP: {connected_clients}/{total_clients} "))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def _count_connected_mcp_clients(self: Self) -> int:
@@ -325,13 +325,13 @@ class OutputHandler:
         Args:
             coro: Coroutine to schedule.
         """
-        import logging  # noqa: PLC0415
+        import logging
 
         task = asyncio.create_task(coro)
 
         def _on_done(t: asyncio.Task[Any]) -> None:
             if not t.cancelled() and t.exception():
-                logging.error(  # noqa: LOG015
+                logging.error(
                     "Background task failed: %s",
                     t.exception(),
                 )

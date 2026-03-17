@@ -194,7 +194,7 @@ def _create_data_engineer_config() -> AgentConfig:
     return _create_agent_config(
         name="Data Engineer",
         role="data_engineer",
-        description="Data pipeline development, PySpark/Pandas transformations, AWS infrastructure, and Airflow orchestration",  # noqa: E501
+        description="Data pipeline development, PySpark/Pandas transformations, AWS infrastructure, and Airflow orchestration",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
             file_edit_tools=True,  # Can write code and configs

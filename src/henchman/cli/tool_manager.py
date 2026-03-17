@@ -57,7 +57,7 @@ class ToolManager:
         Returns:
             List of instantiated tool objects.
         """
-        from henchman.tools.builtins import (  # noqa: PLC0415
+        from henchman.tools.builtins import (
             AskUserTool,
             CodeFormatTool,
             CoverageMapTool,

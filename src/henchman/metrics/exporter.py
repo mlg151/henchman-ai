@@ -16,6 +16,7 @@ process agent performance metrics for analysis and monitoring.
 from __future__ import annotations
 
 import contextlib
+import csv
 import json
 import logging
 import math
@@ -23,6 +24,11 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
+
+try:
+    import requests as _requests
+except ImportError:  # pragma: no cover
+    _requests = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from henchman.metrics.storage import MetricsStorage
@@ -34,6 +40,44 @@ PROMETHEUS_CONTENT_TYPE = "text/plain; version=0.0.4"
 DEFAULT_TIMEOUT = 30.0
 
 logger = logging.getLogger(__name__)
+
+# Keys forwarded to MetricsStorage.get_metrics
+_STORAGE_FILTER_KEYS: tuple[str, ...] = (
+    "metric_type",
+    "session_id",
+    "agent_id",
+    "start_date",
+    "end_date",
+    "limit",
+)
+
+
+def _build_storage_kwargs(filters: dict[str, Any]) -> dict[str, Any]:
+    """Extract storage-compatible keyword arguments from a generic filters dict."""
+    return {k: filters.get(k) for k in _STORAGE_FILTER_KEYS}
+
+
+def _write_metrics_csv(path: "Path", metrics: "list[dict[str, Any]]") -> None:
+    """Write metrics records to *path* in CSV format."""
+    if not metrics:
+        path.write_text("id,metric_type,timestamp\n", encoding="utf-8")
+        return
+    fieldnames = sorted({k for m in metrics for k in m})
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for m in metrics:
+            writer.writerow(
+                {
+                    k: (
+                        json.dumps(v, default=str)
+                        if isinstance(v, (dict, list))
+                        else ("" if v is None else str(v))
+                    )
+                    for k in fieldnames
+                    for v in [m.get(k)]
+                },
+            )
 
 
 class PrometheusFormatter:
@@ -70,23 +114,20 @@ class PrometheusFormatter:
         Returns:
             String in Prometheus exposition format.
         """
-        lines = []
+        lines: list[str] = []
         metric_groups = cls._group_by_type(metrics)
-
         for metric_type, metric_list in metric_groups.items():
             prom_name = cls._sanitize_name(f"henchman_{metric_type}")
             lines.append(f"# TYPE {prom_name} gauge")
-
             for metric in metric_list:
                 line = cls._format_single_metric(prom_name, metric)
                 if line:
                     lines.append(line)
-
         return "\n".join(lines) + "\n"
 
     @classmethod
     def _group_by_type(
-        cls: type[PrometheusFormatter], metrics: list[dict[str, Any]]
+        cls: type[PrometheusFormatter], metrics: list[dict[str, Any]],
     ) -> dict[str, list[dict[str, Any]]]:
         """Group metrics by their type."""
         groups: dict[str, list[dict[str, Any]]] = {}
@@ -97,7 +138,7 @@ class PrometheusFormatter:
 
     @classmethod
     def _format_single_metric(
-        cls: type[PrometheusFormatter], prom_name: str, metric: dict[str, Any]
+        cls: type[PrometheusFormatter], prom_name: str, metric: dict[str, Any],
     ) -> str | None:
         """Format a single metric entry."""
         value = cls._extract_value(metric)
@@ -149,7 +190,7 @@ class SummaryCalculator:
 
     @classmethod
     def calculate(
-        cls: type[SummaryCalculator], metrics: list[dict[str, Any]], filters: dict[str, Any]
+        cls: type[SummaryCalculator], metrics: list[dict[str, Any]], filters: dict[str, Any],
     ) -> dict[str, Any]:
         """Calculate summary statistics for metrics.
         
@@ -184,7 +225,7 @@ class SummaryCalculator:
 
     @classmethod
     def _group_and_extract_ts(
-        cls: type[SummaryCalculator], metrics: list[dict[str, Any]]
+        cls: type[SummaryCalculator], metrics: list[dict[str, Any]],
     ) -> tuple[dict[str, list[dict[str, Any]]], list[datetime]]:
         """Group metrics and extract timestamps."""
         groups: dict[str, list[dict[str, Any]]] = {}
@@ -201,7 +242,7 @@ class SummaryCalculator:
 
     @classmethod
     def _calculate_type_stats(
-        cls: type[SummaryCalculator], metrics: list[dict[str, Any]]
+        cls: type[SummaryCalculator], metrics: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Calculate statistics for a specific metric type."""
         numeric_fields = {
@@ -247,14 +288,7 @@ class MetricsExporter:
 
     def _get_filtered_metrics(self: MetricsExporter, **filters: Any) -> list[dict[str, Any]]:
         """Retrieve filtered metrics from storage."""
-        return self.metrics_storage.get_metrics(
-            metric_type=filters.get("metric_type"),
-            session_id=filters.get("session_id"),
-            agent_id=filters.get("agent_id"),
-            start_date=filters.get("start_date"),
-            end_date=filters.get("end_date"),
-            limit=filters.get("limit"),
-        )
+        return self.metrics_storage.get_metrics(**_build_storage_kwargs(filters))
 
     def export_to_json(self: MetricsExporter, filepath: str | Path, **filters: Any) -> None:
         """Export metrics to JSON file.
@@ -320,7 +354,7 @@ class MetricsExporter:
                         )
                         for k in fieldnames
                         for v in [m.get(k)]
-                    }
+                    },
                 )
 
     def export_to_prometheus(self: MetricsExporter, endpoint: str, **filters: Any) -> None:
@@ -346,14 +380,14 @@ class MetricsExporter:
 
         prom_data = PrometheusFormatter.format(metrics)
         try:
-            resp = requests.post(
+            resp = _requests.post(
                 endpoint,
                 data=prom_data,
                 headers={"Content-Type": PROMETHEUS_CONTENT_TYPE},
                 timeout=DEFAULT_TIMEOUT,
             )
             resp.raise_for_status()
-        except requests.exceptions.RequestException as e:
+        except _requests.exceptions.RequestException as e:
             logger.warning("Failed to export metrics to Prometheus: %s", e)
             msg = f"Failed to connect to Prometheus endpoint: {e}"
             raise ConnectionError(msg) from e

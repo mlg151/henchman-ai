@@ -1,105 +1,105 @@
-# Code Smell Report — ⚠️ C (Score: 78.8/100)
+# Code Smell Report — 👍 B (Score: 80.2/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-16T22:00:41.110974+00:00_
+_Generated: 2026-03-17T00:00:45.493416+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
-| **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.8/100 |
+| **Overall Grade** | 👍 B |
+| **Overall Score** | 80.2/100 |
 | **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 44,790 |
-| **Total Smells** | 592 |
-| **Avg Maintainability Index** | 69.9 |
-| **Avg Cyclomatic Complexity** | 13.4 |
+| **Total Lines (non-blank)** | 46,649 |
+| **Total Smells** | 394 |
+| **Avg Maintainability Index** | 69.6 |
+| **Avg Cyclomatic Complexity** | 13.2 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 406 |
-| medium | 185 |
-| high | 1 |
+| low | 224 |
+| medium | 163 |
+| high | 7 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 145 |
-| Duplicate Code | 107 |
-| Feature Envy | 86 |
-| Long Method | 76 |
-| Deep Nesting | 48 |
-| Magic Number | 46 |
+| Duplicate Code | 119 |
+| Missing Type Hint | 56 |
+| Long Method | 50 |
+| Feature Envy | 45 |
 | Primitive Obsession | 43 |
-| Complex Function | 27 |
+| Magic Number | 32 |
+| Deep Nesting | 18 |
+| Complex Function | 17 |
 | Large Class | 14 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/line_range_utils.py:144** — 🟠 HIGH — Deep Nesting  
-   Nesting depth 6 in '_parse_range_part' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+1. **agents/orchestrator_events.py:30** — 🟠 HIGH — Duplicate Code  
+   Function 'extract_brief_fields' is an exact duplicate of '_build_storage_kwargs' at metrics/exporter.py:55  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-2. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
+2. **cli/app.py:42** — 🟠 HIGH — Duplicate Code  
+   Function '_import_attrs' is an exact duplicate of '_import_attrs' at core/agent.py:98  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+3. **extensions/plugin_manager.py:110** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_emit_search_deprecation_warning' (line 110), 'search_plugins' (line 233)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
+
+4. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+   Function '_write_token_csv_rows' is an exact duplicate of '_write_cost_csv_rows' at metrics/dashboard.py:224  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+5. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+   Function '_write_token_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+6. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
+   Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+7. **utils/compaction.py:878** — 🟠 HIGH — Duplicate Code  
+   Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+8. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:294** — 🟡 MEDIUM — Complex Function  
    Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
+9. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
-   Function 'discover_files' has cyclomatic complexity 19 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-5. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
+10. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
    Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
-   Function '__getattr__' has cyclomatic complexity 12 (rank C)  
+11. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:36** — 🟡 MEDIUM — Complex Function  
+   Function '_detect_server_type' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
-   Function 'write' has cyclomatic complexity 13 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-8. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
-   Function '_build_logging_env' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-9. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
-   Function 'index' has cyclomatic complexity 13 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-10. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
+12. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
    Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
+13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
    Function 'execute' has cyclomatic complexity 14 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:35** — 🟡 MEDIUM — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:35** — 🟡 MEDIUM — Complex Function  
    Function '_format_function_sig' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:136** — 🟡 MEDIUM — Complex Function  
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:136** — 🟡 MEDIUM — Complex Function  
    Function '_summarize_python' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py:54** — 🟡 MEDIUM — Complex Function  
-   Function 'execute' has cyclomatic complexity 14 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pattern_search.py:73** — 🟡 MEDIUM — Complex Function  
-   Function '_extract_structural_patterns' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -107,167 +107,75 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/symbol_trace.py | ❌ F | 49.7 | 17 | 385 | 47 | 13.0 |
-| 2 | agents/working_memory.py | ❌ F | 53.9 | 13 | 484 | 42 | 0.0 |
-| 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
-| 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
-| 5 | mcp/manager.py | 🔶 D | 63.0 | 13 | 173 | 65 | 11.0 |
-| 6 | tools/builtins/file_overview.py | 🔶 D | 63.5 | 11 | 295 | 51 | 11.0 |
-| 7 | tools/builtins/pattern_search.py | 🔶 D | 64.1 | 10 | 312 | 55 | 12.0 |
-| 8 | utils/compaction.py | 🔶 D | 64.2 | 6 | 855 | 30 | 11.0 |
-| 9 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
-| 10 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
+| 1 | utils/compaction.py | ❌ F | 57.3 | 7 | 855 | 30 | 11.0 |
+| 2 | cli/textual_mixins.py | ❌ F | 57.5 | 5 | 1441 | 3 | 0.0 |
+| 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
+| 4 | extensions/plugin_manager.py | 🔶 D | 64.1 | 8 | 427 | 50 | 0.0 |
+| 5 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
+| 6 | agents/working_memory.py | 🔶 D | 65.4 | 5 | 529 | 43 | 0.0 |
+| 7 | tools/builtins/file_overview.py | 🔶 D | 67.0 | 10 | 295 | 51 | 11.0 |
+| 8 | metrics/dashboard.py | 🔶 D | 67.2 | 3 | 340 | 61 | 0.0 |
+| 9 | agents/delegation.py | 🔶 D | 69.2 | 6 | 877 | 32 | 12.0 |
+| 10 | utils/validation.py | 🔶 D | 69.6 | 7 | 192 | 59 | 11.5 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 197 additional files omitted._
 
-### tools/builtins/symbol_trace.py — ❌ F (49.7/100)
-
-LOC: 385 | Classes: 5 | Functions: 11 | MI: 47 | Avg CC: 13.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 113 | 🟡 MEDIUM | Complex Function | Function '_find_definitions_in_file' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 160 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 173 | 🟡 MEDIUM | Complex Function | Function '_find_imports_in_file' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 202 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 361 | 🟡 MEDIUM | Complex Function | Function '_execute_symbol_trace' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 106 | 🟢 LOW | Magic Number | Magic number 120 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 108 | 🟢 LOW | Magic Number | Magic number 120 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 113 | 🟢 LOW | Long Method | Function '_find_definitions_in_file' has 45 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 159 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 195 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 200 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 258 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_collect_annotations_from_node' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 284 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 307 | 🟢 LOW | Long Method | Function '_build_trace_report' has 43 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 352 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-_... and 2 more smells._
-
-### agents/working_memory.py — ❌ F (53.9/100)
-
-LOC: 484 | Classes: 7 | Functions: 1 | MI: 42 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 231 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemoryEntry._validate_lines_read_decision' accesses 'decision' 8 times but 'self' only 0 times | Move Method — consider moving '_validate_lines_read_decision' to the class that owns 'decision'. |
-| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 82 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 255 | 🟢 LOW | Feature Envy | Method 'WorkingMemoryEntry._validate_lines_read' accesses 'WorkingMemoryEntry' 3 times but 'self' only 0 times | Move Method — consider moving '_validate_lines_read' to the class that owns 'WorkingMemoryEntry'. |
-| 342 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.add_recent_file' accesses 'entry' 3 times but 'self' only 1 times | Move Method — consider moving 'add_recent_file' to the class that owns 'entry'. |
-| 428 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
-| 428 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 4 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
-| 449 | 🟢 LOW | Missing Type Hint | Function '_get_empty_ranges_reason' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 469 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 469 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'FileReadDecisionMaker' 3 times but 'self' only 2 times | Move Method — consider moving 'should_read_file' to the class that owns 'FileReadDecisionMaker'. |
-
-### cli/textual_mixins.py — 🔶 D (61.3/100)
-
-LOC: 1463 | Classes: 13 | Functions: 3 | MI: 4 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 109 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1394 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:125 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1137 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
-| 1723 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
-### cli/textual_screens.py — 🔶 D (61.9/100)
-
-LOC: 398 | Classes: 4 | Functions: 0 | MI: 52 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 89 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 98 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 106 | 🟢 LOW | Long Method | Function '_build_confirmation_dialog' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 106 | 🟢 LOW | Missing Type Hint | Function '_build_confirmation_dialog' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 148 | 🟢 LOW | Missing Type Hint | Function '_build_params_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 165 | 🟢 LOW | Missing Type Hint | Function 'on_button_pressed' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 176 | 🟢 LOW | Missing Type Hint | Function 'action_approve' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 184 | 🟢 LOW | Missing Type Hint | Function 'action_deny' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 216 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 250 | 🟢 LOW | Missing Type Hint | Function 'on_button_pressed' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 288 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 368 | 🟢 LOW | Missing Type Hint | Function 'on_button_pressed' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 425 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 435 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 462 | 🟢 LOW | Missing Type Hint | Function '_build_entries' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 2 more smells._
-
-### mcp/manager.py — 🔶 D (63.0/100)
-
-LOC: 173 | Classes: 1 | Functions: 0 | MI: 65 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 38 | 🟡 MEDIUM | Duplicate Code | Function 'get_server_names' is 100% similar to 'list_providers' at providers/registry.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 38 | 🟡 MEDIUM | Duplicate Code | Function 'get_server_names' is 100% similar to 'list_tools' at tools/registry.py:142 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 132 | 🟡 MEDIUM | Feature Envy | Method 'McpManager._build_logging_env' accesses 'command' 5 times but 'self' only 0 times | Move Method — consider moving '_build_logging_env' to the class that owns 'command'. |
-| 132 | 🟡 MEDIUM | Complex Function | Function '_build_logging_env' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 26 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 38 | 🟢 LOW | Missing Type Hint | Function 'get_server_names' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 46 | 🟢 LOW | Missing Type Hint | Function 'is_trusted' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 59 | 🟢 LOW | Missing Type Hint | Function 'connect_all' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 87 | 🟢 LOW | Missing Type Hint | Function 'disconnect_all' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 98 | 🟢 LOW | Missing Type Hint | Function 'get_all_tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 106 | 🟢 LOW | Missing Type Hint | Function 'call_tool' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 132 | 🟢 LOW | Long Method | Function '_build_logging_env' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 184 | 🟢 LOW | Feature Envy | Method 'McpManager.create_from_settings' accesses 'server_config' 4 times but 'self' only 0 times | Move Method — consider moving 'create_from_settings' to the class that owns 'server_config'. |
-
-### tools/builtins/file_overview.py — 🔶 D (63.5/100)
-
-LOC: 295 | Classes: 1 | Functions: 10 | MI: 51 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 35 | 🟡 MEDIUM | Complex Function | Function '_format_function_sig' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 136 | 🟡 MEDIUM | Complex Function | Function '_summarize_python' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 349 | 🟡 MEDIUM | Duplicate Code | Function 'execute' is 96% similar to 'execute' at tools/builtins/pattern_search.py:363 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 35 | 🟢 LOW | Long Method | Function '_format_function_sig' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 136 | 🟢 LOW | Primitive Obsession | Function '_summarize_python' has 3 primitive-typed parameters: source: Name(id='str', ctx=Load()), depth: Name(id='int', ctx=Load()), include_docs: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 165 | 🟢 LOW | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 205 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 228 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 253 | 🟢 LOW | Magic Number | Magic number 15 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 255 | 🟢 LOW | Magic Number | Magic number 15 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 259 | 🟢 LOW | Long Method | Function '_execute_file_overview' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-
-### tools/builtins/pattern_search.py — 🔶 D (64.1/100)
-
-LOC: 312 | Classes: 3 | Functions: 7 | MI: 55 | Avg CC: 12.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 73 | 🟡 MEDIUM | Complex Function | Function '_extract_structural_patterns' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 234 | 🟡 MEDIUM | Long Method | Function '_execute_pattern_search' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 234 | 🟡 MEDIUM | Complex Function | Function '_execute_pattern_search' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 363 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: description: Name(id='str', ctx=Load()), path: Name(id='str', ctx=Load()), top_k: Name(id='int', ctx=Load()), strategy: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 70 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 73 | 🟢 LOW | Long Method | Function '_extract_structural_patterns' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 96 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 168 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_search_file_structural' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 226 | 🟢 LOW | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 328 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-### utils/compaction.py — 🔶 D (64.2/100)
+### utils/compaction.py — ❌ F (57.3/100)
 
 LOC: 855 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
+| 878 | 🟠 HIGH | Duplicate Code | Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 55 | 🟡 MEDIUM | Duplicate Code | Function 'token_count' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 747 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:95 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 1049 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 555 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
 | 598 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
 | 699 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+### cli/textual_mixins.py — ❌ F (57.5/100)
+
+LOC: 1441 | Classes: 13 | Functions: 6 | MI: 3 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 112 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1253 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1272 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1386 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1156 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
+| 1702 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+### knowledge/store.py — 🔶 D (63.6/100)
+
+LOC: 482 | Classes: 2 | Functions: 10 | MI: 46 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 107 | 🟡 MEDIUM | Duplicate Code | Function '_relation_to_edge_attrs' is 100% similar to '_format_tool_for_anthropic' at providers/anthropic.py:130 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 107 | 🟡 MEDIUM | Duplicate Code | Function '_relation_to_edge_attrs' is 100% similar to 'to_metadata' at rag/chunker.py:42 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 434 | 🟡 MEDIUM | Duplicate Code | Function 'add_entity' is 100% similar to 'add_relation' at knowledge/store.py:526 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 545 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_imports' at tools/builtins/import_graph.py:267 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 545 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_critical_sections' at utils/message_analyzer.py:106 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 333 | 🟢 LOW | Large Class | Class 'KnowledgeStore' spans 303 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 333 | 🟢 LOW | Large Class | Class 'KnowledgeStore' has 20 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+
+### extensions/plugin_manager.py — 🔶 D (64.1/100)
+
+LOC: 427 | Classes: 1 | Functions: 5 | MI: 50 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 110 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_emit_search_deprecation_warning' (line 110), 'search_plugins' (line 233) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 110 | 🟡 MEDIUM | Primitive Obsession | Function '_emit_search_deprecation_warning' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 233 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 138 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 142 | 🟢 LOW | Large Class | Class 'PluginManager' spans 414 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 142 | 🟢 LOW | Large Class | Class 'PluginManager' has 20 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 303 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 535 | 🟢 LOW | Feature Envy | Method 'PluginManager._load_plugin_extension' accesses 'installation' 4 times but 'self' only 1 times | Move Method — consider moving '_load_plugin_extension' to the class that owns 'installation'. |
 
 ### agents/orchestrator_delegation_ctrl.py — 🔶 D (65.1/100)
 
@@ -284,147 +192,61 @@ LOC: 179 | Classes: 2 | Functions: 0 | MI: 63 | Avg CC: 18.0
 | 206 | 🟢 LOW | Feature Envy | Method 'DelegationController._stream_delegation' accesses 'params' 4 times but 'self' only 1 times | Move Method — consider moving '_stream_delegation' to the class that owns 'params'. |
 | 206 | 🟢 LOW | Feature Envy | Method 'DelegationController._stream_delegation' accesses 'sub_event' 4 times but 'self' only 1 times | Move Method — consider moving '_stream_delegation' to the class that owns 'sub_event'. |
 
-### utils/message_compactor.py — 🔶 D (65.1/100)
+### agents/working_memory.py — 🔶 D (65.4/100)
 
-LOC: 235 | Classes: 1 | Functions: 0 | MI: 61 | Avg CC: 12.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 183 | 🟡 MEDIUM | Complex Function | Function '_add_complete_clusters' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 19 | 🟢 LOW | Large Class | Class 'MessageCompactor' spans 300 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 26 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 34 | 🟢 LOW | Long Method | Function 'apply_intelligent_truncation' has 44 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 34 | 🟢 LOW | Missing Type Hint | Function 'apply_intelligent_truncation' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 103 | 🟢 LOW | Missing Type Hint | Function '_count_tokens' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 117 | 🟢 LOW | Missing Type Hint | Function '_sort_by_importance' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Missing Type Hint | Function '_add_protected_messages' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 169 | 🟢 LOW | Missing Type Hint | Function 'calculate_cluster_importance' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 183 | 🟢 LOW | Missing Type Hint | Function '_add_complete_clusters' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 222 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_add_complete_clusters' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 230 | 🟢 LOW | Missing Type Hint | Function '_add_individual_messages' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 262 | 🟢 LOW | Missing Type Hint | Function '_add_message_if_fits' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 281 | 🟢 LOW | Missing Type Hint | Function '_update_tokens_used' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 294 | 🟢 LOW | Missing Type Hint | Function '_sort_messages_to_original_order' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-### agents/delegation.py — 🔶 D (65.2/100)
-
-LOC: 863 | Classes: 3 | Functions: 18 | MI: 33 | Avg CC: 12.0
+LOC: 529 | Classes: 8 | Functions: 11 | MI: 43 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 284 | 🟡 MEDIUM | Complex Function | Function '_validate_messages_access' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 136 | 🟢 LOW | Magic Number | Magic number 0.3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 150 | 🟢 LOW | Magic Number | Magic number 0.7 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 284 | 🟢 LOW | Long Method | Function '_validate_messages_access' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 426 | 🟢 LOW | Primitive Obsession | Function '_append_list_section' has 3 primitive-typed parameters: header: Name(id='str', ctx=Load()), item_format: Name(id='str', ctx=Load()), footer: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 562 | 🟢 LOW | Long Method | Function '_prepare_execution' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 697 | 🟢 LOW | Large Class | Class 'DelegationRunner' spans 372 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 728 | 🟢 LOW | Long Method | Function 'run_delegation' has 30 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1052 | 🟢 LOW | Magic Number | Magic number 10000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 385 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 95% similar to '_list_agents' at cli/commands/agent.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 400 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 400 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 400 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 400 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-### knowledge/store.py — 🔶 D (65.2/100)
+### tools/builtins/file_overview.py — 🔶 D (67.0/100)
 
-LOC: 462 | Classes: 2 | Functions: 9 | MI: 47 | Avg CC: 0.0
+LOC: 295 | Classes: 1 | Functions: 10 | MI: 51 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 107 | 🟡 MEDIUM | Duplicate Code | Function '_relation_to_edge_attrs' is 100% similar to '_format_tool_for_anthropic' at providers/anthropic.py:130 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 107 | 🟡 MEDIUM | Duplicate Code | Function '_relation_to_edge_attrs' is 100% similar to 'to_metadata' at rag/chunker.py:42 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 407 | 🟡 MEDIUM | Duplicate Code | Function 'add_entity' is 100% similar to 'add_relation' at knowledge/store.py:499 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 518 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_imports' at tools/builtins/import_graph.py:267 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 518 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_critical_sections' at utils/message_analyzer.py:106 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 257 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'get_neighbors' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 35 | 🟡 MEDIUM | Complex Function | Function '_format_function_sig' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 136 | 🟡 MEDIUM | Complex Function | Function '_summarize_python' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 35 | 🟢 LOW | Long Method | Function '_format_function_sig' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 136 | 🟢 LOW | Primitive Obsession | Function '_summarize_python' has 3 primitive-typed parameters: source: Name(id='str', ctx=Load()), depth: Name(id='int', ctx=Load()), include_docs: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 165 | 🟢 LOW | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 205 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 228 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 253 | 🟢 LOW | Magic Number | Magic number 15 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 255 | 🟢 LOW | Magic Number | Magic number 15 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 259 | 🟢 LOW | Long Method | Function '_execute_file_overview' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
-### utils/compression_strategy.py — 🔶 D (65.5/100)
+### metrics/dashboard.py — 🔶 D (67.2/100)
 
-LOC: 245 | Classes: 4 | Functions: 0 | MI: 57 | Avg CC: 14.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 65 | 🟡 MEDIUM | Long Method | Function 'compress' has 56 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 65 | 🟡 MEDIUM | Complex Function | Function 'compress' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 274 | 🟡 MEDIUM | Feature Envy | Method 'CompressionStrategyFactory.create_for_conversation_type' accesses 'CSC' 6 times but 'self' only 0 times | Move Method — consider moving 'create_for_conversation_type' to the class that owns 'CSC'. |
-| 103 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'compress' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 117 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'compress' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 127 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'compress' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 134 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'compress' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 199 | 🟢 LOW | Feature Envy | Method 'CompressionStrategy._generate_cluster_summary' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_generate_cluster_summary' to the class that owns 'msg'. |
-| 245 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_preserve_tool_sequences_in_cluster' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 248 | 🟢 LOW | Feature Envy | Method 'CompressionStrategy._preserve_code_blocks_in_cluster' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_preserve_code_blocks_in_cluster' to the class that owns 'msg'. |
-| 274 | 🟢 LOW | Long Method | Function 'create_for_conversation_type' has 42 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-
-### agents/line_range_utils.py — 🔶 D (65.8/100)
-
-LOC: 181 | Classes: 1 | Functions: 5 | MI: 56 | Avg CC: 0.0
+LOC: 340 | Classes: 2 | Functions: 17 | MI: 61 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 144 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 142 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 167 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_parse_single_line_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 20 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 138 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 141 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 165 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_single_line_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 175 | 🟢 LOW | Long Method | Function 'parse_line_ranges' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 218 | 🟠 HIGH | Duplicate Code | Function '_write_token_csv_rows' is an exact duplicate of '_write_cost_csv_rows' at metrics/dashboard.py:224 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 218 | 🟠 HIGH | Duplicate Code | Function '_write_token_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 224 | 🟠 HIGH | Duplicate Code | Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 
-### mcp/client.py — 🔶 D (66.9/100)
+### agents/delegation.py — 🔶 D (69.2/100)
 
-LOC: 199 | Classes: 4 | Functions: 0 | MI: 62 | Avg CC: 13.0
+LOC: 877 | Classes: 4 | Functions: 18 | MI: 32 | Avg CC: 12.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 42 | 🟡 MEDIUM | Complex Function | Function 'write' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 33 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 42 | 🟢 LOW | Long Method | Function 'write' has 46 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 42 | 🟢 LOW | Missing Type Hint | Function 'write' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 42 | 🟢 LOW | Feature Envy | Method 'FilteredStream.write' accesses 're' 3 times but 'self' only 1 times | Move Method — consider moving 'write' to the class that owns 're'. |
-| 42 | 🟢 LOW | Feature Envy | Method 'FilteredStream.write' accesses 'line' 3 times but 'self' only 1 times | Move Method — consider moving 'write' to the class that owns 'line'. |
-| 133 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 149 | 🟢 LOW | Missing Type Hint | Function 'is_connected' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 153 | 🟢 LOW | Long Method | Function 'connect' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 153 | 🟢 LOW | Missing Type Hint | Function 'connect' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 198 | 🟢 LOW | Missing Type Hint | Function 'disconnect' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 211 | 🟢 LOW | Missing Type Hint | Function 'discover_tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 231 | 🟢 LOW | Missing Type Hint | Function 'get_tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 239 | 🟢 LOW | Missing Type Hint | Function 'call_tool' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 294 | 🟡 MEDIUM | Complex Function | Function '_validate_messages_access' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 294 | 🟢 LOW | Long Method | Function '_validate_messages_access' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 583 | 🟢 LOW | Long Method | Function '_prepare_execution' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 718 | 🟢 LOW | Large Class | Class 'DelegationRunner' spans 372 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 749 | 🟢 LOW | Long Method | Function 'run_delegation' has 30 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1073 | 🟢 LOW | Magic Number | Magic number 10000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-### config/context.py — 🔶 D (69.0/100)
+### utils/validation.py — 🔶 D (69.6/100)
 
-LOC: 160 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 19.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 132 | 🟡 MEDIUM | Long Method | Function 'discover_files' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 132 | 🟡 MEDIUM | Complex Function | Function 'discover_files' has cyclomatic complexity 19 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 43 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 68 | 🟢 LOW | Missing Type Hint | Function 'filename' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 72 | 🟢 LOW | Missing Type Hint | Function '_find_git_root' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 88 | 🟢 LOW | Missing Type Hint | Function '_load_gitignore_patterns' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 88 | 🟢 LOW | Feature Envy | Method 'ContextLoader._load_gitignore_patterns' accesses 'line' 3 times but 'self' only 0 times | Move Method — consider moving '_load_gitignore_patterns' to the class that owns 'line'. |
-| 109 | 🟢 LOW | Missing Type Hint | Function '_is_ignored' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 132 | 🟢 LOW | Missing Type Hint | Function 'discover_files' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 185 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'discover_files' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 190 | 🟢 LOW | Missing Type Hint | Function 'load' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-### utils/intelligent_context_aggregator.py — 🔶 D (69.2/100)
-
-LOC: 418 | Classes: 4 | Functions: 0 | MI: 42 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 209 | 🟡 MEDIUM | Feature Envy | Method 'SequenceValidator.validate_compacted_sequence' accesses 'SequenceValidator' 5 times but 'self' only 0 times | Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'SequenceValidator'. |
-| 261 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'current_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'current_msg'. |
-| 261 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'prev_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'prev_msg'. |
-| 293 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_conversation_flow' accesses 'prev' 3 times but 'self' only 0 times | Move Method — consider moving '_validate_conversation_flow' to the class that owns 'prev'. |
-| 354 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'curr' 4 times but 'self' only 0 times | Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'curr'. |
-| 354 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'prev' 4 times but 'self' only 0 times | Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'prev'. |
-| 510 | 🟢 LOW | Feature Envy | Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'curr_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'curr_msg'. |
-| 510 | 🟢 LOW | Feature Envy | Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'next_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'next_msg'. |
-
-### utils/validation.py — 🔶 D (69.7/100)
-
-LOC: 192 | Classes: 0 | Functions: 5 | MI: 60 | Avg CC: 11.5
+LOC: 192 | Classes: 0 | Functions: 5 | MI: 59 | Avg CC: 11.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -436,7 +258,7 @@ LOC: 192 | Classes: 0 | Functions: 5 | MI: 60 | Avg CC: 11.5
 | 53 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'validate_message_sequence' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 242 | 🟢 LOW | Magic Number | Magic number 50 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-### agents/metrics_reporter.py — ⚠️ C (70.1/100)
+### agents/metrics_reporter.py — 🔶 D (69.9/100)
 
 LOC: 251 | Classes: 2 | Functions: 4 | MI: 56 | Avg CC: 0.0
 
@@ -449,7 +271,7 @@ LOC: 251 | Classes: 2 | Functions: 4 | MI: 56 | Avg CC: 0.0
 | 191 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_task_completion_time' accesses 'time' 4 times but 'self' only 2 times | Move Method — consider moving '_format_task_completion_time' to the class that owns 'time'. |
 | 202 | 🟢 LOW | Magic Number | Magic number 60 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-### cli/commands/context.py — ⚠️ C (70.1/100)
+### cli/commands/context.py — ⚠️ C (70.0/100)
 
 LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 
@@ -460,7 +282,108 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 | 130 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at tools/security/shell_secure.py:442 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 536 | 🟡 MEDIUM | Duplicate Code | Function '_show_help_message' is 94% similar to '_list_themes' at cli/commands/theme.py:206 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-## ✨ Clean Files (77 files with no smells)
+### cli/repl.py — ⚠️ C (70.9/100)
+
+LOC: 442 | Classes: 2 | Functions: 3 | MI: 47 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 291 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 291 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 291 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 143 | 🟢 LOW | Large Class | Class 'Repl' spans 390 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 143 | 🟢 LOW | Large Class | Class 'Repl' has 22 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+
+### tools/builtins/research_notes.py — ⚠️ C (71.0/100)
+
+LOC: 293 | Classes: 2 | Functions: 10 | MI: 57 | Avg CC: 13.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 204 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_action_search' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 220 | 🟡 MEDIUM | Complex Function | Function '_execute_research_notes' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 339 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: action: Name(id='str', ctx=Load()), tag: Name(id='str', ctx=Load()), content: Name(id='str', ctx=Load()), query: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 173 | 🟢 LOW | Magic Number | Magic number 19 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 203 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_action_search' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 205 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 220 | 🟢 LOW | Long Method | Function '_execute_research_notes' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+### agents/presets.py — ⚠️ C (72.1/100)
+
+LOC: 194 | Classes: 1 | Functions: 7 | MI: 82 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 123 | 🟡 MEDIUM | Duplicate Code | Function '_create_planner_config' is 100% similar to '_create_explorer_config' at agents/presets.py:145 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 123 | 🟡 MEDIUM | Duplicate Code | Function '_create_planner_config' is 100% similar to '_create_engineer_config' at agents/presets.py:167 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 123 | 🟡 MEDIUM | Duplicate Code | Function '_create_planner_config' is 100% similar to '_create_data_engineer_config' at agents/presets.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 145 | 🟡 MEDIUM | Duplicate Code | Function '_create_explorer_config' is 100% similar to '_create_engineer_config' at agents/presets.py:167 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 145 | 🟡 MEDIUM | Duplicate Code | Function '_create_explorer_config' is 100% similar to '_create_data_engineer_config' at agents/presets.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 167 | 🟡 MEDIUM | Duplicate Code | Function '_create_engineer_config' is 100% similar to '_create_data_engineer_config' at agents/presets.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 49 | 🟢 LOW | Primitive Obsession | Function '_create_agent_config' has 3 primitive-typed parameters: name: Name(id='str', ctx=Load()), role: Name(id='str', ctx=Load()), description: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+### agents/metrics.py — ⚠️ C (72.2/100)
+
+LOC: 344 | Classes: 5 | Functions: 2 | MI: 54 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 118 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 94% similar to '_render_diff' at cli/console.py:666 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 118 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to '_update_installation_cache' at extensions/plugin_manager.py:404 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 193 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_mixins.py:112 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 193 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
+
+### cli/commands/builtins.py — ⚠️ C (72.5/100)
+
+LOC: 276 | Classes: 4 | Functions: 7 | MI: 67 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to '_should_index' at rag/indexer.py:226 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to 'classify_import' at tools/builtins/import_graph.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1386 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
+
+### api/endpoints/chat.py — ⚠️ C (73.4/100)
+
+LOC: 397 | Classes: 4 | Functions: 12 | MI: 49 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 298 | 🟡 MEDIUM | Long Method | Function 'chat_completion' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 381 | 🟡 MEDIUM | Long Method | Function 'chat_completion_stream' has 70 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 191 | 🟢 LOW | Long Method | Function '_process_stream_event' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 223 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_stream_event' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 424 | 🟢 LOW | Long Method | Function 'event_generator' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+### utils/message_clusterer.py — ⚠️ C (73.4/100)
+
+LOC: 328 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 15 | 🟢 LOW | Large Class | Class 'MessageClusterer' spans 443 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 24 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: cluster_similarity_threshold: Name(id='float', ctx=Load()), minimum_word_length: Name(id='int', ctx=Load()), minimum_shared_words: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 69 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._cluster_tool_call_sequences' accesses 'curr_msg' 3 times but 'self' only 2 times | Move Method — consider moving '_cluster_tool_call_sequences' to the class that owns 'curr_msg'. |
+| 69 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._cluster_tool_call_sequences' accesses 'next_msg' 3 times but 'self' only 2 times | Move Method — consider moving '_cluster_tool_call_sequences' to the class that owns 'next_msg'. |
+| 148 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._should_merge_adjacent_clusters' accesses 'last_msg' 4 times but 'self' only 0 times | Move Method — consider moving '_should_merge_adjacent_clusters' to the class that owns 'last_msg'. |
+| 148 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._should_merge_adjacent_clusters' accesses 'first_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_should_merge_adjacent_clusters' to the class that owns 'first_msg'. |
+| 185 | 🟢 LOW | Long Method | Function '_cluster_topic_similarity' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 265 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_extract_cluster_keywords' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+
+### tools/security/shell_secure.py — ⚠️ C (73.5/100)
+
+LOC: 487 | Classes: 3 | Functions: 14 | MI: 51 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 37 | 🟡 MEDIUM | Long Method | Function '_default_allowed_commands' has 55 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 96 | 🟡 MEDIUM | Duplicate Code | Function '_default_denied_patterns' is 100% similar to '_get_default_keywords' at utils/intelligent_context_extractor.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 332 | 🟡 MEDIUM | Duplicate Code | Function '_apply_moderate_security' is 100% similar to '_apply_permissive_security' at tools/security/shell_secure.py:344 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 576 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), timeout: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+## ✨ Clean Files (86 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -468,9 +391,10 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - __main__.py — ✅ A
 - agents/__init__.py — ✅ A
 - agents/config.py — ✅ A
+- agents/file_read_decision_maker.py — 👍 B
+- agents/line_range_utils.py — 👍 B
 - agents/orchestrator_components.py — ✅ A
-- agents/orchestrator_events.py — ✅ A
-- agents/orchestrator_init.py — ✅ A
+- agents/orchestrator_init.py — 👍 B
 - agents/orchestrator_loop.py — ✅ A
 - agents/orchestrator_prompts.py — ✅ A
 - agents/orchestrator_run.py — ✅ A
@@ -480,12 +404,13 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - agents/orchestrator_turns.py — ✅ A
 - agents/orchestrator_types.py — 👍 B
 - agents/orchestrator_validation.py — ✅ A
+- agents/prompts.py — 👍 B
 - api/__init__.py — ✅ A
 - api/auth.py — ✅ A
 - api/endpoints/__init__.py — ✅ A
 - cli/__init__.py — ✅ A
-- cli/app.py — 👍 B
 - cli/commands/__init__.py — 👍 B
+- cli/commands/extensions.py — ✅ A
 - cli/commands/model.py — 👍 B
 - cli/commands/plan.py — ✅ A
 - cli/commands/rag.py — 👍 B
@@ -493,6 +418,7 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - cli/input.py — 👍 B
 - cli/prompts.py — ✅ A
 - cli/stream_event_handlers.py — 👍 B
+- cli/textual_screens.py — 👍 B
 - config/__init__.py — ✅ A
 - config/settings.py — 👍 B
 - core/__init__.py — ✅ A
@@ -507,12 +433,15 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - core/session_models.py — ✅ A
 - core/session_templates.py — ✅ A
 - extensions/__init__.py — ✅ A
+- extensions/base.py — ✅ A
 - extensions/constants.py — ✅ A
 - extensions/models.py — 👍 B
+- extensions/plugin_database.py — ✅ A
 - extensions/plugin_registry_client.py — ✅ A
 - knowledge/__init__.py — ✅ A
 - knowledge/models.py — ✅ A
 - mcp/__init__.py — ✅ A
+- mcp/client.py — 👍 B
 - metrics/__init__.py — ✅ A
 - metrics/models.py — 👍 B
 - providers/__init__.py — ✅ A
@@ -523,6 +452,7 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - tools/builtins/dead_code.py — 👍 B
 - tools/builtins/delegate.py — ✅ A
 - tools/builtins/kg_common.py — ✅ A
+- tools/builtins/kg_update.py — 👍 B
 - tools/builtins/pytest_run.py — 👍 B
 - tools/builtins/python_ast.py — ✅ A
 - tools/builtins/test_gen.py — 👍 B
@@ -530,6 +460,8 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 - tools/utils.py — ✅ A
 - utils/__init__.py — ✅ A
 - utils/cluster_utils.py — ✅ A
+- utils/compression_strategy.py — 👍 B
+- utils/intelligent_context_aggregator.py — 👍 B
 - utils/intelligent_context_config.py — ✅ A
 - utils/intelligent_context_detector.py — ✅ A
 - utils/intelligent_context_extractor.py — 👍 B

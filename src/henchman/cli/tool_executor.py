@@ -140,7 +140,7 @@ class ToolExecutor:
             tc_name, tc_args = tc.name, tc.arguments
             tool = self.tool_manager.registry.get(tc_name)
             if tool and (
-                tc_name in self.tool_manager.registry._auto_approve_policies  # noqa: SLF001
+                tc_name in self.tool_manager.registry._auto_approve_policies
                 or tool.needs_confirmation(tc_args) is None
             ):
                 to_parallel.append(tc)
@@ -170,7 +170,7 @@ class ToolExecutor:
         event_stream: AsyncIterator[AgentEvent],
         agent: Agent,
         content_collector: list[str] | None = None,
-        status_obj: Status | None = None,  # noqa: ARG002
+        status_obj: Status | None = None,
     ) -> None:
         """Process an agent event stream, handling tool calls properly.
 
@@ -254,7 +254,7 @@ class ToolExecutor:
                     *[
                         self._execute_and_record_tool_call(tc, agent, responded_ids)
                         for tc in to_parallel
-                    ]
+                    ],
                 )
             if to_sequential:
                 await self._run_sequential_tool_calls(

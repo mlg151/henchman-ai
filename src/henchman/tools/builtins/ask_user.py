@@ -36,7 +36,7 @@ class AskUserTool(Tool):
         return "Ask the user a question and wait for their response"
 
     @property
-    def parameters(self: AskUserTool) -> dict[str, object]:  # noqa
+    def parameters(self: AskUserTool) -> dict[str, object]:
         """Return the tool parameters schema."""
         return {
             "type": "object",
@@ -60,8 +60,8 @@ class AskUserTool(Tool):
         return ToolKind.READ  # Always auto-approved since it's just asking
 
     def needs_confirmation(
-        self: AskUserTool, params: dict[str, object]
-    ) -> ConfirmationRequest | None:  # noqa: ARG002
+        self: AskUserTool, params: dict[str, object],
+    ) -> ConfirmationRequest | None:
         """Check if this tool needs confirmation.
 
         Args:

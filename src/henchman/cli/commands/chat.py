@@ -155,7 +155,7 @@ def _restore_agent_history_from_session(ctx: CommandContext, session: Session) -
                 content=session_msg.content,
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
-            )
+            ),
         )
 
 

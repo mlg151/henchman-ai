@@ -71,11 +71,11 @@ class RagSystem:
             settings: RAG settings from configuration.
             read_only: If True, skip indexing (for concurrent instances).
         """
-        from henchman.rag.chunker import TextChunker  # noqa: PLC0415
-        from henchman.rag.embedder import FastEmbedProvider  # noqa: PLC0415
-        from henchman.rag.indexer import GitFileIndexer  # noqa: PLC0415
-        from henchman.rag.store import VectorStore  # noqa: PLC0415
-        from henchman.tools.builtins.rag_search import RagSearchTool  # noqa: PLC0415
+        from henchman.rag.chunker import TextChunker
+        from henchman.rag.embedder import FastEmbedProvider
+        from henchman.rag.indexer import GitFileIndexer
+        from henchman.rag.store import VectorStore
+        from henchman.tools.builtins.rag_search import RagSearchTool
 
         self.git_root = git_root
         self.settings = settings
@@ -311,7 +311,7 @@ def initialize_rag(
                 f"{stats.total_chunks} chunks[/dim]",
             )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         if console:
             console.print(f"[yellow]Warning: Failed to initialize RAG: {e}[/yellow]")
         return None

@@ -148,7 +148,7 @@ __all__ = [
 ]
 
 # Re-export for backward-compatible imports.
-_extract_line_text  # noqa: B018
+_extract_line_text
 
 
 # ------------------------------------------------------------------ #
@@ -270,7 +270,7 @@ class HenchmanTextualApp(
             None
         """
         self._initialize_core_components()
-        from henchman import __version__  # noqa: PLC0415
+        from henchman import __version__
 
         self.sub_title = f"Henchman-AI v{__version__} - {self.provider.name}"
         self._apply_theme()
@@ -317,7 +317,7 @@ def _check_utf8_encoding() -> None:
                 "       export LC_ALL=C.UTF-8",
                 file=sys.stderr,
             )
-    except Exception:  # noqa: BLE001 - best effort check
+    except Exception:
         pass
 
 
@@ -339,7 +339,7 @@ def run_textual_app(
         None
     """
     _check_utf8_encoding()
-    from henchman.cli.textual_driver import RobustLinuxDriver  # noqa: PLC0415
+    from henchman.cli.textual_driver import RobustLinuxDriver
 
     driver_class = None
     if sys.platform == "linux" and RobustLinuxDriver is not None:

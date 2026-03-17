@@ -40,7 +40,7 @@ class InputHandler:
     """
 
     def __init__(
-        self: Self,  # noqa: F821
+        self: Self,
         config: ReplConfig,
         renderer: object,
         history_file: Path | None = None,
@@ -92,7 +92,7 @@ class InputHandler:
             completer=completer,
         )
 
-    async def get_input(self: Self) -> str:  # noqa: F821
+    async def get_input(self: Self) -> str:
         """Get input from the user.
 
         Returns:
@@ -117,7 +117,7 @@ class InputHandler:
             self.renderer.print_newline()
         return await self.prompt_session.prompt_async(self.config.prompt)
 
-    def is_slash_command(self: Self, input_text: str) -> bool:  # noqa: F821
+    def is_slash_command(self: Self, input_text: str) -> bool:
         """Check if input is a slash command.
 
         Args:
@@ -128,7 +128,7 @@ class InputHandler:
         """
         return is_slash_command(input_text)
 
-    async def expand_at_references(self: Self, input_text: str) -> str:  # noqa: F821
+    async def expand_at_references(self: Self, input_text: str) -> str:
         """Expand @file references in input.
 
         Args:
@@ -139,7 +139,7 @@ class InputHandler:
         """
         return await expand_at_references(input_text)
 
-    async def process_input(self: Self, user_input: str) -> tuple[str, bool, bool]:  # noqa: F821
+    async def process_input(self: Self, user_input: str) -> tuple[str, bool, bool]:
         """Process user input to determine if it's a command or regular input.
 
         Args:

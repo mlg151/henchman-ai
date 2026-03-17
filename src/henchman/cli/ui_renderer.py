@@ -49,7 +49,7 @@ def _build_status_message(
         Formatted status message string.
 
     """
-    from henchman.utils.tokens import TokenCounter  # noqa: PLC0415
+    from henchman.utils.tokens import TokenCounter
 
     parts: list[str] = []
 
@@ -61,7 +61,7 @@ def _build_status_message(
             msgs = agent.get_messages_for_api()
             tokens = TokenCounter.count_messages(msgs)
             parts.append(f"Tokens: ~[cyan]{tokens}[/]")
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     if rag_system and getattr(rag_system, "is_indexing", False):
@@ -309,7 +309,7 @@ class UIRenderer:
         try:
             self._thinking_status.__enter__()
             self._is_thinking = True
-        except Exception:  # noqa: BLE001
+        except Exception:
             self._thinking_status = None
             self._is_thinking = False
 
@@ -321,7 +321,7 @@ class UIRenderer:
 
         """
         if self._thinking_status and self._is_thinking:
-            import contextlib  # noqa: PLC0415
+            import contextlib
 
             with contextlib.suppress(Exception):
                 self._thinking_status.__exit__(None, None, None)

@@ -59,8 +59,8 @@ def is_import_context(name_node: ast.Name, tree: ast.Module) -> bool:
         True if the node is within an import statement.
     """
     ast_walk = ast.walk
-    Import = ast.Import  # noqa: N806
-    ImportFrom = ast.ImportFrom  # noqa: N806
+    Import = ast.Import
+    ImportFrom = ast.ImportFrom
     for import_node in ast_walk(tree):
         if (
             isinstance(import_node, (Import, ImportFrom))
@@ -82,9 +82,9 @@ def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]
     """
     definitions: dict[str, tuple[str, int]] = {}
     iter_child_nodes = ast.iter_child_nodes
-    FunctionDef = ast.FunctionDef  # noqa: N806
-    AsyncFunctionDef = ast.AsyncFunctionDef  # noqa: N806
-    ClassDef = ast.ClassDef  # noqa: N806
+    FunctionDef = ast.FunctionDef
+    AsyncFunctionDef = ast.AsyncFunctionDef
+    ClassDef = ast.ClassDef
     for node in iter_child_nodes(tree):
         node_name = node.name if hasattr(node, "name") else ""
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
@@ -105,10 +105,10 @@ def find_all_assignment(node: ast.AST) -> ast.expr | None:
         The value expression if node assigns to __all__ with list/tuple,
         None otherwise.
     """
-    Assign = ast.Assign  # noqa: N806
-    Name = ast.Name  # noqa: N806
-    List = ast.List  # noqa: N806
-    Tuple = ast.Tuple  # noqa: N806
+    Assign = ast.Assign
+    Name = ast.Name
+    List = ast.List
+    Tuple = ast.Tuple
     if not isinstance(node, Assign):
         return None
 
@@ -494,7 +494,7 @@ class DeadCodeTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():  # noqa: ASYNC240
+        if not target.exists():
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,
@@ -507,7 +507,7 @@ class DeadCodeTool(Tool):
             whitelist=DEFAULT_WHITELIST | frozenset(whitelist),
         )
 
-        if target.is_file():  # noqa: ASYNC240
+        if target.is_file():
             return self._analyze_file(target, analysis_params)
         return self._analyze_directory(target, analysis_params)
 

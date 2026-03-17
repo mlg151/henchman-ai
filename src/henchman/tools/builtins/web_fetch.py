@@ -59,7 +59,7 @@ async def _fetch_content_with_aiohttp(params: FetchParams) -> ToolResult:
         ToolResult with page content or error.
     """
     try:
-        import aiohttp  # noqa: PLC0415
+        import aiohttp
     except ImportError:
         return ToolResult(
             content="Error: aiohttp is required for web_fetch",
@@ -80,7 +80,7 @@ async def _fetch_content_with_aiohttp(params: FetchParams) -> ToolResult:
     except TimeoutError:
         error_msg = f"Request timeout after {params.timeout} seconds"
         return ToolResult(content=error_msg, success=False, error=error_msg)
-    except Exception as e:  # pragma: no cover  # noqa: BLE001
+    except Exception as e:  # pragma: no cover
         sanitized_error = sanitize_error_message(e)
         return ToolResult(
             content=f"Error fetching URL: {sanitized_error}",
@@ -141,7 +141,7 @@ class WebFetchTool(Tool):
         url: str = "",
         max_length: int = _DEFAULT_MAX_LENGTH,
         timeout: int = _DEFAULT_TIMEOUT_SECONDS,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Fetch URL content.
 

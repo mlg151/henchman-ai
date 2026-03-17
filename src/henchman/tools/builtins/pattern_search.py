@@ -14,6 +14,9 @@ _MAX_RESULTS = 200
 _MAX_OUTPUT_CHARS = 50_000
 _MAX_FILE_SIZE = 500_000  # bytes
 _VALID_STRATEGIES = {"semantic", "structural", "combined"}
+_MIN_KEYWORD_LENGTH = 3
+_MAX_PATTERNS_DISPLAY = 5
+_DEFAULT_TOP_K = 10
 
 
 @dataclass
@@ -67,7 +70,45 @@ def _extract_keywords(description: str) -> list[str]:
         "where", "when", "what", "how", "who",
     }
     tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", description)
-    return [t for t in tokens if len(t) >= 3 and t.lower() not in stop_words]  # noqa: PLR2004
+    return [t for t in tokens if len(t) >= _MIN_KEYWORD_LENGTH and t.lower() not in stop_words]
+
+
+def _inheritance_patterns(desc_lower: str) -> list[tuple[str, str]]:
+    """Extract inheritance-based structural patterns."""
+    return [
+        (f"inherits:{parent}", rf"class\s+\w+\s*\([^)]*{parent}[^)]*\)")
+        for match in re.finditer(r"inherit(?:s)? from (\w+)|subclass of (\w+)", desc_lower)
+        for parent in [match.group(1) or match.group(2)]
+        if parent
+    ]
+
+
+def _decorator_patterns(description: str) -> list[tuple[str, str]]:
+    """Extract decorator-based structural patterns."""
+    return [
+        (f"decorator:@{dec}", rf"@{re.escape(dec)}")
+        for match in re.finditer(r"(?:@|decorated with |has decorator )(\w+)", description)
+        for dec in [match.group(1)]
+        if dec
+    ]
+
+
+_KEYWORD_HINT_SPECS: list[tuple[str, str, str]] = [
+    (r"\basync\b|\bawait\b|coroutine", "async_def", r"async\s+def\s+\w+"),
+    (r"raise|exception|error handling", "raises", r"\braise\s+\w+"),
+    (r"\bclass\b", "class_def", r"^class\s+\w+"),
+    (r"\bfunction\b|\bmethod\b|\bdef\b", "function_def", r"(?:async\s+)?def\s+\w+"),
+    (r"\btype hint\b|\bannotation\b|\btyped\b", "type_annotation", r":\s*[\w\[\], |]+\s*(?:=|->)"),
+]
+
+
+def _keyword_hint_patterns(desc_lower: str) -> list[tuple[str, str]]:
+    """Extract keyword-triggered structural patterns."""
+    return [
+        (label, pat)
+        for trigger, label, pat in _KEYWORD_HINT_SPECS
+        if re.search(trigger, desc_lower)
+    ]
 
 
 def _extract_structural_patterns(description: str) -> list[tuple[str, str]]:
@@ -82,41 +123,12 @@ def _extract_structural_patterns(description: str) -> list[tuple[str, str]]:
     Returns:
         List of (label, regex_pattern) tuples.
     """
-    patterns: list[tuple[str, str]] = []
     desc_lower = description.lower()
-
-    # Detect inheritance hints: "inherits from X", "subclass of X"
-    for match in re.finditer(r"inherit(?:s)? from (\w+)|subclass of (\w+)", desc_lower):
-        parent = match.group(1) or match.group(2)
-        if parent:
-            patterns.append((f"inherits:{parent}", rf"class\s+\w+\s*\([^)]*{parent}[^)]*\)"))
-
-    # Detect decorator hints: "decorated with X", "@X"
-    for match in re.finditer(r"@(\w+)|decorated with (\w+)|has decorator (\w+)", description):
-        dec = match.group(1) or match.group(2) or match.group(3)
-        if dec:
-            patterns.append((f"decorator:@{dec}", rf"@{re.escape(dec)}"))
-
-    # Detect async hint
-    if re.search(r"\basync\b|\bawait\b|coroutine", desc_lower):
-        patterns.append(("async_def", r"async\s+def\s+\w+"))
-
-    # Detect exception handling
-    if re.search(r"raise|exception|error handling", desc_lower):
-        patterns.append(("raises", r"\braise\s+\w+"))
-
-    # Detect class/function type hints
-    if re.search(r"\bclass\b", desc_lower):
-        patterns.append(("class_def", r"^class\s+\w+"))
-
-    if re.search(r"\bfunction\b|\bmethod\b|\bdef\b", desc_lower):
-        patterns.append(("function_def", r"(?:async\s+)?def\s+\w+"))
-
-    # Detect typing/annotation usage
-    if re.search(r"\btype hint\b|\bannotation\b|\btyped\b", desc_lower):
-        patterns.append(("type_annotation", r":\s*[\w\[\], |]+\s*(?:=|->)"))
-
-    return patterns
+    return (
+        _inheritance_patterns(desc_lower)
+        + _decorator_patterns(description)
+        + _keyword_hint_patterns(desc_lower)
+    )
 
 
 def _collect_files(root: Path, glob: str | None) -> list[Path]:
@@ -164,15 +176,16 @@ def _search_file_structural(
 
     for label, regex in keyword_patterns + struct_patterns:
         for i, line in enumerate(lines, 1):
-            if regex.search(line):
-                if i not in line_matches:
-                    line_matches[i] = PatternMatch(
-                        file=str(file_path),
-                        line=i,
-                        context=line.strip(),
-                    )
-                line_matches[i].score += 1
-                line_matches[i].matched_patterns.append(label)
+            if not regex.search(line):
+                continue
+            if i not in line_matches:
+                line_matches[i] = PatternMatch(
+                    file=str(file_path),
+                    line=i,
+                    context=line.strip(),
+                )
+            line_matches[i].score += 1
+            line_matches[i].matched_patterns.append(label)
 
     return list(line_matches.values())
 
@@ -223,12 +236,48 @@ def _build_pattern_search_report(
     ]
 
     for m in matches:
-        patterns_str = ", ".join(m.matched_patterns[:5]) if m.matched_patterns else "keyword"
+        patterns_str = (
+            ", ".join(m.matched_patterns[:_MAX_PATTERNS_DISPLAY])
+            if m.matched_patterns
+            else "keyword"
+        )
         lines.append(f"### `{m.file}:{m.line}` (score: {m.score}, matched: {patterns_str})")
         lines.append(f"```\n{m.context}\n```")
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _compile_search_patterns(
+    params: PatternSearchParams,
+    keywords: list[str],
+    struct_patterns: list[tuple[str, str]],
+) -> tuple[list[tuple[str, re.Pattern[str]]], list[tuple[str, re.Pattern[str]]]]:
+    """Compile keyword and structural regex patterns based on search strategy.
+
+    Args:
+        params: Search parameters (used for strategy selection).
+        keywords: Extracted keyword strings.
+        struct_patterns: Extracted (label, regex_string) structural patterns.
+
+    Returns:
+        Tuple of (compiled_keyword_patterns, compiled_structural_patterns).
+    """
+    kw_compiled: list[tuple[str, re.Pattern[str]]] = []
+    if params.strategy in {"semantic", "combined"}:
+        for kw in keywords:
+            with contextlib.suppress(re.error):
+                kw_compiled.append(
+                    (f"kw:{kw}", re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)),
+                )
+
+    struct_compiled: list[tuple[str, re.Pattern[str]]] = []
+    if params.strategy in {"structural", "combined"}:
+        for label, pat in struct_patterns:
+            with contextlib.suppress(re.error):
+                struct_compiled.append((label, re.compile(pat, re.MULTILINE)))
+
+    return kw_compiled, struct_compiled
 
 
 def _execute_pattern_search(params: PatternSearchParams) -> ToolResult:
@@ -250,28 +299,18 @@ def _execute_pattern_search(params: PatternSearchParams) -> ToolResult:
 
     if params.strategy not in _VALID_STRATEGIES:
         return ToolResult(
-            content=f"Error: invalid strategy '{params.strategy}'. Valid: {sorted(_VALID_STRATEGIES)}",
+            content=(
+                f"Error: invalid strategy '{params.strategy}'. "
+                f"Valid: {sorted(_VALID_STRATEGIES)}"
+            ),
             success=False,
             error=f"Invalid strategy: {params.strategy}",
         )
 
     files = _collect_files(root, None)
-
     keywords = _extract_keywords(params.description)
     struct_patterns = _extract_structural_patterns(params.description)
-
-    # Compile keyword patterns
-    kw_compiled: list[tuple[str, re.Pattern[str]]] = []
-    if params.strategy in {"semantic", "combined"}:
-        for kw in keywords:
-            with contextlib.suppress(re.error):
-                kw_compiled.append((f"kw:{kw}", re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)))
-
-    struct_compiled: list[tuple[str, re.Pattern[str]]] = []
-    if params.strategy in {"structural", "combined"}:
-        for label, pat in struct_patterns:
-            with contextlib.suppress(re.error):
-                struct_compiled.append((label, re.compile(pat, re.MULTILINE)))
+    kw_compiled, struct_compiled = _compile_search_patterns(params, keywords, struct_patterns)
 
     if not kw_compiled and not struct_compiled:
         return ToolResult(
@@ -281,13 +320,11 @@ def _execute_pattern_search(params: PatternSearchParams) -> ToolResult:
 
     all_matches: list[PatternMatch] = []
     for file_path in files:
-        file_matches = _search_file_structural(file_path, kw_compiled, struct_compiled)
-        all_matches.extend(file_matches)
+        all_matches.extend(_search_file_structural(file_path, kw_compiled, struct_compiled))
 
     ranked = _deduplicate_and_rank(all_matches, params.top_k)
     report = _build_pattern_search_report(params.description, ranked, params.strategy)
 
-    # Truncate if needed
     if len(report) > _MAX_OUTPUT_CHARS:
         report = report[:_MAX_OUTPUT_CHARS] + "\n... (truncated)"
 
@@ -325,7 +362,7 @@ class PatternSearchTool(Tool):
             "top_k": {
                 "type": "integer",
                 "description": "Maximum number of results to return",
-                "default": 10,
+                "default": _DEFAULT_TOP_K,
             },
             "strategy": {
                 "type": "string",
@@ -362,11 +399,12 @@ class PatternSearchTool(Tool):
 
     async def execute(  # type: ignore[override]
         self: PatternSearchTool,
+        *,
         description: str = "",
         path: str = ".",
-        top_k: int = 10,
+        top_k: int = _DEFAULT_TOP_K,
         strategy: str = "combined",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Search code with a natural language description.
 
@@ -391,6 +429,6 @@ class PatternSearchTool(Tool):
                 description=description,
                 path=path,
                 top_k=top_k,
-                strategy=strategy
-            )
+                strategy=strategy,
+            ),
         )

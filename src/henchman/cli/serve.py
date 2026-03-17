@@ -100,7 +100,7 @@ def serve_command(
         )
     except KeyboardInterrupt:
         console.print("\n[yellow]Server stopped by user[/]")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         console.print(f"\n[red]Error starting server: {e}[/]")
         msg = f"Failed to start server: {e}"
-        raise click.ClickException(msg)  # noqa: B904
+        raise click.ClickException(msg)

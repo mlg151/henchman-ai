@@ -132,7 +132,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
     Returns:
         A repaired message sequence that passes validation.
     """
-    from henchman.providers.base import Message as Msg  # noqa: PLC0415
+    from henchman.providers.base import Message as Msg
 
     if not messages:
         return messages
@@ -147,7 +147,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
         if msg.role == "assistant" and msg.tool_calls:
             expected_ids = {tc.id for tc in msg.tool_calls}
             tool_msgs, j, was_rep = _gather_tool_messages_for_assistant(
-                messages, i + 1, expected_ids
+                messages, i + 1, expected_ids,
             )
             repaired = repaired or was_rep
 

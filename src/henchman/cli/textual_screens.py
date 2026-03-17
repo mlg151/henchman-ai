@@ -109,7 +109,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             Vertical container with the dialog layout.
         """
-        from rich.markup import escape  # noqa: PLC0415
+        from rich.markup import escape
 
         colour = _RISK_COLOURS.get(self._request.risk_level, _DEFAULT_RISK_COLOUR)
         tool = escape(self._request.tool_name)
@@ -151,7 +151,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             List containing zero or one ``Label`` widgets.
         """
-        from rich.markup import escape  # noqa: PLC0415
+        from rich.markup import escape
 
         if not self._request.params:
             return []

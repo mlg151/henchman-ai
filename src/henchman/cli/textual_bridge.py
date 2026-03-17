@@ -268,8 +268,8 @@ class EventBridge:
         try:
             async for event in event_stream:
                 self._dispatch(event)
-        except Exception as exc:  # noqa: BLE001
-            import traceback  # noqa: PLC0415
+        except Exception as exc:
+            import traceback
 
             details = traceback.format_exc()
             # Escape triple backticks in traceback to prevent code fence breakout
@@ -389,7 +389,7 @@ class EventBridge:
                     bar.tokens = int(tokens)
                 if cost:
                     bar.cost = float(cost)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
     # -- factory methods for event handlers --
@@ -483,7 +483,7 @@ class EventBridge:
             event,
             "Context compacted to fit model limits",
         )
-        compacted_notice = "[dim]ℹ Context window was compacted.[/dim]"  # noqa: RUF001
+        compacted_notice = "[dim]ℹ Context window was compacted.[/dim]"
         self._message_poster.post(CommandOutputMessage(compacted_notice))
 
     def _on_turn_status(self: Self, event: AgentEvent) -> None:

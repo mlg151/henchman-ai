@@ -14,6 +14,9 @@ from typing import TYPE_CHECKING
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+# Default chunk size used when not specified in manifest
+DEFAULT_CHUNK_SIZE: int = 512
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
@@ -37,7 +40,7 @@ class IndexManifest:
 
     files: dict[str, str] = field(default_factory=dict)
     model_name: str = ""
-    chunk_size: int = 512
+    chunk_size: int = DEFAULT_CHUNK_SIZE
 
     def save(self: IndexManifest, path: Path) -> None:
         """Save manifest to disk.
@@ -73,14 +76,34 @@ class IndexManifest:
             return cls()
 
         try:
-            data = json.loads(path.read_text())
-            return cls(
-                files=data.get("files", {}),
-                model_name=data.get("model_name", ""),
-                chunk_size=data.get("chunk_size", 512),
-            )
+            return _manifest_from_dict(cls, json.loads(path.read_text()))
         except (json.JSONDecodeError, KeyError):
             return cls()
+
+
+def _manifest_from_dict(
+    cls: type[IndexManifest],
+    data: dict[str, object],
+) -> IndexManifest:
+    """Construct an IndexManifest from a raw JSON-decoded dictionary.
+
+    Extracted as a module-level helper so that the logic of converting
+    JSON data lives close to the data, not inside a classmethod that
+    merely orchestrates I/O.
+
+    Args:
+        cls: The IndexManifest class (or a subclass) to instantiate.
+        data: Dictionary with optional keys ``files``, ``model_name``,
+            and ``chunk_size``.
+
+    Returns:
+        Populated IndexManifest instance.
+    """
+    return cls(
+        files=data.get("files", {}),  # type: ignore[arg-type]
+        model_name=data.get("model_name", ""),  # type: ignore[arg-type]
+        chunk_size=data.get("chunk_size", DEFAULT_CHUNK_SIZE),  # type: ignore[arg-type]
+    )
 
 
 @dataclass
@@ -102,6 +125,32 @@ class IndexStats:
     total_chunks: int = 0
 
 
+def _file_should_be_indexed(path: Path, file_extensions: set[str] | None) -> bool:
+    """Determine whether a file should be included in the RAG index.
+
+    Args:
+        path: Candidate file path.
+        file_extensions: Allowed suffix set (e.g. ``{".py", ".md"}``), or
+            ``None`` to accept every file.
+
+    Returns:
+        True if the file exists and passes the extension filter.
+    """
+    if not path.is_file():
+        return False
+
+    if file_extensions is None:
+        return True
+
+    suffix = path.suffix.lower()
+    if suffix in file_extensions:
+        return True
+
+    # Accept special extensionless files like Makefile, Dockerfile
+    special_names = {".dockerfile", ".makefile"}
+    return f".{path.name.lower()}" in special_names
+
+
 class GitFileIndexer:
     """Indexes git-tracked files for RAG.
 
@@ -116,7 +165,7 @@ class GitFileIndexer:
         file_extensions: File extensions to index.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self: GitFileIndexer,
         git_root: Path,
         store: VectorStore,
@@ -183,21 +232,7 @@ class GitFileIndexer:
         Returns:
             True if the file should be indexed.
         """
-        if not path.is_file():
-            return False
-
-        # Check extension filter
-        if self.file_extensions:
-            suffix = path.suffix.lower()
-            # Also check for files without extension but matching name
-            name_lower = path.name.lower()
-            if suffix not in self.file_extensions:
-                # Check special files like Makefile, Dockerfile
-                special_names = {".dockerfile", ".makefile"}
-                if f".{name_lower}" not in special_names:
-                    return False
-
-        return True
+        return _file_should_be_indexed(path, self.file_extensions)
 
     def _compute_file_hash(self: GitFileIndexer, path: Path) -> str:
         """Compute content hash for a file.
@@ -214,7 +249,71 @@ class GitFileIndexer:
         except OSError:
             return ""
 
-    def index(  # noqa: C901
+    def _needs_full_reindex(self: GitFileIndexer, manifest: IndexManifest) -> bool:
+        """Return True when the embedding config has changed since the last run.
+
+        Args:
+            manifest: Previously saved manifest to compare against.
+
+        Returns:
+            True if a full reindex is required.
+        """
+        model_changed = (
+            bool(manifest.model_name)
+            and manifest.model_name != self.embedder.model_name
+        )
+        chunk_size_changed = manifest.chunk_size != self.chunker.target_tokens
+        return model_changed or chunk_size_changed
+
+    def _compute_current_hashes(self: GitFileIndexer) -> dict[str, str]:
+        """Return a mapping of repo-relative path to SHA-256 hash for tracked files.
+
+        Returns:
+            Dict mapping relative file paths to their content hashes.
+        """
+        return {
+            str(fp.relative_to(self.git_root)): self._compute_file_hash(fp)
+            for fp in self.get_tracked_files()
+        }
+
+    def _classify_file_changes(
+        self: GitFileIndexer,
+        current_hashes: dict[str, str],
+        manifest: IndexManifest,
+    ) -> tuple[list[tuple[Path, str]], list[str], IndexStats]:
+        """Classify files as added, updated, unchanged, or removed.
+
+        Args:
+            current_hashes: Current mapping of relative path to hash.
+            manifest: Previously saved manifest with old hashes.
+
+        Returns:
+            Tuple of (files_to_index, files_to_remove, stats) where
+            *files_to_index* contains (abs_path, rel_path) pairs and
+            *files_to_remove* contains relative paths of deleted files.
+        """
+        files_to_index: list[tuple[Path, str]] = []
+        files_to_remove: list[str] = []
+        stats = IndexStats()
+
+        for rel_path, current_hash in current_hashes.items():
+            if rel_path not in manifest.files:
+                files_to_index.append((self.git_root / rel_path, rel_path))
+                stats.files_added += 1
+            elif manifest.files[rel_path] != current_hash:
+                files_to_index.append((self.git_root / rel_path, rel_path))
+                stats.files_updated += 1
+            else:
+                stats.files_unchanged += 1
+
+        for rel_path in manifest.files:
+            if rel_path not in current_hashes:
+                files_to_remove.append(rel_path)
+                stats.files_removed += 1
+
+        return files_to_index, files_to_remove, stats
+
+    def index(
         self: GitFileIndexer,
         console: Console | None = None,
         *,
@@ -231,67 +330,26 @@ class GitFileIndexer:
         Returns:
             Statistics about the indexing operation.
         """
-        stats = IndexStats()
-
-        # Load existing manifest
         manifest = IndexManifest.load(self.manifest_path)
 
-        # Check if we need full reindex due to config change
-        if (
-            manifest.model_name and manifest.model_name != self.embedder.model_name
-        ) or manifest.chunk_size != self.chunker.target_tokens:
-            force = True
-
-        if force:
+        if force or self._needs_full_reindex(manifest):
             self.store.clear()
             manifest = IndexManifest()
 
-        # Get current tracked files
-        tracked_files = self.get_tracked_files()
-        current_file_hashes: dict[str, str] = {}
+        current_hashes = self._compute_current_hashes()
+        files_to_index, files_to_remove, stats = self._classify_file_changes(
+            current_hashes, manifest,
+        )
 
-        # Compute hashes for all tracked files
-        for file_path in tracked_files:
-            rel_path = str(file_path.relative_to(self.git_root))
-            current_file_hashes[rel_path] = self._compute_file_hash(file_path)
-
-        # Find files to add/update/remove
-        files_to_index: list[tuple[Path, str]] = []
-        files_to_remove: list[str] = []
-
-        # Check for new or modified files
-        for rel_path, current_hash in current_file_hashes.items():
-            if rel_path not in manifest.files:
-                # New file
-                files_to_index.append((self.git_root / rel_path, rel_path))
-                stats.files_added += 1
-            elif manifest.files[rel_path] != current_hash:
-                # Modified file
-                files_to_index.append((self.git_root / rel_path, rel_path))
-                stats.files_updated += 1
-            else:
-                stats.files_unchanged += 1
-
-        # Check for removed files
-        for rel_path in manifest.files:
-            if rel_path not in current_file_hashes:
-                files_to_remove.append(rel_path)
-                stats.files_removed += 1
-
-        # Remove deleted files from store
         for rel_path in files_to_remove:
             self.store.delete_by_file(rel_path)
 
-        # Index new/modified files
         if files_to_index:
             self._index_files(
-                files_to_index,
-                console=console,
-                progress_callback=progress_callback,
+                files_to_index, console=console, progress_callback=progress_callback,
             )
 
-        # Update manifest
-        manifest.files = current_file_hashes
+        manifest.files = current_hashes
         manifest.model_name = self.embedder.model_name
         manifest.chunk_size = self.chunker.target_tokens
         manifest.save(self.manifest_path)
@@ -315,6 +373,32 @@ class GitFileIndexer:
         embeddings = self.embedder.embed([c.content for c in chunks])
         self.store.add_chunks(chunks, embeddings)
 
+    def _index_files_with_progress(
+        self: GitFileIndexer,
+        files: list[tuple[Path, str]],
+        console: Console,
+        progress_callback: Callable[[str, int, int], None] | None,
+    ) -> None:
+        """Index files while rendering a Rich progress spinner.
+
+        Args:
+            files: List of (absolute_path, relative_path) tuples.
+            console: Rich console used to display the spinner.
+            progress_callback: Optional per-file progress callback.
+        """
+        total = len(files)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"Indexing {total} files...", total=total)
+            for i, (abs_path, rel_path) in enumerate(files):
+                self._index_single_file(abs_path, rel_path)
+                progress.update(task, advance=1)
+                if progress_callback:
+                    progress_callback(rel_path, i + 1, total)
+
     def _index_files(
         self: GitFileIndexer,
         files: list[tuple[Path, str]],
@@ -328,26 +412,14 @@ class GitFileIndexer:
             console: Rich console for progress display.
             progress_callback: Optional callback for progress updates.
         """
-        total = len(files)
-
         if console:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task(f"Indexing {total} files...", total=total)
+            self._index_files_with_progress(files, console, progress_callback)
+            return
 
-                for i, (abs_path, rel_path) in enumerate(files):
-                    self._index_single_file(abs_path, rel_path)
-                    progress.update(task, advance=1)
-                    if progress_callback:
-                        progress_callback(rel_path, i + 1, total)
-        else:
-            for i, (abs_path, rel_path) in enumerate(files):
-                self._index_single_file(abs_path, rel_path)
-                if progress_callback:
-                    progress_callback(rel_path, i + 1, total)
+        for i, (abs_path, rel_path) in enumerate(files):
+            self._index_single_file(abs_path, rel_path)
+            if progress_callback:
+                progress_callback(rel_path, i + 1, len(files))
 
     def get_stats(self: GitFileIndexer) -> IndexStats:
         """Get current index statistics.

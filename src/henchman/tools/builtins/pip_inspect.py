@@ -126,7 +126,7 @@ class PipInspectTool(Tool):
     async def execute(  # type: ignore[override]
         self: PipInspectTool,
         package: str | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Query pip for package information.
 
@@ -141,7 +141,7 @@ class PipInspectTool(Tool):
         try:
             stdout, stderr, returncode = await _run_pip_command(cmd)
             return _build_pip_output_result(stdout, stderr, returncode)
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error querying pip: {e}",
                 success=False,

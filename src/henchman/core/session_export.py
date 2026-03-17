@@ -79,7 +79,7 @@ def _render_summaries(summaries: list[TurnSummaryRecord]) -> list[str]:
                 "",
                 ts.summary_text,
                 "",
-            ]
+            ],
         )
     return lines
 

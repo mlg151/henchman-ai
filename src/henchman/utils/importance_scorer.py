@@ -41,8 +41,8 @@ class ImportanceScorer:
     _MINIMUM_IMPORTANCE: float = 0.1
 
     def calculate_importance_scores(
-        self: ImportanceScorer, messages: list[Message]
-    ) -> dict[int, float]:  # noqa: E501
+        self: ImportanceScorer, messages: list[Message],
+    ) -> dict[int, float]:
         """Calculate importance scores for each message.
 
         Args:
@@ -230,8 +230,8 @@ class ImportanceScorer:
         return min(1.0, score + position_boost)
 
     def _apply_content_length_boost(
-        self: ImportanceScorer, score: float, message: Message
-    ) -> float:  # noqa: E501
+        self: ImportanceScorer, score: float, message: Message,
+    ) -> float:
         """Apply content length boost to score.
 
         Longer messages might be more important.

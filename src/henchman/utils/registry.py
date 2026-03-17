@@ -103,7 +103,7 @@ class Registry(Generic[T]):
             # Sort by name (registry key) by default
             # Create a mapping from item to name for efficient lookup
             item_to_name = {v: k for k, v in self._items.items()}
-            key_fn = lambda item: item_to_name[item]  # noqa: E731
+            key_fn = lambda item: item_to_name[item]
         else:
             key_fn = key
 

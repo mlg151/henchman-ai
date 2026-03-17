@@ -626,7 +626,7 @@ def _print_stats_with_compactor(
 def _print_stats_info(console: Console, agent: Agent) -> None:
     """Print context usage statistics."""
     try:
-        from henchman.utils.intelligent_context import (  # noqa: PLC0415
+        from henchman.utils.intelligent_context import (
             IntelligentContextManager,
         )
 
@@ -641,7 +641,7 @@ def _print_stats_info(console: Console, agent: Agent) -> None:
             _print_no_compactor_message(console)
     except ImportError:
         console.print("[yellow]Intelligent context module not available.[/]")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
 

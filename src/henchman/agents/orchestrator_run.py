@@ -63,13 +63,13 @@ def finalize_run(
                 type=EventType.ERROR,
                 data="Agent completed without performing any actions.",
                 source_agent="orchestrator",
-            )
+            ),
         )
     events.append(
         AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": role_label, "status": status.value},
             source_agent="orchestrator",
-        )
+        ),
     )
     return events

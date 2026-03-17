@@ -215,7 +215,7 @@ async def _download_archive(url: str) -> Path:
         async with aiohttp.ClientSession() as session, session.get(url) as response:
             if response.status != _HTTP_OK:
                 msg = f"Failed to download from URL: HTTP {response.status}"
-                raise RuntimeError(msg)  # noqa: TRY301
+                raise RuntimeError(msg)
             with tempfile.NamedTemporaryFile(suffix=".archive", delete=False) as temp_file:
                 temp_path = Path(temp_file.name)
                 content = await response.read()
@@ -542,7 +542,7 @@ class PluginInstaller:
             msg = "Local source path is required"
             raise RuntimeError(msg)
         source_path = Path(source_url)
-        if not source_path.exists():  # noqa: ASYNC240
+        if not source_path.exists():
             msg = f"Local path does not exist: {source_path}"
             raise RuntimeError(msg)
         try:
@@ -567,5 +567,5 @@ class PluginInstaller:
         logger.info("Installing %d dependencies", len(dependencies))
         try:
             await _run_pip_deps_subprocess(dependencies)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Error installing dependencies: %s", e)

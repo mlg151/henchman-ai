@@ -88,7 +88,7 @@ class KgQueryTool(KgToolBase):
         )
 
     @property
-    def parameters(self: KgQueryTool) -> dict[str, object]:  # noqa
+    def parameters(self: KgQueryTool) -> dict[str, object]:
         """JSON Schema for tool parameters."""
         return {
             "type": "object",
@@ -153,7 +153,7 @@ class KgQueryTool(KgToolBase):
         self._initialised = True
         return self._store
 
-    async def execute(self: KgQueryTool, **params: object) -> ToolResult:  # noqa: PLR0911
+    async def execute(self: KgQueryTool, **params: object) -> ToolResult:
         """Execute a knowledge graph query.
 
         Args:
@@ -232,8 +232,8 @@ class KgQueryTool(KgToolBase):
         return ToolResult(content=store.format_entity_for_llm(entity))
 
     def _handle_neighbors(
-        self: KgQueryTool, store: KnowledgeStore, query: str, depth: int
-    ) -> ToolResult:  # noqa: E501
+        self: KgQueryTool, store: KnowledgeStore, query: str, depth: int,
+    ) -> ToolResult:
         """Handle neighbors action."""
         if not query:
             return ToolResult(content="'query' (entity id) is required for neighbors action.")
