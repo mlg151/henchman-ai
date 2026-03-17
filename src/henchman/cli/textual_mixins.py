@@ -12,7 +12,6 @@ import contextlib
 import importlib
 import json
 import logging
-import threading
 import traceback
 import warnings
 from pathlib import Path
@@ -139,7 +138,8 @@ class _NullProvider(ModelProvider):
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
         raise RuntimeError(_NO_PROVIDER_MSG)
-        yield  # type: ignore[misc]  # pragma: no cover — makes it a generator
+        if False:  # Makes statement reachable for type checker, eliminates dead code
+            yield  # type: ignore[misc]  # pragma: no cover
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""
@@ -234,12 +234,12 @@ async def _read_context_file_content(path: Path) -> str:
         size_kb = stat.st_size / _FILE_SIZE_DIVISOR
     except OSError as exc:
         return f"[bold]{path.name}[/bold] - Error getting file info: {exc}"
-    
+
     try:
         full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
     except (OSError, UnicodeDecodeError) as exc:
         return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {exc}"
-    
+
     content = full[:_CONTEXT_FILE_PREVIEW_LIMIT]
     truncated = len(full) > _CONTEXT_FILE_PREVIEW_LIMIT
     if truncated:
@@ -573,7 +573,7 @@ class _InitMixin:
         # Note: This is called from on_unmount which is sync
         if not hasattr(self, '_confirm_futures'):
             return  # Nothing to clean up
-        
+
         # We're in sync context but using asyncio.Lock
         # Since this is shutdown cleanup, we accept potential races
         # Don't try to acquire the lock in sync context

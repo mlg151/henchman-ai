@@ -148,7 +148,7 @@ __all__ = [
 ]
 
 # Re-export for backward-compatible imports.
-_extract_line_text
+_extract_line_text  # noqa: B018  # noqa: B018  # noqa: B018
 
 
 # ------------------------------------------------------------------ #

@@ -36,7 +36,6 @@ from henchman.utils.intelligent_context_types import (
     ResultCreationParams,
 )
 from henchman.utils.message_compactor import MessageCompactor
-from henchman.utils.tokens import TokenCounter
 
 __all__ = [
     "CompressionConfig",

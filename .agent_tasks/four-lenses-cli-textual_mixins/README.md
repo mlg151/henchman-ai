@@ -1,24 +1,27 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2026-03-17T19:15:00+00:00
+## Date: 2025-03-17T20:00:00Z
 ## Bug Summary
-The `_textual_confirm` method has a race condition where the `_callback` function can access `self._confirm_futures` after it has been cleaned up during shutdown, potentially causing `KeyError` or `AttributeError`.
+The `_NullProvider.chat_completion_stream` method has unreachable dead code: a `yield` statement that comes after a `raise` statement, making it impossible to execute.
 
 ## Lens
-Phase 2: State & Side Effects (The Entropy Audit) - Shared State mutation without proper synchronization during cleanup.
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Callback should safely handle missing futures during cleanup | Callback assumes `_confirm_futures` dict exists and contains the key |
-| Cleanup should prevent callbacks from accessing cleaned state | Callback runs asynchronously and may access dict after cleanup |
-| Thread-safe access to shared mutable state | No lock protection in sync callback context |
+| Method should either properly implement async generator or not have unreachable code | Unreachable `yield` statement after `raise` creates dead code that can confuse developers and static analysis tools |
+| Code should be maintainable and follow Python best practices | Dead code violates "once and only once" principle and creates maintenance burden |
+| Type hints should match implementation | Method returns `AsyncIterator[StreamChunk]` but raises exception instead of yielding |
 
 ## Root Cause
-The `_callback` function is defined as a regular function (not async) and accesses `self._confirm_futures` without acquiring the lock in the sync callback context. During `_cleanup_confirm_futures()` (called from `on_unmount`), futures are cancelled and removed from the dict, but callbacks may still run and try to access the dict.
+The method `chat_completion_stream` in `_NullProvider` class raises a `RuntimeError` immediately, but then has a `yield` statement that can never be reached. The `if False:` guard attempts to make it "reachable" for type checking, but the `raise` statement before it makes the entire `if False:` block unreachable.
 
 ## Fix Plan
-1. Add null-check in `_callback` before accessing `self._confirm_futures`
-2. Use `pop()` with default value to avoid KeyError
-3. Ensure callback is idempotent and handles missing futures gracefully
+Remove the unreachable `yield` statement and restructure the method to either:
+1. Make the `yield` actually reachable (inside the `if False:` block before the `raise`)
+2. Remove the `yield` entirely and handle type checking differently
+3. Restructure to be a proper async generator that yields nothing then raises
+
+Option 1 is simplest: move the `raise` statement after the `if False:` block, or put the `yield` in a truly reachable position.
 
 ## Status: IN PROGRESS

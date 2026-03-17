@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-17T18:00:03.421074+00:00_
+_Generated: 2026-03-17T20:00:03.221459+00:00_
 
 ## Executive Summary
 
@@ -11,31 +11,33 @@ _Generated: 2026-03-17T18:00:03.421074+00:00_
 | **Overall Score** | 99.9/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 192 |
-| **Total Smells** | 18 |
+| **Total Smells** | 17 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 16 |
-| medium | 2 |
+| low | 15 |
+| high | 1 |
+| medium | 1 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 18 |
+| Incomplete Docstring | 16 |
+| Stale Docstring | 1 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/extensions/plugin_manager.py:378** — 🟡 MEDIUM — Incomplete Docstring  
-   'PluginManager.update_plugin' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: plugin_name_
+1. **src/henchman/cli/tool_executor.py:236** — 🟠 HIGH — Stale Docstring  
+   'ToolExecutor.execute_tool_calls' has undocumented parameters: announced_tool_call_ids  
+   → _Add these parameters to the Args: section: announced_tool_call_ids_
 
-2. **src/henchman/extensions/plugin_manager.py:409** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/extensions/plugin_manager.py:423** — 🟡 MEDIUM — Incomplete Docstring  
    'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: plugin_name_
 
@@ -75,31 +77,27 @@ These are the highest-impact documentation smells to address first:
    'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'._
 
-12. **src/henchman/extensions/plugin_manager.py:378** — 🟢 LOW — Incomplete Docstring  
-   'PluginManager.update_plugin' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'PluginManager.update_plugin'._
-
-13. **src/henchman/extensions/plugin_manager.py:395** — 🟢 LOW — Incomplete Docstring  
+12. **src/henchman/extensions/plugin_manager.py:409** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.check_updates' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.check_updates'._
 
-14. **src/henchman/extensions/plugin_manager.py:409** — 🟢 LOW — Incomplete Docstring  
+13. **src/henchman/extensions/plugin_manager.py:423** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.scan_security' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.scan_security'._
 
-15. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
+14. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
    'McpClient.connect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.connect'._
 
-16. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
+15. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
    'McpClient.disconnect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.disconnect'._
 
-17. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
+16. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
    'McpManager.connect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.connect_all'._
 
-18. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
+17. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
    'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.disconnect_all'._
 
@@ -108,40 +106,46 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/extensions/plugin_manager.py | ⚠️ C | 78.0 | 8 | 2026-03-17 |
-| 2 | src/henchman/agents/pool.py | ✅ A | 94.0 | 3 | 2026-03-17 |
-| 3 | src/henchman/extensions/plugin_database.py | ✅ A | 94.0 | 3 | 2026-03-17 |
-| 4 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 5 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 6 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-14 |
-| 7 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 8 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 9 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 10 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 12 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 13 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 14 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 1 | src/henchman/extensions/plugin_manager.py | 👍 B | 85.0 | 6 | 2026-03-17 |
+| 2 | src/henchman/cli/tool_executor.py | ✅ A | 90.0 | 1 | 2026-03-17 |
+| 3 | src/henchman/agents/pool.py | ✅ A | 94.0 | 3 | 2026-03-17 |
+| 4 | src/henchman/extensions/plugin_database.py | ✅ A | 94.0 | 3 | 2026-03-17 |
+| 5 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 6 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 7 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
+| 8 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 10 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 11 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 13 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 15 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 222 additional files omitted._
 
-### src/henchman/extensions/plugin_manager.py — ⚠️ C (78.0/100) (last modified 2026-03-17)
+### src/henchman/extensions/plugin_manager.py — 👍 B (85.0/100) (last modified 2026-03-17)
 
 Public APIs: 10 | Documented: 10 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 378 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.update_plugin' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
-| 409 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
+| 423 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
 | 178 | 🟢 LOW | Incomplete Docstring | 'PluginManager.initialize' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.initialize'. |
 | 194 | 🟢 LOW | Incomplete Docstring | 'PluginManager.close' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.close'. |
 | 360 | 🟢 LOW | Incomplete Docstring | 'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'. |
-| 378 | 🟢 LOW | Incomplete Docstring | 'PluginManager.update_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.update_plugin'. |
-| 395 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
-| 409 | 🟢 LOW | Incomplete Docstring | 'PluginManager.scan_security' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.scan_security'. |
+| 409 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
+| 423 | 🟢 LOW | Incomplete Docstring | 'PluginManager.scan_security' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.scan_security'. |
+
+### src/henchman/cli/tool_executor.py — ✅ A (90.0/100) (last modified 2026-03-17)
+
+Public APIs: 4 | Documented: 4 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 236 | 🟠 HIGH | Stale Docstring | 'ToolExecutor.execute_tool_calls' has undocumented parameters: announced_tool_call_ids | Add these parameters to the Args: section: announced_tool_call_ids |
 
 ### src/henchman/agents/pool.py — ✅ A (94.0/100) (last modified 2026-03-17)
 
@@ -181,7 +185,7 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 | 159 | 🟢 LOW | Incomplete Docstring | 'McpManager.connect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.connect_all'. |
 | 183 | 🟢 LOW | Incomplete Docstring | 'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.disconnect_all'. |
 
-## ✨ Clean Files (242 files with no smells)
+## ✨ Clean Files (241 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -306,7 +310,6 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 - src/henchman/cli/textual_messages.py — ✅ A
 - src/henchman/cli/textual_screens.py — ✅ A
 - src/henchman/cli/textual_widgets.py — ✅ A
-- src/henchman/cli/tool_executor.py — ✅ A
 - src/henchman/cli/tool_manager.py — ✅ A
 - src/henchman/cli/ui_renderer.py — ✅ A
 - src/henchman/config/context.py — ✅ A

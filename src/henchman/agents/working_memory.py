@@ -354,11 +354,11 @@ class ProblemEntry(SerializableDataclass):
 
     def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:
         """Apply status and resolution from another problem entry.
-        
+
         Args:
             updated: Another ProblemEntry instance containing updated status
                      and resolution values to apply to this entry.
-        
+
         Returns:
             None
         """

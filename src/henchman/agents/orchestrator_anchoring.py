@@ -85,7 +85,7 @@ def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus
             (STALLED, NO_WORK_DONE, TIMED_OUT, or COMPLETED).
     """
     raw_tool_calls = getattr(orchestrator, "_last_loop_tool_call_count", 0)
-    tool_calls = _parse_tool_call_count(raw_tool_calls)
+    _tool_calls = _parse_tool_call_count(raw_tool_calls)
     raw_success = getattr(orchestrator, "_last_loop_success_count", 0)
     success_calls = _parse_tool_call_count(raw_success)
     timed_out = getattr(orchestrator, "_last_loop_timed_out", False)

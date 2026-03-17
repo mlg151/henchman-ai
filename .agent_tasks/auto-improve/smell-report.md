@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T19:00:27.786738+00:00_
+_Generated: 2026-03-17T20:00:39.900539+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-17T19:00:27.786738+00:00_
 | **Overall Grade** | 👍 B |
 | **Overall Score** | 80.1/100 |
 | **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 46,880 |
-| **Total Smells** | 373 |
+| **Total Lines (non-blank)** | 46,904 |
+| **Total Smells** | 374 |
 | **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.3 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-17T19:00:27.786738+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 200 |
+| low | 201 |
 | medium | 166 |
 | high | 7 |
 
@@ -30,7 +30,7 @@ _Generated: 2026-03-17T19:00:27.786738+00:00_
 |:---------|------:|
 | Duplicate Code | 124 |
 | Missing Type Hint | 56 |
-| Long Method | 45 |
+| Long Method | 46 |
 | Primitive Obsession | 40 |
 | Feature Envy | 38 |
 | Magic Number | 25 |
@@ -66,7 +66,7 @@ These are the highest-impact smells to address first:
    Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **utils/compaction.py:882** — 🟠 HIGH — Duplicate Code  
+7. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
    Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_mixins.py | ❌ F | 40.2 | 11 | 1472 | 1 | 0.0 |
-| 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 857 | 30 | 11.0 |
+| 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
 | 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
 | 5 | agents/working_memory.py | 🔶 D | 65.4 | 5 | 535 | 43 | 0.0 |
@@ -128,7 +128,7 @@ LOC: 1472 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 113 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 112 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 489 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 72 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 547 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 562 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
@@ -142,17 +142,17 @@ LOC: 1472 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 
 ### utils/compaction.py — ❌ F (57.2/100)
 
-LOC: 857 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
+LOC: 856 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 882 | 🟠 HIGH | Duplicate Code | Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 56 | 🟡 MEDIUM | Duplicate Code | Function 'token_count' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 751 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:95 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1053 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 559 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
-| 602 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
-| 703 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 881 | 🟠 HIGH | Duplicate Code | Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 55 | 🟡 MEDIUM | Duplicate Code | Function 'token_count' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 750 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:95 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1052 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 558 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
+| 601 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
+| 702 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
 ### knowledge/store.py — 🔶 D (63.6/100)
 
@@ -329,7 +329,7 @@ LOC: 344 | Classes: 5 | Functions: 2 | MI: 54 | Avg CC: 0.0
 |-----:|:---------|:-----|:--------|:----------------------|
 | 118 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 94% similar to '_render_diff' at cli/console.py:666 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 118 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'register' at extensions/manager.py:154 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 193 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_mixins.py:113 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 193 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_mixins.py:112 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 193 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
 ### api/endpoints/chat.py — ⚠️ C (73.4/100)
@@ -379,7 +379,7 @@ LOC: 504 | Classes: 5 | Functions: 21 | MI: 36 | Avg CC: 0.0
 | 267 | 🟡 MEDIUM | Duplicate Code | Function 'extract_imports' is 100% similar to 'extract_critical_sections' at utils/message_analyzer.py:106 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 278 | 🟡 MEDIUM | Duplicate Code | Function 'classify_import' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-## ✨ Clean Files (87 files with no smells)
+## ✨ Clean Files (86 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -412,7 +412,6 @@ LOC: 504 | Classes: 5 | Functions: 21 | MI: 36 | Avg CC: 0.0
 - cli/commands/team.py — ✅ A
 - cli/input.py — 👍 B
 - cli/prompts.py — ✅ A
-- cli/stream_event_handlers.py — 👍 B
 - cli/textual_screens.py — 👍 B
 - cli/textual_widgets.py — ⚠️ C
 - config/__init__.py — ✅ A
