@@ -373,7 +373,7 @@ class DeepResearchTool(Tool):
             question: Research question or topic to investigate.
             max_sources: Maximum number of sources to gather.
             focus: Optional focus keyword to narrow sub-queries.
-            **kwargs: Additional arguments (ignored).
+            **_kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with a synthesized Markdown research report.
