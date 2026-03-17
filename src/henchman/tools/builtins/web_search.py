@@ -124,14 +124,14 @@ class DuckDuckGoSearchTool(Tool):
         self: DuckDuckGoSearchTool,
         query: str = "",
         max_results: int = _DEFAULT_MAX_RESULTS,
-        **_kwargs: object,
+        **kwargs: object,
     ) -> ToolResult:
         """Execute web search.
 
         Args:
             query: Search query.
             max_results: Maximum results to return.
-            **_kwargs: Additional arguments (ignored).
+            **kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with search results.

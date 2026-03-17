@@ -1,37 +1,22 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-17T04:00:00Z
+## Date: 2025-03-17T06:00:00Z
 ## Bug Summary
-The `_textual_confirm` method uses `id(future)` as a dictionary key, which can lead to ID collisions when futures are garbage collected and memory addresses are reused, causing wrong future to be accessed or modified.
+The `_textual_confirm` method has a race condition where if the confirmation screen callback is invoked after the future has already been cancelled (due to an exception or app shutdown), it will attempt to call `future.set_result()` on a cancelled future, which raises `asyncio.InvalidStateError`.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - This is a logic gap where the code assumes `id()` provides a unique identifier that persists over time, but Python's `id()` only guarantees uniqueness among simultaneously existing objects, not over time.
+**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state synchronization issue between exception handlers and callback functions.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `id(future)` should provide a unique identifier that can safely be used as a dictionary key for the lifetime of the confirmation process | `id()` returns memory address which can be reused after object is garbage collected, leading to potential key collisions |
-| Each confirmation future should have a truly unique ID that won't conflict with other futures | If Future A is garbage collected and Future B is allocated at same memory address, they get same `id()`, causing callbacks for Future A to affect Future B |
+| Callback should safely handle already-cancelled futures | Callback may raise `asyncio.InvalidStateError` when trying to set result on cancelled future |
+| Exception handlers and callbacks should coordinate cleanup | Race condition between exception cleanup and callback invocation |
+| Futures should be in valid state when operations are performed | Futures can be cancelled while callback is still pending |
 
 ## Root Cause
-In the `_textual_confirm` method:
-```python
-req_id = id(future)
-self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
-
-def _callback(result: object | None) -> None:
-    if not future.done():
-        future.set_result(bool(result))
-    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
-```
-
-The bug is that `id(future)` is not a reliable unique identifier over time. Python's `id()` function returns the memory address of an object, which can be reused after the object is garbage collected. In a long-running application with many confirmation dialogs:
-1. Future A is created, gets ID 1000 (memory address)
-2. Future A completes, callback removes it from dict, future is garbage collected
-3. Future B is created, gets allocated at same memory address, ID 1000
-4. Late callback for Future A (race condition) tries to pop ID 1000, affecting Future B
-5. Or `_cleanup_confirm_futures` might cancel Future B thinking it's Future A
+The `_callback` function inside `_textual_confirm` checks `if not future.done():` before calling `future.set_result()`, but a future can be in the `CANCELLED` state without being `done()`. In asyncio, `cancelled()` is a separate state from `done()`. When `future.cancel()` is called in the exception handlers, the future transitions to cancelled state but `future.done()` may still return `False` initially. The callback then tries to `set_result()` on a cancelled future, which raises `asyncio.InvalidStateError`.
 
 ## Fix Plan
-Replace `id(future)` with a proper unique ID generator. Use the existing `self._confirm_counter` that's already initialized in `_init_confirm_state()` but currently unused. Increment it for each new confirmation request.
+Modify the callback to check `if not future.done() and not future.cancelled():` before calling `set_result()`. This ensures we don't try to set a result on a cancelled future. Also add proper synchronization to ensure callback and exception handlers don't interfere.
 
 ## Status: IN PROGRESS

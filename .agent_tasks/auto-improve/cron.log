@@ -831262,3 +831262,301 @@ TOTAL                                                       19516    325   5150 
 =========== 5909 passed, 6 skipped, 45 warnings in 191.20s (0:03:11) ===========
 [2026-03-17T04:00:02Z] All tests passed.
 Committing changes...
+[2026-03-17T06:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-17T06:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.5/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-17T06:00:49.757577+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me examine the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
+Let me continue reading the file to understand its structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 200})
+
+[result]     "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real provider is configured)          #
+# ------------...
+Let me look for the test file to understand what tests exist:
+[tool] glob({'pattern': '**/test*textual_mixins*'})
+
+[result] 
+tests/cli/__pycache__/test_textual_mixins_bug.cpython-312-pytest-9.0.2.pyc
+tests/cli/__pycache__/test_textual_mixins_bug_atomic.cpython-312-pytest-9.0.2.py
+c
+tests/cli/__pycache__/test_textual_mixins_b...
+Let me examine the test files to understand what's already been tested:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py'})
+
+[result] """Test for the id() collision bug in textual_mixins.py."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, patch
+import pytest
+
+from henchman.tools.base impor...
+Now let me look at the actual implementation of the `_textual_confirm` method in the target file:
+[tool] grep({'pattern': 'def _textual_confirm', 'path': 
+'src/henchman/cli/textual_mixins.py', 'line_numbers': True})
+
+[result] 485:    async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:...
+Let me read that method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+485, 'end_line': 550})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+Interesting! It looks like the `_textual_confirm` method already uses `self._confirm_counter` instead of `id(future)`. Let me check if there's a comment about this being a fix. Let me look at the test that's supposed to fail:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
+
+[result] """Failing test for the id() collision bug in textual_mixins.py."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, patch
+import pytest
+
+from henchman.tools.ba...
+Now let me examine the actual implementation more carefully. I need to understand what the current code does and find a real bug. Let me look at the entire `_textual_confirm` method and surrounding code:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+470, 'end_line': 530})
+
+[result]         """
+        self.core_context = init.core_context  # type: ignore[attr-defined]
+        self.tool_executor = init.tool_executor  # type: ignore[attr-defined]
+        self.command_processor = i...
+Wait, I see the code already uses `self._confirm_counter` and not `id(future)`. The comment even says "Use a counter-based ID instead of id(future)". So the bug mentioned in the test files appears to already be fixed. Let me check if there's another bug. Let me look at the `_callback` function more carefully.
+
+Actually, I see a potential issue! Look at the `_callback` function:
+
+```python
+def _callback(result: object | None) -> None:
+    if not future.done():
+        future.set_result(bool(result))
+    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+```
+
+The callback removes the future from `_confirm_futures` dictionary. But what if the future has already been removed by the exception handler? Let me trace through the logic:
+
+1. Future is created and added to `_confirm_futures[req_id]`
+2. `push_screen` is called with the callback
+3. If an exception occurs (like `asyncio.CancelledError` or any `Exception`), the exception handler removes the future from `_confirm_futures`
+4. Later, the callback might still be called (if the screen was already pushed before the exception)
+5. The callback tries to `pop(req_id, None)` which is fine (returns `None` if not present)
+6. But then it tries to `future.set_result(bool(result))` on a future that might have been cancelled!
+
+Actually, looking more carefully: if an exception occurs in `push_screen`, the future hasn't been set yet. The callback won't be called because `push_screen` failed. But wait, what if `push_screen` succeeds but then an exception occurs later?
+
+Actually, I think I need to look for a different bug. Let me examine the Four Lenses approach systematically.
+
+First, let me create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-17T06:00:00Z\n## Bug Summary\nThe `_textual_confirm` method has a race 
+condition where if the confirmation screen callback is invoked after the future 
+has already been cancelled (due to an exception or app shutdown), it will 
+attempt to call `future.set_result()` on a cancelled future, which raises 
+`asyncio.InvalidStateError`.\n\n## Lens\n**Phase 2: State & Side Effects (The 
+Entropy Audit)** - Shared state synchronization issue between exception handlers
+and callback functions.\n\n## Expected vs. Observed\n| Expected Behavior | 
+Observed Risk |\n|---|---|\n| Callback should safely handle already-cancelled 
+futures | Callback may raise `asyncio.InvalidStateError` when trying to set 
+result on cancelled future |\n| Exception handlers and callbacks should 
+coordinate cleanup | Race condition between exception cleanup and callback 
+invocation |\n| Futures should be in valid state when operations are performed |
+Futures can be cancelled while callback is still pending |\n\n## Root Cause\nThe
+`_callback` function inside `_textual_confirm` checks `if not future.done():` 
+before calling `future.set_result()`, but a future can be in the `CANCELLED` 
+state without being `done()`. In asyncio, `cancelled()` is a separate state from
+`done()`. When `future.cancel()` is called in the exception handlers, the future
+transitions to cancelled state but `future.done()` may still return `False` 
+initially. The callback then tries to `set_result()` on a cancelled future, 
+which raises `asyncio.InvalidStateError`.\n\n## Fix Plan\nModify the callback to
+check `if not future.done() and not future.cancelled():` before calling 
+`set_result()`. This ensures we don't try to set a result on a cancelled future.
+Also add proper synchronization to ensure callback and exception handlers don't 
+interfere.\n\n## Status: IN PROGRESS"})
+
+[result] Successfully wrote 1873 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+Now let me write a failing test first (TDD). I need to create a test that demonstrates this bug:
+[tool] write_file({'path': 'tests/cli/test_textual_mixins_race_condition.py', 
+'content': '"""Test for race condition bug in textual_mixins.py _textual_confirm
+method."""\n\nfrom __future__ import annotations\n\nimport asyncio\nfrom 
+unittest.mock import MagicMock, AsyncMock, patch\nimport pytest\n\nfrom 
+henchman.tools.base import ConfirmationRequest\n\n\nclass 
+TestTextualConfirmRaceCondition:\n    """Test that demonstrates the race 
+condition bug in _textual_confirm."""\n    \n    @pytest.mark.anyio\n    async 
+def test_callback_on_cancelled_future_raises_error(self) -> None:\n        
+"""Test that callback raises InvalidStateError when future is cancelled.\n      
+\n        This test demonstrates the bug where:\n        1. Future is created 
+and added to _confirm_futures\n        2. Exception occurs (e.g., 
+CancelledError)\n        3. Exception handler cancels the future\n        4. 
+Callback is still invoked (e.g., screen dismissed after exception)\n        5. 
+Callback tries to set_result on cancelled future → InvalidStateError\n        
+"""\n        from henchman.cli.textual_mixins import _InitMixin\n        \n     
+# Create mixin instance\n        mixin = _InitMixin.__new__(_InitMixin)\n       
+mixin._confirm_futures = {}\n        mixin._confirm_counter = 0\n        \n     
+# Create a real future\n        loop = asyncio.get_running_loop()\n        
+future = loop.create_future()\n        \n        # Simulate the bug scenario\n  
+req_id = 1\n        mixin._confirm_futures[req_id] = future\n        \n        #
+Create the callback function as it appears in _textual_confirm\n        def 
+_callback(result: object | None) -> None:\n            if not future.done():\n  
+future.set_result(bool(result))\n            mixin._confirm_futures.pop(req_id, 
+None)\n        \n        # First, cancel the future (simulating what exception 
+handler does)\n        future.cancel()\n        \n        # Now invoke the 
+callback - this should raise InvalidStateError\n        # because we\'re trying 
+to set_result on a cancelled future\n        with 
+pytest.raises(asyncio.InvalidStateError) as exc_info:\n            
+_callback(True)\n        \n        assert "cannot set result" in 
+str(exc_info.value).lower() or \\\n               "invalid state" in 
+str(exc_info.value).lower()\n    \n    @pytest.mark.anyio\n    async def 
+test_race_condition_in_actual_method(self) -> None:\n        """Test the actual 
+_textual_confirm method with simulated race condition."""\n        from 
+henchman.cli.textual_mixins import _InitMixin\n        \n        # Create mixin 
+with mocked dependencies\n        mixin = _InitMixin.__new__(_InitMixin)\n      
+mixin._confirm_futures = {}\n        mixin._confirm_counter = 0\n        
+mixin.push_screen = AsyncMock()\n        \n        # Mock the screen to call 
+callback after a delay (simulating race)\n        callback_called = 
+asyncio.Event()\n        callback_future = None\n        \n        async def 
+mock_push_screen(screen, callback):\n            # Store callback to call 
+later\n            nonlocal callback_future\n            callback_future = 
+asyncio.create_task(self._invoke_callback_later(callback))\n            # Don\'t
+actually call it yet - simulate screen being shown\n            \n        async 
+def _invoke_callback_later(self, callback):\n            await 
+asyncio.sleep(0.01)  # Small delay\n            callback(True)  # This might 
+happen after exception\n            callback_called.set()\n            \n       
+mixin.push_screen = mock_push_screen\n        \n        # Mock import_module\n  
+with patch(\'henchman.cli.textual_mixins._import_module\') as mock_import:\n    
+mock_screen_cls = MagicMock()\n            
+mock_import.return_value.ConfirmToolScreen = mock_screen_cls\n            \n    
+# Create request\n            request = ConfirmationRequest(\n                
+tool_name="test_tool",\n                description="Test tool execution",\n    
+params={"arg": "value"},\n                risk_level="high"\n            )\n    
+\n            # Start _textual_confirm but cancel it immediately\n            # 
+This simulates what happens if app is shutting down\n            task = 
+asyncio.create_task(mixin._textual_confirm(request))\n            \n            
+# Give it a moment to start\n            await asyncio.sleep(0.001)\n           
+\n            # Cancel the task (simulating CancelledError)\n            
+task.cancel()\n            \n            try:\n                await task\n     
+except asyncio.CancelledError:\n                pass  # Expected\n            \n
+# Now let the callback run (simulating screen dismissal after cancellation)\n   
+# This is the race condition\n            if callback_future:\n                
+await callback_future\n            \n            # Check if callback was called 
+and caused issues\n            # The bug would manifest as an unhandled 
+exception in the callback\n            # We can\'t easily catch it here since 
+it\'s in a different task\n            \n    @pytest.mark.anyio \n    async def 
+test_fix_should_check_cancelled_state(self) -> None:\n        """Test what the 
+fixed callback should look like."""\n        from henchman.cli.textual_mixins 
+import _InitMixin\n        \n        # Create mixin instance\n        mixin = 
+_InitMixin.__new__(_InitMixin)\n        mixin._confirm_futures = {}\n        
+mixin._confirm_counter = 0\n        \n        # Create a real future\n        
+loop = asyncio.get_running_loop()\n        future = loop.create_future()\n      
+\n        req_id = 1\n        mixin._confirm_futures[req_id] = future\n        
+\n        # FIXED callback implementation\n        def _callback_fixed(result: 
+object | None) -> None:\n            # Check both done() and cancelled() 
+states\n            if not future.done() and not future.cancelled():\n          
+future.set_result(bool(result))\n            mixin._confirm_futures.pop(req_id, 
+None)\n        \n        # Cancel the future\n        future.cancel()\n        
+\n        # Now invoke the fixed callback - should NOT raise InvalidStateError\n
+try:\n            _callback_fixed(True)\n            # If we get here without 
+exception, the fix works\n            assert True, "Fixed callback should not 
+raise InvalidStateError"\n        except asyncio.InvalidStateError:\n           
+pytest.fail("Fixed callback should check cancelled() state to avoid 
+InvalidStateError")\n        \n        # Also test with done() future (already 
+has result)\n        future2 = loop.create_future()\n        
+future2.set_result(True)\n        \n        def _callback_fixed2(result: object 
+| None) -> None:\n            if not future2.done() and not 
+future2.cancelled():\n                future2.set_result(bool(result))\n        
+# pop would happen here\n        \n        # Should not raise error\n        
+_callback_fixed2(False)\n        \n    @pytest.mark.anyio\n    async def 
+test_current_implementation_has_bug(self) -> None:\n        """Verify current 
+implementation has the bug by inspecting source."""\n        import inspect\n   
+import henchman.cli.textual_mixins as module\n        \n        # Get source of 
+_textual_confirm method\n        source = 
+inspect.getsource(module._InitMixin._textual_confirm)\n        \n        # Look 
+for the callback definition\n        lines = source.split(\'\\n\')\n        
+in_callback = False\n        callback_lines = []\n        \n        for line in 
+lines:\n            if \'def _callback\' in line:\n                in_callback =
+True\n            elif in_callback and line.strip() and not line.startswith(\' 
+\' * 12):\n                # Reached end of callback (different indentation)\n  
+in_callback = False\n                \n            if in_callback:\n            
+callback_lines.append(line)\n        \n        callback_source = 
+\'\\n\'.join(callback_lines)\n        \n        # Current bug: only checks `if 
+not future.done():`\n        # Should also check `and not future.cancelled():`\n
+assert \'if not future.done():\' in callback_source, "Callback should check 
+done() state"\n        assert \'future.cancelled()\' not in callback_source, 
+"BUG: Callback doesn\'t check cancelled() state"\n        \n        # This is 
+the bug - it doesn\'t protect against cancelled futures'})
+
+[result] Successfully wrote 8011 bytes to 
+tests/cli/test_textual_mixins_race_condition.py...
+Now let me run this test to confirm it fails with the current implementation:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_race_condition.py::TestTextualConfirmRaceCondition
+::test_callback_on_cancelled_future_raises_error -xvs'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Hmm, the test didn't raise an error. Let me check if my understanding of asyncio futures is correct. Let me write a simpler test to understand the behavior:
+[tool] python_exec({'code': 'import asyncio\n\n# Test future states\nloop = 
+asyncio.new_event_loop()\nfuture = loop.create_future()\n\nprint(f"Initial state
+- done(): {future.done()}, cancelled(): {future.cancelled()}")\n\n# Cancel the 
+future\nfuture.cancel()\nprint(f"After cancel - done(): {future.done()}, 
+cancelled(): {future.cancelled()}")\n\n# Try to set result on cancelled 
+future\ntry:\n    future.set_result(True)\n    print("set_result succeeded 
+(unexpected)")\nexcept asyncio.InvalidStateError as e:\n    print(f"set_result 
+raised InvalidStateError: {e}")\n\n# What about checking 
+done()?\nprint(f"\\nChecking if done() prevents set_result on cancelled 
+future:")\nif not future.done():\n    print("future.done() is False, would try 
+set_result")\nelse:\n    print("future.done() is True, would NOT try 
+set_result")'})
+
+[result] Initial state - done(): False, cancelled(): False
+After cancel - done(): True, cancelled(): True
+set_result raised InvalidStateError: invalid state
+
+Checking if done() prevents set_result on cancelled...
+Ah! So when a future is cancelled, `done()` returns `True`. So the check `if not future.done():` would prevent `set_result()` from being called on a cancelled future. My bug hypothesis was wrong!
+
+Let me re-examine the code more carefully. Let me look for a different bug using the Four Lenses approach.

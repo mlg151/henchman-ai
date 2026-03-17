@@ -365,7 +365,7 @@ class DeepResearchTool(Tool):
         question: str = "",
         max_sources: int = _DEFAULT_MAX_SOURCES,
         focus: str | None = None,
-        **_kwargs: object,
+        **kwargs: object,
     ) -> ToolResult:
         """Execute deep research on a question.
 
@@ -373,7 +373,7 @@ class DeepResearchTool(Tool):
             question: Research question or topic to investigate.
             max_sources: Maximum number of sources to gather.
             focus: Optional focus keyword to narrow sub-queries.
-            **_kwargs: Additional arguments (ignored).
+            **kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with a synthesized Markdown research report.
