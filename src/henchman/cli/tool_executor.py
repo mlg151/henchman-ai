@@ -106,12 +106,15 @@ class ToolExecutor:
         tc: ToolCall,
         agent: Agent,
         responded_ids: set[str],
+        *,
+        announce_request: bool = True,
     ) -> None:
         """Execute *tc*, record the result, and mark it as responded."""
         tc_id, tc_name, tc_args = tc.id, tc.name, tc.arguments
-        self.output_handler.muted(
-            f"\n\\[tool] {_escape(tc_name)}({_escape(str(tc_args))})",
-        )
+        if announce_request:
+            self.output_handler.muted(
+                f"\n\\[tool] {_escape(tc_name)}({_escape(str(tc_args))})",
+            )
         result = await self.tool_manager.registry.execute(tc_name, tc_args)
         responded_ids.add(tc_id)
         agent.turn.record_tool_call(
@@ -212,13 +215,20 @@ class ToolExecutor:
         tool_calls: list[ToolCall],
         agent: Agent,
         responded_ids: set[str],
+        announced_tool_call_ids: set[str] | None = None,
     ) -> None:
         """Execute *tool_calls* one-by-one, suspending the key monitor."""
+        announced_ids = announced_tool_call_ids or set()
         if self.current_monitor:
             await self.current_monitor.suspend()
         try:
             for tc in tool_calls:
-                await self._execute_and_record_tool_call(tc, agent, responded_ids)
+                await self._execute_and_record_tool_call(
+                    tc,
+                    agent,
+                    responded_ids,
+                    announce_request=tc.id not in announced_ids,
+                )
         finally:
             if self.current_monitor:
                 self.current_monitor.resume()
@@ -228,6 +238,8 @@ class ToolExecutor:
         tool_calls: list[ToolCall],
         agent: Agent,
         content_collector: list[str] | None = None,
+        *,
+        announced_tool_call_ids: set[str] | None = None,
     ) -> None:
         """Execute *tool_calls* and continue the agent loop.
 
@@ -243,6 +255,7 @@ class ToolExecutor:
         if not valid_tool_calls:
             return
 
+        announced_ids = announced_tool_call_ids or set()
         agent.turn.increment_iteration()
         responded_ids: set[str] = set()
         to_parallel, to_sequential = self._split_tools_by_confirmation_requirement(
@@ -252,7 +265,12 @@ class ToolExecutor:
             if to_parallel:
                 await asyncio.gather(
                     *[
-                        self._execute_and_record_tool_call(tc, agent, responded_ids)
+                        self._execute_and_record_tool_call(
+                            tc,
+                            agent,
+                            responded_ids,
+                            announce_request=tc.id not in announced_ids,
+                        )
                         for tc in to_parallel
                     ],
                 )
@@ -261,6 +279,7 @@ class ToolExecutor:
                     to_sequential,
                     agent,
                     responded_ids,
+                    announced_ids,
                 )
         finally:
             self._ensure_all_tool_calls_have_response(

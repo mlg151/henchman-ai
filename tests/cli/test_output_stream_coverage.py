@@ -618,6 +618,38 @@ class TestToolExecutorCoverage:
         await executor.process_agent_stream(_empty_stream(), agent)
         executor.output_handler.error.assert_called()
 
+    async def test_process_agent_stream_does_not_reannounce_tool_requests(self) -> None:
+        """Tool requests shown during streaming should not be echoed again on execution."""
+        executor = self._make_executor()
+        agent = self._make_agent()
+        tool_call = ToolCall(id="tc-1", name="shell", arguments={"command": "echo hi"})
+
+        result = MagicMock()
+        result.content = "hi"
+        result.success = True
+        result.error = None
+        executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+
+        async def _continue_stream():
+            if False:
+                yield
+
+        agent.continue_with_tool_results.return_value = _continue_stream()
+
+        async def _event_stream():
+            yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
+            yield AgentEvent(type=EventType.FINISHED)
+
+        await executor.process_agent_stream(_event_stream(), agent)
+
+        muted_messages = [call.args[0] for call in executor.output_handler.muted.call_args_list]
+        tool_messages = [message for message in muted_messages if "[tool]" in message]
+        result_messages = [message for message in muted_messages if "[result]" in message]
+
+        assert len(tool_messages) == 1
+        assert "shell" in tool_messages[0]
+        assert len(result_messages) == 1
+
     async def test_execute_tool_calls_empty(self) -> None:
         """Test execute_tool_calls with empty list."""
         executor = self._make_executor()
