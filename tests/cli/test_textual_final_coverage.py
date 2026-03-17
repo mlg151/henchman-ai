@@ -4981,14 +4981,17 @@ class TestInitMixinTextualConfirm:
 
     async def test_textual_confirm_cancelled_error_propagates(self) -> None:
         """Test _textual_confirm handles CancelledError (lines 442-468)."""
+        import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         class MockApp(_InitMixin):
             """Minimal mock."""
 
-            _confirm_counter = 0
-            _confirm_futures: dict = {}
-            core_context = None
+            def __init__(self):
+                self._confirm_counter = 0
+                self._confirm_futures: dict = {}
+                self._confirm_lock = asyncio.Lock()
+                self.core_context = None
 
             async def push_screen(self, screen, callback=None) -> None:
                 raise asyncio.CancelledError()
@@ -5005,14 +5008,17 @@ class TestInitMixinTextualConfirm:
 
     async def test_textual_confirm_exception_sets_future_exception(self) -> None:
         """Test _textual_confirm sets future exception on generic error."""
+        import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         class MockApp(_InitMixin):
             """Minimal mock."""
 
-            _confirm_counter = 0
-            _confirm_futures: dict = {}
-            core_context = None
+            def __init__(self):
+                self._confirm_counter = 0
+                self._confirm_futures: dict = {}
+                self._confirm_lock = asyncio.Lock()
+                self.core_context = None
 
             async def push_screen(self, screen, callback=None) -> None:
                 raise RuntimeError("screen error")
@@ -8027,13 +8033,16 @@ class TestTextualConfirmExceptionPaths:
 
         When push_screen raises CancelledError, the future should be cancelled.
         """
+        import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         class MockApp(_InitMixin):
             """Minimal mock app."""
 
-            _confirm_futures: dict = {}
-            _confirm_counter: int = 0
+            def __init__(self):
+                self._confirm_futures: dict = {}
+                self._confirm_counter: int = 0
+                self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
                 """Raise CancelledError."""
@@ -8053,13 +8062,16 @@ class TestTextualConfirmExceptionPaths:
 
         When push_screen raises a generic Exception, the future should get the exception.
         """
+        import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         class MockApp(_InitMixin):
             """Minimal mock app."""
 
-            _confirm_futures: dict = {}
-            _confirm_counter: int = 0
+            def __init__(self):
+                self._confirm_futures: dict = {}
+                self._confirm_counter: int = 0
+                self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
                 """Raise generic exception."""
@@ -8076,6 +8088,7 @@ class TestTextualConfirmExceptionPaths:
 
     async def test_textual_confirm_cancelled_future_already_done(self) -> None:
         """Test _textual_confirm CancelledError when future already done (line 460 False branch)."""
+        import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         future_holder: list = []
@@ -8083,8 +8096,10 @@ class TestTextualConfirmExceptionPaths:
         class MockApp(_InitMixin):
             """Minimal mock app."""
 
-            _confirm_futures: dict = {}
-            _confirm_counter: int = 0
+            def __init__(self):
+                self._confirm_futures: dict = {}
+                self._confirm_counter: int = 0
+                self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
                 """Set future result then raise CancelledError."""
