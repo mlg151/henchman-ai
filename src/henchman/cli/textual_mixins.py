@@ -493,9 +493,10 @@ class _InitMixin:
         """
         loop = asyncio.get_running_loop()
         future: asyncio.Future[bool] = loop.create_future()
-        # Use the future's id as a unique key - id() returns a unique integer
-        # for the object's lifetime, which is perfect for our needs
-        req_id = id(future)
+        # Use a counter-based ID instead of id(future) to avoid potential
+        # collisions when memory addresses are reused after garbage collection
+        req_id = self._confirm_counter  # type: ignore[attr-defined]
+        self._confirm_counter += 1  # type: ignore[attr-defined]
         self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:

@@ -85,8 +85,28 @@ class TestTextualConfirmIdCollisionBug:
         import henchman.cli.textual_mixins as module
         
         source = inspect.getsource(module._InitMixin._textual_confirm)
-        assert 'id(future)' in source, "_textual_confirm should use id(future) - this is the bug!"
-        assert 'self._confirm_counter' not in source, "_textual_confirm should NOT use _confirm_counter (but it should!)"
+        
+        # Check that the code uses self._confirm_counter (the fix)
+        assert 'self._confirm_counter' in source, "_textual_confirm SHOULD use _confirm_counter - that's the fix!"
+        
+        # Check that id(future) is not called as a function (only appears in comments)
+        # We need to parse the source to ignore comments
+        import ast
+        import textwrap
+        
+        # Dedent the source first
+        dedented_source = textwrap.dedent(source)
+        tree = ast.parse(dedented_source)
+        
+        # Walk the AST to find any calls to id()
+        has_id_call = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == 'id':
+                    has_id_call = True
+                    break
+        
+        assert not has_id_call, "_textual_confirm should NOT call id() - that's the bug!"
         
     @pytest.mark.anyio
     async def test_fix_would_use_counter(self) -> None:
@@ -128,9 +148,9 @@ class TestTextualConfirmIdCollisionBug:
             
             request = ConfirmationRequest(
                 tool_name="test_tool",
-                tool_kind="EXECUTE",
-                arguments={"arg": "value"},
-                description="Test tool execution"
+                description="Test tool execution",
+                params={"arg": "value"},
+                risk_level="high"
             )
             
             # Call the method
