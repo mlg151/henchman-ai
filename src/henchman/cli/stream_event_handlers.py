@@ -36,6 +36,7 @@ class StreamState:
     """Mutable state threaded through one agent event stream."""
 
     pending_tool_calls: list[ToolCall] = field(default_factory=list)
+    announced_tool_call_ids: set[str] = field(default_factory=set)
     handled_tool_call_ids: set[str] = field(default_factory=set)
     accumulated_content: list[str] = field(default_factory=list)
     last_agent_id: str | None = None
@@ -174,6 +175,7 @@ def _handle_tool_call_request(
         f"\n\\[tool] {_escape(tool_call.name)}({_escape(str(tool_call.arguments))})",
     )
     if state.is_own_event:
+        state.announced_tool_call_ids.add(tool_call.id)
         state.pending_tool_calls.append(tool_call)
 
 
@@ -344,7 +346,12 @@ async def handle_post_stream_processing(
         )
     unhandled = [tc for tc in state.pending_tool_calls if tc.id not in state.handled_tool_call_ids]
     if unhandled:
-        await execute_tool_calls_fn(unhandled, agent, content_collector)
+        await execute_tool_calls_fn(
+            unhandled,
+            agent,
+            content_collector,
+            announced_tool_call_ids=state.announced_tool_call_ids,
+        )
 
 
 # ---------------------------------------------------------------------------
