@@ -131,7 +131,7 @@ class DuckDuckGoSearchTool(Tool):
         Args:
             query: Search query.
             max_results: Maximum results to return.
-            **kwargs: Additional arguments (ignored).
+            **_kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with search results.

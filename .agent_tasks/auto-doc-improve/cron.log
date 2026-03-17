@@ -173365,3 +173365,220 @@ Committing changes...
  create mode 100644 .agent_tasks/four-lenses-utils-compaction/test_bug.py
  create mode 100644 .agent_tasks/smell-refactor/smells.json
 [2026-03-17T00:00:01Z] Done.
+[2026-03-17T02:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the highest-priority issue from the smell report: the stale docstring for `DeepResearchTool.execute` at line 362 in `src/henchman/tools/builtins/deep_research.py`. This is marked as HIGH severity because it has undocumented parameters.
+
+Let me first check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-17T00:00:00Z (approximate)
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Fixed incomplete docstring for 
+`ProblemEntry.update_fro...
+Good, the last improvement was on a different file. Now let me examine the current highest-priority issue: the stale docstring for `DeepResearchTool.execute` at line 362.
+[tool] read_file({'path': 'src/henchman/tools/builtins/deep_research.py', 
+'start_line': 350, 'end_line': 380})
+
+[result]         """Tool description."""
+        return (
+            "Perform end-to-end web research on a question: generates 
+sub-queries, "
+            "searches the web for each, fetches top results, and s...
+I can see the issue. The docstring already has `**_kwargs: object` in the signature and documents it as `**kwargs: Additional arguments (ignored).` in the Args section. However, the smell report says it's undocumented. Let me check the exact line 362 and see if there's a formatting issue:
+[tool] read_file({'path': 'src/henchman/tools/builtins/deep_research.py', 
+'start_line': 360, 'end_line': 365})
+
+[result]         return ToolKind.NETWORK
+
+    async def execute(  # type: ignore[override]
+        self: DeepResearchTool,
+        *,
+        question: str = "",
+...
+Let me look at the full method signature and docstring more carefully:
+[tool] read_file({'path': 'src/henchman/tools/builtins/deep_research.py', 
+'start_line': 365, 'end_line': 385})
+
+[result]         question: str = "",
+        max_sources: int = _DEFAULT_MAX_SOURCES,
+        focus: str | None = None,
+        **_kwargs: object,
+    ) -> ToolResult:
+        """Execute deep research on a que...
+I see the issue! The parameter in the signature is `**_kwargs: object` (with an underscore), but the docstring documents it as `**kwargs` (without underscore). This is a mismatch. The docstring should document `**_kwargs` to match the actual parameter name.
+
+Let me also check the `web_search.py` file to see if it has the same issue:
+[tool] read_file({'path': 'src/henchman/tools/builtins/web_search.py', 
+'start_line': 115, 'end_line': 135})
+
+[result]             "required": ["query"],
+        }
+
+    @property
+    def kind(self: DuckDuckGoSearchTool) -> ToolKind:
+        """Tool kind - NETWORK requires confirmation."""
+        return ToolKind.NETWO...
+Same issue here! The parameter is `**_kwargs: object` but the docstring documents `**kwargs`. Let me fix both files. I'll start with `deep_research.py`:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/deep_research.py', 
+'old_str': '        """Execute deep research on a question.\n\n        Args:\n  
+question: Research question or topic to investigate.\n            max_sources: 
+Maximum number of sources to gather.\n            focus: Optional focus keyword 
+to narrow sub-queries.\n            **kwargs: Additional arguments 
+(ignored).\n\n        Returns:\n            ToolResult with a synthesized 
+Markdown research report.\n        """', 'new_str': '        """Execute deep 
+research on a question.\n\n        Args:\n            question: Research 
+question or topic to investigate.\n            max_sources: Maximum number of 
+sources to gather.\n            focus: Optional focus keyword to narrow 
+sub-queries.\n            **_kwargs: Additional arguments (ignored).\n\n        
+Returns:\n            ToolResult with a synthesized Markdown research report.\n 
+"""'})
+
+[result] Successfully edited src/henchman/tools/builtins/deep_research.py...
+Now let me fix the `web_search.py` file:
+[tool] read_file({'path': 'src/henchman/tools/builtins/web_search.py', 
+'start_line': 120, 'end_line': 140})
+
+[result]         """Tool kind - NETWORK requires confirmation."""
+        return ToolKind.NETWORK
+
+    async def execute(  # type: ignore[override]
+        self: DuckDuckGoSearchTool,
+        query: str = "",
+...
+
+[tool] edit_file({'path': 'src/henchman/tools/builtins/web_search.py', 
+'old_str': '        """Execute web search.\n\n        Args:\n            query: 
+Search query.\n            max_results: Maximum results to return.\n            
+**kwargs: Additional arguments (ignored).\n\n        Returns:\n            
+ToolResult with search results.\n        """', 'new_str': '        """Execute 
+web search.\n\n        Args:\n            query: Search query.\n            
+max_results: Maximum results to return.\n            **_kwargs: Additional 
+arguments (ignored).\n\n        Returns:\n            ToolResult with search 
+results.\n        """'})
+
+[result] Successfully edited src/henchman/tools/builtins/web_search.py...
+Now let me verify the changes by checking the updated docstrings:
+[tool] read_file({'path': 'src/henchman/tools/builtins/deep_research.py', 
+'start_line': 370, 'end_line': 385})
+
+[result]         """Execute deep research on a question.
+
+        Args:
+            question: Research question or topic to investigate.
+            max_sources: Maximum number of sources to gather.
+          ...
+
+[tool] read_file({'path': 'src/henchman/tools/builtins/web_search.py', 
+'start_line': 125, 'end_line': 140})
+
+[result]         query: str = "",
+        max_results: int = _DEFAULT_MAX_RESULTS,
+        **_kwargs: object,
+    ) -> ToolResult:
+        """Execute web search.
+
+        Args:
+            query: Search query....
+Perfect! Both docstrings now correctly document `**_kwargs` instead of `**kwargs`, matching the actual parameter names in the method signatures. 
+
+Now let me create the improvement summary:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-17T02:00:00Z (approximate)\n\n## Files Changed\n1. 
+`src/henchman/tools/builtins/deep_research.py` - Fixed stale docstring for 
+`DeepResearchTool.execute` method\n2. 
+`src/henchman/tools/builtins/web_search.py` - Fixed stale docstring for 
+`DuckDuckGoSearchTool.execute` method\n\n## Smell Category Addressed\nSTALE 
+DOCSTRING (parameter name mismatch between signature and documentation)\n\n## 
+Rationale for Change\nThe documentation smell report identified HIGH severity 
+issues with two tool methods having stale docstrings. Both methods had parameter
+name mismatches where the actual parameter was `**_kwargs: object` (with 
+underscore) but the docstring documented `**kwargs` (without underscore). This 
+violates documentation accuracy principles and causes confusion for developers 
+and automated tools.\n\n**Changes made**:\n1. 
+**src/henchman/tools/builtins/deep_research.py**: Updated the `Args:` section in
+`DeepResearchTool.execute` method docstring\n   - **Before**: `**kwargs: 
+Additional arguments (ignored).`\n   - **After**: `**_kwargs: Additional 
+arguments (ignored).`\n   \n2. **src/henchman/tools/builtins/web_search.py**: 
+Updated the `Args:` section in `DuckDuckGoSearchTool.execute` method docstring\n
+- **Before**: `**kwargs: Additional arguments (ignored).`\n   - **After**: 
+`**_kwargs: Additional arguments (ignored).`\n\n**Why this improvement 
+matters**:\n1. **Accuracy**: Documentation must match the actual code signatures
+exactly\n2. **Consistency**: Parameter names in docstrings should match 
+parameter names in method signatures\n3. **Developer experience**: Accurate 
+documentation prevents confusion when using these tools\n4. **Tooling support**:
+Automated documentation generators and IDEs rely on accurate parameter names\n5.
+**Quality assurance**: Addresses HIGH severity issues from the smell 
+report\n\n**Specific benefits**:\n- **Code navigation**: Developers can search 
+for `_kwargs` and find both the parameter and its documentation\n- **API 
+clarity**: Clear understanding that these are internal/ignored parameters 
+(underscore convention)\n- **Automated documentation**: Tools like Sphinx, 
+pydoc, and mkdocs will generate correct documentation\n- **Type checking**: 
+Better support for type checkers and linters that verify docstring 
+consistency\n- **Professionalism**: Shows attention to detail in maintaining 
+accurate documentation\n\n## Verification Performed\n1. ✅ **Parameter name 
+match**: Verified `**_kwargs` in docstring matches `**_kwargs: object` in method
+signature for both files\n2. ✅ **Docstring format**: Verified the docstrings 
+still follow Google-style format with proper sections\n3. ✅ **Consistency 
+check**: Both tools now have consistent documentation for their `_kwargs` 
+parameters\n4. ✅ **Accuracy check**: The documentation accurately describes the
+parameters as "Additional arguments (ignored)"\n5. ✅ **No syntax errors**: 
+Docstring formatting is correct after changes\n\n## What to Verify\n1. ✅ 
+**Parameter accuracy**: Docstring parameter names match method signature 
+parameter names\n2. ✅ **Documentation clarity**: The purpose of `_kwargs` is 
+clearly explained as "ignored"\n3. ✅ **Style consistency**: Both tools follow 
+the same documentation pattern\n4. ✅ **No breaking changes**: Only 
+documentation updated, no functional changes\n5. ✅ **Smell resolution**: The 
+HIGH severity stale docstring issues should be resolved\n\n## Impact\n- **Low 
+risk**: Documentation-only change, no functional impact\n- **High value**: Fixes
+critical documentation accuracy issues\n- **Better developer experience**: 
+Accurate API documentation for tool usage\n- **Maintainability**: Clearer 
+understanding of method parameters\n- **Quality improvement**: Addresses the 
+highest-priority documentation smells from the report\n\n## Next Priority\nWith 
+these HIGH severity issues resolved, the next highest priority from the smell 
+report would be:\n1. **PluginCompatibilityChecker.check_compatibility** in 
+`src/henchman/extensions/plugin_compatibility.py` (MEDIUM severity - missing 
+Args: section)\n2. **PluginManager.search_plugins** in 
+`src/henchman/extensions/plugin_manager.py` (MEDIUM severity - missing Args: 
+section)\n3. **PluginManager.get_plugin_info** in 
+`src/henchman/extensions/plugin_manager.py` (MEDIUM severity - missing Args: 
+section)\n\nThis improvement enhances the project\'s documentation quality by 
+ensuring parameter names in docstrings exactly match the actual method 
+signatures, which is critical for accurate API documentation.'})
+
+[result] Successfully wrote 4478 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully addressed the two HIGH severity stale docstring issues. The changes were:
+
+1. **Fixed parameter name mismatch in `DeepResearchTool.execute`**: Updated docstring from `**kwargs` to `**_kwargs` to match the actual parameter name `**_kwargs: object` in the method signature.
+
+2. **Fixed parameter name mismatch in `DuckDuckGoSearchTool.execute`**: Updated docstring from `**kwargs` to `**_kwargs` to match the actual parameter name `**_kwargs: object` in the method signature.
+
+These fixes ensure documentation accuracy, which is a core principle of good technical documentation. The parameter names in docstrings now exactly match the method signatures, preventing confusion for developers and ensuring automated documentation tools work correctly.
+
+The improvements are minimal and focused, addressing only the documentation issues without modifying any source code behavior. This aligns with the constraints of being a Technical Documentation Improvement Agent.
+[tech_lead] completed work
+[2026-03-17T02:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.92 seconds
+[2026-03-17T02:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-17T02:00:01Z] Verification passed.
+Committing changes...
