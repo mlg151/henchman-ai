@@ -139,6 +139,31 @@ class TestReadContextFileContent:
         result = await _read_context_file_content(test_file)
         assert "truncated" in result
 
+    async def test_read_text_fails_after_stat_succeeds(self, tmp_path: Path) -> None:
+        """Test that function handles read_text failure after stat succeeds."""
+        from henchman.cli.textual_mixins import _read_context_file_content
+        
+        test_file = tmp_path / "deleted_file.md"
+        test_file.write_text("test content")
+        
+        # Mock path.read_text to raise OSError after stat succeeds
+        import asyncio
+        from unittest.mock import patch
+        
+        with patch.object(asyncio, 'to_thread') as mock_to_thread:
+            # First call to stat() succeeds
+            mock_stat = MagicMock()
+            mock_stat.st_size = 1024
+            # Second call to read_text() fails
+            mock_to_thread.side_effect = [
+                mock_stat,  # stat() succeeds
+                OSError("File not found")  # read_text() fails
+            ]
+            
+            # This should not raise an exception
+            result = await _read_context_file_content(test_file)
+            assert "Error reading" in result or "failed" in result.lower()
+
 
 # ---------------------------------------------------------------------------
 # _ProviderMixin tests
