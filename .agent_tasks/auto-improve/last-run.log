@@ -1,11 +1,11 @@
-[2026-03-17T18:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T19:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T18:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T19:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
@@ -13,13 +13,13 @@ I'll start by reading the smell report to understand the context, then examine t
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T18:00:36.941643+00:00_
+_Generated: 2026-03-17T19:00:27.786738+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
+Now let me read the target file to understand its structure and functionality:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
 'end_line': 100})
 
@@ -29,9 +29,9 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-Let me continue reading the file to understand its structure:
+Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 300})
+100, 'end_line': 200})
 
 [result]     "thinking": ("#thinking-pane", ThinkingPane),
     "tool": ("#tool-pane", ToolPane),
@@ -40,38 +40,15 @@ Let me continue reading the file to understand its structure:
 
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real...
-Let me continue reading to see more of the file structure:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-300, 'end_line': 500})
-
-[result] 
-    @property
-    def orchestrator(self: _ProxyMixin) -> Any:
-        """Proxy to ``core_context.orchestrator``."""
-        return self._get_context_attr("orchestrator")
-
-    @orchestrator.setter
-   ...
-Now let me look at the `_textual_confirm` method which was flagged in the smell report as having deep nesting issues:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-489, 'end_line': 600})
-
-[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
-
-        Args:
-            request: The tool confirmation request.
-...
-Now let me check if there are any tests for this file:
+Let me check the tests for this file to understand what functionality it provides:
 [tool] glob({'pattern': '**/test*textual*mixins*.py'})
 
-[result] tests/cli/test_textual_mixins_attribute_error_bug.py
+[result] tests/cli/test_textual_mixins_actual_bug.py
+tests/cli/test_textual_mixins_asyncio_lock_bug.py
+tests/cli/test_textual_mixins_attribute_error_bug.py
 tests/cli/test_textual_mixins_bug.py
-tests/cli/test_textual_mixins_bug_failing.py
-tests/cli/test_textual_mixins_counter_race_failing.py
-tests/cli/t...
-Interesting! There are many test files related to bugs in textual_mixins. Let me examine a few to understand what issues have been found:
+tests/cli/test_t...
+Interesting! There are many test files for this module. Let me check one to understand what bugs have been found:
 [tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
 
 [result] """Failing test for the id() collision bug in textual_mixins.py."""
@@ -83,21 +60,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from henchman.tools.ba...
-Now let me check another test file to see what other bugs have been identified:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_race_condition.py'})
-
-[result] """Test for race condition bug in textual_mixins.py _textual_confirm 
-method."""
-
-from __future__ import annotations
-
-import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-import pytest
-...
-Now let me examine the actual current implementation more carefully to see what bugs might still exist. Let me look at the `_textual_confirm` method more closely:
+Now let me look at the actual `_textual_confirm` method in the source file:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-489, 'end_line': 560})
+489, 'end_line': 600})
 
 [result]     async def _textual_confirm(self: _InitMixin, request: 
 ConfirmationRequest) -> bool:
@@ -106,23 +71,134 @@ ConfirmationRequest) -> bool:
         Args:
             request: The tool confirmation request.
 ...
-Now let me check the `_cleanup_confirm_futures` method:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-579, 'end_line': 620})
-
-[result]                     if future is not None:
-                        # future.cancel() is idempotent for asyncio Futures
-                        # No need to check future.done() first (avoids TOCTOU 
-rac...
-Now let me look at the test files to understand what bugs have already been fixed and what might still be present. Let me check one more test file:
-[tool] read_file({'path': 
-'tests/cli/test_textual_mixins_threading_lock_bug.py'})
-
-[result] """Test demonstrating why threading.Lock is wrong for async code.
-
-The bug: threading.Lock is reentrant within the same thread, so when
-one async task acquires it and then awaits, another async task i...
-Now I need to understand the current state of the code. Let me run the existing tests to see what's currently passing and failing:
+Now let me check if there's already a fix in place. The code shows it's using `self._confirm_counter` and not `id(future)`. Let me check the test that's supposed to be failing:
 [tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
 tests/cli/test_textual_mixins_bug_failing.py -x -q --tb=short'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Interesting! The test is passing, which means the bug might have already been fixed. Let me check the actual source code more carefully to see if there's still a bug. Let me look at the `_textual_confirm` method again and check for other potential issues:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+489, 'end_line': 520})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+I need to analyze the target file through the Four Lenses of Failure. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2026-03-17T19:15:00+00:00\n## Bug Summary\nThe `_textual_confirm` method has a 
+race condition where the `_callback` function can access `self._confirm_futures`
+after it has been cleaned up during shutdown, potentially causing `KeyError` or 
+`AttributeError`.\n\n## Lens\nPhase 2: State & Side Effects (The Entropy Audit) 
+- Shared State mutation without proper synchronization during cleanup.\n\n## 
+Expected vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| 
+Callback should safely handle missing futures during cleanup | Callback assumes 
+`_confirm_futures` dict exists and contains the key |\n| Cleanup should prevent 
+callbacks from accessing cleaned state | Callback runs asynchronously and may 
+access dict after cleanup |\n| Thread-safe access to shared mutable state | No 
+lock protection in sync callback context |\n\n## Root Cause\nThe `_callback` 
+function is defined as a regular function (not async) and accesses 
+`self._confirm_futures` without acquiring the lock in the sync callback context.
+During `_cleanup_confirm_futures()` (called from `on_unmount`), futures are 
+cancelled and removed from the dict, but callbacks may still run and try to 
+access the dict.\n\n## Fix Plan\n1. Add null-check in `_callback` before 
+accessing `self._confirm_futures`\n2. Use `pop()` with default value to avoid 
+KeyError\n3. Ensure callback is idempotent and handles missing futures 
+gracefully\n\n## Status: IN PROGRESS'})
+
+[result] Successfully wrote 1472 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+Now let me examine the callback function more closely to understand the exact issue:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+520, 'end_line': 540})
+
+[result]             if not future.done() and not future.cancelled():
+                future.set_result(bool(result))
+            # Use lock to protect shared dict access (same as exception 
+handlers)
+         ...
+Wait, I see the code already has `hasattr(self, '_confirm_futures')` check in the callback. Let me look at the `_cleanup_confirm_futures` method to see if there's still an issue:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+570, 'end_line': 600})
+
+[result] 
+    def _cleanup_confirm_futures(self: _InitMixin) -> None:
+        """Clean up all pending confirmation futures."""
+        # Note: This is called from on_unmount which is sync
+        if not hasatt...
+Actually, looking at the code more carefully, I see there's already protection with `hasattr` checks. But let me think about this more systematically. Let me re-examine the file with the Four Lenses approach:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_textual_confirm` method again, I notice something interesting in the exception handlers:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+540, 'end_line': 570})
+
+[result]         except asyncio.CancelledError:
+            # Use lock to protect shared dict access
+            # Check if _confirm_futures exists before accessing it
+            if hasattr(self, '_confirm_fu...
+Wait, I think I found a real bug! Look at the exception handlers - they call `future.cancel()` AFTER they've already popped the future from `_confirm_futures`. But if `future.cancel()` triggers the callback (which it might, depending on when the future was created and what state it's in), the callback will try to access `self._confirm_futures[req_id]` but the entry has already been removed!
+
+Actually, looking more carefully at the callback:
+```python
+def _callback(result: object | None) -> None:
+    if not future.done() and not future.cancelled():
+        future.set_result(bool(result))
+    # Use lock to protect shared dict access...
+```
+
+The callback checks `if not future.done() and not future.cancelled()` before setting the result. So if `future.cancel()` is called first, the callback won't set the result. But wait, the callback still tries to pop from `_confirm_futures` after that check!
+
+Actually, I need to trace through this more carefully. Let me write a test to understand the flow better. But first, let me check if there are existing tests for this:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && find tests -name "*.py" 
+-type f -exec grep -l "_textual_confirm\\|_cleanup_confirm_futures" {} \\;'})
+
+[result] tests/cli/test_textual_mixins_bug.py
+tests/cli/test_textual_mixins_race_condition.py
+tests/cli/test_textual_mixins_future_cancel_fix.py
+tests/cli/test_textual_mixins_race_dict_access.py
+tests/cli/test...
+Let me check one of these test files to see what bugs they're testing:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_actual_bug.py'})
+
+[result] """Test that demonstrates the actual threading.Lock bug in 
+textual_mixins.py.
+
+This test will FAIL with current implementation and PASS after fix.
+"""
+
+from __future__ import annotations
+
+import async...
+Ah! This is interesting. The test shows there's a bug with `threading.Lock` vs `asyncio.Lock`. Let me check what lock is actually being used in the source code:
+[tool] grep({'pattern': '_confirm_lock', 'path': 
+'src/henchman/cli/textual_mixins.py', 'line_numbers': True})
+
+[result] 419:        self._confirm_lock: asyncio.Lock = asyncio.Lock()
+504:        if hasattr(self, '_confirm_lock'):
+506:            async with self._confirm_lock:  # type: ignore[attr-defined]
+525:          ...
+Good! The code uses `asyncio.Lock()`. But wait, let me check line 419:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+415, 'end_line': 425})
+
+[result]         self._confirm_counter: int = 0
+        # Use asyncio lock for proper async task synchronization
+        # threading.Lock is reentrant within the same thread, allowing
+        # concurrent asyn...
+Wait, I need to think about this more carefully. The code shows it's using `asyncio.Lock()`, but the test is testing for `threading.Lock`. Maybe the bug was already fixed? Let me run the actual test to see:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_actual_bug.py::TestActualThreadingLockBug::test_th
+reading_lock_allows_async_task_switching -xvs'})
 

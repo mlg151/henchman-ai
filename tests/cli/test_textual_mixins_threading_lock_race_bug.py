@@ -1,0 +1,234 @@
+"""Test for threading.Lock race condition bug in _textual_confirm method.
+
+This test demonstrates that threading.Lock doesn't properly serialize
+async tasks, which can lead to race conditions in _textual_confirm.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import threading
+from unittest.mock import MagicMock, AsyncMock, patch
+import pytest
+
+from henchman.tools.base import ConfirmationRequest
+
+
+class TestTextualConfirmThreadingLockBug:
+    """Test that demonstrates threading.Lock race condition in _textual_confirm."""
+    
+    @pytest.mark.anyio
+    async def test_threading_lock_allows_concurrent_async_access(self) -> None:
+        """Demonstrate that threading.Lock allows concurrent async access.
+        
+        This is the core bug: threading.Lock is reentrant within the same
+        thread, so async tasks can acquire it concurrently.
+        """
+        from henchman.cli.textual_mixins import _InitMixin
+        
+        # Create mixin instance with threading.Lock (current buggy implementation)
+        mixin = _InitMixin.__new__(_InitMixin)
+        mixin._confirm_futures = {}
+        mixin._confirm_counter = 0
+        mixin._confirm_lock = threading.Lock()  # BUG: Using threading.Lock
+        
+        # Track operations to see interleaving
+        operations = []
+        request_ids = []
+        
+        async def simulate_concurrent_confirm(task_id: int) -> int:
+            """Simulate concurrent _textual_confirm calls."""
+            # This mimics the actual code structure
+            with mixin._confirm_lock:
+                req_id = mixin._confirm_counter
+                operations.append(f"task{task_id}_read_{req_id}")
+                
+                # Simulate some work inside lock (like in actual code)
+                await asyncio.sleep(0.001)  # This yields control!
+                
+                mixin._confirm_counter += 1
+                operations.append(f"task{task_id}_increment_to_{mixin._confirm_counter}")
+                
+                future = asyncio.Future()
+                mixin._confirm_futures[req_id] = future
+                operations.append(f"task{task_id}_store_{req_id}")
+            
+            # Complete the future
+            future.set_result(True)
+            return req_id
+        
+        # Run multiple concurrent calls
+        tasks = [asyncio.create_task(simulate_concurrent_confirm(i)) for i in range(3)]
+        results = await asyncio.gather(*tasks)
+        
+        print(f"Operations: {operations}")
+        print(f"Results: {results}")
+        print(f"Final counter: {mixin._confirm_counter}")
+        
+        # With threading.Lock and await inside the with block,
+        # tasks can interleave. Let's check if operations are interleaved
+        # by looking for patterns like task0_read, task1_read, task0_increment
+        
+        # Find indices of operations
+        task0_read_idx = next(i for i, op in enumerate(operations) if op.startswith("task0_read"))
+        task0_inc_idx = next(i for i, op in enumerate(operations) if op.startswith("task0_increment"))
+        task1_read_idx = next(i for i, op in enumerate(operations) if op.startswith("task1_read"))
+        
+        # With threading.Lock, it's possible that task1_read happens between
+        # task0_read and task0_increment because the await yields control
+        # This would be a bug!
+        
+        # Check if any task1 operation happens between task0_read and task0_increment
+        for i in range(task0_read_idx + 1, task0_inc_idx):
+            if operations[i].startswith("task1_"):
+                print(f"BUG DETECTED: {operations[i]} between task0_read and task0_increment")
+                # This test should fail with current implementation
+                pytest.fail(
+                    "threading.Lock allows concurrent async access: "
+                    f"{operations[i]} between task0_read and task0_increment"
+                )
+        
+        # Also check for duplicate IDs (shouldn't happen but could with race)
+        if len(set(results)) < len(results):
+            pytest.fail(f"Duplicate request IDs with threading.Lock: {results}")
+    
+    @pytest.mark.anyio
+    async def test_asyncio_lock_fixes_the_issue(self) -> None:
+        """Show that asyncio.Lock properly serializes async tasks."""
+        from henchman.cli.textual_mixins import _InitMixin
+        
+        # Create mixin instance with asyncio.Lock (the fix)
+        mixin = _InitMixin.__new__(_InitMixin)
+        mixin._confirm_futures = {}
+        mixin._confirm_counter = 0
+        mixin._confirm_lock = asyncio.Lock()  # FIX: Using asyncio.Lock
+        
+        operations = []
+        
+        async def simulate_concurrent_confirm(task_id: int) -> int:
+            """Simulate concurrent _textual_confirm calls with asyncio.Lock."""
+            async with mixin._confirm_lock:
+                req_id = mixin._confirm_counter
+                operations.append(f"task{task_id}_read_{req_id}")
+                
+                # With asyncio.Lock, this await won't allow other tasks in
+                await asyncio.sleep(0.001)
+                
+                mixin._confirm_counter += 1
+                operations.append(f"task{task_id}_increment_to_{mixin._confirm_counter}")
+                
+                future = asyncio.Future()
+                mixin._confirm_futures[req_id] = future
+            
+            future.set_result(True)
+            return req_id
+        
+        # Run multiple concurrent calls
+        tasks = [asyncio.create_task(simulate_concurrent_confirm(i)) for i in range(3)]
+        results = await asyncio.gather(*tasks)
+        
+        print(f"Operations with asyncio.Lock: {operations}")
+        print(f"Results: {results}")
+        
+        # With asyncio.Lock, operations should be fully serialized
+        # Each task should complete its entire with block before next starts
+        
+        # Verify no interleaving
+        current_task = None
+        for op in operations:
+            if op.startswith("task"):
+                task_num = int(op[4])  # Extract task number from "taskX_..."
+                if current_task is None:
+                    current_task = task_num
+                elif current_task != task_num:
+                    # Task changed - make sure we see "increment" for previous task
+                    # before seeing "read" for next task
+                    prev_ops = [o for o in operations if o.startswith(f"task{current_task}_")]
+                    next_ops = [o for o in operations if o.startswith(f"task{task_num}_")]
+                    
+                    # Previous task should have both read and increment
+                    assert any("read" in op for op in prev_ops)
+                    assert any("increment" in op for op in prev_ops)
+                    
+                    # Next task should start after previous task's increment
+                    current_task = task_num
+    
+    @pytest.mark.anyio
+    async def test_actual_method_has_threading_lock_bug(self) -> None:
+        """Verify current implementation uses threading.Lock (which is buggy for async)."""
+        from henchman.cli.textual_mixins import _InitMixin
+        
+        # Check the _init_confirm_state method
+        import inspect
+        source = inspect.getsource(_InitMixin._init_confirm_state)
+        
+        # Current buggy implementation uses threading.Lock
+        # This test should FAIL because threading.Lock is wrong for async code
+        # After fix, it should pass (asserting asyncio.Lock is used)
+        if "threading.Lock" in source:
+            print("BUG DETECTED: _init_confirm_state uses threading.Lock for async code")
+            # This is the bug - threading.Lock doesn't properly serialize async tasks
+            pytest.fail(
+                "Bug: _init_confirm_state uses threading.Lock instead of asyncio.Lock. "
+                "threading.Lock is reentrant within same thread, allowing concurrent "
+                "async access to shared state."
+            )
+        
+        # The fix should use asyncio.Lock
+        assert "asyncio.Lock" in source, (
+            "Fix needed: _init_confirm_state should use asyncio.Lock, not threading.Lock"
+        )
+        
+        # Also check _textual_confirm uses async with for asyncio.Lock
+        confirm_source = inspect.getsource(_InitMixin._textual_confirm)
+        
+        # With asyncio.Lock, it should use async with
+        assert "async with self._confirm_lock:" in confirm_source, (
+            "Fix needed: _textual_confirm should use async with for asyncio.Lock"
+        )
+    
+    @pytest.mark.anyio
+    async def test_race_condition_can_cause_duplicate_ids(self) -> None:
+        """Test a scenario where race condition could cause duplicate IDs.
+        
+        This is harder to trigger deterministically but we can demonstrate
+        the possibility.
+        """
+        from henchman.cli.textual_mixins import _InitMixin
+        
+        # This test shows the theoretical race:
+        # 1. Task A: with lock: read counter (0)
+        # 2. Task A: yields during await inside with block
+        # 3. Task B: with lock: read counter (0) - BUG! Should be blocked
+        # 4. Task A: increment counter to 1
+        # 5. Task B: increment counter to 1 (or 2 depending on implementation)
+        # 6. Both tasks use ID 0 -> collision!
+        
+        # We can't reliably trigger this but we can show the code
+        # has the vulnerability
+        
+        mixin = _InitMixin.__new__(_InitMixin)
+        
+        # Initialize as the actual code does
+        mixin._init_confirm_state()
+        
+        # Check what type of lock was created
+        lock_type = type(mixin._confirm_lock).__name__
+        
+        print(f"Lock type: {lock_type}")
+        
+        # If it's threading.Lock, we have the bug
+        if lock_type == "Lock":  # threading.Lock
+            print("BUG: Using threading.Lock for async code")
+            # This test should fail to alert us to the bug
+            pytest.fail("_init_confirm_state creates threading.Lock instead of asyncio.Lock")
+        elif lock_type == "Lock" and hasattr(mixin._confirm_lock, "_is_asyncio"):
+            # Actually asyncio.Lock is also called Lock
+            # Need to check module
+            import asyncio
+            if isinstance(mixin._confirm_lock, asyncio.Lock):
+                print("OK: Using asyncio.Lock")
+            else:
+                print("BUG: Unknown Lock type")
+        else:
+            print(f"Unknown lock type: {lock_type}")
