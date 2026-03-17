@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from mcp.client.session import ClientSession
 
     from henchman.mcp.config import McpServerConfig
@@ -21,6 +23,34 @@ if TYPE_CHECKING:
 from mcp.client.stdio import stdio_client
 
 from mcp import ClientSession, StdioServerParameters
+
+# Precompiled patterns for log-line detection (avoids recompilation on every write).
+_LOG_TIMESTAMP_RE = re.compile(
+    r"^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}",
+)
+_LOG_BRACKETED_RE = re.compile(r"^\[(INFO|DEBUG)\]")
+_LOG_COLON_RE = re.compile(r"^(INFO|DEBUG):")
+_LOG_PREFIXES = ("INFO ", "DEBUG ", "INFO:", "DEBUG:")
+_LOG_INLINE_TAGS = ("[INFO]", "[DEBUG]")
+
+
+def _is_log_line(line: str) -> bool:
+    """Return True if *line* is an INFO or DEBUG log entry that should be filtered."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    return (
+        _LOG_TIMESTAMP_RE.match(stripped) is not None
+        or _LOG_BRACKETED_RE.match(stripped) is not None
+        or _LOG_COLON_RE.match(stripped) is not None
+        or stripped.startswith(_LOG_PREFIXES)
+        or any(tag in stripped for tag in _LOG_INLINE_TAGS)
+    )
+
+
+def _filter_log_lines(lines: list[str]) -> list[str]:
+    """Return only non-empty lines that are not INFO/DEBUG log entries."""
+    return [line for line in lines if line.strip() and not _is_log_line(line)]
 
 
 class FilteredStream(io.StringIO):
@@ -30,7 +60,7 @@ class FilteredStream(io.StringIO):
     INFO and DEBUG logs while still capturing errors.
     """
 
-    def __init__(self, *, verbose: bool = False) -> None:
+    def __init__(self: Self, *, verbose: bool = False) -> None:
         """Initialize the filtered stream.
 
         Args:
@@ -39,8 +69,8 @@ class FilteredStream(io.StringIO):
         super().__init__()
         self.verbose = verbose
 
-    def write(self, text: str) -> int:
-        """Write text to the stream, filtering if not verbose.
+    def write(self: Self, text: str) -> int:
+        """Write text to the stream, filtering INFO/DEBUG lines unless verbose.
 
         Args:
             text: Text to write.
@@ -49,48 +79,11 @@ class FilteredStream(io.StringIO):
             Number of characters that would have been written.
         """
         if self.verbose:
-            # In verbose mode, pass through to stderr
             return sys.stderr.write(text)
 
-        # Filter out common log patterns
-        lines = text.split("\n")
-        filtered_lines = []
-
-        # Regex patterns for common log formats
-        info_pattern = re.compile(r"^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}")
-        bracketed_pattern = re.compile(r"^\[(INFO|DEBUG)\]")
-        colon_pattern = re.compile(r"^(INFO|DEBUG):")
-
-        for line in lines:
-            # Skip empty lines
-            if not line.strip():
-                continue
-
-            # Check for various log format patterns
-            line_stripped = line.strip()
-            if (
-                info_pattern.match(line_stripped)
-                or bracketed_pattern.match(line_stripped)
-                or colon_pattern.match(line_stripped)
-            ):
-                # This is an INFO/DEBUG log line, skip it
-                continue
-
-            # Also check for common Python logging format variations
-            if (
-                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:"))
-                or "[INFO]" in line_stripped
-                or "[DEBUG]" in line_stripped  # noqa: E501
-            ):
-                continue
-
-            # For non-INFO/DEBUG lines (errors, warnings, regular output), pass through
-            if line.strip():  # pragma: no branch
-                filtered_lines.append(line)
-
-        if filtered_lines:
-            # Write filtered output to stderr
-            output = "\n".join(filtered_lines) + ("\n" if text.endswith("\n") else "")
+        filtered = _filter_log_lines(text.split("\n"))
+        if filtered:
+            output = "\n".join(filtered) + ("\n" if text.endswith("\n") else "")
             return sys.stderr.write(output)
 
         return len(text)
@@ -130,7 +123,13 @@ class McpClient:
     Manages the connection lifecycle and tool discovery/execution.
     """
 
-    def __init__(self, name: str, config: McpServerConfig, *, verbose: bool = False) -> None:
+    def __init__(
+        self: Self,
+        name: str,
+        config: McpServerConfig,
+        *,
+        verbose: bool = False,
+    ) -> None:
         """Initialize the client.
 
         Args:
@@ -146,48 +145,46 @@ class McpClient:
         self._exit_stack: AsyncExitStack | None = None
 
     @property
-    def is_connected(self) -> bool:
+    def is_connected(self: Self) -> bool:
         """Check if connected to server."""
         return self._session is not None
 
-    async def connect(self) -> None:  # pragma: no cover
-        """Connect to the MCP server.
-
-        Uses AsyncExitStack to properly manage the stdio_client and
-        ClientSession context managers, keeping their task groups alive
-        for the duration of the connection.
-
-        Returns:
-            None
-        """
-        if self._session is not None:
-            return
-
-        server_params = StdioServerParameters(
+    def _build_server_params(self: Self) -> StdioServerParameters:  # pragma: no cover
+        """Build StdioServerParameters from this client's configuration."""
+        return StdioServerParameters(
             command=self.config.command,
             args=self.config.args,
             env=self.config.env or None,
         )
 
+    async def _open_session(  # pragma: no cover
+        self: Self,
+        stack: AsyncExitStack,
+    ) -> ClientSession:
+        """Enter stdio_client and ClientSession contexts, then initialize."""
+        errlog = FilteredStream(verbose=self.verbose)
+        read, write = await stack.enter_async_context(
+            stdio_client(self._build_server_params(), errlog=errlog),
+        )
+        session = await stack.enter_async_context(ClientSession(read, write))
+        await session.initialize()
+        return session
+
+    async def connect(self: Self) -> None:  # pragma: no cover
+        """Connect to the MCP server.
+
+        Uses AsyncExitStack to properly manage the stdio_client and
+        ClientSession context managers, keeping their task groups alive
+        for the duration of the connection.
+        """
+        if self._session is not None:
+            return
+
         self._exit_stack = AsyncExitStack()
         await self._exit_stack.__aenter__()
 
         try:
-            # Create filtered error stream based on verbosity
-            errlog = FilteredStream(verbose=self.verbose)
-
-            # Enter stdio_client context — keeps task group alive
-            read, write = await self._exit_stack.enter_async_context(
-                stdio_client(server_params, errlog=errlog),
-            )
-
-            # Enter ClientSession context
-            session = await self._exit_stack.enter_async_context(ClientSession(read, write))
-
-            self._session = session
-            await self._session.initialize()
-
-            # Discover tools on connect
+            self._session = await self._open_session(self._exit_stack)
             await self.discover_tools()
         except Exception:
             await self._exit_stack.aclose()
@@ -195,12 +192,8 @@ class McpClient:
             self._session = None
             raise
 
-    async def disconnect(self) -> None:
-        """Disconnect from the MCP server.
-
-        Returns:
-            None
-        """
+    async def disconnect(self: Self) -> None:
+        """Disconnect from the MCP server."""
         if self._exit_stack is not None:
             with suppress(Exception):
                 await self._exit_stack.aclose()
@@ -208,7 +201,7 @@ class McpClient:
         self._session = None
         self._tools = []
 
-    async def discover_tools(self) -> list[McpToolDefinition]:
+    async def discover_tools(self: Self) -> list[McpToolDefinition]:
         """Discover tools from the server.
 
         Returns:
@@ -228,7 +221,7 @@ class McpClient:
         ]
         return self._tools
 
-    def get_tools(self) -> list[McpToolDefinition]:
+    def get_tools(self: Self) -> list[McpToolDefinition]:
         """Get cached tool definitions.
 
         Returns:
@@ -237,7 +230,7 @@ class McpClient:
         return self._tools
 
     async def call_tool(
-        self,
+        self: Self,
         name: str,
         arguments: dict[str, Any],
     ) -> McpToolResult:
@@ -259,14 +252,10 @@ class McpClient:
 
         result = await self._session.call_tool(name, arguments)
 
-        # Extract content from result
-        content_parts = []
-        for item in result.content:
-            if hasattr(item, "text"):
-                content_parts.append(item.text)
-            else:
-                content_parts.append(str(item))
-
+        content_parts = [
+            item.text if hasattr(item, "text") else str(item)
+            for item in result.content
+        ]
         content = "\n".join(content_parts) if content_parts else ""
 
         return McpToolResult(

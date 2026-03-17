@@ -156,7 +156,7 @@ def load_settings() -> Settings:
         try:
             file_settings = _load_file(path)
             merged = deep_merge(merged, file_settings)
-        except ConfigError:  # noqa: PERF203, TRY203
+        except ConfigError:
             raise
 
     # Apply environment overrides
@@ -190,7 +190,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
     data = settings.model_dump(exclude_defaults=True, mode="json")
 
     # Write to file
-    with open(path, "w") as f:  # noqa: PTH123
+    with open(path, "w") as f:
         if path.suffix in (".yaml", ".yml"):
             yaml.dump(data, f, default_flow_style=False)
         else:

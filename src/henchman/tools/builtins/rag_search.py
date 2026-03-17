@@ -87,7 +87,7 @@ class RagSearchTool(Tool):
         self: RagSearchTool,
         query: str = "",
         top_k: int | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Search for relevant code chunks.
 
@@ -144,7 +144,7 @@ class RagSearchTool(Tool):
                 success=True,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return ToolResult(
                 content=f"Error searching: {e}",
                 success=False,

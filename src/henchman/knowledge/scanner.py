@@ -469,7 +469,7 @@ def _scan_file(ctx: ScanContext, rel_path: str) -> bool:
     return True
 
 
-def scan_repository(  # noqa: C901, PLR0912
+def scan_repository(
     store: KnowledgeStore,
     git_root: Path,
     *,

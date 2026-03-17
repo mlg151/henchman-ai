@@ -65,7 +65,7 @@ def _sync_messages_to_agent(agent: Orchestrator, session: Session) -> None:
                 content=session_msg.content,
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
-            )
+            ),
         )
 
 

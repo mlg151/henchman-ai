@@ -156,7 +156,7 @@ class CodeFormatTool(Tool):
     async def execute(  # type: ignore[override]
         self: "CodeFormatTool",
         path: str = "",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Format Python files with ruff.
 

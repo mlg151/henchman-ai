@@ -146,7 +146,7 @@ def _increment_sampled_counter(collector: MetricsCollector, counter_attr: str) -
         setattr(collector, counter_attr, getattr(collector, counter_attr) + 1)
 
 
-def _store_provider_metric(  # noqa: PLR0913
+def _store_provider_metric(
     storage: MetricsStorage | None,
     metric: TokenMetric | CostMetric,
     accumulator: dict[str, float],
@@ -239,14 +239,14 @@ class MetricsCollector:
             return False
         if self.sampling_rate >= 1.0:
             return True
-        import random  # noqa: PLC0415
+        import random
 
         return random.random() < self.sampling_rate
 
     def start_command(
         self: MetricsCollector,
         command: str,
-        subcommand: str | None = None,  # noqa: ARG002
+        subcommand: str | None = None,
     ) -> None:
         """Start tracking a command execution.
 

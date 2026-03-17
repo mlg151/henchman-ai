@@ -254,7 +254,7 @@ class ToolRegistry:
                 )
             else:
                 result = await tool.execute(**params)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(
                 content=f"Error executing tool '{name}': {sanitized_error}",

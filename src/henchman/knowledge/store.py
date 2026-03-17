@@ -62,7 +62,7 @@ def _safe_node_to_entity(node_id: str, attrs: dict[str, Any]) -> Entity | None:
     """
     try:
         return _node_attrs_to_entity(node_id, attrs)
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.debug("Skipping malformed node %r", node_id)
         return None
 
@@ -100,11 +100,11 @@ def _build_entity_haystack(entity: Entity) -> str:
             entity.name,
             entity.description,
             " ".join(o.content for o in entity.observations),
-        ]
+        ],
     ).lower()
 
 
-def _relation_to_edge_attrs(relation: Relation) -> dict[str, str]:  # noqa: PLR0801
+def _relation_to_edge_attrs(relation: Relation) -> dict[str, str]:
     """Extract NetworkX edge attributes from a Relation.
 
     Args:
@@ -196,6 +196,31 @@ def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str
     return "\n".join(parts)
 
 
+def _expand_frontier(
+    graph: nx.Graph,
+    frontier: set[str],
+    visited: set[str],
+    start: str,
+) -> set[str]:
+    """Compute the next BFS frontier, skipping already-visited nodes.
+
+    Args:
+        graph: The undirected graph to traverse.
+        frontier: Current set of nodes to expand.
+        visited: Nodes already seen (not including start).
+        start: The origin node to exclude from results.
+
+    Returns:
+        Next set of unvisited neighbor nodes.
+    """
+    next_frontier: set[str] = set()
+    for node in frontier:
+        for neighbor in graph.neighbors(node):
+            if neighbor not in visited and neighbor != start:
+                next_frontier.add(neighbor)
+    return next_frontier
+
+
 # ---------------------------------------------------------------------------
 # KnowledgeStoreQueryMixin
 # ---------------------------------------------------------------------------
@@ -251,11 +276,7 @@ class KnowledgeStoreQueryMixin:
         frontier = {entity_id}
 
         for _ in range(depth):
-            next_frontier: set[str] = set()
-            for node in frontier:
-                for neighbor in undirected.neighbors(node):
-                    if neighbor not in visited and neighbor != entity_id:
-                        next_frontier.add(neighbor)
+            next_frontier = _expand_frontier(undirected, frontier, visited, entity_id)
             visited.update(next_frontier)
             frontier = next_frontier
 
@@ -360,6 +381,12 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
         """Graph metadata."""
         return self._meta
 
+    # -- internal helpers ----------------------------------------------------
+
+    def _mark_dirty(self: KnowledgeStore) -> None:
+        """Flag the graph as having unsaved changes."""
+        self._dirty = True
+
     # -- persistence ---------------------------------------------------------
 
     def load(self: KnowledgeStore) -> None:
@@ -414,7 +441,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
             None
         """
         self._graph.add_node(entity.id, **_entity_to_node_attrs(entity))
-        self._dirty = True
+        self._mark_dirty()
 
     def get_entity(self: KnowledgeStore, entity_id: str) -> Entity | None:
         """Retrieve a single entity by id.
@@ -441,7 +468,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
         if entity_id not in self._graph:
             return False
         self._graph.remove_node(entity_id)
-        self._dirty = True
+        self._mark_dirty()
         return True
 
     def list_entities(
@@ -491,7 +518,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
         entity = _node_attrs_to_entity(entity_id, dict(self._graph.nodes[entity_id]))
         entity.observations.append(observation)
         self._graph.nodes[entity_id].update(_entity_to_node_attrs(entity))
-        self._dirty = True
+        self._mark_dirty()
         return True
 
     # -- relation CRUD -------------------------------------------------------
@@ -513,7 +540,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
             relation.target,
             **_relation_to_edge_attrs(relation),
         )
-        self._dirty = True
+        self._mark_dirty()
 
     def get_relations(
         self: KnowledgeStore,
@@ -543,7 +570,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
         """
         if self._graph.has_edge(source, target):
             self._graph.remove_edge(source, target)
-            self._dirty = True
+            self._mark_dirty()
             return True
         return False
 
@@ -572,7 +599,7 @@ class KnowledgeStore(KnowledgeStoreQueryMixin):
             None
         """
         self._graph.clear()
-        self._dirty = True
+        self._mark_dirty()
 
     # -- formatting ----------------------------------------------------------
 

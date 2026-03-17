@@ -73,7 +73,7 @@ def _parse_search_result(
             query=search_params.query,
         )
     except ValidationError as exc:
-        logger.exception("Invalid plugin data from registry: %s", exc)  # noqa: TRY401
+        logger.exception("Invalid plugin data from registry: %s", exc)
         return PluginSearchResult(
             plugins=[],
             total=0,
@@ -206,9 +206,9 @@ class PluginRegistryClient:
         try:
             return PluginMetadata(**data)
         except ValidationError as exc:
-            logger.exception("Invalid plugin data from registry: %s", exc)  # noqa: TRY401
+            logger.exception("Invalid plugin data from registry: %s", exc)
             return None
 
 
 # Import at bottom to avoid circular imports
-from henchman.version import VERSION as __version__  # noqa: E402, N811
+from henchman.version import VERSION as __version__

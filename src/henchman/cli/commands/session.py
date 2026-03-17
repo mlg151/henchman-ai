@@ -591,12 +591,12 @@ class ImportExecutor(SessionCommandExecutor):
             return
 
         file_path = Path(file_path_str)
-        if not file_path.exists():  # noqa: ASYNC240
+        if not file_path.exists():
             self.op_context.print_error(f"File not found: {file_path}")
             return
 
         try:
-            data = file_path.read_text()  # noqa: ASYNC240
+            data = file_path.read_text()
             session = manager.import_session(data, fmt, tag)
             manager.save(session)
 

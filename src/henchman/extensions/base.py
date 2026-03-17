@@ -1,5 +1,7 @@
 """Extension base class and types for Henchman-AI."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from henchman.cli.commands import Command
@@ -30,7 +32,7 @@ class Extension(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self: Extension) -> str:
         """Unique identifier for the extension.
 
         Returns:
@@ -40,7 +42,7 @@ class Extension(ABC):
 
     @property
     @abstractmethod
-    def version(self) -> str:
+    def version(self: Extension) -> str:
         """Version string for the extension.
 
         Returns:
@@ -50,7 +52,7 @@ class Extension(ABC):
 
     @property
     @abstractmethod
-    def description(self) -> str:
+    def description(self: Extension) -> str:
         """Human-readable description of the extension.
 
         Returns:
@@ -58,7 +60,7 @@ class Extension(ABC):
         """
         ...  # pragma: no cover
 
-    def get_tools(self) -> list[Tool]:
+    def get_tools(self: Extension) -> list[Tool]:
         """Return tools provided by this extension.
 
         Override this method to provide custom tools.
@@ -68,7 +70,7 @@ class Extension(ABC):
         """
         return []
 
-    def get_commands(self) -> list[Command]:
+    def get_commands(self: Extension) -> list[Command]:
         """Return slash commands provided by this extension.
 
         Override this method to provide custom commands.
@@ -78,7 +80,7 @@ class Extension(ABC):
         """
         return []
 
-    def get_context(self) -> str:
+    def get_context(self: Extension) -> str:
         """Return additional system prompt context.
 
         Override this method to add context to the system prompt.

@@ -79,14 +79,14 @@ class EnvInspectTool(Tool):
         """Tool kind - read-only inspection."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]  # noqa: C901, PLR0912
+    async def execute(  # type: ignore[override]
         self: EnvInspectTool,
         cwd: str | None = None,
         packages: list[str] | None = None,
         *,
         show_env_vars: bool = False,
         show_path: bool = False,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Inspect the environment.
 
@@ -164,10 +164,10 @@ class EnvInspectTool(Tool):
             Version string or 'not installed'.
         """
         try:
-            from importlib.metadata import version  # noqa: PLC0415
+            from importlib.metadata import version
 
             return version(name)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return "not installed"
 
     def _detect_project(self: EnvInspectTool, directory: Path) -> list[str]:

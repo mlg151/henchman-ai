@@ -819265,3 +819265,417 @@ TOTAL                                                       19189    292   5176 
 =========== 5901 passed, 6 skipped, 45 warnings in 190.74s (0:03:10) ===========
 [2026-03-16T22:00:03Z] All tests passed.
 Committing changes...
+[2026-03-16T23:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-16T23:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Traceback (most recent call last):
+  File "/home/matthew/anaconda3/bin/henchman", line 5, in <module>
+    from henchman.cli.app import main
+  File "/home/matthew/mlg-cli/src/henchman/cli/__init__.py", line 15, in <module>
+    from henchman.cli.repl import Repl, ReplConfig
+  File "/home/matthew/mlg-cli/src/henchman/cli/repl.py", line 16, in <module>
+    from henchman.agents.orchestrator import Orchestrator
+  File "/home/matthew/mlg-cli/src/henchman/agents/__init__.py", line 11, in <module>
+    from henchman.agents.orchestrator import CompletionStatus, Orchestrator
+  File "/home/matthew/mlg-cli/src/henchman/agents/orchestrator.py", line 12, in <module>
+    from henchman.agents.delegation import DelegationRunner
+  File "/home/matthew/mlg-cli/src/henchman/agents/delegation.py", line 15, in <module>
+    from henchman.core.events import AgentEvent, EventType
+  File "/home/matthew/mlg-cli/src/henchman/core/__init__.py", line 3, in <module>
+    from henchman.core.agent import Agent
+  File "/home/matthew/mlg-cli/src/henchman/core/agent.py", line 11, in <module>
+    from henchman.core.agent_streaming import (
+  File "/home/matthew/mlg-cli/src/henchman/core/agent_streaming.py", line 13, in <module>
+    from henchman.providers.base import (
+  File "/home/matthew/mlg-cli/src/henchman/providers/__init__.py", line 3, in <module>
+    from henchman.providers.anthropic import AnthropicProvider, AnthropicProviderConfig
+  File "/home/matthew/mlg-cli/src/henchman/providers/anthropic.py", line 29, in <module>
+    from henchman.utils.ratelimit import AsyncRateLimiter
+  File "/home/matthew/mlg-cli/src/henchman/utils/ratelimit.py", line 75, in <module>
+    test
+NameError: name 'test' is not defined
+[2026-03-17T00:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-17T00:00:03Z] Targeting lowest-graded file: src/henchman/utils/compaction.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.2/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-17T00:00:45.493416+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py'})
+
+[result] """Context compaction utilities.
+
+This module provides tools for managing context size by compacting
+older messages, with optional summarization of dropped content.
+"""
+
+from __future__ import annotat...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*compaction*.py'})
+
+[result] .agent_tasks/debug-scripts/test_compaction.py
+.agent_tasks/debug-scripts/test_compaction_fix.py
+tests/core/test_automatic_compaction.py
+tests/core/test_compaction_start_index.py
+tests/ui_integration/t...
+Let me read the main test file for compaction:
+[tool] read_file({'path': 'tests/utils/test_compaction.py'})
+
+[result] from henchman.providers.base import Message
+from henchman.utils.compaction import ContextCompactor
+from henchman.utils.tokens import TokenCounter
+
+
+def test_token_counter():
+    text = "12345678"  # 8...
+Now let me check the edge cases test file:
+[tool] read_file({'path': 'tests/utils/test_compaction_edge_cases.py'})
+
+[result] """Edge case tests for compaction coverage."""
+
+from henchman.providers.base import Message, ToolCall
+from henchman.utils.compaction import ContextCompactor, MessageSequence
+
+
+class TestMessageSequenc...
+Now let me check the validation test file:
+[tool] read_file({'path': 'tests/utils/test_compaction_validation.py'})
+
+[result] """Tests for compaction validation and summarization."""
+
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from henchman.providers.base import FinishReason, Message, StreamChunk, ToolCall
+fro...
+Now let me create the documentation stub as required by the workflow:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-utils-compaction/README.md', 'content': '# Four Lenses
+Bug Report: src/henchman/utils/compaction.py\n## Date: 2024-01-15T00:00:00Z\n## 
+Bug Summary\nThe `_truncate_tool_message_content` function incorrectly 
+calculates the number of characters to trim, potentially causing negative string
+slicing or insufficient truncation when tokens_to_trim is small relative to 
+content length.\n\n## Lens\nPhase 1: The Intent vs. Reality Check - Logic 
+Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| When trimming tokens from tool message content, the function 
+should correctly convert tokens to characters and ensure the truncated content 
+is at least MIN_TRUNCATED_CONTENT characters long. | The calculation 
+`chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE` may result in 
+`chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT` being false when 
+it should be true, leading to either negative slicing or insufficient 
+truncation. |\n\n## Root Cause\nThe function uses a fixed 
+`CHARS_PER_TOKEN_ESTIMATE = 4` to convert tokens to characters, but the actual 
+relationship varies by language and content. More critically, the condition `if 
+chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT:` can fail in edge 
+cases:\n1. When `tokens_to_trim` is very small, `chars_to_trim` may be less than
+the difference between content length and MIN_TRUNCATED_CONTENT\n2. This causes 
+the function to use the else branch (`new_content = 
+message.content[:MIN_TRUNCATED_CONTENT] + "\\n[... heavily truncated ...]"`) 
+even when more aggressive truncation is possible\n3. The else branch doesn\'t 
+respect the actual `tokens_to_trim` budget, potentially leaving the protected 
+zone over budget\n\n## Fix Plan\n1. Fix the logic in 
+`_truncate_tool_message_content` to properly handle the token-to-character 
+conversion and ensure the truncation respects both the MIN_TRUNCATED_CONTENT 
+constraint and the tokens_to_trim budget\n2. Add a test case that demonstrates 
+the bug with specific token counts\n3. Ensure the fix maintains backward 
+compatibility and doesn\'t break existing tests\n\n## Status: IN PROGRESS'})
+
+[result] Successfully wrote 2061 bytes to 
+.agent_tasks/four-lenses-utils-compaction/README.md...
+Now I need to analyze the code more carefully. Let me examine the `_truncate_tool_message_content` function and related code:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 200,
+'end_line': 250})
+
+[result]             if messages[j].role == "tool" and tool_call_id in 
+tool_call_ids:
+                current_sequence.append(messages[j])
+                consumed_indices.add(j)
+                if tool_call_i...
+I need to examine the actual bug more carefully. Let me look at the `_truncate_tool_message_content` function:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 250,
+'end_line': 320})
+
+[result]             Tuple of (protected_messages, unprotected_messages).
+        """
+        if protect_from_index >= 0 and protect_from_index < len(messages):
+            unprotected_msgs = messages[:protect...
+Now I need to understand the constants and the logic better. Let me check the constants:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 100,
+'end_line': 130})
+
+[result]            for those specific tool calls (even if not immediately 
+consecutive)
+        3. Other messages continue the current sequence
+
+        Args:
+            messages: The messages to group.
+
+    ...
+Let me find the constants:
+[tool] grep({'pattern': 
+'CHARS_PER_TOKEN_ESTIMATE|MIN_TRUNCATED_CONTENT|TRUNCATION_CHAR_THRESHOLD', 
+'path': 'src/henchman/utils/compaction.py', 'line_numbers': True})
+
+[result] 71:TRUNCATION_CHAR_THRESHOLD: int = 500
+72:MIN_TRUNCATED_CONTENT: int = 200
+73:CHARS_PER_TOKEN_ESTIMATE: int = 4
+295:    chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
+296:    if chars_to_t...
+Now I need to think about this more carefully. Let me trace through the logic:
+
+1. `CHARS_PER_TOKEN_ESTIMATE = 4` (4 characters per token estimate)
+2. `MIN_TRUNCATED_CONTENT = 200` (minimum characters to keep after truncation)
+3. `TRUNCATION_CHAR_THRESHOLD = 500` (only truncate if content > 500 chars)
+
+The bug I identified might not be the most critical one. Let me look for a more serious bug. Let me examine the `_truncate_protected_zone_messages` function more carefully:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 320,
+'end_line': 360})
+
+[result]         messages: Protected zone messages.
+        max_tokens: Maximum tokens allowed for protected zone.
+
+    Returns:
+        Messages with truncated content to fit budget.
+    """
+    current_token...
+Wait, I see a potential bug! Look at line 343: `trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE`
+
+This calculation assumes that the character difference divided by `CHARS_PER_TOKEN_ESTIMATE` equals the token difference. But `_truncate_tool_message_content` adds truncation markers like `"\n[... truncated to fit context limit ...]"` or `"\n[... heavily truncated ...]"`. These markers add characters that weren't in the original content, so the character difference doesn't accurately represent the token reduction!
+
+Actually, let me re-examine. The truncation markers are added AFTER the truncation. So if we have content length 1000, we trim 200 chars, we get 800 chars + marker. The calculation `len(content) - len(truncated_msg.content or "")` would give us `1000 - (800 + marker_length)`, which is `200 + marker_length`. That's wrong! It should only count the actual trimmed characters, not the added markers.
+
+But wait, actually `_truncate_tool_message_content` returns the new content WITH the marker. So `len(truncated_msg.content or "")` includes the marker. So `len(content) - len(truncated_msg.content or "")` gives us the net character change (original - new_with_marker). If we trimmed 200 chars but added a 40 char marker, the net change is 160 chars, not 200 chars. But the token reduction should be based on the 200 trimmed chars, not 160!
+
+Actually, I need to look at the function again more carefully:
+[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 290,
+'end_line': 310})
+
+[result]         Truncated message.
+    """
+    if not message.content:
+        return message
+
+    chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
+    if chars_to_trim < len(message.content) - MIN_T...
+So the marker is added AFTER truncation. Let me trace through an example:
+- Original content: 1000 chars
+- `chars_to_trim = tokens_to_trim * 4` (say `tokens_to_trim = 50`, so `chars_to_trim = 200`)
+- If `200 < 1000 - 200` (800), which is true, then:
+  - `new_content = content[:1000 - 200] = content[:800]`
+  - Then add marker: `new_content += "\n[... truncated to fit context limit ...]"`
+  - Marker length is about 40 chars
+  - Final length: 800 + 40 = 840 chars
+
+Now in `_truncate_protected_zone_messages`:
+- `trimmed_tokens = (1000 - 840) // 4 = 160 // 4 = 40`
+- But we wanted to trim 50 tokens! We only accounted for 40 tokens trimmed.
+
+The bug is that the truncation marker adds characters back, reducing the net character reduction, which then underestimates the token reduction. This could cause the protected zone to remain over budget!
+
+Actually wait, let me think about this differently. The marker is informational text that says "[... truncated ...]". This text also consumes tokens! So when we add the marker, we're adding token-consuming text. The calculation `(len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE` gives us the NET token change (original tokens - new tokens including marker).
+
+But that's still wrong because it uses character count divided by 4, not actual token count! The marker might have different token density than the original content.
+
+Actually, I think the REAL bug is that we're using character count as a proxy for token count with a fixed ratio. Tokens don't have a fixed character length - it depends on the language, encoding, etc. The function `TokenCounter.count_text()` should be used instead of character count arithmetic.
+
+But actually, looking at the code again, there's another issue: the function only truncates tool messages where `len(content) > TRUNCATION_CHAR_THRESHOLD` (500). What if we have many small tool messages that collectively exceed the budget? They won't be truncated at all!
+
+Let me write a test to understand the behavior better:
+[tool] python_exec({'code': 'from henchman.providers.base import Message\nfrom 
+henchman.utils.compaction import ContextCompactor\nfrom henchman.utils.tokens 
+import TokenCounter\n\n# Test the truncation logic\ncompactor = 
+ContextCompactor(max_tokens=100, max_protected_ratio=0.5)\n\n# Create a tool 
+message with content just over threshold\ntool_msg = Message(role="tool", 
+content="x" * 600, tool_call_id="tc1")\n\n# Create messages where protected zone
+exceeds budget\nmessages = [\n    Message(role="system", content="System"),\n   
+Message(role="user", content="Request"),\n    Message(role="assistant", 
+content="OK", tool_calls=[{"id": "tc1", "name": "test", "arguments": {}}]),\n   
+tool_msg,  # This is protected\n]\n\nprint(f"Total tokens: 
+{TokenCounter.count_messages(messages)}")\nprint(f"Max tokens: 
+{compactor.max_tokens}")\nprint(f"Max protected tokens: 
+{compactor.max_protected_tokens}")\n\n# Compact with protection\nresult = 
+compactor.compact(messages, protect_from_index=2)\nprint(f"\\nResult length: 
+{len(result)}")\nfor msg in result:\n    print(f"  {msg.role}: {len(msg.content 
+or \'\')} chars")'})
+
+✗ \[error] Traceback (most recent call last):
+  File "<string>", line 19, in <module>
+  File 
+"/home/matthew/anaconda3/lib/python3.12/site-packages/henchman/utils/tokens.py",
+line 173, in count_messages
+    total
+Let me fix the test:
+[tool] python_exec({'code': 'from henchman.providers.base import Message, 
+ToolCall\nfrom henchman.utils.compaction import ContextCompactor\nfrom 
+henchman.utils.tokens import TokenCounter\n\n# Test the truncation 
+logic\ncompactor = ContextCompactor(max_tokens=100, 
+max_protected_ratio=0.5)\n\n# Create a tool message with content just over 
+threshold\ntool_msg = Message(role="tool", content="x" * 600, 
+tool_call_id="tc1")\n\n# Create messages where protected zone exceeds 
+budget\nmessages = [\n    Message(role="system", content="System"),\n    
+Message(role="user", content="Request"),\n    Message(role="assistant", 
+content="OK", tool_calls=[ToolCall(id="tc1", name="test", arguments={})]),\n    
+tool_msg,  # This is protected\n]\n\nprint(f"Total tokens: 
+{TokenCounter.count_messages(messages)}")\nprint(f"Max tokens: 
+{compactor.max_tokens}")\nprint(f"Max protected tokens: 
+{compactor.max_protected_tokens}")\n\n# Compact with protection\nresult = 
+compactor.compact(messages, protect_from_index=2)\nprint(f"\\nResult length: 
+{len(result)}")\nfor msg in result:\n    print(f"  {msg.role}: {len(msg.content 
+or \'\')} chars")'})
+
+[result] Total tokens: 111
+Max tokens: 100
+Max protected tokens: 50
+
+Result length: 3
+  system: 6 chars
+  assistant: 2 chars
+  tool: 437 chars
+...
+Interesting! The tool message was truncated from 600 chars to 437 chars. Let me check what the actual bug might be. Let me look for logic errors in the main compaction flow. Actually, let me re-read the Four Lenses approach and think about what constitutes a "real bug in core functionality".
+
+Looking at the code again, I notice something in the `_truncate_protected_zone_messages` function. Line 343 calculates `trimmed_tokens` using integer division `//`. This could lead to underestimation! If we trim 7 characters, `7 // 4 = 1` token, but actually 7 characters might be 2 tokens. The cumulative error could cause the protected zone to remain over budget.
+
+Actually, let me check if there are any tests that would fail if this is a bug:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/utils/test_compaction.py tests/utils/test_compaction_edge_cases.py 
+tests/utils/test_compaction_validation.py -xvs -k "truncat" 2>&1 | head -100'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Let me think more carefully about the actual bug. I need to apply the Four Lenses systematically:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the code, I see a potential logic gap in `_truncate_protected_zone_messages`. The function iterates through messages and truncates tool messages, but it updates `tokens_to_trim` based on estimated character reduction. However, there's a bug: if a tool message has content but `len(content) <= TRUNCATION_CHAR_THRESHOLD` (500), it won't be truncated at all (line 341-342). The message is just passed through unchanged.
+
+But what if we have many small tool messages that collectively exceed the budget? They won't be truncated! The function assumes that only large tool messages need truncation, but many small messages can also exceed the budget.
+
+Actually, wait. Let me re-read the condition: `if content and len(content) > TRUNCATION_CHAR_THRESHOLD:`. So if content is 500 chars or less, it won't be truncated. But 500 chars could be ~125 tokens (at 4 chars/token). If we have several such messages, we could significantly exceed the budget.
+
+But is this a bug? The comment says "Truncates tool result content (oldest first) while preserving structure." Maybe the intent is to only truncate very large tool results? Let me check if this violates the function's contract.
+
+The function is called `_truncate_protected_zone_messages` and is supposed to "Truncate protected zone to fit within budget." If small messages cause the budget to be exceeded, the function fails to fulfill its contract.
+
+Actually, I think I found a more serious bug! Look at the loop in `_truncate_protected_zone_messages`:
+
+```python
+for msg in messages:
+    if tokens_to_trim <= 0 or msg.role != "tool":
+        result.append(msg)
+        continue
+    
+    content = msg.content
+    if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
+        truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
+        trimmed_tokens = (
+            len(content) - len(truncated_msg.content or "")
+        ) // CHARS_PER_TOKEN_ESTIMATE
+        tokens_to_trim -= trimmed_tokens
+        result.append(truncated_msg)
+    else:
+        result.append(msg)
+```
+
+The bug is that `tokens_to_trim` is updated INSIDE the loop, but the check `if tokens_to_trim <= 0` happens at the START of each iteration. So if we have multiple tool messages to truncate, we truncate the first one, update `tokens_to_trim`, and then if `tokens_to_trim <= 0`, we stop truncating subsequent tool messages even if they're large!
+
+But actually, that might be correct? If we've trimmed enough tokens to fit within budget, we should stop truncating. But wait, we're iterating through messages in order. What if the first tool message is small and doesn't need much truncation, but a later tool message is huge? We might stop early when we still need to truncate more.
+
+Actually, I think the real bug is different. Let me trace through an example:
+- `tokens_to_trim = 100` (need to trim 100 tokens)
+- First tool message: content length 600 chars, we truncate it
+- `trimmed_tokens = (600 - new_length) // 4` (say we trim to 400 chars, so `trimmed_tokens = 200 // 4 = 50`)
+- `tokens_to_trim -= 50` → `tokens_to_trim = 50`
+- Second tool message: `tokens_to_trim > 0`, so we check it...
+
+Actually that seems okay. The bug might be in the calculation of `trimmed_tokens`. Let me write a test to verify:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-utils-compaction/test_bug.py', 'content': '"""Test to 
+demonstrate the bug in _truncate_protected_zone_messages."""\n\nfrom 
+henchman.providers.base import Message, ToolCall\nfrom henchman.utils.compaction
+import ContextCompactor\nfrom henchman.utils.tokens import TokenCounter\n\ndef 
+test_truncation_underestimates_token_reduction():\n    """Test that token 
+reduction is underestimated due to integer division."""\n    # Create a 
+compactor with small protected zone\n    compactor = 
+ContextCompactor(max_tokens=150, max_protected_ratio=0.3)\n    # 
+max_protected_tokens = 150 * 0.3 = 45\n    \n    # Create protected messages 
+that exceed the budget\n    # Tool message with content that will be truncated\n
+tool_msg = Message(\n        role="tool", \n        content="x" * 600,  # 600 
+chars, ~150 tokens at 4 chars/token\n        tool_call_id="tc1"\n    )\n    \n  
+messages = [\n        Message(role="system", content="System prompt"),\n        
+Message(role="user", content="User request"),\n        Message(\n            
+role="assistant", \n            content="I\'ll help",\n            
+tool_calls=[ToolCall(id="tc1", name="test", arguments={})]\n        ),\n        
+tool_msg,  # Protected (from index 2)\n    ]\n    \n    total_tokens = 
+TokenCounter.count_messages(messages)\n    print(f"Total tokens: 
+{total_tokens}")\n    print(f"Max tokens: {compactor.max_tokens}")\n    
+print(f"Max protected tokens: {compactor.max_protected_tokens}")\n    \n    # 
+The protected zone (assistant + tool) should be truncated\n    # But the bug 
+might cause it to remain over budget\n    \n    result = 
+compactor.compact(messages, protect_from_index=2)\n    result_tokens = 
+TokenCounter.count_messages(result)\n    \n    print(f"\\nResult tokens: 
+{result_tokens}")\n    print(f"Within max_tokens? {result_tokens <= 
+compactor.max_tokens}")\n    \n    # Check if protected zone was properly 
+truncated\n    protected_msgs = result[2:]  # From protect_from_index=2\n    
+protected_tokens = TokenCounter.count_messages(protected_msgs)\n    
+print(f"Protected zone tokens: {protected_tokens}")\n    print(f"Within 
+max_protected_tokens? {protected_tokens <= compactor.max_protected_tokens}")\n  
+\n    # The bug: integer division in trimmed_tokens calculation\n    # 
+trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // 
+CHARS_PER_TOKEN_ESTIMATE\n    # If we trim 7 chars: 7 // 4 = 1 token, but 7 
+chars might be 2 tokens\n    # Cumulative error could keep protected zone over 
+budget\n\nif __name__ == "__main__":\n    
+test_truncation_underestimates_token_reduction()'})
+
+[result] Successfully wrote 2461 bytes to 
+.agent_tasks/four-lenses-utils-compaction/test_bug.py...
+
+[tool] python_exec({'code': "import sys\nsys.path.insert(0, 
+'/home/matthew/mlg-cli')\nfrom 
+.agent_tasks.four_lenses_utils_compaction.test_bug import 
+test_truncation_underestimates_token_reduction\ntest_truncation_underestimates_t
+oken_reduction()"})
+
+✗ \[error] Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+ImportError: attempted relative import with no known parent package
+
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python 
+.agent_tasks/four-lenses-utils-compaction/test_bug.py'})
+
+[result] Total tokens: 115
+Max tokens: 150
+Max protected tokens: 45
+
+Result tokens: 115
+Within max_tokens? True
+Protected zone tokens: 103
+Within max_protected_tokens? False
+...
+Interesting! The protected zone has 103 tokens but max_protected_tokens is 45. The protected zone is WAY over budget, but the overall context is within max_tokens (115 ≤ 150). This suggests the bug might be that protected zone truncation isn't working properly.
+
+Wait, but the overall context is within budget, so maybe truncation wasn't needed? Let me check the logic again. The protected zone is assistant + tool message. The tool message has 600 chars. It should be truncated because it exceeds TRUNCATION_CHAR_THRESHOLD (500).
+
+Actually, I think I need to understand the flow better. Let me add debug prints:

@@ -52,7 +52,7 @@ class ContextConfig:
 # ---------------------------------------------------------------------------
 
 
-def _line_matches(line: str, regex: re.Pattern[str], invert_match: bool) -> bool:  # noqa: FBT001
+def _line_matches(line: str, regex: re.Pattern[str], invert_match: bool) -> bool:
     """Return True if the line matches (or doesn't match when inverted).
 
     Args:
@@ -112,7 +112,7 @@ def _format_context_block(
 def _format_simple_matches(
     lines: list[str],
     match_indices: set[int],
-    line_numbers: bool,  # noqa: FBT001
+    line_numbers: bool,
     file_prefix: str,
 ) -> list[str]:
     """Format matches without context.
@@ -138,7 +138,7 @@ def _format_simple_matches(
 def _find_match_indices(
     lines: list[str],
     regex: re.Pattern[str],
-    invert_match: bool,  # noqa: FBT001
+    invert_match: bool,
 ) -> set[int]:
     """Find 0-based indices of lines matching (or not matching) the pattern.
 
@@ -257,7 +257,7 @@ def _search_single_file(
 def _count_matches_in_files(
     files: list[Path],
     regex: re.Pattern[str],
-    invert_match: bool,  # noqa: FBT001
+    invert_match: bool,
 ) -> ToolResult:
     """Count matches per file and return summary.
 
@@ -278,7 +278,7 @@ def _count_matches_in_files(
             if n > 0:
                 counts.append(f"{file_path}:{n}")
                 total += n
-        except (PermissionError, UnicodeDecodeError):  # pragma: no cover  # noqa: PERF203
+        except (PermissionError, UnicodeDecodeError):  # pragma: no cover
             continue
 
     if not counts:
@@ -433,7 +433,7 @@ class FileSearcher:
         self: FileSearcher,
         lines: list[str],
         regex: re.Pattern[str],
-        invert_match: bool,  # noqa: FBT001
+        invert_match: bool,
     ) -> set[int]:
         """Find indices of lines matching the pattern."""
         return _find_match_indices(lines, regex, invert_match)
@@ -452,7 +452,7 @@ class FileSearcher:
         self: FileSearcher,
         files: list[Path],
         regex: re.Pattern[str],
-        invert_match: bool,  # noqa: FBT001
+        invert_match: bool,
     ) -> ToolResult:
         """Count matches per file."""
         return _count_matches_in_files(files, regex, invert_match)
@@ -621,7 +621,7 @@ class GrepTool(Tool):
         try:
             params = _grep_params_from_kwargs(pattern, kwargs)
             return _execute_grep(params)
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error searching: {e}",
                 success=False,

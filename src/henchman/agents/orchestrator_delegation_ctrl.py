@@ -176,7 +176,7 @@ class DelegationController(OrchestratorComponent):
             ledger = self.orchestrator.ledger
             if ledger:
                 params.ledger_record = ledger.add_delegation(
-                    agent=target, task=task
+                    agent=target, task=task,
                 )
 
         final_result = final_state.result_content or "Delegation completed (no output)."

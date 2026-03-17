@@ -61,7 +61,7 @@ class PythonAstTool(Tool):
         path: str = "",
         *,
         include_docstrings: bool = True,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Parse a Python file and return its symbol table.
 
@@ -79,7 +79,7 @@ class PythonAstTool(Tool):
 
         file_path = Path(path)
         try:
-            source = file_path.read_text()  # noqa: ASYNC240
+            source = file_path.read_text()
         except PermissionError:
             return ToolResult(
                 content=f"Error: Permission denied: {path}",

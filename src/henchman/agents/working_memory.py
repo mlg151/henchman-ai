@@ -12,17 +12,16 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 import yaml
 
-if TYPE_CHECKING:
-    pass
-
-from henchman.agents.file_read_decision_maker import FileReadDecisionMaker
-from henchman.agents.line_range_utils import (
-    LineRange,
+from henchman.agents.file_read_decision_maker import (
+    FileReadDecisionMaker,
+    _collect_valid_ranges_from_matches,
+    _validate_and_normalize_line_numbers,
 )
+from henchman.agents.line_range_utils import LineRange  # noqa: TC001
 from henchman.utils.serialization import SerializableDataclass
 
 
@@ -37,7 +36,20 @@ class ValidationDecision:
     has_invalid_part: bool
 
 
-def _normalize_path(path: str) -> str:
+@dataclass(frozen=True)
+class EmptyRangesState:
+    """Metadata about previously read line ranges for a file."""
+
+    all_lines_read_empty: bool
+    any_lines_read_invalid: bool
+
+
+PathInput = str | Path
+
+T = TypeVar("T")
+
+
+def _normalize_path(path: PathInput) -> str:
     """Normalize a file path for consistent comparison.
 
     Args:
@@ -46,11 +58,13 @@ def _normalize_path(path: str) -> str:
     Returns:
         Normalized path string. Empty string is returned as-is.
     """
-    if not path:
-        return path  # Return empty string as-is
+    if isinstance(path, str):
+        if not path:
+            return path
+        expanded = Path(path).expanduser()
+    else:
+        expanded = path.expanduser()
 
-    # Expand user home directory (~) if present and normalize path
-    expanded = Path(path).expanduser()
     # Use resolve() to normalize . and .. but also makes path absolute
     # which is fine for comparison purposes
     return str(expanded.resolve())
@@ -63,7 +77,199 @@ DEFAULT_STATUS = "open"
 EXPECTED_RANGE_PARTS = 2
 MAX_RECENT_FILES_DEFAULT = 10
 
-T = TypeVar("T")
+
+def _copy_insights(key_insights: list[str] | None) -> list[str]:
+    """Return a defensive copy of key insights."""
+
+    return list(key_insights) if key_insights is not None else []
+
+
+def _type_error_message(field_name: str, expected: str, value: object) -> str:
+    """Build a consistent type error message."""
+
+    actual_type = type(value).__name__
+    return f"{field_name} must be {expected}, got {actual_type}"
+
+
+def _require_problem_entry(value: object, parameter_name: str) -> ProblemEntry:
+    """Validate that a value is a ProblemEntry instance."""
+
+    if isinstance(value, ProblemEntry):
+        return value
+
+    message = _type_error_message(parameter_name, "a ProblemEntry", value)
+    raise TypeError(message)
+
+
+def _validate_range_part(part: str) -> tuple[bool, bool]:
+    """Validate a range part (start-end format).
+
+    Args:
+        part: String in format "start-end".
+
+    Returns:
+        tuple[bool, bool]: (is_valid_range, is_invalid_part)
+    """
+    dash_match = re.search(r"[-\u2012\u2013\u2014\u2015\u2212]", part)
+    if not dash_match:
+        return False, False  # Not a range format
+
+    dash_pos = dash_match.start()
+    start_str = part[:dash_pos]
+    end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+
+    if not start_str.isdecimal() or not end_str.isdecimal():
+        return False, True  # Invalid: contains non-digit characters
+
+    try:
+        start = int(start_str)
+        end = int(end_str)
+    except (ValueError, TypeError):
+        return False, True  # Invalid: cannot parse as integers
+
+    if start < 1 or end < 1 or start > end:
+        return False, True  # Invalid: non-positive line numbers or start > end
+
+    return True, False  # Valid range
+
+
+def _validate_single_line_part(part: str) -> tuple[bool, bool]:
+    """Validate a single line part.
+
+    Args:
+        part: String representing a single line number.
+
+    Returns:
+        tuple[bool, bool]: (is_valid_range, is_invalid_part)
+    """
+    if not part.isdecimal():
+        return False, True  # Invalid: contains non-digit characters
+
+    try:
+        line = int(part)
+    except (ValueError, TypeError):
+        return False, True  # Invalid: cannot parse as integer
+
+    if line < 1:
+        return False, True  # Invalid: non-positive line number
+
+    return True, False  # Valid single line
+
+
+def _process_validation_part(part: str) -> tuple[bool, bool]:
+    """Process a single part during lines_read validation.
+
+    Args:
+        part: A single part from the comma-separated lines_read string.
+
+    Returns:
+        tuple[bool, bool]: (is_valid_range, is_invalid_part)
+            - is_valid_range: True if part represents a valid line range
+            - is_invalid_part: True if part is invalid
+    """
+    dash_match = re.search(r"[-\u2012\u2013\u2014\u2015\u2212]", part)
+    if dash_match:
+        return _validate_range_part(part)
+    return _validate_single_line_part(part)
+
+
+def _validate_lines_read_normalize(lines_read: str) -> tuple[str, list[str]]:
+    """Normalize lines_read string and split into parts.
+
+    Args:
+        lines_read: String to normalize.
+
+    Returns:
+        tuple[str, list[str]]: (normalized_string, parts_list)
+    """
+    normalized = "".join(lines_read.split()).lower()
+
+    if not normalized:
+        return "", []
+
+    return normalized, normalized.split(",")
+
+
+def _validate_lines_read_process_parts(parts: list[str]) -> tuple[bool, bool, bool]:
+    """Process parts and collect validation flags.
+
+    Args:
+        parts: List of string parts.
+
+    Returns:
+        tuple[bool, bool, bool]: (has_full, has_valid_range, has_invalid_part)
+    """
+    has_full = False
+    has_valid_range = False
+    has_invalid_part = False
+
+    for raw_part in parts:
+        part = raw_part.strip()
+        if not part:
+            continue
+
+        if part == "full":
+            has_full = True
+            continue
+
+        is_valid_range, is_invalid_part_flag = _process_validation_part(part)
+        if is_valid_range:
+            has_valid_range = True
+        if is_invalid_part_flag:
+            has_invalid_part = True
+
+    return has_full, has_valid_range, has_invalid_part
+
+
+def _validate_lines_read_decision(decision: ValidationDecision) -> None:
+    """Make final validation decision.
+
+    Args:
+        decision: ValidationDecision object containing validation parameters.
+
+    Raises:
+        ValueError: If lines_read is invalid.
+    """
+    if decision.has_full:
+        return
+
+    if decision.has_invalid_part and not decision.has_valid_range and decision.normalized:
+        error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
+        raise ValueError(error_msg)
+
+    if not decision.has_valid_range and decision.normalized:
+        error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
+        raise ValueError(error_msg)
+
+
+def _validate_lines_read(lines_read: str | None) -> None:
+    """Validate lines_read string format.
+
+    Args:
+        lines_read: String describing which lines were read, or None.
+            None and empty string are valid (means no lines read).
+
+    Raises:
+        ValueError: If lines_read is invalid (e.g., no valid parts found)
+    """
+    if not lines_read:
+        return
+
+    normalized, parts = _validate_lines_read_normalize(lines_read)
+
+    if not normalized:
+        return  # Whitespace-only is valid "no lines read"
+
+    has_full, has_valid_range, has_invalid_part = _validate_lines_read_process_parts(parts)
+
+    decision = ValidationDecision(
+        lines_read=lines_read,
+        normalized=normalized,
+        has_full=has_full,
+        has_valid_range=has_valid_range,
+        has_invalid_part=has_invalid_part,
+    )
+    _validate_lines_read_decision(decision)
 
 
 @dataclass
@@ -79,214 +285,45 @@ class WorkingMemoryEntry(SerializableDataclass):
         compare=False,
     )
 
-    def __post_init__(self) -> None:
+    def __post_init__(self: WorkingMemoryEntry) -> None:
         """Validate fields after initialization.
 
         Note: lines_read may be None during deserialization, which is handled
         gracefully by _parse_line_ranges.
         """
         if self.lines_read is not None and not isinstance(self.lines_read, str):
-            raise TypeError(
-                f"lines_read must be a string or None, got {type(self.lines_read).__name__}"
-            )
+            message = _type_error_message("lines_read", "a string or None", self.lines_read)
+            raise TypeError(message)
 
         # Validate lines_read content if it's a string
         if isinstance(self.lines_read, str):
-            self._validate_lines_read(self.lines_read)
+            _validate_lines_read(self.lines_read)
 
         # Validate key_insights is a list (or None)
         if self.key_insights is not None and not isinstance(self.key_insights, list):
-            raise TypeError(
-                f"key_insights must be a list or None, got {type(self.key_insights).__name__}"
-            )
+            message = _type_error_message("key_insights", "a list or None", self.key_insights)
+            raise TypeError(message)
 
-    @staticmethod
-    def _validate_range_part(part: str) -> tuple[bool, bool]:
-        """Validate a range part (start-end format).
-
-        Args:
-            part: String in format "start-end".
+    def with_normalized_path(self: WorkingMemoryEntry) -> WorkingMemoryEntry:
+        """Return a copy of this entry with path normalized and insights defensively copied.
 
         Returns:
-            tuple[bool, bool]: (is_valid_range, is_invalid_part)
+            WorkingMemoryEntry: A new entry with a normalized path and copied insights.
         """
-        # Find dash position
-        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
-        if not dash_match:
-            return False, False  # Not a range format
-
-        dash_pos = dash_match.start()
-        start_str = part[:dash_pos]
-        end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-
-        # Check if both parts are decimal numbers
-        if not start_str.isdecimal() or not end_str.isdecimal():
-            return False, True  # Invalid: contains non-digit characters
-
-        try:
-            start = int(start_str)
-            end = int(end_str)
-        except (ValueError, TypeError):
-            return False, True  # Invalid: cannot parse as integers
-
-        if start < 1 or end < 1 or start > end:
-            return False, True  # Invalid: non-positive line numbers or start > end
-
-        return True, False  # Valid range
-
-    @staticmethod
-    def _validate_single_line_part(part: str) -> tuple[bool, bool]:
-        """Validate a single line part.
-
-        Args:
-            part: String representing a single line number.
-
-        Returns:
-            tuple[bool, bool]: (is_valid_range, is_invalid_part)
-        """
-        if not part.isdecimal():
-            return False, True  # Invalid: contains non-digit characters
-
-        try:
-            line = int(part)
-        except (ValueError, TypeError):
-            return False, True  # Invalid: cannot parse as integer
-
-        if line < 1:
-            return False, True  # Invalid: non-positive line number
-
-        return True, False  # Valid single line
-
-    @staticmethod
-    def _process_validation_part(part: str) -> tuple[bool, bool]:
-        """Process a single part during lines_read validation.
-
-        Args:
-            part: A single part from the comma-separated lines_read string.
-
-        Returns:
-            tuple[bool, bool]: (is_valid_range, is_invalid_part)
-                - is_valid_range: True if part represents a valid line range
-                - is_invalid_part: True if part is invalid
-        """
-        # Check for dash-like characters to determine if it's a range
-        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
-        if dash_match:
-            return WorkingMemoryEntry._validate_range_part(part)
-        else:
-            return WorkingMemoryEntry._validate_single_line_part(part)
-
-    @staticmethod
-    @staticmethod
-    def _validate_lines_read_normalize(lines_read: str) -> tuple[str, list[str]]:
-        """Normalize lines_read string and split into parts.
-
-        Args:
-            lines_read: String to normalize.
-
-        Returns:
-            tuple[str, list[str]]: (normalized_string, parts_list)
-        """
-        normalized = "".join(lines_read.split()).lower()
-
-        # Check if normalized is empty (whitespace-only input)
-        if not normalized:
-            return "", []
-
-        return normalized, normalized.split(",")
-
-    @staticmethod
-    def _validate_lines_read_process_parts(parts: list[str]) -> tuple[bool, bool, bool]:
-        """Process parts and collect validation flags.
-
-        Args:
-            parts: List of string parts.
-
-        Returns:
-            tuple[bool, bool, bool]: (has_full, has_valid_range, has_invalid_part)
-        """
-        has_full = False
-        has_valid_range = False
-        has_invalid_part = False
-
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-
-            # Check for "full" part
-            if part == "full":
-                has_full = True
-                continue
-
-            is_valid_range, is_invalid_part_flag = WorkingMemoryEntry._process_validation_part(part)
-            if is_valid_range:
-                has_valid_range = True
-            if is_invalid_part_flag:
-                has_invalid_part = True
-
-        return has_full, has_valid_range, has_invalid_part
-
-    @staticmethod
-    def _validate_lines_read_decision(decision: ValidationDecision) -> None:
-        """Make final validation decision.
-
-        Args:
-            decision: ValidationDecision object containing validation parameters.
-
-        Raises:
-            ValueError: If lines_read is invalid.
-        """
-        # If we have "full", it's valid regardless of other valid ranges or invalid parts
-        if decision.has_full:
-            return
-
-        # If we have invalid parts but no valid ranges, reject the string
-        if decision.has_invalid_part and not decision.has_valid_range and decision.normalized:
-            error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
-            raise ValueError(error_msg)
-
-        # If we have no valid ranges and no "full", reject the string
-        if not decision.has_valid_range and decision.normalized:
-            error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
-            raise ValueError(error_msg)
-
-    @staticmethod
-    def _validate_lines_read(lines_read: str | None) -> None:
-        """Validate lines_read string format.
-
-        Args:
-            lines_read: String describing which lines were read, or None.
-                None and empty string are valid (means no lines read).
-
-        Raises:
-            ValueError: If lines_read is invalid (e.g., no valid parts found)
-        """
-        # None or empty string is valid (means no lines read)
-        if not lines_read:
-            return
-
-        # Normalize and split
-        normalized, parts = WorkingMemoryEntry._validate_lines_read_normalize(lines_read)
-
-        # Check if normalized is empty (whitespace-only input)
-        if not normalized:
-            return  # Whitespace-only is valid "no lines read"
-
-        # Process parts and collect validation flags
-        has_full, has_valid_range, has_invalid_part = (
-            WorkingMemoryEntry._validate_lines_read_process_parts(parts)
+        return replace(
+            self,
+            path=_normalize_path(self.path),
+            key_insights=_copy_insights(self.key_insights),
         )
 
-        # Make final validation decision
-        decision = ValidationDecision(
-            lines_read=lines_read,
-            normalized=normalized,
-            has_full=has_full,
-            has_valid_range=has_valid_range,
-            has_invalid_part=has_invalid_part,
-        )
-        WorkingMemoryEntry._validate_lines_read_decision(decision)
+    # Expose module-level validators as static methods for backward compatibility.
+    _validate_range_part = staticmethod(_validate_range_part)
+    _validate_single_line_part = staticmethod(_validate_single_line_part)
+    _process_validation_part = staticmethod(_process_validation_part)
+    _validate_lines_read_normalize = staticmethod(_validate_lines_read_normalize)
+    _validate_lines_read_process_parts = staticmethod(_validate_lines_read_process_parts)
+    _validate_lines_read_decision = staticmethod(_validate_lines_read_decision)
+    _validate_lines_read = staticmethod(_validate_lines_read)
 
 
 @dataclass
@@ -314,6 +351,19 @@ class ProblemEntry(SerializableDataclass):
     problem: str
     status: str = DEFAULT_STATUS
     resolution: str = ""
+
+    def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:
+        """Apply status and resolution from another problem entry.
+        
+        Args:
+            updated: Another ProblemEntry instance containing updated status
+                     and resolution values to apply to this entry.
+        
+        Returns:
+            None
+        """
+        self.status = updated.status
+        self.resolution = updated.resolution
 
 # Type alias for any working memory entry
 MemoryEntry = (
@@ -352,12 +402,7 @@ class WorkingMemory(SerializableDataclass):
         # Normalize the path before storing
         # Create a copy with normalized path and copied mutable fields to avoid
         # sharing mutable state with the caller
-        normalized_entry = replace(
-            entry,
-            path=_normalize_path(entry.path),
-            key_insights=list(entry.key_insights) if entry.key_insights is not None else [],
-        )
-        self.recent_files.append(normalized_entry)
+        self.recent_files.append(entry.with_normalized_path())
 
     def add_decision(self: WorkingMemory, entry: DecisionEntry) -> None:
         """Record a decision.
@@ -420,10 +465,7 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             None
         """
-        # Validation logic to avoid "Exact Duplicate" smell
-        if not isinstance(entry, ProblemEntry):
-            raise TypeError(f"entry must be a ProblemEntry, got {type(entry).__name__}")
-        self.problems_encountered.append(entry)
+        self.problems_encountered.append(_require_problem_entry(entry, "entry"))
 
     def update_problem(self: WorkingMemory, updated: ProblemEntry) -> None:
         """Update an existing problem entry.
@@ -436,38 +478,41 @@ class WorkingMemory(SerializableDataclass):
         Raises:
             ValueError: If no problem with matching description is found.
         """
-        if not isinstance(updated, ProblemEntry):
-            raise TypeError(f"updated must be a ProblemEntry, got {type(updated).__name__}")
-        for e in self.problems_encountered:
-            if e.problem == updated.problem:
-                e.status = updated.status
-                e.resolution = updated.resolution
+        updated_entry = _require_problem_entry(updated, "updated")
+        problem_name = updated_entry.problem
+
+        for problem in self.problems_encountered:
+            if problem.problem == problem_name:
+                problem.update_from(updated_entry)
                 break
         else:
-            raise ValueError(f"Problem '{updated.problem}' not found")
+            message = f"Problem '{problem_name}' not found"
+            raise ValueError(message)
 
     def _get_empty_ranges_reason(
-        self, all_lines_read_empty: bool, any_lines_read_invalid: bool
+        self: WorkingMemory,
+        state: EmptyRangesState,
     ) -> str:
         """Get appropriate reason when valid_ranges is empty.
-        
+
         Args:
-            all_lines_read_empty: Whether all lines_read entries are empty.
-            any_lines_read_invalid: Whether any lines_read entry is invalid.
-            
+            state: Metadata about whether prior entries were empty or invalid.
+
         Returns:
             Reason string.
         """
-        if all_lines_read_empty:
+        if state.all_lines_read_empty:
             return "No lines have been read"
-        elif any_lines_read_invalid:
+        if state.any_lines_read_invalid:
             return "Cannot determine - invalid lines_read format"
-        else:
-            # Should not happen, but handle gracefully
-            return "Cannot determine - no valid line ranges"
+        # Should not happen, but handle gracefully
+        return "Cannot determine - no valid line ranges"
 
     def should_read_file(
-        self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
+        self: WorkingMemory,
+        path: PathInput,
+        start: int | None = None,
+        end: int | None = None,
     ) -> tuple[bool, str]:
         """Determine whether a file needs to be read.
 
@@ -481,33 +526,30 @@ class WorkingMemory(SerializableDataclass):
             whether the file should be read (True = read, False = skip), and the second
             element is a string explaining the reason for the decision.
         """
-        # Validate and normalize line numbers
-        should_read, reason, norm_start, norm_end = FileReadDecisionMaker._validate_and_normalize_line_numbers(start, end)
-        if should_read:
-            return should_read, reason
-
-        # Use normalized values
-        start, end = norm_start, norm_end
-
-        # Normalize the path for consistent comparison
+        is_invalid, reason, normalized_start, normalized_end = _validate_and_normalize_line_numbers(
+            start,
+            end,
+        )
+        if is_invalid:
+            return True, reason
+        start, end = normalized_start, normalized_end
         normalized_path = _normalize_path(path)
-
-        # Find ALL entries for this file (most recent first)
         matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
         if not matches:
             return True, "File not in recent files"
-
-        # Get ranges info once to avoid duplicate calls
-        _, all_empty, any_invalid = FileReadDecisionMaker._collect_valid_ranges_from_matches(matches)
-        
+        _, all_empty, any_invalid = _collect_valid_ranges_from_matches(matches)
+        empty_ranges_state = EmptyRangesState(
+            all_lines_read_empty=all_empty,
+            any_lines_read_invalid=any_invalid,
+        )
         return FileReadDecisionMaker.should_read_file(
             matches=matches,
             start=start,
             end=end,
-            get_empty_ranges_reason=lambda: self._get_empty_ranges_reason(all_empty, any_invalid)
+            get_empty_ranges_reason=lambda: self._get_empty_ranges_reason(empty_ranges_state),
         )
 
-    def get_file_insights(self: WorkingMemory, path: str) -> list[str]:
+    def get_file_insights(self: WorkingMemory, path: PathInput) -> list[str]:
         """Return cached insights for a file.
 
         Args:
@@ -517,15 +559,16 @@ class WorkingMemory(SerializableDataclass):
             A list of string insights previously recorded for the file.
         """
         normalized_path = _normalize_path(path)
-        insights: list[str] = []
-        for entry in self.recent_files:  # Iterate in chronological order (oldest first)
-            if entry.path == normalized_path:
-                insights.extend(entry.key_insights)
-        return insights
+        return [
+            insight
+            for entry in self.recent_files
+            if entry.path == normalized_path
+            for insight in entry.key_insights
+        ]
 
     def update_after_read(
         self: WorkingMemory,
-        path: str,
+        path: PathInput,
         purpose: str,
         line_range: LineRange,
         insights: list[str] | None = None,
@@ -550,7 +593,10 @@ class WorkingMemory(SerializableDataclass):
             ),
         )
 
-    def prune_recent_files(self: WorkingMemory, max_entries: int = MAX_RECENT_FILES_DEFAULT) -> None:
+    def prune_recent_files(
+        self: WorkingMemory,
+        max_entries: int = MAX_RECENT_FILES_DEFAULT,
+    ) -> None:
         """Trim recent files list.
 
         Args:
@@ -595,7 +641,11 @@ class WorkingMemorySystem:
     memories: dict[str, WorkingMemory] = field(default_factory=dict)
     current_task_id: str | None = None
 
-    def create_memory(self: WorkingMemorySystem, task: str, objectives: list[str] | None = None) -> str:
+    def create_memory(
+        self: WorkingMemorySystem,
+        task: str,
+        objectives: list[str] | None = None,
+    ) -> str:
         """Create a new working memory.
 
         Args:
@@ -606,16 +656,19 @@ class WorkingMemorySystem:
         Returns:
             str: The unique task ID (UUID) assigned to the new memory.
         """
-        t_id = str(uuid.uuid4())
-        self.memories[t_id] = WorkingMemory(current_task=task, task_objectives=objectives or [])
-        self.current_task_id = t_id
-        return t_id
+        task_id = str(uuid.uuid4())
+        self.memories[task_id] = WorkingMemory(
+            current_task=task,
+            task_objectives=objectives or [],
+        )
+        self.current_task_id = task_id
+        return task_id
 
-    def switch_memory(self: WorkingMemorySystem, t_id: str) -> None:
+    def switch_memory(self: WorkingMemorySystem, task_id: str) -> None:
         """Switch active memory.
 
         Args:
-            t_id: The task ID to switch to.
+            task_id: The task ID to switch to.
 
         Raises:
             KeyError: If the task ID is not found in the memory registry.
@@ -623,9 +676,10 @@ class WorkingMemorySystem:
         Returns:
             None: This method does not return a value.
         """
-        if t_id not in self.memories:
-            raise KeyError(f"Task ID '{t_id}' not found")
-        self.current_task_id = t_id
+        if task_id not in self.memories:
+            message = f"Task ID '{task_id}' not found"
+            raise KeyError(message)
+        self.current_task_id = task_id
 
     def get_current_memory(self: WorkingMemorySystem) -> WorkingMemory | None:
         """Return active memory.
@@ -648,7 +702,8 @@ class WorkingMemorySystem:
             ValueError: If there is no current task to archive.
         """
         if not self.current_task_id:
-            raise ValueError("No current task to archive")
+            message = "No current task to archive"
+            raise ValueError(message)
 
         mem = self.memories[self.current_task_id]
         path = archive_dir / f"working_memory_{self.current_task_id}.yaml"

@@ -6,6 +6,7 @@ import contextlib
 import logging
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
@@ -78,12 +79,21 @@ _MAX_ATTRS_IN_ERROR = 10
 _MAX_REPR_LENGTH = 100
 """Maximum length for repr() output in error messages."""
 
+SAME_AGENT_RELEVANCE_BONUS: float = 0.3
+"""Bonus score added when a context entry was produced by the same specialist."""
+
+KEYWORD_OVERLAP_WEIGHT: float = 0.7
+"""Weight applied to keyword-overlap fraction in context relevance scoring."""
+
+MAX_PARALLEL_DELEGATION_BUFFER: int = 10_000
+"""Maximum event-buffer size for concurrent parallel delegations."""
+
 _STOP_WORDS: frozenset[str] = frozenset(
     {
         "a", "an", "and", "are", "as", "at", "be", "by", "do", "for",
         "from", "has", "he", "in", "is", "it", "its", "of", "on", "or",
         "that", "the", "this", "to", "was", "were", "will", "with",
-    }
+    },
 )
 """Common words excluded when scoring context relevance."""
 
@@ -117,7 +127,7 @@ def _score_context_relevance(
     - **0.3** if the entry was produced by the same specialist
       (``target_role`` match — prior work by the same agent is directly
       relevant).
-    - **0.7 × (overlap / task_tokens)** based on keyword overlap between
+    - **0.7 x (overlap / task_tokens)** based on keyword overlap between
       the task description and the entry's summary + files_modified text,
       after filtering common stop words.
 
@@ -133,7 +143,7 @@ def _score_context_relevance(
     score = 0.0
 
     if entry.get("agent") == target_role:
-        score += 0.3
+        score += SAME_AGENT_RELEVANCE_BONUS
 
     task_tokens = {
         w.lower() for w in task.split() if w.lower() not in _STOP_WORDS
@@ -147,7 +157,7 @@ def _score_context_relevance(
     }
 
     overlap = task_tokens & summary_tokens
-    score += 0.7 * (len(overlap) / len(task_tokens))
+    score += KEYWORD_OVERLAP_WEIGHT * (len(overlap) / len(task_tokens))
     return score
 
 
@@ -356,7 +366,7 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
         if hasattr(target_agent, "get_delegation_errors"):
             errors = target_agent.get_delegation_errors()
         elif hasattr(target_agent, "_delegation_tool_errors"):
-            errors = target_agent._delegation_tool_errors  # noqa: SLF001
+            errors = target_agent._delegation_tool_errors
         else:
             return []
         if errors is not None and isinstance(errors, list):
@@ -367,7 +377,7 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
             type(target_agent).__name__,
             exc,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Catch-all for unexpected errors, but log with full traceback
         logger.warning(
             "Unexpected error fetching delegation errors from agent %r",
@@ -423,28 +433,37 @@ def _build_agent_summary(target_agent: Any, msg_start: int) -> str:
     return summary
 
 
+@dataclass
+class _SectionFormat:
+    """Format specification for a list section in delegation input.
+
+    Groups the three formatting primitives (header, item_format, footer)
+    that are always passed together to ``_append_list_section``.
+    """
+
+    header: str
+    item_format: str = "- {0}"
+    footer: str = ""
+
+
 def _append_list_section(
     sections: list[str],
     items: list[str] | str,
-    header: str,
-    item_format: str = "- {0}",
-    footer: str = "",
+    fmt: _SectionFormat,
 ) -> None:
     """Append a formatted list section to sections.
 
     Args:
         sections: The sections list to append to.
         items: Items to list (string or list of strings).
-        header: Section header (e.g. "## Relevant Files").
-        item_format: Format string for each item (default "- {0}").
-        footer: Optional footer line appended after the list.
+        fmt: Section format specification (header, item_format, footer).
     """
     if isinstance(items, str):
         items = [items]
-    item_lines = "\n".join(item_format.format(i) for i in items)
-    body = f"{header}\n{item_lines}"
-    if footer:
-        body = f"{body}\n{footer}"
+    item_lines = "\n".join(fmt.item_format.format(i) for i in items)
+    body = f"{fmt.header}\n{item_lines}"
+    if fmt.footer:
+        body = f"{body}\n{fmt.footer}"
     sections.append(body)
 
 
@@ -455,7 +474,7 @@ def _append_files_section(sections: list[str], brief_get: Any) -> None:
     """Append the Relevant Files section if files are present."""
     files = brief_get("files")
     if files:
-        _append_list_section(sections, files, "## Relevant Files", "- `{0}`")
+        _append_list_section(sections, files, _SectionFormat("## Relevant Files", "- `{0}`"))
 
 
 def _append_depends_on_section(sections: list[str], brief_get: Any) -> None:
@@ -463,7 +482,9 @@ def _append_depends_on_section(sections: list[str], brief_get: Any) -> None:
     depends_on = brief_get("depends_on")
     if depends_on:
         _append_list_section(
-            sections, depends_on, "## Depends On", footer=_DEPENDS_ON_FOOTER,
+            sections,
+            depends_on,
+            _SectionFormat("## Depends On", footer=_DEPENDS_ON_FOOTER),
         )
 
 
@@ -520,7 +541,7 @@ def _parse_completion_report(summary: str) -> dict[str, str]:
     # CRITICAL BUG FIX: Type safety validation
     if not isinstance(summary, str):
         raise TypeError(
-            f"summary must be a string, got {type(summary).__name__}"
+            f"summary must be a string, got {type(summary).__name__}",
         )
 
     parsed: dict[str, str] = {}
@@ -594,12 +615,12 @@ def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> No
         # Preserve the original exception with its attributes
         exc.args = (msg,) + exc.args[1:] if exc.args else (msg,)
         raise
-    prepared_brief = runner._prepare_delegation_context(  # noqa: SLF001
+    prepared_brief = runner._prepare_delegation_context(
         params.target_role,
         params.brief,
         task=params.task,
     )
-    params.full_task = runner._assemble_delegation_input(  # noqa: SLF001
+    params.full_task = runner._assemble_delegation_input(
         params.task,
         prepared_brief,
         mission=runner.ledger.goal if runner.ledger else None,
@@ -624,7 +645,7 @@ async def _execute_loop(
         TypeError: If runner._run_agent_loop doesn't return an async iterator.
         RuntimeError: If agent loop execution fails.
     """
-    from henchman.agents.orchestrator import AgentLoopParams  # noqa: PLC0415
+    from henchman.agents.orchestrator import AgentLoopParams
 
     max_turns = runner.settings.agents.max_delegation_turns
     loop_params = AgentLoopParams(
@@ -634,7 +655,7 @@ async def _execute_loop(
         max_turns=max_turns,
         msg_start_index=params.msg_start,
     )
-    agent_loop_result = runner._run_agent_loop(loop_params)  # noqa: SLF001
+    agent_loop_result = runner._run_agent_loop(loop_params)
     try:
         async for event in agent_loop_result:
             yield event
@@ -665,7 +686,7 @@ async def _finalize_execution(
     if params.target_agent is None:
         msg = f"Cannot finalize: agent '{params.target_role}' target_agent is None."
         raise ValueError(msg)
-    summary, parsed, status = runner._process_delegation_results(  # noqa: SLF001
+    summary, parsed, status = runner._process_delegation_results(
         params.target_role,
         params.target_agent,
         params.msg_start,
@@ -706,7 +727,7 @@ class DelegationRunner:
         assess_completion: Callback to assess agent completion status.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self: DelegationRunner,
         pool: AgentPool,
         settings: Settings,
@@ -785,7 +806,7 @@ class DelegationRunner:
         try:
             async for event in _execute_loop(self, params):
                 yield event
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             yield self._make_error_event(
                 f"Failed to execute delegation for '{target_role}': "
                 f"{type(exc).__name__}: {exc}",
@@ -794,7 +815,7 @@ class DelegationRunner:
         try:
             async for event in _finalize_execution(self, params):
                 yield event
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             yield self._make_error_event(
                 f"Failed to finalize delegation for '{target_role}': "
                 f"{type(exc).__name__}: {exc}",
@@ -863,7 +884,7 @@ class DelegationRunner:
         try:
             agent = self.pool.get_agent(target_role)
             error = _check_agent_protocol_compliance(agent, target_role)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             msg = f"Failed to get agent '{target_role}': {type(exc).__name__}: {exc}"
             return self._make_error_event(msg)
         else:
@@ -967,7 +988,7 @@ class DelegationRunner:
 
     def _process_delegation_results(
         self: DelegationRunner,
-        target_role: str,  # noqa: ARG002
+        target_role: str,
         target_agent: Agent,
         msg_start: int,
     ) -> tuple[str, dict[str, str], CompletionStatus]:

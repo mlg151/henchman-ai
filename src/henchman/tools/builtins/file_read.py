@@ -90,11 +90,11 @@ async def _execute_read_file(config: ReadFileConfig) -> ToolResult:
     Returns:
         ToolResult with file contents or an error message.
     """
-    import anyio  # noqa: PLC0415
+    import anyio
 
     try:
         file_path = Path(config.path)
-        if not file_path.exists():  # noqa: ASYNC240
+        if not file_path.exists():
             return ToolResult(
                 content=f"Error: File not found: {config.path}",
                 success=False,
@@ -111,7 +111,7 @@ async def _execute_read_file(config: ReadFileConfig) -> ToolResult:
             success=False,
             error=f"Permission denied: {config.path}",
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return ToolResult(
             content=f"Error reading file: {e}",
             success=False,

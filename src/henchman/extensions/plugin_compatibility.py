@@ -36,7 +36,7 @@ class PluginCompatibilityChecker:
                 return False
 
             # Check OS compatibility
-            if metadata.compatibility.os:  # noqa: SIM102
+            if metadata.compatibility.os:
                 if not PluginCompatibilityChecker._check_os_compatibility(
                     metadata.compatibility.os,
                 ):
@@ -58,10 +58,10 @@ class PluginCompatibilityChecker:
         Returns:
             True if compatible, False otherwise.
         """
-        from packaging.specifiers import SpecifierSet  # noqa: PLC0415
-        from packaging.version import Version  # noqa: PLC0415
+        from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
 
-        from henchman.version import VERSION  # noqa: PLC0415
+        from henchman.version import VERSION
 
         current_henchman = Version(VERSION)
         return SpecifierSet(henchman_spec).contains(current_henchman)
@@ -76,8 +76,8 @@ class PluginCompatibilityChecker:
         Returns:
             True if compatible, False otherwise.
         """
-        from packaging.specifiers import SpecifierSet  # noqa: PLC0415
-        from packaging.version import Version  # noqa: PLC0415
+        from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
 
         current_python = Version(
             f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",

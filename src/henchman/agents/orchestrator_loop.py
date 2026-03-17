@@ -174,12 +174,12 @@ def finalize_loop(
             stacklevel=2,
         )
         if not hasattr(agent, "_delegation_tool_errors"):
-            agent._delegation_tool_errors = []  # noqa: SLF001
-        agent._delegation_tool_errors = state.tool_errors  # noqa: SLF001
+            agent._delegation_tool_errors = []
+        agent._delegation_tool_errors = state.tool_errors
 
-    orchestrator._last_loop_tool_call_count = state.tool_call_count  # noqa: SLF001
-    orchestrator._last_loop_success_count = state.successful_tool_call_count  # noqa: SLF001
-    orchestrator._last_loop_timed_out = state.timed_out  # noqa: SLF001
+    orchestrator._last_loop_tool_call_count = state.tool_call_count
+    orchestrator._last_loop_success_count = state.successful_tool_call_count
+    orchestrator._last_loop_timed_out = state.timed_out
 
 
 # ---------------------------------------------------------------------------

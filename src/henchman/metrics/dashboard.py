@@ -129,6 +129,25 @@ def _aggregate_usage_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _create_metric_panel(title: str, rows: list[tuple[str, str]], color: str) -> Panel:
+    """Create a Rich panel containing a two-column metric table.
+
+    Args:
+        title: Panel border title.
+        rows: Sequence of (label, formatted_value) pairs.
+        color: Rich colour applied to the value column and border.
+
+    Returns:
+        Configured Rich Panel.
+    """
+    table = Table(show_header=False, box=None)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style=color)
+    for label, value in rows:
+        table.add_row(label, value)
+    return Panel(table, title=title, border_style=color)
+
+
 class DashboardPanelFactory:
     """Factory for creating Rich dashboard panels with a uniform layout."""
 
@@ -148,12 +167,7 @@ class DashboardPanelFactory:
         Returns:
             Configured Rich Panel.
         """
-        table = Table(show_header=False, box=None)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style=color)
-        for label, value in rows:
-            table.add_row(label, value)
-        return Panel(table, title=title, border_style=color)
+        return _create_metric_panel(title, rows, color)
 
 
 # ---------------------------------------------------------------------------
@@ -201,11 +215,26 @@ def _usage_panel_rows(usage_stats: dict[str, Any]) -> list[tuple[str, str]]:
     ]
 
 
+def _write_token_csv_rows(writer: "csv.writer", token_usage: dict[str, Any]) -> None:
+    """Write token-usage rows to *writer*."""
+    writer.writerow(["Total Tokens", token_usage.get("total_tokens", 0), "tokens"])
+    writer.writerow(["Daily Average Tokens", token_usage.get("daily_average", 0), "tokens"])
+
+
+def _write_cost_csv_rows(writer: "csv.writer", costs: dict[str, Any]) -> None:
+    """Write cost rows to *writer*."""
+    writer.writerow(["Total Cost", costs.get("total_cost", 0), "USD"])
+    writer.writerow(["Daily Average Cost", costs.get("daily_average", 0), "USD"])
+
+
+def _write_tool_csv_rows(writer: "csv.writer", tool_performance: dict[str, Any]) -> None:
+    """Write tool-performance rows to *writer*."""
+    writer.writerow(["Total Tool Calls", tool_performance.get("total_calls", 0), "calls"])
+    writer.writerow(["Success Rate", tool_performance.get("success_rate", 0), "%"])
+
+
 def _export_stats_to_csv(stats: dict[str, Any]) -> str:
     """Serialise summary stats as a CSV string.
-
-    Extracted to module level to fix Feature Envy: the function accesses ``stats``
-    and ``writer`` repeatedly without needing any class state.
 
     Args:
         stats: Summary statistics dict as returned by ``Dashboard.get_summary_stats``.
@@ -216,34 +245,12 @@ def _export_stats_to_csv(stats: dict[str, Any]) -> str:
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Metric", "Value", "Unit"])
-
     if stats.get("token_usage"):
-        writer.writerow(
-            ["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"],
-        )
-        writer.writerow(
-            [
-                "Daily Average Tokens",
-                stats["token_usage"].get("daily_average", 0),
-                "tokens",
-            ],
-        )
+        _write_token_csv_rows(writer, stats["token_usage"])
     if stats.get("costs"):
-        writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
-        writer.writerow(
-            ["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"],
-        )
+        _write_cost_csv_rows(writer, stats["costs"])
     if stats.get("tool_performance"):
-        writer.writerow(
-            [
-                "Total Tool Calls",
-                stats["tool_performance"].get("total_calls", 0),
-                "calls",
-            ],
-        )
-        writer.writerow(
-            ["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"],
-        )
+        _write_tool_csv_rows(writer, stats["tool_performance"])
     return output.getvalue()
 
 
@@ -253,6 +260,52 @@ LAYOUT_HEADER_SIZE = 3
 
 LAYOUT_STAT_PANEL_SIZE = 8
 """Number of rows for each statistics panel."""
+
+
+def _build_summary_stats(
+    storage: "MetricsStorage",
+    start_date: "datetime",
+    end_date: "datetime",
+) -> dict[str, Any]:
+    """Build the full summary stats dict from storage for the given time range."""
+    return {
+        "time_period": {
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+        },
+        "token_usage": _collect_stats(
+            storage, MetricType.TOKEN_USAGE, _aggregate_token_stats, start_date, end_date,
+        ),
+        "costs": _collect_stats(
+            storage, MetricType.COST, _aggregate_cost_stats, start_date, end_date,
+        ),
+        "tool_performance": _collect_stats(
+            storage, MetricType.TOOL_PERFORMANCE, _aggregate_tool_stats, start_date, end_date,
+        ),
+        "usage_patterns": _collect_stats(
+            storage, MetricType.USAGE_PATTERN, _aggregate_usage_stats, start_date, end_date,
+        ),
+    }
+
+
+def _populate_layout_panels(
+    layout: "Layout",
+    stats: dict[str, Any],
+    factory: "DashboardPanelFactory",
+) -> None:
+    """Update the four data panels inside a dashboard layout."""
+    layout["token_stats"].update(
+        factory.create_panel("Token Usage", _token_panel_rows(stats.get("token_usage", {})), "green"),
+    )
+    layout["cost_stats"].update(
+        factory.create_panel("Costs", _cost_panel_rows(stats.get("costs", {})), "yellow"),
+    )
+    layout["tool_stats"].update(
+        factory.create_panel("Tool Performance", _tool_panel_rows(stats.get("tool_performance", {})), "magenta"),
+    )
+    layout["usage_stats"].update(
+        factory.create_panel("Usage Patterns", _usage_panel_rows(stats.get("usage_patterns", {})), "cyan"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -326,43 +379,9 @@ class Dashboard:
         """
         end_date = datetime.now(tz=timezone.utc)
         start_date = end_date - timedelta(days=STATS_LOOKBACK_DAYS)
+        return _build_summary_stats(self.metrics_storage, start_date, end_date)
 
-        return {
-            "time_period": {
-                "start": start_date.isoformat(),
-                "end": end_date.isoformat(),
-            },
-            "token_usage": _collect_stats(
-                self.metrics_storage,
-                MetricType.TOKEN_USAGE,
-                _aggregate_token_stats,
-                start_date,
-                end_date,
-            ),
-            "costs": _collect_stats(
-                self.metrics_storage,
-                MetricType.COST,
-                _aggregate_cost_stats,
-                start_date,
-                end_date,
-            ),
-            "tool_performance": _collect_stats(
-                self.metrics_storage,
-                MetricType.TOOL_PERFORMANCE,
-                _aggregate_tool_stats,
-                start_date,
-                end_date,
-            ),
-            "usage_patterns": _collect_stats(
-                self.metrics_storage,
-                MetricType.USAGE_PATTERN,
-                _aggregate_usage_stats,
-                start_date,
-                end_date,
-            ),
-        }
-
-    def export_data(self: Dashboard, format: str = "json") -> str:  # noqa: A002
+    def export_data(self: Dashboard, format: str = "json") -> str:
         """Export dashboard data in specified format.
 
         Args:
@@ -412,39 +431,8 @@ class Dashboard:
             Layout(name="tool_stats", size=LAYOUT_STAT_PANEL_SIZE),
             Layout(name="usage_stats", size=LAYOUT_STAT_PANEL_SIZE),
         )
-
-        stats = self.get_summary_stats()
-        factory = self._panel_factory
-
         layout["header"].update(self._create_header())
-        layout["token_stats"].update(
-            factory.create_panel(
-                "Token Usage",
-                _token_panel_rows(stats.get("token_usage", {})),
-                "green",
-            ),
-        )
-        layout["cost_stats"].update(
-            factory.create_panel(
-                "Costs",
-                _cost_panel_rows(stats.get("costs", {})),
-                "yellow",
-            ),
-        )
-        layout["tool_stats"].update(
-            factory.create_panel(
-                "Tool Performance",
-                _tool_panel_rows(stats.get("tool_performance", {})),
-                "magenta",
-            ),
-        )
-        layout["usage_stats"].update(
-            factory.create_panel(
-                "Usage Patterns",
-                _usage_panel_rows(stats.get("usage_patterns", {})),
-                "cyan",
-            ),
-        )
+        _populate_layout_panels(layout, self.get_summary_stats(), self._panel_factory)
         return layout
 
     def _create_header(self: Dashboard) -> Panel:

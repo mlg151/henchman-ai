@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
+import logging
 import os
 import sys
 from dataclasses import dataclass
+from importlib import import_module
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import anyio
@@ -26,6 +30,24 @@ if TYPE_CHECKING:
 _MAX_TEAM_TOOLS_DISPLAY = 5
 
 console = Console()
+logger = logging.getLogger(__name__)
+
+
+def _import_attr(module_path: str, attr_name: str) -> Any:
+    """Import a single attribute lazily from *module_path*."""
+    module = import_module(module_path)
+    return getattr(module, attr_name)
+
+
+def _import_attrs(module_path: str, *attr_names: str) -> tuple[Any, ...]:
+    """Import multiple attributes lazily from *module_path*."""
+    module = import_module(module_path)
+    return tuple(getattr(module, attr_name) for attr_name in attr_names)
+
+
+def _get_plan_mode_prompt() -> str:
+    """Load the plan-mode prompt lazily to avoid optional import overhead."""
+    return _import_attr("henchman.cli.commands.plan", "PLAN_MODE_PROMPT")
 
 
 @dataclass
@@ -83,11 +105,10 @@ def _get_provider_from_environment() -> ModelProvider | None:
     Returns:
         ModelProvider instance if environment provides configuration, None otherwise.
     """
-    from henchman.providers import DeepSeekProvider  # noqa: PLC0415
-
+    deep_seek_provider = _import_attr("henchman.providers", "DeepSeekProvider")
     api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("HENCHMAN_API_KEY")
     if api_key:
-        return DeepSeekProvider(api_key=api_key)
+        return deep_seek_provider(api_key=api_key)
     return None
 
 
@@ -97,11 +118,9 @@ def _get_provider_from_settings() -> ModelProvider | None:
     Returns:
         ModelProvider instance if settings provide configuration, None otherwise.
     """
-    from henchman.providers import get_default_registry  # noqa: PLC0415
-
     try:
-        from henchman.config import load_settings  # noqa: PLC0415
-
+        get_default_registry = _import_attr("henchman.providers", "get_default_registry")
+        load_settings = _import_attr("henchman.config", "load_settings")
         settings = load_settings()
         registry = get_default_registry()
 
@@ -116,10 +135,7 @@ def _get_provider_from_settings() -> ModelProvider | None:
 
         return registry.create(provider_name, **kwargs)
     except Exception:  # pragma: no cover  # noqa: BLE001
-        # Log the error for debugging but don't crash
-        import logging  # noqa: PLC0415
-
-        logging.getLogger(__name__).debug("Failed to load provider from settings", exc_info=True)
+        logger.debug("Failed to load provider from settings", exc_info=True)
         return None
 
 
@@ -134,8 +150,10 @@ def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> 
         return
 
     # Get the appropriate environment variable for this provider
-    from henchman.providers.utils import get_api_key_for_provider  # noqa: PLC0415
-
+    get_api_key_for_provider = _import_attr(
+        "henchman.providers.utils",
+        "get_api_key_for_provider",
+    )
     api_key = get_api_key_for_provider(provider_name)
     if api_key:
         kwargs["api_key"] = api_key
@@ -143,11 +161,9 @@ def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> 
 
 def _show_team_info() -> None:
     """Display information about the agent team and exit."""
-    from rich.table import Table  # noqa: PLC0415
-
-    from henchman.agents.presets import get_default_team  # noqa: PLC0415
-
-    table = Table(title="Henchman Team Roster")
+    table_class = _import_attr("rich.table", "Table")
+    get_default_team = _import_attr("henchman.agents.presets", "get_default_team")
+    table = table_class(title="Henchman Team Roster")
     table.add_column("Role", style="cyan")
     table.add_column("Description", style="green")
     table.add_column("Tools", style="yellow")
@@ -173,17 +189,21 @@ def _prepare_runtime_context() -> RuntimeContext:
     Returns:
         A RuntimeContext instance.
     """
-    from henchman.config import ContextLoader, load_settings  # noqa: PLC0415
-    from henchman.config.environment import (  # noqa: PLC0415
-        format_environment_block,
-        gather_environment,
+    context_loader_class, load_settings = _import_attrs(
+        "henchman.config",
+        "ContextLoader",
+        "load_settings",
     )
-
+    format_environment_block, gather_environment = _import_attrs(
+        "henchman.config.environment",
+        "format_environment_block",
+        "gather_environment",
+    )
     provider = _get_provider()
     settings = load_settings()
 
     # Load context from HENCHMAN.md files
-    context_loader = ContextLoader()
+    context_loader = context_loader_class()
     system_prompt = context_loader.load()
 
     # Gather environment context once
@@ -208,11 +228,14 @@ def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any
     Returns:
         Tuple of (theme, renderer).
     """
-    from henchman.cli.console import OutputRenderer, ThemeManager  # noqa: PLC0415
-    from henchman.cli.ui_renderer import UIRenderer  # noqa: PLC0415
-
+    output_renderer_class, theme_manager_class = _import_attrs(
+        "henchman.cli.console",
+        "OutputRenderer",
+        "ThemeManager",
+    )
+    ui_renderer_class = _import_attr("henchman.cli.ui_renderer", "UIRenderer")
     # Create themed renderer based on settings
-    theme_manager = ThemeManager()
+    theme_manager = theme_manager_class()
     theme_name = settings.ui.theme if settings.ui else "dark"
 
     # Validate theme exists, fall back to default if not
@@ -223,8 +246,8 @@ def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any
         theme_name = "dark"
 
     theme = theme_manager.get_theme(theme_name)
-    output_renderer = OutputRenderer(console=console, theme=theme)
-    renderer = UIRenderer(console=console, renderer=output_renderer)
+    output_renderer = output_renderer_class(console=console, theme=theme)
+    renderer = ui_renderer_class(console=console, renderer=output_renderer)
 
     return theme, renderer
 
@@ -240,10 +263,16 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
     Returns:
         Configured Repl instance.
     """
-    from henchman.cli.repl import Repl, ReplConfig  # noqa: PLC0415
-
-    repl_config = ReplConfig(system_prompt=ctx.system_prompt, auto_approve_tools=config.yes)
-    return Repl(
+    repl_class, repl_config_class = _import_attrs(
+        "henchman.cli.repl",
+        "Repl",
+        "ReplConfig",
+    )
+    repl_config = repl_config_class(
+        system_prompt=ctx.system_prompt,
+        auto_approve_tools=config.yes,
+    )
+    return repl_class(
         provider=ctx.provider,
         console=console,
         config=repl_config,
@@ -259,8 +288,6 @@ def _setup_repl_session(repl: Any) -> None:
     Args:
         repl: The REPL instance.
     """
-    from pathlib import Path  # noqa: PLC0415
-
     project_hash = repl.session_manager.compute_project_hash(Path.cwd())
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
@@ -274,8 +301,7 @@ def _setup_repl_rag(repl: Any, settings: Any, *, headless: bool = False) -> None
         settings: Application settings.
         headless: If True, suppresses console output during RAG initialisation.
     """
-    from henchman.rag import initialize_rag  # noqa: PLC0415
-
+    initialize_rag = _import_attr("henchman.rag", "initialize_rag")
     if headless:
         rag_system = initialize_rag(settings.rag, index=False)
     else:
@@ -294,11 +320,9 @@ def _apply_interactive_plan_mode(repl: Any, config: RunConfig) -> None:
     """
     if not config.plan_mode or not repl.session_manager.current:
         return
-    from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
-
     repl.session_manager.current.plan_mode = True
     repl.tool_manager.set_plan_mode(plan_mode=True)
-    repl.agent.system_prompt += PLAN_MODE_PROMPT
+    repl.agent.system_prompt += _get_plan_mode_prompt()
 
 
 def _dispatch_interactive_run(repl: Any, config: RunConfig) -> None:
@@ -347,17 +371,18 @@ def _run_textual_tui(config: RunConfig) -> None:
     Args:
         config: Run configuration.
     """
-    from henchman.cli.textual_app import TextualConfig, run_textual_app  # noqa: PLC0415
-
+    textual_config_class, run_textual_app = _import_attrs(
+        "henchman.cli.textual_app",
+        "TextualConfig",
+        "run_textual_app",
+    )
     ctx = _prepare_runtime_context()
 
     # Add plan mode prompt if requested
     if config.plan_mode:
-        from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
+        ctx.system_prompt += _get_plan_mode_prompt()
 
-        ctx.system_prompt += PLAN_MODE_PROMPT
-
-    textual_config = TextualConfig(
+    textual_config = textual_config_class(
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
         agent_role=config.agent_role,
@@ -389,9 +414,7 @@ def _create_headless_repl(config: RunConfig) -> tuple[Any, Any, Any]:
 
     # Add plan mode prompt before building the Repl so it is baked in
     if config.plan_mode:  # pragma: no cover
-        from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
-
-        ctx.system_prompt += PLAN_MODE_PROMPT
+        ctx.system_prompt += _get_plan_mode_prompt()
 
     _, renderer = _get_theme_and_renderer(ctx.settings, silent=True)
     repl = _build_repl_instance(ctx, config, renderer)
@@ -454,11 +477,11 @@ async def _run_headless_text(
     # Initialize MCP servers
     await repl.initialize_mcp()
 
-    if repl.rag_system:
-        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]  # noqa: RUF006
+    _start_rag_indexing(repl)
 
     if agent_role:
-        await repl._run_agent_direct(agent_role, prompt)  # noqa: SLF001
+        run_agent_direct = object.__getattribute__(repl, "_run_agent_direct")
+        await run_agent_direct(agent_role, prompt)
     else:
         await repl.process_input(prompt)
 
@@ -475,10 +498,20 @@ async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
     # Initialize MCP servers
     await repl.initialize_mcp()
 
-    if repl.rag_system:
-        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]  # noqa: RUF006
+    _start_rag_indexing(repl)
 
     return JsonOutputRenderer(console)
+
+
+def _start_rag_indexing(repl: Any) -> None:
+    """Start asynchronous RAG indexing while retaining the created task."""
+    rag_system = getattr(repl, "rag_system", None)
+    if rag_system:
+        object.__setattr__(
+            repl,
+            "_rag_index_task",
+            asyncio.create_task(rag_system.index_async()),
+        )
 
 
 async def _process_tool_calls(
@@ -603,11 +636,13 @@ def _check_completion_status(repl: Any) -> None:
     Args:
         repl: The REPL instance.
     """
-    from henchman.agents.orchestrator import CompletionStatus  # noqa: PLC0415
-
+    completion_status = _import_attr(
+        "henchman.agents.orchestrator",
+        "CompletionStatus",
+    )
     if (
         hasattr(repl, "orchestrator")
-        and repl.orchestrator.last_completion_status == CompletionStatus.NO_WORK_DONE
+        and repl.orchestrator.last_completion_status == completion_status.NO_WORK_DONE
     ):
         sys.exit(2)
 
@@ -701,8 +736,6 @@ def _execute_chat_command(config: RunConfig) -> None:
     """
     # Configure debug output filtering
     if not config.debug:
-        import builtins  # noqa: PLC0415
-
         _orig_print = builtins.print
 
         def _filtered_print(*args: object, **kwargs: object) -> None:
@@ -719,7 +752,10 @@ def _execute_chat_command(config: RunConfig) -> None:
 
     if config.tui and config.prompt:
         console.print(
-            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode.",  # noqa: E501
+            (
+                "[yellow]Warning:[/] Textual TUI does not support headless mode. "
+                "Using interactive mode."
+            ),
         )
         config.prompt = None
 
@@ -741,15 +777,12 @@ def main() -> None:  # pragma: no cover
     Returns:
         None
     """
-    import sys  # noqa: PLC0415
-
     # If Textual is inspecting this via `textual run`, return the App directly.
     # This prevents Textual from calling the Click `cli` command which crashes.
     if "textual" in sys.argv[0] and "run" in sys.argv:
         # Lazy import to avoid loading Textual for REPL mode
-        from henchman.cli.textual_app import HenchmanTextualApp  # noqa: PLC0415
-
-        HenchmanTextualApp().run()
+        app_class = _import_attr("henchman.cli.textual_app", "HenchmanTextualApp")
+        app_class().run()
         return
 
     # For backward compatibility, if no subcommand is specified,

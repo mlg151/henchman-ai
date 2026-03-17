@@ -109,7 +109,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             system_prompt="",  # Empty system prompt for API server
         )
         print(f"Created agent with provider: {provider_name}")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"Warning: Failed to create agent: {e}")
         state.agent = None
 
@@ -221,7 +221,7 @@ def run_server(
         None: This function runs the server indefinitely and does not return
         unless interrupted.
     """
-    import uvicorn  # noqa: PLC0415
+    import uvicorn
 
     uvicorn.run(
         "henchman.api.server:app",

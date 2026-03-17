@@ -291,7 +291,7 @@ class _AnthropicStreamProcessor:
             StreamChunk objects as the response is generated.
         """
         total_output_tokens = 0
-        async with self._provider._client.messages.stream(  # noqa: SLF001
+        async with self._provider._client.messages.stream(
             **params,
         ) as stream:
             pending_tool_calls: dict[str, dict[str, Any]] = {}
@@ -317,7 +317,7 @@ class _AnthropicStreamProcessor:
                 if stream_chunk is not None:
                     yield stream_chunk
 
-        rate_limiter = self._provider._rate_limiter  # noqa: SLF001
+        rate_limiter = self._provider._rate_limiter
         await rate_limiter.add_usage(input_tokens + total_output_tokens)
 
     async def _process_event(
@@ -325,7 +325,7 @@ class _AnthropicStreamProcessor:
         event: Any,
         pending_tool_calls: dict[str, dict[str, Any]],
         current_tool_id: str | None,
-        total_output_tokens: int,  # noqa: ARG002
+        total_output_tokens: int,
     ) -> _EventProcessingResult:
         """Process a single event from the Anthropic stream."""
         event_type = event.type
@@ -528,11 +528,11 @@ class AnthropicProvider(ModelProvider):
     def _validate_and_repair_message_sequence(
         self: AnthropicProvider,
         messages: list[Message],
-        system_prompt: str | None,  # noqa: ARG002
-        formatted_messages: list[dict[str, Any]],  # noqa: ARG002
+        system_prompt: str | None,
+        formatted_messages: list[dict[str, Any]],
     ) -> list[Message]:
         """Validate and repair message sequence if needed."""
-        from henchman.utils.validation import (  # noqa: PLC0415
+        from henchman.utils.validation import (
             is_valid_message_sequence,
             repair_message_sequence,
         )

@@ -43,7 +43,7 @@ async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
             cwd=request.cwd,
         )
         return await _collect_process_output(process, effective_timeout, request.timeout)
-    except Exception as exc:  # pragma: no cover  # noqa: BLE001
+    except Exception as exc:  # pragma: no cover
         return ToolResult(
             content=f"Error executing Python code: {exc}",
             success=False,
@@ -182,7 +182,7 @@ class PythonExecTool(Tool):
         code: str = "",
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
         cwd: str | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Execute Python code in a subprocess.
 

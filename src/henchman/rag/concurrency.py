@@ -19,11 +19,14 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+# Default timeout (seconds) used when no explicit timeout is provided
+DEFAULT_LOCK_TIMEOUT: float = 5.0
+
 
 class LockTimeoutError(Exception):
     """Exception raised when a lock cannot be acquired within timeout."""
 
-    def __init__(self: LockTimeoutError, lock_path: str | Path, timeout: float):
+    def __init__(self: LockTimeoutError, lock_path: str | Path, timeout: float) -> None:
         """Initialize the exception.
 
         Args:
@@ -47,7 +50,7 @@ class RagLock:
         acquired: Whether the lock is currently held.
     """
 
-    def __init__(self: RagLock, lock_path: Path | str):
+    def __init__(self: RagLock, lock_path: Path | str) -> None:
         """Initialize the lock.
 
         Args:
@@ -62,6 +65,25 @@ class RagLock:
         """Check if the lock is currently acquired."""
         return self._acquired
 
+    def _try_acquire_once(self: RagLock) -> bool:
+        """Attempt to acquire the lock a single time.
+
+        Returns:
+            True if the lock was acquired, False if it is held by another process.
+        """
+        try:
+            self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+            self.lock_file = open(self.lock_path, "w")
+            fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._acquired = True
+        except (OSError, BlockingIOError):
+            if self.lock_file:
+                self.lock_file.close()
+                self.lock_file = None
+            return False
+        else:
+            return True
+
     def acquire(self: RagLock, timeout: float = 5.0) -> bool:
         """Attempt to acquire the lock.
 
@@ -74,32 +96,12 @@ class RagLock:
         if self._acquired:
             return True
 
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            try:
-                # Ensure parent directory exists
-                self.lock_path.parent.mkdir(parents=True, exist_ok=True)
-
-                # Open file for writing (creates if doesn't exist)
-                self.lock_file = open(self.lock_path, "w")  # noqa: PTH123, SIM115
-
-                # Try to acquire exclusive non-blocking lock
-                fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-                self._acquired = True
-            except (OSError, BlockingIOError):  # noqa: PERF203
-                # Lock is held by another process
-                if self.lock_file:
-                    self.lock_file.close()
-                    self.lock_file = None
-
-                # Wait a bit before retrying
-                time.sleep(min(0.1, timeout / 10))
-            else:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._try_acquire_once():
                 return True
+            time.sleep(min(0.1, timeout / 10))
 
-        # Timeout reached
         return False
 
     def release(self: RagLock) -> None:
@@ -119,10 +121,10 @@ class RagLock:
     def __enter__(self: RagLock) -> Self:
         """Context manager entry."""
         if not self.acquire():
-            raise LockTimeoutError(self.lock_path, 5.0)
+            raise LockTimeoutError(self.lock_path, DEFAULT_LOCK_TIMEOUT)
         return self
 
-    def __exit__(self: RagLock, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:  # noqa: PYI036
+    def __exit__(self: RagLock, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.release()
 
@@ -148,6 +150,43 @@ def acquire_rag_lock(lock_path: Path | str, timeout: float = 5.0) -> tuple[bool,
     return False, None
 
 
+def _execute_with_retry(
+    func: Callable[..., T],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    max_retries: int,
+    delay: float,
+) -> T:
+    """Execute *func* with exponential-backoff retry on database lock errors.
+
+    Args:
+        func: Callable to invoke.
+        args: Positional arguments for *func*.
+        kwargs: Keyword arguments for *func*.
+        max_retries: Maximum number of attempts.
+        delay: Base delay between retries (seconds); doubles each attempt.
+
+    Returns:
+        The return value of *func* on success.
+
+    Raises:
+        The last exception if all retries are exhausted or the error is not
+        lock-related.
+    """
+    last_exception: Exception | None = None
+
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            last_exception = e
+            if not is_lock_error(e) or attempt == max_retries - 1:
+                raise
+            time.sleep(min(delay * (2**attempt), 1.0))
+
+    raise last_exception  # type: ignore  # pragma: no cover
+
+
 def retry_on_locked(
     max_retries: int = 3,
     delay: float = 0.1,
@@ -170,36 +209,8 @@ def retry_on_locked(
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            """Wrapper that implements the retry logic."""
-            last_exception: Exception | None = None
-
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:  # noqa: PERF203
-                    last_exception = e
-
-                    # Check if this is a lock-related error
-                    error_str = str(e).lower()
-                    is_lock_error = any(
-                        phrase in error_str
-                        for phrase in [
-                            "locked",
-                            "sqlite_busy",
-                            "resource temporarily unavailable",
-                            "database is locked",
-                        ]
-                    )
-
-                    if not is_lock_error or attempt == max_retries - 1:
-                        raise
-
-                    # Wait before retrying (exponential backoff)
-                    wait_time = delay * (2**attempt)
-                    time.sleep(min(wait_time, 1.0))  # Cap at 1 second
-
-            # This should never be reached due to the raise above
-            raise last_exception  # type: ignore  # noqa: PGH003  # pragma: no cover
+            """Wrapper that delegates to _execute_with_retry."""
+            return _execute_with_retry(func, args, kwargs, max_retries, delay)
 
         return wrapper
 

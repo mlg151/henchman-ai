@@ -124,7 +124,7 @@ class TracebackParseTool(Tool):
     async def execute(  # type: ignore[override]
         self: TracebackParseTool,
         traceback: str = "",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Parse a traceback string.
 

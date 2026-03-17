@@ -246,7 +246,7 @@ class OpenAICompatibleProvider(ModelProvider):
         except (ValueError, ContextTooLargeError, APIStatusError):
             # Re-raise validation, context too large, and API status errors
             raise
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             yield self._create_error_chunk(e)
 
     def _repair_message_sequence_if_needed(
@@ -261,7 +261,7 @@ class OpenAICompatibleProvider(ModelProvider):
         Returns:
             The repaired message sequence.
         """
-        from henchman.utils.validation import (  # noqa: PLC0415
+        from henchman.utils.validation import (
             is_valid_message_sequence,
             repair_message_sequence,
         )
@@ -404,7 +404,7 @@ class OpenAICompatibleProvider(ModelProvider):
         Returns:
             An error StreamChunk.
         """
-        from henchman.providers.base import FinishReason  # noqa: PLC0415
+        from henchman.providers.base import FinishReason
 
         logger.debug("OpenAICompatibleProvider: Caught exception: %s", error)
         return StreamChunk(

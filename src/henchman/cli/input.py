@@ -142,7 +142,7 @@ async def expand_at_references(text: str) -> str:
 
         if not _is_path_within_cwd(path):
             continue
-        if not path.exists() or not path.is_file():  # noqa: ASYNC240
+        if not path.exists() or not path.is_file():
             continue
 
         replacement = _read_file_as_replacement(filepath, path)
@@ -328,7 +328,7 @@ class KeyMonitor:
 
     def __init__(self: Self) -> None:
         """Initialize the key monitor."""
-        from prompt_toolkit.input import create_input  # noqa: PLC0415
+        from prompt_toolkit.input import create_input
 
         self.input = create_input()
         self._stop_event = asyncio.Event()
@@ -344,7 +344,7 @@ class KeyMonitor:
             None
         """
         self._suspended.clear()
-        while self._in_raw_mode:  # noqa: ASYNC110
+        while self._in_raw_mode:
             await asyncio.sleep(_KEY_POLL_INTERVAL_SECS)
 
     def resume(self: Self) -> None:

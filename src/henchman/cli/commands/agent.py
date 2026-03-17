@@ -122,12 +122,12 @@ async def _run_agent_direct(ctx: CommandContext, role: str, message: str) -> Non
     """
     try:
         if hasattr(ctx.repl, "_run_agent_direct"):
-            await ctx.repl._run_agent_direct(role, message)  # noqa: SLF001
+            await ctx.repl._run_agent_direct(role, message)
         else:
             ctx.console.print(
                 "[red]Direct agent targeting not supported in this REPL version.[/]",
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         ctx.console.print(f"[red]Error talking to agent '{role}': {e}[/]")
 
 

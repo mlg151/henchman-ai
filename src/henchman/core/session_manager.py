@@ -119,7 +119,7 @@ class SessionManager(_SessionManagerBase):
     def export_session(
         self: SessionManager,
         session_id: SessionId,
-        format: FormatStr = "json",  # noqa: A002
+        format: FormatStr = "json",
         *,
         include_metadata: bool = True,
     ) -> str:
@@ -153,7 +153,7 @@ class SessionManager(_SessionManagerBase):
     def import_session(
         self: SessionManager,
         data: str,
-        format: FormatStr = "json",  # noqa: A002
+        format: FormatStr = "json",
         tag: TagStr = None,
     ) -> Session:
         """Import a session from string.

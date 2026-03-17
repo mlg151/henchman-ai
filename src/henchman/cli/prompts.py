@@ -1,6 +1,5 @@
 """Default system prompts for Henchman."""
 
-# ruff: noqa: E501
 
 # --- Composable Prompt Parts ---
 

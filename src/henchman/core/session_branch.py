@@ -50,7 +50,7 @@ def branch_session(
     Raises:
         ValueError: If *branch_point* is out of range.
     """
-    from .session_data import Session  # noqa: PLC0415
+    from .session_data import Session
 
     msg_count = len(parent.messages)
     if branch_point < 0 or branch_point > msg_count:

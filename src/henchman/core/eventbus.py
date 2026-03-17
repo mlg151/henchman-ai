@@ -109,13 +109,13 @@ class EventBus:
         # Dispatch handlers outside the lock to avoid deadlocks and blocking
         for handler in handlers_to_call:
             try:
-                import inspect  # noqa: PLC0415
+                import inspect
 
                 if inspect.iscoroutinefunction(handler):
                     await handler(event)
                 else:
                     handler(event)
-            except Exception:  # noqa: BLE001, PERF203
+            except Exception:
                 # Error isolation: log but don't stop other handlers
                 pass
 

@@ -73,7 +73,7 @@ class WriteFileTool(Tool):
         self: WriteFileTool,
         path: str = "",
         content: str = "",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Write content to file.
 
@@ -100,7 +100,7 @@ class WriteFileTool(Tool):
                 success=False,
                 error=sanitized_error,
             )
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             sanitized_error = sanitize_error_message(e)
             return ToolResult(
                 content=f"Error writing file: {sanitized_error}",

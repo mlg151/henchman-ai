@@ -842,7 +842,7 @@ async def _generate_summary_with_provider(
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Summarization failed, return None to fall back to simple dropping
         pass
 
@@ -1079,7 +1079,7 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Summarization failed, continue with simple dropping
         pass
 

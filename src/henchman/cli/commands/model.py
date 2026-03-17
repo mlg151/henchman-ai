@@ -40,14 +40,14 @@ def _get_example_config(provider_name: str) -> str:
 
 def _get_env_var_name(provider_name: str) -> str:
     """Return the environment variable name for a provider's API key."""
-    from henchman.providers.utils import get_env_var_for_provider  # noqa: PLC0415
+    from henchman.providers.utils import get_env_var_for_provider
 
     return get_env_var_for_provider(provider_name)
 
 
 def _get_env_vars(provider_name: str) -> str:
     """Return environment variable description for a provider."""
-    from henchman.providers.utils import get_env_var_for_provider  # noqa: PLC0415
+    from henchman.providers.utils import get_env_var_for_provider
 
     if provider_name == "ollama":
         return "OLLAMA_HOST (optional, defaults to http://localhost:11434)"
@@ -71,7 +71,7 @@ def _get_env_vars(provider_name: str) -> str:
 
 def _get_api_key_for_provider(provider_name: str) -> str | None:
     """Return API key for a provider from environment or settings."""
-    from henchman.providers.utils import get_api_key_for_provider  # noqa: PLC0415
+    from henchman.providers.utils import get_api_key_for_provider
 
     api_key = get_api_key_for_provider(provider_name)
     if api_key:
@@ -84,7 +84,7 @@ def _get_api_key_for_provider(provider_name: str) -> str | None:
             val = getattr(provider_settings, "api_key", None)
             if val is not None:
                 return str(val)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     return None
@@ -144,7 +144,7 @@ async def _list_providers(ctx: CommandContext) -> None:
         try:
             provider_class = registry.get(provider_name)
             _print_provider_entry(console, provider_name, provider_class)
-        except Exception as e:  # noqa: BLE001, PERF203
+        except Exception as e:
             console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
 
@@ -167,7 +167,7 @@ def _test_provider_connection(
                 )
         else:
             console.print(f"[green]✓ Connected to {provider_name}[/]")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
         console.print("[yellow]Provider created but may not work correctly.[/]")
 
@@ -258,7 +258,7 @@ async def _set_provider(
 
         _show_configuration_warnings(ctx, provider_name, api_key)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
         ctx.console.print("[dim]Check that the provider is properly configured.[/]")
 

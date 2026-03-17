@@ -173141,3 +173141,221 @@ Committing changes...
  create mode 100644 test_decorated_bug2.py
  delete mode 100644 tests/agents/test_working_memory_bool_bug_fix.py
 [2026-03-16T22:00:02Z] Done.
+[2026-03-17T00:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the highest-priority issue from the smell report: the `ProblemEntry.update_from` method in `src/henchman/agents/working_memory.py` has a MEDIUM severity incomplete docstring issue.
+
+Let me first check what was last improved to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-16T22:15:00Z (approximate)
+
+## Files Changed
+1. `docs/index.md` - Updated provider table header from "Registry Name" to 
+"Configuration Name" for ...
+Good, the last improvement was about terminology consistency. Now I need to address the highest-priority issue from the current smell report: the `ProblemEntry.update_from` method in `src/henchman/agents/working_memory.py` has a MEDIUM severity incomplete docstring issue. Let me examine the file to understand the context:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+340, 'end_line': 370})
+
+[result]     """A planned next action."""
+
+    action: str
+    priority: str = DEFAULT_PRIORITY
+    estimated_effort: str = ""
+
+
+@dataclass
+class ProblemEntry(SerializableDataclass):
+    """A recorded problem ...
+Now I can see the issue. The `update_from` method has a parameter `updated` but no `Args:` section in the docstring, and it returns `None` but has no `Returns:` section. Let me check the full class definition to understand better:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+320, 'end_line': 365})
+
+[result]     _validate_range_part = staticmethod(_validate_range_part)
+    _validate_single_line_part = staticmethod(_validate_single_line_part)
+    _process_validation_part = staticmethod(_process_validation_...
+Perfect. Now I need to fix the docstring for the `update_from` method. The method takes one parameter `updated` (another `ProblemEntry` instance) and returns `None`. I should add proper `Args:` and `Returns:` sections following Google-style docstring format.
+
+Let me also check if there are similar methods in the file to maintain consistency:
+[tool] grep({'pattern': 'def.*update_from', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+
+[result] 355:    def update_from(self: ProblemEntry, updated: ProblemEntry) -> 
+None:...
+This appears to be the only `update_from` method. Let me check if there are other methods with proper docstrings in this file to understand the style:
+[tool] grep({'pattern': 'def.*:', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True, 'context_before':
+2, 'context_after': 2})
+
+[result] 50-
+51-
+52:def _normalize_path(path: PathInput) -> str:
+53-    """Normalize a file path for consistent comparison.
+54-
+--
+79-
+80-
+81:def _copy_insights(key_insights: list[str] | None) -> list[str]:
+82...
+Let me look at a few examples of properly documented methods to understand the style better:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+400, 'end_line': 410})
+
+[result]     def add_decision(self: WorkingMemory, entry: DecisionEntry) -> 
+None:
+        """Record a decision.
+        Args:
+            entry: A DecisionEntry object containing the decision details,
+        ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+463, 'end_line': 475})
+
+[result]     def update_problem(self: WorkingMemory, updated: ProblemEntry) -> 
+None:
+        """Update an existing problem entry.
+        Args:
+            updated: The updated problem entry containing new sta...
+Perfect! Now I understand the style. The docstrings use Google-style format with `Args:`, `Returns:`, and `Raises:` sections. The `update_from` method should follow this pattern. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
+def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:\n        
+"""Apply status and resolution from another problem entry."""\n\n        
+self.status = updated.status\n        self.resolution = updated.resolution', 
+'new_str': '    def update_from(self: ProblemEntry, updated: ProblemEntry) -> 
+None:\n        """Apply status and resolution from another problem entry.\n     
+\n        Args:\n            updated: Another ProblemEntry instance containing 
+updated status\n                     and resolution values to apply to this 
+entry.\n        \n        Returns:\n            None\n        """\n        
+self.status = updated.status\n        self.resolution = updated.resolution'})
+
+[result] Successfully edited src/henchman/agents/working_memory.py...
+Now let me verify the fix by checking the updated method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+355, 'end_line': 370})
+
+[result]     def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:
+        """Apply status and resolution from another problem entry.
+        
+        Args:
+            updated: Another ProblemEn...
+Good! The fix looks correct. Now let me create the improvement summary:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-17T00:00:00Z (approximate)\n\n## Files Changed\n1. 
+`src/henchman/agents/working_memory.py` - Fixed incomplete docstring for 
+`ProblemEntry.update_from` method\n\n## Smell Category Addressed\nINCOMPLETE 
+DOCSTRING (missing Args: and Returns: sections)\n\n## Rationale for Change\nThe 
+documentation smell report identified a MEDIUM severity issue with the 
+`ProblemEntry.update_from` method having an incomplete docstring. The method had
+one parameter (`updated`) but no `Args:` section, and returns `None` but had no 
+`Returns:` section. This violates Google-style docstring conventions and reduces
+documentation quality.\n\n**Changes made**:\n1. 
+**src/henchman/agents/working_memory.py**: Added proper `Args:` and `Returns:` 
+sections to the `update_from` method docstring\n   - **Before**: `"""Apply 
+status and resolution from another problem entry."""`\n   - **After**: Added 
+`Args:` section documenting the `updated` parameter and `Returns:` section 
+documenting the `None` return value\n\n**Why this improvement matters**:\n1. 
+**Completeness**: All public methods should have complete documentation 
+following project standards\n2. **Consistency**: Maintains Google-style 
+docstring format used throughout the codebase\n3. **Developer experience**: 
+Clear documentation helps developers understand method usage\n4. **Tooling 
+support**: Complete docstrings enable better IDE autocomplete and documentation 
+generation\n5. **Quality assurance**: Addresses a MEDIUM severity issue from the
+smell report\n\n**Specific benefits**:\n- **New developers**: Can understand the
+method\'s purpose and parameters without reading implementation\n- **Code 
+maintainability**: Clear documentation makes future modifications easier\n- 
+**API documentation**: Consistent with other methods in the same file (e.g., 
+`add_decision`, `update_problem`)\n- **Automated tools**: Better support for 
+documentation generators and linters\n- **Professionalism**: Shows attention to 
+detail in code documentation\n\n## Verification Performed\n1. ✅ **Docstring 
+format**: Verified the docstring follows Google-style format with proper 
+sections\n2. ✅ **Parameter documentation**: `updated` parameter is clearly 
+documented as "Another ProblemEntry instance containing updated status and 
+resolution values"\n3. ✅ **Return value documentation**: `None` return value is
+explicitly documented\n4. ✅ **Consistency check**: Matches the style of other 
+methods in the same file\n5. ✅ **Accuracy check**: The documentation accurately
+describes what the method does\n\n## What to Verify\n1. ✅ **Complete 
+documentation**: `Args:` and `Returns:` sections are now present\n2. ✅ 
+**Parameter clarity**: The `updated` parameter is clearly explained\n3. ✅ 
+**Style consistency**: Follows the same format as other methods in the file\n4. 
+✅ **No syntax errors**: Docstring formatting is correct\n5. ✅ **Functionality 
+unchanged**: The method implementation remains the same\n\n## Impact\n- **Low 
+risk**: Documentation-only change, no functional impact\n- **High value**: 
+Improves code documentation quality and consistency\n- **Better developer 
+experience**: Clearer API documentation for the working memory system\n- 
+**Maintainability**: Easier to understand and modify the method in the future\n-
+**Quality improvement**: Addresses a specific documentation smell from the 
+report\n\n## Next Priority\nWith this MEDIUM severity issue resolved, the next 
+highest priority from the smell report would be:\n1. **AgentPool methods**: 
+`reset_agent`, `reset_all`, `shutdown` in `src/henchman/agents/pool.py` (LOW 
+severity)\n2. **PluginDatabase methods**: `initialize`, `save_installation`, 
+`delete_installation` in `src/henchman/extensions/plugin_database.py` (LOW 
+severity)\n3. **MCP client methods**: `connect`, `disconnect` in 
+`src/henchman/mcp/client.py` (LOW severity)\n4. **MCP manager methods**: 
+`connect_all`, `disconnect_all` in `src/henchman/mcp/manager.py` (LOW 
+severity)\n\nThis improvement enhances the project\'s documentation quality by 
+ensuring all public methods have complete and consistent docstrings.'})
+
+[result] Successfully wrote 4045 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the highest-priority documentation smell from the report. Here's a summary of what I accomplished:
+
+## Documentation Improvement Summary
+
+**Issue Fixed**: MEDIUM severity incomplete docstring for `ProblemEntry.update_from` method in `src/henchman/agents/working_memory.py`
+
+**Changes Made**:
+1. Added proper `Args:` section documenting the `updated` parameter
+2. Added proper `Returns:` section documenting the `None` return value
+3. Maintained Google-style docstring format consistency with other methods in the file
+
+**Before**:
+```python
+def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:
+    """Apply status and resolution from another problem entry."""
+```
+
+**After**:
+```python
+def update_from(self: ProblemEntry, updated: ProblemEntry) -> None:
+    """Apply status and resolution from another problem entry.
+    
+    Args:
+        updated: Another ProblemEntry instance containing updated status
+                 and resolution values to apply to this entry.
+    
+    Returns:
+        None
+    """
+```
+
+**Why This Matters**:
+- **Completeness**: All public methods should have complete documentation
+- **Consistency**: Maintains project standards for Google-style docstrings
+- **Developer Experience**: Clear documentation helps understand method usage
+- **Quality**: Addresses a specific MEDIUM severity issue from the smell report
+
+The improvement is minimal, focused, and addresses exactly one documentation issue as requested. The change only affects documentation and doesn't alter any source code behavior. The updated docstring now properly documents the method's parameters and return value, making it consistent with other methods in the same file.
+[tech_lead] completed work
+[2026-03-17T00:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.06 seconds
+[2026-03-17T00:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-17T00:00:01Z] Verification passed.
+Committing changes...

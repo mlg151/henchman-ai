@@ -22,6 +22,30 @@ DEFAULT_FILENAMES: tuple[str, ...] = (
 """Default context filenames to search for, in priority order."""
 
 
+def _load_gitignore_patterns(base_dir: Path) -> list[str]:
+    """Load simple gitignore-style patterns from ``base_dir/.gitignore``.
+
+    Args:
+        base_dir: Directory whose ``.gitignore`` file should be read.
+
+    Returns:
+        List of non-empty, non-comment patterns. Missing files produce ``[]``.
+    """
+    gitignore_path = base_dir / ".gitignore"
+    if not gitignore_path.exists():
+        return []
+
+    patterns: list[str] = []
+    for raw_line in gitignore_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.endswith("/"):
+            line = line[:-1]
+        patterns.append(line)
+    return patterns
+
+
 class ContextLoader:
     """Discovers and loads project instruction / context files.
 
@@ -69,7 +93,7 @@ class ContextLoader:
         """Return the first (primary) filename for backward compatibility."""
         return self.filenames[0]
 
-    def _find_git_root(self, start: Path) -> Path | None:
+    def _find_git_root(self: ContextLoader, start: Path) -> Path | None:
         """Find the git repository root.
 
         Args:
@@ -85,28 +109,7 @@ class ContextLoader:
             current = current.parent
         return None
 
-    def _load_gitignore_patterns(self, directory: Path) -> list[str]:
-        """Load gitignore patterns from a directory.
-
-        Args:
-            directory: Directory to check for .gitignore.
-
-        Returns:
-            List of gitignore patterns.
-        """
-        gitignore = directory / ".gitignore"
-        if not gitignore.exists():
-            return []
-
-        patterns = []
-        for line in gitignore.read_text().splitlines():
-            line = line.strip()  # noqa: PLW2901
-            if line and not line.startswith("#"):
-                # Remove trailing slashes for directory patterns
-                patterns.append(line.rstrip("/"))
-        return patterns
-
-    def _is_ignored(self, path: Path, patterns: list[str], base: Path) -> bool:
+    def _is_ignored(self: ContextLoader, path: Path, patterns: list[str], base: Path) -> bool:
         """Check if a path matches any gitignore pattern.
 
         Args:
@@ -129,65 +132,97 @@ class ContextLoader:
                 return True
         return False
 
-    def discover_files(self) -> list[Path]:  # noqa: C901, PLR0912
-        """Discover all context files in the hierarchy.
+    def _global_context_files(self: ContextLoader) -> list[Path]:
+        """Collect global context files from ~/.henchman/.
 
         Returns:
-            List of paths to context files, ordered from root to current.
+            Existing global context files in filename-priority order.
         """
-        files: list[Path] = []
-        cwd = Path.cwd().resolve()
-
-        # Global context: ~/.henchman/<filename> for each filename
         henchman_home = Path.home() / ".henchman"
-        for fn in self.filenames:
-            global_file = henchman_home / fn
-            if global_file.exists():
-                files.append(global_file)
+        return [
+            henchman_home / fn
+            for fn in self.filenames
+            if (henchman_home / fn).exists()
+        ]
 
-        # Find git root to limit ancestor search
-        git_root = self._find_git_root(cwd)
-        stop_at = git_root or cwd
+    def _ancestor_context_files(
+        self: ContextLoader,
+        cwd: Path,
+        stop_at: Path,
+        exclude: list[Path],
+    ) -> list[Path]:
+        """Collect context files from cwd up to stop_at, ordered root-first.
 
-        # Ancestor context files (from root to cwd)
+        Args:
+            cwd: Starting directory (most specific).
+            stop_at: Directory to stop walking at (e.g. git root).
+            exclude: Files already collected (global files) to skip.
+
+        Returns:
+            Context files from stop_at down to cwd, preserving filename priority.
+        """
         ancestor_groups: list[list[Path]] = []
         current = cwd
-        # Walk up from cwd to stop_at (inclusive)
         while True:
-            group: list[Path] = []
-            for fn in self.filenames:
-                context_file = current / fn
-                if context_file.exists() and context_file not in files:
-                    group.append(context_file)
+            group = [
+                current / fn
+                for fn in self.filenames
+                if (current / fn).exists() and (current / fn) not in exclude
+            ]
             if group:
                 ancestor_groups.append(group)
             if current == stop_at:
                 break
             current = current.parent
 
-        # Add ancestors in root-to-cwd order (reverse dir order,
-        # but preserve filename priority within each directory)
+        # Reverse so files appear root → cwd
+        result: list[Path] = []
         for group in reversed(ancestor_groups):
-            files.extend(group)
+            result.extend(group)
+        return result
 
-        # Subdirectory context files
+    def _subdir_context_files(self: ContextLoader, cwd: Path) -> list[Path]:
+        """Collect context files from immediate non-hidden subdirectories.
+
+        Respects .gitignore patterns found in *cwd*.
+
+        Args:
+            cwd: Directory whose subdirectories to search.
+
+        Returns:
+            Context files found one level below cwd.
+        """
+        patterns = _load_gitignore_patterns(cwd)
+        found: list[Path] = []
+        for subdir in cwd.iterdir():
+            if not subdir.is_dir():
+                continue
+            if subdir.name.startswith("."):
+                continue
+            if self._is_ignored(subdir, patterns, cwd):
+                continue
+            for fn in self.filenames:
+                context_file = subdir / fn
+                if context_file.exists():
+                    found.append(context_file)
+        return found
+
+    def discover_files(self: ContextLoader) -> list[Path]:
+        """Discover all context files in the hierarchy.
+
+        Returns:
+            List of paths to context files, ordered from root to current.
+        """
+        cwd = Path.cwd().resolve()
+        git_root = self._find_git_root(cwd)
+
+        files = self._global_context_files()
+        files.extend(self._ancestor_context_files(cwd, git_root or cwd, files))
         if self.include_subdirs and git_root:
-            patterns = self._load_gitignore_patterns(cwd)
-            for subdir in cwd.iterdir():
-                if not subdir.is_dir():
-                    continue
-                if subdir.name.startswith("."):
-                    continue
-                if self._is_ignored(subdir, patterns, cwd):
-                    continue
-                for fn in self.filenames:
-                    context_file = subdir / fn
-                    if context_file.exists():
-                        files.append(context_file)
-
+            files.extend(self._subdir_context_files(cwd))
         return files
 
-    def load(self) -> str:
+    def load(self: ContextLoader) -> str:
         """Load and concatenate all context files.
 
         Returns:

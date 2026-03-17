@@ -20,10 +20,10 @@ def getattr_for_textual_app(module_name: str) -> Any:
         __getattr__ = getattr_for_textual_app(__name__)
     """
 
-    def __getattr__(name: str) -> Any:  # noqa: N807
+    def __getattr__(name: str) -> Any:
         """Lazy import for Textual dev mode (``textual run henchman``)."""
         if name == "app":
-            from henchman.cli.textual_app import HenchmanTextualApp  # noqa: PLC0415
+            from henchman.cli.textual_app import HenchmanTextualApp
 
             return HenchmanTextualApp
         msg = f"module {module_name!r} has no attribute {name!r}"

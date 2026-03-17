@@ -195,11 +195,7 @@ class _ToolSequenceValidator:
             return False
 
         prev_msg = self.messages[idx]
-        return SequenceValidator._is_duplicate_assistant_message(
-            msg,
-            prev_msg,
-            idx,
-        )
+        return _are_duplicate_assistant_messages(msg, prev_msg, idx)
 
 
 class SequenceValidator:
@@ -225,155 +221,155 @@ class SequenceValidator:
             return True
 
         # 0. Validate roles are valid (lowercase)
-        if not SequenceValidator._validate_role_names(messages):
+        if not _validate_role_names(messages):
             return False
 
         # 1. Structural validation
-        if not SequenceValidator._validate_tool_sequences(messages):
+        if not _validate_tool_sequences(messages):
             return False
 
         # 2. Semantic validation - check for logical conversation flow
-        if not SequenceValidator._validate_conversation_flow(messages):
+        if not _validate_conversation_flow(messages):
             return False
 
         # 3. Context preservation check
-        if not SequenceValidator._validate_system_prompt(messages):
+        if not _validate_system_prompt(messages):
             return False
 
         # 4. Check for duplicate consecutive messages (compression artifact)
-        return SequenceValidator._validate_no_duplicate_consecutive_messages(messages)
+        return _validate_no_duplicate_consecutive_messages(messages)
 
-    @staticmethod
-    def _validate_tool_sequences(messages: list[Message]) -> bool:
-        """Validate tool call sequences follow OpenAI API rules.
 
-        Args:
-            messages: The messages to validate.
+def _validate_tool_sequences(messages: list[Message]) -> bool:
+    """Validate tool call sequences follow OpenAI API rules.
 
-        Returns:
-            True if tool sequences are valid, False otherwise.
+    Args:
+        messages: The messages to validate.
 
-        """
-        validator = _ToolSequenceValidator(messages)
-        return validator.validate()
+    Returns:
+        True if tool sequences are valid, False otherwise.
 
-    @staticmethod
-    def _is_duplicate_assistant_message(
-        current_msg: Message,
-        prev_msg: Message,
-        prev_msg_index: int | None,
-    ) -> bool:
-        """Check if current assistant message is a duplicate of previous.
+    """
+    validator = _ToolSequenceValidator(messages)
+    return validator.validate()
 
-        Args:
-            current_msg: Current assistant message.
-            prev_msg: Previous assistant message.
-            prev_msg_index: Index of previous assistant message.
 
-        Returns:
-            True if messages are duplicates, False otherwise.
+def _are_duplicate_assistant_messages(
+    current_msg: Message,
+    prev_msg: Message,
+    prev_msg_index: int | None,
+) -> bool:
+    """Check if current assistant message is a duplicate of previous.
 
-        """
-        if prev_msg_index is None:
+    Args:
+        current_msg: Current assistant message.
+        prev_msg: Previous assistant message.
+        prev_msg_index: Index of previous assistant message.
+
+    Returns:
+        True if messages are duplicates, False otherwise.
+
+    """
+    if prev_msg_index is None:
+        return False
+
+    # Check content and tool calls match
+    if current_msg.content != prev_msg.content:
+        return False
+
+    # Check tool calls match
+    if not current_msg.tool_calls or not prev_msg.tool_calls:
+        return False
+
+    current_ids = {tc.id for tc in current_msg.tool_calls}
+    prev_ids = {tc.id for tc in prev_msg.tool_calls}
+    return current_ids == prev_ids
+
+
+def _validate_conversation_flow(messages: list[Message]) -> bool:
+    """Validate logical conversation flow.
+
+    Args:
+        messages: The messages to validate.
+
+    Returns:
+        True if conversation flow is valid, False otherwise.
+
+    """
+    for i in range(1, len(messages)):
+        curr = messages[i]
+        prev = messages[i - 1]
+
+        # Assistant should generally follow user or tool messages
+        if curr.role == "assistant" and prev.role not in ["user", "tool"]:
+            # Unless it's a continuation of a multi-turn assistant response
+            if prev.role == "assistant" and prev.tool_calls:
+                # This is fine - assistant continuing after tool calls
+                continue
+            # Also fine if it's the first message (system prompt scenario)
+            if i == 1 and messages[0].role == "system":
+                continue
             return False
+    return True
 
-        # Check content and tool calls match
-        if current_msg.content != prev_msg.content:
-            return False
 
-        # Check tool calls match
-        if not current_msg.tool_calls or not prev_msg.tool_calls:
-            return False
+def _validate_system_prompt(messages: list[Message]) -> bool:
+    """Validate system prompt is preserved and not corrupted.
 
-        current_ids = {tc.id for tc in current_msg.tool_calls}
-        prev_ids = {tc.id for tc in prev_msg.tool_calls}
-        return current_ids == prev_ids
+    Args:
+        messages: The messages to validate.
 
-    @staticmethod
-    def _validate_conversation_flow(messages: list[Message]) -> bool:
-        """Validate logical conversation flow.
+    Returns:
+        True if system prompt is valid, False otherwise.
 
-        Args:
-            messages: The messages to validate.
-
-        Returns:
-            True if conversation flow is valid, False otherwise.
-
-        """
-        for i in range(1, len(messages)):
-            curr = messages[i]
-            prev = messages[i - 1]
-
-            # Assistant should generally follow user or tool messages
-            if curr.role == "assistant" and prev.role not in ["user", "tool"]:
-                # Unless it's a continuation of a multi-turn assistant response
-                if prev.role == "assistant" and prev.tool_calls:
-                    # This is fine - assistant continuing after tool calls
-                    continue
-                # Also fine if it's the first message (system prompt scenario)
-                if i == 1 and messages[0].role == "system":
-                    continue
-                return False
+    """
+    if not messages:
         return True
 
-    @staticmethod
-    def _validate_system_prompt(messages: list[Message]) -> bool:
-        """Validate system prompt is preserved and not corrupted.
+    first_msg = messages[0]
+    if first_msg.role == "system":
+        content = first_msg.content
+        return bool(content and len(content.strip()) > 0)
+    return True
 
-        Args:
-            messages: The messages to validate.
 
-        Returns:
-            True if system prompt is valid, False otherwise.
+def _validate_role_names(messages: list[Message]) -> bool:
+    """Validate that message roles are valid OpenAI API roles (lowercase).
 
-        """
-        if not messages:
-            return True
+    Args:
+        messages: The messages to validate.
 
-        first_msg = messages[0]
-        if first_msg.role == "system":
-            content = first_msg.content
-            return bool(content and len(content.strip()) > 0)
-        return True
+    Returns:
+        True if all roles are valid, False otherwise.
 
-    @staticmethod
-    def _validate_role_names(messages: list[Message]) -> bool:
-        """Validate that message roles are valid OpenAI API roles (lowercase).
+    """
+    valid_roles = {"system", "user", "assistant", "tool"}
+    return all(msg.role in valid_roles for msg in messages)
 
-        Args:
-            messages: The messages to validate.
 
-        Returns:
-            True if all roles are valid, False otherwise.
+def _validate_no_duplicate_consecutive_messages(messages: list[Message]) -> bool:
+    """Check for duplicate consecutive messages (compression artifact).
 
-        """
-        valid_roles = {"system", "user", "assistant", "tool"}
-        return all(msg.role in valid_roles for msg in messages)
+    Args:
+        messages: The messages to validate.
 
-    @staticmethod
-    def _validate_no_duplicate_consecutive_messages(messages: list[Message]) -> bool:
-        """Check for duplicate consecutive messages (compression artifact).
+    Returns:
+        True if no duplicate consecutive messages, False otherwise.
 
-        Args:
-            messages: The messages to validate.
-
-        Returns:
-            True if no duplicate consecutive messages, False otherwise.
-
-        """
-        for i in range(1, len(messages)):
-            curr = messages[i]
-            prev = messages[i - 1]
-            if (
-                curr.role == prev.role
-                and curr.content
-                and prev.content
-                and curr.content.strip() == prev.content.strip()
-                and not curr.tool_calls
-                and not prev.tool_calls
-            ):
-                return False
-        return True
+    """
+    for i in range(1, len(messages)):
+        curr = messages[i]
+        prev = messages[i - 1]
+        if (
+            curr.role == prev.role
+            and curr.content
+            and prev.content
+            and curr.content.strip() == prev.content.strip()
+            and not curr.tool_calls
+            and not prev.tool_calls
+        ):
+            return False
+    return True
 
 
 class MessagePreserver:
@@ -449,7 +445,7 @@ class MessagePreserver:
         )
 
         # Phase 3: Preserve tool call sequences
-        self._preserve_tool_call_sequences(messages, preserved_indices)
+        _preserve_tool_call_sequences(messages, preserved_indices)
 
         # Phase 4: Preserve messages with critical content
         self._preserve_critical_content_messages(messages, preserved_indices)
@@ -506,37 +502,6 @@ class MessagePreserver:
                 )
                 if recent_count >= recent_limit:
                     break
-
-    def _preserve_tool_call_sequences(
-        self: MessagePreserver,
-        messages: list[Message],
-        preserved_indices: set[int],
-    ) -> None:
-        """Preserve complete tool call sequences.
-
-        Args:
-            messages: Original messages.
-            preserved_indices: Set of indices already preserved.
-
-        """
-        for i in range(len(messages) - 1):
-            if i in preserved_indices or (i + 1) in preserved_indices:
-                continue
-
-            curr_msg = messages[i]
-            next_msg = messages[i + 1]
-
-            if (
-                curr_msg.role == "assistant"
-                and curr_msg.tool_calls
-                and next_msg.role == "tool"
-                and next_msg.tool_call_id
-            ):
-                # Verify tool_call_id matches
-                tool_call_ids = {tc.id for tc in curr_msg.tool_calls}
-                if next_msg.tool_call_id in tool_call_ids:
-                    preserved_indices.add(i)
-                    preserved_indices.add(i + 1)
 
     def _preserve_critical_content_messages(
         self: MessagePreserver,
@@ -595,3 +560,37 @@ class MessagePreserver:
                     len(messages),
                 ):
                     break
+
+
+def _preserve_tool_call_sequences(
+    messages: list[Message],
+    preserved_indices: set[int],
+) -> None:
+    """Preserve complete tool call sequences.
+
+    Scans adjacent message pairs for assistant-to-tool hand-offs and
+    ensures both sides of each pair are kept in ``preserved_indices``.
+
+    Args:
+        messages: Original messages.
+        preserved_indices: Set of indices already preserved (mutated in place).
+
+    """
+    for i in range(len(messages) - 1):
+        if i in preserved_indices or (i + 1) in preserved_indices:
+            continue
+
+        curr_msg = messages[i]
+        next_msg = messages[i + 1]
+
+        if (
+            curr_msg.role == "assistant"
+            and curr_msg.tool_calls
+            and next_msg.role == "tool"
+            and next_msg.tool_call_id
+        ):
+            # Verify tool_call_id matches one of the pending tool calls
+            tool_call_ids = {tc.id for tc in curr_msg.tool_calls}
+            if next_msg.tool_call_id in tool_call_ids:
+                preserved_indices.add(i)
+                preserved_indices.add(i + 1)

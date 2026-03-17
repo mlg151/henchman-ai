@@ -102,7 +102,7 @@ class GlobTool(Tool):
         self: GlobTool,
         pattern: str = "",
         path: str = ".",
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Find files matching glob pattern.
 
@@ -117,7 +117,7 @@ class GlobTool(Tool):
         try:
             base_path = Path(path)
 
-            if not base_path.exists():  # noqa: ASYNC240
+            if not base_path.exists():
                 return ToolResult(
                     content=f"Error: Path not found: {path}",
                     success=False,
@@ -132,10 +132,12 @@ class GlobTool(Tool):
                     success=True,
                 )
 
-            content = _format_glob_results(matches, base_path, truncated=truncated, max_count=_MAX_MATCHES)
+            content = _format_glob_results(
+                matches, base_path, truncated=truncated, max_count=_MAX_MATCHES,
+            )
             return ToolResult(content=content, success=True)
 
-        except Exception as e:  # pragma: no cover  # noqa: BLE001
+        except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error searching files: {e}",
                 success=False,

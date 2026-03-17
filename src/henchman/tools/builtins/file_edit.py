@@ -283,7 +283,7 @@ def _apply_edit_safely(params: EditParams) -> ToolResult:
             success=False,
             error=sanitized_error,
         )
-    except Exception as e:  # pragma: no cover  # noqa: BLE001
+    except Exception as e:  # pragma: no cover
         sanitized_error = sanitize_error_message(e)
         return ToolResult(
             content=f"Error editing file: {sanitized_error}",

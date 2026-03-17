@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.agents.delegation import DelegationRunner
 from henchman.agents.metrics import OrchestratorMetrics
 from henchman.agents.metrics_reporter import MetricsReporter
-from henchman.agents.pool import AgentPool
+from henchman.agents.pool import AgentPool, ContextConfig
 from henchman.agents.presets import get_default_team
 from henchman.core.eventbus import EventBus
 
@@ -86,8 +86,8 @@ def _init_core(
     config: OrchestratorConfig,
 ) -> None:
     """Initialize core attributes, metrics, and controllers."""
-    from henchman.config.schema import Settings  # noqa: PLC0415
-    from henchman.tools.registry import ToolRegistry  # noqa: PLC0415
+    from henchman.config.schema import Settings
+    from henchman.tools.registry import ToolRegistry
 
     orch.default_provider = default_provider
     orch.provider_registry = config.provider_registry
@@ -96,10 +96,10 @@ def _init_core(
     orch.settings = config.settings or Settings()
     orch.environment_context = config.environment_context
     orch.metrics = OrchestratorMetrics()
-    orch._reporter = MetricsReporter(orch.metrics)  # noqa: SLF001
-    orch._last_loop_tool_call_count = 0  # noqa: SLF001
-    orch._last_loop_success_count = 0  # noqa: SLF001
-    orch._last_loop_timed_out = False  # noqa: SLF001
+    orch._reporter = MetricsReporter(orch.metrics)
+    orch._last_loop_tool_call_count = 0
+    orch._last_loop_success_count = 0
+    orch._last_loop_timed_out = False
     orch.last_completion_status = CompletionStatus.COMPLETED
     orch.validator = AgentValidator(orch)
     orch.tool_controller = ToolController(orch)
@@ -150,9 +150,11 @@ def _create_pool(
         provider_registry=config.provider_registry,
         parent_tool_registry=orch.tool_registry,
         event_bus=orch.event_bus,
-        environment_context=config.environment_context,
-        intelligent_context=ctx.intelligent_context,
-        importance_threshold=ctx.importance_threshold,
-        cluster_similarity_threshold=ctx.cluster_similarity_threshold,
-        adaptive_compression=ctx.adaptive_compression,
+        context_config=ContextConfig(
+            environment_context=config.environment_context,
+            intelligent_context=ctx.intelligent_context,
+            importance_threshold=ctx.importance_threshold,
+            cluster_similarity_threshold=ctx.cluster_similarity_threshold,
+            adaptive_compression=ctx.adaptive_compression,
+        ),
     )

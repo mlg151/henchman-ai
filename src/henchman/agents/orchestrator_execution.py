@@ -90,7 +90,7 @@ class ExecutionController:
 
             # Decide next action based on pending tool calls
             should_break, events, next_gen = await self._step_loop(
-                agent, pending, params, state, generator_exhausted
+                agent, pending, params, state, generator_exhausted,
             )
 
             for evt in events:
@@ -154,7 +154,7 @@ class ExecutionController:
             raise RuntimeError(
                 "Orchestrator validator is None. This is required for "
                 "thinking pattern validation and stall detection. "
-                "Ensure the orchestrator is properly initialized."
+                "Ensure the orchestrator is properly initialized.",
             )
 
         # Check thinking patterns

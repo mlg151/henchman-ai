@@ -105,7 +105,7 @@ class StatusType(Enum):
     """Status message types with their styling configuration."""
 
     SUCCESS = StatusTypeConfig("success", "✓", "[OK]")
-    INFO = StatusTypeConfig("primary", "ℹ", "[INFO]")  # noqa: RUF001
+    INFO = StatusTypeConfig("primary", "ℹ", "[INFO]")
     WARNING = StatusTypeConfig("warning", "⚠", "[WARN]")
     ERROR = StatusTypeConfig("error", "✗", "[ERR]")
 
@@ -933,7 +933,7 @@ class AsyncOutputRenderer:
                 *args: Either (old, new, filename) strings or a DiffParams object.
                 **kwargs: Keyword arguments for backward compatibility.
             """
-            params = self.renderer._parse_diff_args(*args, **kwargs)  # noqa: SLF001
-            await anyio.to_thread.run_sync(self.renderer._render_diff, params)  # noqa: SLF001
+            params = self.renderer._parse_diff_args(*args, **kwargs)
+            await anyio.to_thread.run_sync(self.renderer._render_diff, params)
 
         return async_diff

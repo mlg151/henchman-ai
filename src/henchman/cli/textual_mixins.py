@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import importlib
 import json
 import logging
+import traceback
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -44,6 +46,7 @@ from henchman.providers.base import ModelProvider
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from henchman.cli.core_init import CoreContext
     from henchman.cli.textual_messages import (
         AgentContentMessage,
         AgentFinishedMessage,
@@ -120,18 +123,18 @@ class _NullProvider(ModelProvider):
 
     async def chat_completion(
         self: _NullProvider,
-        messages: list[Any],  # noqa: ARG002
-        tools: list[Any] | None = None,  # noqa: ARG002
-        **kwargs: Any,  # noqa: ARG002
+        _messages: list[Any],
+        _tools: list[Any] | None = None,
+        **_kwargs: Any,
     ) -> Any:
         """Raise an error indicating no provider is configured."""
         raise RuntimeError(_NO_PROVIDER_MSG)
 
     async def chat_completion_stream(
         self: _NullProvider,
-        messages: list[Message],  # noqa: ARG002
-        tools: list[ToolDeclaration] | None = None,  # noqa: ARG002
-        **kwargs: Any,  # noqa: ARG002
+        _messages: list[Message],
+        _tools: list[ToolDeclaration] | None = None,
+        **_kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
         raise RuntimeError(_NO_PROVIDER_MSG)
@@ -168,6 +171,54 @@ def _extract_line_text(item: Any) -> str:
         return str(item)
 
 
+def _import_module(module_name: str) -> Any:
+    """Import a module at runtime.
+
+    Args:
+        module_name: Fully-qualified module name.
+
+    Returns:
+        The imported module.
+    """
+    return importlib.import_module(module_name)
+
+
+def _query_one_or_none(
+    app: Any,
+    selector: str | type[Any],
+    widget_type: type[Any] | None = None,
+) -> Any | None:
+    """Return a queried widget or ``None`` when it is unavailable.
+
+    Args:
+        app: Textual app or widget exposing ``query_one``.
+        selector: CSS selector or widget type for ``query_one``.
+        widget_type: Optional expected widget type.
+
+    Returns:
+        The queried widget, or ``None`` if Textual cannot resolve it.
+    """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+        return app.query_one(selector, widget_type)  # type: ignore[no-any-return]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _get_searchable_content(widget: Any) -> str:
+    """Extract searchable text content from a chat widget.
+
+    Args:
+        widget: Widget that may expose search content.
+
+    Returns:
+        Searchable plain text.
+    """
+    content = getattr(widget, "_content", "")
+    return str(content) if content else ""
+
+
 async def _read_context_file_content(path: Path) -> str:
     """Read a context file and return formatted display content.
 
@@ -196,10 +247,9 @@ def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
     Args:
         tree: The Tree widget to populate.
     """
-    from henchman.config.context import ContextLoader  # noqa: PLC0415
-
     try:
-        files = ContextLoader().discover_files()
+        context_loader = _import_module("henchman.config.context").ContextLoader()
+        files = context_loader.discover_files()
     except Exception as exc:  # noqa: BLE001
         logger.error("Failed to load context files: %s", exc)  # noqa: TRY400
         with contextlib.suppress(Exception):
@@ -288,10 +338,8 @@ class _ProxyMixin:
     @property
     def current_input(self: _ProxyMixin) -> str:
         """Current text in the input widget."""
-        try:
-            return self.query_one("#input", TextArea).text  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
-            return ""
+        widget = _query_one_or_none(self, "#input", TextArea)
+        return widget.text if widget is not None else ""
 
 
 # ------------------------------------------------------------------ #
@@ -327,8 +375,6 @@ class _InitMixin:
 
     def _init_state(self: _InitMixin) -> None:
         """Initialize mutable UI state fields."""
-        from henchman.cli.core_init import CoreContext  # noqa: PLC0415, TC001
-
         self.core_context: CoreContext | None = None
         self.tool_executor: Any = None
         self.command_processor: Any = None
@@ -372,8 +418,7 @@ class _InitMixin:
         test-suite patches (``@patch("henchman.cli.textual_app.X")``)
         are picked up at runtime.
         """
-        import henchman.cli.textual_app as _app  # noqa: PLC0415
-
+        app_module = _import_module("henchman.cli.textual_app")
         component_config = ComponentConfig(
             provider=self.provider,  # type: ignore[attr-defined]
             config=self.config,  # type: ignore[attr-defined]
@@ -384,12 +429,12 @@ class _InitMixin:
         initializer = ComponentInitializer(
             component_config,
             class_overrides={
-                "create_core_context": _app.create_core_context,
-                "UIRenderer": _app.UIRenderer,
-                "OutputHandler": _app.OutputHandler,
-                "ToolExecutor": _app.ToolExecutor,
-                "CommandProcessor": _app.CommandProcessor,
-                "InputHandler": _app.InputHandler,
+                "create_core_context": app_module.create_core_context,
+                "UIRenderer": app_module.UIRenderer,
+                "OutputHandler": app_module.OutputHandler,
+                "ToolExecutor": app_module.ToolExecutor,
+                "CommandProcessor": app_module.CommandProcessor,
+                "InputHandler": app_module.InputHandler,
             },
         )
         initializer.initialize_all()
@@ -404,11 +449,9 @@ class _InitMixin:
         Uses the module-level ``initialize_mcp`` so tests can patch
         ``henchman.cli.textual_app.initialize_mcp``.
         """
-        import henchman.cli.textual_app as _app  # noqa: PLC0415
-
         ctx = self.core_context  # type: ignore[attr-defined]
         if ctx and ctx.mcp_manager:
-            _app.initialize_mcp(ctx)
+            _import_module("henchman.cli.textual_app").initialize_mcp(ctx)
 
     def _transfer_components(self: _InitMixin, init: ComponentInitializer) -> None:
         """Copy initialized components from initializer.
@@ -439,21 +482,22 @@ class _InitMixin:
         Returns:
             ``True`` if approved, ``False`` otherwise.
         """
-        from henchman.cli.textual_screens import ConfirmToolScreen  # noqa: PLC0415
-
         loop = asyncio.get_running_loop()
         future: asyncio.Future[bool] = loop.create_future()
         req_id = self._confirm_counter  # type: ignore[attr-defined]
         self._confirm_counter += 1  # type: ignore[attr-defined]
         self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
-        def _callback(result: bool | None) -> None:  # noqa: FBT001
+        def _callback(result: object | None) -> None:
             if not future.done():
                 future.set_result(bool(result))
             self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
 
         try:
-            await self.push_screen(ConfirmToolScreen(request), _callback)  # type: ignore[attr-defined]
+            screen_cls = _import_module(
+                "henchman.cli.textual_screens",
+            ).ConfirmToolScreen
+            await self.push_screen(screen_cls(request), _callback)  # type: ignore[attr-defined]
             return await future
         except asyncio.CancelledError:
             self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
@@ -476,11 +520,9 @@ class _InitMixin:
 
     def _activate_chat_tab(self: _InitMixin) -> None:
         """Force the Chat tab to be active."""
-        try:
-            tabs = self.query_one(TabbedContent)  # type: ignore[attr-defined]
+        tabs = _query_one_or_none(self, TabbedContent)
+        if tabs is not None:
             tabs.active = "tab-chat"
-        except Exception:  # noqa: BLE001
-            pass
 
 
 # ------------------------------------------------------------------ #
@@ -504,10 +546,9 @@ class _ProviderMixin:
         Returns:
             A configured provider or a null fallback.
         """
-        from henchman.cli.app import _get_provider  # noqa: PLC0415
-
         try:
-            return _get_provider()
+            provider_loader = _import_module("henchman.cli.app")._get_provider  # noqa: SLF001
+            return provider_loader()
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to initialize provider: {exc}. Using null provider.",
@@ -523,18 +564,16 @@ class _ProviderMixin:
         Returns:
             Loaded or default settings.
         """
-        from henchman.config import load_settings  # noqa: PLC0415
-        from henchman.config.schema import Settings  # noqa: PLC0415
-
         try:
-            return load_settings()
+            settings_module = _import_module("henchman.config")
+            return settings_module.load_settings()
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to load settings: {exc}. Using defaults.",
                 RuntimeWarning,
                 stacklevel=2,
             )
-            return Settings()
+            return _import_module("henchman.config.schema").Settings()
 
     @staticmethod
     def _create_config_safe() -> TextualConfig:
@@ -560,13 +599,10 @@ class _ProviderMixin:
         Returns:
             Formatted environment block string.
         """
-        from henchman.config.environment import (  # noqa: PLC0415
-            format_environment_block,
-            gather_environment,
-        )
-
         try:
-            return format_environment_block(gather_environment())
+            environment_module = _import_module("henchman.config.environment")
+            environment = environment_module.gather_environment()
+            return environment_module.format_environment_block(environment)
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to gather environment: {exc}.",
@@ -581,13 +617,11 @@ class _ProviderMixin:
         Args:
             provider_name: Provider name key.
         """
-        from henchman.providers import get_default_registry  # noqa: PLC0415
-
         old_provider = self.provider  # type: ignore[attr-defined]
         old_name = old_provider.name if old_provider else "unknown"
 
         try:
-            registry = get_default_registry()
+            registry = _import_module("henchman.providers").get_default_registry()
             new = registry.create(provider_name)
             self.provider = new  # type: ignore[attr-defined]
             try:
@@ -612,18 +646,15 @@ class _ProviderMixin:
             old_name: Previous provider name.
             new_name: New provider name.
         """
-        from henchman import __version__  # noqa: PLC0415
-
+        version = _import_module("henchman").__version__
         self.sub_title = (  # type: ignore[attr-defined]
-            f"Henchman-AI v{__version__} - {self.provider.name}"  # type: ignore[attr-defined]
+            f"Henchman-AI v{version} - {self.provider.name}"  # type: ignore[attr-defined]
         )
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is not None:
             chat.add_system_message(
                 f"Provider switched: [cyan]{old_name}[/] -> [cyan]{new_name}[/]",
             )
-        except Exception:  # noqa: BLE001
-            pass
         self._update_status_bar()  # type: ignore[attr-defined]
 
     def _show_provider_error(self: _ProviderMixin, exc: Exception) -> None:
@@ -632,11 +663,11 @@ class _ProviderMixin:
         Args:
             exc: The exception that occurred.
         """
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is not None:
             chat.add_error_message(f"Failed to switch provider: {exc}")
-        except Exception:
-            logger.exception("Failed to switch provider: %s", exc)
+            return
+        logger.exception("Failed to switch provider")
 
 
 # ------------------------------------------------------------------ #
@@ -649,9 +680,8 @@ class _StatusBarMixin:
 
     def _update_status_bar(self: _StatusBarMixin) -> None:
         """Refresh the status bar with current info."""
-        try:
-            bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        bar = _query_one_or_none(self, "#status-bar", StatusBar)
+        if bar is None:
             return
         bar.status_text = self._build_status_text()
 
@@ -718,8 +748,8 @@ class _HistoryMixin:
             lines = hf.read_text().splitlines()
             self.command_history = [ln for ln in lines if ln.strip()]  # type: ignore[attr-defined]
             self.history_index = len(self.command_history)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
-            pass
+        except OSError:
+            return
 
     def _persist_history_entry(self: _HistoryMixin, entry: str) -> None:
         """Append an entry to the history file.
@@ -736,9 +766,9 @@ class _HistoryMixin:
             Path.home() / ".henchman_history",
         )
         try:
-            with open(hf, "a") as fh:  # noqa: PTH123
+            with open(hf, "a", encoding="utf-8") as fh:  # noqa: PTH123
                 fh.write(entry + "\n")
-        except Exception as exc:  # noqa: BLE001
+        except OSError as exc:
             logger.error("Failed to persist history entry: %s", exc)  # noqa: TRY400
             with contextlib.suppress(Exception):
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
@@ -775,9 +805,8 @@ class _ContextTreeMixin:
 
     def _show_welcome(self: _ContextTreeMixin) -> None:
         """Display a welcome banner in the chat pane."""
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is None:
             return
         provider = self.provider.name if self.provider else "unknown"  # type: ignore[attr-defined]
         model = getattr(self.provider, "model", "unknown")  # type: ignore[attr-defined]
@@ -808,9 +837,8 @@ class _ContextTreeMixin:
 
     def _populate_context_tree(self: _ContextTreeMixin) -> None:
         """Populate the Context tab tree."""
-        try:
-            tree = self.query_one("#context-tree", Tree)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        tree = _query_one_or_none(self, "#context-tree", Tree)
+        if tree is None:
             return
         _fill_context_tree(tree)
 
@@ -841,7 +869,7 @@ class _ContextTreeMixin:
         try:
             content_msg = await _read_context_file_content(path)
             chat.add_system_message(content_msg)
-        except Exception as exc:  # noqa: BLE001
+        except OSError as exc:
             self._handle_file_read_error(chat, exc, path)
 
     def _handle_file_read_error(
@@ -862,27 +890,22 @@ class _ContextTreeMixin:
 
     def _apply_theme(self: _ContextTreeMixin) -> None:
         """Apply the current theme class to the screen."""
-        try:
+        with contextlib.suppress(Exception):
+            screen = self.screen  # type: ignore[attr-defined]
             for name in ("theme-dark", "theme-light"):
-                self.screen.remove_class(name)  # type: ignore[attr-defined]
-            self.screen.add_class(  # type: ignore[attr-defined]
-                f"theme-{self._theme_name}",  # type: ignore[attr-defined]
-            )
-        except Exception:  # noqa: BLE001
-            pass
+                screen.remove_class(name)
+            screen.add_class(f"theme-{self._theme_name}")  # type: ignore[attr-defined]
 
     def action_toggle_theme(self: _ContextTreeMixin) -> None:
         """Toggle between dark and light themes."""
         current = self._theme_name  # type: ignore[attr-defined]
         self._theme_name = "light" if current == "dark" else "dark"  # type: ignore[attr-defined]
         self._apply_theme()
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is not None:
             chat.add_system_message(
                 f"Theme switched to [cyan]{self._theme_name}[/]",  # type: ignore[attr-defined]
             )
-        except Exception:  # noqa: BLE001
-            pass
         self.dark = self._theme_name == "dark"  # type: ignore[attr-defined]
 
 
@@ -927,8 +950,6 @@ class _InputHandlerMixin:
         except asyncio.CancelledError:
             chat.add_system_message("[yellow]\u26a0 Cancelled by user (Esc)[/]")
         except Exception as exc:  # noqa: BLE001
-            import traceback  # noqa: PLC0415
-
             details = traceback.format_exc()
             safe_details = details.replace("```", "` ` `")
             chat.add_error_message(
@@ -958,9 +979,8 @@ class _InputHandlerMixin:
         if not should_continue or not processed:
             return
 
-        import henchman.cli.textual_app as _app  # noqa: PLC0415
-
-        expanded = await _app.expand_at_references(processed)
+        app_module = _import_module("henchman.cli.textual_app")
+        expanded = await app_module.expand_at_references(processed)
         self._record_user_message(expanded)
         if is_cmd:
             await self._handle_command(expanded, chat)
@@ -1014,9 +1034,7 @@ class _InputHandlerMixin:
         if not orchestrator:
             chat.add_error_message("Core components not initialized.")
             return
-        import henchman.cli.textual_app as _app  # noqa: PLC0415
-
-        bridge = _app.EventBridge(self)  # type: ignore[arg-type]
+        bridge = _import_module("henchman.cli.textual_app").EventBridge(self)  # type: ignore[arg-type]
         cfg = self.config  # type: ignore[attr-defined]
         if cfg.agent_role:
             stream = orchestrator.run_direct(cfg.agent_role, text)
@@ -1101,11 +1119,12 @@ class _CommandPaletteMixin:
         palette.clear_options()
         for opt in options:
             palette.add_option(opt)
-        self._set_palette_visible(bool(options))
+        self._set_palette_visible(visible=bool(options))
 
     def _set_palette_visible(
         self: _CommandPaletteMixin,
-        visible: bool,  # noqa: FBT001
+        *,
+        visible: bool,
     ) -> None:
         """Set the command palette display state.
 
@@ -1117,7 +1136,7 @@ class _CommandPaletteMixin:
 
     def _hide_command_palette(self: _CommandPaletteMixin) -> None:
         """Hide the command palette."""
-        self._set_palette_visible(False)  # noqa: FBT003
+        self._set_palette_visible(visible=False)
 
     @on(OptionList.OptionSelected, "#command-palette")
     def on_command_selected(
@@ -1159,9 +1178,7 @@ class _CommandPaletteMixin:
         Args:
             screen_name: Class name of the screen to push.
         """
-        import henchman.cli.textual_app as _app  # noqa: PLC0415
-
-        screen_cls = getattr(_app, screen_name)
+        screen_cls = getattr(_import_module("henchman.cli.textual_app"), screen_name)
         self.push_screen(screen_cls())  # type: ignore[attr-defined]
 
 
@@ -1200,18 +1217,13 @@ class _MessageHandlerMixin:
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         pane.append_thinking_chunk(source or "", thought)
 
-        try:
-            thinking = self.query_one(  # type: ignore[attr-defined]
-                "#thinking-pane",
-                ThinkingPane,
-            )
+        thinking = _query_one_or_none(self, "#thinking-pane", ThinkingPane)
+        if thinking is not None:
             label = source or "Agent"
             thinking.write(
                 f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]",
             )
             thinking.scroll_end(animate=False)
-        except Exception:  # noqa: BLE001
-            pass
 
     def on_tool_call_request_message(
         self: _MessageHandlerMixin,
@@ -1229,18 +1241,13 @@ class _MessageHandlerMixin:
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         pane.add_tool_message(tool_description, tc)
 
-        try:
-            tool_pane = self.query_one(  # type: ignore[attr-defined]
-                "#tool-pane",
-                ToolPane,
-            )
+        tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
+        if tool_pane is not None:
             full_args = self._format_full_tool_args(tc)
             tool_pane.write(
                 f"[yellow]\u25b6 {_safe_markup(tc.name)}[/]\n[dim]{_safe_markup(full_args)}[/]",
             )
             tool_pane.scroll_end(animate=False)
-        except Exception:  # noqa: BLE001
-            pass
 
     @staticmethod
     def _format_tool_args(tool_call: Any) -> str:
@@ -1258,7 +1265,7 @@ class _MessageHandlerMixin:
         try:
             parsed = json.loads(args) if isinstance(args, str) else args
             return json.dumps(parsed, separators=(",", ":"))
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError):
             return str(args)
 
     @staticmethod
@@ -1277,7 +1284,7 @@ class _MessageHandlerMixin:
         try:
             parsed = json.loads(args) if isinstance(args, str) else args
             return json.dumps(parsed, indent=2)
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError):
             return str(args)
 
     def on_tool_call_result_message(
@@ -1294,15 +1301,10 @@ class _MessageHandlerMixin:
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         pane.add_tool_message(f"Result: {result_str}")
 
-        try:
-            tool_pane = self.query_one(  # type: ignore[attr-defined]
-                "#tool-pane",
-                ToolPane,
-            )
+        tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
+        if tool_pane is not None:
             tool_pane.write(f"[green]\u2190 {_safe_markup(result_str)}[/]")
             tool_pane.scroll_end(animate=False)
-        except Exception:  # noqa: BLE001
-            pass
 
     @staticmethod
     def _format_tool_result(result: Any) -> str:
@@ -1349,14 +1351,9 @@ class _MessageHandlerMixin:
         Args:
             message: Status update from an agent.
         """
-        try:
-            bar = self.query_one(  # type: ignore[attr-defined]
-                "#status-bar",
-                StatusBar,
-            )
+        bar = _query_one_or_none(self, "#status-bar", StatusBar)
+        if bar is not None:
             bar.status_text = message.status
-        except Exception:  # noqa: BLE001
-            pass
 
     def on_agent_finished_message(
         self: _MessageHandlerMixin,
@@ -1382,14 +1379,9 @@ class _MessageHandlerMixin:
         Args:
             message: Output text from a command.
         """
-        try:
-            chat = self.query_one(  # type: ignore[attr-defined]
-                "#chat-pane",
-                ChatPane,
-            )
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is not None:
             chat.add_system_message(message.text)
-        except Exception:  # noqa: BLE001
-            pass
 
     def on_switch_provider_message(
         self: _MessageHandlerMixin,
@@ -1417,11 +1409,9 @@ class _PaneActionMixin:
         Args:
             tab_id: CSS id of the tab to toggle.
         """
-        try:
-            tabs = self.query_one(TabbedContent)  # type: ignore[attr-defined]
+        tabs = _query_one_or_none(self, TabbedContent)
+        if tabs is not None:
             tabs.active = "tab-chat" if tabs.active == tab_id else tab_id
-        except Exception:  # noqa: BLE001
-            pass
 
     def action_toggle_thinking_pane(self: _PaneActionMixin) -> None:
         """Toggle the thinking tab."""
@@ -1497,11 +1487,9 @@ class _SearchMixin:
         self._search_query = ""  # type: ignore[attr-defined]
         self._search_matches = []  # type: ignore[attr-defined]
         self._current_match_index = -1  # type: ignore[attr-defined]
-        try:
-            bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
+        bar = _query_one_or_none(self, "#status-bar", StatusBar)
+        if bar is not None:
             bar.status_text = "Ready"
-        except Exception:  # noqa: BLE001
-            pass
 
     def action_search_next(self: _SearchMixin) -> None:
         """Move to the next search match."""
@@ -1564,18 +1552,17 @@ class _SearchMixin:
         Args:
             query_lower: Lowercase search query.
         """
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-            for idx, w in enumerate(chat.children):
-                content = ""
-                if isinstance(w, (ChatMessage, ThinkingMessage, ToolMessage)):
-                    content = w._content  # noqa: SLF001
-                if content and query_lower in content.lower():
-                    self._search_matches.append(  # type: ignore[attr-defined]
-                        ("chat", idx, content),
-                    )
-        except Exception:  # noqa: BLE001
-            pass
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is None:
+            return
+        for idx, widget in enumerate(chat.children):
+            content = ""
+            if isinstance(widget, (ChatMessage, ThinkingMessage, ToolMessage)):
+                content = _get_searchable_content(widget)
+            if content and query_lower in content.lower():
+                self._search_matches.append(  # type: ignore[attr-defined]
+                    ("chat", idx, content),
+                )
 
     def _search_richlog_panes(self: _SearchMixin, query_lower: str) -> None:
         """Search thinking and tool RichLog panes.
@@ -1583,15 +1570,14 @@ class _SearchMixin:
         Args:
             query_lower: Lowercase search query.
         """
-        for css_id, pane_id, pane_cls in (
+        pane_configs = (
             ("#thinking-pane", "thinking", ThinkingPane),
             ("#tool-pane", "tool", ToolPane),
-        ):
-            try:
-                pane = self.query_one(css_id, pane_cls)  # type: ignore[attr-defined]
+        )
+        for css_id, pane_id, pane_cls in pane_configs:
+            pane = _query_one_or_none(self, css_id, pane_cls)
+            if pane is not None:
                 self._search_richlog(pane, pane_id, query_lower)
-            except Exception:  # noqa: BLE001, PERF203
-                pass
 
     def _search_richlog(
         self: _SearchMixin,
@@ -1634,13 +1620,13 @@ class _SearchMixin:
         Args:
             term: Search term to highlight.
         """
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-            for w in chat.children:
-                if hasattr(w, "set_highlight"):
-                    w.set_highlight(term)
-        except Exception:  # noqa: BLE001
-            pass
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is None:
+            return
+        for widget in chat.children:
+            set_highlight = getattr(widget, "set_highlight", None)
+            if callable(set_highlight):
+                set_highlight(term)
 
     def _clear_highlights(self: _SearchMixin) -> None:
         """Remove search highlights from all widgets in the chat pane."""
@@ -1652,13 +1638,12 @@ class _SearchMixin:
         Args:
             line_idx: Index of the matching child widget.
         """
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-            children = list(chat.children)
-            if 0 <= line_idx < len(children):
-                children[line_idx].scroll_visible(animate=False)
-        except Exception:  # noqa: BLE001
-            pass
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is None:
+            return
+        children = list(chat.children)
+        if 0 <= line_idx < len(children):
+            children[line_idx].scroll_visible(animate=False)
 
     def _scroll_richlog_match(self: _SearchMixin, pane_id: str) -> None:
         """Scroll a RichLog pane to end for visibility.
@@ -1669,20 +1654,14 @@ class _SearchMixin:
         if pane_id not in _PANE_MAP:
             return
         css_id, cls = _PANE_MAP[pane_id]
-        try:
-            pane: ThinkingPane | ToolPane = self.query_one(  # type: ignore[attr-defined]
-                css_id,
-                cls,
-            )
+        pane: ThinkingPane | ToolPane | None = _query_one_or_none(self, css_id, cls)
+        if pane is not None:
             pane.scroll_end(animate=False)
-        except Exception:  # noqa: BLE001
-            pass
 
     def _update_search_status(self: _SearchMixin) -> None:
         """Refresh the status bar with search info."""
-        try:
-            bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        bar = _query_one_or_none(self, "#status-bar", StatusBar)
+        if bar is None:
             return
         if not self._search_mode:  # type: ignore[attr-defined]
             return
@@ -1734,12 +1713,10 @@ class _PublicAPIMixin:
             tokens: Optional token count.
             cost: Optional cost in USD.
         """
-        try:
-            bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
+        bar = _query_one_or_none(self, "#status-bar", StatusBar)
+        if bar is not None:
             bar.status_text = message
             self._apply_bar_stats(bar, tokens, cost)
-        except Exception:  # noqa: BLE001
-            pass
 
     def _apply_bar_stats(
         self: _PublicAPIMixin,
@@ -1766,9 +1743,8 @@ class _PublicAPIMixin:
             role: Sender role ('user', 'assistant', 'system').
             content: Message content.
         """
-        try:
-            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if chat is None:
             return
         self._dispatch_to_chat(chat, role, content)
 

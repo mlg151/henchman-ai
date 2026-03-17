@@ -617,7 +617,7 @@ class CoverageMapTool(Tool):
                 error="Empty path",
             )
         target = Path(path)
-        if not target.exists():  # noqa: ASYNC240
+        if not target.exists():
             return ToolResult(
                 content=f"Error: File not found: {path}",
                 success=False,

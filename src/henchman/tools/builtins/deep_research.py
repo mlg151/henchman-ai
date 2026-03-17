@@ -15,6 +15,8 @@ _HTTP_ERROR_THRESHOLD = 400
 _MAX_SUBQUERIES = 5
 _MIN_SENTENCE_LENGTH = 10
 _REPORT_EXCERPT_LENGTH = 800
+_MAX_SEARCH_RESULTS = 3
+_QUERY_TRUNCATION_LENGTH = 60
 
 
 @dataclass
@@ -115,8 +117,8 @@ async def _search_duckduckgo(query: str, session: object) -> list[tuple[str, str
     Returns:
         List of (title, url) tuples from search results.
     """
-    import aiohttp  # noqa: PLC0415
-    from bs4 import BeautifulSoup  # noqa: PLC0415
+    import aiohttp
+    from bs4 import BeautifulSoup
 
     url = f"https://html.duckduckgo.com/html/?q={query}"
     headers = {
@@ -142,7 +144,7 @@ async def _search_duckduckgo(query: str, session: object) -> list[tuple[str, str
                     href: str = str(a.get("href") or "")
                     results.append((a.get_text(strip=True), href))
             return results
-    except Exception:  # noqa: BLE001  # pragma: no cover
+    except Exception:  # pragma: no cover
         return []
 
 
@@ -156,7 +158,7 @@ async def _fetch_snippet(url: str, session: object) -> str:
     Returns:
         Extracted text snippet (up to _MAX_FETCH_LENGTH chars).
     """
-    import aiohttp  # noqa: PLC0415
+    import aiohttp
 
     try:
         async with session.get(  # type: ignore[attr-defined]
@@ -170,7 +172,7 @@ async def _fetch_snippet(url: str, session: object) -> str:
             clean = re.sub(r"<[^>]+>", " ", text)
             clean = re.sub(r"\s+", " ", clean).strip()
             return clean[:_MAX_FETCH_LENGTH]
-    except Exception:  # noqa: BLE001  # pragma: no cover
+    except Exception:  # pragma: no cover
         return ""
 
 
@@ -223,10 +225,32 @@ def _build_report(result: ResearchResult) -> str:
 
     if result.errors:
         lines.append("## Errors encountered")
-        for err in result.errors:
-            lines.append(f"- {err}")
+        lines.extend(f"- {err}" for err in result.errors)
 
     return "\n".join(lines)
+
+
+async def _gather_sources(
+    subqueries: list[str],
+    session: object,
+    max_sources: int,
+) -> list[ResearchSource]:
+    """Collect research sources by running sub-queries until the limit is reached.
+
+    Args:
+        subqueries: List of search queries to run in order.
+        session: Active aiohttp ClientSession.
+        max_sources: Stop collecting once this many sources are gathered.
+
+    Returns:
+        List of ResearchSource objects.
+    """
+    sources: list[ResearchSource] = []
+    for query in subqueries:
+        if len(sources) >= max_sources:
+            break
+        sources.extend(await _research_single_query(query, session))
+    return sources
 
 
 async def _execute_deep_research(
@@ -241,7 +265,7 @@ async def _execute_deep_research(
         ToolResult with a synthesized Markdown research report.
     """
     try:
-        import aiohttp  # noqa: PLC0415
+        import aiohttp
     except ImportError:
         return ToolResult(
             content="Error: aiohttp and beautifulsoup4 are required for deep_research",
@@ -254,12 +278,8 @@ async def _execute_deep_research(
 
     try:
         async with aiohttp.ClientSession() as session:
-            for query in subqueries:
-                if len(result.sources) >= params.max_sources:
-                    break
-                sources = await _research_single_query(query, session)
-                result.sources.extend(sources)
-    except Exception as e:  # noqa: BLE001  # pragma: no cover
+            result.sources = await _gather_sources(subqueries, session, params.max_sources)
+    except Exception as e:  # pragma: no cover
         result.errors.append(str(e))
 
     if not result.sources and not result.errors:
@@ -324,10 +344,11 @@ class DeepResearchTool(Tool):
 
     async def execute(  # type: ignore[override]
         self: DeepResearchTool,
+        *,
         question: str = "",
         max_sources: int = _DEFAULT_MAX_SOURCES,
         focus: str | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Execute deep research on a question.
 

@@ -72,7 +72,7 @@ def _update_renderer_theme(ctx: CommandContext, theme_manager: Any) -> None:
         if hasattr(ctx.repl.renderer.renderer, "theme"):
             ctx.repl.renderer.renderer.theme = theme_manager.current
         else:
-            from henchman.cli.console import OutputRenderer  # noqa: PLC0415
+            from henchman.cli.console import OutputRenderer
 
             ctx.repl.renderer.renderer = OutputRenderer(
                 console=ctx.repl.renderer.console,
@@ -92,11 +92,11 @@ def _persist_theme_settings(ctx: CommandContext, theme_name: str) -> None:
         try:
             ctx.repl.settings.ui.theme = theme_name
 
-            from henchman.config.settings import save_settings  # noqa: PLC0415
+            from henchman.config.settings import save_settings
 
             save_settings(ctx.repl.settings)
             console.print("[dim]Theme saved to settings[/]")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             console.print(f"[red]Warning:[/] Failed to save settings: {e}")
 
 
@@ -121,7 +121,7 @@ def _preview_theme(ctx: CommandContext, args: list[str], console: Any) -> None:
         console.print("[dim]Available themes:[/] " + ", ".join(theme_manager.list_themes()))
         return
 
-    from henchman.cli.console import OutputRenderer  # noqa: PLC0415
+    from henchman.cli.console import OutputRenderer
 
     preview_theme = theme_manager.get_theme(theme_name)
     preview_renderer = OutputRenderer(console=ctx.console, theme=preview_theme)
@@ -172,7 +172,7 @@ class ThemeCommand(Command):
         Returns:
             Usage string.
         """
-        return "/theme <subcommand> [args]\n\nSubcommands:\n  list     - Show available themes\n  set      - Change active theme\n  preview  - Show sample output with theme\n  create   - Stub for custom theme creation"  # noqa: E501
+        return "/theme <subcommand> [args]\n\nSubcommands:\n  list     - Show available themes\n  set      - Change active theme\n  preview  - Show sample output with theme\n  create   - Stub for custom theme creation"
 
     async def execute(self: ThemeCommand, ctx: CommandContext) -> None:
         """Execute the theme command.
@@ -270,7 +270,7 @@ class ThemeCommand(Command):
         """
         _preview_theme(ctx, args, ctx.console)
 
-    async def _create_theme(self: ThemeCommand, ctx: CommandContext, args: list[str]) -> None:  # noqa: ARG002
+    async def _create_theme(self: ThemeCommand, ctx: CommandContext, args: list[str]) -> None:
         """Stub for future custom theme creation.
 
         Args:

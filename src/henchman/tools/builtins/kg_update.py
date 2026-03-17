@@ -157,6 +157,23 @@ def _handle_add_observation(
     return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
 
 
+def _validate_relation_type(relation_type: str) -> ToolResult | None:
+    """Return a ToolResult error if *relation_type* is invalid, else None."""
+    if relation_type not in VALID_RELATION_TYPES:
+        return ToolResult(
+            content=(
+                f"Invalid relation_type '{relation_type}'. "
+                f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
+            ),
+        )
+    return None
+
+
+def _find_missing_entities(store: KnowledgeStore, *entity_ids: str) -> list[str]:
+    """Return entity IDs absent from *store*."""
+    return [eid for eid in entity_ids if store.get_entity(eid) is None]
+
+
 def _handle_add_relation(
     store: KnowledgeStore,
     entity_id: str,
@@ -168,15 +185,10 @@ def _handle_add_relation(
         return ToolResult(content="'target_id' is required for add_relation.")
 
     relation_type = str(params.get("relation_type", "related_to")).strip()
-    if relation_type not in VALID_RELATION_TYPES:
-        return ToolResult(
-            content=(
-                f"Invalid relation_type '{relation_type}'. "
-                f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
-            ),
-        )
+    if (error := _validate_relation_type(relation_type)) is not None:
+        return error
 
-    missing = [eid for eid in (entity_id, target_id) if store.get_entity(eid) is None]
+    missing = _find_missing_entities(store, entity_id, target_id)
     if missing:
         return ToolResult(
             content=(
@@ -186,12 +198,11 @@ def _handle_add_relation(
             ),
         )
 
-    description = str(params.get("description") or "")
     rel = Relation(
         source=entity_id,
         target=target_id,
         relation_type=relation_type,
-        description=description,
+        description=str(params.get("description") or ""),
     )
     store.add_relation(rel)
     store.save()
@@ -246,7 +257,7 @@ class KgUpdateTool(KgToolBase):
         self._initialised = True
         return self._store
 
-    async def execute(self: KgUpdateTool, **params: object) -> ToolResult:  # noqa: PLR0911
+    async def execute(self: KgUpdateTool, **params: object) -> ToolResult:
         """Execute a knowledge graph update.
 
         Args:

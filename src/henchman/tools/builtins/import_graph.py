@@ -168,7 +168,7 @@ def _tree_imports_module(tree: ast.AST, module_name: str) -> bool:
         if isinstance(node, ast.Import) and _import_node_contains_module(node, module_name):
             return True
         if isinstance(node, ast.ImportFrom) and _import_from_node_contains_module(
-            node, module_name
+            node, module_name,
         ):
             return True
     return False
@@ -534,7 +534,7 @@ class ImportGraphTool(Tool):
             should_detect_cycles=should_detect_cycles,
         )
 
-    def _build_analysis_result(  # noqa: PLR0913
+    def _build_analysis_result(
         self: ImportGraphTool,
         target_path: Path,
         scan_path: Path | None,

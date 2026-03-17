@@ -31,7 +31,7 @@ _P = ParamSpec("_P")
 
 
 def _count_delegations_by_status_util(
-    delegations: Iterable[DelegationRecord], status: DelegationStatus
+    delegations: Iterable[DelegationRecord], status: DelegationStatus,
 ) -> int:
     """Count delegations with a specific status (utility function).
 
@@ -84,14 +84,14 @@ class ProgressCounts:
             Formatted progress line string.
         """
         return self._format_with_template(
-            "Progress: {completed} done, {pending} in-progress, {failed} failed / {total} total"
+            "Progress: {completed} done, {pending} in-progress, {failed} failed / {total} total",
         )
 
     def __repr__(self: Self) -> str:
         """Return a string representation of the progress counts."""
         return self._format_with_template(
             "ProgressCounts(completed={completed}, pending={pending}, "
-            "failed={failed}, total={total})"
+            "failed={failed}, total={total})",
         )
 
     def _format_with_template(self: Self, template: str) -> str:
@@ -104,7 +104,7 @@ class ProgressCounts:
             Formatted string.
         """
         return template.format(
-            completed=self.completed, pending=self.pending, failed=self.failed, total=self.total
+            completed=self.completed, pending=self.pending, failed=self.failed, total=self.total,
         )
 
 
@@ -222,7 +222,7 @@ class LedgerRenderer:
 
     @staticmethod
     def get_visible_delegations(
-        delegations: list[DelegationRecord], max_entries: int
+        delegations: list[DelegationRecord], max_entries: int,
     ) -> tuple[list[DelegationRecord], int]:
         """Get the delegations to display and count of collapsed ones (static version).
 
