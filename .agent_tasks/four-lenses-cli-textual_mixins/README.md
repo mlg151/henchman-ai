@@ -1,22 +1,29 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-17T06:00:00Z
+## Date: 2025-03-17T09:15:00Z
 ## Bug Summary
-The `_textual_confirm` method has a race condition where if the confirmation screen callback is invoked after the future has already been cancelled (due to an exception or app shutdown), it will attempt to call `future.set_result()` on a cancelled future, which raises `asyncio.InvalidStateError`.
+Race condition in `_textual_confirm` method where concurrent tool confirmation requests can get duplicate request IDs, causing one future to overwrite another in `_confirm_futures` dictionary.
 
 ## Lens
-**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state synchronization issue between exception handlers and callback functions.
+**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state mutation without proper synchronization.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Callback should safely handle already-cancelled futures | Callback may raise `asyncio.InvalidStateError` when trying to set result on cancelled future |
-| Exception handlers and callbacks should coordinate cleanup | Race condition between exception cleanup and callback invocation |
-| Futures should be in valid state when operations are performed | Futures can be cancelled while callback is still pending |
+| Each tool confirmation request gets a unique ID | Concurrent requests can read same counter value before increment |
+| All confirmation futures are stored and retrievable | One future can overwrite another in dictionary |
+| Callback can safely set result on its future | Callback may try to set result on cancelled future causing InvalidStateError |
 
 ## Root Cause
-The `_callback` function inside `_textual_confirm` checks `if not future.done():` before calling `future.set_result()`, but a future can be in the `CANCELLED` state without being `done()`. In asyncio, `cancelled()` is a separate state from `done()`. When `future.cancel()` is called in the exception handlers, the future transitions to cancelled state but `future.done()` may still return `False` initially. The callback then tries to `set_result()` on a cancelled future, which raises `asyncio.InvalidStateError`.
+The `_textual_confirm` method in `_InitMixin` has three related bugs:
+1. **Counter race condition**: `req_id = self._confirm_counter` followed by `self._confirm_counter += 1` is not atomic
+2. **Dictionary race**: Concurrent calls can store futures with same key, overwriting each other
+3. **Callback safety**: Callback doesn't check `future.cancelled()` before `set_result()`
+
+The core issue is that `self._confirm_counter` is read and incremented without synchronization, allowing concurrent calls to get the same ID. When this happens, the second future overwrites the first in `_confirm_futures`, causing the first request to never receive a response.
 
 ## Fix Plan
-Modify the callback to check `if not future.done() and not future.cancelled():` before calling `set_result()`. This ensures we don't try to set a result on a cancelled future. Also add proper synchronization to ensure callback and exception handlers don't interfere.
+1. Add `asyncio.Lock` around the counter increment and dictionary update in `_textual_confirm`
+2. Update callback to check both `future.done()` and `future.cancelled()` before calling `set_result()`
+3. Ensure lock is properly initialized in `_init_confirm_state`
 
 ## Status: IN PROGRESS
