@@ -512,9 +512,14 @@ class _InitMixin:
             self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
-            if not future.done():
+            if not future.done() and not future.cancelled():
                 future.set_result(bool(result))
-            self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            # Use lock to protect shared dict access (same as exception handlers)
+            if hasattr(self, '_confirm_lock'):
+                with self._confirm_lock:  # type: ignore[attr-defined]
+                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            else:
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
 
         try:
             screen_cls = _import_module(
@@ -523,12 +528,22 @@ class _InitMixin:
             await self.push_screen(screen_cls(request), _callback)  # type: ignore[attr-defined]
             return await future
         except asyncio.CancelledError:
-            self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            # Use lock to protect shared dict access
+            if hasattr(self, '_confirm_lock'):
+                with self._confirm_lock:  # type: ignore[attr-defined]
+                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            else:
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             if not future.done():
                 future.cancel()
             raise
         except Exception:
-            self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            # Use lock to protect shared dict access
+            if hasattr(self, '_confirm_lock'):
+                with self._confirm_lock:  # type: ignore[attr-defined]
+                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            else:
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             if not future.done():
                 future.cancel()
             raise
