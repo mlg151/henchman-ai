@@ -1,26 +1,27 @@
-[2026-03-17T16:00:03Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T18:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T16:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T18:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by reading the smell report and the target file to understand the context and identify bugs.
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — 👍 B (Score: 80.4/100)
+[result] # Code Smell Report — 👍 B (Score: 80.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T16:00:40.205506+00:00_
+_Generated: 2026-03-17T18:00:36.941643+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file to understand its structure and functionality:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -28,11 +29,100 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-The file is too large to read in one go. Let me check the test file to understand what functionality is being tested:
-[tool] glob({'pattern': '**/test*textual_mixins*.py'})
+Let me continue reading the file to understand its structure:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 300})
 
-[result] tests/cli/test_textual_mixins_bug.py
+[result]     "thinking": ("#thinking-pane", ThinkingPane),
+    "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real...
+Let me continue reading to see more of the file structure:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 500})
+
+[result] 
+    @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+   ...
+Now let me look at the `_textual_confirm` method which was flagged in the smell report as having deep nesting issues:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+489, 'end_line': 600})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*textual*mixins*.py'})
+
+[result] tests/cli/test_textual_mixins_attribute_error_bug.py
+tests/cli/test_textual_mixins_bug.py
 tests/cli/test_textual_mixins_bug_failing.py
 tests/cli/test_textual_mixins_counter_race_failing.py
-tests/cli/test_textual_mixins_coverage.py
-tests/cli/test_textual...
+tests/cli/t...
+Interesting! There are many test files related to bugs in textual_mixins. Let me examine a few to understand what issues have been found:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
+
+[result] """Failing test for the id() collision bug in textual_mixins.py."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, patch
+import pytest
+
+from henchman.tools.ba...
+Now let me check another test file to see what other bugs have been identified:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_race_condition.py'})
+
+[result] """Test for race condition bug in textual_mixins.py _textual_confirm 
+method."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, AsyncMock, patch
+import pytest
+...
+Now let me examine the actual current implementation more carefully to see what bugs might still exist. Let me look at the `_textual_confirm` method more closely:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+489, 'end_line': 560})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+Now let me check the `_cleanup_confirm_futures` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+579, 'end_line': 620})
+
+[result]                     if future is not None:
+                        # future.cancel() is idempotent for asyncio Futures
+                        # No need to check future.done() first (avoids TOCTOU 
+rac...
+Now let me look at the test files to understand what bugs have already been fixed and what might still be present. Let me check one more test file:
+[tool] read_file({'path': 
+'tests/cli/test_textual_mixins_threading_lock_bug.py'})
+
+[result] """Test demonstrating why threading.Lock is wrong for async code.
+
+The bug: threading.Lock is reentrant within the same thread, so when
+one async task acquires it and then awaits, another async task i...
+Now I need to understand the current state of the code. Let me run the existing tests to see what's currently passing and failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug_failing.py -x -q --tb=short'})
+
