@@ -1,17 +1,18 @@
-[2026-03-17T08:00:03Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T10:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
-Let me look for the test definition:
-[tool] read_file({'path': 'tests/cli/test_textual_final_coverage.py', 
-'start_line': 8120, 'end_line': 8160})
+There's a duplicate `import asyncio` line. Let me fix it:
+[tool] edit_file({'path': 'tests/cli/test_textual_final_coverage.py', 'old_str':
+'    async def test_textual_confirm_cancelled_error_propagates(self) -> None:\n 
+"""Test _textual_confirm handles CancelledError (lines 442-468)."""\n        
+import asyncio\nimport asyncio\n        from henchman.cli.textual_mixins import 
+_InitMixin', 'new_str': '    async def 
+test_textual_confirm_cancelled_error_propagates(self) -> None:\n        """Test 
+_textual_confirm handles CancelledError (lines 442-468)."""\n        import 
+asyncio\n        from henchman.cli.textual_mixins import _InitMixin'})
 
-[result]             future_holder.append(f)
-            return f
-
-        with patch.object(asyncio.get_event_loop(), "create_future", 
-patched_create_future):
-            with pytest.raises(asyncio.CancelledE...
+[result] Successfully edited tests/cli/test_textual_final_coverage.py...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T08:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T10:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -23,14 +24,15 @@ I'll start by reading the smell report to understand the context, then examine t
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T08:00:51.301796+00:00_
+_Generated: 2026-03-17T10:00:50.500459+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+Now let me examine the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -38,3 +40,81 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
+Let me continue reading the file to understand its structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 200})
+
+[result]     "thinking": ("#thinking-pane", ThinkingPane),
+    "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real...
+Now let me run the test again:Let me continue reading to understand the mixin structure:
+[tool] shell({'command': 'python -m pytest 
+tests/cli/test_textual_final_coverage.py::TestInitMixinTextualConfirm::test_text
+ual_confirm_cancelled_error_propagates -xvs'})
+
+
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+200, 'end_line': 300})
+
+[result]         The queried widget, or ``None`` if Textual cannot resolve it.
+    """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+       ...
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Let me continue reading to understand the mixin structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 400})
+
+[result] 
+    @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+   ...
+Let me look for the tests for this file to understand what functionality needs to be tested:
+[tool] glob({'pattern': '**/test*textual_mixins*.py'})
+
+[result] tests/cli/test_textual_mixins_bug.py
+tests/cli/test_textual_mixins_bug_failing.py
+tests/cli/test_textual_mixins_counter_race_failing.py
+tests/cli/test_textual_mixins_coverage.py
+tests/cli/test_textual...
+Let me check if there are any existing tests for the file:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import ...
+Let me examine the file more thoroughly to understand its structure and identify potential bugs. First, let me check the file size and look for the main functionality:
+[tool] shell({'command': 'wc -l src/henchman/cli/textual_mixins.py'})
+
+[result] 1790 src/henchman/cli/textual_mixins.py
+...
+Let me examine the file more systematically. I need to understand the structure and identify potential bugs using the Four Lenses approach. Let me look at key sections:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+400, 'end_line': 500})
+
+[result]     def _init_search_state(self: _InitMixin) -> None:
+        """Initialize search-related state variables."""
+        self._search_mode: bool = False
+        self._search_query: str = ""
+        self...

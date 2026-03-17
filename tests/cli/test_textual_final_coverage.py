@@ -5017,6 +5017,7 @@ class TestInitMixinTextualConfirm:
             def __init__(self):
                 self._confirm_counter = 0
                 self._confirm_futures: dict = {}
+import asyncio
                 self._confirm_lock = asyncio.Lock()
                 self.core_context = None
 
@@ -8042,6 +8043,7 @@ class TestTextualConfirmExceptionPaths:
             def __init__(self):
                 self._confirm_futures: dict = {}
                 self._confirm_counter: int = 0
+import asyncio
                 self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
@@ -8071,6 +8073,7 @@ class TestTextualConfirmExceptionPaths:
             def __init__(self):
                 self._confirm_futures: dict = {}
                 self._confirm_counter: int = 0
+import asyncio
                 self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
@@ -8099,6 +8102,7 @@ class TestTextualConfirmExceptionPaths:
             def __init__(self):
                 self._confirm_futures: dict = {}
                 self._confirm_counter: int = 0
+import asyncio
                 self._confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
@@ -8126,6 +8130,7 @@ class TestTextualConfirmExceptionPaths:
 
     async def test_textual_confirm_exception_future_already_done(self) -> None:
         """Test _textual_confirm Exception when future already done (line 465 False branch)."""
+import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         future_holder: list = []
@@ -8135,6 +8140,7 @@ class TestTextualConfirmExceptionPaths:
 
             _confirm_futures: dict = {}
             _confirm_counter: int = 0
+            _confirm_lock = asyncio.Lock()
 
             async def push_screen(self, screen: object, callback: object = None) -> None:
                 """Set future result then raise exception."""
@@ -9204,6 +9210,7 @@ class TestTextualConfirmCallbackAndReturn:
 
     async def test_textual_confirm_callback_invoked_and_return(self) -> None:
         """Test _textual_confirm callback sets future result and returns it (lines 451-457)."""
+import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         class MockApp(_InitMixin):
@@ -9211,6 +9218,7 @@ class TestTextualConfirmCallbackAndReturn:
 
             _confirm_futures: dict = {}
             _confirm_counter: int = 0
+            _confirm_lock = asyncio.Lock()
 
             async def push_screen(
                 self: MockApp,
@@ -9233,6 +9241,7 @@ class TestTextualConfirmCallbackAndReturn:
 
     async def test_textual_confirm_callback_future_already_done(self) -> None:
         """Test _textual_confirm callback when future already done (line 451 False branch)."""
+import asyncio
         from henchman.cli.textual_mixins import _InitMixin
 
         call_count = [0]
@@ -9242,6 +9251,7 @@ class TestTextualConfirmCallbackAndReturn:
 
             _confirm_futures: dict = {}
             _confirm_counter: int = 0
+            _confirm_lock = asyncio.Lock()
 
             async def push_screen(
                 self: MockApp,
