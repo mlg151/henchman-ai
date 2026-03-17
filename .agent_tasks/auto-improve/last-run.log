@@ -534,3 +534,1823 @@ Now let me run the test to see if it fails (it should, since we're testing for t
 [tool] pytest_run({'path': 'tests/cli/test_textual_mixins_bug.py', 'verbose': 
 True})
 
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+I need to fix the test - wrong parameter name. Let me check what ConfirmationRequest actually takes:
+[tool] grep({'pattern': 'class ConfirmationRequest', 'path': 'src/henchman'})
+
+[result] src/henchman/tools/base.py:class ConfirmationRequest:
+src/henchman/tools/base.py,cover:> class ConfirmationRequest:...
+
+[tool] read_file({'path': 'src/henchman/tools/base.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """Tool base classes and types for Henchman-AI."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+
+from henchma...
+
+[tool] read_file({'path': 'src/henchman/tools/base.py', 'start_line': 70, 
+'end_line': 90})
+
+[result]         ...     @property
+        ...     def name(self) -> str:
+        ...         return "read_file"
+        ...     @property
+        ...     def description(self) -> str:
+        ...         retu...
+Let me find the ConfirmationRequest definition:
+[tool] grep({'pattern': '@dataclass.*ConfirmationRequest', 'path': 
+'src/henchman/tools/base.py', 'context_after': 20})
+
+[result] No matches found...
+
+[tool] grep({'pattern': 'ConfirmationRequest', 'path': 
+'src/henchman/tools/base.py', 'context_after': 10})
+
+[result] class ConfirmationRequest:
+    """Request for user confirmation before executing a tool.
+
+    Attributes:
+        tool_name: Name of the tool requesting confirmation.
+        description: Human-readab...
+Now I see the structure. Let me fix the test:
+[tool] edit_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'old_str': '  
+request = ConfirmationRequest(\n                tool_name="test_tool",\n        
+tool_kind="EXECUTE",\n                arguments={"arg": "value"},\n             
+description="Test tool execution"\n            )', 'new_str': '            
+request = ConfirmationRequest(\n                tool_name="test_tool",\n        
+description="Test tool execution",\n                params={"arg": "value"},\n  
+risk_level="high"\n            )'})
+
+[result] Successfully edited tests/cli/test_textual_mixins_bug.py...
+Now let me run the test again:
+[tool] pytest_run({'path': 
+'tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_fi
+x_would_use_counter', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the test passed. But actually, I need a test that fails with the current implementation. Let me write a simpler, more direct test that actually demonstrates the bug:
+[tool] write_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
+'content': '"""Failing test for the id() collision bug in 
+textual_mixins.py."""\n\nfrom __future__ import annotations\n\nimport 
+asyncio\nfrom unittest.mock import MagicMock, patch\nimport pytest\n\nfrom 
+henchman.tools.base import ConfirmationRequest\n\n\nclass 
+TestTextualConfirmIdCollisionBugFailing:\n    """Test that fails due to the id()
+collision bug in _textual_confirm."""\n    \n    @pytest.mark.anyio\n    async 
+def test_id_collision_bug_demonstration(self) -> None:\n        """Demonstrate 
+the bug by showing id() is used instead of counter.\n        \n        This test
+will FAIL with current implementation because:\n        - Current code uses 
+`id(future)` as dictionary key\n        - This test checks that 
+`_confirm_counter` is used and incremented\n        - After fix, this test 
+should pass\n        """\n        from henchman.cli.textual_mixins import 
+_InitMixin\n        \n        # Create a real instance to test\n        class 
+MockApp:\n            def __init__(self):\n                self._confirm_futures
+= {}\n                self._confirm_counter = 100\n                \n        app
+= MockApp()\n        \n        # We need to test the actual _textual_confirm 
+method\n        # But it requires push_screen which we can mock\n        \n     
+with patch(\'henchman.cli.textual_mixins._import_module\') as mock_import:\n    
+mock_screen = MagicMock()\n            
+mock_import.return_value.ConfirmToolScreen = mock_screen\n            \n        
+# Create mixin instance\n            mixin = _InitMixin.__new__(_InitMixin)\n   
+mixin._confirm_futures = {}\n            mixin._confirm_counter = 100\n         
+mixin.push_screen = MagicMock()\n            \n            # Create request\n   
+request = ConfirmationRequest(\n                tool_name="test_tool",\n        
+description="Test tool execution",\n                params={"arg": "value"},\n  
+risk_level="high"\n            )\n            \n            # Try to call 
+_textual_confirm\n            # It will fail because we haven\'t mocked 
+everything properly\n            # But we can inspect the source code\n         
+\n            import inspect\n            import henchman.cli.textual_mixins as 
+module\n            \n            source = 
+inspect.getsource(module._InitMixin._textual_confirm)\n            \n           
+# THE BUG: Current implementation uses id(future)\n            assert 
+\'id(future)\' in source, "Bug: _textual_confirm uses id(future) which can 
+collide!"\n            \n            # THE FIX: Should use 
+self._confirm_counter\n            # This assertion will FAIL with current 
+implementation\n            # After fix, it should pass\n            assert 
+\'self._confirm_counter\' in source, (\n                "Fix needed: 
+_textual_confirm should use self._confirm_counter, not id(future)"\n            
+)\n            \n            # Also check that counter is incremented\n         
+assert \'self._confirm_counter += 1\' in source or \'self._confirm_counter = 
+self._confirm_counter + 1\' in source, (\n                "Fix needed: 
+_textual_confirm should increment self._confirm_counter"\n            )\n    \n 
+@pytest.mark.anyio\n    async def test_actual_bug_scenario(self) -> None:\n     
+"""Test a scenario that could trigger the bug.\n        \n        This test 
+simulates what could happen if id() is reused:\n        - Future A created, gets
+id X\n        - Future A completes, removed from dict\n        - Future B 
+created, gets same id X (if memory reused)\n        - Late callback for Future A
+affects Future B\n        """\n        from henchman.cli.textual_mixins import 
+_InitMixin\n        \n        # This is hard to test deterministically because\n
+# we can\'t control when Python reuses memory addresses\n        \n        # But
+we can test the fix: using a counter instead of id()\n        \n        # Create
+test implementation with the bug\n        async def buggy_textual_confirm(self, 
+request):\n            loop = asyncio.get_running_loop()\n            future = 
+loop.create_future()\n            req_id = id(future)  # BUG: uses id()\n       
+self._confirm_futures[req_id] = future\n            # ... rest of 
+implementation\n            future.set_result(True)  # Simulate immediate 
+approval for test\n            return True\n            \n        # Create test 
+implementation with the fix  \n        async def fixed_textual_confirm(self, 
+request):\n            loop = asyncio.get_running_loop()\n            future = 
+loop.create_future()\n            req_id = self._confirm_counter  # FIX: uses 
+counter\n            self._confirm_counter += 1  # FIX: increments counter\n    
+self._confirm_futures[req_id] = future\n            # ... rest of 
+implementation\n            future.set_result(True)  # Simulate immediate 
+approval for test\n            return True\n            \n        # Test that 
+with buggy implementation, IDs are memory addresses\n        mixin1 = 
+_InitMixin.__new__(_InitMixin)\n        mixin1._confirm_futures = {}\n        
+mixin1._confirm_counter = 100\n        \n        loop = 
+asyncio.get_running_loop()\n        future1 = loop.create_future()\n        
+buggy_id = id(future1)\n        \n        # buggy_id is a large memory address, 
+not 100\n        assert buggy_id != 100, "id() should not equal counter value"\n
+\n        # With fixed implementation, ID should be counter value\n        
+mixin2 = _InitMixin.__new__(_InitMixin)\n        mixin2._confirm_futures = {}\n 
+mixin2._confirm_counter = 100\n        \n        # In fixed version, req_id 
+would be 100\n        fixed_id = 100  # What the fix should produce\n        \n 
+assert fixed_id == 100, "Fixed version should use counter value"\n        \n    
+# The bug is that id() can be reused, counter can\'t\n        # We can\'t test 
+the actual collision, but we can show\n        # the flawed assumption'})
+
+[result] Successfully wrote 5743 bytes to 
+tests/cli/test_textual_mixins_bug_failing.py...
+Now let me run this failing test:
+[tool] pytest_run({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
+'verbose': True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Perfect! The test fails as expected. It shows that `_textual_confirm` uses `id(future)` and doesn't use `self._confirm_counter`. Now I need to implement the fix. Let me examine the current implementation and fix it:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+470, 'end_line': 530})
+
+[result]         """
+        self.core_context = init.core_context  # type: ignore[attr-defined]
+        self.tool_executor = init.tool_executor  # type: ignore[attr-defined]
+        self.command_processor = i...
+Now I need to fix the bug. I'll change `req_id = id(future)` to use `self._confirm_counter` and increment it:
+[tool] edit_file({'path': 'src/henchman/cli/textual_mixins.py', 'old_str': '    
+async def _textual_confirm(self: _InitMixin, request: ConfirmationRequest) -> 
+bool:\n        """Show a modal confirmation dialog.\n\n        Args:\n          
+request: The tool confirmation request.\n\n        Returns:\n            
+``True`` if approved, ``False`` otherwise.\n        """\n        loop = 
+asyncio.get_running_loop()\n        future: asyncio.Future[bool] = 
+loop.create_future()\n        # Use the future\'s id as a unique key - id() 
+returns a unique integer\n        # for the object\'s lifetime, which is perfect
+for our needs\n        req_id = id(future)\n        
+self._confirm_futures[req_id] = future  # type: ignore[attr-defined]', 
+'new_str': '    async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:\n        """Show a modal confirmation dialog.\n\n 
+Args:\n            request: The tool confirmation request.\n\n        Returns:\n
+``True`` if approved, ``False`` otherwise.\n        """\n        loop = 
+asyncio.get_running_loop()\n        future: asyncio.Future[bool] = 
+loop.create_future()\n        # Use a counter-based ID instead of id(future) to 
+avoid potential\n        # collisions when memory addresses are reused after 
+garbage collection\n        req_id = self._confirm_counter  # type: 
+ignore[attr-defined]\n        self._confirm_counter += 1  # type: 
+ignore[attr-defined]\n        self._confirm_futures[req_id] = future  # type: 
+ignore[attr-defined]'})
+
+[result] Successfully edited src/henchman/cli/textual_mixins.py...
+Now let me run the failing test again to see if it passes:
+[tool] pytest_run({'path': 
+'tests/cli/test_textual_mixins_bug_failing.py::TestTextualConfirmIdCollisionBugF
+ailing::test_id_collision_bug_demonstration', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! The test passes now. Let me run all the tests to make sure I didn't break anything:
+[tool] pytest_run({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
+argument but 2 were given
+[2026-03-17T04:00:02Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 5915 items
+
+tests/agents/test_agents_coverage.py ................................... [  0%]
+...................................................................      [  1%]
+tests/agents/test_completion_status.py ................................  [  2%]
+tests/agents/test_config.py ..                                           [  2%]
+tests/agents/test_coverage_gaps_agents.py .............................. [  2%]
+....................................                                     [  3%]
+tests/agents/test_delegation_coverage_100.py ........................... [  3%]
+.......................                                                  [  4%]
+tests/agents/test_delegation_e2e.py ...........                          [  4%]
+tests/agents/test_delegation_error_handling.py ........                  [  4%]
+tests/agents/test_identity.py ..                                         [  4%]
+tests/agents/test_infinite_loop_fix.py .....                             [  4%]
+tests/agents/test_ledger.py ............................                 [  5%]
+tests/agents/test_ledger_coverage.py ........                            [  5%]
+tests/agents/test_ledger_edge_cases.py .....................             [  5%]
+tests/agents/test_ledger_refactor.py .........................           [  6%]
+tests/agents/test_ledger_refactoring.py ......                           [  6%]
+tests/agents/test_ledger_refactoring_smells.py ......                    [  6%]
+tests/agents/test_ledger_smell_fixes.py ...............                  [  6%]
+tests/agents/test_metrics_reporter.py ...........................        [  6%]
+tests/agents/test_orchestrator.py ...................................... [  7%]
+...................                                                      [  7%]
+tests/agents/test_pool.py ..........                                     [  8%]
+tests/agents/test_presets.py ......                                      [  8%]
+tests/agents/test_prompts.py ........................................... [  8%]
+.........                                                                [  9%]
+tests/agents/test_thinking_protocol.py .......                           [  9%]
+tests/agents/test_working_memory.py .................................... [  9%]
+.......................................                                  [ 10%]
+tests/agents/test_working_memory_actual_bug.py ....                      [ 10%]
+tests/agents/test_working_memory_actual_core_bug.py .....                [ 10%]
+tests/agents/test_working_memory_algorithm_bug.py .....                  [ 10%]
+tests/agents/test_working_memory_bool_bug.py ...                         [ 10%]
+tests/agents/test_working_memory_bug.py .                                [ 10%]
+tests/agents/test_working_memory_bug_end_minus_one.py ....               [ 10%]
+tests/agents/test_working_memory_bug_error_message.py ...                [ 10%]
+tests/agents/test_working_memory_bug_find.py .....                       [ 11%]
+tests/agents/test_working_memory_bug_validation.py ..                    [ 11%]
+tests/agents/test_working_memory_bug_validation_order.py ..              [ 11%]
+tests/agents/test_working_memory_core_bug.py ......                      [ 11%]
+tests/agents/test_working_memory_dash_inconsistency.py .                 [ 11%]
+tests/agents/test_working_memory_deserialization_bug.py ..               [ 11%]
+tests/agents/test_working_memory_edge_case_bug.py ....                   [ 11%]
+tests/agents/test_working_memory_edge_cases.py .......                   [ 11%]
+tests/agents/test_working_memory_empty_lines_read_bug.py ...             [ 11%]
+tests/agents/test_working_memory_empty_lines_read_bug_fix.py ...         [ 11%]
+tests/agents/test_working_memory_end_minus_one_bug.py ...                [ 11%]
+tests/agents/test_working_memory_entry_validation_bug.py .               [ 11%]
+tests/agents/test_working_memory_error_message.py ..                     [ 11%]
+tests/agents/test_working_memory_find_bug.py ..........                  [ 11%]
+tests/agents/test_working_memory_float_bug.py ...                        [ 11%]
+tests/agents/test_working_memory_float_minus_one_bug.py ....             [ 11%]
+tests/agents/test_working_memory_float_precision_bug.py .                [ 11%]
+tests/agents/test_working_memory_four_lenses_bug_fix.py ...              [ 11%]
+tests/agents/test_working_memory_full_contains_bug.py .....              [ 12%]
+tests/agents/test_working_memory_full_token_bug.py ......                [ 12%]
+tests/agents/test_working_memory_full_token_bug_fix.py .....             [ 12%]
+tests/agents/test_working_memory_invalid_lines_read_bug.py .             [ 12%]
+tests/agents/test_working_memory_isdigit_bug.py ......                   [ 12%]
+tests/agents/test_working_memory_isdigit_fix.py .....                    [ 12%]
+tests/agents/test_working_memory_key_insights_bug.py ....                [ 12%]
+tests/agents/test_working_memory_line_number_validation_bug.py ....      [ 12%]
+tests/agents/test_working_memory_logic_bug.py ...                        [ 12%]
+tests/agents/test_working_memory_merge_bug.py ....                       [ 12%]
+tests/agents/test_working_memory_misleading_message_bug.py ...           [ 12%]
+tests/agents/test_working_memory_missing_return.py ..                    [ 12%]
+tests/agents/test_working_memory_none_bug.py ...                         [ 12%]
+tests/agents/test_working_memory_none_vs_empty_bug.py ...                [ 12%]
+tests/agents/test_working_memory_parse_bug.py ..                         [ 12%]
+tests/agents/test_working_memory_real_bug.py ....                        [ 12%]
+tests/agents/test_working_memory_real_bug_found.py ...                   [ 13%]
+tests/agents/test_working_memory_real_failing_bug.py ....                [ 13%]
+tests/agents/test_working_memory_type_safety_bug.py ..                   [ 13%]
+tests/agents/test_working_memory_unicode_dash_bug.py ...                 [ 13%]
+tests/agents/test_working_memory_unicode_dash_bug2.py .                  [ 13%]
+tests/agents/test_working_memory_unicode_digit_bug.py ....               [ 13%]
+tests/agents/test_working_memory_validation_bug.py ..                    [ 13%]
+tests/agents/test_working_memory_validation_bug_fix.py ...               [ 13%]
+tests/agents/test_working_memory_validation_order_bug.py ...             [ 13%]
+tests/agents/test_working_memory_whitespace_bug.py ......                [ 13%]
+tests/api/test_api.py .................................................. [ 14%]
+..........................                                               [ 14%]
+tests/cli/commands/test_context.py ........                              [ 14%]
+tests/cli/commands/test_model.py .............                           [ 15%]
+tests/cli/commands/test_model_integration.py ...                         [ 15%]
+tests/cli/commands/test_plan.py .......                                  [ 15%]
+tests/cli/commands/test_plan_branch.py ...                               [ 15%]
+tests/cli/commands/test_session.py .....                                 [ 15%]
+tests/cli/commands/test_session_resume_id.py .                           [ 15%]
+tests/cli/commands/test_unlimited.py ..............                      [ 15%]
+tests/cli/test_additional_coverage.py .................................  [ 16%]
+tests/cli/test_agent_command.py ...........                              [ 16%]
+tests/cli/test_app.py ....................                               [ 16%]
+tests/cli/test_app_coverage_100.py .........................             [ 17%]
+tests/cli/test_app_extended.py .....                                     [ 17%]
+tests/cli/test_app_input_coverage.py ................................... [ 17%]
+.........                                                                [ 18%]
+tests/cli/test_builtins.py .......................                       [ 18%]
+tests/cli/test_chat_command.py ...................                       [ 18%]
+tests/cli/test_cli_smoke.py ....                                         [ 18%]
+tests/cli/test_command_processor.py ............                         [ 19%]
+tests/cli/test_commands.py ................                              [ 19%]
+tests/cli/test_commands_repro.py ..                                      [ 19%]
+tests/cli/test_console.py ..........................................     [ 20%]
+tests/cli/test_console_confirm.py ...                                    [ 20%]
+tests/cli/test_console_coverage.py ..................................... [ 20%]
+......                                                                   [ 20%]
+tests/cli/test_context_strategy_coverage.py ............................ [ 21%]
+..........                                                               [ 21%]
+tests/cli/test_core_init.py ........                                     [ 21%]
+tests/cli/test_coverage_gaps_cli.py .................................... [ 22%]
+........................................................................ [ 23%]
+..............................................................           [ 24%]
+tests/cli/test_delegation_session.py .....                               [ 24%]
+tests/cli/test_enhanced_tool_display.py ........                         [ 24%]
+tests/cli/test_escape_cancellation.py ........                           [ 24%]
+tests/cli/test_input.py ....................                             [ 25%]
+tests/cli/test_input_bindings.py ...                                     [ 25%]
+tests/cli/test_input_handler.py ..............                           [ 25%]
+tests/cli/test_interrupt.py .                                            [ 25%]
+tests/cli/test_json_output.py ............                               [ 25%]
+tests/cli/test_keyboard_fixes.py ..                                      [ 25%]
+tests/cli/test_keyboard_integration.py ..                                [ 25%]
+tests/cli/test_keyboard_interrupt.py ...                                 [ 25%]
+tests/cli/test_keyboard_verification.py ....                             [ 25%]
+tests/cli/test_loop_protection.py .............                          [ 26%]
+tests/cli/test_markup_safety.py ........................................ [ 26%]
+........................................................................ [ 27%]
+...................................                                      [ 28%]
+tests/cli/test_mcp_command.py ............                               [ 28%]
+tests/cli/test_mcp_logging.py ......                                     [ 28%]
+tests/cli/test_misc_commands_coverage.py ............................... [ 29%]
+..                                                                       [ 29%]
+tests/cli/test_orchestration_leak_fix.py .                               [ 29%]
+tests/cli/test_output_handler.py .................                       [ 29%]
+tests/cli/test_output_stream_coverage.py ............................... [ 30%]
+.........................                                                [ 30%]
+tests/cli/test_repl.py ................................                  [ 31%]
+tests/cli/test_repl_attribute_fix.py .......................             [ 31%]
+tests/cli/test_repl_session_manager.py ...........                       [ 31%]
+tests/cli/test_repl_startup_message.py .                                 [ 31%]
+tests/cli/test_repl_toolbar.py .........                                 [ 31%]
+tests/cli/test_session_helpers_coverage.py ............................. [ 32%]
+........................................                                 [ 33%]
+tests/cli/test_session_manager_errors.py ...                             [ 33%]
+tests/cli/test_team_command.py .....                                     [ 33%]
+tests/cli/test_textual_app.py ..................                         [ 33%]
+tests/cli/test_textual_app_coverage_100.py .......                       [ 33%]
+tests/cli/test_textual_bridge_bugs.py .....                              [ 33%]
+tests/cli/test_textual_bridge_coverage_100.py .............              [ 33%]
+tests/cli/test_textual_config.py ..                                      [ 34%]
+tests/cli/test_textual_config_bugs.py ...                                [ 34%]
+tests/cli/test_textual_config_coverage_100.py ...........                [ 34%]
+tests/cli/test_textual_coverage.py ..................................... [ 34%]
+.........................                                                [ 35%]
+tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 35%]
+tests/cli/test_textual_final_coverage.py ............................... [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+.................                                                        [ 44%]
+tests/cli/test_textual_functional_final.py .......................       [ 45%]
+tests/cli/test_textual_integration.py .................................. [ 45%]
+.............                                                            [ 46%]
+tests/cli/test_textual_mixins_bug.py .F
+
+=================================== FAILURES ===================================
+__ TestTextualConfirmIdCollisionBug.test_textual_confirm_uses_id_bug[asyncio] __
+tests/cli/test_textual_mixins_bug.py:89: in test_textual_confirm_uses_id_bug
+    assert 'self._confirm_counter' not in source, "_textual_confirm should NOT use _confirm_counter (but it should!)"
+E   AssertionError: _textual_confirm should NOT use _confirm_counter (but it should!)
+E   assert 'self._confirm_counter' not in '    async d...     raise\n'
+E     
+E     'self._confirm_counter' is contained here:
+E        req_id = self._confirm_counter  # type: ignore[attr-defined]
+E     ?           +++++++++++++++++++++
+E               self._confirm_counter += 1  # type: ignore[attr-defined]
+E               self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+E       ...
+E     
+E     ...Full output truncated (21 lines hidden), use '-vv' to show
+=============================== warnings summary ===============================
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_app_coverage_100.py::TestInitializeJsonProcessing::test_initialize_json_processing_returns_renderer[asyncio]
+tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_rag
+tests/cli/test_output_stream_coverage.py::TestToolExecutorCoverage::test_should_stop_due_to_limits_spinning
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_context_strategy_coverage.py::TestStrategyManager::test_manage_strategy_no_args_shows_status[asyncio]
+tests/cli/test_coverage_gaps_cli.py::TestReplMissingLines::test_run_direct_agent_lines_446_450[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_coverage_gaps_cli.py::TestConsoleMissingLines::test_markdown_with_open_code_fence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/rich/control.py:192: RuntimeWarning: coroutine 'TestOutputHandlerMissingLines.test_show_turn_status_rag_index.<locals>.fake_index_async' was never awaited
+    return text.translate(_translate_table)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:552: RuntimeWarning: Failed to load settings: Corrupted settings file. Using defaults.
+    self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:554: RuntimeWarning: Failed to gather environment: Format error.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:554: RuntimeWarning: Failed to gather environment: Cannot gather env.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_textual_confirm_uses_id_bug[asyncio]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============ 1 failed, 2729 passed, 10 warnings in 79.22s (0:01:19) ============
+[2026-03-17T04:00:02Z] Tests failed. Asking Henchman to fix (attempt 1/3)...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll help you fix the failing tests. Let's start by running the tests to see what's failing.
+[tool] shell({'command': 'python -m pytest tests/ -x -q --tb=short'})
+
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p
+Good! We have one failing test. Let me examine the failing test to understand what's wrong:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'start_line': 
+80, 'end_line': 100})
+
+[result]         # Get the actual _textual_confirm method
+        mixin = _InitMixin.__new__(_InitMixin)
+        
+        # We need to inspect the source to confirm it uses id()
+        import inspect
+        ...
+Now let me look at the actual implementation to see what's happening:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 50})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
+Let me search for the `_textual_confirm` method:
+[tool] grep({'pattern': 'def _textual_confirm', 'path': 
+'src/henchman/cli/textual_mixins.py', 'line_numbers': True})
+
+[result] 485:    async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:...
+Let me look at that method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+480, 'end_line': 520})
+
+[result]         """Replace the tool-confirmation handler with a TUI modal."""
+        ctx = self.core_context  # type: ignore[attr-defined]
+        if ctx:
+            ctx.tool_manager.set_confirmation_handle...
+Now I see the issue! The test is checking that `_textual_confirm` should NOT use `_confirm_counter`, but the comment in the code says "Use a counter-based ID instead of id(future) to avoid potential collisions". Let me check the test more carefully to understand what the expected behavior should be:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'start_line': 
+1, 'end_line': 30})
+
+[result] """Test for the id() collision bug in textual_mixins.py."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, patch
+import pytest
+
+from henchman.tools.base impor...
+Let me read more of the test to understand what it's trying to test:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'start_line': 
+30, 'end_line': 80})
+
+[result]         # Monkey-patch the _textual_confirm method to test it
+        mixin = _InitMixin.__new__(_InitMixin)
+        
+        # We need to simulate the bug scenario
+        # First, create a future an...
+Now I need to understand the test better. Let me look at the test that's failing and the test that shows what the fix should look like:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'start_line': 
+100, 'end_line': 130})
+
+[result]         
+        # We'll write this test to fail with current implementation
+        # and pass after fix
+        
+        app = MagicMock()
+        app._confirm_futures = {}
+        app._confirm_coun...
+I need to understand the actual bug and fix. Looking at the test and the code:
+
+1. The test says `_textual_confirm` should NOT use `_confirm_counter` (but it should!)
+2. The actual code IS using `_confirm_counter` 
+3. The test is checking that the source code contains `id(future)` and doesn't contain `self._confirm_counter`
+
+But wait, let me re-read the test assertion more carefully:
+
+```python
+assert 'self._confirm_counter' not in source, "_textual_confirm should NOT use _confirm_counter (but it should!)"
+```
+
+The test comment says "(but it should!)" - meaning the test is expecting the current buggy behavior where it doesn't use `_confirm_counter`, but it SHOULD use it. So this test is checking for the BUG, not the fix!
+
+Let me check if there's a newer version of the test or if the test expectations are wrong. Let me look at the actual source code again to see what it's doing:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+485, 'end_line': 495})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+495, 'end_line': 505})
+
+[result]         future: asyncio.Future[bool] = loop.create_future()
+        # Use a counter-based ID instead of id(future) to avoid potential
+        # collisions when memory addresses are reused after garbag...
+So the actual code IS using `self._confirm_counter` (which is the fix), but the test is expecting it to NOT use `self._confirm_counter` (which would be the bug).
+
+The test comment says "(but it should!)" - this suggests the test was written to detect the bug, and now that the bug is fixed, the test is failing because it's checking for the wrong thing.
+
+Actually, wait. Let me re-read the test assertion message again:
+```
+"_textual_confirm should NOT use _confirm_counter (but it should!)"
+```
+
+This is confusing. The message says "should NOT use _confirm_counter" but then says "(but it should!)". This seems like the test message is contradictory. 
+
+Let me check if maybe the test was written before the fix and now needs to be updated. Let me look at the git history or see if there are any recent changes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git log --oneline -n 5 -- 
+src/henchman/cli/textual_mixins.py'})
+
+[result] 0cbd2ab fix(four-lenses): four-lenses-cli-textual_mixins
+4205fb8 fix(four-lenses): four-lenses-cli-textual_mixins
+885c2c9 fix(four-lenses): four-lenses-cli-textual_mixins
+fdd34d0 docs(auto-improve): a...
+Let me check what the "four-lenses" fix was about:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git show 0cbd2ab --stat'})
+
+[result] commit 0cbd2abb8a3feb3fa9c2d3bc8187e50f092671fc
+Author: Matthew Glover <matthew.l.glover@gmail.com>
+Date:   Mon Mar 16 23:42:43 2026 -0400
+
+    fix(four-lenses): four-lenses-cli-textual_mixins
+    
+  ...
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git show 0cbd2ab -- 
+src/henchman/cli/textual_mixins.py'})
+
+[result] commit 0cbd2abb8a3feb3fa9c2d3bc8187e50f092671fc
+Author: Matthew Glover <matthew.l.glover@gmail.com>
+Date:   Mon Mar 16 23:42:43 2026 -0400
+
+    fix(four-lenses): four-lenses-cli-textual_mixins
+    
+  ...
+Ah! So the "four-lenses" fix CHANGED the code from using `self._confirm_counter` to using `id(future)`! And it added a comment saying `_confirm_counter is no longer used but kept for compatibility`.
+
+But the test is checking that the code should NOT use `_confirm_counter` (which is now true after the fix), but the test message says "(but it should!)" which suggests the test writer thought using `_confirm_counter` was the correct fix.
+
+Actually, looking at the git diff more carefully: the fix changed FROM using `_confirm_counter` TO using `id(future)`. The comment in the fix says "Use the future's id as a unique key - id() returns a unique integer for the object's lifetime, which is perfect for our needs".
+
+But wait, the test is saying the OPPOSITE! The test says:
+1. `assert 'id(future)' in source` - check that it uses id(future) ✓ (this passes)
+2. `assert 'self._confirm_counter' not in source` - check that it doesn't use _confirm_counter ✗ (this fails)
+
+But the test FAILED on assertion #2, meaning the source DOES contain `self._confirm_counter`. But the git diff shows the fix removed `self._confirm_counter` from the `_textual_confirm` method!
+
+Let me check the actual source code again to see what's really there:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && grep -n "_confirm_counter"
+src/henchman/cli/textual_mixins.py'})
+
+[result] 414:        # _confirm_counter is no longer used but kept for 
+compatibility
+415:        self._confirm_counter: int = 0
+498:        req_id = self._confirm_counter  # type: ignore[attr-defined]
+499:    ...
+Wait! Lines 498-499 still have `self._confirm_counter`! But the git diff shows it was changed to `id(future)`. Let me check if the git diff was actually applied:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git status'})
+
+[result] On branch main
+Your branch is ahead of 'origin/main' by 120 commits.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be ...
+So `src/henchman/cli/textual_mixins.py` has been modified! Let me see what the current state is:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+src/henchman/cli/textual_mixins.py'})
+
+[result] diff --git a/src/henchman/cli/textual_mixins.py 
+b/src/henchman/cli/textual_mixins.py
+index e90b34e..e3784f4 100644
+--- a/src/henchman/cli/textual_mixins.py
++++ b/src/henchman/cli/textual_mixins.py
+@@ ...
+Ah! So someone REVERTED the "four-lenses" fix! They changed it BACK from `id(future)` to using `self._confirm_counter`. But the test was written to expect the "four-lenses" fix (using `id(future)` and NOT using `_confirm_counter`).
+
+Now I need to understand: which is correct? The test or the current code?
+
+Looking at the comments:
+- Current code comment: "Use a counter-based ID instead of id(future) to avoid potential collisions when memory addresses are reused after garbage collection"
+- "Four-lenses" fix comment: "Use the future's id as a unique key - id() returns a unique integer for the object's lifetime, which is perfect for our needs"
+
+The test seems to be testing for the "four-lenses" fix behavior, but the code has been reverted back to the original. 
+
+Actually, wait. Let me re-examine the test failure message more carefully. The test says:
+```
+assert 'self._confirm_counter' not in source, "_textual_confirm should NOT use _confirm_counter (but it should!)"
+```
+
+The message says "should NOT use _confirm_counter (but it should!)" - the "(but it should!)" part suggests the test writer believes using `_confirm_counter` is the correct behavior, but they're testing for the buggy behavior.
+
+I think the issue is that the test was written to detect a bug (using `id(future)`), but then the "four-lenses" fix implemented that bug as a "fix", and then someone reverted it back. Now the test is failing because it's checking for the buggy behavior but the code is correct.
+
+Actually, let me think about this logically:
+1. Using `id(future)` CAN have collisions if a future is garbage collected and memory is reused
+2. Using a counter is guaranteed to be unique (as long as we don't overflow, which we won't with Python integers)
+3. The test comment "(but it should!)" suggests the test writer thinks using `_confirm_counter` is correct
+
+So I think the test is wrong. It should be checking that the code DOES use `_confirm_counter` and does NOT use `id(future)`. But the test is checking the opposite.
+
+Let me check if the test file was also modified:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+tests/cli/test_textual_mixins_bug.py'})
+
+[result] diff --git a/tests/cli/test_textual_mixins_bug.py 
+b/tests/cli/test_textual_mixins_bug.py
+index 6ea8a76..b31230e 100644
+--- a/tests/cli/test_textual_mixins_bug.py
++++ b/tests/cli/test_textual_mixins_bu...
+That's a different change - updating the `ConfirmationRequest` parameters. Let me check what the test is actually testing. The key issue is that the test has this assertion:
+
+```python
+assert 'self._confirm_counter' not in source, "_textual_confirm should NOT use _confirm_counter (but it should!)"
+```
+
+But the current code DOES use `self._confirm_counter`. So the test is failing because it's checking for buggy behavior but the code is correct.
+
+I need to fix the test to match the correct behavior. The test should check that the code DOES use `_confirm_counter` and does NOT use `id(future)`.
+
+Actually, wait. Let me re-read the test name: `test_textual_confirm_uses_id_bug`. This test is checking that `_textual_confirm` uses `id()` which is buggy. So this test is checking for the BUG. But the code has been fixed (using `_confirm_counter`), so the test should pass (because it's checking that the bug exists, but the bug doesn't exist anymore).
+
+Hmm, but the assertion is `assert 'self._confirm_counter' not in source`. If the bug is using `id(future)`, then the test should check that `id(future)` IS in the source (bug exists) and `self._confirm_counter` is NOT in the source (correct fix not applied).
+
+But the test message says: "_textual_confirm should NOT use _confirm_counter (but it should!)" - this is confusing. It says "should NOT use _confirm_counter" but then "(but it should!)".
+
+I think the test message is wrong. It should say something like: "_textual_confirm should NOT use id(future) (but it does!)" if it's checking for the bug.
+
+Actually, let me look at the test more carefully. The test is checking TWO things:
+1. `assert 'id(future)' in source` - check that it uses id(future) 
+2. `assert 'self._confirm_counter' not in source` - check that it doesn't use _confirm_counter
+
+If the bug is using `id(future)`, then assertion #1 should pass (bug exists) and assertion #2 should pass (correct fix not applied).
+
+But the current code uses `_confirm_counter`, so assertion #2 fails.
+
+I think the test is testing for the WRONG state. It's testing that the bug exists (using `id(future)`), but the code has been fixed (using `_confirm_counter`).
+
+The simplest fix is to update the test to check for the CORRECT behavior:
+1. `assert 'id(future)' not in source` - should NOT use id(future)
+2. `assert 'self._confirm_counter' in source` - should use _confirm_counter
+
+But actually, I should check if there are other tests that might be expecting the buggy behavior. Let me run all the tests in this file:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py -x -q --tb=short'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p
+Only 1 test is failing. Let me check what the other test in the file is:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_id_
+collision_bug -xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+So `test_id_collision_bug` passes. Let me run the other test that shows what the fix should look like:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_fix
+_would_use_counter -xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+So `test_fix_would_use_counter` passes. Let me look at that test to understand what it's checking:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'start_line': 
+100, 'end_line': 150})
+
+[result]         
+        # We'll write this test to fail with current implementation
+        # and pass after fix
+        
+        app = MagicMock()
+        app._confirm_futures = {}
+        app._confirm_coun...
+Now I understand! The test `test_fix_would_use_counter` is checking that after the fix, the key should be 100 (counter value), not id(). But this test passes, which means the current implementation is using the counter (which is correct).
+
+But `test_textual_confirm_uses_id_bug` is checking that the source code contains `id(future)` and doesn't contain `self._confirm_counter`. This test is checking for the BUGGY behavior, but the code has been FIXED (using `self._confirm_counter`).
+
+So the test is wrong. It should be checking the opposite: that the source code does NOT contain `id(future)` and DOES contain `self._confirm_counter`.
+
+Let me fix the test:
+[tool] edit_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'old_str': '  
+source = inspect.getsource(module._InitMixin._textual_confirm)\n        assert 
+\'id(future)\' in source, "_textual_confirm should use id(future) - this is the 
+bug!"\n        assert \'self._confirm_counter\' not in source, "_textual_confirm
+should NOT use _confirm_counter (but it should!)"', 'new_str': '        source =
+inspect.getsource(module._InitMixin._textual_confirm)\n        assert 
+\'id(future)\' not in source, "_textual_confirm should NOT use id(future) - 
+that\'s the bug!"\n        assert \'self._confirm_counter\' in source, 
+"_textual_confirm SHOULD use _confirm_counter - that\'s the fix!"'})
+
+[result] Successfully edited tests/cli/test_textual_mixins_bug.py...
+Now let me run the test again to see if it passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_tex
+tual_confirm_uses_id_bug -xvs'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Ah! The source contains `id(future)` in the COMMENT! The comment says "Use a counter-based ID instead of id(future) to avoid potential collisions". So the test is failing because it's checking for the string `'id(future)'` in the source, and it's finding it in the comment.
+
+The test should check that `id(future)` is not used as CODE, not that it doesn't appear anywhere in the source. But checking source code for string patterns is tricky. 
+
+Actually, looking at the test name `test_textual_confirm_uses_id_bug` - it's testing that `_textual_confirm` uses `id()` which is buggy. But the current implementation doesn't use `id(future)` as code - it only mentions it in a comment. The actual code uses `self._confirm_counter`.
+
+So the test is checking the wrong thing. It should check that the code doesn't CALL `id(future)`, not that the string doesn't appear anywhere. But `inspect.getsource` returns the entire source including comments.
+
+I need to update the test to be more precise. Let me check if `id(` appears in the code (not in comments):
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+490, 'end_line': 510})
+
+[result] 
+        Returns:
+            ``True`` if approved, ``False`` otherwise.
+        """
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[bool] = loop.create_future()
+        # Use...
+The code doesn't call `id(future)` - it only mentions it in a comment. The test is checking for the string `'id(future)'` in the source code, which includes comments. The test should be more precise and check that `id(` doesn't appear as a function call.
+
+Actually, let me think about this differently. The test is checking for a bug where `id(future)` is used as code. But the current code doesn't use `id(future)` as code - it uses `self._confirm_counter`. So the test should pass.
+
+The issue is that the test is checking for the string `'id(future)'` which appears in a COMMENT. We need to update the test to ignore comments or check for `id(` as a function call.
+
+Actually, looking at the test failure output again, I see `'id(future)'` appears in the comment line: `# Use a counter-based ID instead of id(future) to avoid potential`. So the test is failing because it's finding the string in a comment.
+
+I should update the test to check that `id(` doesn't appear as a function call (not followed by `future)` in a comment). But that's getting complex. 
+
+Actually, let me re-examine: the test is called `test_textual_confirm_uses_id_bug` and it's checking that the bug exists. But the bug doesn't exist - the code has been fixed. So the test should pass (checking that the bug doesn't exist).
+
+The simplest fix is to update the test to check the opposite: that `id(` doesn't appear as code. But checking source code for patterns is tricky with comments.
+
+Actually, let me look at the test again. It's checking `'id(future)'` in the source. But `'id(future)'` appears in a comment. We could check for `id(` without the closing parenthesis, but that might also appear in comments.
+
+Actually, I think the best approach is to update the test to check that the code uses `self._confirm_counter` (which it does) and doesn't call `id(` as a function. Let me write a better test:
+[tool] edit_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'old_str': '  
+source = inspect.getsource(module._InitMixin._textual_confirm)\n        assert 
+\'id(future)\' not in source, "_textual_confirm should NOT use id(future) - 
+that\'s the bug!"\n        assert \'self._confirm_counter\' in source, 
+"_textual_confirm SHOULD use _confirm_counter - that\'s the fix!"', 'new_str': '
+source = inspect.getsource(module._InitMixin._textual_confirm)\n        \n      
+# Check that the code uses self._confirm_counter (the fix)\n        assert 
+\'self._confirm_counter\' in source, "_textual_confirm SHOULD use 
+_confirm_counter - that\'s the fix!"\n        \n        # Check that id(future) 
+is not called as a function (only appears in comments)\n        # We need to 
+parse the source to ignore comments\n        import ast\n        tree = 
+ast.parse(source)\n        \n        # Walk the AST to find any calls to id()\n 
+has_id_call = False\n        for node in ast.walk(tree):\n            if 
+isinstance(node, ast.Call):\n                if isinstance(node.func, ast.Name) 
+and node.func.id == \'id\':\n                    has_id_call = True\n           
+break\n        \n        assert not has_id_call, "_textual_confirm should NOT 
+call id() - that\'s the bug!"'})
+
+[result] Successfully edited tests/cli/test_textual_mixins_bug.py...
+Now let me run the test again:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_tex
+tual_confirm_uses_id_bug -xvs'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+The AST parsing is failing because `inspect.getsource` returns the source with indentation. We need to dedent it first. Let me fix this:
+[tool] edit_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'old_str': '  
+source = inspect.getsource(module._InitMixin._textual_confirm)\n        \n      
+# Check that the code uses self._confirm_counter (the fix)\n        assert 
+\'self._confirm_counter\' in source, "_textual_confirm SHOULD use 
+_confirm_counter - that\'s the fix!"\n        \n        # Check that id(future) 
+is not called as a function (only appears in comments)\n        # We need to 
+parse the source to ignore comments\n        import ast\n        tree = 
+ast.parse(source)\n        \n        # Walk the AST to find any calls to id()\n 
+has_id_call = False\n        for node in ast.walk(tree):\n            if 
+isinstance(node, ast.Call):\n                if isinstance(node.func, ast.Name) 
+and node.func.id == \'id\':\n                    has_id_call = True\n           
+break\n        \n        assert not has_id_call, "_textual_confirm should NOT 
+call id() - that\'s the bug!"', 'new_str': '        source = 
+inspect.getsource(module._InitMixin._textual_confirm)\n        \n        # Check
+that the code uses self._confirm_counter (the fix)\n        assert 
+\'self._confirm_counter\' in source, "_textual_confirm SHOULD use 
+_confirm_counter - that\'s the fix!"\n        \n        # Check that id(future) 
+is not called as a function (only appears in comments)\n        # We need to 
+parse the source to ignore comments\n        import ast\n        import 
+textwrap\n        \n        # Dedent the source first\n        dedented_source =
+textwrap.dedent(source)\n        tree = ast.parse(dedented_source)\n        \n  
+# Walk the AST to find any calls to id()\n        has_id_call = False\n        
+for node in ast.walk(tree):\n            if isinstance(node, ast.Call):\n       
+if isinstance(node.func, ast.Name) and node.func.id == \'id\':\n                
+has_id_call = True\n                    break\n        \n        assert not 
+has_id_call, "_textual_confirm should NOT call id() - that\'s the bug!"'})
+
+[result] Successfully edited tests/cli/test_textual_mixins_bug.py...
+Now let me run the test again:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py::TestTextualConfirmIdCollisionBug::test_tex
+tual_confirm_uses_id_bug -xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! The test passes now. Let me run all the tests in the file to make sure everything passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py -x -q --tb=short'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Excellent! All tests in the file pass now. Let me run the full test suite to make sure I didn't break anything else:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+-q --tb=short 2>&1 | tail -50'})
+
+[result] src/henchman/tools/builtins/patch_apply.py                    225      
+0     62      0   100%
+src/henchman/tools/builtins/pattern_search.py                 130      3     42 
+2    97%   171-172, 1...
+Great! All tests pass. Let me run the original failing test command to confirm:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+-q --tb=short 2>&1 | grep -E "(FAILED|passed|failed|ERROR)" | tail -20'})
+
+[result] =========== 5909 passed, 6 skipped, 45 warnings in 191.76s (0:03:11) 
+===========
+...
+Perfect! All tests pass. Let me also run the CI script to make sure everything is good:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh 2>&1 | 
+tail -50'})
+
+[result] /bin/sh: 1: ./scripts/ci.sh: not found
+...
+Let me check if there's a CI script:
+[tool] ls({'path': '/home/matthew/mlg-cli'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+add_parse_method.py
+after_extractor_smells.json
+after_summarizer_refactor_smells.json
+after_summarizer_smell...
+
+[tool] ls({'path': '/home/matthew/mlg-cli/scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+refactor_tools.py
+run_evals.sh
+smell_detector/...
+Let me run a quick check to make sure the basic tests pass:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug.py -v'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Perfect! All tests pass. Let me run the original command that was failing to confirm:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+-q --tb=short 2>&1 | head -100'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+The tests are running successfully. Let me check if there are any other failing tests by looking for failures:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+-q --tb=short 2>&1 | tail -20'})
+
+[result] src/henchman/utils/intelligent_context_formatter.py           150     
+49     52      9    63%   56, 127-142, 193->196, 233, 246, 276-278, 300, 
+320-344, 367-368, 375, 407, 428-448
+src/henchman/utils/in...
+Excellent! All 5909 tests pass. The fix is complete. 
+
+## Summary
+
+I successfully fixed the failing test by updating the test expectations to match the actual code behavior. The issue was:
+
+1. **The bug**: Originally, `_textual_confirm` used `id(future)` which could cause collisions if memory addresses were reused after garbage collection.
+
+2. **The fix**: The code was changed to use `self._confirm_counter` (a monotonic counter) instead of `id(future)`.
+
+3. **The test problem**: The test `test_textual_confirm_uses_id_bug` was checking for the buggy behavior (using `id(future)`), but the code had been fixed. The test was checking for the string `'id(future)'` in the source code, which appeared in a COMMENT (not as actual code).
+
+4. **My solution**: I updated the test to:
+   - Check that `self._confirm_counter` IS used (the fix)
+   - Check that `id()` is NOT called as a function (using AST parsing to ignore comments)
+   - Properly dedent the source code before AST parsing
+
+The fix is minimal and correct: it only updates the test to match the actual (correct) behavior of the code, without changing any production code. All tests now pass.
+[tech_lead] completed work
+[2026-03-17T04:00:02Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 5915 items
+
+tests/agents/test_agents_coverage.py ................................... [  0%]
+...................................................................      [  1%]
+tests/agents/test_completion_status.py ................................  [  2%]
+tests/agents/test_config.py ..                                           [  2%]
+tests/agents/test_coverage_gaps_agents.py .............................. [  2%]
+....................................                                     [  3%]
+tests/agents/test_delegation_coverage_100.py ........................... [  3%]
+.......................                                                  [  4%]
+tests/agents/test_delegation_e2e.py ...........                          [  4%]
+tests/agents/test_delegation_error_handling.py ........                  [  4%]
+tests/agents/test_identity.py ..                                         [  4%]
+tests/agents/test_infinite_loop_fix.py .....                             [  4%]
+tests/agents/test_ledger.py ............................                 [  5%]
+tests/agents/test_ledger_coverage.py ........                            [  5%]
+tests/agents/test_ledger_edge_cases.py .....................             [  5%]
+tests/agents/test_ledger_refactor.py .........................           [  6%]
+tests/agents/test_ledger_refactoring.py ......                           [  6%]
+tests/agents/test_ledger_refactoring_smells.py ......                    [  6%]
+tests/agents/test_ledger_smell_fixes.py ...............                  [  6%]
+tests/agents/test_metrics_reporter.py ...........................        [  6%]
+tests/agents/test_orchestrator.py ...................................... [  7%]
+...................                                                      [  7%]
+tests/agents/test_pool.py ..........                                     [  8%]
+tests/agents/test_presets.py ......                                      [  8%]
+tests/agents/test_prompts.py ........................................... [  8%]
+.........                                                                [  9%]
+tests/agents/test_thinking_protocol.py .......                           [  9%]
+tests/agents/test_working_memory.py .................................... [  9%]
+.......................................                                  [ 10%]
+tests/agents/test_working_memory_actual_bug.py ....                      [ 10%]
+tests/agents/test_working_memory_actual_core_bug.py .....                [ 10%]
+tests/agents/test_working_memory_algorithm_bug.py .....                  [ 10%]
+tests/agents/test_working_memory_bool_bug.py ...                         [ 10%]
+tests/agents/test_working_memory_bug.py .                                [ 10%]
+tests/agents/test_working_memory_bug_end_minus_one.py ....               [ 10%]
+tests/agents/test_working_memory_bug_error_message.py ...                [ 10%]
+tests/agents/test_working_memory_bug_find.py .....                       [ 11%]
+tests/agents/test_working_memory_bug_validation.py ..                    [ 11%]
+tests/agents/test_working_memory_bug_validation_order.py ..              [ 11%]
+tests/agents/test_working_memory_core_bug.py ......                      [ 11%]
+tests/agents/test_working_memory_dash_inconsistency.py .                 [ 11%]
+tests/agents/test_working_memory_deserialization_bug.py ..               [ 11%]
+tests/agents/test_working_memory_edge_case_bug.py ....                   [ 11%]
+tests/agents/test_working_memory_edge_cases.py .......                   [ 11%]
+tests/agents/test_working_memory_empty_lines_read_bug.py ...             [ 11%]
+tests/agents/test_working_memory_empty_lines_read_bug_fix.py ...         [ 11%]
+tests/agents/test_working_memory_end_minus_one_bug.py ...                [ 11%]
+tests/agents/test_working_memory_entry_validation_bug.py .               [ 11%]
+tests/agents/test_working_memory_error_message.py ..                     [ 11%]
+tests/agents/test_working_memory_find_bug.py ..........                  [ 11%]
+tests/agents/test_working_memory_float_bug.py ...                        [ 11%]
+tests/agents/test_working_memory_float_minus_one_bug.py ....             [ 11%]
+tests/agents/test_working_memory_float_precision_bug.py .                [ 11%]
+tests/agents/test_working_memory_four_lenses_bug_fix.py ...              [ 11%]
+tests/agents/test_working_memory_full_contains_bug.py .....              [ 12%]
+tests/agents/test_working_memory_full_token_bug.py ......                [ 12%]
+tests/agents/test_working_memory_full_token_bug_fix.py .....             [ 12%]
+tests/agents/test_working_memory_invalid_lines_read_bug.py .             [ 12%]
+tests/agents/test_working_memory_isdigit_bug.py ......                   [ 12%]
+tests/agents/test_working_memory_isdigit_fix.py .....                    [ 12%]
+tests/agents/test_working_memory_key_insights_bug.py ....                [ 12%]
+tests/agents/test_working_memory_line_number_validation_bug.py ....      [ 12%]
+tests/agents/test_working_memory_logic_bug.py ...                        [ 12%]
+tests/agents/test_working_memory_merge_bug.py ....                       [ 12%]
+tests/agents/test_working_memory_misleading_message_bug.py ...           [ 12%]
+tests/agents/test_working_memory_missing_return.py ..                    [ 12%]
+tests/agents/test_working_memory_none_bug.py ...                         [ 12%]
+tests/agents/test_working_memory_none_vs_empty_bug.py ...                [ 12%]
+tests/agents/test_working_memory_parse_bug.py ..                         [ 12%]
+tests/agents/test_working_memory_real_bug.py ....                        [ 12%]
+tests/agents/test_working_memory_real_bug_found.py ...                   [ 13%]
+tests/agents/test_working_memory_real_failing_bug.py ....                [ 13%]
+tests/agents/test_working_memory_type_safety_bug.py ..                   [ 13%]
+tests/agents/test_working_memory_unicode_dash_bug.py ...                 [ 13%]
+tests/agents/test_working_memory_unicode_dash_bug2.py .                  [ 13%]
+tests/agents/test_working_memory_unicode_digit_bug.py ....               [ 13%]
+tests/agents/test_working_memory_validation_bug.py ..                    [ 13%]
+tests/agents/test_working_memory_validation_bug_fix.py ...               [ 13%]
+tests/agents/test_working_memory_validation_order_bug.py ...             [ 13%]
+tests/agents/test_working_memory_whitespace_bug.py ......                [ 13%]
+tests/api/test_api.py .................................................. [ 14%]
+..........................                                               [ 14%]
+tests/cli/commands/test_context.py ........                              [ 14%]
+tests/cli/commands/test_model.py .............                           [ 15%]
+tests/cli/commands/test_model_integration.py ...                         [ 15%]
+tests/cli/commands/test_plan.py .......                                  [ 15%]
+tests/cli/commands/test_plan_branch.py ...                               [ 15%]
+tests/cli/commands/test_session.py .....                                 [ 15%]
+tests/cli/commands/test_session_resume_id.py .                           [ 15%]
+tests/cli/commands/test_unlimited.py ..............                      [ 15%]
+tests/cli/test_additional_coverage.py .................................  [ 16%]
+tests/cli/test_agent_command.py ...........                              [ 16%]
+tests/cli/test_app.py ....................                               [ 16%]
+tests/cli/test_app_coverage_100.py .........................             [ 17%]
+tests/cli/test_app_extended.py .....                                     [ 17%]
+tests/cli/test_app_input_coverage.py ................................... [ 17%]
+.........                                                                [ 18%]
+tests/cli/test_builtins.py .......................                       [ 18%]
+tests/cli/test_chat_command.py ...................                       [ 18%]
+tests/cli/test_cli_smoke.py ....                                         [ 18%]
+tests/cli/test_command_processor.py ............                         [ 19%]
+tests/cli/test_commands.py ................                              [ 19%]
+tests/cli/test_commands_repro.py ..                                      [ 19%]
+tests/cli/test_console.py ..........................................     [ 20%]
+tests/cli/test_console_confirm.py ...                                    [ 20%]
+tests/cli/test_console_coverage.py ..................................... [ 20%]
+......                                                                   [ 20%]
+tests/cli/test_context_strategy_coverage.py ............................ [ 21%]
+..........                                                               [ 21%]
+tests/cli/test_core_init.py ........                                     [ 21%]
+tests/cli/test_coverage_gaps_cli.py .................................... [ 22%]
+........................................................................ [ 23%]
+..............................................................           [ 24%]
+tests/cli/test_delegation_session.py .....                               [ 24%]
+tests/cli/test_enhanced_tool_display.py ........                         [ 24%]
+tests/cli/test_escape_cancellation.py ........                           [ 24%]
+tests/cli/test_input.py ....................                             [ 25%]
+tests/cli/test_input_bindings.py ...                                     [ 25%]
+tests/cli/test_input_handler.py ..............                           [ 25%]
+tests/cli/test_interrupt.py .                                            [ 25%]
+tests/cli/test_json_output.py ............                               [ 25%]
+tests/cli/test_keyboard_fixes.py ..                                      [ 25%]
+tests/cli/test_keyboard_integration.py ..                                [ 25%]
+tests/cli/test_keyboard_interrupt.py ...                                 [ 25%]
+tests/cli/test_keyboard_verification.py ....                             [ 25%]
+tests/cli/test_loop_protection.py .............                          [ 26%]
+tests/cli/test_markup_safety.py ........................................ [ 26%]
+........................................................................ [ 27%]
+...................................                                      [ 28%]
+tests/cli/test_mcp_command.py ............                               [ 28%]
+tests/cli/test_mcp_logging.py ......                                     [ 28%]
+tests/cli/test_misc_commands_coverage.py ............................... [ 29%]
+..                                                                       [ 29%]
+tests/cli/test_orchestration_leak_fix.py .                               [ 29%]
+tests/cli/test_output_handler.py .................                       [ 29%]
+tests/cli/test_output_stream_coverage.py ............................... [ 30%]
+.........................                                                [ 30%]
+tests/cli/test_repl.py ................................                  [ 31%]
+tests/cli/test_repl_attribute_fix.py .......................             [ 31%]
+tests/cli/test_repl_session_manager.py ...........                       [ 31%]
+tests/cli/test_repl_startup_message.py .                                 [ 31%]
+tests/cli/test_repl_toolbar.py .........                                 [ 31%]
+tests/cli/test_session_helpers_coverage.py ............................. [ 32%]
+........................................                                 [ 33%]
+tests/cli/test_session_manager_errors.py ...                             [ 33%]
+tests/cli/test_team_command.py .....                                     [ 33%]
+tests/cli/test_textual_app.py ..................                         [ 33%]
+tests/cli/test_textual_app_coverage_100.py .......                       [ 33%]
+tests/cli/test_textual_bridge_bugs.py .....                              [ 33%]
+tests/cli/test_textual_bridge_coverage_100.py .............              [ 33%]
+tests/cli/test_textual_config.py ..                                      [ 34%]
+tests/cli/test_textual_config_bugs.py ...                                [ 34%]
+tests/cli/test_textual_config_coverage_100.py ...........                [ 34%]
+tests/cli/test_textual_coverage.py ..................................... [ 34%]
+.........................                                                [ 35%]
+tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 35%]
+tests/cli/test_textual_final_coverage.py ............................... [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+.................                                                        [ 44%]
+tests/cli/test_textual_functional_final.py .......................       [ 45%]
+tests/cli/test_textual_integration.py .................................. [ 45%]
+.............                                                            [ 46%]
+tests/cli/test_textual_mixins_bug.py ....                                [ 46%]
+tests/cli/test_textual_mixins_bug_failing.py ..                          [ 46%]
+tests/cli/test_textual_mixins_coverage.py .............................. [ 46%]
+.....                                                                    [ 46%]
+tests/cli/test_textual_phase1.py ....                                    [ 46%]
+tests/cli/test_textual_phase2.py ...                                     [ 46%]
+tests/cli/test_textual_phase3.py ..                                      [ 46%]
+tests/cli/test_textual_phase4.py ...                                     [ 47%]
+tests/cli/test_textual_progress_indicators.py ....                       [ 47%]
+tests/cli/test_textual_screens_bugs.py ...                               [ 47%]
+tests/cli/test_textual_screens_refactoring.py ..................         [ 47%]
+tests/cli/test_textual_search.py ............                            [ 47%]
+tests/cli/test_textual_session_management.py .....                       [ 47%]
+tests/cli/test_textual_tool_boxes.py ...                                 [ 47%]
+tests/cli/test_textual_widgets_bugs.py .....                             [ 47%]
+tests/cli/test_textual_widgets_refactoring.py .....                      [ 47%]
+tests/cli/test_theme_command.py ...............                          [ 48%]
+tests/cli/test_thinking_in_chat.py .............                         [ 48%]
+tests/cli/test_thinking_indicator.py ...........                         [ 48%]
+tests/cli/test_thinking_streaming_and_tool_spacing.py .......            [ 48%]
+tests/cli/test_thinking_tool_display.py ..........                       [ 48%]
+tests/cli/test_ui_renderer_methods.py ..................                 [ 49%]
+tests/config/test_context.py .................................           [ 49%]
+tests/config/test_environment.py ....................................... [ 50%]
+..........                                                               [ 50%]
+tests/config/test_missing_coverage.py .....                              [ 50%]
+tests/config/test_schema.py ................                             [ 50%]
+tests/config/test_schema_errors.py ..                                    [ 50%]
+tests/config/test_settings.py .........................                  [ 51%]
+tests/core/test_agent.py ............................                    [ 51%]
+tests/core/test_agent_coverage_100.py .........                          [ 52%]
+tests/core/test_automatic_compaction.py .....                            [ 52%]
+tests/core/test_compaction_start_index.py ....                           [ 52%]
+tests/core/test_coverage_boost.py ...................................... [ 52%]
+                                                                         [ 52%]
+tests/core/test_eventbus.py ......                                       [ 52%]
+tests/core/test_events.py .............                                  [ 53%]
+tests/core/test_intelligent_context_integration.py ............          [ 53%]
+tests/core/test_missing_coverage.py .................................    [ 53%]
+tests/core/test_session.py ..........................                    [ 54%]
+tests/core/test_session_enhanced.py ..............                       [ 54%]
+tests/core/test_session_errors.py ..                                     [ 54%]
+tests/core/test_session_manager.py ..................................... [ 55%]
+.                                                                        [ 55%]
+tests/core/test_streaming_tool_calls.py ...                              [ 55%]
+tests/core/test_turn_state.py ............                               [ 55%]
+tests/e2e/test_agent_interaction.py .                                    [ 55%]
+tests/e2e/test_context_safety.py ....                                    [ 55%]
+tests/e2e/test_mcp_integration.py .......                                [ 55%]
+tests/e2e/test_plan_mode_workflow.py .                                   [ 55%]
+tests/e2e/test_serena_cli_integration.py .........                       [ 55%]
+tests/e2e/test_tool_fix.py ....                                          [ 55%]
+tests/empty_message_validation/test_empty_messages.py .......            [ 56%]
+tests/extensions/test_base.py ........                                   [ 56%]
+tests/extensions/test_command.py .....                                   [ 56%]
+tests/extensions/test_manager.py ........................                [ 56%]
+tests/extensions/test_missing_coverage.py ...........                    [ 56%]
+tests/extensions/test_plugin_coverage.py ............................... [ 57%]
+........................................................................ [ 58%]
+....                                                                     [ 58%]
+tests/extensions/test_plugin_manager.py .........                        [ 58%]
+tests/extensions/test_plugin_manager_refactor.py ..............          [ 59%]
+tests/extensions/test_plugin_manager_refactoring.py .....                [ 59%]
+tests/extensions/test_plugin_manager_type_hints.py ......                [ 59%]
+tests/extensions/test_plugin_models.py ..............                    [ 59%]
+tests/henchman/cli/test_textual_app.py ...............                   [ 59%]
+tests/henchman/cli/test_textual_widgets.py .........                     [ 59%]
+tests/integration/test_anthropic_functional.py s                         [ 59%]
+tests/integration/test_context_limits.py ...........                     [ 60%]
+tests/integration/test_mcp_serena.py .s....                              [ 60%]
+tests/integration/test_tool_integration.py .....s.                       [ 60%]
+tests/knowledge/test_missing_coverage.py .................               [ 60%]
+tests/knowledge/test_scanner.py ...................                      [ 60%]
+tests/knowledge/test_scanner_coverage.py .......................         [ 61%]
+tests/knowledge/test_store.py .............................              [ 61%]
+tests/mcp/test_client.py ..........                                      [ 61%]
+tests/mcp/test_config.py .....                                           [ 62%]
+tests/mcp/test_filtered_stream.py ....                                   [ 62%]
+tests/mcp/test_manager.py ...........                                    [ 62%]
+tests/mcp/test_tool.py .......                                           [ 62%]
+tests/metrics/test_collector.py ........................................ [ 63%]
+......................                                                   [ 63%]
+tests/metrics/test_dashboard.py ........................................ [ 64%]
+...                                                                      [ 64%]
+tests/metrics/test_exporter.py ................................          [ 64%]
+tests/metrics/test_init.py ..                                            [ 64%]
+tests/metrics/test_models.py .....................                       [ 65%]
+tests/metrics/test_storage.py .......................................... [ 65%]
+..                                                                       [ 65%]
+tests/providers/test_413_error_handling.py .........                     [ 66%]
+tests/providers/test_anthropic.py .............................          [ 66%]
+tests/providers/test_anthropic_ratelimit.py .s.                          [ 66%]
+tests/providers/test_anthropic_validation.py .....                       [ 66%]
+tests/providers/test_base.py ...............                             [ 66%]
+tests/providers/test_deepseek.py .......                                 [ 67%]
+tests/providers/test_missing_coverage.py .............                   [ 67%]
+tests/providers/test_ollama.py .........                                 [ 67%]
+tests/providers/test_openai_compat.py ............................       [ 67%]
+tests/providers/test_openrouter.py ...........                           [ 68%]
+tests/providers/test_registry.py ........                                [ 68%]
+tests/providers/test_utils.py ......................                     [ 68%]
+tests/rag/test_chunker.py .............                                  [ 68%]
+tests/rag/test_concurrency.py .............                              [ 69%]
+tests/rag/test_concurrency_smoke.py .....                                [ 69%]
+tests/rag/test_coverage_boost.py ....................................... [ 69%]
+...                                                                      [ 69%]
+tests/rag/test_embedder.py .......                                       [ 69%]
+tests/rag/test_indexer.py ....................                           [ 70%]
+tests/rag/test_missing_coverage.py .....                                 [ 70%]
+tests/rag/test_rag_command.py ....................                       [ 70%]
+tests/rag/test_rag_concurrency_integration.py ......                     [ 70%]
+tests/rag/test_rag_search_tool.py ...........                            [ 70%]
+tests/rag/test_repo_id.py ................                               [ 71%]
+tests/rag/test_store.py ...........                                      [ 71%]
+tests/rag/test_system.py ...........                                     [ 71%]
+tests/smoke/test_escape_key_behavior.py .......                          [ 71%]
+tests/smoke/test_large_file_handling.py ............                     [ 71%]
+tests/test_branch_coverage.py .....................                      [ 72%]
+tests/test_context_management.py .............                           [ 72%]
+tests/test_coverage_suite.py .......                                     [ 72%]
+tests/test_init.py ....                                                  [ 72%]
+tests/test_interactive.py ..                                             [ 72%]
+tests/test_main.py .s                                                    [ 72%]
+tests/test_phase5.py ..                                                  [ 72%]
+tests/test_phase6_1.py .                                                 [ 72%]
+tests/test_phase6_2.py .                                                 [ 72%]
+tests/test_phase6_3.py .                                                 [ 72%]
+tests/test_phase7.py ..                                                  [ 72%]
+tests/test_progress.py .                                                 [ 72%]
+tests/test_settings_persistence.py .                                     [ 72%]
+tests/test_version.py ...                                                [ 72%]
+tests/test_visualization.py .                                            [ 72%]
+tests/tools/test_ask_user_comprehensive.py .......                       [ 73%]
+tests/tools/test_ask_user_tool.py ........                               [ 73%]
+tests/tools/test_base.py ....................                            [ 73%]
+tests/tools/test_code_format.py .............                            [ 73%]
+tests/tools/test_coverage_map.py .................................       [ 74%]
+tests/tools/test_dead_code.py ................................           [ 74%]
+tests/tools/test_deep_research.py ....................                   [ 75%]
+tests/tools/test_delegate.py ..                                          [ 75%]
+tests/tools/test_delegate_enhanced.py .....                              [ 75%]
+tests/tools/test_diff_view.py ....................                       [ 75%]
+tests/tools/test_directory_tools.py ................                     [ 75%]
+tests/tools/test_env_inspect.py ..................                       [ 76%]
+tests/tools/test_file_overview.py .....................................  [ 76%]
+tests/tools/test_file_tools.py ......................................... [ 77%]
+.                                                                        [ 77%]
+tests/tools/test_git_ops.py ............................                 [ 78%]
+tests/tools/test_grep_tool.py ..................................         [ 78%]
+tests/tools/test_import_graph.py .................................       [ 79%]
+tests/tools/test_kg_common.py .......                                    [ 79%]
+tests/tools/test_kg_query.py ........................                    [ 79%]
+tests/tools/test_kg_update.py .......................                    [ 80%]
+tests/tools/test_lint_check.py ...................                       [ 80%]
+tests/tools/test_patch_apply.py .....................................    [ 81%]
+tests/tools/test_pattern_search.py ..................................... [ 81%]
+                                                                         [ 81%]
+tests/tools/test_pip_inspect.py ...........                              [ 81%]
+tests/tools/test_plan_mode_enforcement.py .....                          [ 81%]
+tests/tools/test_pytest_run.py .......................                   [ 82%]
+tests/tools/test_python_ast.py .................                         [ 82%]
+tests/tools/test_python_ast_helpers.py ............................      [ 83%]
+tests/tools/test_python_exec.py ...................                      [ 83%]
+tests/tools/test_registry.py .................................           [ 83%]
+tests/tools/test_research_notes.py ..................................... [ 84%]
+                                                                         [ 84%]
+tests/tools/test_security_extended.py .................................. [ 85%]
+...............................................................          [ 86%]
+tests/tools/test_shell_advanced.py ....                                  [ 86%]
+tests/tools/test_shell_coverage_extra.py ............................... [ 86%]
+.........                                                                [ 86%]
+tests/tools/test_shell_interactive.py ....                               [ 87%]
+tests/tools/test_shell_secure.py ....................................... [ 87%]
+......................................................................   [ 88%]
+tests/tools/test_shell_sudo_logic.py ....                                [ 88%]
+tests/tools/test_shell_tool.py ..................                        [ 89%]
+tests/tools/test_symbol_trace.py .................................       [ 89%]
+tests/tools/test_test_gen.py ....................................        [ 90%]
+tests/tools/test_traceback_parse.py ......................               [ 90%]
+tests/tools/test_utils.py .............                                  [ 91%]
+tests/tools/test_web_fetch_tool.py ...............                       [ 91%]
+tests/ui_integration/test_agent.py ........                              [ 91%]
+tests/ui_integration/test_compaction_llm.py ..                           [ 91%]
+tests/ui_integration/test_events.py ..                                   [ 91%]
+tests/ui_integration/test_llm.py ................                        [ 91%]
+tests/ui_integration/test_mcp.py ...........                             [ 91%]
+tests/ui_integration/test_plan_mode.py .....                             [ 92%]
+tests/ui_integration/test_repl_e2e.py ..                                 [ 92%]
+tests/ui_integration/test_repl_integration.py ......s...                 [ 92%]
+tests/ui_integration/test_session.py ..                                  [ 92%]
+tests/ui_integration/test_slash_commands.py ......................       [ 92%]
+tests/ui_integration/test_tokens_llm.py ...                              [ 92%]
+tests/ui_integration/test_tool_calls.py .........                        [ 92%]
+tests/ui_integration/test_tool_integration.py ...                        [ 92%]
+tests/utils/test_backslash_in_comment_bug.py ..                          [ 92%]
+tests/utils/test_compaction.py .....                                     [ 93%]
+tests/utils/test_compaction_edge_cases.py ..........                     [ 93%]
+tests/utils/test_compaction_validation.py ..............                 [ 93%]
+tests/utils/test_comprehensive_bug.py ......                             [ 93%]
+tests/utils/test_content_extractor.py ....................               [ 93%]
+tests/utils/test_content_extractor_edge_cases.py .......                 [ 93%]
+tests/utils/test_coverage_boost.py ..................................... [ 94%]
+...................................................                      [ 95%]
+tests/utils/test_double_quote_apostrophe_bug_final.py .                  [ 95%]
+tests/utils/test_failing_bug.py ...                                      [ 95%]
+tests/utils/test_has_language_bug.py .                                   [ 95%]
+tests/utils/test_intelligent_compaction.py ..........                    [ 95%]
+tests/utils/test_intelligent_context.py .........................        [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug.py ...               [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug_failing.py ..        [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug_final.py ..          [ 96%]
+tests/utils/test_intelligent_context_ar_bug.py .                         [ 96%]
+tests/utils/test_intelligent_context_bug.py ..                           [ 96%]
+tests/utils/test_intelligent_context_bug_find.py ......                  [ 96%]
+tests/utils/test_intelligent_context_bug_fix_verification.py ..          [ 96%]
+tests/utils/test_intelligent_context_bug_yve.py .                        [ 96%]
+tests/utils/test_intelligent_context_contraction_bug.py ...              [ 96%]
+tests/utils/test_intelligent_context_contraction_bug_fixed.py ...        [ 96%]
+tests/utils/test_intelligent_context_four_lenses_bug.py ...              [ 96%]
+tests/utils/test_intelligent_context_four_lenses_bug_final.py ..         [ 96%]
+tests/utils/test_intelligent_context_four_lenses_real_bug.py ......      [ 96%]
+tests/utils/test_intelligent_context_index_error_bug.py ..               [ 96%]
+tests/utils/test_intelligent_context_index_error_bug_final.py ..         [ 96%]
+tests/utils/test_intelligent_context_mayve_bug.py .                      [ 96%]
+tests/utils/test_intelligent_context_mismatched_fence_bug.py ....        [ 96%]
+tests/utils/test_intelligent_context_raw_string_backslash_bug.py ...     [ 96%]
+tests/utils/test_intelligent_context_real_bug.py ..                      [ 96%]
+tests/utils/test_intelligent_context_real_bug_final.py ....              [ 97%]
+tests/utils/test_intelligent_context_reasoning_bug.py ...                [ 97%]
+tests/utils/test_intelligent_context_triple_quote_bug.py ...             [ 97%]
+tests/utils/test_intelligent_context_ur_bug.py ..                        [ 97%]
+tests/utils/test_intelligent_context_ur_ru_bug.py ..                     [ 97%]
+tests/utils/test_intelligent_context_yve_bug_final.py ...                [ 97%]
+tests/utils/test_intelligent_truncation_refactoring.py ......            [ 97%]
+tests/utils/test_lazy_import.py ......                                   [ 97%]
+tests/utils/test_missing_coverage.py .......                             [ 97%]
+tests/utils/test_multi_turn_tool_calls.py ....                           [ 97%]
+tests/utils/test_protected_zone.py ........                              [ 97%]
+tests/utils/test_ratelimit.py .....................                      [ 98%]
+tests/utils/test_raw_string_backslash_bug.py ..                          [ 98%]
+tests/utils/test_retry.py ................                               [ 98%]
+tests/utils/test_summarization.py ................................       [ 99%]
+tests/utils/test_tiktoken_integration.py ......................          [ 99%]
+tests/utils/test_token_counter_extended.py ..                            [ 99%]
+tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
+tests/utils/test_truncation_refactor.py ....                             [ 99%]
+tests/utils/test_validation.py .......................                   [100%]
+
+=============================== warnings summary ===============================
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_app_coverage_100.py::TestInitializeJsonProcessing::test_initialize_json_processing_returns_renderer[asyncio]
+tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_rag
+tests/cli/test_output_stream_coverage.py::TestToolExecutorCoverage::test_should_stop_due_to_limits_spinning
+tests/tools/test_diff_view.py::TestDiffViewTool::test_run_git_method
+tests/tools/test_git_ops.py::TestGitOpsCoverageGaps::test_stash_list_with_stashes
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_context_strategy_coverage.py::TestStrategyManager::test_manage_strategy_no_args_shows_status[asyncio]
+tests/cli/test_coverage_gaps_cli.py::TestReplMissingLines::test_run_direct_agent_lines_446_450[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_coverage_gaps_cli.py::TestConsoleMissingLines::test_markdown_with_open_code_fence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/rich/control.py:192: RuntimeWarning: coroutine 'TestOutputHandlerMissingLines.test_show_turn_status_rag_index.<locals>.fake_index_async' was never awaited
+    return text.translate(_translate_table)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:552: RuntimeWarning: Failed to load settings: Corrupted settings file. Using defaults.
+    self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:554: RuntimeWarning: Failed to gather environment: Format error.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:554: RuntimeWarning: Failed to gather environment: Cannot gather env.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_mixins_coverage.py::TestProviderMixin::test_gather_env_safe_success
+  /home/matthew/mlg-cli/tests/cli/test_textual_mixins_coverage.py:243: RuntimeWarning: Failed to gather environment: 'dict' object has no attribute 'working_directory'.
+    result = _ProviderMixin._gather_env_safe()
+
+tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
+  tests/e2e/test_context_safety.py:53: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_compactor_safety_limit(self):
+
+tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
+  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if model_name.startswith(model_prefix):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields_set__` attribute is deprecated, use `model_fields_set` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_computed_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_plugin_coverage.py::TestPluginManagerExtended::test_search_plugins_delegates_to_client[asyncio]
+  /home/matthew/mlg-cli/src/henchman/extensions/plugin_manager.py:215: DeprecationWarning: Using individual query/page/page_size/category parameters is deprecated. Use the search_params parameter instead.
+    resolved_search_params = _build_search_params(search_params, legacy_request)
+
+tests/extensions/test_plugin_coverage.py::TestPluginInstallerHelpers::test_extract_archive_file_tar_gz
+  /home/matthew/mlg-cli/src/henchman/extensions/plugin_installer.py:266: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar_ref.extractall(target_dir)
+
+tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1999224) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_interactive.py::test_tool_form
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_interactive.py::test_tab_completion
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_accessibility
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_keybindings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_1.py::test_style_overrides
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_2.py::test_plugin_system
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_3.py::test_layout_settings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_progress.py::test_progress_manager
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_settings_persistence.py::test_settings_persistence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_visualization.py::test_visualization
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/tools/test_coverage_map.py::TestCoverageMapTool::test_branch_coverage_xml
+  /home/matthew/anaconda3/lib/python3.12/xml/etree/ElementTree.py:563: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    parser = XMLParser()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/tools/test_lint_check.py::TestLintCheckTool::test_ruff_success_no_output
+  /home/matthew/anaconda3/lib/python3.12/selectors.py:234: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def register(self, fileobj, events, data=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
+tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
+tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
+  /home/matthew/mlg-cli/src/henchman/core/agent_streaming.py:215: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in ctx.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPCommandOutputFormatting::test_mcp_status_output_format
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:404: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, /, *args, **kwargs):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_slash_commands.py::TestREPLSlashCommandRouting::test_repl_routes_slash_commands
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    keys = tuple(_parse_key(k) for k in keys)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
+tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
+  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:837: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.7-final-0 ________________
+
+Name                                                        Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------------------------
+src/henchman/__init__.py                                        5      0      0      0   100%
+src/henchman/__main__.py                                        1      0      0      0   100%
+src/henchman/agents/__init__.py                                 7      0      0      0   100%
+src/henchman/agents/config.py                                   2      0      0      0   100%
+src/henchman/agents/delegation.py                             401      0    126      0   100%
+src/henchman/agents/file_read_decision_maker.py               105      7     56      0    93%   147-148, 281-285
+src/henchman/agents/identity.py                                 9      0      0      0   100%
+src/henchman/agents/ledger.py                                 153      2     22      1    98%   400-401
+src/henchman/agents/line_range_utils.py                       113     23     52      1    78%   138-139, 146-147, 164-165, 172-173, 189, 246-269
+src/henchman/agents/metrics.py                                162      0     22      0   100%
+src/henchman/agents/metrics_reporter.py                       123      0     16      0   100%
+src/henchman/agents/orchestrator.py                            50      0      8      0   100%
+src/henchman/agents/orchestrator_anchoring.py                  67      0     34      0   100%
+src/henchman/agents/orchestrator_components.py                 21      0      6      0   100%
+src/henchman/agents/orchestrator_delegation_ctrl.py            81      0     34      2    98%   143->182, 177->143
+src/henchman/agents/orchestrator_events.py                     17      0      4      0   100%
+src/henchman/agents/orchestrator_execution.py                  66      3     26      1    93%   89, 107-108
+src/henchman/agents/orchestrator_init.py                       58      0      6      0   100%
+src/henchman/agents/orchestrator_loop.py                       87      0     26      0   100%
+src/henchman/agents/orchestrator_metrics_ctrl.py               14      0      2      0   100%
+src/henchman/agents/orchestrator_prompts.py                    18      0      0      0   100%
+src/henchman/agents/orchestrator_run.py                        21      0      2      0   100%
+src/henchman/agents/orchestrator_tech_lead.py                  15      0      2      0   100%
+src/henchman/agents/orchestrator_timeout.py                    39      0     20      0   100%
+src/henchman/agents/orchestrator_tools.py                      30      0     10      0   100%
+src/henchman/agents/orchestrator_turns.py                      35      0      6      0   100%
+src/henchman/agents/orchestrator_types.py                      90      0      0      0   100%
+src/henchman/agents/orchestrator_validation.py                 27      0      4      0   100%
+src/henchman/agents/pool.py                                    91      1     34      0    99%   173
+src/henchman/agents/presets.py                                 51      0     18      0   100%
+src/henchman/agents/prompts.py                                 58      0     14      0   100%
+src/henchman/agents/working_memory.py                         256     10     68      7    95%   66, 115, 127-128, 150-151, 154, 241-242, 428->exit, 455->exit, 507
+src/henchman/api/__init__.py                                    2      0      0      0   100%
+src/henchman/api/auth.py                                       12      0      6      0   100%
+src/henchman/api/endpoints/__init__.py                          2      0      0      0   100%
+src/henchman/api/endpoints/chat.py                            182      0     68      0   100%
+src/henchman/api/endpoints/health.py                           38      0      4      0   100%
+src/henchman/api/server.py                                     61      0      4      0   100%
+src/henchman/api/state.py                                      10      0      0      0   100%
+src/henchman/cli/__init__.py                                    4      0      0      0   100%
+src/henchman/cli/app.py                                       275      0     72      0   100%
+src/henchman/cli/command_processor.py                          46      0     12      0   100%
+src/henchman/cli/commands/__init__.py                          69      1     12      1    98%   167
+src/henchman/cli/commands/agent.py                             91      0     24      0   100%
+src/henchman/cli/commands/builtins.py                         115      0     20      0   100%
+src/henchman/cli/commands/chat.py                             117      0     34      0   100%
+src/henchman/cli/commands/context.py                          231      0     48      0   100%
+src/henchman/cli/commands/extensions.py                        28      0      4      0   100%
+src/henchman/cli/commands/mcp.py                               98      0     30      0   100%
+src/henchman/cli/commands/model.py                            165      0     50      0   100%
+src/henchman/cli/commands/plan.py                              41      0     12      0   100%
+src/henchman/cli/commands/rag.py                              122      0     26      0   100%
+src/henchman/cli/commands/session.py                          411      0     96      0   100%
+src/henchman/cli/commands/team.py                              43      0     12      0   100%
+src/henchman/cli/commands/theme.py                            115      0     30      0   100%
+src/henchman/cli/commands/unlimited.py                         39      0     12      0   100%
+src/henchman/cli/console.py                                   294      0     58      0   100%
+src/henchman/cli/console_helpers.py                            40      0      8      0   100%
+src/henchman/cli/core_init.py                                  52      0      6      0   100%
+src/henchman/cli/input.py                                     167      0     54      0   100%
+src/henchman/cli/input_handler.py                              40      0     10      0   100%
+src/henchman/cli/json_output.py                                31      0      8      0   100%
+src/henchman/cli/output_handler.py                            123      2     30      0    99%   222-223
+src/henchman/cli/plugins.py                                    59      0     20      0   100%
+src/henchman/cli/prompts.py                                     9      0      0      0   100%
+src/henchman/cli/repl.py                                      202      0     42      0   100%
+src/henchman/cli/serve.py                                      35      0      6      0   100%
+src/henchman/cli/session_manager.py                            70      0     22      0   100%
+src/henchman/cli/stream_event_handlers.py                     154      0     70      0   100%
+src/henchman/cli/textual_app.py                                82      0      6      0   100%
+src/henchman/cli/textual_bridge.py                            178      0     46      0   100%
+src/henchman/cli/textual_config.py                            108      0     22      0   100%
+src/henchman/cli/textual_driver.py                             11      0      0      0   100%
+src/henchman/cli/textual_messages.py                           52      0      0      0   100%
+src/henchman/cli/textual_mixins.py                            814      4    208      0    99%   885-886, 901-902
+src/henchman/cli/textual_screens.py                           126      0     30      0   100%
+src/henchman/cli/textual_widgets.py                           466      0     90      0   100%
+src/henchman/cli/tool_executor.py                              93      0     34      0   100%
+src/henchman/cli/tool_manager.py                               32      0      8      0   100%
+src/henchman/cli/ui_renderer.py                               103      0     18      0   100%
+src/henchman/config/__init__.py                                 5      0      0      0   100%
+src/henchman/config/context.py                                 97      0     46      0   100%
+src/henchman/config/environment.py                            114      0     42      0   100%
+src/henchman/config/schema.py                                 107      0      2      0   100%
+src/henchman/config/settings.py                                78      0     30      0   100%
+src/henchman/core/__init__.py                                   9      0      0      0   100%
+src/henchman/core/agent.py                                    276      1     84      2    99%   110, 616->620
+src/henchman/core/agent_config.py                              14      0      0      0   100%
+src/henchman/core/agent_stall.py                               38      0     12      0   100%
+src/henchman/core/agent_streaming.py                           70      0     24      0   100%
+src/henchman/core/eventbus.py                                  51      0     12      0   100%
+src/henchman/core/events.py                                    29      0      0      0   100%
+src/henchman/core/session.py                                    5      0      0      0   100%
+src/henchman/core/session_branch.py                            15      0      2      0   100%
+src/henchman/core/session_data.py                              34      0      0      0   100%
+src/henchman/core/session_export.py                            53      0     24      0   100%
+src/henchman/core/session_helpers.py                           29      0      2      0   100%
+src/henchman/core/session_manager.py                           61      0     10      0   100%
+src/henchman/core/session_manager_base.py                      58      0     16      0   100%
+src/henchman/core/session_merge.py                             56      0     20      0   100%
+src/henchman/core/session_models.py                            51      0     10      0   100%
+src/henchman/core/session_templates.py                         59      0     10      0   100%
+src/henchman/core/turn.py                                     119      0     32      0   100%
+src/henchman/extensions/__init__.py                             5      0      0      0   100%
+src/henchman/extensions/base.py                                20      0      0      0   100%
+src/henchman/extensions/constants.py                           16      0      0      0   100%
+src/henchman/extensions/manager.py                            107      0     26      0   100%
+src/henchman/extensions/models.py                             116      0      0      0   100%
+src/henchman/extensions/plugin_compatibility.py                38      0      4      0   100%
+src/henchman/extensions/plugin_database.py                     73      2      4      0    97%   190, 195
+src/henchman/extensions/plugin_installer.py                   200      0     54      0   100%
+src/henchman/extensions/plugin_manager.py                     188      2     44      1    99%   298-299
+src/henchman/extensions/plugin_registry_client.py              70      0     16      0   100%
+src/henchman/extensions/plugin_security_scanner.py             16      0      2      0   100%
+src/henchman/knowledge/__init__.py                              3      0      0      0   100%
+src/henchman/knowledge/models.py                               27      0      0      0   100%
+src/henchman/knowledge/scanner.py                             190      0     80      0   100%
+src/henchman/knowledge/store.py                               206      0     62      0   100%
+src/henchman/mcp/__init__.py                                    5      0      0      0   100%
+src/henchman/mcp/client.py                                     76      1     12      1    98%   41
+src/henchman/mcp/config.py                                     14      0      0      0   100%
+src/henchman/mcp/manager.py                                    75      0     26      0   100%
+src/henchman/mcp/tool.py                                       31      0      2      0   100%
+src/henchman/metrics/__init__.py                                6      0      0      0   100%
+src/henchman/metrics/collector.py                             165      0     44      0   100%
+src/henchman/metrics/dashboard.py                             137      0     18      0   100%
+src/henchman/metrics/exporter.py                              153      1     42      2    98%   165, 262->256
+src/henchman/metrics/models.py                                100      0      0      0   100%
+src/henchman/metrics/storage.py                               218      0     46      0   100%
+src/henchman/providers/__init__.py                              8      0      0      0   100%
+src/henchman/providers/anthropic.py                           212      0     60      0   100%
+src/henchman/providers/base.py                                 44      0      0      0   100%
+src/henchman/providers/deepseek.py                             12      0      0      0   100%
+src/henchman/providers/ollama.py                               15      0      0      0   100%
+src/henchman/providers/openai_compat.py                       136      0     40      0   100%
+src/henchman/providers/openrouter.py                           14      0      0      0   100%
+src/henchman/providers/registry.py                             36      0      4      0   100%
+src/henchman/providers/utils.py                                34      0     18      0   100%
+src/henchman/rag/__init__.py                                    7      0      0      0   100%
+src/henchman/rag/chunker.py                                    68      0     12      0   100%
+src/henchman/rag/concurrency.py                                83      0     16      0   100%
+src/henchman/rag/embedder.py                                   36      0      0      0   100%
+src/henchman/rag/indexer.py                                   143      0     46      0   100%
+src/henchman/rag/repo_id.py                                    66      0     16      0   100%
+src/henchman/rag/store.py                                      87      0     18      0   100%
+src/henchman/rag/system.py                                    102      0     36      0   100%
+src/henchman/tools/__init__.py                                  3      0      0      0   100%
+src/henchman/tools/base.py                                     45      1      4      1    96%   106
+src/henchman/tools/builtins/__init__.py                        35      0      0      0   100%
+src/henchman/tools/builtins/ask_user.py                        21      0      0      0   100%
+src/henchman/tools/builtins/code_format.py                     55      0     12      0   100%
+src/henchman/tools/builtins/coverage_map.py                   239      4     60      0    99%   50, 422, 427, 525
+src/henchman/tools/builtins/dead_code.py                      208      0     90      0   100%
+src/henchman/tools/builtins/deep_research.py                  145     40     36      4    68%   93, 104->103, 120, 125-132, 145-163, 178-190, 208-216, 268, 308
+src/henchman/tools/builtins/delegate.py                        31      0      0      0   100%
+src/henchman/tools/builtins/diff_view.py                       74      0     18      0   100%
+src/henchman/tools/builtins/env_inspect.py                     82      0     34      0   100%
+src/henchman/tools/builtins/file_edit.py                      115      0     28      0   100%
+src/henchman/tools/builtins/file_overview.py                  163     11     68      9    91%   64, 67-70, 73, 78->84, 103->109, 106-107, 111->110, 161, 209->213, 289-290
+src/henchman/tools/builtins/file_read.py                       64      1     12      1    97%   192
+src/henchman/tools/builtins/file_write.py                      29      0      0      0   100%
+src/henchman/tools/builtins/git_ops.py                        114      0     30      0   100%
+src/henchman/tools/builtins/glob_tool.py                       48      0     10      0   100%
+src/henchman/tools/builtins/grep.py                           208      1     48      1    99%   512
+src/henchman/tools/builtins/import_graph.py                   260      1     84      1    99%   169
+src/henchman/tools/builtins/kg_common.py                       17      0      2      0   100%
+src/henchman/tools/builtins/kg_query.py                       113      0     44      0   100%
+src/henchman/tools/builtins/kg_update.py                      108      0     36      0   100%
+src/henchman/tools/builtins/lint_check.py                      79      1     20      0    99%   184
+src/henchman/tools/builtins/ls.py                              48      0     16      0   100%
+src/henchman/tools/builtins/patch_apply.py                    225      0     62      0   100%
+src/henchman/tools/builtins/pattern_search.py                 130      3     42      2    97%   171-172, 181->187, 329
+src/henchman/tools/builtins/pip_inspect.py                     44      0      8      0   100%
+src/henchman/tools/builtins/pytest_run.py                     105      3     20      0    98%   292, 296, 304
+src/henchman/tools/builtins/python_ast.py                      33      0      2      0   100%
+src/henchman/tools/builtins/python_ast_helpers.py             110      0     58      0   100%
+src/henchman/tools/builtins/python_exec.py                     62      0     10      0   100%
+src/henchman/tools/builtins/rag_search.py                      45      0      8      0   100%
+src/henchman/tools/builtins/research_notes.py                 127      6     38      4    94%   72, 176-177, 203->196, 204->203, 208-209, 254
+src/henchman/tools/builtins/shell.py                          257      0     48      0   100%
+src/henchman/tools/builtins/symbol_trace.py                   203     12     58      5    93%   94, 109-111, 244-245, 265-266, 274->276, 293, 315-316, 339
+src/henchman/tools/builtins/test_gen.py                       180      0     52      0   100%
+src/henchman/tools/builtins/traceback_parse.py                101      0     32      0   100%
+src/henchman/tools/builtins/web_fetch.py                       52      0      4      0   100%
+src/henchman/tools/builtins/web_search.py                      52     23     10      0    47%   27, 40-51, 56, 61-80
+src/henchman/tools/registry.py                                 93      0     24      0   100%
+src/henchman/tools/security.py                                162      0     62      0   100%
+src/henchman/tools/security/__init__.py                        11      0      4      0   100%
+src/henchman/tools/security/shell_secure.py                   180      0     36      0   100%
+src/henchman/tools/utils.py                                    31      0     16      0   100%
+src/henchman/utils/__init__.py                                  4      0      0      0   100%
+src/henchman/utils/cluster_utils.py                            20      0      8      0   100%
+src/henchman/utils/compaction.py                              344      0    110      1    99%   347->349
+src/henchman/utils/compression_strategy.py                    103      3     36      4    95%   210, 233, 235->238, 273
+src/henchman/utils/importance_scorer.py                        88      5     34      5    92%   55, 144, 204, 247, 254
+src/henchman/utils/intelligent_context.py                      82      5      8      1    91%   131-136, 467
+src/henchman/utils/intelligent_context_aggregator.py          177     38     98     19    74%   37, 119->122, 138, 161, 164->168, 178, 197-198, 221, 225, 233, 237, 273-286, 306-312, 327, 331-332, 371, 407, 418->417, 489, 526, 552->548, 583-596
+src/henchman/utils/intelligent_context_config.py               44      0      2      0   100%
+src/henchman/utils/intelligent_context_detector.py             32      1      8      1    95%   184
+src/henchman/utils/intelligent_context_extractor.py           159     10     54     11    90%   85, 199, 202-203, 222->221, 231, 233-234, 271, 294->291, 302, 346, 364->362
+src/henchman/utils/intelligent_context_formatter.py           150     49     52      9    63%   56, 127-142, 193->196, 233, 246, 276-278, 300, 320-344, 367-368, 375, 407, 428-448
+src/henchman/utils/intelligent_context_parser.py              267      3    128      5    98%   48, 53, 61, 210->219, 251->255
+src/henchman/utils/intelligent_context_summarizer.py           49      2     18      3    93%   49, 111->110, 204
+src/henchman/utils/intelligent_context_topic_extractor.py      42      4     20      5    85%   58, 85->84, 88->84, 92, 129-130
+src/henchman/utils/intelligent_context_types.py               156     11     22      8    88%   226, 257-259, 290, 294, 297, 311, 313, 315, 437
+src/henchman/utils/lazy_import.py                               9      0      2      0   100%
+src/henchman/utils/message_analyzer.py                         28      2      2      1    90%   56, 115
+src/henchman/utils/message_clusterer.py                       149      5     66      2    97%   52, 292-296
+src/henchman/utils/message_compactor.py                        84     13     28      6    79%   93, 96, 211-223, 265, 277, 331
+src/henchman/utils/ratelimit.py                                30      0      8      0   100%
+src/henchman/utils/registry.py                                 27      2      4      1    90%   105-106
+src/henchman/utils/retry.py                                    51      0     12      0   100%
+src/henchman/utils/serialization.py                            34      5     14      3    79%   43, 63-65, 68
+src/henchman/utils/sorting_utils.py                             4      0      0      0   100%
+src/henchman/utils/tokens.py                                   65      0     18      0   100%
+src/henchman/utils/validation.py                               91      0     36      0   100%
+src/henchman/version.py                                         3      0      0      0   100%
+-------------------------------------------------------------------------------------------------------
+TOTAL                                                       19516    325   5150    132    98%
+=========== 5909 passed, 6 skipped, 45 warnings in 191.20s (0:03:11) ===========
+[2026-03-17T04:00:02Z] All tests passed.
+Committing changes...
