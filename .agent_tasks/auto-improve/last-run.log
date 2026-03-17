@@ -1,7 +1,7 @@
-[2026-03-17T20:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T22:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T20:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T22:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -13,7 +13,7 @@ I'll start by reading the smell report to understand the context, then examine t
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T20:00:39.900539+00:00_
+_Generated: 2026-03-17T22:00:35.967696+00:00_
 
 ## Executive Summary
 
@@ -33,115 +33,147 @@ Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
 100, 'end_line': 200})
 
-[result]     "tool": ("#tool-pane", ToolPane),
-}
+[result] }
 
 
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
-# ------------...
-Let me look for the tests for this file to understand what functionality needs to be tested:
-[tool] glob({'pattern': '**/test*textual_mixins*'})
+# --------------------------------------------------...
+Let me look at the test file to understand what tests exist:
+[tool] ls({'path': 'tests'})
 
-[result] 
-tests/cli/__pycache__/test_textual_mixins_actual_bug.cpython-312-pytest-9.0.2.py
-c
-tests/cli/__pycache__/test_textual_mixins_asyncio_lock_bug.cpython-312-pytest-9.
-0.2.pyc
-tests/cli/__pycache__/test_tex...
-Let me check if there's an existing test file for textual_mixins:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+[result] MagicMock/
+README.md
+__init__.py
+__pycache__/
+agents/
+api/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+metrics/
+providers/
+rag/
+smo...
+
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+Let me check if there's a test file specifically for textual_mixins:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
 'start_line': 1, 'end_line': 50})
 
-[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
+[result] """Failing test for the id() collision bug in textual_mixins.py."""
 
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from unittest.mock import MagicMock, patch
+import pytest
 
-import ...
-Now let me examine the target file more thoroughly, particularly looking at the `_NullProvider` class which seems to have a potential bug:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-60, 'end_line': 120})
+from henchman.tools.ba...
+Let me look at the actual bug test to understand what the issue is:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
 
-[result]     )
-    from henchman.providers.base import (
-        Message,
-        StreamChunk,
-        ToolDeclaration,
-    )
-    from henchman.tools.base import ConfirmationRequest
-
-__all__ = [
-    "_CommandP...
-
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-120, 'end_line': 180})
-
-[result]     def name(self: _NullProvider) -> str:
-        """The unique name of this provider."""
-        return self._name
-
-    async def chat_completion(
-        self: _NullProvider,
-        _messages: list...
-Now I can see a potential bug! In the `_NullProvider.chat_completion_stream` method, there's a `raise RuntimeError(_NO_PROVIDER_MSG)` statement, but then there's an `if False:` block with a `yield` statement. This is a classic dead code issue - the `yield` statement is unreachable because the function always raises an exception before reaching it.
-
-Let me check the test for this to see if it's already testing this behavior:
-[tool] read_file({'path': 
-'tests/cli/test_textual_mixins_null_provider_unreachable_yield.py'})
-
-[result] """Failing test for unreachable yield bug in 
-_NullProvider.chat_completion_stream."""
+[result] """Failing test for the id() collision bug in textual_mixins.py."""
 
 from __future__ import annotations
 
-import ast
+import asyncio
+from unittest.mock import MagicMock, patch
 import pytest
 
+from henchman.tools.ba...
+Now let me examine the actual `_textual_confirm` method in the target file to see the bug:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+491, 'end_line': 600})
 
-class TestNullProviderUnreachableYieldBug:
-    """...
-Perfect! I can see there's already a test file that identifies the bug. Let me run this test to confirm it fails:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_null_provider_unreachable_yield.py::TestNullProvid
-erUnreachableYieldBug::test_unreachable_yield_after_raise -xvs'})
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
 
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-The test is failing because it can't find the method. Let me check the AST parsing issue. First, let me create the documentation stub as required:
+        Args:
+            request: The tool confirmation request.
+...
+I can see there's already a test file that identifies a potential bug with `id(future)` usage. Let me check if the current code still has this bug by looking at the actual implementation more carefully. First, let me create the documentation stub as required:
 [tool] write_file({'path': 
-'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
 Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
-2025-03-17T20:00:00Z\n## Bug Summary\nThe `_NullProvider.chat_completion_stream`
-method has unreachable dead code: a `yield` statement that comes after a `raise`
-statement, making it impossible to execute.\n\n## Lens\n**Phase 1: The Intent 
-vs. Reality Check** - Logic Gaps\n\n## Expected vs. Observed\n| Expected 
-Behavior | Observed Risk |\n|---|---|\n| Method should either properly implement
-async generator or not have unreachable code | Unreachable `yield` statement 
-after `raise` creates dead code that can confuse developers and static analysis 
-tools |\n| Code should be maintainable and follow Python best practices | Dead 
-code violates "once and only once" principle and creates maintenance burden |\n|
-Type hints should match implementation | Method returns 
-`AsyncIterator[StreamChunk]` but raises exception instead of yielding |\n\n## 
-Root Cause\nThe method `chat_completion_stream` in `_NullProvider` class raises 
-a `RuntimeError` immediately, but then has a `yield` statement that can never be
-reached. The `if False:` guard attempts to make it "reachable" for type 
-checking, but the `raise` statement before it makes the entire `if False:` block
-unreachable.\n\n## Fix Plan\nRemove the unreachable `yield` statement and 
-restructure the method to either:\n1. Make the `yield` actually reachable 
-(inside the `if False:` block before the `raise`)\n2. Remove the `yield` 
-entirely and handle type checking differently\n3. Restructure to be a proper 
-async generator that yields nothing then raises\n\nOption 1 is simplest: move 
-the `raise` statement after the `if False:` block, or put the `yield` in a truly
-reachable position.\n\n## Status: IN PROGRESS'})
+2025-03-17T22:15:00Z\n## Bug Summary\nThe `_textual_confirm` method uses 
+`id(future)` as dictionary keys for tracking confirmation futures, which can 
+lead to key collisions when memory addresses are reused after garbage 
+collection.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic 
+Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| Each confirmation request should have a unique identifier that 
+persists for the lifetime of the confirmation dialog | Using `id(future)` 
+creates identifiers that can be reused when Python recycles memory addresses 
+|\n| The system should reliably track pending confirmations and clean them up 
+properly | Memory address reuse can cause late callbacks to affect wrong futures
+or cleanup to remove wrong entries |\n| Concurrent confirmation requests should 
+not interfere with each other | Key collisions could cause race conditions in 
+the `_confirm_futures` dictionary |\n\n## Root Cause\nThe code uses `id(future)`
+as a dictionary key in `_confirm_futures`. While `id()` returns a unique 
+identifier for an object's lifetime, Python can and does reuse memory addresses 
+after objects are garbage collected. If:\n1. Future A is created with memory 
+address X\n2. Future A completes and is garbage collected\n3. Future B is 
+created and gets the same memory address X (memory reuse)\n4. A late callback 
+for Future A could affect Future B\n\nThe current implementation attempts to 
+mitigate this with a counter system, but there's still a race condition in the 
+initialization logic.\n\n## Fix Plan\n1. Ensure `_confirm_counter` is always 
+used instead of `id(future)` \n2. Make the counter increment atomic with proper 
+locking\n3. Verify all code paths use the counter-based approach 
+consistently\n4. Add a test that demonstrates the bug and verifies the fix\n\n##
+Status: IN PROGRESS"})
 
-[result] Successfully wrote 1706 bytes to 
+[result] Successfully wrote 1893 bytes to 
 .agent_tasks/four-lenses-cli-textual_mixins/README.md...
-Now let me fix the test first. The test has an issue with AST parsing - it needs to set parent relationships:[2026-03-17T15:00:03Z] All tests passed.
-Committing changes...
+Now let me examine the current implementation more carefully. Looking at the code I read earlier, I see it already tries to use `_confirm_counter`, but let me check if there are any remaining uses of `id(future)`:
+[tool] grep({'pattern': 'id\\(future\\)', 'path': 
+'src/henchman/cli/textual_mixins.py'})
+
+[result]         # Use a counter-based ID instead of id(future) to avoid 
+potential...
+Good! The comment says it uses a counter-based ID instead of `id(future)`. Let me check if there are any actual uses of `id(future)` in the code:
+[tool] grep({'pattern': 'id\\(', 'path': 'src/henchman/cli/textual_mixins.py'})
+
+[result]         # Use a counter-based ID instead of id(future) to avoid 
+potential...
+So the code doesn't actually use `id(future)` anymore. However, let me run the failing test to see what it's actually testing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_bug_failing.py -x -q --tb=short'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Interesting! The test passes. Let me look at the actual test to understand what it's checking:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
+'start_line': 30, 'end_line': 80})
+
+[result]                 self._confirm_counter = 100
+                
+        app = MockApp()
+        
+        # We need to test the actual _textual_confirm method
+        # But it requires push_screen which w...
+Wait, the test is checking for `id(future)` in the source code, but the test passes! That means the current implementation doesn't have `id(future)` in it. Let me check if there's another test that actually fails:

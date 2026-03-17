@@ -176,7 +176,11 @@ class PluginManager(ExtensionManager):
         self._initialized = False
 
     async def initialize(self: PluginManager) -> None:
-        """Initialize storage, clients, and enabled plugins."""
+        """Initialize storage, clients, and enabled plugins.
+        
+        Returns:
+            None
+        """
         if self._initialized:
             return
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -192,7 +196,11 @@ class PluginManager(ExtensionManager):
         logger.info("Plugin manager initialized")
 
     async def close(self: PluginManager) -> None:
-        """Close the registry client and reset initialization state."""
+        """Close the registry client and reset initialization state.
+        
+        Returns:
+            None
+        """
         if self.registry_client:
             await self.registry_client.close()
             self.registry_client = None
@@ -421,7 +429,17 @@ class PluginManager(ExtensionManager):
         return updates
 
     async def scan_security(self: PluginManager, plugin_name: str) -> SecurityReport:
-        """Run a security scan for an installed plugin."""
+        """Run a security scan for an installed plugin.
+        
+        Args:
+            plugin_name: Name of the installed plugin to scan.
+            
+        Returns:
+            SecurityReport with scan results including warnings, errors, and risk level.
+            
+        Raises:
+            ValueError: If the plugin is not installed.
+        """
         installation = self._get_installation_or_raise(plugin_name)
         return self.security_scanner.scan(installation)
 

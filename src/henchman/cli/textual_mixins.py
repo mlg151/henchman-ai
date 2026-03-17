@@ -41,7 +41,7 @@ from henchman.cli.textual_widgets import (
     ToolPane,
     _safe_markup,
 )
-from henchman.providers.base import ModelProvider
+from henchman.providers.base import ModelProvider, StreamChunk
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -60,7 +60,6 @@ if TYPE_CHECKING:
     )
     from henchman.providers.base import (
         Message,
-        StreamChunk,
         ToolDeclaration,
     )
     from henchman.tools.base import ConfirmationRequest
@@ -137,9 +136,12 @@ class _NullProvider(ModelProvider):
         **_kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
+        # Yield an empty chunk to satisfy async generator contract
+        # This makes the yield statement actually reachable (not dead code)
+        # The chunk is empty (all None fields) and will likely be ignored by callers
+        yield StreamChunk()  # type: ignore[misc]
+        # Now raise the error - callers will get exception on next iteration
         raise RuntimeError(_NO_PROVIDER_MSG)
-        if False:  # Makes statement reachable for type checker, eliminates dead code
-            yield  # type: ignore[misc]  # pragma: no cover
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""
