@@ -215,19 +215,19 @@ def _usage_panel_rows(usage_stats: dict[str, Any]) -> list[tuple[str, str]]:
     ]
 
 
-def _write_token_csv_rows(writer: "csv.writer", token_usage: dict[str, Any]) -> None:
+def _write_token_csv_rows(writer: csv.writer, token_usage: dict[str, Any]) -> None:
     """Write token-usage rows to *writer*."""
     writer.writerow(["Total Tokens", token_usage.get("total_tokens", 0), "tokens"])
     writer.writerow(["Daily Average Tokens", token_usage.get("daily_average", 0), "tokens"])
 
 
-def _write_cost_csv_rows(writer: "csv.writer", costs: dict[str, Any]) -> None:
+def _write_cost_csv_rows(writer: csv.writer, costs: dict[str, Any]) -> None:
     """Write cost rows to *writer*."""
     writer.writerow(["Total Cost", costs.get("total_cost", 0), "USD"])
     writer.writerow(["Daily Average Cost", costs.get("daily_average", 0), "USD"])
 
 
-def _write_tool_csv_rows(writer: "csv.writer", tool_performance: dict[str, Any]) -> None:
+def _write_tool_csv_rows(writer: csv.writer, tool_performance: dict[str, Any]) -> None:
     """Write tool-performance rows to *writer*."""
     writer.writerow(["Total Tool Calls", tool_performance.get("total_calls", 0), "calls"])
     writer.writerow(["Success Rate", tool_performance.get("success_rate", 0), "%"])
@@ -263,9 +263,9 @@ LAYOUT_STAT_PANEL_SIZE = 8
 
 
 def _build_summary_stats(
-    storage: "MetricsStorage",
-    start_date: "datetime",
-    end_date: "datetime",
+    storage: MetricsStorage,
+    start_date: datetime,
+    end_date: datetime,
 ) -> dict[str, Any]:
     """Build the full summary stats dict from storage for the given time range."""
     return {
@@ -289,9 +289,9 @@ def _build_summary_stats(
 
 
 def _populate_layout_panels(
-    layout: "Layout",
+    layout: Layout,
     stats: dict[str, Any],
-    factory: "DashboardPanelFactory",
+    factory: DashboardPanelFactory,
 ) -> None:
     """Update the four data panels inside a dashboard layout."""
     layout["token_stats"].update(

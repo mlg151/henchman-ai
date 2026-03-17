@@ -16,6 +16,8 @@ _MAX_HEADINGS_SHOWN = 30
 _MAX_DOCSTRING_CHARS = 100
 _DEPTH_WITH_METHODS = 2
 _MAX_GENERIC_PREVIEW_LINES = 30
+_GENERIC_PREVIEW_CONTEXT_LINES = 15
+_MAX_MODULE_DOCSTRING_CHARS = 200
 
 
 def _format_annotation(annotation: ast.expr | None) -> str:
@@ -162,7 +164,7 @@ def _summarize_python(source: str, depth: int, include_docs: bool) -> str:
     if include_docs:
         mod_doc = ast.get_docstring(tree)
         if mod_doc:
-            parts.append(f"## Module docstring\n{mod_doc[:200]}")
+            parts.append(f"## Module docstring\n{mod_doc[:_MAX_MODULE_DOCSTRING_CHARS]}")
 
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -250,9 +252,9 @@ def _summarize_generic(path: Path, content: str) -> str:
 
     if len(lines) <= _MAX_GENERIC_PREVIEW_LINES:
         return content
-    preview = "\n".join(lines[:15])
+    preview = "\n".join(lines[:_GENERIC_PREVIEW_CONTEXT_LINES])
     preview += f"\n... ({len(lines) - _MAX_GENERIC_PREVIEW_LINES} lines omitted) ...\n"
-    preview += "\n".join(lines[-15:])
+    preview += "\n".join(lines[-_GENERIC_PREVIEW_CONTEXT_LINES:])
     return preview
 
 
@@ -341,6 +343,7 @@ class FileOverviewTool(Tool):
             "For Python files: shows imports, class tree, function signatures, and docstrings. "
             "Adapts detail level to file size. Much faster than read_file for understanding structure."
         )
+
     @property
     def kind(self: FileOverviewTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -17,6 +17,7 @@ _MIN_SENTENCE_LENGTH = 10
 _REPORT_EXCERPT_LENGTH = 800
 _MAX_SEARCH_RESULTS = 3
 _QUERY_TRUNCATION_LENGTH = 60
+_TOP_HIT_LIMIT = 1
 
 
 @dataclass
@@ -86,13 +87,13 @@ def _generate_subqueries(params: ResearchParams) -> list[str]:
 
     # Try to extract "what", "how", "why" sub-questions
     sentences = re.split(r"[.?!]", base)
-    for sentence in sentences[1:]:
-        sentence = sentence.strip()
-        if len(sentence) > _MIN_SENTENCE_LENGTH:
-            queries.append(sentence + focus_suffix)
+    for sentence_fragment in sentences[1:]:
+        cleaned_sentence = sentence_fragment.strip()
+        if len(cleaned_sentence) > _MIN_SENTENCE_LENGTH:
+            queries.append(cleaned_sentence + focus_suffix)
 
     # Add a "best practices" and "examples" variant for richer results
-    short = base[:60]
+    short = base[:_QUERY_TRUNCATION_LENGTH]
     queries.append(f"{short} best practices{focus_suffix}")
     queries.append(f"{short} example{focus_suffix}")
 
@@ -107,6 +108,30 @@ def _generate_subqueries(params: ResearchParams) -> list[str]:
     return unique[:params.max_sources]
 
 
+def _load_research_dependencies() -> tuple[Any, Any]:
+    """Load optional dependencies while preserving lazy import behavior."""
+    aiohttp_module = __import__("aiohttp")
+    bs4_module = __import__("bs4", fromlist=["BeautifulSoup"])
+    return aiohttp_module, bs4_module.BeautifulSoup
+
+
+def _network_error_types(aiohttp_module: Any) -> tuple[type[BaseException], ...]:
+    """Return network-related exception types handled by this module."""
+    return (aiohttp_module.ClientError, OSError, RuntimeError, TimeoutError, ValueError)
+
+
+def _extract_search_results(soup: Any) -> list[tuple[str, str]]:
+    """Extract title and URL pairs from a DuckDuckGo results page."""
+    results: list[tuple[str, str]] = []
+    for div in soup.find_all("div", class_="result")[:_MAX_SEARCH_RESULTS]:
+        link = div.find("a", class_="result__a")
+        if link is None:
+            continue
+        href = str(link.get("href") or "")
+        results.append((link.get_text(strip=True), href))
+    return results
+
+
 async def _search_duckduckgo(query: str, session: object) -> list[tuple[str, str]]:
     """Search DuckDuckGo and return (title, url) pairs.
 
@@ -117,9 +142,6 @@ async def _search_duckduckgo(query: str, session: object) -> list[tuple[str, str
     Returns:
         List of (title, url) tuples from search results.
     """
-    import aiohttp
-    from bs4 import BeautifulSoup
-
     url = f"https://html.duckduckgo.com/html/?q={query}"
     headers = {
         "User-Agent": (
@@ -128,23 +150,18 @@ async def _search_duckduckgo(query: str, session: object) -> list[tuple[str, str
         ),
     }
     try:
+        aiohttp_module, beautiful_soup = _load_research_dependencies()
         async with session.get(  # type: ignore[attr-defined]
             url,
             headers=headers,
-            timeout=aiohttp.ClientTimeout(total=_DEFAULT_TIMEOUT),
+            timeout=aiohttp_module.ClientTimeout(total=_DEFAULT_TIMEOUT),
         ) as resp:
             if resp.status >= _HTTP_ERROR_THRESHOLD:
                 return []
             html = await resp.text()
-            soup = BeautifulSoup(html, "html.parser")
-            results: list[tuple[str, str]] = []
-            for div in soup.find_all("div", class_="result")[:3]:
-                a = div.find("a", class_="result__a")
-                if a:
-                    href: str = str(a.get("href") or "")
-                    results.append((a.get_text(strip=True), href))
-            return results
-    except Exception:  # pragma: no cover
+            soup = beautiful_soup(html, "html.parser")
+            return _extract_search_results(soup)
+    except (ImportError, *_network_error_types(aiohttp_module)):  # type: ignore[misc]  # pragma: no cover
         return []
 
 
@@ -158,12 +175,11 @@ async def _fetch_snippet(url: str, session: object) -> str:
     Returns:
         Extracted text snippet (up to _MAX_FETCH_LENGTH chars).
     """
-    import aiohttp
-
     try:
+        aiohttp_module, _ = _load_research_dependencies()
         async with session.get(  # type: ignore[attr-defined]
             url,
-            timeout=aiohttp.ClientTimeout(total=_DEFAULT_TIMEOUT),
+            timeout=aiohttp_module.ClientTimeout(total=_DEFAULT_TIMEOUT),
         ) as resp:
             if resp.status >= _HTTP_ERROR_THRESHOLD:
                 return ""
@@ -172,7 +188,7 @@ async def _fetch_snippet(url: str, session: object) -> str:
             clean = re.sub(r"<[^>]+>", " ", text)
             clean = re.sub(r"\s+", " ", clean).strip()
             return clean[:_MAX_FETCH_LENGTH]
-    except Exception:  # pragma: no cover
+    except (ImportError, *_network_error_types(aiohttp_module)):  # type: ignore[misc]  # pragma: no cover
         return ""
 
 
@@ -191,11 +207,12 @@ async def _research_single_query(
     """
     hits = await _search_duckduckgo(query, session)
     sources: list[ResearchSource] = []
-    for title, url in hits[:1]:  # Fetch top result per sub-query
-        if url:
-            snippet = await _fetch_snippet(url, session)
-            if snippet:
-                sources.append(ResearchSource(title=title, url=url, snippet=snippet))
+    for title, url in hits[:_TOP_HIT_LIMIT]:  # Fetch top result per sub-query
+        if not url:
+            continue
+        snippet = await _fetch_snippet(url, session)
+        if snippet:
+            sources.append(ResearchSource(title=title, url=url, snippet=snippet))
     return sources
 
 
@@ -265,7 +282,7 @@ async def _execute_deep_research(
         ToolResult with a synthesized Markdown research report.
     """
     try:
-        import aiohttp
+        aiohttp_module, _ = _load_research_dependencies()
     except ImportError:
         return ToolResult(
             content="Error: aiohttp and beautifulsoup4 are required for deep_research",
@@ -277,9 +294,9 @@ async def _execute_deep_research(
     result = ResearchResult(question=params.question)
 
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp_module.ClientSession() as session:
             result.sources = await _gather_sources(subqueries, session, params.max_sources)
-    except Exception as e:  # pragma: no cover
+    except _network_error_types(aiohttp_module) as e:  # pragma: no cover
         result.errors.append(str(e))
 
     if not result.sources and not result.errors:
@@ -348,7 +365,7 @@ class DeepResearchTool(Tool):
         question: str = "",
         max_sources: int = _DEFAULT_MAX_SOURCES,
         focus: str | None = None,
-        **kwargs: object,
+        **_kwargs: object,
     ) -> ToolResult:
         """Execute deep research on a question.
 

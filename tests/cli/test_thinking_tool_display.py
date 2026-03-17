@@ -48,10 +48,11 @@ class TestThinkingToolDisplay:
         return app
 
     def test_on_agent_thought_message_adds_thinking_widget(self, textual_app):
-        """Test that on_agent_thought_message streams into chat pane."""
-        # Mock the chat pane
-        mock_pane = MagicMock(spec=ChatPane)
-        mock_pane.append_thinking_chunk = MagicMock()
+        """Test that on_agent_thought_message streams into thinking pane."""
+        # Mock the thinking pane
+        mock_pane = MagicMock()
+        mock_pane.write = MagicMock()
+        mock_pane.scroll_end = MagicMock()
 
         with patch.object(textual_app, "query_one", return_value=mock_pane):
             # Create a thought message
@@ -60,25 +61,38 @@ class TestThinkingToolDisplay:
             # Handle the message
             textual_app.on_agent_thought_message(message)
 
-            # Verify thinking chunk was streamed (not a new widget per message)
-            mock_pane.append_thinking_chunk.assert_called_once_with(
-                "Agent1", "I'm thinking about this"
-            )
+            # Verify thinking chunk was written to thinking pane
+            mock_pane.write.assert_called_once()
+            mock_pane.scroll_end.assert_called_once_with(animate=False)
 
     def test_on_tool_call_request_message_adds_tool_widget(self, textual_app):
         """Test that on_tool_call_request_message adds ToolMessage to chat pane."""
         # Mock the chat pane
-        mock_pane = MagicMock(spec=ChatPane)
-        mock_pane.add_tool_message = MagicMock()
+        mock_chat_pane = MagicMock(spec=ChatPane)
+        mock_chat_pane.add_tool_message = MagicMock()
+        
+        # Mock the tool pane
+        mock_tool_pane = MagicMock()
+        mock_tool_pane.write = MagicMock()
+        mock_tool_pane.scroll_end = MagicMock()
 
         # Create a mock tool call
         mock_tool_call = MagicMock()
         mock_tool_call.name = "read_file"
         mock_tool_call.arguments = {"path": "test.txt"}
 
-        with patch.object(textual_app, "query_one", return_value=mock_pane):
+        # Mock query_one to return different panes based on selector
+        def mock_query_one(selector, *args, **kwargs):
+            if selector == "#chat-pane":
+                return mock_chat_pane
+            elif selector == "#tool-pane":
+                return mock_tool_pane
+            return None
+
+        with patch.object(textual_app, "query_one", side_effect=mock_query_one):
             # Mock the _format_tool_args method
             textual_app._format_tool_args = MagicMock(return_value="path='test.txt'")
+            textual_app._format_full_tool_args = MagicMock(return_value="{'path': 'test.txt'}")
 
             # Create a tool call request message
             message = ToolCallRequestMessage(mock_tool_call, "Agent1")
@@ -86,10 +100,14 @@ class TestThinkingToolDisplay:
             # Handle the message
             textual_app.on_tool_call_request_message(message)
 
-            # Verify tool message was added
-            mock_pane.add_tool_message.assert_called_once_with(
+            # Verify tool message was added to chat pane
+            mock_chat_pane.add_tool_message.assert_called_once_with(
                 "read_file: path='test.txt'", mock_tool_call
             )
+            
+            # Verify tool was written to tool pane
+            mock_tool_pane.write.assert_called_once()
+            mock_tool_pane.scroll_end.assert_called_once_with(animate=False)
 
     def test_thinking_message_appears_in_chat_pane(self):
         """Test that ThinkingMessage widgets actually appear in ChatPane."""

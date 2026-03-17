@@ -7,7 +7,8 @@ turn limit checks, colon stall detection, and finalization.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+import warnings
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import Message
@@ -30,6 +31,14 @@ if TYPE_CHECKING:
 
     from henchman.core.agent import Agent
     from henchman.providers.base import ToolCall
+
+_LOGGER = logging.getLogger(__name__)
+_DELEGATION_ERRORS_ATTR = "_delegation_tool_errors"
+_LAST_LOOP_TOOL_CALL_COUNT_ATTR = "_last_loop_tool_call_count"
+_LAST_LOOP_SUCCESS_COUNT_ATTR = "_last_loop_success_count"
+_LAST_LOOP_TIMED_OUT_ATTR = "_last_loop_timed_out"
+_MESSAGES_NONE_ERROR = "agent.messages cannot be None"
+_MESSAGES_TYPE_ERROR_TEMPLATE = "agent.messages must be a list, got {type_name}"
 
 # Re-export for callers that import from this module
 __all__ = [
@@ -103,14 +112,10 @@ async def collect_events(
         StopAsyncIteration: When the generator is exhausted, re-raised to signal
             to the caller that the generator has completed.
     """
-    try:
-        async for event in generator:
-            if event.type == EventType.TOOL_CALL_REQUEST:
-                pending.append(event.data)
-            yield event
-    except StopAsyncIteration:  # pragma: no cover
-        # Re-raise to signal generator exhaustion to caller (unreachable in Python 3.12+)
-        raise
+    async for event in generator:
+        if event.type == EventType.TOOL_CALL_REQUEST:
+            pending.append(event.data)
+        yield event
 
 
 # ---------------------------------------------------------------------------
@@ -165,21 +170,11 @@ def finalize_loop(
     try:
         agent.record_delegation_errors(state.tool_errors)
     except AttributeError:
-        # Fallback for agents without the new API method
-        import warnings
-        warnings.warn(
-            f"Agent {agent.__class__.__name__} does not have record_delegation_errors() method. "
-            "Using dynamic attribute as fallback. This may cause race conditions in concurrent execution.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if not hasattr(agent, "_delegation_tool_errors"):
-            agent._delegation_tool_errors = []
-        agent._delegation_tool_errors = state.tool_errors
+        _record_legacy_delegation_errors(agent, state.tool_errors)
 
-    orchestrator._last_loop_tool_call_count = state.tool_call_count
-    orchestrator._last_loop_success_count = state.successful_tool_call_count
-    orchestrator._last_loop_timed_out = state.timed_out
+    _set_private_attr(orchestrator, _LAST_LOOP_TOOL_CALL_COUNT_ATTR, state.tool_call_count)
+    _set_private_attr(orchestrator, _LAST_LOOP_SUCCESS_COUNT_ATTR, state.successful_tool_call_count)
+    _set_private_attr(orchestrator, _LAST_LOOP_TIMED_OUT_ATTR, state.timed_out)
 
 
 # ---------------------------------------------------------------------------
@@ -211,8 +206,7 @@ def check_colon_stall(
         content = last_assistant_content(agent)
     except TypeError as e:
         # If we can't get the content, we can't check for colon stall
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Cannot check for colon stall: {e}")
+        _LOGGER.warning("Cannot check for colon stall: %s", e)
         return None
 
     # Ensure content is a string before processing
@@ -239,16 +233,50 @@ def last_assistant_content(agent: Agent) -> str:
     Raises:
         TypeError: If agent.messages is not a list or is None.
     """
-    messages = agent.messages
-    if messages is None:
-        raise TypeError("agent.messages cannot be None")
-    if not isinstance(messages, list):
-        raise TypeError(f"agent.messages must be a list, got {type(messages)}")
+    messages = _validate_agent_messages(agent.messages)
 
     for msg in reversed(messages):
         if msg.role == "assistant" and msg.content:
-            # Ensure content is a string
-            if not isinstance(msg.content, str):
-                return str(msg.content) if msg.content is not None else ""
-            return msg.content
+            return _coerce_message_content(msg.content)
     return ""
+
+
+def _record_legacy_delegation_errors(agent: Agent, tool_errors: list[str]) -> None:
+    """Store delegation errors on legacy agents that lack the new API."""
+    warning_message = (
+        f"Agent {agent.__class__.__name__} does not have "
+        "record_delegation_errors() method. Using dynamic attribute as fallback. "
+        "This may cause race conditions in concurrent execution."
+    )
+    warnings.warn(warning_message, DeprecationWarning, stacklevel=2)
+    if not hasattr(agent, _DELEGATION_ERRORS_ATTR):
+        _set_private_attr(agent, _DELEGATION_ERRORS_ATTR, [])
+    _set_private_attr(agent, _DELEGATION_ERRORS_ATTR, tool_errors)
+
+
+def _set_private_attr(target: Any, attr_name: str, value: Any) -> None:
+    """Set a compatibility attribute without direct private-member access."""
+    setattr(target, attr_name, value)
+
+
+def _validate_agent_messages(messages: Any) -> list[Message]:
+    """Validate ``agent.messages`` and return it as a list."""
+    if messages is None:
+        _raise_messages_type_error(_MESSAGES_NONE_ERROR)
+    if not isinstance(messages, list):
+        type_name = type(messages).__name__
+        error_message = _MESSAGES_TYPE_ERROR_TEMPLATE.format(type_name=type_name)
+        _raise_messages_type_error(error_message)
+    return messages
+
+
+def _raise_messages_type_error(message: str) -> NoReturn:
+    """Raise a ``TypeError`` for invalid message containers."""
+    raise TypeError(message)
+
+
+def _coerce_message_content(content: Any) -> str:
+    """Return message content as a string."""
+    if isinstance(content, str):
+        return content
+    return str(content) if content is not None else ""
