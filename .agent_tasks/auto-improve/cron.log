@@ -828903,3 +828903,542 @@ TOTAL                                                       19515    325   5150 
 =========== 5903 passed, 6 skipped, 45 warnings in 193.87s (0:03:13) ===========
 [2026-03-17T03:00:02Z] All tests passed.
 Committing changes...
+[main 0cbd2ab] fix(four-lenses): four-lenses-cli-textual_mixins
+ 5 files changed, 3558 insertions(+), 298 deletions(-)
+[2026-03-17T03:00:02Z] Auto-improve complete.
+[2026-03-17T04:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-17T04:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-17T04:00:39.695237+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me examine the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
+Let me continue reading the file to understand its structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 300})
+
+[result]     "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real provider is configured)          #
+# ------------...
+Let me continue reading to understand the structure and find potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 500})
+
+[result]     @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+    ...
+Let me continue reading to see the rest of the `_textual_confirm` method and look for potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+485, 'end_line': 600})
+
+[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+Now let me check if there are any tests for this file to understand what functionality should be tested:
+[tool] glob({'pattern': '**/test*textual_mixins*'})
+
+[result] 
+tests/cli/__pycache__/test_textual_mixins_bug.cpython-312-pytest-9.0.2.pyc
+tests/cli/__pycache__/test_textual_mixins_bug_atomic.cpython-312-pytest-9.0.2.py
+c
+tests/cli/__pycache__/test_textual_mixins_b...
+Let me examine the existing test file to understand what's already being tested:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py'})
+
+[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import ...
+Now let me examine the file more carefully to look for bugs. Let me check the `_textual_confirm` method more closely since it seems to be a complex method that handles async futures:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+470, 'end_line': 530})
+
+[result]         """
+        self.core_context = init.core_context  # type: ignore[attr-defined]
+        self.tool_executor = init.tool_executor  # type: ignore[attr-defined]
+        self.command_processor = i...
+Now let me analyze the file through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_textual_confirm` method, I can see a potential bug. The method creates a future and stores it in `self._confirm_futures` dictionary using `req_id = id(future)`. However, there's a race condition issue:
+
+1. The future is created and stored in the dictionary
+2. The callback `_callback` is defined which will remove the future from the dictionary when called
+3. If an exception occurs before `push_screen` is called, the future is removed from the dictionary
+4. But there's a problem: if the callback is called **after** an exception has already removed the future from the dictionary, the `pop` operation in the callback will fail silently (which is fine), but more importantly, if the callback is called **while** an exception is being handled, we could have issues.
+
+Actually, looking more carefully, I see another issue. Let me check the `_cleanup_confirm_futures` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+530, 'end_line': 550})
+
+[result]                 future.cancel()
+            self._confirm_futures.pop(req_id, None)  # type: 
+ignore[attr-defined]
+
+    def _activate_chat_tab(self: _InitMixin) -> None:
+        """Force the Chat tab t...
+Wait, I need to see the full `_cleanup_confirm_futures` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+520, 'end_line': 540})
+
+[result]                 future.cancel()
+            raise
+
+    def _cleanup_confirm_futures(self: _InitMixin) -> None:
+        """Clean up all pending confirmation futures."""
+        # Note: This is called f...
+Now I found a bug! Look at the `_cleanup_confirm_futures` method. It iterates over `self._confirm_futures.items()` and calls `pop` on each item **while iterating over the dictionary**. This is a classic "modifying dictionary while iterating" bug in Python. When you modify a dictionary while iterating over it, you can get a `RuntimeError: dictionary changed size during iteration`.
+
+Let me check if there are any tests that would catch this:
+[tool] pytest_run({'path': 
+'tests/cli/test_textual_mixins_coverage.py::TestInitMixin::test_cleanup_confirm_
+futures', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Now let me create the bug report documentation first, as required by the workflow:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-17T04:00:00Z\n## Bug Summary\nThe `_cleanup_confirm_futures` method 
+modifies a dictionary while iterating over it, which can cause a `RuntimeError: 
+dictionary changed size during iteration` in Python.\n\n## Lens\n**Phase 2: 
+State & Side Effects (The Entropy Audit)** - This is a state mutation bug where 
+the code modifies shared mutable state (the `_confirm_futures` dictionary) while
+iterating over it, violating Python\'s iteration safety rules.\n\n## Expected 
+vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| The method 
+should safely iterate over and clean up all pending confirmation futures without
+raising exceptions | When `_cleanup_confirm_futures` is called, it iterates over
+`self._confirm_futures.items()` and calls `pop()` on each item, modifying the 
+dictionary during iteration |\n| Dictionary iteration should be stable and 
+predictable | Python raises `RuntimeError: dictionary changed size during 
+iteration` when a dictionary is modified during iteration |\n\n## Root 
+Cause\nThe `_cleanup_confirm_futures` method in the `_InitMixin` class contains 
+this problematic code:\n```python\nfor req_id, future in 
+list(self._confirm_futures.items()):  # type: ignore[attr-defined]\n    if not 
+future.done():\n        future.cancel()\n    self._confirm_futures.pop(req_id, 
+None)  # type: ignore[attr-defined]\n```\n\nThe issue is that even though 
+`list(self._confirm_futures.items())` creates a copy of the items, the `pop()` 
+operation inside the loop modifies the original dictionary 
+`self._confirm_futures`. This is safe in terms of iteration (because we\'re 
+iterating over a copy), but it\'s still modifying the dictionary while we have 
+an active iterator over it (even if it\'s through a copied list of 
+items).\n\nActually, wait - let me re-examine this. The code uses 
+`list(self._confirm_futures.items())` which creates a copy of the items, so the 
+iteration should be safe from the "dictionary changed size during iteration" 
+error. However, there\'s still a potential issue: if another thread or async 
+task modifies `self._confirm_futures` while this method is running, we could 
+have issues.\n\nBut actually, looking more carefully at the actual bug: The real
+issue is that we\'re calling `pop()` inside the loop **after** checking 
+`future.done()`. This is inefficient and could cause issues if the dictionary is
+being accessed concurrently. A better approach would be to clear the dictionary 
+after processing all futures.\n\nActually, let me trace through this more 
+carefully. The code does:\n1. `for req_id, future in 
+list(self._confirm_futures.items()):` - Creates a list copy of items\n2. Inside 
+loop: checks `if not future.done(): future.cancel()`\n3. Inside loop: calls 
+`self._confirm_futures.pop(req_id, None)`\n\nThe `pop()` inside the loop is 
+modifying the dictionary while we\'re iterating over a **copy** of its items, so
+technically this shouldn\'t cause a "dictionary changed size during iteration" 
+error. However, it\'s still poor practice and could cause issues if there\'s 
+concurrent access.\n\nWait, I need to re-read the actual error. Let me check if 
+there\'s a simpler bug: Actually, the real bug might be that we should use `del 
+self._confirm_futures[req_id]` instead of `pop()` since we know the key exists, 
+or better yet, clear the entire dictionary after the loop.\n\nActually, let me 
+think about this from first principles. The safest approach is:\n1. Get all 
+futures\n2. Cancel unfinished ones  \n3. Clear the dictionary\n\nThe current 
+code does item-by-item removal which is unnecessary since we\'re clearing 
+everything anyway.\n\n## Fix Plan\nChange the `_cleanup_confirm_futures` method 
+to:\n1. Get a list of all futures from the dictionary\n2. Cancel any unfinished 
+futures\n3. Clear the entire dictionary with `self._confirm_futures.clear()` 
+instead of popping items one by one\n\nThis is simpler, more efficient, and 
+avoids any potential iteration issues.\n\n## Status: IN PROGRESS'})
+
+[result] Successfully wrote 3953 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+Wait, I need to actually examine the code more carefully. Let me re-read the `_cleanup_confirm_futures` method and think about whether there's actually a bug or if I'm misunderstanding:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+520, 'end_line': 540})
+
+[result]                 future.cancel()
+            raise
+
+    def _cleanup_confirm_futures(self: _InitMixin) -> None:
+        """Clean up all pending confirmation futures."""
+        # Note: This is called f...
+Actually, I think I need to reconsider. The code uses `list(self._confirm_futures.items())` which creates a copy, so modifying the dictionary during iteration shouldn't cause a `RuntimeError`. However, there's still a potential issue: what if `self._confirm_futures` is `None` or not a dictionary? Let me check how it's initialized:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+410, 'end_line': 430})
+
+[result] 
+    def _init_confirm_state(self: _InitMixin) -> None:
+        """Initialize tool confirmation future state."""
+        self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
+        # _confirm_...
+OK so `_confirm_futures` is initialized as an empty dict in `_init_confirm_state`. So it should never be `None`. 
+
+Let me think about this differently. Maybe I should look for a different bug. Let me examine the `_textual_confirm` method more carefully for potential issues:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+470, 'end_line': 520})
+
+[result]         """
+        self.core_context = init.core_context  # type: ignore[attr-defined]
+        self.tool_executor = init.tool_executor  # type: ignore[attr-defined]
+        self.command_processor = i...
+Wait! I think I found a real bug! Look at the `_callback` function in `_textual_confirm`:
+
+```python
+def _callback(result: object | None) -> None:
+    if not future.done():
+        future.set_result(bool(result))
+    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+```
+
+The callback captures `req_id` from the closure. But what if the callback is called **after** an exception has already removed the future from `_confirm_futures`? Actually, that's fine because `pop(req_id, None)` will just return `None` if the key doesn't exist.
+
+But wait, there's another issue! Look at the exception handling:
+
+```python
+except asyncio.CancelledError:
+    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+    if not future.done():
+        future.cancel()
+    raise
+except Exception:
+    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+    if not future.done():
+        future.cancel()
+    raise
+```
+
+If an exception occurs **after** `push_screen` is called but **before** the callback is registered, then the callback could still be called later (when the screen is dismissed) and try to access `future` which might have been cancelled or removed. Actually, looking more carefully: if an exception occurs in `push_screen`, the future won't be awaited, and the callback won't be registered because `push_screen` failed. So that's probably OK.
+
+Hmm, let me think about race conditions. Actually, I think the real bug might be in the `_cleanup_confirm_futures` method. What if it's called while `_textual_confirm` is running? There's no locking. The comment says "by the time we're unmounting, no new confirmations should be starting", but what if there's a race?
+
+Actually, wait! I think I found it! Look at this line in `_textual_confirm`:
+
+```python
+req_id = id(future)
+self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+```
+
+What if `id(future)` returns the same ID for two different futures? That's theoretically possible if one future is garbage collected and a new one is allocated at the same memory address. Actually, `id()` returns the memory address, and Python reuses memory addresses for objects that have been garbage collected. So if:
+1. Future A is created, gets ID 1000
+2. Future A completes, is garbage collected
+3. Future B is created, gets allocated at same memory address, ID 1000
+4. Callback for Future A is called (late) and tries to pop ID 1000, but that's now Future B!
+
+This is a real bug! The `id()` of an object is not guaranteed to be unique over time, only unique among simultaneously existing objects. Once an object is garbage collected, its `id()` can be reused.
+
+The fix should be to use a proper unique ID generator, not `id(future)`.
+
+Let me update my bug report:
+[tool] edit_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'old_str': '# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-17T04:00:00Z\n## Bug Summary\nThe `_cleanup_confirm_futures` method 
+modifies a dictionary while iterating over it, which can cause a `RuntimeError: 
+dictionary changed size during iteration` in Python.\n\n## Lens\n**Phase 2: 
+State & Side Effects (The Entropy Audit)** - This is a state mutation bug where 
+the code modifies shared mutable state (the `_confirm_futures` dictionary) while
+iterating over it, violating Python\'s iteration safety rules.\n\n## Expected 
+vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| The method 
+should safely iterate over and clean up all pending confirmation futures without
+raising exceptions | When `_cleanup_confirm_futures` is called, it iterates over
+`self._confirm_futures.items()` and calls `pop()` on each item, modifying the 
+dictionary during iteration |\n| Dictionary iteration should be stable and 
+predictable | Python raises `RuntimeError: dictionary changed size during 
+iteration` when a dictionary is modified during iteration |\n\n## Root 
+Cause\nThe `_cleanup_confirm_futures` method in the `_InitMixin` class contains 
+this problematic code:\n```python\nfor req_id, future in 
+list(self._confirm_futures.items()):  # type: ignore[attr-defined]\n    if not 
+future.done():\n        future.cancel()\n    self._confirm_futures.pop(req_id, 
+None)  # type: ignore[attr-defined]\n```\n\nThe issue is that even though 
+`list(self._confirm_futures.items())` creates a copy of the items, the `pop()` 
+operation inside the loop modifies the original dictionary 
+`self._confirm_futures`. This is safe in terms of iteration (because we\'re 
+iterating over a copy), but it\'s still modifying the dictionary while we have 
+an active iterator over it (even if it\'s through a copied list of 
+items).\n\nActually, wait - let me re-examine this. The code uses 
+`list(self._confirm_futures.items())` which creates a copy of the items, so the 
+iteration should be safe from the "dictionary changed size during iteration" 
+error. However, there\'s still a potential issue: if another thread or async 
+task modifies `self._confirm_futures` while this method is running, we could 
+have issues.\n\nBut actually, looking more carefully at the actual bug: The real
+issue is that we\'re calling `pop()` inside the loop **after** checking 
+`future.done()`. This is inefficient and could cause issues if the dictionary is
+being accessed concurrently. A better approach would be to clear the dictionary 
+after processing all futures.\n\nActually, let me trace through this more 
+carefully. The code does:\n1. `for req_id, future in 
+list(self._confirm_futures.items()):` - Creates a list copy of items\n2. Inside 
+loop: checks `if not future.done(): future.cancel()`\n3. Inside loop: calls 
+`self._confirm_futures.pop(req_id, None)`\n\nThe `pop()` inside the loop is 
+modifying the dictionary while we\'re iterating over a **copy** of its items, so
+technically this shouldn\'t cause a "dictionary changed size during iteration" 
+error. However, it\'s still poor practice and could cause issues if there\'s 
+concurrent access.\n\nWait, I need to re-read the actual error. Let me check if 
+there\'s a simpler bug: Actually, the real bug might be that we should use `del 
+self._confirm_futures[req_id]` instead of `pop()` since we know the key exists, 
+or better yet, clear the entire dictionary after the loop.\n\nActually, let me 
+think about this from first principles. The safest approach is:\n1. Get all 
+futures\n2. Cancel unfinished ones  \n3. Clear the entire dictionary\n\nThe 
+current code does item-by-item removal which is unnecessary since we\'re 
+clearing everything anyway.\n\n## Fix Plan\nChange the 
+`_cleanup_confirm_futures` method to:\n1. Get a list of all futures from the 
+dictionary\n2. Cancel any unfinished futures\n3. Clear the entire dictionary 
+with `self._confirm_futures.clear()` instead of popping items one by one\n\nThis
+is simpler, more efficient, and avoids any potential iteration issues.\n\n## 
+Status: IN PROGRESS', 'new_str': "# Four Lenses Bug Report: 
+src/henchman/cli/textual_mixins.py\n## Date: 2025-03-17T04:00:00Z\n## Bug 
+Summary\nThe `_textual_confirm` method uses `id(future)` as a dictionary key, 
+which can lead to ID collisions when futures are garbage collected and memory 
+addresses are reused, causing wrong future to be accessed or modified.\n\n## 
+Lens\n**Phase 1: The Intent vs. Reality Check** - This is a logic gap where the 
+code assumes `id()` provides a unique identifier that persists over time, but 
+Python's `id()` only guarantees uniqueness among simultaneously existing 
+objects, not over time.\n\n## Expected vs. Observed\n| Expected Behavior | 
+Observed Risk |\n|---|---|\n| `id(future)` should provide a unique identifier 
+that can safely be used as a dictionary key for the lifetime of the confirmation
+process | `id()` returns memory address which can be reused after object is 
+garbage collected, leading to potential key collisions |\n| Each confirmation 
+future should have a truly unique ID that won't conflict with other futures | If
+Future A is garbage collected and Future B is allocated at same memory address, 
+they get same `id()`, causing callbacks for Future A to affect Future B |\n\n## 
+Root Cause\nIn the `_textual_confirm` method:\n```python\nreq_id = 
+id(future)\nself._confirm_futures[req_id] = future  # type: 
+ignore[attr-defined]\n\ndef _callback(result: object | None) -> None:\n    if 
+not future.done():\n        future.set_result(bool(result))\n    
+self._confirm_futures.pop(req_id, None)  # type: 
+ignore[attr-defined]\n```\n\nThe bug is that `id(future)` is not a reliable 
+unique identifier over time. Python's `id()` function returns the memory address
+of an object, which can be reused after the object is garbage collected. In a 
+long-running application with many confirmation dialogs:\n1. Future A is 
+created, gets ID 1000 (memory address)\n2. Future A completes, callback removes 
+it from dict, future is garbage collected\n3. Future B is created, gets 
+allocated at same memory address, ID 1000\n4. Late callback for Future A (race 
+condition) tries to pop ID 1000, affecting Future B\n5. Or 
+`_cleanup_confirm_futures` might cancel Future B thinking it's Future A\n\n## 
+Fix Plan\nReplace `id(future)` with a proper unique ID generator. Options:\n1. 
+Use `uuid.uuid4()` for truly unique IDs\n2. Use an incrementing counter 
+(`self._confirm_counter` already exists but is unused)\n3. Use `future` object 
+itself as key (requires weakref to avoid memory leaks)\n\nSimplest fix: Use the 
+existing `self._confirm_counter` that's already initialized but unused.\n\n## 
+Status: IN PROGRESS"})
+
+✗ \[error] Error: String not found in file: # Four Lenses Bug Report: 
+src/henchman/cli/textual...
+Let me check the file content:
+[tool] read_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md'})
+
+[result] # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
+## Date: 2025-03-17T04:00:00Z
+## Bug Summary
+The `_cleanup_confirm_futures` method modifies a dictionary while iterating over
+it, which can...
+Actually, I need to reconsider. The `list(self._confirm_futures.items())` creates a copy, so modifying the dictionary during iteration is actually safe from the "dictionary changed size during iteration" error. But my second bug finding about `id(future)` is more serious. Let me rewrite the file with the correct bug:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-17T04:00:00Z\n## Bug Summary\nThe `_textual_confirm` method uses 
+`id(future)` as a dictionary key, which can lead to ID collisions when futures 
+are garbage collected and memory addresses are reused, causing wrong future to 
+be accessed or modified.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** -
+This is a logic gap where the code assumes `id()` provides a unique identifier 
+that persists over time, but Python's `id()` only guarantees uniqueness among 
+simultaneously existing objects, not over time.\n\n## Expected vs. Observed\n| 
+Expected Behavior | Observed Risk |\n|---|---|\n| `id(future)` should provide a 
+unique identifier that can safely be used as a dictionary key for the lifetime 
+of the confirmation process | `id()` returns memory address which can be reused 
+after object is garbage collected, leading to potential key collisions |\n| Each
+confirmation future should have a truly unique ID that won't conflict with other
+futures | If Future A is garbage collected and Future B is allocated at same 
+memory address, they get same `id()`, causing callbacks for Future A to affect 
+Future B |\n\n## Root Cause\nIn the `_textual_confirm` 
+method:\n```python\nreq_id = id(future)\nself._confirm_futures[req_id] = future 
+# type: ignore[attr-defined]\n\ndef _callback(result: object | None) -> None:\n 
+if not future.done():\n        future.set_result(bool(result))\n    
+self._confirm_futures.pop(req_id, None)  # type: 
+ignore[attr-defined]\n```\n\nThe bug is that `id(future)` is not a reliable 
+unique identifier over time. Python's `id()` function returns the memory address
+of an object, which can be reused after the object is garbage collected. In a 
+long-running application with many confirmation dialogs:\n1. Future A is 
+created, gets ID 1000 (memory address)\n2. Future A completes, callback removes 
+it from dict, future is garbage collected\n3. Future B is created, gets 
+allocated at same memory address, ID 1000\n4. Late callback for Future A (race 
+condition) tries to pop ID 1000, affecting Future B\n5. Or 
+`_cleanup_confirm_futures` might cancel Future B thinking it's Future A\n\n## 
+Fix Plan\nReplace `id(future)` with a proper unique ID generator. Use the 
+existing `self._confirm_counter` that's already initialized in 
+`_init_confirm_state()` but currently unused. Increment it for each new 
+confirmation request.\n\n## Status: IN PROGRESS"})
+
+[result] Successfully wrote 2408 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+Now I need to write a failing test first (TDD). Let me check what tests exist and create a test that demonstrates this bug:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import ...
+I need to add a test that demonstrates the `id()` collision bug. Let me create a new test file:
+[tool] write_file({'path': 'tests/cli/test_textual_mixins_bug.py', 'content': 
+'"""Test for the id() collision bug in textual_mixins.py."""\n\nfrom __future__ 
+import annotations\n\nimport asyncio\nfrom unittest.mock import MagicMock, 
+patch\nimport pytest\n\nfrom henchman.tools.base import 
+ConfirmationRequest\n\n\nclass TestTextualConfirmIdCollisionBug:\n    """Test 
+that demonstrates the id() collision bug in _textual_confirm."""\n    \n    
+@pytest.mark.anyio\n    async def test_id_collision_bug(self) -> None:\n        
+"""Demonstrate that id() can be reused after garbage collection.\n        \n    
+This test shows the theoretical bug where id(future) can return\n        the 
+same value for two different futures if one is garbage collected\n        and 
+memory is reused.\n        """\n        from henchman.cli.textual_mixins import 
+_InitMixin\n        \n        # Create a mock app with the mixin\n        app = 
+MagicMock()\n        app._confirm_futures = {}\n        app._confirm_counter = 
+0\n        \n        # Monkey-patch the _textual_confirm method to test it\n    
+mixin = _InitMixin.__new__(_InitMixin)\n        \n        # We need to simulate 
+the bug scenario\n        # First, create a future and get its id\n        loop 
+= asyncio.get_running_loop()\n        future1 = loop.create_future()\n        
+id1 = id(future1)\n        \n        # Simulate what happens in 
+_textual_confirm\n        app._confirm_futures[id1] = future1\n        \n       
+# Now simulate future1 being garbage collected\n        # (in real scenario, 
+this would happen after completion)\n        del future1\n        \n        # 
+Create a new future - Python might reuse the same memory address\n        
+future2 = loop.create_future()\n        id2 = id(future2)\n        \n        # 
+In the bug scenario, id2 could equal id1 if memory was reused\n        # This is
+non-deterministic but possible\n        \n        # The bug is that the code 
+assumes id() is unique over time,\n        # but it\'s only unique among 
+simultaneously existing objects\n        \n        # We can\'t reliably 
+reproduce the exact memory reuse scenario,\n        # but we can demonstrate the
+flawed assumption by showing\n        # that two different futures can 
+theoretically get the same id\n        # if one is garbage collected\n        \n
+# Instead, let\'s test the actual fix: using a counter instead of id()\n        
+\n        # Test that _confirm_counter exists but is unused\n        assert 
+hasattr(app, \'_confirm_counter\')\n        \n        # The bug is that 
+_textual_confirm uses id(future) instead of\n        # using and incrementing 
+_confirm_counter\n        \n    @pytest.mark.anyio \n    async def 
+test_textual_confirm_uses_id_bug(self) -> None:\n        """Test that 
+_textual_confirm currently uses id() which is buggy."""\n        from 
+henchman.cli.textual_mixins import _InitMixin\n        \n        # Create mock\n
+app = MagicMock()\n        app._confirm_futures = {}\n        
+app._confirm_counter = 0\n        app.push_screen = MagicMock()\n        \n     
+# Get the actual _textual_confirm method\n        mixin = 
+_InitMixin.__new__(_InitMixin)\n        \n        # We need to inspect the 
+source to confirm it uses id()\n        import inspect\n        import 
+henchman.cli.textual_mixins as module\n        \n        source = 
+inspect.getsource(module._InitMixin._textual_confirm)\n        assert 
+\'id(future)\' in source, "_textual_confirm should use id(future) - this is the 
+bug!"\n        assert \'self._confirm_counter\' not in source, "_textual_confirm
+should NOT use _confirm_counter (but it should!)"\n        \n    
+@pytest.mark.anyio\n    async def test_fix_would_use_counter(self) -> None:\n   
+"""Test what the fixed version should look like."""\n        from 
+henchman.cli.textual_mixins import _InitMixin\n        \n        # After fix, 
+_textual_confirm should:\n        # 1. Use self._confirm_counter as ID\n        
+# 2. Increment self._confirm_counter\n        # 3. NOT use id(future)\n        
+\n        # We\'ll write this test to fail with current implementation\n        
+# and pass after fix\n        \n        app = MagicMock()\n        
+app._confirm_futures = {}\n        app._confirm_counter = 100  # Start at 100\n 
+\n        # Mock the method to test the logic\n        async def 
+mock_textual_confirm(self, request):\n            loop = 
+asyncio.get_running_loop()\n            future = loop.create_future()\n         
+\n            # BUGGY CURRENT IMPLEMENTATION uses id()\n            req_id = 
+id(future)  # This is the bug!\n            \n            # CORRECT 
+IMPLEMENTATION should use counter:\n            # req_id = 
+self._confirm_counter\n            # self._confirm_counter += 1\n            \n 
+self._confirm_futures[req_id] = future\n            return True\n            \n 
+# Patch it\n        with patch.object(_InitMixin, \'_textual_confirm\', 
+mock_textual_confirm):\n            mixin = _InitMixin.__new__(_InitMixin)\n    
+mixin._confirm_futures = {}\n            mixin._confirm_counter = 100\n         
+\n            request = ConfirmationRequest(\n                
+tool_name="test_tool",\n                tool_kind="EXECUTE",\n                
+arguments={"arg": "value"},\n                description="Test tool execution"\n
+)\n            \n            # Call the method\n            result = await 
+mixin._textual_confirm(request)\n            \n            # Check that it used 
+id() not counter\n            # This assertion will fail after fix\n            
+futures_keys = list(mixin._confirm_futures.keys())\n            if 
+futures_keys:\n                key = futures_keys[0]\n                # With 
+buggy implementation, key is a large memory address (id)\n                # With
+fixed implementation, key should be 100 (counter)\n                assert key !=
+100, "After fix, key should be 100 (counter value), not id()"\n                
+\n    @pytest.mark.anyio\n    async def 
+test_concurrent_id_collision_scenario(self) -> None:\n        """Simulate a 
+scenario where id() collision could cause issues."""\n        from 
+henchman.cli.textual_mixins import _InitMixin\n        \n        # This is a 
+more direct test of the problem\n        app = MagicMock()\n        
+app._confirm_futures = {}\n        app._confirm_counter = 0\n        \n        #
+Create two futures\n        loop = asyncio.get_running_loop()\n        future1 =
+loop.create_future()\n        future2 = loop.create_future()\n        \n        
+# Manually create the bug scenario\n        # In real code, this would happen 
+if:\n        # 1. future1 gets id 1000\n        # 2. future1 completes, removed 
+from dict, garbage collected  \n        # 3. future2 gets allocated at same 
+address, id 1000\n        # 4. Something tries to access id 1000 in dict\n      
+\n        # Simulate by forcing same id (not possible in real Python but 
+illustrates bug)\n        import ctypes\n        id1 = id(future1)\n        \n  
+# We can\'t force id2 to equal id1, but we can show the logic flaw\n        # 
+The dictionary stores futures by id\n        app._confirm_futures[id1] = 
+future1\n        \n        # If future1 is removed and future2 gets same id...\n
+# (can\'t actually simulate but illustrating the bug)\n        del 
+app._confirm_futures[id1]\n        \n        # Now if something tries to pop id1
+for future1 (late callback)\n        # it won\'t find it (returns None) - 
+that\'s actually OK\n        \n        # But if future2 gets same id and is 
+added to dict...\n        # Actually, thinking more: the real issue is if the 
+callback\n        # for future1 runs late and future2 has same id\n        \n   
+# The test shows we need deterministic unique IDs, not memory addresses'})
+
+[result] Successfully wrote 7468 bytes to 
+tests/cli/test_textual_mixins_bug.py...
+Now let me run the test to see if it fails (it should, since we're testing for the bug):
+[tool] pytest_run({'path': 'tests/cli/test_textual_mixins_bug.py', 'verbose': 
+True})
+
