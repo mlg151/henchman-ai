@@ -1,48 +1,27 @@
-[2026-03-17T12:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T14:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
-There's also `test_textual_mixins_counter_race_failing.py`. Let me check that file:
-[tool] read_file({'path': 
-'tests/cli/test_textual_mixins_counter_race_failing.py', 'start_line': 1, 
-'end_line': 50})
-
-[result] """Failing test for counter race condition bug in textual_mixins.py.
-
-This test WILL FAIL with current implementation because of the race condition.
-It should pass after the fix is applied.
-"""
-
-from ...
-This test is testing a race condition scenario where the task is cancelled but the callback still runs. The test is trying to simulate the buggy behavior. Let me run this specific test to see what's failing:
-[tool] shell({'command': 'python -m pytest 
-tests/cli/test_textual_mixins_race_condition.py::TestTextualConfirmRaceCondition
-::test_race_condition_in_actual_method -xvs 2>&1 | tail -100'})
-
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T12:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T14:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by reading the smell report and the target file to understand the context and identify bugs.
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — 👍 B (Score: 80.5/100)
+[result] # Code Smell Report — 👍 B (Score: 80.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T12:00:39.131751+00:00_
+_Generated: 2026-03-17T14:00:40.643023+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+Now let me examine the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -50,41 +29,88 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-Let me run the full test suite again to see the exact error. The issue seems to be that when running all tests, something is different. Let me check if there's test interference or if pytest is caching something:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_race_condition.py -xvs --tb=short 2>&1 | tail 
--100'})
-
-The test has a bug - it's trying to call `self._[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-invoke_callback_later` but `_invoke_callback_later` is defined inside the test method, not as a method of the test class. Let me fix this:
-[tool] edit_file({'path': 'tests/cli/test_textual_mixins_race_condition.py', 
-'old_str': "        async def mock_push_screen(screen, callback):\n            #
-Store callback to call later\n            nonlocal callback_future\n            
-callback_future = asyncio.create_task(self._invoke_callback_later(callback))\n  
-# Don't actually call it yet - simulate screen being shown\n        \n        
-async def _invoke_callback_later(self, callback):\n            await 
-asyncio.sleep(0.01)  # Small delay\n            callback(True)  # This might 
-happen after exception\n            callback_called.set()", 'new_str': "        
-async def mock_push_screen(screen, callback):\n            # Store callback to 
-call later\n            nonlocal callback_future\n            \n            
-async def invoke_callback_later():\n                await asyncio.sleep(0.01)  #
-Small delay\n                callback(True)  # This might happen after 
-exception\n                callback_called.set()\n            \n            
-callback_future = asyncio.create_task(invoke_callback_later())\n            # 
-Don't actually call it yet - simulate screen being shown"})
-
-✗ \[error] Error: String not found in file:         async def 
-mock_push_screen(screen, callbac...
-The file is truncated. Let me read the rest of it:
+Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-1300})
+100, 'end_line': 200})
 
-[result]             return ""
-        try:
-            parsed = json.loads(args) if isinstance(args, str) else args
-            return json.dumps(parsed, separators=(",", ":"))
-        except (TypeError, Valu...
+[result]     "thinking": ("#thinking-pane", ThinkingPane),
+    "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real...
+Let me check if there are any tests for this file:
+[tool] ls({'path': 'tests'})
+
+[result] MagicMock/
+README.md
+__init__.py
+__pycache__/
+agents/
+api/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+metrics/
+providers/
+rag/
+smo...
+
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+Let me check for tests specifically for textual_mixins:
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+I can see there are several test files for textual_mixins. Let me examine the target file more thoroughly to understand its structure and identify potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+200, 'end_line': 300})
+
+[result]         The queried widget, or ``None`` if Textual cannot resolve it.
+    """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+       ...
+Let me continue reading to understand the structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 400})
+
+[result] 
+    @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+   ...

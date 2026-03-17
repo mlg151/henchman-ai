@@ -834607,3 +834607,119 @@ The file is truncated. Let me read the rest of it:
             parsed = json.loads(args) if isinstance(args, str) else args
             return json.dumps(parsed, separators=(",", ":"))
         except (TypeError, Valu...
+[2026-03-17T14:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-17T14:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.3/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-17T14:00:40.643023+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me examine the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
+Let me continue reading the file to understand its structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 200})
+
+[result]     "thinking": ("#thinking-pane", ThinkingPane),
+    "tool": ("#tool-pane", ToolPane),
+}
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real...
+Let me check if there are any tests for this file:
+[tool] ls({'path': 'tests'})
+
+[result] MagicMock/
+README.md
+__init__.py
+__pycache__/
+agents/
+api/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+metrics/
+providers/
+rag/
+smo...
+
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+Let me check for tests specifically for textual_mixins:
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+I can see there are several test files for textual_mixins. Let me examine the target file more thoroughly to understand its structure and identify potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+200, 'end_line': 300})
+
+[result]         The queried widget, or ``None`` if Textual cannot resolve it.
+    """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+       ...
+Let me continue reading to understand the structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 400})
+
+[result] 
+    @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+   ...

@@ -66,16 +66,16 @@ class TestTextualConfirmRaceCondition:
         callback_called = asyncio.Event()
         callback_future = None
         
-        async def mock_push_screen(screen, callback):
-            # Store callback to call later
-            nonlocal callback_future
-            callback_future = asyncio.create_task(self._invoke_callback_later(callback))
-            # Don't actually call it yet - simulate screen being shown
-            
-        async def _invoke_callback_later(self, callback):
+        async def _invoke_callback_later(callback):
             await asyncio.sleep(0.01)  # Small delay
             callback(True)  # This might happen after exception
             callback_called.set()
+            
+        async def mock_push_screen(screen, callback):
+            # Store callback to call later
+            nonlocal callback_future
+            callback_future = asyncio.create_task(_invoke_callback_later(callback))
+            # Don't actually call it yet - simulate screen being shown
             
         mixin.push_screen = mock_push_screen
         
@@ -189,9 +189,7 @@ class TestTextualConfirmRaceCondition:
         
         callback_source = '\n'.join(callback_lines)
         
-        # Current bug: only checks `if not future.done():`
-        # Should also check `and not future.cancelled():`
-        assert 'if not future.done():' in callback_source, "Callback should check done() state"
-        assert 'future.cancelled()' not in callback_source, "BUG: Callback doesn't check cancelled() state"
+        # Fixed implementation: checks both `if not future.done() and not future.cancelled():`
+        assert 'if not future.done() and not future.cancelled():' in callback_source, "Callback should check both done() and cancelled() states"
         
-        # This is the bug - it doesn't protect against cancelled futures
+        # The fix is in place - it now protects against cancelled futures

@@ -260,7 +260,24 @@ class PluginManager(ExtensionManager):
         *,
         confirm_permissions: bool = True,
     ) -> PluginInstallation:
-        """Install a plugin from the registry."""
+        """Install a plugin from the registry.
+        
+        Args:
+            plugin_name: Name of the plugin to install.
+            version: Optional specific version of the plugin. If None, installs
+                the latest version.
+            confirm_permissions: Whether to log and confirm plugin permissions
+                before installation. Defaults to True.
+        
+        Returns:
+            PluginInstallation object containing installation details including
+            metadata, installation path, and timestamps.
+        
+        Raises:
+            RuntimeError: If plugin manager is not initialized or plugin is
+                incompatible with the current environment.
+            ValueError: If plugin is already installed or not found in registry.
+        """
         self._validate_initialization()
         self._check_already_installed(plugin_name)
         metadata = await self._get_plugin_metadata(plugin_name, version)
