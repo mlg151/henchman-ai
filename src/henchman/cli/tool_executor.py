@@ -247,6 +247,9 @@ class ToolExecutor:
             tool_calls: List of tool calls to execute.
             agent: The agent for turn tracking and result submission.
             content_collector: Optional list to collect content for session.
+            announced_tool_call_ids: Optional set of tool call IDs that have already
+                been announced to the user. Tool calls with IDs in this set will not
+                show the "[tool]" announcement prefix when executed.
 
         Returns:
             None

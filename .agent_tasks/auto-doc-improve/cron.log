@@ -175662,3 +175662,233 @@ Committing changes...
  delete mode 100644 tests/cli/test_textual_mixins_threading_lock_reentrancy_bug.py
  create mode 100644 tests/cli/test_textual_mixins_toctou_bug.py
 [2026-03-17T18:00:01Z] Done.
+[2026-03-17T20:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the highest-priority issue from the doc smell report: the stale docstring in `src/henchman/cli/tool_executor.py:236` for `ToolExecutor.execute_tool_calls` which has undocumented parameters `announced_tool_call_ids`.
+
+Let me first read the current file to understand the context:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+230, 'end_line': 250})
+
+
+[result]                     announce_request=tc.id not in announced_ids,
+                )
+        finally:
+            if self.current_monitor:
+                self.current_monitor.resume()
+
+    async def ex...
+Let me read a bit more to see the full docstring:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+236, 'end_line': 260})
+
+[result]     async def execute_tool_calls(
+        self: ToolExecutor,
+        tool_calls: list[ToolCall],
+        agent: Agent,
+        content_collector: list[str] | None = None,
+        *,
+        announced...
+Now I can see the issue. The docstring has an `Args:` section but it's missing the `announced_tool_call_ids` parameter. Let me check the full method signature again and see what the parameter does:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+236, 'end_line': 280})
+
+[result]     async def execute_tool_calls(
+        self: ToolExecutor,
+        tool_calls: list[ToolCall],
+        agent: Agent,
+        content_collector: list[str] | None = None,
+        *,
+        announced...
+Let me see more of the method to understand how `announced_tool_call_ids` is used:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+280, 'end_line': 310})
+
+[result]                     agent,
+                    responded_ids,
+                    announced_ids,
+                )
+        finally:
+            self._ensure_all_tool_calls_have_response(
+             ...
+Now let me check how `announced_tool_call_ids` is used in the `_execute_and_record_tool_call` method to understand its purpose:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+140, 'end_line': 170})
+
+[result]         to_parallel: list[ToolCall] = []
+        to_sequential: list[ToolCall] = []
+        for tc in tool_calls:
+            tc_name, tc_args = tc.name, tc.arguments
+            tool = self.tool_mana...
+Let me look at the `_execute_and_record_tool_call` method to see how `announce_request` is used:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+170, 'end_line': 210})
+
+[result] 
+    async def process_agent_stream(
+        self: ToolExecutor,
+        event_stream: AsyncIterator[AgentEvent],
+        agent: Agent,
+        content_collector: list[str] | None = None,
+        stat...
+Let me search for the `_execute_and_record_tool_call` method:
+[tool] grep({'pattern': '_execute_and_record_tool_call', 'path': 
+'src/henchman/cli/tool_executor.py', 'line_numbers': True})
+
+[result] 104:    async def _execute_and_record_tool_call(
+226:                await self._execute_and_record_tool_call(
+268:                        self._execute_and_record_tool_call(...
+
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+104, 'end_line': 140})
+
+[result]     async def _execute_and_record_tool_call(
+        self: ToolExecutor,
+        tc: ToolCall,
+        agent: Agent,
+        responded_ids: set[str],
+        *,
+        announce_request: bool = True,
+...
+Now I understand the issue. The `announced_tool_call_ids` parameter is used to track which tool calls have already been announced to the user (via the muted output). When a tool call ID is in this set, it won't be announced again with the `[tool]` prefix. This is useful for avoiding duplicate announcements when tool calls are retried or re-executed.
+
+Let me also check if there's a previous improvement record to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-17T18:05:00Z
+
+## Files Changed
+1. `src/henchman/extensions/plugin_manager.py`
+
+## Smell Category Addressed
+**Incomplete Docstring** (MEDIUM sever...
+Good, I can see the last improvement was for a different file. Now I need to fix the highest priority issue: the stale docstring in `src/henchman/cli/tool_executor.py:236` for `ToolExecutor.execute_tool_calls` which has undocumented parameter `announced_tool_call_ids`.
+
+Let me edit the file to add the missing parameter documentation:
+[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
+async def execute_tool_calls(\n        self: ToolExecutor,\n        tool_calls: 
+list[ToolCall],\n        agent: Agent,\n        content_collector: list[str] | 
+None = None,\n        *,\n        announced_tool_call_ids: set[str] | None = 
+None,\n    ) -> None:\n        """Execute *tool_calls* and continue the agent 
+loop.\n\n        Args:\n            tool_calls: List of tool calls to execute.\n
+agent: The agent for turn tracking and result submission.\n            
+content_collector: Optional list to collect content for session.\n\n        
+Returns:\n            None\n        """', 'new_str': '    async def 
+execute_tool_calls(\n        self: ToolExecutor,\n        tool_calls: 
+list[ToolCall],\n        agent: Agent,\n        content_collector: list[str] | 
+None = None,\n        *,\n        announced_tool_call_ids: set[str] | None = 
+None,\n    ) -> None:\n        """Execute *tool_calls* and continue the agent 
+loop.\n\n        Args:\n            tool_calls: List of tool calls to execute.\n
+agent: The agent for turn tracking and result submission.\n            
+content_collector: Optional list to collect content for session.\n            
+announced_tool_call_ids: Optional set of tool call IDs that have already\n      
+been announced to the user. Tool calls with IDs in this set will not\n          
+show the "[tool]" announcement prefix when executed.\n\n        Returns:\n      
+None\n        """'})
+
+[result] Successfully edited src/henchman/cli/tool_executor.py...
+Now let me verify the change by reading the updated section:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+236, 'end_line': 260})
+
+[result]     async def execute_tool_calls(
+        self: ToolExecutor,
+        tool_calls: list[ToolCall],
+        agent: Agent,
+        content_collector: list[str] | None = None,
+        *,
+        announced...
+Perfect! Now I need to update the `.agent_tasks/auto-doc-improve/last-improvement.md` file to document this change:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-17T20:10:00Z\n\n## Files Changed\n1. 
+`src/henchman/cli/tool_executor.py`\n\n## Smell Category Addressed\n**Stale 
+Docstring** (HIGH severity)\n\n## Rationale for Change\nThe smell report 
+identified that `ToolExecutor.execute_tool_calls` had undocumented parameters: 
+`announced_tool_call_ids`. This was a HIGH severity issue because undocumented 
+parameters make the API harder to use correctly and can lead to misuse.\n\nFrom 
+code analysis:\n- The `announced_tool_call_ids` parameter is a keyword-only 
+parameter (after `*`)\n- It\'s an optional set of strings (tool call IDs)\n- 
+When provided, tool calls with IDs in this set will not show the "[tool]" 
+announcement prefix when executed\n- This is used to avoid duplicate 
+announcements when tool calls are retried or re-executed\n- The parameter 
+defaults to `None` (which becomes an empty set in the method body)\n\nThe 
+parameter is used in line 268 where it\'s passed to 
+`_execute_and_record_tool_call` as `announce_request=tc.id not in 
+announced_ids`.\n\n## Changes Made\n1. Added `announced_tool_call_ids` parameter
+to the `Args:` section\n2. Provided a clear description of what the parameter 
+does and when to use it\n3. Maintained Google-style docstring format with proper
+indentation\n\n## What to Verify\n1. The smell detector should no longer flag 
+`execute_tool_calls` for undocumented parameters\n2. The documentation 
+accurately describes the parameter\'s purpose and behavior\n3. The parameter 
+description matches the actual implementation (prevents duplicate "[tool]" 
+announcements)\n4. The docstring follows Google-style format with proper 
+sections\n\n## Next Priority\nThe next highest priority issue is the MEDIUM 
+severity incomplete docstring in `src/henchman/extensions/plugin_manager.py:423`
+where `PluginManager.scan_security` has 1 parameter but no Args section in 
+docstring.'})
+
+[result] Successfully wrote 1862 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me run a quick check to ensure the documentation improvement is complete and accurate. Let me verify the implementation one more time by looking at how the parameter is used:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+260, 'end_line': 280})
+
+[result] 
+        announced_ids = announced_tool_call_ids or set()
+        agent.turn.increment_iteration()
+        responded_ids: set[str] = set()
+        to_parallel, to_sequential = self._split_tools_by_con...
+Perfect! The implementation confirms my understanding. The `announced_ids` set is used to determine whether to announce each tool call. When `tc.id not in announced_ids` is `True`, the tool call will be announced with the "[tool]" prefix. When it's `False` (meaning the ID is in the set), the announcement is skipped.
+
+Let me also check the `_execute_and_record_tool_call` method to confirm the announcement logic:
+[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
+104, 'end_line': 120})
+
+[result]     async def _execute_and_record_tool_call(
+        self: ToolExecutor,
+        tc: ToolCall,
+        agent: Agent,
+        responded_ids: set[str],
+        *,
+        announce_request: bool = True,
+...
+Excellent! The implementation matches my documentation. When `announce_request` is `True` (which happens when `tc.id not in announced_ids`), the tool call is announced with the "[tool]" prefix. When it's `False`, the announcement is skipped.
+
+## Summary
+
+I have successfully addressed the highest-priority documentation smell from the report:
+
+**Issue Fixed**: Stale docstring in `src/henchman/cli/tool_executor.py:236` for `ToolExecutor.execute_tool_calls` - undocumented parameter `announced_tool_call_ids`.
+
+**Change Made**: Added proper documentation for the `announced_tool_call_ids` parameter in the `Args:` section, explaining that it's an optional set of tool call IDs that have already been announced to the user, and tool calls with IDs in this set will not show the "[tool]" announcement prefix when executed.
+
+**Verification**: 
+- ✅ The parameter documentation accurately describes the implementation
+- ✅ The parameter is used to prevent duplicate announcements when tool calls are retried or re-executed
+- ✅ The docstring follows Google-style format
+- ✅ The change is minimal and focused on fixing only the documented issue
+
+This improvement enhances the API documentation quality and makes it easier for developers to understand when and how to use the `announced_tool_call_ids` parameter correctly.
+[tech_lead] completed work
+[2026-03-17T20:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.86 seconds
+[2026-03-17T20:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-17T20:00:01Z] Verification passed.
+Committing changes...

@@ -1,11 +1,11 @@
-[2026-03-17T19:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-17T20:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T19:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-17T20:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by reading the smell report and the target file to understand the context and identify bugs.
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
@@ -13,13 +13,13 @@ I'll start by reading the smell report and the target file to understand the con
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T19:00:27.786738+00:00_
+_Generated: 2026-03-17T20:00:39.900539+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file to understand its structure and functionality:
+Now let me examine the target file to understand its structure and functionality:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
 'end_line': 100})
 
@@ -33,172 +33,114 @@ Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
 100, 'end_line': 200})
 
-[result]     "thinking": ("#thinking-pane", ThinkingPane),
-    "tool": ("#tool-pane", ToolPane),
+[result]     "tool": ("#tool-pane", ToolPane),
 }
 
 
 # ------------------------------------------------------------------ #
-# NullProvider (fallback when no real...
-Let me check the tests for this file to understand what functionality it provides:
-[tool] glob({'pattern': '**/test*textual*mixins*.py'})
+# NullProvider (fallback when no real provider is configured)          #
+# ------------...
+Let me look for the tests for this file to understand what functionality needs to be tested:
+[tool] glob({'pattern': '**/test*textual_mixins*'})
 
-[result] tests/cli/test_textual_mixins_actual_bug.py
-tests/cli/test_textual_mixins_asyncio_lock_bug.py
-tests/cli/test_textual_mixins_attribute_error_bug.py
-tests/cli/test_textual_mixins_bug.py
-tests/cli/test_t...
-Interesting! There are many test files for this module. Let me check one to understand what bugs have been found:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
+[result] 
+tests/cli/__pycache__/test_textual_mixins_actual_bug.cpython-312-pytest-9.0.2.py
+c
+tests/cli/__pycache__/test_textual_mixins_asyncio_lock_bug.cpython-312-pytest-9.
+0.2.pyc
+tests/cli/__pycache__/test_tex...
+Let me check if there's an existing test file for textual_mixins:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'start_line': 1, 'end_line': 50})
 
-[result] """Failing test for the id() collision bug in textual_mixins.py."""
+[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
 
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
 
-from henchman.tools.ba...
-Now let me look at the actual `_textual_confirm` method in the source file:
+import ...
+Now let me examine the target file more thoroughly, particularly looking at the `_NullProvider` class which seems to have a potential bug:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-489, 'end_line': 600})
+60, 'end_line': 120})
 
-[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
+[result]     )
+    from henchman.providers.base import (
+        Message,
+        StreamChunk,
+        ToolDeclaration,
+    )
+    from henchman.tools.base import ConfirmationRequest
 
-        Args:
-            request: The tool confirmation request.
-...
-Now let me check if there's already a fix in place. The code shows it's using `self._confirm_counter` and not `id(future)`. Let me check the test that's supposed to be failing:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_bug_failing.py -x -q --tb=short'})
+__all__ = [
+    "_CommandP...
 
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
-rootdir: /home/matthew/mlg-cli
-configfile: pyproject.toml
-p...
-Interesting! The test is passing, which means the bug might have already been fixed. Let me check the actual source code more carefully to see if there's still a bug. Let me look at the `_textual_confirm` method again and check for other potential issues:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-489, 'end_line': 520})
+120, 'end_line': 180})
 
-[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
+[result]     def name(self: _NullProvider) -> str:
+        """The unique name of this provider."""
+        return self._name
 
-        Args:
-            request: The tool confirmation request.
-...
-I need to analyze the target file through the Four Lenses of Failure. Let me first create the documentation stub as required:
-[tool] write_file({'path': 
-'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
-Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
-2026-03-17T19:15:00+00:00\n## Bug Summary\nThe `_textual_confirm` method has a 
-race condition where the `_callback` function can access `self._confirm_futures`
-after it has been cleaned up during shutdown, potentially causing `KeyError` or 
-`AttributeError`.\n\n## Lens\nPhase 2: State & Side Effects (The Entropy Audit) 
-- Shared State mutation without proper synchronization during cleanup.\n\n## 
-Expected vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| 
-Callback should safely handle missing futures during cleanup | Callback assumes 
-`_confirm_futures` dict exists and contains the key |\n| Cleanup should prevent 
-callbacks from accessing cleaned state | Callback runs asynchronously and may 
-access dict after cleanup |\n| Thread-safe access to shared mutable state | No 
-lock protection in sync callback context |\n\n## Root Cause\nThe `_callback` 
-function is defined as a regular function (not async) and accesses 
-`self._confirm_futures` without acquiring the lock in the sync callback context.
-During `_cleanup_confirm_futures()` (called from `on_unmount`), futures are 
-cancelled and removed from the dict, but callbacks may still run and try to 
-access the dict.\n\n## Fix Plan\n1. Add null-check in `_callback` before 
-accessing `self._confirm_futures`\n2. Use `pop()` with default value to avoid 
-KeyError\n3. Ensure callback is idempotent and handles missing futures 
-gracefully\n\n## Status: IN PROGRESS'})
+    async def chat_completion(
+        self: _NullProvider,
+        _messages: list...
+Now I can see a potential bug! In the `_NullProvider.chat_completion_stream` method, there's a `raise RuntimeError(_NO_PROVIDER_MSG)` statement, but then there's an `if False:` block with a `yield` statement. This is a classic dead code issue - the `yield` statement is unreachable because the function always raises an exception before reaching it.
 
-[result] Successfully wrote 1472 bytes to 
-.agent_tasks/four-lenses-cli-textual_mixins/README.md...
-Now let me examine the callback function more closely to understand the exact issue:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-520, 'end_line': 540})
+Let me check the test for this to see if it's already testing this behavior:
+[tool] read_file({'path': 
+'tests/cli/test_textual_mixins_null_provider_unreachable_yield.py'})
 
-[result]             if not future.done() and not future.cancelled():
-                future.set_result(bool(result))
-            # Use lock to protect shared dict access (same as exception 
-handlers)
-         ...
-Wait, I see the code already has `hasattr(self, '_confirm_futures')` check in the callback. Let me look at the `_cleanup_confirm_futures` method to see if there's still an issue:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-570, 'end_line': 600})
-
-[result] 
-    def _cleanup_confirm_futures(self: _InitMixin) -> None:
-        """Clean up all pending confirmation futures."""
-        # Note: This is called from on_unmount which is sync
-        if not hasatt...
-Actually, looking at the code more carefully, I see there's already protection with `hasattr` checks. But let me think about this more systematically. Let me re-examine the file with the Four Lenses approach:
-
-## Phase 1: The Intent vs. Reality Check
-
-Looking at the `_textual_confirm` method again, I notice something interesting in the exception handlers:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-540, 'end_line': 570})
-
-[result]         except asyncio.CancelledError:
-            # Use lock to protect shared dict access
-            # Check if _confirm_futures exists before accessing it
-            if hasattr(self, '_confirm_fu...
-Wait, I think I found a real bug! Look at the exception handlers - they call `future.cancel()` AFTER they've already popped the future from `_confirm_futures`. But if `future.cancel()` triggers the callback (which it might, depending on when the future was created and what state it's in), the callback will try to access `self._confirm_futures[req_id]` but the entry has already been removed!
-
-Actually, looking more carefully at the callback:
-```python
-def _callback(result: object | None) -> None:
-    if not future.done() and not future.cancelled():
-        future.set_result(bool(result))
-    # Use lock to protect shared dict access...
-```
-
-The callback checks `if not future.done() and not future.cancelled()` before setting the result. So if `future.cancel()` is called first, the callback won't set the result. But wait, the callback still tries to pop from `_confirm_futures` after that check!
-
-Actually, I need to trace through this more carefully. Let me write a test to understand the flow better. But first, let me check if there are existing tests for this:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && find tests -name "*.py" 
--type f -exec grep -l "_textual_confirm\\|_cleanup_confirm_futures" {} \\;'})
-
-[result] tests/cli/test_textual_mixins_bug.py
-tests/cli/test_textual_mixins_race_condition.py
-tests/cli/test_textual_mixins_future_cancel_fix.py
-tests/cli/test_textual_mixins_race_dict_access.py
-tests/cli/test...
-Let me check one of these test files to see what bugs they're testing:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_actual_bug.py'})
-
-[result] """Test that demonstrates the actual threading.Lock bug in 
-textual_mixins.py.
-
-This test will FAIL with current implementation and PASS after fix.
-"""
+[result] """Failing test for unreachable yield bug in 
+_NullProvider.chat_completion_stream."""
 
 from __future__ import annotations
 
-import async...
-Ah! This is interesting. The test shows there's a bug with `threading.Lock` vs `asyncio.Lock`. Let me check what lock is actually being used in the source code:
-[tool] grep({'pattern': '_confirm_lock', 'path': 
-'src/henchman/cli/textual_mixins.py', 'line_numbers': True})
+import ast
+import pytest
 
-[result] 419:        self._confirm_lock: asyncio.Lock = asyncio.Lock()
-504:        if hasattr(self, '_confirm_lock'):
-506:            async with self._confirm_lock:  # type: ignore[attr-defined]
-525:          ...
-Good! The code uses `asyncio.Lock()`. But wait, let me check line 419:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-415, 'end_line': 425})
 
-[result]         self._confirm_counter: int = 0
-        # Use asyncio lock for proper async task synchronization
-        # threading.Lock is reentrant within the same thread, allowing
-        # concurrent asyn...
-Wait, I need to think about this more carefully. The code shows it's using `asyncio.Lock()`, but the test is testing for `threading.Lock`. Maybe the bug was already fixed? Let me run the actual test to see:
+class TestNullProviderUnreachableYieldBug:
+    """...
+Perfect! I can see there's already a test file that identifies the bug. Let me run this test to confirm it fails:
 [tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_actual_bug.py::TestActualThreadingLockBug::test_th
-reading_lock_allows_async_task_switching -xvs'})
+tests/cli/test_textual_mixins_null_provider_unreachable_yield.py::TestNullProvid
+erUnreachableYieldBug::test_unreachable_yield_after_raise -xvs'})
 
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+The test is failing because it can't find the method. Let me check the AST parsing issue. First, let me create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-17T20:00:00Z\n## Bug Summary\nThe `_NullProvider.chat_completion_stream`
+method has unreachable dead code: a `yield` statement that comes after a `raise`
+statement, making it impossible to execute.\n\n## Lens\n**Phase 1: The Intent 
+vs. Reality Check** - Logic Gaps\n\n## Expected vs. Observed\n| Expected 
+Behavior | Observed Risk |\n|---|---|\n| Method should either properly implement
+async generator or not have unreachable code | Unreachable `yield` statement 
+after `raise` creates dead code that can confuse developers and static analysis 
+tools |\n| Code should be maintainable and follow Python best practices | Dead 
+code violates "once and only once" principle and creates maintenance burden |\n|
+Type hints should match implementation | Method returns 
+`AsyncIterator[StreamChunk]` but raises exception instead of yielding |\n\n## 
+Root Cause\nThe method `chat_completion_stream` in `_NullProvider` class raises 
+a `RuntimeError` immediately, but then has a `yield` statement that can never be
+reached. The `if False:` guard attempts to make it "reachable" for type 
+checking, but the `raise` statement before it makes the entire `if False:` block
+unreachable.\n\n## Fix Plan\nRemove the unreachable `yield` statement and 
+restructure the method to either:\n1. Make the `yield` actually reachable 
+(inside the `if False:` block before the `raise`)\n2. Remove the `yield` 
+entirely and handle type checking differently\n3. Restructure to be a proper 
+async generator that yields nothing then raises\n\nOption 1 is simplest: move 
+the `raise` statement after the `if False:` block, or put the `yield` in a truly
+reachable position.\n\n## Status: IN PROGRESS'})
+
+[result] Successfully wrote 1706 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+Now let me fix the test first. The test has an issue with AST parsing - it needs to set parent relationships:

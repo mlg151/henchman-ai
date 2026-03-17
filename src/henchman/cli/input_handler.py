@@ -1,12 +1,6 @@
 """Input handler for REPL.
 
 This module handles user input processing including prompt sessions,
-
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
-
 @file expansion, and shell command detection.
 """
 
@@ -14,6 +8,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from prompt_toolkit.completion import WordCompleter
 

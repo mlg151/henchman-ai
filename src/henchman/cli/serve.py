@@ -103,4 +103,4 @@ def serve_command(
     except Exception as e:
         console.print(f"\n[red]Error starting server: {e}[/]")
         msg = f"Failed to start server: {e}"
-        raise click.ClickException(msg)
+        raise click.ClickException(msg) from e
