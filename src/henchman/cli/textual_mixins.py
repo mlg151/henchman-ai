@@ -507,8 +507,7 @@ class _InitMixin:
         except Exception:
             self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             if not future.done():
-                _msg = "Confirmation dialog failed"
-                future.set_exception(RuntimeError(_msg))
+                future.cancel()
             raise
 
     def _cleanup_confirm_futures(self: _InitMixin) -> None:
