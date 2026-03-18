@@ -529,6 +529,8 @@ from henchman.cli import (
 
 ### Repl
 
+The REPL (Read-Eval-Print Loop) is the main interactive interface for Henchman-AI. It follows a component-based architecture where specialized components handle specific responsibilities.
+
 ```python
 class Repl:
     def __init__(
@@ -537,7 +539,19 @@ class Repl:
         console: Console | None = None,
         config: ReplConfig | None = None
     ) -> None:
-        """Initialize the REPL."""
+        """Initialize the REPL with component-based architecture.
+        
+        The REPL orchestrates specialized components:
+        - InputHandler: User input processing and @file expansion
+        - OutputHandler: Console output and status display
+        - CommandProcessor: Slash command execution
+        - ToolExecutor: Tool execution and agent coordination
+        - UIRenderer: Rich console output and UI rendering
+        - PluginManager: Plugin loading and management
+        - McpManager: MCP server connections
+        - SessionManager: Session persistence and management
+        - Orchestrator: Multi-agent team coordination
+        """
     
     async def run(self) -> None:
         """Run the main REPL loop."""
@@ -551,12 +565,26 @@ class Repl:
 ```python
 @dataclass
 class ReplConfig:
+    """Configuration for the REPL.
+
+    Attributes:
+        prompt: The prompt string to display.
+        system_prompt: System prompt for the agent.
+        auto_save: Whether to auto-save sessions on exit.
+        history_file: Path to history file.
+        base_tool_iterations: Base limit for tool iterations per turn.
+        max_tool_calls_per_turn: Maximum tool calls allowed per turn.
+        auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
+        agent_role: Target a specific agent role for all inputs.
+    """
     prompt: str = "❯ "
     system_prompt: str = ""
     auto_save: bool = True
-    show_welcome: bool = True
-    show_goodbye: bool = True
-    confirm_tools: bool = True
+    history_file: Path | None = None
+    base_tool_iterations: int = 25
+    max_tool_calls_per_turn: int = 100
+    auto_approve_tools: bool = False
+    agent_role: str | None = None
 ```
 
 ### OutputRenderer

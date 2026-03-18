@@ -34,9 +34,10 @@ class TestTextualConfirmRaceBug:
         
         source = inspect.getsource(module._InitMixin._textual_confirm)
         
-        # Check that _callback tries to create_task for lock acquisition
-        assert 'asyncio.create_task(remove_from_dict())' in source, (
-            "_callback creates task for lock acquisition - this is the race condition!"
+        # Check that _callback does NOT try to create_task for lock acquisition
+        # The bug is fixed: callback uses contextlib.suppress and direct pop
+        assert 'asyncio.create_task(remove_from_dict())' not in source, (
+            "Bug is fixed: _callback should not create task for lock acquisition"
         )
         
         # The bug: In _callback (sync context):
@@ -198,9 +199,9 @@ class TestTextualConfirmRaceBug:
         import inspect
         source = inspect.getsource(mixin._textual_confirm)
         
-        # The problematic pattern:
-        assert 'asyncio.create_task(remove_from_dict())' in source, (
-            "Found the race condition pattern"
+        # The problematic pattern has been removed:
+        assert 'asyncio.create_task(remove_from_dict())' not in source, (
+            "Bug is fixed: race condition pattern removed"
         )
         
         # A better approach would be to not try to acquire lock in sync callback

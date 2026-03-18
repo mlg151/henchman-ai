@@ -115,34 +115,33 @@ class TestTextualConfirmRaceConditionFixed:
         import inspect
         source = inspect.getsource(app._textual_confirm)
         
-        # Check for the pattern: outer check, then lock acquisition, then inner check
+        # Check for the new pattern: getattr checks and RuntimeError if not initialized
         lines = [line.strip() for line in source.split('\n')]
         
-        # Look for: if not hasattr(self, '_confirm_lock'):
-        # Then: async with cls._init_confirm_lock:
-        # Then: if not hasattr(self, '_confirm_lock'):
-        outer_check_found = False
-        lock_acquisition_found = False
-        inner_check_found = False
+        # Look for: confirm_lock = getattr(self, '_confirm_lock', None)
+        # Then: if confirm_lock is None or confirm_counter is None or confirm_futures is None:
+        # Then: raise RuntimeError
+        getattr_check_found = False
+        none_check_found = False
+        runtime_error_found = False
         
         for i, line in enumerate(lines):
-            if 'if not hasattr(self, \'_confirm_lock\')' in line:
-                if not outer_check_found:
-                    outer_check_found = True
-                    print(f"✓ Outer check at line {i}")
-                else:
-                    inner_check_found = True
-                    print(f"✓ Inner check (double-check) at line {i}")
-            elif 'async with cls._init_confirm_lock:' in line:
-                lock_acquisition_found = True
-                print(f"✓ Class lock acquisition at line {i}")
+            if 'confirm_lock = getattr(self, \'_confirm_lock\', None)' in line:
+                getattr_check_found = True
+                print(f"✓ getattr check at line {i}")
+            elif 'if confirm_lock is None or confirm_counter is None or confirm_futures is None:' in line:
+                none_check_found = True
+                print(f"✓ None check at line {i}")
+            elif 'raise RuntimeError' in line and '_textual_confirm called before' in line:
+                runtime_error_found = True
+                print(f"✓ RuntimeError check at line {i}")
         
-        assert outer_check_found, "Missing outer check (fast path)"
-        assert lock_acquisition_found, "Missing lock acquisition"
-        assert inner_check_found, "Missing inner check (double-check)"
+        assert getattr_check_found, "Missing getattr check for _confirm_lock"
+        assert none_check_found, "Missing None check for confirmation state"
+        assert runtime_error_found, "Missing RuntimeError for uninitialized state"
         
-        print("✓ Double-checked locking pattern is present")
-        print("✓ This prevents the TOCTOU race condition")
+        print("✓ Proper initialization check is present")
+        print("✓ This ensures _init_confirm_state() is called before _textual_confirm()")
     
     def test_class_lock_is_shared(self) -> None:
         """Test that the class-level lock is shared across instances."""

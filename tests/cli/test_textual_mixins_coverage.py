@@ -46,7 +46,7 @@ class TestNullProvider:
         """Test _NullProvider chat_completion_stream raises RuntimeError."""
         provider = self._make_null_provider()
         with pytest.raises(RuntimeError):
-            result = provider.chat_completion_stream([])
+            result = await provider.chat_completion_stream([])
             async for _ in result:
                 pass  # pragma: no cover
 
