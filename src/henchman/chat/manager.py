@@ -237,7 +237,7 @@ class ChatManager:
         response_parts: list[str],
         current_chunk: str,
         max_iterations: int = 50,
-    ) -> tuple[list[str], str]:
+    ) -> tuple[list[str], str, bool]:
         """Process an agent stream, executing tool calls and collecting content.
 
         Args:
@@ -250,9 +250,10 @@ class ChatManager:
             max_iterations: Safety limit to prevent infinite loops.
 
         Returns:
-            Tuple of (response_parts, current_chunk).
+            Tuple of (response_parts, current_chunk, had_tool_calls).
         """
         iteration = 0
+        had_tool_calls = False
         async for event in stream:
             iteration += 1
             if iteration > max_iterations:
@@ -273,6 +274,8 @@ class ChatManager:
                     current_chunk = ""
 
             elif event.type == EventType.TOOL_CALL_REQUEST:
+                had_tool_calls = True
+
                 # Flush any pending content
                 if current_chunk:
                     await bot.send_message(user_id, current_chunk)
@@ -333,7 +336,7 @@ class ChatManager:
                 await bot.send_message(user_id, f"❌ Error: {event.data}")
                 break
 
-        return response_parts, current_chunk
+        return response_parts, current_chunk, had_tool_calls
 
     async def _handle_message(self, message: ChatMessage) -> None:
         """Handle an incoming chat message with full tool execution support.
@@ -382,21 +385,27 @@ class ChatManager:
         try:
             # Main agent loop: run -> tool calls -> continue -> tool calls -> ...
             stream = agent.run(user_input=message.content)
+            max_continuation_rounds = 20  # Safety limit on tool continuation rounds
 
-            while True:
-                response_parts, current_chunk = await self._process_stream(
+            for _round in range(max_continuation_rounds + 1):
+                response_parts, current_chunk, had_tool_calls = await self._process_stream(
                     agent, bot, message.user_id, stream, response_parts, current_chunk
                 )
 
-                # Check if there are pending tool results to continue with
-                # If agent.run() finished without yielding FINISHED,
-                # we need to continue with tool results
-                try:
-                    stream = agent.continue_with_tool_results()
-                    # If this returns immediately with no events, break
-                except Exception:
-                    # No more tool results to process
+                # Only continue if tool calls were made and results submitted
+                if not had_tool_calls:
                     break
+
+                # Continue the agent with the submitted tool results
+                stream = agent.continue_with_tool_results()
+            else:
+                logger.warning(
+                    "Max continuation rounds reached for user %s", message.user_id
+                )
+                await bot.send_message(
+                    message.user_id,
+                    "⚠️ Maximum tool rounds reached. Stopping.",
+                )
 
             # Send remaining content
             if current_chunk:
@@ -454,7 +463,7 @@ class ChatManager:
 
         elif command == "/clear":
             if message.user_id in self._user_agents:
-                self._user_agents[message.user_id].messages.clear()
+                self._user_agents[message.user_id].clear_history()
             self._user_histories[message.user_id] = []
             await bot.send_message(
                 message.user_id,
