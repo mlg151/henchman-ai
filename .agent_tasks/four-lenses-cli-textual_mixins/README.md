@@ -1,28 +1,25 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-18T16:30:00+00:00
+## Date: 2025-03-18T18:00:00Z
 ## Bug Summary
-The `_cleanup_confirm_futures` method has a race condition where it cancels futures while their callbacks might be concurrently trying to set results, causing lost confirmations and potential InvalidStateError exceptions.
+The `_textual_confirm` method in `_InitMixin` has a race condition where the callback function can access `self._confirm_futures` dictionary after it has been cleaned up by `_cleanup_confirm_futures`, potentially causing `KeyError` or incorrect state.
 
 ## Lens
-Phase 2: State & Side Effects (The Entropy Audit) - Shared State race condition
+**Lens 2: State & Side Effects (The Entropy Audit)** - The bug involves shared mutable state (`_confirm_futures` dictionary) that can be modified concurrently by multiple async tasks without proper synchronization.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Cleanup should safely cancel pending confirmations without interfering with in-progress callbacks | Callbacks may try to set results on futures that are being cancelled, causing InvalidStateError (suppressed) and lost confirmations |
-| App shutdown should gracefully handle pending confirmations | Race between cleanup and callback execution can leave futures in inconsistent states |
-| Each confirmation request should get a definitive result (True/False) | Some confirmations may be lost (future cancelled instead of getting result) |
+| Callback safely removes future from dictionary | Race condition: callback may try to pop from dict after cleanup removed it |
+| Cleanup cancels all pending futures | Cleanup may run while callback is executing, causing KeyError |
+| Dictionary operations are atomic | Concurrent dict access without lock in callback path |
 
 ## Root Cause
-The `_cleanup_confirm_futures` method is called during app shutdown (on_unmount) and cancels all pending confirmation futures. However, these futures may have callbacks that are still executing (e.g., user clicks OK on modal dialog while app is shutting down). The callback uses `contextlib.suppress(asyncio.InvalidStateError)` to handle this race, but the suppression hides the error and the future ends up cancelled instead of having a proper result set.
-
-The race occurs because:
-1. `_cleanup_confirm_futures` pops futures from dict and cancels them
-2. Callbacks (from modal dialogs) may be concurrently trying to set results on these futures
-3. If `future.cancel()` happens while `future.set_result()` is executing, we get InvalidStateError
-4. The error is suppressed, but the confirmation result is lost
+The `_callback` function inside `_textual_confirm` uses `self._confirm_futures.pop(req_id, None)` without acquiring the `_confirm_lock`. Meanwhile, `_cleanup_confirm_futures` (called during shutdown) also accesses the same dictionary without the lock. This creates a TOCTOU (Time-Of-Check-Time-Of-Use) race condition where:
+1. Callback checks if future exists
+2. Cleanup runs and removes the future
+3. Callback tries to pop the future → KeyError or incorrect state
 
 ## Fix Plan
-Modify `_cleanup_confirm_futures` to first check if futures are already done before cancelling them. If a future is already done (has result/exception), leave it alone. Only cancel futures that are still pending. This prevents the race condition and ensures completed confirmations maintain their results.
+Add lock acquisition in the callback path OR make the pop operation idempotent and race-safe. Since the callback runs in sync context (from screen callback) and cleanup runs in sync context (on_unmount), we need to ensure atomic access to the dictionary.
 
 ## Status: IN PROGRESS
