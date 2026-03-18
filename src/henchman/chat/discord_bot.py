@@ -103,8 +103,12 @@ class DiscordBot(ChatBot):
             if message.author == client.user:
                 return
 
-            # Only process DMs from the allowed user
-            if not isinstance(message.channel, discord.DMChannel):
+            # Check if it's a DM or a mention in a server channel
+            is_dm = isinstance(message.channel, discord.DMChannel)
+            is_mentioned = client.user in message.mentions if not is_dm else False
+            
+            # Only process DMs or messages that mention the bot
+            if not is_dm and not is_mentioned:
                 return
 
             if str(message.author.id) != self._allowed_user_id:
@@ -115,16 +119,25 @@ class DiscordBot(ChatBot):
                 )
                 return
 
+            # Clean up message content (strip mention if in server)
+            content = message.content
+            if is_mentioned and not is_dm:
+                # Remove the bot mention from the content
+                for mention in message.mentions:
+                    if mention == client.user:
+                        content = content.replace(f'<@{mention.id}>', '').strip()
+                        content = content.replace(f'<@!{mention.id}>', '').strip()
+            
             # Convert to ChatMessage
             chat_message = ChatMessage(
                 id=str(message.id),
                 user_id=str(message.author.id),
                 username=message.author.display_name,
-                content=message.content,
+                content=content,
                 timestamp=message.created_at or datetime.now(timezone.utc),
                 platform=ChatPlatform.DISCORD,
                 attachments=[{"filename": a.filename, "url": a.url} for a in message.attachments],
-                is_dm=True,
+                is_dm=is_dm,
             )
 
             # Call the registered handler

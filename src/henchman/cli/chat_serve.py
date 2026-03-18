@@ -11,7 +11,7 @@ from rich.console import Console
 from henchman.config import load_settings
 
 
-@click.command(name="xyzbot")
+@click.command(name="discordbot")
 @click.option(
     "--platform",
     type=click.Choice(["discord"], case_sensitive=False),
@@ -29,7 +29,7 @@ from henchman.config import load_settings
     envvar="DISCORD_USER_ID",
     help="Authorized user ID (or set DISCORD_USER_ID env var)",
 )
-def xyzbot_command(
+def discordbot_command(
     platform: str,
     token: str | None,
     user_id: str | None,
@@ -97,7 +97,13 @@ def xyzbot_command(
     console.print(f"  Platform: [cyan]{platform}[/]")
     console.print(f"  Provider: [cyan]{settings.providers.default}[/]")
     console.print(f"  User ID: [cyan]{user_id}[/]")
-    console.print("\n[dim]Press Ctrl+C to stop the bot[/]\n")
+    console.print()
+    console.print("[bold yellow]How to interact with the bot:[/]")
+    console.print("  • [cyan]Send a DM[/] to the bot directly")
+    console.print("  • [cyan]Mention the bot[/] in a server channel (e.g., @Henchman-AI help)")
+    console.print("  • Type [cyan]/help[/] for available commands")
+    console.print()
+    console.print("[dim]Press Ctrl+C to stop the bot[/]\n")
 
     # Run the bot
     try:
