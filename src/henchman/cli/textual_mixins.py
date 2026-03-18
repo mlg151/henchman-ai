@@ -521,16 +521,16 @@ class _InitMixin:
         def _callback(result: object | None) -> None:
             if not future.done() and not future.cancelled():
                 future.set_result(bool(result))
-            # Use lock to protect shared dict access (same as exception handlers)
-            # Check if _confirm_futures exists before accessing it
+            # Remove future from dictionary
+            # We don't need to acquire the lock here because:
+            # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)
+            #    which handles missing keys gracefully (no KeyError)
+            # 2. Races between callback and cleanup are acceptable - the future
+            #    will be removed from the dict by whichever runs first
+            # 3. The future result has already been set above, so even if
+            #    cleanup cancels it later, the result takes precedence
             if hasattr(self, '_confirm_futures'):
-                if hasattr(self, '_confirm_lock'):
-                    # Sync callback with asyncio.Lock - we can't use async with
-                    # Since this is just cleanup and races are acceptable (especially
-                    # during shutdown), we pop without acquiring the lock
-                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
-                else:
-                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             # If _confirm_futures doesn't exist, just return (e.g., after cleanup)
 
         try:
@@ -540,31 +540,17 @@ class _InitMixin:
             await self.push_screen(screen_cls(request), _callback)  # type: ignore[attr-defined]
             return await future
         except asyncio.CancelledError:
-            # Use lock to protect shared dict access
-            # Check if _confirm_futures exists before accessing it
+            # Remove future from dictionary
             if hasattr(self, '_confirm_futures'):
-                if hasattr(self, '_confirm_lock'):
-                    # We're in async context (exception handler in async function)
-                    # Can use async with for asyncio.Lock
-                    async with self._confirm_lock:  # type: ignore[attr-defined]
-                        self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
-                else:
-                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
             raise
         except Exception:
-            # Use lock to protect shared dict access
-            # Check if _confirm_futures exists before accessing it
+            # Remove future from dictionary
             if hasattr(self, '_confirm_futures'):
-                if hasattr(self, '_confirm_lock'):
-                    # We're in async context (exception handler in async function)
-                    # Can use async with for asyncio.Lock
-                    async with self._confirm_lock:  # type: ignore[attr-defined]
-                        self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
-                else:
-                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
@@ -583,12 +569,14 @@ class _InitMixin:
         # if future.cancel() triggers callbacks that modify the dict
         keys = list(self._confirm_futures.keys())  # type: ignore[attr-defined]
         for req_id in keys:
-            future = self._confirm_futures.get(req_id)  # type: ignore[attr-defined]
+            # Pop the future from dict BEFORE cancelling it
+            # This prevents callbacks triggered by cancel() from accessing
+            # the future in the dict during cleanup
+            future = self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
             if future is not None:
                 # future.cancel() is idempotent for asyncio Futures
                 # No need to check future.done() first (avoids TOCTOU race)
                 future.cancel()
-                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
 
     def _activate_chat_tab(self: _InitMixin) -> None:
         """Force the Chat tab to be active."""

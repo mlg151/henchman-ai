@@ -12,75 +12,71 @@ class TestNullProviderUnreachableYieldBug:
     def test_unreachable_yield_after_raise(self) -> None:
         """Test that yield is unreachable after raise statement.
         
-        This test FAILS with current implementation because:
-        - _NullProvider.chat_completion_stream raises RuntimeError
-        - Then has yield statement which is unreachable
-        - This is dead code
+        This test was failing with the old implementation because:
+        - _NullProvider.chat_completion_stream had raise RuntimeError
+        - Then had yield statement which was unreachable
+        - This was dead code
         
-        After fix, this test should pass (no unreachable yield).
+        After fix, this test should pass (no unreachable yield after raise).
         """
-        # Read source file
-        with open('src/henchman/cli/textual_mixins.py', 'r') as f:
-            source = f.read()
+        # Import the actual class to test
+        from henchman.cli.textual_mixins import _NullProvider
         
-        # Parse AST
-        tree = ast.parse(source)
+        # Get source code
+        import inspect
+        source = inspect.getsource(_NullProvider.chat_completion_stream)
         
-        # Find the method
-        method_node = None
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.AsyncFunctionDef) and 
-                node.name == 'chat_completion_stream'):
-                # Check if we're in _NullProvider class
-                parent = node
-                while parent and not isinstance(parent, ast.ClassDef):
-                    parent = getattr(parent, 'parent', None)
-                if parent and parent.name == '_NullProvider':
-                    method_node = node
-                    break
+        # Check that raise comes after any yield (if yield exists)
+        # With our fix: yield is in if False: block, then raise
         
-        assert method_node is not None, "Could not find chat_completion_stream method in _NullProvider"
+        # Simple check: count lines
+        lines = source.split('\n')
         
-        # Check body for raise then yield pattern
-        body = method_node.body
-        has_raise = False
-        has_yield_after_raise = False
+        # Find raise line and yield line
+        raise_line = -1
+        yield_line = -1
         
-        for i, stmt in enumerate(body):
-            # Check for raise
-            if isinstance(stmt, ast.Raise):
-                has_raise = True
-                # Check if any statement after this is a yield
-                for j in range(i + 1, len(body)):
-                    next_stmt = body[j]
-                    if (isinstance(next_stmt, ast.Expr) and isinstance(next_stmt.value, ast.Yield)) or \
-                       isinstance(next_stmt, ast.Yield):
-                        has_yield_after_raise = True
-                        break
+        for i, line in enumerate(lines):
+            if 'raise RuntimeError' in line:
+                raise_line = i
+            if 'yield' in line and 'if False:' not in lines[max(0, i-2):i]:  # Not in if False comment
+                # Check if it's actually a yield statement (not in comment)
+                stripped = line.strip()
+                if stripped.startswith('yield'):
+                    yield_line = i
         
-        # This is the bug: yield after raise (unreachable)
-        if has_yield_after_raise:
-            pytest.fail(
-                "BUG: _NullProvider.chat_completion_stream has unreachable yield statement after raise. "
-                "This is dead code that should be removed or made reachable."
-            )
+        print(f"Raise line: {raise_line}, Yield line: {yield_line}")
         
-        # Also check if there's any yield at all (might have been removed)
-        has_any_yield = any(
-            (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Yield)) or
-            isinstance(stmt, ast.Yield)
-            for stmt in body
-        )
+        if yield_line != -1 and raise_line != -1:
+            # Yield should come BEFORE raise (in if False: block)
+            if yield_line > raise_line:
+                pytest.fail(
+                    "BUG: Yield statement comes after raise statement. "
+                    "This is unreachable dead code."
+                )
+            else:
+                print("GOOD: Yield comes before raise (reachable for type checking)")
+        elif yield_line == -1:
+            print("Note: No yield statement found (might have been removed)")
+        elif raise_line == -1:
+            print("WARNING: No raise statement found")
         
-        if not has_any_yield:
-            print("Note: Method has no yield statements (might have been fixed)")
+        # Also verify the method works correctly
+        provider = _NullProvider()
         
-        # The method should either:
-        # 1. Not have yield (if we remove it)
-        # 2. Have yield before raise (reachable)
-        # 3. Have yield in conditional (like if False: yield)
+        # Should raise RuntimeError
+        import pytest as pt
+        with pt.raises(RuntimeError, match="No model provider available"):
+            # Create async generator
+            stream = provider.chat_completion_stream([])
+            # Try to iterate
+            import asyncio
+            async def test():
+                async for _ in stream:
+                    pass
+            asyncio.run(test())
         
-        print("Test passed: No unreachable yield after raise")
+        print("Test passed: Method raises as expected, no unreachable yield after raise")
     
     def test_method_returns_correct_type(self) -> None:
         """Test that the method signature matches implementation.

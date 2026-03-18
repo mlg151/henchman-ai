@@ -315,15 +315,26 @@ class AgentPool:
 
         Args:
             role: The role ID.
+
+        Returns:
+            None
         """
         if role in self._agents:
             self._agents[role].clear_history()
 
     def reset_all(self: "AgentPool") -> None:
-        """Reset history for all agents in the pool."""
+        """Reset history for all agents in the pool.
+
+        Returns:
+            None
+        """
         for agent in self._agents.values():
             agent.clear_history()
 
     def shutdown(self: "AgentPool") -> None:
-        """Cleanup all agents and subscriptions."""
+        """Cleanup all agents and subscriptions.
+
+        Returns:
+            None
+        """
         self._agents.clear()
