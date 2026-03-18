@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T06:00:33.424762+00:00_
+_Generated: 2026-03-18T08:00:36.809825+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-18T06:00:33.424762+00:00_
 | **Overall Grade** | 👍 B |
 | **Overall Score** | 80.4/100 |
 | **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 46,929 |
+| **Total Lines (non-blank)** | 46,934 |
 | **Total Smells** | 372 |
 | **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.3 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_mixins.py | ❌ F | 48.7 | 8 | 1463 | 1 | 0.0 |
+| 1 | cli/textual_mixins.py | ❌ F | 48.8 | 8 | 1463 | 2 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
 | 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
@@ -122,14 +122,14 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 197 additional files omitted._
 
-### cli/textual_mixins.py — ❌ F (48.7/100)
+### cli/textual_mixins.py — ❌ F (48.8/100)
 
-LOC: 1463 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
+LOC: 1463 | Classes: 13 | Functions: 6 | MI: 2 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 111 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 488 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 60 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 488 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 1321 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1340 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 1454 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 1454 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -253,18 +253,6 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 | 130 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at tools/security/shell_secure.py:442 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 536 | 🟡 MEDIUM | Duplicate Code | Function '_show_help_message' is 94% similar to '_list_themes' at cli/commands/theme.py:206 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-### extensions/plugin_manager.py — ⚠️ C (70.6/100)
-
-LOC: 390 | Classes: 2 | Functions: 8 | MI: 46 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_declaration' at tools/base.py:137 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_config' at tools/builtins/coverage_map.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 210 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 158 | 🟢 LOW | Large Class | Class 'PluginManager' spans 301 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 264 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
 ### cli/repl.py — ⚠️ C (70.8/100)
 
 LOC: 442 | Classes: 2 | Functions: 3 | MI: 47 | Avg CC: 0.0
@@ -276,6 +264,18 @@ LOC: 442 | Classes: 2 | Functions: 3 | MI: 47 | Avg CC: 0.0
 | 291 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 144 | 🟢 LOW | Large Class | Class 'Repl' spans 389 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 144 | 🟢 LOW | Large Class | Class 'Repl' has 22 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+
+### extensions/plugin_manager.py — ⚠️ C (70.8/100)
+
+LOC: 395 | Classes: 2 | Functions: 8 | MI: 47 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_declaration' at tools/base.py:137 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_config' at tools/builtins/coverage_map.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 158 | 🟢 LOW | Large Class | Class 'PluginManager' spans 307 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 264 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 ### tools/builtins/research_notes.py — ⚠️ C (71.0/100)
 
