@@ -1,18 +1,18 @@
-# Code Smell Report — 👍 B (Score: 80.3/100)
+# Code Smell Report — 👍 B (Score: 80.2/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T10:00:37.674274+00:00_
+_Generated: 2026-03-18T12:00:34.764478+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | 👍 B |
-| **Overall Score** | 80.3/100 |
+| **Overall Score** | 80.2/100 |
 | **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 46,946 |
-| **Total Smells** | 373 |
+| **Total Lines (non-blank)** | 46,955 |
+| **Total Smells** | 374 |
 | **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.3 |
 
@@ -20,9 +20,9 @@ _Generated: 2026-03-18T10:00:37.674274+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 202 |
-| medium | 164 |
-| high | 7 |
+| low | 203 |
+| medium | 163 |
+| high | 8 |
 
 ### Smells by Category
 
@@ -35,7 +35,7 @@ _Generated: 2026-03-18T10:00:37.674274+00:00_
 | Feature Envy | 38 |
 | Magic Number | 25 |
 | Complex Function | 16 |
-| Deep Nesting | 14 |
+| Deep Nesting | 15 |
 | Large Class | 13 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -50,56 +50,56 @@ These are the highest-impact smells to address first:
    Function '_import_attrs' is an exact duplicate of '_import_attrs' at core/agent.py:98  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-3. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
+3. **cli/textual_mixins.py:488** — 🟠 HIGH — Long Method  
+   Function '_textual_confirm' has 86 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+4. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
    Function '_check_os_compatibility' is an exact duplicate of '_compress_ranges' at tools/builtins/coverage_map.py:206  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-4. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+5. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_cost_csv_rows' at metrics/dashboard.py:224  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-5. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+6. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-6. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
+7. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
    Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
+8. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
    Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-8. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
+9. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
+10. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
    Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:36** — 🟡 MEDIUM — Complex Function  
+11. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:36** — 🟡 MEDIUM — Complex Function  
    Function '_detect_server_type' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
+12. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
    Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
+13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
    Function 'execute' has cyclomatic complexity 14 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:37** — 🟡 MEDIUM — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:37** — 🟡 MEDIUM — Complex Function  
    Function '_format_function_sig' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:138** — 🟡 MEDIUM — Complex Function  
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:138** — 🟡 MEDIUM — Complex Function  
    Function '_summarize_python' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py:54** — 🟡 MEDIUM — Complex Function  
-   Function 'execute' has cyclomatic complexity 14 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_mixins.py | ❌ F | 47.3 | 9 | 1473 | 1 | 0.0 |
+| 1 | cli/textual_mixins.py | ❌ F | 42.4 | 10 | 1477 | 1 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
 | 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
@@ -122,21 +122,22 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 197 additional files omitted._
 
-### cli/textual_mixins.py — ❌ F (47.3/100)
+### cli/textual_mixins.py — ❌ F (42.4/100)
 
-LOC: 1473 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
+LOC: 1477 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
+| 488 | 🟠 HIGH | Long Method | Function '_textual_confirm' has 86 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 111 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 488 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 75 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1338 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1357 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1471 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1471 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 511 | 🟢 LOW | Long Method | Function '_callback' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 597 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_cleanup_confirm_futures' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 1241 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
-| 1787 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 1355 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1374 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1488 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1488 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 528 | 🟢 LOW | Long Method | Function '_callback' has 32 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 546 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_callback' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 614 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_cleanup_confirm_futures' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 1258 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
+| 1804 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 ### utils/compaction.py — ❌ F (57.2/100)
 
@@ -212,7 +213,7 @@ LOC: 276 | Classes: 4 | Functions: 7 | MI: 67 | Avg CC: 0.0
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to '_should_index' at rag/indexer.py:226 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to 'classify_import' at tools/builtins/import_graph.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1471 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1488 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
 

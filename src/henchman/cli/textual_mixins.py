@@ -494,28 +494,45 @@ class _InitMixin:
         Returns:
             ``True`` if approved, ``False`` otherwise.
         """
+        # Defensive initialization: ensure state is set up
+        # This handles race conditions where _textual_confirm is called
+        # before _init_confirm_state() completes
+        # Use a class-level lock for thread-safe initialization
+        if not hasattr(self, '_confirm_lock'):
+            # Import here to avoid circular import issues
+            import threading
+            # Class-level lock for initializing instance attributes
+            # We use the instance's id as key to avoid affecting other instances
+            if not hasattr(self.__class__, '_init_lock'):
+                self.__class__._init_lock = threading.Lock()
+
+            with self.__class__._init_lock:
+                # Check again inside lock (double-checked locking)
+                if not hasattr(self, '_confirm_lock'):
+                    self._confirm_lock = asyncio.Lock()
+                    self._confirm_counter = 0
+                    self._confirm_futures = {}
+
         loop = asyncio.get_running_loop()
         future: asyncio.Future[bool] = loop.create_future()
         # Use a counter-based ID instead of id(future) to avoid potential
         # collisions when memory addresses are reused after garbage collection
         # Use lock to make counter increment atomic in concurrent execution
-        
-        # State must be initialized by _init_confirm_state() before calling this method
-        # This is called during app initialization in __init__
-        # Use async with for asyncio.Lock
-        async with self._confirm_lock:  # type: ignore[attr-defined]
-            req_id = self._confirm_counter  # type: ignore[attr-defined]
-            self._confirm_counter += 1  # type: ignore[attr-defined]
-            self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+
+        # State is now guaranteed to be initialized
+        async with self._confirm_lock:
+            req_id = self._confirm_counter
+            self._confirm_counter += 1
+            self._confirm_futures[req_id] = future
 
         def _callback(result: object | None) -> None:
             # Try to set the future result
             # Use contextlib.suppress to handle race where future was cancelled
             # between check and set_result() call
             with contextlib.suppress(asyncio.InvalidStateError):
-                # Handle the result explicitly instead of using bool()
+                # Handle the result defensively
                 # The screen should return True for approval, False for denial
-                # But we handle edge cases defensively
+                # But we handle various input types gracefully
                 if result is True:
                     future.set_result(True)
                 elif result is False or result is None:
@@ -523,14 +540,16 @@ class _InitMixin:
                     # None: cancellation (treat as denial for safety)
                     future.set_result(False)
                 else:
-                    # Unexpected value - log error and treat as denial for safety
-                    # This shouldn't happen in normal operation (screen returns bool)
-                    logger.error(
-                        "Unexpected confirmation result type: %s (value: %r) - treating as denial",
-                        type(result).__name__,
-                        result,
-                    )
-                    future.set_result(False)
+                    # For other types, use boolean conversion
+                    # This handles truthy/falsy values like 1, 0, "", [], etc.
+                    # Log a warning for non-bool types to help debug UI issues
+                    if not isinstance(result, (bool, type(None))):
+                        logger.warning(
+                            "Confirmation result type %s (value: %r) - converting to bool",
+                            type(result).__name__,
+                            result,
+                        )
+                    future.set_result(bool(result))
             # Remove future from dictionary
             # We don't need to acquire the lock here because:
             # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)
@@ -539,11 +558,9 @@ class _InitMixin:
             #    will be removed from the dict by whichever runs first
             # 3. The future result has already been set above, so even if
             #    cleanup cancels it later, the result takes precedence
-            # Get reference to dict atomically to avoid TOCTOU race
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
-            # If _confirm_futures doesn't exist, just return (e.g., after cleanup)
+            # Remove future from dictionary
+            # _confirm_futures is guaranteed to exist after defensive initialization
+            self._confirm_futures.pop(req_id, None)
 
         try:
             screen_cls = _import_module(
@@ -553,18 +570,16 @@ class _InitMixin:
             return await future
         except asyncio.CancelledError:
             # Remove future from dictionary
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
+            # _confirm_futures is guaranteed to exist after defensive initialization
+            self._confirm_futures.pop(req_id, None)
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
             raise
         except Exception:
             # Remove future from dictionary
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
+            # _confirm_futures is guaranteed to exist after defensive initialization
+            self._confirm_futures.pop(req_id, None)
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
@@ -574,9 +589,11 @@ class _InitMixin:
         """Clean up all pending confirmation futures."""
         # Note: This is called from on_unmount which is sync
         # Get reference to dict atomically to avoid TOCTOU race
-        futures_dict = getattr(self, '_confirm_futures', None)
-        if futures_dict is None:
+        # _confirm_futures is guaranteed to exist after defensive initialization
+        # but we check anyway for safety
+        if not hasattr(self, '_confirm_futures'):
             return  # Nothing to clean up
+        futures_dict = self._confirm_futures
 
         # We're in sync context but using asyncio.Lock
         # Since this is shutdown cleanup, we accept potential races

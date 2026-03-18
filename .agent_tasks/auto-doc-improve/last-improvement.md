@@ -1,36 +1,46 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-18T10:15:00Z
+2026-03-18T12:05:00Z
 
 ## Files Changed
-1. `src/henchman/mcp/client.py`
+1. `src/henchman/mcp/manager.py`
 
 ## Smell Category Addressed
-**Incomplete Docstring** (LOW severity)
+**Incomplete Docstring** (LOW severity) - Two methods missing Returns sections
 
 ## Rationale for Change
-The smell report identified `McpClient.disconnect` method (line 198) that returns a value but has no Returns: section. From code analysis:
-- Method has return type annotation `-> None`
-- According to Google-style docstring conventions, methods that return values (including None) must have a Returns section
-- The method disconnects from an MCP server by closing the AsyncExitStack and clearing connection state
-- The method uses `suppress(Exception)` to silently handle cleanup errors
-- The method already had a brief description but was missing the required Returns section and could benefit from more detail
+The documentation smell report identified two methods in McpManager that return values but have no Returns: sections:
+1. `McpManager.connect_all` (line 159) - returns `None` but missing Returns section
+2. `McpManager.disconnect_all` (line 183) - returns `None` but missing Returns section
+
+According to Google-style docstring conventions, all methods that return values (including `None`) must have a `Returns:` section. Both methods already had brief descriptions but needed:
+- Enhanced descriptions explaining what the methods do
+- Proper `Returns:` sections stating they return `None`
+- Consistent formatting with other methods in the file
 
 ## Changes Made
-1. Enhanced the method description to explain what the method does: "Closes the AsyncExitStack and clears all connection state. Any exceptions during cleanup are silently suppressed."
-2. Added proper `Returns:` section stating it returns `None`
-3. Maintained consistent Google-style docstring formatting with other methods in the file (following the pattern from `connect()` method)
-4. Kept the existing implementation unchanged
+1. **`connect_all` method**:
+   - Enhanced description: "Iterates through all configured MCP servers, establishes connections, and registers their tools. If a server fails to connect, the error is silently ignored and the method continues with the next server."
+   - Added `Returns: None` section
+   - Maintained existing implementation unchanged
+
+2. **`disconnect_all` method**:
+   - Enhanced description: "Closes connections to all connected MCP servers and clears internal state including client instances and registered tools."
+   - Added `Returns: None` section
+   - Maintained existing implementation unchanged
+
+3. Both docstrings now follow the same pattern as other methods in the file (like `get_all_tools` which already had proper Returns section)
 
 ## What to Verify
-1. The smell detector should no longer flag `McpClient.disconnect` for missing Returns section
-2. The documentation accurately describes the method's behavior including silent exception suppression
-3. The docstring maintains consistent formatting with other methods in the file
+1. The smell detector should no longer flag `McpManager.connect_all` and `McpManager.disconnect_all` for missing Returns sections
+2. The documentation accurately describes each method's behavior
+3. The docstrings maintain consistent Google-style formatting with other methods in the file
 4. No other documentation issues were introduced
+5. All public methods in `src/henchman/mcp/manager.py` now have complete docstrings with proper Returns sections
 
 ## Next Priority
-The next highest priority issues are:
-1. Line 159: `McpManager.connect_all` missing Returns section in `src/henchman/mcp/manager.py`
-2. Line 183: `McpManager.disconnect_all` missing Returns section in `src/henchman/mcp/manager.py`
-3. Check for any other incomplete docstrings that may have been introduced
+The documentation smell report now shows 0 smells (100% score). Next steps:
+1. Run the documentation smell detector again to confirm all issues are resolved
+2. Check for any newly introduced documentation issues
+3. Consider running comprehensive documentation tests to ensure all public APIs are properly documented

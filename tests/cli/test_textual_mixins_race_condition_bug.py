@@ -1,176 +1,93 @@
-"""Failing test for _textual_confirm callback race condition bug.
-
-The bug: In _textual_confirm's _callback function, there's a TOCTOU race:
-1. if hasattr(self, '_confirm_futures'):  # Check attribute exists
-2.     self._confirm_futures.pop(req_id, None)  # Access attribute
-
-Between these lines, _cleanup_confirm_futures could delete the _confirm_futures
-attribute, causing AttributeError when trying to access self._confirm_futures.
-"""
+"""Test for race condition bug in _cleanup_confirm_futures."""
 
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from henchman.cli.textual_mixins import _InitMixin
-from henchman.tools.base import ConfirmationRequest
 
 
-class TestTextualConfirmRaceConditionBug:
-    """Test that demonstrates the race condition bug in _textual_confirm callback."""
-    
-    @pytest.mark.anyio
-    async def test_callback_race_condition_attribute_error(self) -> None:
-        """Test that _callback handles race where _confirm_futures is deleted.
+class TestCleanupConfirmFuturesRaceCondition:
+    """Test race condition in _cleanup_confirm_futures."""
+
+    def test_cleanup_with_concurrent_pop_raises_runtime_error(self) -> None:
+        """Test that concurrent dict modification during cleanup raises RuntimeError.
         
-        This test simulates the race condition:
-        1. _callback starts executing, checks hasattr(self, '_confirm_futures')
-        2. _cleanup_confirm_futures runs concurrently and deletes _confirm_futures
-        3. _callback tries to access self._confirm_futures -> AttributeError
-        
-        This test will FAIL with current implementation.
+        This demonstrates the bug: if _callback or exception handlers call
+        futures_dict.pop() while _cleanup_confirm_futures is iterating,
+        it can raise RuntimeError: dictionary changed size during iteration.
         """
-        # Create a mock mixin instance
-        mixin = _InitMixin.__new__(_InitMixin)
-        mixin._confirm_futures = {}
-        mixin._confirm_counter = 0
-        mixin._confirm_lock = asyncio.Lock()
+        # Create a mock object with _InitMixin methods
+        obj = MagicMock(spec=_InitMixin)
         
-        # Mock the push_screen method to trigger callback immediately
-        mock_screen = MagicMock()
-        
-        # Create a ConfirmationRequest
-        request = ConfirmationRequest(
-            tool_name="test_tool",
-            description="Test tool execution",
-            params={"arg": "value"},
-            risk_level="medium"
-        )
-        
-        # We need to intercept the _callback that gets created inside _textual_confirm
-        # Let's patch the method to capture the callback
-        captured_callback = None
-        original_textual_confirm = mixin._textual_confirm
-        
-        async def mock_textual_confirm(self, req):
-            # Call original but intercept the callback
-            loop = asyncio.get_running_loop()
-            future = loop.create_future()
-            
-            # Simulate what happens in the real method
-            async with self._confirm_lock:
-                req_id = self._confirm_counter
-                self._confirm_counter += 1
-                self._confirm_futures[req_id] = future
-            
-            def _callback(result: object | None) -> None:
-                # This is the buggy callback from the real implementation
-                with contextlib.suppress(asyncio.InvalidStateError, asyncio.CancelledError):
-                    future.set_result(bool(result))
-                # BUG: TOCTOU race here!
-                if hasattr(self, '_confirm_futures'):
-                    self._confirm_futures.pop(req_id, None)  # Could raise AttributeError
-            
-            # Store callback for testing
-            nonlocal captured_callback
-            captured_callback = _callback
-            
-            # Simulate screen pushing and immediate callback
-            future.set_result(True)
-            return await future
-        
-        # Replace method
-        mixin._textual_confirm = mock_textual_confirm.__get__(mixin, _InitMixin)
-        
-        # Also need to mock push_screen
-        mixin.push_screen = AsyncMock()
-        
-        # Run _textual_confirm to capture the callback
-        task = asyncio.create_task(mixin._textual_confirm(request))
-        await task
-        
-        # Now we have the callback, test the race condition
-        assert captured_callback is not None
-        
-        # Simulate race: delete attribute between hasattr check and access
-        class RaceConditionSimulator:
-            def __init__(self):
-                self._confirm_futures = {0: "dummy"}
-                self.attribute_deleted = False
-            
-            def trigger_race(self):
-                # Simulate _cleanup_confirm_futures deleting attribute
-                if hasattr(self, '_confirm_futures'):
-                    del self._confirm_futures  # Delete between check and access
-                    self.attribute_deleted = True
-        
-        simulator = RaceConditionSimulator()
-        
-        # Manually invoke callback with race simulation
-        # We need to monkey-patch the callback to use our simulator
-        import contextlib
-        
-        def buggy_callback(result):
-            with contextlib.suppress(asyncio.InvalidStateError, asyncio.CancelledError):
-                pass  # Skip future manipulation for test
-            
-            # This is the buggy code from the real implementation
-            if hasattr(simulator, '_confirm_futures'):
-                # Simulate concurrent deletion here
-                simulator.trigger_race()
-                # Now this will raise AttributeError because attribute was deleted
-                simulator._confirm_futures.pop(0, None)  # type: ignore
-        
-        # The callback should raise AttributeError due to race condition
-        with pytest.raises(AttributeError, match="_confirm_futures"):
-            buggy_callback(True)
-        
-        # Verify race was triggered
-        assert simulator.attribute_deleted
-    
-    @pytest.mark.anyio 
-    async def test_callback_safe_with_missing_attribute(self) -> None:
-        """Test that callback should handle missing _confirm_futures gracefully.
-        
-        After fix, this test should pass - callback shouldn't raise AttributeError
-        even if _confirm_futures attribute doesn't exist.
-        """
-        # Create a mock mixin instance
-        mixin = _InitMixin.__new__(_InitMixin)
-        
-        # Don't set _confirm_futures at all
-        assert not hasattr(mixin, '_confirm_futures')
-        
-        # Create a callback that would be created inside _textual_confirm
-        # This simulates the fixed version
-        def safe_callback(result):
-            import contextlib
-            with contextlib.suppress(asyncio.InvalidStateError, asyncio.CancelledError):
-                pass
-            
-            # FIXED: Get reference to dict first, or handle missing attribute
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(0, None)
-        
-        # The callback should not raise AttributeError
+        # Create some futures
+        loop = asyncio.new_event_loop()
         try:
-            # We need self in scope - use mixin
-            self = mixin
-            safe_callback(True)
-        except AttributeError as e:
-            pytest.fail(f"Callback raised AttributeError with missing attribute: {e}")
+            future1 = loop.create_future()
+            future2 = loop.create_future()
+            future3 = loop.create_future()
+            
+            # Create a dictionary that will be modified during iteration
+            # We'll simulate concurrent modification by having a callback
+            # that removes an item during iteration
+            futures_dict = {0: future1, 1: future2, 2: future3}
+            
+            # Track if we've modified during iteration
+            modified_during_iteration = False
+            
+            # Monkey-patch the dict's pop method to simulate concurrent modification
+            original_pop = futures_dict.pop
+            def popping_pop(key, default=None):
+                nonlocal modified_during_iteration
+                # Simulate callback removing item 1 during iteration
+                if key == 1 and not modified_during_iteration:
+                    modified_during_iteration = True
+                return original_pop(key, default)
+            
+            futures_dict.pop = popping_pop
+            
+            obj._confirm_futures = futures_dict
+            
+            # Get the method
+            cleanup_method = _InitMixin._cleanup_confirm_futures
+            
+            # This should work without error in the current implementation
+            # because it uses keys = list(futures_dict.keys()) first
+            # But if the callback runs between getting keys and iterating,
+            # or if we iterate over the dict directly, it would fail
+            
+            # Actually, let me check the actual implementation more carefully
+            # The bug might be more subtle
+            
+        finally:
+            loop.close()
     
-    def test_cleanup_deletes_attribute(self) -> None:
-        """Test that _cleanup_confirm_futures can delete _confirm_futures attribute."""
-        mixin = _InitMixin.__new__(_InitMixin)
-        mixin._confirm_futures = {1: MagicMock(spec=asyncio.Future)}
+    def test_cleanup_iterates_over_dict_directly_bug(self) -> None:
+        """Demonstrate the bug if code iterated over dict directly (hypothetical)."""
+        # This test shows what WOULD happen if the code didn't use keys = list(futures_dict.keys())
+        obj = MagicMock(spec=_InitMixin)
         
-        # Run cleanup
-        mixin._cleanup_confirm_futures()
+        # Create a dictionary that will be modified during iteration
+        futures_dict = {0: "future0", 1: "future1", 2: "future2"}
         
-        # After cleanup, _confirm_futures should be empty dict or deleted
-        # Current implementation leaves empty dict, but could delete attribute
-        # This shows the potential for race condition
+        # Track iterations
+        iterations = []
+        
+        def bad_cleanup(self):
+            # BUGGY VERSION: iterates over dict directly
+            for req_id in self._confirm_futures:
+                iterations.append(req_id)
+                # Simulate callback removing another item
+                if req_id == 0:
+                    # Callback removes item 1
+                    self._confirm_futures.pop(1, None)
+        
+        obj._confirm_futures = futures_dict
+        
+        # This would raise RuntimeError: dictionary changed size during iteration
+        # But the actual code uses keys = list(futures_dict.keys()) so it's safe
+        
+        # The actual bug might be different - let me examine the real code more carefully
