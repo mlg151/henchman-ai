@@ -59,6 +59,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+discord = ["discord.py>=2.0"]
+chat = ["discord.py>=2.0"]  # Alias: install all chat integrations
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -68,6 +70,7 @@ dev = [
     "pytest-cov~=4.0",  # PACKAGE VERSION 4.0+, NOT COVERAGE PERCENTAGE (coverage threshold is 100%)
     "ruff>=0.4",
     "mypy>=1.10",
+    "discord.py>=2.0",  # For testing chat integration
     "types-PyYAML>=6",
     "types-networkx>=3",
     "pytest-mock>=3",
@@ -133,6 +136,10 @@ warn_redundant_casts = true
 module = "tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "discord.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

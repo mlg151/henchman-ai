@@ -320,6 +320,41 @@ class ApiConfig(BaseModel):
     )
 
 
+class DiscordSettings(BaseModel):
+    """Discord bot configuration.
+
+    Attributes:
+        enabled: Whether the Discord bot is enabled.
+        token: Discord bot token (or env var reference).
+        allowed_user_id: Discord user ID authorized to use the bot.
+        system_prompt: Custom system prompt for Discord conversations.
+    """
+
+    enabled: bool = Field(default=False, description="Whether the Discord bot is enabled")
+    token: str | None = Field(
+        default=None,
+        description="Discord bot token (set via DISCORD_TOKEN env var or here)",
+    )
+    allowed_user_id: str | None = Field(
+        default=None,
+        description="Discord user ID (snowflake) authorized to use the bot",
+    )
+    system_prompt: str | None = Field(
+        default=None,
+        description="Custom system prompt for Discord conversations",
+    )
+
+
+class ChatConfig(BaseModel):
+    """Chat integration configuration.
+
+    Attributes:
+        discord: Discord bot settings.
+    """
+
+    discord: DiscordSettings = Field(default_factory=DiscordSettings)
+
+
 class Settings(BaseModel):
     """Main settings model for henchman-cli.
 
@@ -331,6 +366,7 @@ class Settings(BaseModel):
         mcp_servers: MCP server configurations.
         rag: RAG (Retrieval Augmented Generation) settings.
         api: API server configuration.
+        chat: Chat integration configuration.
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
@@ -341,3 +377,4 @@ class Settings(BaseModel):
     rag: RagSettings = Field(default_factory=RagSettings)
     agents: AgentSettings = Field(default_factory=AgentSettings)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    chat: ChatConfig = Field(default_factory=ChatConfig)

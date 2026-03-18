@@ -151,7 +151,9 @@ class TestChatPaneRefactoring:
         # Check _add_message_with_prefix on the class (unbound)
         sig = inspect.signature(ChatPane._add_message_with_prefix)
         params = list(sig.parameters.keys())
-        assert params == ["self", "prefix", "text"]
+        assert params == ["self", "prefix", "text", "trusted"]
+        # trusted has default value
+        assert sig.parameters["trusted"].default is False
         # Return annotation might be a string due to forward references
         assert sig.return_annotation in ["ChatMessage", ChatMessage]
 
