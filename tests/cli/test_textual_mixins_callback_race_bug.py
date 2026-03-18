@@ -14,12 +14,9 @@ class TestTextualConfirmCallbackRaceBug:
     
     @pytest.mark.anyio
     async def test_callback_creates_task_for_lock_race(self) -> None:
-        """Test that _callback creates a task for lock acquisition, causing race.
+        """Test that _callback does NOT create a task for lock acquisition.
         
-        This test will FAIL with current implementation because:
-        - _callback uses asyncio.create_task() to acquire lock
-        - This creates a TOCTOU race condition
-        - After fix, callback should not try to acquire lock from sync context
+        The callback should use getattr and .pop() which are safe in sync context.
         """
         from henchman.cli.textual_mixins import _InitMixin
         
@@ -33,21 +30,21 @@ class TestTextualConfirmCallbackRaceBug:
         import inspect
         source = inspect.getsource(mixin._textual_confirm)
         
-        # The bug: _callback uses asyncio.create_task() to acquire lock
-        # This creates a race condition
-        assert 'asyncio.create_task(remove_from_dict())' in source, (
-            "Bug: _callback uses asyncio.create_task() for lock acquisition - race condition!"
+        # The callback should NOT use asyncio.create_task() to acquire lock
+        # It should use getattr and .pop() which are safe in sync context
+        assert 'asyncio.create_task(' not in source, (
+            "Callback should not use asyncio.create_task() in sync context"
         )
         
-        # The fix: _callback should not try to acquire async lock from sync context
-        # Since races are acceptable during shutdown (per comment), we should
-        # just pop without lock in callback
+        # Check that it uses getattr for safe attribute access
+        assert 'getattr(self, \'_confirm_futures\', None)' in source, (
+            "Callback should use getattr for safe attribute access"
+        )
         
-        # Check if there's proper handling for the sync context
-        # The code should handle that we're in sync callback and not try async operations
-        
-        # This assertion will FAIL with current implementation
-        # After fix, we should NOT see asyncio.create_task() in the callback
+        # Check that it uses .pop() which is thread-safe for dict
+        assert '.pop(req_id, None)' in source, (
+            "Callback should use .pop() for safe dictionary removal"
+        )
         # Actually, let me check what the fix should be...
         
         # Actually, looking at the code more carefully:

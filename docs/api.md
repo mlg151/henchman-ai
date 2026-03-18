@@ -19,11 +19,21 @@ class Agent:
     def __init__(
         self,
         provider: ModelProvider,
-        tools: list[ToolDeclaration] | None = None,
-        system_prompt: str = "",
-        config: AgentConfig | None = None
+        *,
+        tool_registry: ToolRegistry | None = None,
+        config: AgentConfig | None = None,
+        identity: AgentIdentity | None = None,
+        **kwargs: Any,
     ) -> None:
-        """Initialize the agent."""
+        """Initialize the Agent.
+
+        Args:
+            provider: The model provider to use for LLM interactions.
+            tool_registry: Registry of available tools. Creates empty one if None.
+            config: Agent configuration. If None, built from **kwargs.
+            identity: Optional identity of the agent.
+            **kwargs: Backward-compatible config fields (system_prompt, max_tokens, etc.).
+        """
     
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input, yielding events."""
@@ -62,13 +72,32 @@ class AgentConfig:
 
 ```python
 class EventType(Enum):
-    CONTENT = "content"        # Text content from LLM
-    THOUGHT = "thought"        # Thinking/reasoning
-    TOOL_CALL_REQUEST = "tool_call_request"
-    TOOL_CALL_RESULT = "tool_call_result"
-    TOOL_CONFIRMATION = "tool_confirmation"  # User confirmation for tool execution
-    ERROR = "error"
-    FINISHED = "finished"
+    """Types of events emitted by the agent during execution."""
+    
+    # Core agent events
+    CONTENT = auto()                     # Text content from model
+    THOUGHT = auto()                     # Reasoning/thinking content (for reasoning models)
+    TOOL_CALL_REQUEST = auto()           # Model is requesting a tool call
+    TOOL_CALL_RESULT = auto()            # Result from a tool execution
+    TOOL_CONFIRMATION = auto()           # Awaiting user approval for a tool
+    CONTEXT_COMPACTED = auto()           # Context was compacted to fit model limits
+    TURN_SUMMARIZED = auto()             # Previous turn was summarized
+    TURN_STATUS = auto()                 # Status update for current turn
+    ERROR = auto()                       # An error occurred
+    FINISHED = auto()                    # Agent has finished processing
+    
+    # Multi-agent orchestration events
+    AGENT_DELEGATED = auto()             # Tech Lead delegating a task to a specialist
+    AGENT_STARTED = auto()               # Specialist agent beginning work
+    AGENT_COMPLETED = auto()             # Specialist agent finished
+    AGENT_MESSAGE = auto()               # Inter-agent message via EventBus
+    
+    # Thinking and reasoning events
+    THINKING_STARTED = auto()            # Agent has started thinking process
+    THINKING_COMPLETED = auto()          # Agent has completed thinking
+    THINKING_REQUIRED = auto()           # Thinking pattern missing in response
+    DELEGATION_DECISION = auto()         # Decision about whether to delegate
+    REFLECTION = auto()                  # Reflection on completed work
 ```
 
 #### AgentEvent
@@ -85,14 +114,53 @@ class AgentEvent:
 
 ```python
 class EventBus:
-    def subscribe(self, event_type: EventType, callback: Callable[[AgentEvent], Any]) -> None:
-        """Subscribe to events of a specific type."""
+    def __init__(self, history_limit: int = 1000) -> None:
+        """Initialize the EventBus.
+
+        Args:
+            history_limit: Maximum number of events to keep in history.
+        """
     
-    def publish(self, event: AgentEvent) -> None:
-        """Publish an event to all subscribers."""
+    async def subscribe(self, event_type: EventType, handler: Callable[[AgentEvent], Any]) -> str:
+        """Subscribe to a specific event type.
+
+        Args:
+            event_type: The type of event to subscribe to.
+            handler: Async or sync function to call when event occurs.
+
+        Returns:
+            A unique subscription ID.
+        """
     
-    def unsubscribe(self, event_type: EventType, callback: Callable[[AgentEvent], Any]) -> None:
-        """Unsubscribe from events."""
+    async def subscribe_all(self, handler: Callable[[AgentEvent], Any]) -> str:
+        """Subscribe to all event types.
+
+        Args:
+            handler: Async or sync function to call for every event.
+
+        Returns:
+            A unique subscription ID.
+        """
+    
+    async def unsubscribe(self, subscription_id: str) -> None:
+        """Remove a subscription.
+
+        Args:
+            subscription_id: The ID returned from subscribe().
+
+        Returns:
+            None
+        """
+    
+    async def publish(self, event: AgentEvent) -> None:
+        """Publish an event to all matching subscribers.
+
+        Args:
+            event: The event to publish.
+
+        Returns:
+            None
+        """
 ```
 
 ### Session

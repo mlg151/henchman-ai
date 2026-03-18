@@ -121,8 +121,7 @@ class TestRealFunctionalBug:
                 print(f"Result: {result}")
                 print(f"Log messages: {log_messages}")
                 
-                # BUG: UI said "1" (truthy/yes), but returns False
-                assert result is False, "BUG: truthy value 1 should return True, not False"
-                assert any("unexpected" in msg.lower() for msg in log_messages), "Should log error"
+                # Bug is fixed: truthy value 1 is converted to True (with a warning)
+                assert result is True, "Bug is fixed: truthy value 1 returns True"
                 
-                print("BUG CONFIRMED: truthy non-bool values treated as errors")
+                print("Bug is fixed: truthy non-bool values are converted to bool with a warning")

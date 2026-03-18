@@ -72,21 +72,20 @@ class TestUnusedTypeIgnoreBug:
         print("✓ StreamChunk() is type-safe - no type ignore needed")
     
     def test_null_provider_stream_works_without_type_ignore(self) -> None:
-        """Test that _NullProvider.chat_completion_stream works correctly.
-        
-        This is a sanity check that removing the type ignore doesn't break functionality.
-        With the fixed implementation, it should raise immediately without yielding.
+        """Bug is fixed: _NullProvider.chat_completion_stream raises on first iteration.
+
+        The method is async def, must be awaited to get the async iterable,
+        then raises RuntimeError immediately on first __anext__ call.
         """
         from henchman.cli.textual_mixins import _NullProvider
         
         provider = _NullProvider()
         
-        # Should raise RuntimeError immediately (no yield)
-        gen = provider.chat_completion_stream([])
-        
         import asyncio
         
         async def test():
+            # Must await the coroutine to get the async iterable
+            gen = await provider.chat_completion_stream([])
             # First iteration should raise RuntimeError immediately
             with pytest.raises(RuntimeError, match="No model provider available"):
                 await gen.__anext__()
@@ -94,4 +93,4 @@ class TestUnusedTypeIgnoreBug:
         # Run the async test
         asyncio.run(test())
         
-        print("✓ _NullProvider.chat_completion_stream works correctly (raises immediately)")
+        print("OK: _NullProvider.chat_completion_stream works correctly (raises immediately)")

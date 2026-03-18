@@ -864562,3 +864562,326 @@ tests/cli/test_textual_mixins_race_condition_bug.py -xvs 2>&1 | head -100'})
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
+[2026-03-18T20:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-18T20:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.0/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-18T20:00:39.420468+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
+Let me continue reading the file to understand its structure better:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 200})
+
+[result] }
+
+
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real provider is configured)          #
+# --------------------------------------------------...
+Let me look at the specific function mentioned in the smell report - `_textual_confirm` at line 493:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+480, 'end_line': 600})
+
+[result]         self.tool_executor = init.tool_executor  # type: 
+ignore[attr-defined]
+        self.command_processor = init.command_processor  # type: 
+ignore[attr-defined]
+        self.input_handler = init.in...
+Let me continue reading to see the rest of the `_cleanup_confirm_futures` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+600, 'end_line': 700})
+
+[result]         # but we check anyway for safety
+        futures_dict = getattr(self, '_confirm_futures', None)
+        if futures_dict is None:
+            return  # Nothing to clean up
+
+        # We're in s...
+Now let me check if there are tests for this file:
+[tool] glob({'pattern': '**/test*textual_mixins*.py'})
+
+[result] tests/cli/test_textual_mixins.py
+tests/cli/test_textual_mixins_actual_bug.py
+tests/cli/test_textual_mixins_asyncio_lock_bug.py
+tests/cli/test_textual_mixins_attribute_error_bug.py
+tests/cli/test_textu...
+Let me look at the main test file to understand what's being tested:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """Tests for Henchman CLI textual mixins."""
+
+import pytest
+import asyncio
+from unittest.mock import MagicMock, AsyncMock, patch
+from typing import AsyncIterator, List
+
+from henchman.cli.textual_mixin...
+Let me check the structure of the file more to understand the Four Lenses analysis. First, let me create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2026-03-18T20:00:39.420468+00:00\n## Bug Summary\nThe `_textual_confirm` method 
+has a race condition where the callback function can access 
+`self._confirm_futures` after it has been cleaned up by 
+`_cleanup_confirm_futures`, potentially causing `KeyError` or unexpected 
+behavior during application shutdown.\n\n## Lens\n**Phase 2: State & Side 
+Effects (The Entropy Audit)** - Shared state mutation without proper 
+synchronization during cleanup.\n\n## Expected vs. Observed\n| Expected Behavior
+| Observed Risk |\n|---|---|\n| Cleanup should safely cancel all pending futures
+without race conditions | Callback can try to pop from `_confirm_futures` dict 
+after cleanup has removed it |\n| Futures should be properly removed from dict 
+when cancelled | Race between callback's `pop()` and cleanup's `pop()` can cause
+issues |\n| Application shutdown should be deterministic and safe | Potential 
+`KeyError` or unexpected state during async cleanup |\n\n## Root Cause\nThe 
+`_cleanup_confirm_futures` method iterates through the `_confirm_futures` 
+dictionary and cancels futures, but the callback in `_textual_confirm` also 
+tries to remove futures from the same dictionary. During shutdown, there's a 
+race condition where:\n1. Cleanup starts and gets list of keys\n2. Callback runs
+(triggered by future cancellation or screen dismissal)\n3. Callback tries to pop
+from dictionary that cleanup is modifying\n4. Either `KeyError` or inconsistent 
+state can occur\n\n## Fix Plan\nAdd synchronization using the existing 
+`_confirm_lock` in the cleanup method to protect dictionary access. The lock 
+should be acquired before accessing the dictionary to ensure atomic 
+operations.\n\n## Status: IN PROGRESS"})
+
+[result] Successfully wrote 1735 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+I need to examine the code more carefully to understand the actual bug. Let me read the full `_cleanup_confirm_futures` method and look for the specific issue:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+620, 'end_line': 650})
+
+[result]                     future.cancel()
+                except Exception as exc:  # noqa: BLE001
+                    # Log but continue cleaning up other futures
+                    # This can happen if t...
+Let me look at the actual `_cleanup_confirm_futures` method more carefully:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+610, 'end_line': 630})
+
+[result]         keys = list(futures_dict.keys())
+        for req_id in keys:
+            # Pop the future from dict BEFORE cancelling it
+            # This prevents callbacks triggered by cancel() from access...
+Now let me check the callback function in `_textual_confirm` to see how it accesses the dictionary:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+540, 'end_line': 580})
+
+[result]                     # Unexpected value - log warning and convert to 
+bool
+                    # This shouldn't happen in normal operation (screen returns 
+bool)
+                    # but we handle it gr...
+I see the issue! Looking at the code, I notice there's a comment that says "We don't need to acquire the lock here because..." but actually, there IS a race condition. The callback uses `getattr(self, '_confirm_futures', None)` to get the dictionary, but `_cleanup_confirm_futures` is called from `on_unmount` which is synchronous. If cleanup runs and sets `_confirm_futures = None` (or removes it), then the callback's `getattr` will return `None` and the callback won't be able to clean up properly.
+
+Actually, wait. Let me re-examine. The callback says "Use getattr to avoid TOCTOU race with _cleanup_confirm_futures" but actually, `getattr` itself is subject to TOCTOU! Between the `getattr` check and the `.pop(req_id, None)` call, the attribute could be deleted or set to `None`.
+
+But actually, looking more carefully at the `_cleanup_confirm_futures` method:
+
+```python
+futures_dict = getattr(self, '_confirm_futures', None)
+if futures_dict is None:
+    return  # Nothing to clean up
+```
+
+It gets the dictionary reference, then works with it. It doesn't set `_confirm_futures = None`. So the attribute remains. The race is actually in the iteration: `keys = list(futures_dict.keys())` gets a snapshot, but if a callback runs concurrently and modifies the dictionary (by popping), we could have issues.
+
+Actually, looking at the callback again:
+```python
+futures_dict = getattr(self, '_confirm_futures', None)
+if futures_dict is not None:
+    futures_dict.pop(req_id, None)
+```
+
+This uses `.pop(req_id, None)` which is safe even if the key doesn't exist. So no `KeyError`. But there's still a race: the callback could be trying to pop while cleanup is also popping, and dictionary modifications during iteration can cause issues in Python.
+
+Wait, but cleanup gets `keys = list(futures_dict.keys())` first, so it's iterating over a snapshot. That should be safe from `RuntimeError: dictionary changed size during iteration`.
+
+Let me think about this more carefully. Actually, I need to look for a REAL bug, not just potential races. Let me examine the code through the Four Lenses:
+
+**Phase 1: Logic Gaps** - Look for silent failures, error swallowing
+**Phase 2: State & Side Effects** - Look for shared state issues  
+**Phase 3: Performance & Resource Management** - Look for leaks, inefficiencies
+**Phase 4: Forensic Refactor** - Find the actual bug
+
+Let me check the `_NullProvider` class more carefully:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+70, 'end_line': 120})
+
+[result]     "_HistoryMixin",
+    "_InitMixin",
+    "_InputHandlerMixin",
+    "_MessageHandlerMixin",
+    "_NullProvider",
+    "_PaneActionMixin",
+    "_ProviderMixin",
+    "_ProxyMixin",
+    "_PublicAPIMixin"...
+
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+120, 'end_line': 160})
+
+[result]         """The unique name of this provider."""
+        return self._name
+
+    async def chat_completion(
+        self: _NullProvider,
+        _messages: list[Any],
+        _tools: list[Any] | None = ...
+Wait! I found a bug! Look at the `_NullProvider.chat_completion_stream` method:
+
+```python
+async def chat_completion_stream(
+    self: _NullProvider,
+    _messages: list[Message],
+    _tools: list[ToolDeclaration] | None = None,
+    **_kwargs: Any,
+) -> AsyncIterator[StreamChunk]:
+    """Raise an error indicating no provider is configured."""
+    class _NullAsyncIterator:
+        """Async iterator that immediately raises RuntimeError."""
+        def __aiter__(self) -> _NullAsyncIterator:
+            return self
+        async def __anext__(self) -> StreamChunk:
+            raise RuntimeError(_NO_PROVIDER_MSG)
+    
+    return _NullAsyncIterator()
+```
+
+The method signature says it returns `AsyncIterator[StreamChunk]`, but it actually returns an instance of `_NullAsyncIterator`, not an async iterator! The `__aiter__` method should return `self`, which it does, but wait... actually this looks correct. The class has `__aiter__` and `__anext__` methods, so it's an async iterator.
+
+But wait, there's another issue! Look at the `__aiter__` method:
+
+```python
+def __aiter__(self) -> _NullAsyncIterator:
+    return self
+```
+
+This returns `_NullAsyncIterator` but the type annotation should be `AsyncIterator[StreamChunk]`! Actually, `__aiter__` should return `AsyncIterator[T]`, not the concrete type. But more importantly, this is a **type safety violation** (Phase 1 of Four Lenses).
+
+Actually, let me think about this more. The real issue might be elsewhere. Let me check if there are any tests that fail:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins.py -x -q --tb=short'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good, tests pass. Now let me look more carefully at the `_NullProvider` class. I think I found a real bug! Let me examine the `chat_completion_stream` method more closely:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+130, 'end_line': 160})
+
+[result]         raise RuntimeError(_NO_PROVIDER_MSG)
+
+    async def chat_completion_stream(
+        self: _NullProvider,
+        _messages: list[Message],
+        _tools: list[ToolDeclaration] | None = None,
+...
+Wait, I need to think about this. The method returns `_NullAsyncIterator()` which is an instance of the inner class. The inner class has `__aiter__` and `__anext__` methods, so it's an async iterator. But actually, `__aiter__` should return `AsyncIterator[StreamChunk]`, not `_NullAsyncIterator`. However, this is just a type annotation issue, not a runtime bug.
+
+Let me look for a more substantial bug. Actually, let me re-examine the `_textual_confirm` method. There's a comment that says "We don't need to acquire the lock here because..." but I think there might be a real issue. Let me trace through the logic:
+
+1. `_textual_confirm` creates a future and adds it to `_confirm_futures` dict with a unique ID
+2. The callback tries to remove the future from the dict
+3. `_cleanup_confirm_futures` removes futures from the dict and cancels them
+
+The race is: what if cleanup runs AFTER the callback gets the dict reference with `getattr` but BEFORE it calls `.pop()`? The callback would get `None` (if cleanup set the attribute to None) or get the dict but then cleanup might have already removed the key.
+
+Actually, looking at the code again:
+```python
+futures_dict = getattr(self, '_confirm_futures', None)
+if futures_dict is not None:
+    futures_dict.pop(req_id, None)
+```
+
+If cleanup sets `_confirm_futures = None`, then `getattr` returns `None`, and the callback does nothing. That's actually OK - the future has already been cancelled by cleanup.
+
+But wait! What if cleanup doesn't set it to `None`? It doesn't! It just gets the dict reference and works with it. So the attribute remains. So `getattr` will return the dict.
+
+Actually, I think the real bug might be in the `_cleanup_confirm_futures` method itself! Look at this:
+
+```python
+def _cleanup_confirm_futures(self: _InitMixin) -> None:
+    """Clean up all pending confirmation futures."""
+    # Note: This is called from on_unmount which is sync
+    # Get reference to dict atomically to avoid TOCTOU race
+    # _confirm_futures is guaranteed to exist after defensive initialization
+    # but we check anyway for safety
+    futures_dict = getattr(self, '_confirm_futures', None)
+    if futures_dict is None:
+        return  # Nothing to clean up
+
+    # We're in sync context but using asyncio.Lock
+    # Since this is shutdown cleanup, we accept potential races
+    # Don't try to acquire the lock in sync context
+```
+
+The comment says "Don't try to acquire the lock in sync context" because it's called from `on_unmount` which is synchronous. But `_confirm_lock` is an `asyncio.Lock`! You can't acquire an asyncio lock in synchronous code!
+
+But actually, that's not a bug - it's by design. The comment says "accept potential races" during shutdown.
+
+Hmm, let me think about this differently. Let me look for actual test failures or bugs that have been fixed. Let me check some of the test files:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_real_bug.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Test for the real TOCTOU race condition bug in textual_mixins.py.
+
+The bug: In both _textual_confirm._callback and _cleanup_confirm_futures,
+there's a TOCTOU race between hasattr() check and attrib...
+Let me look at the actual current code to see if the TOCTOU bug is still there:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+610, 'end_line': 625})
+
+[result]         keys = list(futures_dict.keys())
+        for req_id in keys:
+            # Pop the future from dict BEFORE cancelling it
+            # This prevents callbacks triggered by cancel() from access...
+The current code uses `getattr(self, '_confirm_futures', None)` not `hasattr`. So that TOCTOU bug might have been fixed. Let me check the callback:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+560, 'end_line': 580})
+
+[result]             # 3. The future result has already been set above, so even 
+if
+            #    cleanup cancels it later, the result takes precedence
+            # Remove future from dictionary
+           ...
+Both use `getattr`, so the TOCTOU bug mentioned in the test file has been fixed. Let me look for a different bug. Actually, wait! I think I found something. Look at the `_NullProvider.chat_completion_stream` method again:
+
+```python
+async def chat_completion_stream(
+    self: _NullProvider,
+    _messages: list[Message],
+    _tools: list[ToolDeclaration] | None = None,
+    **_kwargs: Any,
+) -> AsyncIterator[StreamChunk]:
+    """Raise an error indicating no provider is configured."""
+    class _NullAsyncIterator:
+       

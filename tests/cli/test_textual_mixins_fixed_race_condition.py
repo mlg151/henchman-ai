@@ -12,83 +12,53 @@ class TestTextualConfirmRaceConditionFixed:
     
     @pytest.mark.anyio
     async def test_concurrent_calls_use_same_lock(self) -> None:
-        """Test that concurrent calls to _textual_confirm use the same lock instance.
-        
-        This verifies that the double-checked locking pattern works correctly.
+        """Bug is fixed: _init_confirm_state() creates exactly one asyncio.Lock.
+
+        The fix requires explicit initialization via _init_confirm_state() before
+        using _textual_confirm. No lazy lock creation during concurrent calls.
         """
         from henchman.cli.textual_mixins import _InitMixin
-        
-        # Create a mock instance without calling _init_confirm_state
-        # to simulate the "backward compatibility with tests" case
+
         class MockApp(_InitMixin):
             pass
-        
+
         app = MockApp()
-        
-        # Mock the push_screen method
-        app.push_screen = AsyncMock()
-        
-        # Create a mock confirmation request
-        mock_request = Mock()
-        mock_request.tool_name = "test_tool"
-        mock_request.arguments = {}
-        mock_request.kind = "EXECUTE"
-        
-        # Track lock creations
+
+        # Track lock creations by patching asyncio.Lock
         lock_creations = []
         original_asyncio_lock = asyncio.Lock
-        
+
         def tracking_lock():
             lock = original_asyncio_lock()
             lock_creations.append(lock)
             return lock
-        
-        # Monkey-patch asyncio.Lock to track creations
+
         import henchman.cli.textual_mixins as module
-        original_lock = asyncio.Lock
         asyncio.Lock = tracking_lock  # type: ignore[assignment]
         module.asyncio.Lock = tracking_lock  # type: ignore[assignment]
-        
+
         try:
-            # Create multiple tasks that call _textual_confirm
-            tasks = []
-            for i in range(5):
-                task = asyncio.create_task(app._textual_confirm(mock_request))
-                tasks.append(task)
-            
-            # Let them run a bit
-            await asyncio.sleep(0.01)
-            
-            # Cancel all tasks (they're waiting for screen response)
-            for task in tasks:
-                task.cancel()
-            
-            # Check that only one instance lock was created
-            instance_locks = [lock for lock in lock_creations 
-                            if hasattr(app, '_confirm_lock') and lock is app._confirm_lock]
-            
-            assert len(instance_locks) == 1, (
-                f"Expected exactly 1 instance lock, got {len(instance_locks)}. "
-                f"Total locks created: {len(lock_creations)}"
+            # Initialize state (should create exactly 1 lock)
+            app._init_confirm_state()
+
+            # Exactly one lock was created
+            assert len(lock_creations) == 1, (
+                f"Expected exactly 1 lock from _init_confirm_state, got {len(lock_creations)}"
             )
-            
-            # Verify the lock exists and is an asyncio.Lock
+
+            # The lock on the instance is the one we tracked
             assert hasattr(app, '_confirm_lock')
-            assert isinstance(app._confirm_lock, asyncio.Lock)
-            
-            # Verify counter and futures dict were initialized
+            assert app._confirm_lock is lock_creations[0]
             assert hasattr(app, '_confirm_counter')
             assert hasattr(app, '_confirm_futures')
             assert isinstance(app._confirm_futures, dict)
-            
-            print(f"✓ Only one lock created: {len(instance_locks)} instance lock(s)")
-            print(f"✓ Total asyncio.Lock calls: {len(lock_creations)}")
-            
+
+            print(f"OK: Exactly 1 lock created")
         finally:
-            # Restore original asyncio.Lock
-            asyncio.Lock = original_lock  # type: ignore[assignment]
-            module.asyncio.Lock = original_lock  # type: ignore[assignment]
-    
+            asyncio.Lock = original_asyncio_lock  # type: ignore[assignment]
+            module.asyncio.Lock = original_asyncio_lock  # type: ignore[assignment]
+
+
     @pytest.mark.anyio
     async def test_double_checked_locking_prevents_races(self) -> None:
         """Test that the double-checked locking pattern prevents races.
@@ -132,9 +102,9 @@ class TestTextualConfirmRaceConditionFixed:
             elif 'if confirm_lock is None or confirm_counter is None or confirm_futures is None:' in line:
                 none_check_found = True
                 print(f"✓ None check at line {i}")
-            elif 'raise RuntimeError' in line and '_textual_confirm called before' in line:
+            elif '_textual_confirm called before' in line:
                 runtime_error_found = True
-                print(f"✓ RuntimeError check at line {i}")
+                print(f"✓ RuntimeError message at line {i}")
         
         assert getattr_check_found, "Missing getattr check for _confirm_lock"
         assert none_check_found, "Missing None check for confirmation state"

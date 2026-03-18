@@ -218,22 +218,15 @@ class TestCallbackDictRaceCondition:
         print("Callback source found:")
         print(callback_source)
         
-        # Check for thread-safe dict modification in callback
-        # The callback uses hasattr to check for _confirm_futures existence
-        # and .pop(req_id, None) which is thread-safe (no KeyError)
-        assert 'hasattr(self, \'_confirm_futures\')' in callback_source, \
-            "Callback should check for _confirm_futures existence"
+        # Bug is fixed: callback uses getattr (atomic) instead of hasattr (TOCTOU)
+        assert "getattr(self, '_confirm_futures', None)" in callback_source, \
+            "Callback should use getattr for atomic _confirm_futures access"
         
         # Check for dict modification using thread-safe .pop()
-        assert 'self._confirm_futures.pop' in callback_source, \
-            "Callback modifies dict with thread-safe .pop()"
+        assert 'futures_dict.pop(req_id, None)' in callback_source, \
+            "Callback modifies dict with thread-safe .pop() via futures_dict"
         
-        # The callback doesn't use _confirm_lock because:
-        # 1. It's a sync function and can't use async lock
-        # 2. .pop(req_id, None) is thread-safe (no KeyError)
-        # 3. Race between callback and cleanup is acceptable
-        
-        # This test verifies the fix: callback uses thread-safe dict operations
+        # This test verifies the fix: callback uses atomic getattr pattern
     
     @pytest.mark.anyio
     async def test_actual_race_scenario(self) -> None:

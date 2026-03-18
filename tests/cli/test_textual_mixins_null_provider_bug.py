@@ -26,8 +26,8 @@ class TestNullProviderBug:
         
         provider = _NullProvider()
         
-        # Create the async generator
-        stream = provider.chat_completion_stream([])
+        # Create the async iterable by awaiting the coroutine
+        stream = await provider.chat_completion_stream([])
         
         # Get the first item - this should NOT yield a chunk!
         # It should raise RuntimeError immediately
@@ -92,8 +92,8 @@ class TestNullProviderBug:
         # But it yields one empty chunk then raises RuntimeError
         # This is confusing API design
         
-        # Test with a simple async for loop
-        stream = provider.chat_completion_stream([])
+        # Test with a simple async for loop - must await first to get async iterable
+        stream = await provider.chat_completion_stream([])
         
         chunks = []
         try:
