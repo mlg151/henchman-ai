@@ -136,12 +136,9 @@ class _NullProvider(ModelProvider):
         **_kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
-        # Yield an empty chunk to satisfy async generator contract
-        # This makes the yield statement actually reachable (not dead code)
-        # The chunk is empty (all None fields) and will likely be ignored by callers
-        yield StreamChunk()  # type: ignore[misc]
-        # Now raise the error - callers will get exception on next iteration
         raise RuntimeError(_NO_PROVIDER_MSG)
+        if False:  # pragma: no cover
+            yield StreamChunk()  # Makes this an async generator for type checking
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""
@@ -520,13 +517,10 @@ class _InitMixin:
 
         def _callback(result: object | None) -> None:
             # Try to set the future result
-            # Use try-except to handle race where future was cancelled
+            # Use contextlib.suppress to handle race where future was cancelled
             # between check and set_result() call
-            try:
+            with contextlib.suppress(asyncio.InvalidStateError, asyncio.CancelledError):
                 future.set_result(bool(result))
-            except (asyncio.InvalidStateError, asyncio.CancelledError):
-                # Future already done/cancelled, ignore
-                pass
             # Remove future from dictionary
             # We don't need to acquire the lock here because:
             # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)
