@@ -11,7 +11,7 @@ from rich.console import Console
 from henchman.config import load_settings
 
 
-@click.command(name="chat-bot")
+@click.command(name="xyzbot")
 @click.option(
     "--platform",
     type=click.Choice(["discord"], case_sensitive=False),
@@ -29,7 +29,7 @@ from henchman.config import load_settings
     envvar="DISCORD_USER_ID",
     help="Authorized user ID (or set DISCORD_USER_ID env var)",
 )
-def chat_serve_command(
+def xyzbot_command(
     platform: str,
     token: str | None,
     user_id: str | None,
@@ -39,11 +39,24 @@ def chat_serve_command(
     This command starts a chat bot (e.g., Discord) that allows you to
     interact with Henchman-AI remotely from your phone or browser.
 
+    Args:
+        platform: Chat platform to use (currently only "discord" supported).
+        token: Bot token for the chat platform. Can be provided via CLI,
+            environment variable (DISCORD_TOKEN), or settings file.
+        user_id: Authorized user ID for the chat platform. Can be provided
+            via CLI, environment variable (DISCORD_USER_ID), or settings file.
+
+    Returns:
+        None. This is a Click command that starts a bot and runs until
+        interrupted.
+
     Examples:
-        henchman chat-serve
-        henchman chat-serve --platform discord
-        DISCORD_TOKEN=xxx DISCORD_USER_ID=yyy henchman chat-serve
+        henchman chatbot
+        henchman chatbot --platform discord
+        DISCORD_TOKEN=xxx DISCORD_USER_ID=yyy henchman chatbot
     """
+    import sys
+    print(f"DEBUG: discordbot_command called with platform={platform}, token={token}, user_id={user_id}", file=sys.stderr)
     console = Console()
 
     # Load settings
