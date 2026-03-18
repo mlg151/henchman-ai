@@ -1,7 +1,4 @@
-"""Test for NullProvider bug in textual_mixins.py.
-
-The bug: _NullProvider.chat_completion_stream has unreachable yield statement.
-"""
+"""Failing test for _NullProvider bug in chat_completion_stream."""
 
 from __future__ import annotations
 
@@ -10,174 +7,108 @@ import pytest
 
 
 class TestNullProviderBug:
-    """Test _NullProvider bug."""
-    
-    def test_chat_completion_stream_has_unreachable_yield(self) -> None:
-        """Verify chat_completion_stream has unreachable code."""
-        import ast
-        import inspect
-        
-        # Read the source file
-        with open('src/henchman/cli/textual_mixins.py', 'r') as f:
-            source = f.read()
-        
-        # Parse AST
-        tree = ast.parse(source)
-        
-        # Find _NullProvider class
-        null_provider_class = None
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and node.name == '_NullProvider':
-                null_provider_class = node
-                break
-        
-        assert null_provider_class is not None, "Could not find _NullProvider class"
-        
-        # Find chat_completion_stream method
-        chat_completion_stream_method = None
-        for node in ast.walk(null_provider_class):
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == 'chat_completion_stream':
-                chat_completion_stream_method = node
-                break
-        
-        assert chat_completion_stream_method is not None, \
-            "Could not find chat_completion_stream method"
-        
-        # Check method body
-        body = chat_completion_stream_method.body
-        
-        # The method should have:
-        # 1. Raise statement
-        # 2. Yield statement (unreachable)
-        
-        raise_stmt = None
-        yield_stmt = None
-        
-        for stmt in body:
-            if isinstance(stmt, ast.Raise):
-                raise_stmt = stmt
-            elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Yield):
-                yield_stmt = stmt
-            elif isinstance(stmt, ast.Yield):  # Python 3.8+ style
-                yield_stmt = stmt
-        
-        assert raise_stmt is not None, "chat_completion_stream should raise"
-        # After fix: yield should be present and reachable
-        # Note: yield StreamChunk() is ast.Expr(value=ast.Yield(value=ast.Call(...)))
-        if yield_stmt is None:
-            # Debug: print all statements
-            print("Debug: Method body statements:")
-            for i, stmt in enumerate(body):
-                print(f"  [{i}] {type(stmt).__name__}: {ast.unparse(stmt) if hasattr(ast, 'unparse') else stmt}")
-                if isinstance(stmt, ast.Expr):
-                    print(f"     value type: {type(stmt.value).__name__}")
-                    if isinstance(stmt.value, ast.Yield):
-                        print("     ^ This is a yield expression!")
-        assert yield_stmt is not None, "chat_completion_stream should have yield statement"
-        
-        print("Found:")
-        print(f"  Raise statement: {ast.unparse(raise_stmt) if hasattr(ast, 'unparse') else 'Raise'}")
-        print(f"  Yield statement: {ast.unparse(yield_stmt) if hasattr(ast, 'unparse') else 'Yield'}")
-        
-        # The yield is after raise, so it's unreachable
-        # This is dead code!
-        
-        # Get line numbers
-        raise_line = raise_stmt.lineno if hasattr(raise_stmt, 'lineno') else 'unknown'
-        yield_line = yield_stmt.lineno if hasattr(yield_stmt, 'lineno') else 'unknown'
-        
-        print(f"\nLine numbers: raise at {raise_line}, yield at {yield_line}")
-        
-        # Check if yield is after raise
-        if hasattr(raise_stmt, 'lineno') and hasattr(yield_stmt, 'lineno'):
-            if yield_line > raise_line:
-                print("✗ BUG: Yield statement is after raise (unreachable code!)")
-                # This is the bug!
-                return True  # Bug exists
-            else:
-                print("✓ Yield is before raise (reachable)")
-                return False
-        else:
-            print("? Could not determine line order")
-            return None
+    """Test that demonstrates a real bug in _NullProvider.chat_completion_stream."""
     
     @pytest.mark.anyio
-    async def test_chat_completion_stream_actually_raises(self) -> None:
-        """Test that chat_completion_stream yields then raises as expected."""
+    async def test_null_provider_yields_before_raising(self) -> None:
+        """Test that _NullProvider yields a chunk before raising RuntimeError.
+        
+        This is actually a bug because:
+        1. The method yields StreamChunk() first
+        2. Then raises RuntimeError on next iteration
+        3. Callers might not expect to receive a chunk before the error
+        4. The chunk has all None fields, which could confuse callers
+        
+        The correct behavior should be to raise RuntimeError immediately
+        without yielding anything, or to yield an error chunk.
+        """
         from henchman.cli.textual_mixins import _NullProvider
         
         provider = _NullProvider()
         
-        # Should yield once then raise RuntimeError
-        gen = provider.chat_completion_stream([])
-        # First iteration should yield an empty chunk
-        chunk = await gen.__anext__()
-        assert chunk is not None
-        # Should be a StreamChunk instance
-        from henchman.providers.base import StreamChunk
-        assert isinstance(chunk, StreamChunk)
-        # All fields should be None (empty chunk)
-        assert chunk.content is None
-        assert chunk.tool_calls is None
-        assert chunk.finish_reason is None
-        assert chunk.thinking is None
-        assert chunk.usage is None
+        # Create the async generator
+        stream = provider.chat_completion_stream([])
         
-        # Next iteration should raise
-        with pytest.raises(RuntimeError, match="No model provider available"):
-            await gen.__anext__()
-        
-        # Test that it's a proper async generator
-        gen2 = provider.chat_completion_stream([])
-        assert hasattr(gen2, '__aiter__')
-        assert hasattr(gen2, '__anext__')
-        
-        # Test async for loop
-        count = 0
+        # Get the first item - this should NOT yield a chunk!
+        # It should raise RuntimeError immediately
         try:
-            async for chunk in provider.chat_completion_stream([]):
-                count += 1
-                # Should get exactly one chunk
-                assert count == 1
-                assert isinstance(chunk, StreamChunk)
+            chunk = await stream.__anext__()
+            # If we get here, we got a chunk instead of an exception
+            # This is the bug!
+            print(f"BUG: Got chunk instead of exception: {chunk}")
+            print(f"  content: {chunk.content}")
+            print(f"  tool_calls: {chunk.tool_calls}")
+            print(f"  finish_reason: {chunk.finish_reason}")
+            
+            # Now try to get next item - should raise RuntimeError
+            try:
+                await stream.__anext__()
+                pytest.fail("Should have raised RuntimeError on second __anext__")
+            except RuntimeError as e:
+                print(f"RuntimeError raised on second __anext__: {e}")
+                # This is expected but too late - we already yielded a chunk
+                
+            # Mark test as failed to show the bug
+            pytest.fail(
+                "BUG: _NullProvider.chat_completion_stream yields a chunk "
+                "before raising RuntimeError. Callers might process the empty "
+                "chunk thinking it's valid output."
+            )
+            
         except RuntimeError as e:
-            # Should raise after first chunk
-            assert count == 1
+            # This is the CORRECT behavior - raise immediately
+            print(f"CORRECT: RuntimeError raised immediately: {e}")
             assert "No model provider available" in str(e)
-        else:
-            pytest.fail("Should have raised RuntimeError after first chunk")
+            return  # Test passes
+        
+        except StopAsyncIteration:
+            pytest.fail("Stream ended without yielding or raising RuntimeError")
+        except Exception as e:
+            pytest.fail(f"Unexpected exception: {type(e).__name__}: {e}")
     
-    def test_fix_would_remove_unreachable_yield(self) -> None:
-        """Show what the fix should look like."""
-        print("\n=== Suggested Fix ===")
-        print("Current (buggy):")
-        print("  async def chat_completion_stream(...) -> AsyncIterator[StreamChunk]:")
-        print("      raise RuntimeError(_NO_PROVIDER_MSG)")
-        print("      yield  # type: ignore[misc]  # pragma: no cover — makes it a generator")
+    @pytest.mark.anyio
+    async def test_null_provider_contract_violation(self) -> None:
+        """Test that _NullProvider violates async generator contract.
         
-        print("\nFixed version 1 (remove unreachable yield):")
-        print("  async def chat_completion_stream(...) -> AsyncIterator[StreamChunk]:")
-        print("      raise RuntimeError(_NO_PROVIDER_MSG)")
-        print("      # No yield - but then it's not a generator!")
+        An async generator that yields and then raises is unusual.
+        Most callers expect either:
+        1. Yield items until StopAsyncIteration
+        2. Raise exception immediately (no yields)
         
-        print("\nFixed version 2 (make yield reachable):")
-        print("  async def chat_completion_stream(...) -> AsyncIterator[StreamChunk]:")
-        print("      raise RuntimeError(_NO_PROVIDER_MSG)")
-        print("      if False:  # Make yield reachable for type checker")
-        print("          yield StreamChunk(content='')  # Dummy")
+        The current implementation is a hybrid that could confuse callers.
+        """
+        from henchman.cli.textual_mixins import _NullProvider
         
-        print("\nFixed version 3 (proper async generator):")
-        print("  async def chat_completion_stream(...) -> AsyncIterator[StreamChunk]:")
-        print("      # Return empty async generator")
-        print("      return")
-        print("      yield  # This makes it a generator")
+        provider = _NullProvider()
         
-        print("\nActually, the simplest fix is to remove the yield entirely.")
-        print("The method raises, so it doesn't need to be a generator.")
-        print("But the return type is AsyncIterator[StreamChunk], so...")
-        print("Maybe change return type to Coroutine or just leave as is?")
+        # Check what the method signature promises
+        import inspect
+        sig = inspect.signature(provider.chat_completion_stream)
+        print(f"Method signature: {sig}")
+        print(f"Return type: {sig.return_annotation}")
         
-        # Actually, the real fix depends on what callers expect.
-        # If callers expect to async-for over it, raising is fine
-        # (async for will catch the exception).
-        # The unreachable yield is just dead code.
+        # The method returns AsyncIterator[StreamChunk]
+        # This suggests it should yield StreamChunk objects
+        # But it yields one empty chunk then raises RuntimeError
+        # This is confusing API design
+        
+        # Test with a simple async for loop
+        stream = provider.chat_completion_stream([])
+        
+        chunks = []
+        try:
+            async for chunk in stream:
+                chunks.append(chunk)
+        except RuntimeError as e:
+            print(f"RuntimeError caught in async for: {e}")
+            print(f"Chunks yielded before error: {len(chunks)}")
+            
+        # The bug: we got 1 chunk before the error
+        # This could cause callers to process the empty chunk
+        # as if it were valid model output
+        if len(chunks) > 0:
+            pytest.fail(
+                f"BUG: Async for loop received {len(chunks)} chunks "
+                "before RuntimeError. Empty chunks could be misinterpreted "
+                "as valid model output."
+            )

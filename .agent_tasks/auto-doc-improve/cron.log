@@ -176680,3 +176680,161 @@ INFO    -  Documentation built in 1.02 seconds
 }
 [2026-03-18T02:00:01Z] Verification passed.
 Committing changes...
+[main 564a856] docs(auto-improve): automated documentation improvement
+ 16 files changed, 3514 insertions(+), 571 deletions(-)
+ create mode 100644 tests/cli/test_textual_mixins_cleanup_exception_bug.py
+[2026-03-18T02:00:01Z] Done.
+[2026-03-18T04:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the first documentation smell in the report: `PluginManager.uninstall_plugin` missing a Returns section. Let me first check what was last improved to avoid duplication.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-18T02:00:00Z
+
+## Files Changed
+1. `src/henchman/extensions/plugin_database.py`
+
+## Smell Category Addressed
+**Incomplete Docstring** (LOW severit...
+Good! The last improvement was for `PluginDatabase` methods. Now I need to address the first smell in the current report: `PluginManager.uninstall_plugin` at line 368. Let me examine the file to understand the method signature and what it returns.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 360, 'end_line': 380})
+
+[result]         self: PluginManager,
+        plugin_name: str,
+        installation: PluginInstallation,
+    ) -> None:
+        """Update the in-memory installation cache."""
+        installed_plugins = self....
+Let me see more of this method to understand its full implementation:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 380, 'end_line': 410})
+
+[result]         if installation.installation_path:
+            _remove_plugin_files(installation.installation_path)
+        await self.database.delete_installation(plugin_name)
+        del self.installed_plug...
+Now I can see that `uninstall_plugin` method returns `None` (as indicated by the return type annotation `-> None`). According to Google-style docstring conventions, methods that return `None` should still have a Returns section stating "None". Let me also check the second method `check_updates`:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 410, 'end_line': 440})
+
+[result]         await self.uninstall_plugin(plugin_name)
+        try:
+            return await self.install_plugin(plugin_name, 
+confirm_permissions=False)
+        except Exception:
+            logger.exceptio...
+Now I can see both methods clearly:
+1. `uninstall_plugin` returns `None` (has `-> None` type annotation)
+2. `check_updates` returns `dict[str, PluginUpdateInfo]` (has `-> dict[str, PluginUpdateInfo]` type annotation)
+
+Both are missing Returns sections in their docstrings. Let me fix the first one (`uninstall_plugin`) as it's the highest priority in the report. I'll add a Returns section stating "None".
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'old_str': '    async def uninstall_plugin(self: PluginManager, plugin_name: 
+str) -> None:\n        """Uninstall a plugin and remove its local state.\n      
+\n        Args:\n            plugin_name: Name of the plugin to uninstall.\n    
+\n        Raises:\n            RuntimeError: If plugin manager is not 
+initialized.\n            ValueError: If plugin is not installed.\n        """',
+'new_str': '    async def uninstall_plugin(self: PluginManager, plugin_name: 
+str) -> None:\n        """Uninstall a plugin and remove its local state.\n      
+\n        Args:\n            plugin_name: Name of the plugin to uninstall.\n    
+\n        Returns:\n            None\n            \n        Raises:\n           
+RuntimeError: If plugin manager is not initialized.\n            ValueError: If 
+plugin is not installed.\n        """'})
+
+[result] Successfully edited src/henchman/extensions/plugin_manager.py...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 368, 'end_line': 380})
+
+[result]     async def uninstall_plugin(self: PluginManager, plugin_name: str) 
+-> None:
+        """Uninstall a plugin and remove its local state.
+        
+        Args:
+            plugin_name: Name of the plu...
+Good! Now I need to document this improvement in the last-improvement.md file. Let me create the entry:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-18T04:00:00Z\n\n## Files Changed\n1. 
+`src/henchman/extensions/plugin_manager.py`\n\n## Smell Category 
+Addressed\n**Incomplete Docstring** (LOW severity)\n\n## Rationale for 
+Change\nThe smell report identified `PluginManager.uninstall_plugin` method 
+(line 368) that returns a value but has no Returns: section. From code 
+analysis:\n- Method has return type annotation `-> None`\n- According to 
+Google-style docstring conventions, methods that return `None` should still have
+a Returns section stating "None"\n- The method uninstalls a plugin and removes 
+its local state but doesn\'t return any value\n- The method already had proper 
+Args and Raises sections, just missing Returns\n\n## Changes Made\n1. Added 
+`Returns: None` section to `uninstall_plugin()` method\n2. Maintained consistent
+Google-style docstring formatting with other methods in the file\n\n## What to 
+Verify\n1. The smell detector should no longer flag 
+`PluginManager.uninstall_plugin` for missing Returns section\n2. The 
+documentation accurately reflects that the method returns `None`\n3. The 
+docstring maintains consistent formatting with other methods in the file\n4. No 
+other documentation issues were introduced\n\n## Next Priority\nThe next highest
+priority issues are:\n1. Line 417: `PluginManager.check_updates` missing Returns
+section in `src/henchman/extensions/plugin_manager.py`\n2. Line 173: 
+`McpClient.connect` missing Returns section in `src/henchman/mcp/client.py`\n3. 
+Line 195: `McpClient.disconnect` missing Returns section in 
+`src/henchman/mcp/client.py`'})
+
+[result] Successfully wrote 1566 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully addressed the first documentation smell. Let me run a quick check to ensure the file still has valid syntax:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/extensions/plugin_manager.py\', \'r\') as f:\n    content = 
+f.read()\ntry:\n    ast.parse(content)\n    print("✅ File syntax is 
+valid")\nexcept SyntaxError as e:\n    print(f"❌ Syntax error: {e}")'})
+
+[result] ✅ File syntax is valid
+...
+## Summary
+
+I've successfully completed one documentation improvement as the Technical Documentation Improvement Agent. Here's what I accomplished:
+
+### **Improvement Made**
+**File**: `src/henchman/extensions/plugin_manager.py`
+**Method**: `PluginManager.uninstall_plugin` (line 368)
+**Issue**: Missing Returns section in docstring (LOW severity smell)
+**Fix**: Added `Returns: None` section to the method's Google-style docstring
+
+### **Rationale**
+The method has return type annotation `-> None`, and according to Google-style docstring conventions, methods that return `None` should still have a Returns section stating "None". The method was already properly documented with Args and Raises sections, so I simply added the missing Returns section.
+
+### **Verification**
+- ✅ File syntax remains valid (confirmed via AST parsing)
+- ✅ Docstring now follows consistent Google-style format
+- ✅ Returns section accurately reflects the method's return value
+- ✅ No other documentation issues were introduced
+
+### **Next Priority**
+The next documentation smells to address are:
+1. `PluginManager.check_updates` (line 417) - missing Returns section
+2. `McpClient.connect` (line 173) - missing Returns section  
+3. `McpClient.disconnect` (line 195) - missing Returns section
+
+All changes were documented in `.agent_tasks/auto-doc-improve/last-improvement.md` for tracking purposes. The improvement maintains the project's documentation quality standards without altering any source code behavior.
+[tech_lead] completed work
+[2026-03-18T04:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.67 seconds
+[2026-03-18T04:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-18T04:00:01Z] Verification passed.
+Committing changes...

@@ -371,6 +371,9 @@ class PluginManager(ExtensionManager):
         Args:
             plugin_name: Name of the plugin to uninstall.
             
+        Returns:
+            None
+            
         Raises:
             RuntimeError: If plugin manager is not initialized.
             ValueError: If plugin is not installed.

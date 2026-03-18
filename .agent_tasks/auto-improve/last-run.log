@@ -1,7 +1,7 @@
-[2026-03-18T02:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T04:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-18T02:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T04:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -13,13 +13,13 @@ I'll start by reading the smell report to understand the context, then examine t
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T02:00:36.251705+00:00_
+_Generated: 2026-03-18T04:00:38.954022+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file to understand its structure and functionality:
+Now let me examine the target file to understand its structure and functionality:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
 'end_line': 100})
 
@@ -31,7 +31,7 @@ Textual TUI application.
 """...
 Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 300})
+100, 'end_line': 200})
 
 [result] }
 
@@ -39,25 +39,25 @@ Let me continue reading the file to understand its structure better:
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
 # --------------------------------------------------...
-Let me continue reading to understand more of the file structure:
+Let me continue reading to see more of the file structure:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-300, 'end_line': 500})
+200, 'end_line': 300})
 
-[result]         ctx = getattr(self, "core_context", None)
-        return getattr(ctx, name, None) if ctx else None
+[result]     """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+        return app.query_one(selector, widget_type)  # type: ignore[no-any-re...
+Let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*textual_mixins*'})
 
-    @property
-    def orchestrator(self: _ProxyMixin) -> Any:
-        """Proxy to ``core_con...
-Now let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual_mixins*.py'})
-
-[result] tests/cli/test_textual_mixins_actual_bug.py
-tests/cli/test_textual_mixins_asyncio_lock_bug.py
-tests/cli/test_textual_mixins_attribute_error_bug.py
-tests/cli/test_textual_mixins_bug.py
-tests/cli/test_t...
-Let me look at the test files to understand what bugs have already been identified:
+[result] 
+tests/cli/__pycache__/test_textual_mixins_actual_bug.cpython-312-pytest-9.0.2.py
+c
+tests/cli/__pycache__/test_textual_mixins_asyncio_lock_bug.cpython-312-pytest-9.
+0.2.pyc
+tests/cli/__pycache__/test_tex...
+Let me look at the actual test files to understand what's already been tested:
 [tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
 'start_line': 1, 'end_line': 50})
 
@@ -70,82 +70,15 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import ...
-Let me check the actual bug report to see what's already been found:
-[tool] ls({'path': '.agent_tasks'})
-
-[result] agent-coordinator-extraction/
-agent-refactoring/
-api-server-mode/
-auto-doc-improve/
-auto-improve/
-bug-hunt/
-bug-whisperer-delegation/
-continuous-refactoring/
-coverage-improvement/
-debug-scripts/
-debug...
-✗ \[error] Command timed out after 3600.0 seconds. Partial output:
-(no output)
-Let me check the existing four-lenses analysis for this file:Let me check the directory structure
-[tool] read_file({'path': 
-'.agent_tasks/four-lenses-cli-textual_mixins/README.md'})
-
-[result] # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-18T00:00:00Z
-
-## Bug 1: Unhandled Exception in Cleanup (Already Fixed)
-**Bug Summary**: The `_cleanup_confirm_futures` met...
- and look for any failing tests more carefully:
-[tool] ls({'path': 'tests/cli'})
-
-[result] __init__.py
-__pycache__/
-commands/
-test_additional_coverage.py
-test_agent_command.py
-test_app.py
-test_app_coverage_100.py
-test_app_extended.py
-test_app_input_coverage.py
-test_builtins.py
-test_chat_com...
-I need to examine the target file more thoroughly to find a real bug. Let me continue reading the file, particularly focusing on the `_textual_confirm` method which was mentioned in the previous bug report:Let me check one of the failing test files to see what bug it's testing
+Let me examine the file more thoroughly to understand its structure and find potential bugs. Let me look at the `_NullProvider` class more closely since it seems to be a key component:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-491, 'end_line': 600})
+80, 'end_line': 150})
 
-:[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
+[result]     "_StatusBarMixin",
+    "_extract_line_text",
+]
 
-        Args:
-            request: The tool confirmation request.
-...
+logger = logging.getLogger(__name__)
 
-[tool] read_file({'path': 
-'tests/cli/test_textual_mixins_unhandled_task_bug_failing.py', 'start_line': 1, 
-'end_line': 50})
-
-[result] """Failing test for unhandled task bug in _textual_confirm callback.
-
-This test demonstrates the bug where the callback in _textual_confirm
-creates an asyncio task but doesn't store it.
-"""
-
-from __fu...
-Now let me examine the `_NullProvider` class more closely, as it seems to have some interesting behavior:Let me run a quick test to see
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-70, 'end_line': 120})
-
- if there[result]     "_HistoryMixin",
-    "_InitMixin",
-    "_InputHandlerMixin",
-    "_MessageHandlerMixin",
-    "_NullProvider",
-    "_PaneActionMixin",
-    "_ProviderMixin",
-    "_ProxyMixin",
-    "_PublicAPIMixin"...
- are any actual failing tests:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_null_provider_bug.py -xvs 2>&1 | tail -50'})
-
+# ------------------------------------------------------------------ #
+# Constants                            ...
