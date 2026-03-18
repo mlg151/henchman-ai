@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-18T04:00:03.089479+00:00_
+_Generated: 2026-03-18T06:00:03.273755+00:00_
 
 ## Executive Summary
 
@@ -11,46 +11,42 @@ _Generated: 2026-03-18T04:00:03.089479+00:00_
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 192 |
-| **Total Smells** | 6 |
+| **Total Smells** | 5 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 6 |
+| low | 5 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 6 |
+| Incomplete Docstring | 5 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/extensions/plugin_manager.py:368** — 🟢 LOW — Incomplete Docstring  
-   'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'._
-
-2. **src/henchman/extensions/plugin_manager.py:417** — 🟢 LOW — Incomplete Docstring  
+1. **src/henchman/extensions/plugin_manager.py:420** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.check_updates' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.check_updates'._
 
-3. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
+2. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
    'McpClient.connect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.connect'._
 
-4. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
+3. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
    'McpClient.disconnect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.disconnect'._
 
-5. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
+4. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
    'McpManager.connect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.connect_all'._
 
-6. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
+5. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
    'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.disconnect_all'._
 
@@ -59,9 +55,9 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/extensions/plugin_manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 2 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 3 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 1 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 2 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 3 | src/henchman/extensions/plugin_manager.py | ✅ A | 98.0 | 1 | 2026-03-18 |
 | 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
 | 5 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 6 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
@@ -78,15 +74,6 @@ These are the highest-impact documentation smells to address first:
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 222 additional files omitted._
-
-### src/henchman/extensions/plugin_manager.py — ✅ A (96.0/100) (last modified 2026-03-17)
-
-Public APIs: 10 | Documented: 10 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 368 | 🟢 LOW | Incomplete Docstring | 'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'. |
-| 417 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
 
 ### src/henchman/mcp/client.py — ✅ A (96.0/100) (last modified 2026-03-17)
 
@@ -105,6 +92,14 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 |-----:|:---------|:-----|:--------|:--------------|
 | 159 | 🟢 LOW | Incomplete Docstring | 'McpManager.connect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.connect_all'. |
 | 183 | 🟢 LOW | Incomplete Docstring | 'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.disconnect_all'. |
+
+### src/henchman/extensions/plugin_manager.py — ✅ A (98.0/100) (last modified 2026-03-18)
+
+Public APIs: 10 | Documented: 10 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 420 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
 
 ## ✨ Clean Files (244 files with no smells)
 

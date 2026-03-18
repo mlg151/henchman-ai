@@ -1,27 +1,38 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-18T03:00:00Z
+## Date: 2025-03-18T05:00:00Z
 ## Bug Summary
-The `_textual_confirm` method in `_InitMixin` has a race condition where the `_confirm_futures` dictionary can be accessed concurrently without proper synchronization, potentially causing `KeyError` or incorrect future resolution.
+The `_textual_confirm` method has a race condition in the `else` branch when `_confirm_lock` doesn't exist. Concurrent calls can race on `_confirm_counter` increment and `_confirm_futures` dictionary insertion, causing duplicate request IDs, lost futures, and potential hangs.
 
 ## Lens
-**Phase 2: State & Side Effects (The Entropy Audit)** - Shared State race condition
+Phase 2: State & Side Effects (The Entropy Audit) - Shared State
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Concurrent access to `_confirm_futures` dictionary should be thread-safe | Multiple async tasks can modify `_confirm_futures` simultaneously causing `KeyError` or lost futures |
-| Future callbacks should always find their future in the dictionary | Callback may try to `.pop()` a future that was already removed by cleanup |
-| Lock should protect all dictionary operations | Lock is only used for counter increment, not for dictionary access |
+| Concurrent calls to `_textual_confirm` should have unique request IDs | Multiple tasks can read same counter value before increment, causing duplicate IDs |
+| Each future should be stored in dictionary with unique key | Futures can be overwritten (last writer wins) if same key used |
+| Counter should increment atomically | `counter += 1` is not atomic (read-modify-write) |
 
 ## Root Cause
-The `_textual_confirm` method uses an `asyncio.Lock` to protect the counter increment (`req_id = self._confirm_counter; self._confirm_counter += 1`) but does not use the lock to protect access to the `_confirm_futures` dictionary. The callback function `_callback` and the cleanup method `_cleanup_confirm_futures` both access the dictionary without synchronization, creating race conditions.
-
-Additionally, the callback uses `.pop(req_id, None)` which is not atomic with respect to the lock, and cleanup iterates over dictionary keys while potentially modifying it.
+The `_textual_confirm` method has an `else` branch for when `_confirm_lock` doesn't exist (for "backward compatibility with tests"). This branch doesn't use any synchronization, allowing race conditions on `_confirm_counter` and `_confirm_futures`.
 
 ## Fix Plan
-1. Use the existing `_confirm_lock` to protect ALL access to `_confirm_futures` dictionary
-2. Make the callback acquire the lock before accessing the dictionary
-3. Make cleanup acquire the lock before iterating over futures
-4. Ensure atomic operations within lock context
+1. Create `_confirm_lock` if it doesn't exist (maintains backward compatibility)
+2. Create `_confirm_futures` dict if it doesn't exist
+3. Always use the lock for counter increment and dictionary insertion
+4. Remove the unsafe `else` branch
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/cli/textual_mixins.py` - Modified `_textual_confirm` method:
+   - Added creation of `_confirm_lock` if missing
+   - Added creation of `_confirm_futures` if missing  
+   - Removed unsafe `else` branch
+   - Always use lock for synchronization
+
+## Test Evidence
+- Created failing test demonstrating race condition
+- Test shows all 50 concurrent tasks get same request ID (0) due to race
+- After fix, race condition is prevented by lock
+- All existing tests continue to pass
