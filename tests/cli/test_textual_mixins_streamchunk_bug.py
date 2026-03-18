@@ -119,34 +119,21 @@ class TestNullProviderStreamChunkBug:
                 yield_found = True
                 print(f"  Yield found at line {i}: {line.strip()}")
         
-        # The bug: if yield is after raise, it's dead code
-        # But more importantly: StreamChunk() might not be valid
+        # Bug is fixed: no yield in source, uses _NullAsyncIterator inner class
+        assert not yield_found, "Bug is fixed: no 'yield StreamChunk()' dead code"
+        assert raise_found, "Should still raise RuntimeError on iteration"
         
-        # Actually test the async generator
-        stream = provider.chat_completion_stream([])
+        # Test the async iterable - must await coroutine first
+        stream = await provider.chat_completion_stream([])
         
-        # Get the first item
+        # First iteration should raise RuntimeError immediately (no chunk yielded)
         try:
             chunk = await stream.__anext__()
-            print(f"\nGot chunk from stream: {chunk}")
-            print(f"  Type: {type(chunk)}")
-            print(f"  Content: {chunk.content}")
-            
-            # Try to get next item (should raise RuntimeError)
-            try:
-                await stream.__anext__()
-                pytest.fail("Should have raised RuntimeError on second __anext__")
-            except RuntimeError as e:
-                print(f"Expected RuntimeError on second __anext__: {e}")
-                assert "No model provider available" in str(e)
-                
+            pytest.fail(f"BUG: Should have raised RuntimeError immediately, got chunk: {chunk}")
         except RuntimeError as e:
-            # If RuntimeError is raised immediately (not after yield),
-            # that's also a problem - the method should yield first
-            print(f"\nRuntimeError raised immediately (not after yield): {e}")
-            # This might be acceptable if yield is unreachable
-            pass
+            print(f"\nBug is fixed: RuntimeError raised immediately: {e}")
+            assert "No model provider available" in str(e)
         except StopAsyncIteration:
-            pytest.fail("Stream ended without yielding or raising RuntimeError")
+            pytest.fail("Stream ended without raising RuntimeError")
         except Exception as e:
             pytest.fail(f"Unexpected exception: {type(e).__name__}: {e}")

@@ -183,25 +183,24 @@ class TestTextualConfirmThreadingLockBug:
         
         # Current buggy implementation creates threading.Lock
         if creates_threading_lock:
-            print("BUG DETECTED: _init_confirm_state creates threading.Lock for async code")
-            # This is the bug - threading.Lock doesn't properly serialize async tasks
-            pytest.fail(
-                "Bug: _init_confirm_state creates threading.Lock instead of asyncio.Lock. "
-                "threading.Lock is reentrant within same thread, allowing concurrent "
-                "async access to shared state."
-            )
+            print("BUG: _init_confirm_state should not create threading.Lock")
         
-        # The fix should create asyncio.Lock
+        # Bug is fixed: _init_confirm_state should NOT create threading.Lock
+        assert not creates_threading_lock, (
+            "Bug is fixed: _init_confirm_state should not create threading.Lock"
+        )
+        
+        # Bug is fixed: _init_confirm_state creates asyncio.Lock
         assert creates_asyncio_lock, (
-            "Fix needed: _init_confirm_state should create asyncio.Lock, not threading.Lock"
+            "Bug is fixed: _init_confirm_state creates asyncio.Lock"
         )
         
         # Also check _textual_confirm uses async with for asyncio.Lock
         confirm_source = inspect.getsource(_InitMixin._textual_confirm)
         
-        # With asyncio.Lock, it should use async with
-        assert "async with self._confirm_lock:" in confirm_source, (
-            "Fix needed: _textual_confirm should use async with for asyncio.Lock"
+        # With asyncio.Lock, it should use async with confirm_lock:
+        assert "async with confirm_lock:" in confirm_source, (
+            "Bug is fixed: _textual_confirm uses async with confirm_lock (asyncio.Lock)"
         )
     
     @pytest.mark.anyio
@@ -229,23 +228,9 @@ class TestTextualConfirmThreadingLockBug:
         # Initialize as the actual code does
         mixin._init_confirm_state()
         
-        # Check what type of lock was created
-        lock_type = type(mixin._confirm_lock).__name__
-        
-        print(f"Lock type: {lock_type}")
-        
-        # If it's threading.Lock, we have the bug
-        if lock_type == "Lock":  # threading.Lock
-            print("BUG: Using threading.Lock for async code")
-            # This test should fail to alert us to the bug
-            pytest.fail("_init_confirm_state creates threading.Lock instead of asyncio.Lock")
-        elif lock_type == "Lock" and hasattr(mixin._confirm_lock, "_is_asyncio"):
-            # Actually asyncio.Lock is also called Lock
-            # Need to check module
-            import asyncio
-            if isinstance(mixin._confirm_lock, asyncio.Lock):
-                print("OK: Using asyncio.Lock")
-            else:
-                print("BUG: Unknown Lock type")
-        else:
-            print(f"Unknown lock type: {lock_type}")
+        # Bug is fixed: use isinstance to properly check for asyncio.Lock
+        import asyncio
+        assert isinstance(mixin._confirm_lock, asyncio.Lock), (
+            "Bug is fixed: _init_confirm_state creates asyncio.Lock (not threading.Lock)"
+        )
+        print(f"OK: Using asyncio.Lock: {type(mixin._confirm_lock).__name__}")

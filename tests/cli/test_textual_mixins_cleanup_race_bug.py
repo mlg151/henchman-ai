@@ -14,68 +14,27 @@ class TestTextualConfirmCleanupRaceBug:
     
     @pytest.mark.anyio
     async def test_cleanup_race_condition(self) -> None:
-        """Test that cleanup has race condition between cancel() and pop().
-        
-        The bug: _cleanup_confirm_futures cancels futures THEN pops them from dict.
-        If cancel() triggers callbacks, they could access the dict while it's being modified.
+        """Bug is fixed: _cleanup_confirm_futures uses getattr and pops before cancelling.
+
+        The old bug: cancel() called before pop() - callbacks could see future in dict.
+        The fix: future = futures_dict.pop(req_id, None) then future.cancel().
         """
         from henchman.cli.textual_mixins import _InitMixin
-        
-        # Create mixin instance
-        mixin = _InitMixin.__new__(_InitMixin)
-        mixin._confirm_futures = {}
-        mixin._confirm_counter = 100
-        
-        # Add a future that will trigger callback on cancel
-        loop = asyncio.get_running_loop()
-        future = loop.create_future()
-        req_id = 100
-        
-        # Track if callback accesses dict
-        callback_accessed_dict = False
-        
-        def callback():
-            nonlocal callback_accessed_dict
-            # This simulates what _callback would do
-            if hasattr(mixin, '_confirm_futures'):
-                # Access the dict (checking if key exists)
-                callback_accessed_dict = (req_id in mixin._confirm_futures)
-        
-        # Add callback to future
-        future.add_done_callback(lambda f: callback())
-        
-        mixin._confirm_futures[req_id] = future
-        
-        # Run cleanup
-        mixin._cleanup_confirm_futures()
-        
-        # The bug: callback could run between cancel() and pop()
-        # and see the future still in the dict
-        
-        # Actually, let me check the actual implementation
         import inspect
+        
+        mixin = _InitMixin.__new__(_InitMixin)
         source = inspect.getsource(mixin._cleanup_confirm_futures)
         
-        # The buggy pattern:
-        # 1. future.cancel()
-        # 2. self._confirm_futures.pop(req_id, None)
-        # 
-        # Should be:
-        # 1. future = self._confirm_futures.pop(req_id, None)
-        # 2. if future: future.cancel()
-        
         assert 'future.cancel()' in source, "Found cancel() call"
-        assert 'self._confirm_futures.pop(req_id, None)' in source, "Found pop() call"
+        # Bug is fixed: source uses futures_dict.pop() (via getattr, atomic)
+        assert 'futures_dict.pop(req_id, None)' in source, "Found pop() call"
         
-        # Check order: cancel() comes before pop()
-        cancel_index = source.find('future.cancel()')
-        pop_index = source.find('self._confirm_futures.pop(req_id, None)')
-        
-        assert cancel_index < pop_index, (
-            "BUG: cancel() called before pop() - race condition!"
-            " Should pop() first, then cancel()"
+        # Bug is fixed: future is popped from dict BEFORE cancel()
+        assert 'future = futures_dict.pop(req_id, None)' in source, (
+            "Bug is fixed: future popped from dict before cancel()"
         )
-    
+
+
     @pytest.mark.anyio
     async def test_demonstrate_cleanup_race(self) -> None:
         """Demonstrate the race condition in cleanup."""

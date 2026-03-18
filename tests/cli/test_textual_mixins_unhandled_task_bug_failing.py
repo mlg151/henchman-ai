@@ -60,40 +60,17 @@ class TestUnhandledTaskBugFailing:
         print("Callback source:")
         print(callback_source)
         
-        # Check for the bug: asyncio.create_task() call
-        assert 'asyncio.create_task(' in callback_source, \
-            "BUG: Callback uses asyncio.create_task() - creates unhandled task!"
+        # Bug is fixed: callback does NOT use asyncio.create_task()
+        assert 'asyncio.create_task(' not in callback_source, \
+            "Bug is fixed: callback no longer uses asyncio.create_task() (unhandled task removed)"
         
-        # Check if task is stored
-        if 'asyncio.create_task(' in callback_source:
-            # Look for assignment
-            lines_after_create = callback_source.split('asyncio.create_task(')
-            for i in range(1, len(lines_after_create)):
-                # Check if previous line has assignment
-                prev_part = lines_after_create[i-1]
-                if '=' in prev_part.split('\n')[-1]:
-                    # Might be assigned
-                    continue
-                else:
-                    print("BUG CONFIRMED: asyncio.create_task() called without storing result!")
-                    print("This creates an unhandled task that can cause warnings.")
-                    
-                    # This is the bug - test should fail
-                    # Actually, let's make the test fail to demonstrate
-                    # But we need to be careful - the code might have been fixed
-                    
-                    # For now, just print warning
-                    print("\n=== TEST WOULD FAIL HERE ===")
-                    print("The callback creates an unhandled asyncio task.")
-                    print("Fix: Store the task or use call_soon instead.")
+        # The callback uses contextlib.suppress and future.set_result directly
+        assert 'future.set_result' in callback_source, \
+            "Callback should use future.set_result"
         
-        # Also check for other issues
-        if 'asyncio.get_running_loop()' in callback_source:
-            print("Callback uses asyncio.get_running_loop() - might fail if event loop closed")
+        print("Bug is fixed: callback no longer creates unhandled asyncio tasks.")
         
-        # The test "passes" but prints the bug
-        # In a real TDD workflow, we'd make this test fail first
-        # Then fix the code to make it pass
+
     
     @pytest.mark.anyio 
     async def test_simulate_unhandled_task_warning(self) -> None:

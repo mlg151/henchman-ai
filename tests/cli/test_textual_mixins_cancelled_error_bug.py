@@ -16,10 +16,10 @@ class TestCancelledErrorBug:
 
     @pytest.mark.anyio
     async def test_cancelled_error_not_propagated(self) -> None:
-        """Test that asyncio.CancelledError is caught by bare except Exception.
+        """Test that asyncio.CancelledError is properly handled and re-raised.
         
-        This is a bug because asyncio.CancelledError should be re-raised
-        for proper async task cancellation.
+        asyncio.CancelledError is a BaseException (not Exception), so it
+        should be caught by the specific handler and re-raised.
         """
         # Create a mock mixin instance
         mixin = _InitMixin()
@@ -39,30 +39,16 @@ class TestCancelledErrorBug:
                 description="Test tool execution"
             )
             
-            # The bug: asyncio.CancelledError should be re-raised,
-            # but it will be caught by the bare `except Exception:` 
-            # which calls future.cancel() and re-raises a generic Exception
-            # Actually, let's trace through the logic:
-            # 1. push_screen raises asyncio.CancelledError
-            # 2. except asyncio.CancelledError: should catch it
-            # 3. BUT except Exception: comes AFTER and catches it first!
-            # 4. So the CancelledError handler never runs
-            
+            # asyncio.CancelledError should be caught by the specific handler
+            # and re-raised after cleanup
             try:
                 await mixin._textual_confirm(request)
                 pytest.fail("Should have raised asyncio.CancelledError")
             except asyncio.CancelledError:
-                # This is what SHOULD happen
-                print("✓ asyncio.CancelledError correctly propagated")
-                return
+                # This is what should happen - CancelledError is re-raised
+                pass
             except Exception as e:
-                if isinstance(e, asyncio.CancelledError):
-                    # Actually caught and re-raised by bare except?
-                    # Let's check the trace
-                    print(f"✓ asyncio.CancelledError caught and re-raised: {e}")
-                    return
-                else:
-                    pytest.fail(f"Wrong exception type: {type(e).__name__}: {e}")
+                pytest.fail(f"Wrong exception type: {type(e).__name__}: {e}")
 
     @pytest.mark.anyio
     async def test_exception_order_bug(self) -> None:
@@ -107,10 +93,13 @@ class TestCancelledErrorBug:
         # This is CORRECT! asyncio.CancelledError is caught first.
         # So maybe there's no bug here?
         
-        # Wait, let me check the actual code again...
-        # Actually the handlers are in the right order!
-        # So CancelledError SHOULD be caught by its specific handler
-        
+        # Both handlers should be present
         assert cancelled_handler_found, "asyncio.CancelledError handler not found"
         assert generic_handler_found, "Exception handler not found"
-        assert cancelled_line < generic_line, "CancelledError handler should come BEFORE Exception handler"
+        
+        # Check that CancelledError handler comes before Exception handler
+        # (though Exception won't catch CancelledError since it's a BaseException)
+        if cancelled_line != -1 and generic_line != -1:
+            assert cancelled_line < generic_line, (
+                "asyncio.CancelledError handler should come before Exception handler"
+            )

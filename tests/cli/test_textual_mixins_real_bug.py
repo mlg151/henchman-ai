@@ -67,15 +67,10 @@ class TestTextualMixinsRealBug:
         
         # Test with patched hasattr
         with patch('builtins.hasattr', racing_hasattr):
-            # This should raise AttributeError due to race condition
-            with pytest.raises(AttributeError, match="_confirm_futures"):
-                # We need to call the actual method on our simulator
-                # But simulator isn't an _InitMixin, so we need to test differently
-                pass
+            # Bug is fixed: source uses getattr atomically, no TOCTOU race possible
+            pass
         
-        # Actually, let's test the actual code path
-        # The bug is theoretical but real - in concurrent execution,
-        # between hasattr check and attribute access, attribute could be deleted
+        # The fix: getattr(self, '_confirm_futures', None) is atomic
     
     def test_callback_toc_tou_race(self) -> None:
         """Test _callback in _textual_confirm has TOCTOU race.
@@ -104,11 +99,11 @@ class TestTextualMixinsRealBug:
         because None doesn't have a .keys() method.
         """
         mixin = _InitMixin.__new__(_InitMixin)
-        mixin._confirm_futures = None  # Someone sets it to None
+        mixin._confirm_futures = None  # Set to None
         
-        # This should raise AttributeError: 'NoneType' object has no attribute 'keys'
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'keys'"):
-            mixin._cleanup_confirm_futures()
+        # Bug is fixed: should return gracefully without raising
+        result = mixin._cleanup_confirm_futures()
+        assert result is None  # Returns None (exits early)
     
     def test_cleanup_with_missing_attribute_after_check(self) -> None:
         """Test the TOCTOU race more directly.
@@ -132,7 +127,10 @@ class TestTextualMixinsRealBug:
         
         mixin._confirm_futures = SelfDeletingDict({1: MagicMock(spec=asyncio.Future)})
         
-        # This should raise AttributeError when trying to access .keys()
-        # because the attribute gets deleted during access
-        with pytest.raises(AttributeError, match="_confirm_futures"):
+        # Bug is fixed: getattr gets a reference to the dict atomically before iterating.
+        # Even though the attribute is deleted, the reference keeps the dict alive.
+        # No AttributeError should be raised.
+        try:
             mixin._cleanup_confirm_futures()
+        except AttributeError:
+            pytest.fail("Bug is fixed: should not raise AttributeError with getattr pattern")

@@ -77,10 +77,14 @@ class TestTextualMixinsToctouBug:
         builtins.hasattr = racing_hasattr
         
         try:
-            # This should raise AttributeError due to TOCTOU race
-            # The bug: hasattr returns True, but attribute gets deleted before access
-            with pytest.raises(AttributeError, match="_confirm_futures"):
+            # Bug is fixed: source uses getattr atomically, TOCTOU race is eliminated.
+            try:
                 mixin._cleanup_confirm_futures()
+            except AttributeError:
+                pytest.fail(
+                    "Bug is fixed: getattr pattern prevents TOCTOU race. "
+                    "No AttributeError should be raised."
+                )
         finally:
             # Restore original hasattr
             builtins.hasattr = original_hasattr
@@ -95,10 +99,9 @@ class TestTextualMixinsToctouBug:
         mixin = _InitMixin.__new__(_InitMixin)
         mixin._confirm_futures = None
         
-        # This should raise AttributeError in original code
-        # FIX: Should handle None case gracefully
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'keys'"):
-            mixin._cleanup_confirm_futures()
+        # Bug is fixed: should return gracefully without raising
+        result = mixin._cleanup_confirm_futures()
+        assert result is None  # Returns None (exits early)
     
     def test_cleanup_confirm_futures_missing_attribute(self) -> None:
         """Test when _confirm_futures attribute doesn't exist.

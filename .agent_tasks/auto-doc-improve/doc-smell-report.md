@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-18T18:00:03.619900+00:00_
+_Generated: 2026-03-18T20:00:03.781976+00:00_
 
 ## Executive Summary
 
@@ -18,7 +18,7 @@ _Generated: 2026-03-18T18:00:03.619900+00:00_
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
+| 1 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-18 |
 | 2 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 3 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 | 4 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
@@ -27,7 +27,7 @@ _Generated: 2026-03-18T18:00:03.619900+00:00_
 | 7 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 8 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 | 9 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-18 |
-| 10 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-18 |
 | 11 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
 | 12 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 13 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-17 |

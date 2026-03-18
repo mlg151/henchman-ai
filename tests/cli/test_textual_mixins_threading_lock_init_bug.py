@@ -21,45 +21,15 @@ class TestThreadingLockInitBug:
     
     @pytest.mark.anyio
     async def test_threading_lock_in_async_context_causes_deadlock(self) -> None:
-        """Test that threading.Lock can block event loop in async method.
-        
-        BUG: _textual_confirm uses threading.Lock() for defensive initialization
-        in an async method. If the lock is held by another thread, this async
-        task will block the entire event loop.
+        """Bug is fixed: no threading.Lock or class-level _init_lock used.
+
+        The old bug: threading.Lock held + event loop = deadlock.
+        The fix: _init_confirm_state() creates asyncio.Lock explicitly.
         """
-        # Create a mixin instance without calling _init_confirm_state
-        # This triggers the defensive initialization path
-        mixin = _InitMixin.__new__(_InitMixin)
-        
-        # Simulate another thread holding the class-level lock
-        class_lock = threading.Lock()
-        class_lock.acquire()  # Lock held by "another thread"
-        
-        # Patch the class to use our locked lock
-        with patch.object(_InitMixin.__class__, '_init_lock', class_lock):
-            # Create a mock request
-            request = ConfirmationRequest(
-                tool_name="test_tool",
-                description="Test tool",
-                params={},
-                risk_level="medium"
-            )
-            
-            # Try to call _textual_confirm - it should block trying to acquire lock
-            # We need to timeout to avoid hanging forever
-            try:
-                # Run with timeout
-                task = asyncio.create_task(mixin._textual_confirm(request))
-                await asyncio.wait_for(task, timeout=0.5)
-                pytest.fail("Should have timed out due to threading.Lock blocking event loop")
-            except asyncio.TimeoutError:
-                # Expected - threading.Lock blocks event loop
-                print("SUCCESS: threading.Lock blocked event loop (this is the bug)")
-                pass
-            finally:
-                # Release lock for cleanup
-                if class_lock.locked():
-                    class_lock.release()
+        pytest.skip(
+            "Bug fixed: no threading.Lock or class-level _init_lock. "
+            "_init_confirm_state() creates asyncio.Lock directly."
+        )
     
     @pytest.mark.anyio
     async def test_toc_tou_race_in_defensive_initialization(self) -> None:
@@ -175,33 +145,20 @@ class TestThreadingLockInitBug:
     
     @pytest.mark.anyio
     async def test_defensive_initialization_mixes_sync_and_async(self) -> None:
-        """Test that defensive initialization mixes sync and async concerns.
-        
-        BUG: The defensive initialization uses threading.Lock (sync) to protect
-        initialization of asyncio.Lock (async). This mixes concerns and can
-        cause deadlocks or race conditions.
+        """Bug is fixed: source uses only asyncio.Lock, not threading.Lock.
+
+        The old bug: defensive initialization used threading.Lock (sync) to
+        protect asyncio.Lock (async) creation, mixing sync/async concerns.
+        The fix uses explicit _init_confirm_state() with asyncio.Lock only.
         """
+        import inspect
         from henchman.cli.textual_mixins import _InitMixin
-        
-        # Create instance without initialization
-        mixin = _InitMixin.__new__(_InitMixin)
-        
-        # Check the initialization logic
+
         source = inspect.getsource(_InitMixin._textual_confirm)
-        
-        # Look for the problematic pattern
-        if 'threading.Lock()' in source and 'asyncio.Lock()' in source:
-            print("BUG: Method uses both threading.Lock and asyncio.Lock")
-            print("This mixes sync and async synchronization primitives")
-            
-            # Extract relevant section
-            lines = source.split('\n')
-            for i, line in enumerate(lines):
-                if 'threading.Lock()' in line:
-                    print(f"threading.Lock at line {i}: {line}")
-                if 'asyncio.Lock()' in line:
-                    print(f"asyncio.Lock at line {i}: {line}")
-            
-            # The fix should use only asyncio primitives for async methods
-            # OR ensure proper initialization happens elsewhere (e.g., __init__)
-            pytest.fail("Mixing threading.Lock and asyncio.Lock in async method")
+
+        # Bug is fixed: threading.Lock() should NOT be in _textual_confirm
+        assert 'threading.Lock()' not in source, (
+            "Bug is fixed: threading.Lock() should not appear in _textual_confirm"
+        )
+
+        print("Bug is fixed: _textual_confirm does not create any locks directly")
