@@ -1,57 +1,48 @@
-[2026-03-18T08:00:02Z] Starting auto-doc-improve run...
+[2026-03-18T10:00:02Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by examining the current state of the documentation improvement task and check what was done last time.
+I'll start by examining the current state of the documentation smell report and focusing on the highest-priority issue. According to the report, there are 3 low-severity smells related to incomplete docstrings in MCP client and manager files. Let me first check what was last improved to avoid duplication.
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 
 [result] # Last Documentation Improvement
 
 ## Date/Time
-2026-03-18T06:00:00Z
+2026-03-18T08:00:00Z
 
 ## Files Changed
-1. `src/henchman/extensions/plugin_manager.py`
+1. `src/henchman/mcp/client.py`
 
 ## Smell Category Addressed
-**Incomplete Docstring** (LOW severity...
-Perfect! The last improvement was completed and the next priority is clear. According to the smell report, the highest priority issue is `McpClient.connect` missing a Returns section at line 173 in `src/henchman/mcp/client.py`. Let me examine this file to understand the method signature and add the appropriate docstring.
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 160, 
-'end_line': 190})
+**Incomplete Docstring** (LOW severity)
 
-[result]     async def _open_session(  # pragma: no cover
-        self: Self,
-        stack: AsyncExitStack,
-    ) -> ClientSession:
-        """Enter stdio_client and ClientSession contexts, then initialize.""...
-Now let me see the full method signature and surrounding context to understand what it returns:
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 170, 
-'end_line': 185})
-
-[result]         await session.initialize()
-        return session
-
-    async def connect(self: Self) -> None:  # pragma: no cover
-        """Connect to the MCP server.
-
-        Uses AsyncExitStack to properly...
-I can see that the method has a return type annotation `-> None` and the docstring is missing a `Returns:` section. According to Google-style docstring conventions, even methods that return `None` should have a `Returns:` section stating that they return `None`. Let me check if there are other similar methods in the file to see the pattern:
+## Rationale...
+Perfect! I can see the last improvement was made to `McpClient.connect` method. Now I need to address the next highest priority issue, which is `McpClient.disconnect` method at line 198 (now likely line 195 after the previous change). Let me examine the current state of this file.
 [tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 190, 
 'end_line': 210})
 
-[result]             await self._exit_stack.aclose()
-            self._exit_stack = None
-            self._session = None
+[result]             self._session = await self._open_session(self._exit_stack)
+            await self.discover_tools()
+        except Exception:
+            await self._exit_stack.aclose()
+            self._e...
+Now I can see the issue. The `disconnect` method has a return type annotation `-> None` but the docstring doesn't include a `Returns:` section. According to Google-style docstring conventions, methods that return values (including `None`) must have a `Returns:` section. Let me check the surrounding context to understand the method better.
+[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 195, 
+'end_line': 210})
+
+[result]             self._session = None
             raise
 
     async def disconnect(self: Self) -> None:
-        """Disconnect ...
-I can see that `disconnect` also has the same issue - it returns `None` but doesn't have a `Returns:` section. However, `discover_tools` has a proper `Returns:` section. Let me check a few more methods to understand the pattern better:
+        """Disconnect from the MCP server."""
+        if self._exit_stack is not None:
+            wit...
+Let me also check the imports to understand the `suppress` context manager:
 [tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 1, 
-'end_line': 50})
+'end_line': 20})
 
 [result] """MCP client for connecting to a single server.
 
@@ -64,36 +55,13 @@ from __future__ import annotations
 import io
 import re
 impo...
-Let me look for other methods in the file that have proper Returns sections to understand the pattern:
-[tool] grep({'pattern': 'Returns:', 'path': 'src/henchman/mcp/client.py', 
-'line_numbers': True})
+Now I understand the method. The `disconnect` method:
+1. Returns `None` (as indicated by the type annotation)
+2. Uses `suppress(Exception)` to silently handle any errors during cleanup
+3. Cleans up the `_exit_stack`, `_session`, and `_tools` attributes
+4. Is an async method
 
-[result] 78:        Returns:
-207:        Returns:
-227:        Returns:
-243:        Returns:...
-Let me examine these to see the pattern:
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 70, 
-'end_line': 85})
-
-[result]         self.verbose = verbose
-
-    def write(self: Self, text: str) -> int:
-        """Write text to the stream, filtering INFO/DEBUG lines unless verbose.
-
-        Args:
-            text: Text to wr...
-
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 200, 
-'end_line': 215})
-
-[result]             self._exit_stack = None
-        self._session = None
-        self._tools = []
-
-    async def discover_tools(self: Self) -> list[McpToolDefinition]:
-        """Discover tools from the serve...
-I need to focus on my role as the Tech Lead for documentation improvement. Let me examine the actual method more carefully and fix the missing Returns section for `McpClient.connect`. First, let me see the complete method:
+I need to add a proper `Returns:` section to the docstring. Let me also check how other methods in the file format their docstrings to maintain consistency.
 [tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 165, 
 'end_line': 195})
 
@@ -102,102 +70,99 @@ I need to focus on my role as the Tech Lead for documentation improvement. Let m
             stdio_client(self._build_server_params(), errlog=errlog),
         )
         ses...
-Now I need to add a `Returns:` section to the `connect` method. According to Google-style docstring conventions and the pattern I see in other methods in this file, methods that return `None` should have a `Returns:` section stating `None`. Let me also check if there are any other similar methods in the file to ensure consistency:
-[tool] grep({'pattern': 'async def.*-> None', 'path': 
-'src/henchman/mcp/client.py', 'line_numbers': True})
-
-[result] 173:    async def connect(self: Self) -> None:  # pragma: no cover
-195:    async def disconnect(self: Self) -> None:...
-Both `connect` and `disconnect` return `None` and both are missing `Returns:` sections. According to the smell report, these are the first two issues. Let me fix the `connect` method first (highest priority). I'll add a `Returns:` section stating that it returns `None`.
+Perfect! I can see that the `connect` method already has a proper `Returns:` section that says `None`. I should follow the same pattern for the `disconnect` method. Let me now fix the `disconnect` method's docstring.
 [tool] edit_file({'path': 'src/henchman/mcp/client.py', 'old_str': '    async 
-def connect(self: Self) -> None:  # pragma: no cover\n        """Connect to the 
-MCP server.\n\n        Uses AsyncExitStack to properly manage the stdio_client 
-and\n        ClientSession context managers, keeping their task groups alive\n  
-for the duration of the connection.\n        """', 'new_str': '    async def 
-connect(self: Self) -> None:  # pragma: no cover\n        """Connect to the MCP 
-server.\n\n        Uses AsyncExitStack to properly manage the stdio_client and\n
-ClientSession context managers, keeping their task groups alive\n        for the
-duration of the connection.\n\n        Returns:\n            None\n        
-"""'})
+def disconnect(self: Self) -> None:\n        """Disconnect from the MCP 
+server."""\n        if self._exit_stack is not None:\n            with 
+suppress(Exception):\n                await self._exit_stack.aclose()\n         
+self._exit_stack = None\n        self._session = None\n        self._tools = 
+[]', 'new_str': '    async def disconnect(self: Self) -> None:\n        
+"""Disconnect from the MCP server.\n\n        Closes the AsyncExitStack and 
+clears all connection state.\n        Any exceptions during cleanup are silently
+suppressed.\n\n        Returns:\n            None\n        """\n        if 
+self._exit_stack is not None:\n            with suppress(Exception):\n          
+await self._exit_stack.aclose()\n            self._exit_stack = None\n        
+self._session = None\n        self._tools = []'})
 
 [result] Successfully edited src/henchman/mcp/client.py...
-Now let me verify the change was made correctly:
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 170, 
-'end_line': 185})
+Excellent! Now let me verify the change by reading the updated section to ensure it looks correct.
+[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 195, 
+'end_line': 215})
 
-[result]         await session.initialize()
-        return session
+[result]             self._session = None
+            raise
 
-    async def connect(self: Self) -> None:  # pragma: no cover
-        """Connect to the MCP server.
+    async def disconnect(self: Self) -> None:
+        """Disconnect from the MCP server.
 
-        Uses AsyncExitStack to properly...
-Good! Now I need to document this improvement in the `.agent_tasks/auto-doc-improve/last-improvement.md` file. Let me first check if the directory exists:
+        Closes the AsyncExitStack and clears all connectio...
+Perfect! The change looks good. Now I need to update the `.agent_tasks/auto-doc-improve/last-improvement.md` file to document what I changed. Let me first check if the directory exists.
 [tool] ls({'path': '.agent_tasks/auto-doc-improve'})
 
 [result] cron.log
 doc-smell-report.md
 last-improvement.md
 last-run.log...
-Now I'll update the last-improvement.md file with this change:
+Now I'll update the last-improvement.md file to document my change:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-18T08:00:00Z\n\n## Files Changed\n1. 
+Date/Time\n2026-03-18T10:15:00Z\n\n## Files Changed\n1. 
 `src/henchman/mcp/client.py`\n\n## Smell Category Addressed\n**Incomplete 
 Docstring** (LOW severity)\n\n## Rationale for Change\nThe smell report 
-identified `McpClient.connect` method (line 173) that returns a value but has no
-Returns: section. From code analysis:\n- Method has return type annotation `-> 
-None`\n- According to Google-style docstring conventions, methods that return 
-values (including None) must have a Returns section\n- The method connects to an
-MCP server using AsyncExitStack to manage stdio_client and ClientSession context
-managers\n- The method already had a good description but was missing the 
-required Returns section\n\n## Changes Made\n1. Added proper `Returns:` section 
-to `connect()` method stating it returns `None`\n2. Maintained consistent 
-Google-style docstring formatting with other methods in the file\n3. Kept the 
-existing descriptive documentation about AsyncExitStack and context 
-management\n4. Added the Returns section after the method description, following
-the pattern used in other methods like `discover_tools`\n\n## What to Verify\n1.
-The smell detector should no longer flag `McpClient.connect` for missing Returns
-section\n2. The documentation accurately reflects that the method returns 
-`None`\n3. The docstring maintains consistent formatting with other methods in 
-the file\n4. No other documentation issues were introduced\n\n## Next 
-Priority\nThe next highest priority issues are:\n1. Line 195: 
-`McpClient.disconnect` missing Returns section in 
-`src/henchman/mcp/client.py`\n2. Line 159: `McpManager.connect_all` missing 
-Returns section in `src/henchman/mcp/manager.py`\n3. Line 183: 
-`McpManager.disconnect_all` missing Returns section in 
-`src/henchman/mcp/manager.py`'})
+identified `McpClient.disconnect` method (line 198) that returns a value but has
+no Returns: section. From code analysis:\n- Method has return type annotation 
+`-> None`\n- According to Google-style docstring conventions, methods that 
+return values (including None) must have a Returns section\n- The method 
+disconnects from an MCP server by closing the AsyncExitStack and clearing 
+connection state\n- The method uses `suppress(Exception)` to silently handle 
+cleanup errors\n- The method already had a brief description but was missing the
+required Returns section and could benefit from more detail\n\n## Changes 
+Made\n1. Enhanced the method description to explain what the method does: 
+"Closes the AsyncExitStack and clears all connection state. Any exceptions 
+during cleanup are silently suppressed."\n2. Added proper `Returns:` section 
+stating it returns `None`\n3. Maintained consistent Google-style docstring 
+formatting with other methods in the file (following the pattern from 
+`connect()` method)\n4. Kept the existing implementation unchanged\n\n## What to
+Verify\n1. The smell detector should no longer flag `McpClient.disconnect` for 
+missing Returns section\n2. The documentation accurately describes the method\'s
+behavior including silent exception suppression\n3. The docstring maintains 
+consistent formatting with other methods in the file\n4. No other documentation 
+issues were introduced\n\n## Next Priority\nThe next highest priority issues 
+are:\n1. Line 159: `McpManager.connect_all` missing Returns section in 
+`src/henchman/mcp/manager.py`\n2. Line 183: `McpManager.disconnect_all` missing 
+Returns section in `src/henchman/mcp/manager.py`\n3. Check for any other 
+incomplete docstrings that may have been introduced'})
 
-[result] Successfully wrote 1782 bytes to 
+[result] Successfully wrote 1938 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Perfect! I have successfully completed one documentation improvement. Let me run a quick check to ensure the change looks correct and doesn't introduce any issues:
-[tool] read_file({'path': 'src/henchman/mcp/client.py', 'start_line': 173, 
-'end_line': 190})
+Perfect! I have successfully completed one documentation improvement. Let me summarize what I did:
 
-[result]     async def connect(self: Self) -> None:  # pragma: no cover
-        """Connect to the MCP server.
+## Summary of Documentation Improvement
 
-        Uses AsyncExitStack to properly manage the stdio_client and
-        ClientSession context ...
-Excellent! The documentation improvement has been completed successfully. 
+**Date/Time**: 2026-03-18T10:15:00Z
 
-## Summary
+**Files Changed**: `src/henchman/mcp/client.py`
 
-I have addressed the highest-priority documentation smell from the report:
+**Smell Category Addressed**: Incomplete Docstring (LOW severity)
 
-**Issue Fixed**: `McpClient.connect` method in `src/henchman/mcp/client.py` was missing a `Returns:` section despite having a return type annotation `-> None`.
+**Change Made**: 
+- Enhanced the `disconnect()` method's docstring to include a proper `Returns:` section
+- Added descriptive text explaining the method's behavior: "Closes the AsyncExitStack and clears all connection state. Any exceptions during cleanup are silently suppressed."
+- Followed the same Google-style docstring pattern used by the `connect()` method in the same file
 
-**Change Made**: Added a proper `Returns:` section stating `None` to the method's docstring, maintaining Google-style docstring conventions and consistency with other methods in the file.
+**Rationale**: 
+- The method had a return type annotation `-> None` but was missing the required `Returns:` section in its docstring
+- Google-style docstring conventions require all methods with return values (including `None`) to have a `Returns:` section
+- The improvement maintains consistency with other methods in the file and improves documentation completeness
 
-**Verification**: 
-- ✅ The method now has a complete docstring with Returns section
-- ✅ The documentation accurately reflects the method's return type (`None`)
-- ✅ The formatting is consistent with other methods in the file
-- ✅ No other documentation issues were introduced
+**Verification Needed**:
+1. The smell detector should no longer flag this method
+2. The documentation accurately reflects the method's behavior
+3. No other documentation issues were introduced
 
-The next priority issues remain as documented in the updated `last-improvement.md` file.
+This addresses the highest-priority issue from the smell report and maintains the project's 100% docstring coverage requirement. The next priorities are the remaining incomplete docstrings in `McpManager.connect_all` and `McpManager.disconnect_all` methods.
 [tech_lead] completed work
-[2026-03-18T08:00:02Z] Running mkdocs build to verify documentation...
+[2026-03-18T10:00:02Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -206,8 +171,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 1.38 seconds
-[2026-03-18T08:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 1.98 seconds
+[2026-03-18T10:00:02Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-18T08:00:02Z] Verification passed.
+[2026-03-18T10:00:02Z] Verification passed.
 Committing changes...
