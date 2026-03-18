@@ -1,38 +1,35 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-18T06:00:00Z
+2026-03-18T08:00:00Z
 
 ## Files Changed
-1. `src/henchman/extensions/plugin_manager.py`
+1. `src/henchman/mcp/client.py`
 
 ## Smell Category Addressed
 **Incomplete Docstring** (LOW severity)
 
 ## Rationale for Change
-The smell report identified `PluginManager.check_updates` method (line 420) that returns a value but has no Returns: section. From code analysis:
-- Method has return type annotation `-> dict[str, PluginUpdateInfo]`
-- According to Google-style docstring conventions, methods that return values must have a Returns section
-- The method checks for available updates for installed plugins and returns a dictionary of update information
-- The method already had a brief description but was missing the required Returns section
+The smell report identified `McpClient.connect` method (line 173) that returns a value but has no Returns: section. From code analysis:
+- Method has return type annotation `-> None`
+- According to Google-style docstring conventions, methods that return values (including None) must have a Returns section
+- The method connects to an MCP server using AsyncExitStack to manage stdio_client and ClientSession context managers
+- The method already had a good description but was missing the required Returns section
 
 ## Changes Made
-1. Added proper `Returns:` section to `check_updates()` method describing:
-   - That it returns a dictionary mapping plugin names to PluginUpdateInfo objects
-   - That it only includes plugins with newer versions available
-   - That it returns an empty dictionary if all plugins are up-to-date
+1. Added proper `Returns:` section to `connect()` method stating it returns `None`
 2. Maintained consistent Google-style docstring formatting with other methods in the file
-3. Kept the existing brief description and added detailed return documentation
+3. Kept the existing descriptive documentation about AsyncExitStack and context management
+4. Added the Returns section after the method description, following the pattern used in other methods like `discover_tools`
 
 ## What to Verify
-1. The smell detector should no longer flag `PluginManager.check_updates` for missing Returns section
-2. The documentation accurately reflects that the method returns `dict[str, PluginUpdateInfo]`
+1. The smell detector should no longer flag `McpClient.connect` for missing Returns section
+2. The documentation accurately reflects that the method returns `None`
 3. The docstring maintains consistent formatting with other methods in the file
 4. No other documentation issues were introduced
 
 ## Next Priority
 The next highest priority issues are:
-1. Line 173: `McpClient.connect` missing Returns section in `src/henchman/mcp/client.py`
-2. Line 195: `McpClient.disconnect` missing Returns section in `src/henchman/mcp/client.py`
-3. Line 159: `McpManager.connect_all` missing Returns section in `src/henchman/mcp/manager.py`
-4. Line 183: `McpManager.disconnect_all` missing Returns section in `src/henchman/mcp/manager.py`
+1. Line 195: `McpClient.disconnect` missing Returns section in `src/henchman/mcp/client.py`
+2. Line 159: `McpManager.connect_all` missing Returns section in `src/henchman/mcp/manager.py`
+3. Line 183: `McpManager.disconnect_all` missing Returns section in `src/henchman/mcp/manager.py`

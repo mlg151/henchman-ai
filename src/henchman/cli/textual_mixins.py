@@ -499,19 +499,13 @@ class _InitMixin:
         # Use a counter-based ID instead of id(future) to avoid potential
         # collisions when memory addresses are reused after garbage collection
         # Use lock to make counter increment atomic in concurrent execution
-        # But for backward compatibility with tests, check if lock exists
-        if not hasattr(self, '_confirm_lock'):
-            # Create lock if it doesn't exist (for backward compatibility)
-            # This fixes the race condition in the old else branch
-            self._confirm_lock = asyncio.Lock()
         
+        # State must be initialized by _init_confirm_state() before calling this method
+        # This is called during app initialization in __init__
         # Use async with for asyncio.Lock
         async with self._confirm_lock:  # type: ignore[attr-defined]
             req_id = self._confirm_counter  # type: ignore[attr-defined]
             self._confirm_counter += 1  # type: ignore[attr-defined]
-            # Ensure _confirm_futures exists (for backward compatibility)
-            if not hasattr(self, '_confirm_futures'):
-                self._confirm_futures = {}
             self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
@@ -528,8 +522,10 @@ class _InitMixin:
             #    will be removed from the dict by whichever runs first
             # 3. The future result has already been set above, so even if
             #    cleanup cancels it later, the result takes precedence
-            if hasattr(self, '_confirm_futures'):
-                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            # Get reference to dict atomically to avoid TOCTOU race
+            futures_dict = getattr(self, '_confirm_futures', None)
+            if futures_dict is not None:
+                futures_dict.pop(req_id, None)
             # If _confirm_futures doesn't exist, just return (e.g., after cleanup)
 
         try:
@@ -540,16 +536,18 @@ class _InitMixin:
             return await future
         except asyncio.CancelledError:
             # Remove future from dictionary
-            if hasattr(self, '_confirm_futures'):
-                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            futures_dict = getattr(self, '_confirm_futures', None)
+            if futures_dict is not None:
+                futures_dict.pop(req_id, None)
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
             raise
         except Exception:
             # Remove future from dictionary
-            if hasattr(self, '_confirm_futures'):
-                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            futures_dict = getattr(self, '_confirm_futures', None)
+            if futures_dict is not None:
+                futures_dict.pop(req_id, None)
             # future.cancel() is idempotent for asyncio Futures
             # No need to check future.done() first (avoids TOCTOU race)
             future.cancel()
@@ -558,7 +556,9 @@ class _InitMixin:
     def _cleanup_confirm_futures(self: _InitMixin) -> None:
         """Clean up all pending confirmation futures."""
         # Note: This is called from on_unmount which is sync
-        if not hasattr(self, '_confirm_futures'):
+        # Get reference to dict atomically to avoid TOCTOU race
+        futures_dict = getattr(self, '_confirm_futures', None)
+        if futures_dict is None:
             return  # Nothing to clean up
 
         # We're in sync context but using asyncio.Lock
@@ -566,12 +566,12 @@ class _InitMixin:
         # Don't try to acquire the lock in sync context
         # Collect keys first to avoid modifying dict during iteration
         # if future.cancel() triggers callbacks that modify the dict
-        keys = list(self._confirm_futures.keys())  # type: ignore[attr-defined]
+        keys = list(futures_dict.keys())
         for req_id in keys:
             # Pop the future from dict BEFORE cancelling it
             # This prevents callbacks triggered by cancel() from accessing
             # the future in the dict during cleanup
-            future = self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+            future = futures_dict.pop(req_id, None)
             if future is not None:
                 # future.cancel() is idempotent for asyncio Futures
                 # No need to check future.done() first (avoids TOCTOU race)

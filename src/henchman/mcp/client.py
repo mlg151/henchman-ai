@@ -176,6 +176,9 @@ class McpClient:
         Uses AsyncExitStack to properly manage the stdio_client and
         ClientSession context managers, keeping their task groups alive
         for the duration of the connection.
+
+        Returns:
+            None
         """
         if self._session is not None:
             return
