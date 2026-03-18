@@ -219,7 +219,7 @@ async def generate_stream_events(
             if chunk.thinking:
                 yield _make_event(EventType.THOUGHT, chunk.thinking, ctx.source_agent)
             _accumulate_chunk(chunk, state)
-            if chunk.finish_reason:
+            if chunk.finish_reason and state.finish_reason is None:
                 for event in _handle_finish(chunk, state, ctx.history, ctx.source_agent):
                     yield event
             elif chunk.content:
