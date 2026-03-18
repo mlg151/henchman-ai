@@ -1,22 +1,40 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-18T10:15:00Z
+## Date: 2024-01-15T00:00:00Z
 ## Bug Summary
-Race condition in tool confirmation future cleanup where `_cleanup_confirm_futures()` can cancel futures while they're being set by callbacks, causing `asyncio.InvalidStateError` or lost confirmations.
+TOCTOU (Time-Of-Check-Time-Of-Use) race condition in `_cleanup_confirm_futures` method where `hasattr` check is not atomic with attribute access, potentially causing AttributeError during application shutdown.
 
 ## Lens
-Phase 2: State & Side Effects (The Entropy Audit) - Shared State mutation without proper synchronization
+Phase 1: The Intent vs. Reality Check - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Tool confirmation futures should be safely cancelled during cleanup without race conditions | Concurrent access to `_confirm_futures` dict during cleanup and callback execution can cause: 1. `asyncio.InvalidStateError` when trying to set result on already cancelled future 2. Futures being cancelled while callbacks are trying to set results 3. Lost confirmations when futures are popped from dict before callbacks can access them |
+| `_cleanup_confirm_futures` should safely clean up pending confirmation futures even in concurrent scenarios | Between `hasattr(self, '_confirm_futures')` check and `futures_dict = self._confirm_futures` access, another thread could delete the attribute or set it to `None`, causing AttributeError |
+| Application shutdown should be graceful without crashes | AttributeError could crash during shutdown if `_confirm_futures` attribute is deleted between check and use |
 
 ## Root Cause
-The `_cleanup_confirm_futures()` method iterates over the `_confirm_futures` dict and cancels futures, while callbacks from confirmation screens may concurrently try to set results on those same futures. The cleanup uses `list(futures_dict.keys())` to avoid modification during iteration, but there's still a TOCTOU race between popping the future and cancelling it.
+The method uses a non-atomic pattern:
+```python
+if not hasattr(self, '_confirm_futures'):
+    return  # Nothing to clean up
+futures_dict = self._confirm_futures  # TOCTOU: attribute could be deleted here
+```
+
+In concurrent execution (especially during application shutdown), another thread could:
+1. Delete `_confirm_futures` attribute
+2. Set `_confirm_futures = None` 
+3. Delete the object entirely
+
+Between the `hasattr` check and the attribute access, the attribute state can change, leading to `AttributeError: '_InitMixin' object has no attribute '_confirm_futures'` or `AttributeError: 'NoneType' object has no attribute 'keys'`.
 
 ## Fix Plan
-1. Use `asyncio.Lock` in `_cleanup_confirm_futures()` to synchronize access to the futures dict
-2. Pop futures from dict under lock protection before cancelling them
-3. Handle `asyncio.InvalidStateError` gracefully when cancelling futures that may have already completed
+Replace the non-atomic `hasattr` + attribute access pattern with a single atomic operation using `getattr` with a default value:
+```python
+futures_dict = getattr(self, '_confirm_futures', None)
+if futures_dict is None:
+    return
+```
+
+This ensures atomic retrieval of the attribute value and handles the case where the attribute doesn't exist or is `None`.
 
 ## Status: IN PROGRESS

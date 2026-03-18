@@ -157,7 +157,15 @@ class McpManager:
         return self.configs[server_name].trusted
 
     async def connect_all(self: Self) -> None:
-        """Connect to all configured servers."""
+        """Connect to all configured servers.
+        
+        Iterates through all configured MCP servers, establishes connections,
+        and registers their tools. If a server fails to connect, the error
+        is silently ignored and the method continues with the next server.
+        
+        Returns:
+            None
+        """
         from henchman.mcp.tool import McpTool
 
         for name, config in self.configs.items():
@@ -181,7 +189,14 @@ class McpManager:
                 pass
 
     async def disconnect_all(self: Self) -> None:
-        """Disconnect from all servers."""
+        """Disconnect from all servers.
+        
+        Closes connections to all connected MCP servers and clears internal
+        state including client instances and registered tools.
+        
+        Returns:
+            None
+        """
         for client in self.clients.values():
             await client.disconnect()
         self.clients.clear()
