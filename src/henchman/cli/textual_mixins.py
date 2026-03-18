@@ -512,8 +512,25 @@ class _InitMixin:
             # Try to set the future result
             # Use contextlib.suppress to handle race where future was cancelled
             # between check and set_result() call
-            with contextlib.suppress(asyncio.InvalidStateError, asyncio.CancelledError):
-                future.set_result(bool(result))
+            with contextlib.suppress(asyncio.InvalidStateError):
+                # Handle the result explicitly instead of using bool()
+                # The screen should return True for approval, False for denial
+                # But we handle edge cases defensively
+                if result is True:
+                    future.set_result(True)
+                elif result is False or result is None:
+                    # False: explicit denial
+                    # None: cancellation (treat as denial for safety)
+                    future.set_result(False)
+                else:
+                    # Unexpected value - log error and treat as denial for safety
+                    # This shouldn't happen in normal operation (screen returns bool)
+                    logger.error(
+                        "Unexpected confirmation result type: %s (value: %r) - treating as denial",
+                        type(result).__name__,
+                        result,
+                    )
+                    future.set_result(False)
             # Remove future from dictionary
             # We don't need to acquire the lock here because:
             # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)

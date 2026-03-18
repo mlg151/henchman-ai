@@ -196,7 +196,14 @@ class McpClient:
             raise
 
     async def disconnect(self: Self) -> None:
-        """Disconnect from the MCP server."""
+        """Disconnect from the MCP server.
+
+        Closes the AsyncExitStack and clears all connection state.
+        Any exceptions during cleanup are silently suppressed.
+
+        Returns:
+            None
+        """
         if self._exit_stack is not None:
             with suppress(Exception):
                 await self._exit_stack.aclose()

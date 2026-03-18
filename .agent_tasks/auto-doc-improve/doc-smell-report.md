@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-18T08:00:03.460795+00:00_
+_Generated: 2026-03-18T10:00:04.247516+00:00_
 
 ## Executive Summary
 
@@ -11,38 +11,34 @@ _Generated: 2026-03-18T08:00:03.460795+00:00_
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 192 |
-| **Total Smells** | 4 |
+| **Total Smells** | 3 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 4 |
+| low | 3 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 4 |
+| Incomplete Docstring | 3 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
-   'McpClient.connect' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'McpClient.connect'._
-
-2. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
+1. **src/henchman/mcp/client.py:198** — 🟢 LOW — Incomplete Docstring  
    'McpClient.disconnect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.disconnect'._
 
-3. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
+2. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
    'McpManager.connect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.connect_all'._
 
-4. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
+3. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
    'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.disconnect_all'._
 
@@ -51,8 +47,8 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 2 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 1 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 2 | src/henchman/mcp/client.py | ✅ A | 98.0 | 1 | 2026-03-18 |
 | 3 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
 | 4 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 5 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
@@ -71,15 +67,6 @@ These are the highest-impact documentation smells to address first:
 
 _Showing 25 worst files. 222 additional files omitted._
 
-### src/henchman/mcp/client.py — ✅ A (96.0/100) (last modified 2026-03-17)
-
-Public APIs: 11 | Documented: 11 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 173 | 🟢 LOW | Incomplete Docstring | 'McpClient.connect' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpClient.connect'. |
-| 195 | 🟢 LOW | Incomplete Docstring | 'McpClient.disconnect' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpClient.disconnect'. |
-
 ### src/henchman/mcp/manager.py — ✅ A (96.0/100) (last modified 2026-03-17)
 
 Public APIs: 8 | Documented: 8 | Coverage: 100.0%
@@ -88,6 +75,14 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 |-----:|:---------|:-----|:--------|:--------------|
 | 159 | 🟢 LOW | Incomplete Docstring | 'McpManager.connect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.connect_all'. |
 | 183 | 🟢 LOW | Incomplete Docstring | 'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.disconnect_all'. |
+
+### src/henchman/mcp/client.py — ✅ A (98.0/100) (last modified 2026-03-18)
+
+Public APIs: 11 | Documented: 11 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 198 | 🟢 LOW | Incomplete Docstring | 'McpClient.disconnect' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpClient.disconnect'. |
 
 ## ✨ Clean Files (245 files with no smells)
 
