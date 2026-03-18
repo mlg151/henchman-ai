@@ -146,7 +146,11 @@ class PluginDatabase:
         self.db_path = db_path
 
     async def initialize(self: PluginDatabase) -> None:
-        """Create necessary tables and indexes if they don't exist."""
+        """Create necessary tables and indexes if they don't exist.
+
+        Returns:
+            None
+        """
         _initialize_plugin_db(self.db_path)
 
     async def load_installations(self: PluginDatabase) -> dict[str, PluginInstallation]:
@@ -173,6 +177,9 @@ class PluginDatabase:
 
         Args:
             installation: Plugin installation record.
+
+        Returns:
+            None
         """
         db_path = self.db_path
         _save_installation_to_db(db_path, installation)
@@ -182,6 +189,9 @@ class PluginDatabase:
 
         Args:
             plugin_name: Name of plugin to delete.
+
+        Returns:
+            None
         """
         _delete_installation_from_db(self.db_path, plugin_name)
 
@@ -190,6 +200,7 @@ class PluginDatabase:
         return _parse_row_to_installation(row)
 
     def _build_installation_params(
-        self: PluginDatabase, installation: PluginInstallation,
+        self: PluginDatabase,
+        installation: PluginInstallation,
     ) -> tuple[Any, ...]:
         return _build_installation_db_params(installation)

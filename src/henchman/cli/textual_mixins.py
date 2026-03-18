@@ -519,8 +519,14 @@ class _InitMixin:
                 self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
-            if not future.done() and not future.cancelled():
+            # Try to set the future result
+            # Use try-except to handle race where future was cancelled
+            # between check and set_result() call
+            try:
                 future.set_result(bool(result))
+            except (asyncio.InvalidStateError, asyncio.CancelledError):
+                # Future already done/cancelled, ignore
+                pass
             # Remove future from dictionary
             # We don't need to acquire the lock here because:
             # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)
@@ -576,7 +582,16 @@ class _InitMixin:
             if future is not None:
                 # future.cancel() is idempotent for asyncio Futures
                 # No need to check future.done() first (avoids TOCTOU race)
-                future.cancel()
+                try:
+                    future.cancel()
+                except Exception as exc:  # noqa: BLE001
+                    # Log but continue cleaning up other futures
+                    # This can happen if the future is in an invalid state
+                    logger.error(
+                        "Failed to cancel confirmation future %s: %s",
+                        req_id,
+                        exc,
+                    )
 
     def _activate_chat_tab(self: _InitMixin) -> None:
         """Force the Chat tab to be active."""

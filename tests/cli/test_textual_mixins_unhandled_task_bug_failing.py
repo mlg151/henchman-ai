@@ -205,6 +205,7 @@ except RuntimeError:
         
         # Make test fail to show we found a bug
         # Actually, let's check if the bug is still in the code
+        import inspect
         import henchman.cli.textual_mixins as module
         source = inspect.getsource(module._InitMixin._textual_confirm)
         
