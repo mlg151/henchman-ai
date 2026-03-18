@@ -129,7 +129,23 @@ class TestBoolConversionBug:
         source = inspect.getsource(module._InitMixin._textual_confirm)
 
         # The fix uses explicit if/elif, NOT bool(result)
-        assert "bool(result)" not in source, (
+        # Check that we don't call bool() on the result
+        # The comment contains "bool(result)" but that's just documentation
+        lines = source.split('\n')
+        bool_call_found = False
+        for line in lines:
+            stripped = line.strip()
+            # Look for actual bool() calls, not comments
+            if stripped.startswith('bool(') or '= bool(' in line or 'bool(' in line and ')' in line and not line.strip().startswith('#'):
+                # Check if it's in a comment
+                if '#' in line:
+                    comment_start = line.find('#')
+                    if line.find('bool(') > comment_start:
+                        continue  # bool() is in a comment
+                bool_call_found = True
+                print(f"Found bool() call: {line}")
+        
+        assert not bool_call_found, (
             "Bug present: callback still uses bool(result) instead of explicit if/elif"
         )
         assert "result is True" in source or "if result is True" in source, (

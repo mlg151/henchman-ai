@@ -39,7 +39,7 @@ class TestNullProviderStreamChunkBug:
         # The bug: if StreamChunk() raises TypeError, this will fail
         # before the RuntimeError is raised
         try:
-            stream = provider.chat_completion_stream([])
+            stream = await provider.chat_completion_stream([])
             
             # Try to get the first chunk
             async for chunk in stream:

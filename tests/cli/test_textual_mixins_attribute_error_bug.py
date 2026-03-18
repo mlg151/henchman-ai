@@ -16,11 +16,10 @@ class TestTextualConfirmAttributeErrorBug:
 
     @pytest.mark.anyio
     async def test_textual_confirm_without_init_raises_attribute_error(self) -> None:
-        """Test _textual_confirm raises AttributeError when state not initialized.
+        """Test _textual_confirm raises RuntimeError when state not initialized.
         
-        This is the bug: _textual_confirm assumes _init_confirm_state() was called,
-        but doesn't check. If called before initialization, it will raise AttributeError
-        when trying to access _confirm_lock, _confirm_counter, or _confirm_futures.
+        The method should raise RuntimeError with a clear message when
+        _init_confirm_state() hasn't been called.
         """
         # Create an instance without calling _init_confirm_state
         obj = MagicMock(spec=_InitMixin)
@@ -31,20 +30,19 @@ class TestTextualConfirmAttributeErrorBug:
         # Create a mock request
         request = MagicMock(spec=ConfirmationRequest)
         request.tool_name = "test_tool"
-        request.arguments = {}
-        request.kind = "EXECUTE"
+        request.description = "Test tool execution"
+        request.params = {}
+        request.risk_level = "medium"
         
         # Get the method
         confirm_method = _InitMixin._textual_confirm
         
-        # This should raise AttributeError because _confirm_lock doesn't exist
-        with pytest.raises(AttributeError) as exc_info:
+        # This should raise RuntimeError because state is not initialized
+        with pytest.raises(RuntimeError) as exc_info:
             await confirm_method(obj, request)
         
-        # Verify it's the expected attribute error
-        assert "_confirm_lock" in str(exc_info.value) or \
-               "_confirm_counter" in str(exc_info.value) or \
-               "_confirm_futures" in str(exc_info.value)
+        # Verify it's the expected error
+        assert "_textual_confirm called before _init_confirm_state" in str(exc_info.value)
     
     @pytest.mark.anyio 
     async def test_textual_confirm_with_init_works(self) -> None:

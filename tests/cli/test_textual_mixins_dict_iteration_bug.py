@@ -88,11 +88,12 @@ class TestCleanupConfirmFuturesDictIterationBug:
         bug_pattern_found = False
         
         # Check for the safe pattern: collecting keys first
+        # The implementation uses futures_dict variable from getattr
         for i, line in enumerate(lines):
-            if 'keys = list(self._confirm_futures.keys())' in line:
+            if 'keys = list(futures_dict.keys())' in line:
                 # Check that we iterate over keys, not items
                 for j in range(i + 1, min(i + 5, len(lines))):
-                    if 'for req_id in keys:' in lines[j] or 'for req_id in keys:' in lines[j]:
+                    if 'for req_id in keys:' in lines[j]:
                         fix_verified = True
                         print(f"FIX VERIFIED at line {j}: {lines[j]}")
                         print(f"  After collecting keys at line {i}: {lines[i]}")
@@ -105,12 +106,12 @@ class TestCleanupConfirmFuturesDictIterationBug:
                 print(f"WARNING: Old bug pattern still present at line {i}: {line}")
         
         assert fix_verified, (
-            "FIX NEEDED: _cleanup_confirm_futures should collect keys first "
-            "with keys = list(self._confirm_futures.keys()) then iterate over keys"
+            "Implementation should collect keys first with keys = list(futures_dict.keys()) "
+            "then iterate over keys to avoid dictionary modification during iteration"
         )
         
         assert not bug_pattern_found, (
-            "BUG STILL PRESENT: _cleanup_confirm_futures still uses "
+            "BUG STILL PRESENT: _cleanup_confirm_futures should not use "
             "for req_id, future in list(self._confirm_futures.items()):"
         )
     
