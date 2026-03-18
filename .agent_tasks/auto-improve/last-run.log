@@ -1,7 +1,7 @@
-[2026-03-18T16:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T18:00:03Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-18T16:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T18:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -13,15 +13,14 @@ I'll start by reading the smell report and the target file to understand the con
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T16:00:42.937629+00:00_
+_Generated: 2026-03-18T18:00:41.890237+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file to understand its structure and identify potential bugs:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
-'end_line': 100})
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -29,91 +28,75 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-Let me continue reading the file to understand its structure better:
+The file is truncated. Let me read the rest of it:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 300})
+1000})
 
-[result] }
-
-
-# ------------------------------------------------------------------ #
-# NullProvider (fallback when no real provider is configured)          #
-# --------------------------------------------------...
-Let me continue reading to see the main functionality, particularly around the `_textual_confirm` method mentioned in the smell report:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-450, 'end_line': 600})
-
-[result]                 "UIRenderer": app_module.UIRenderer,
-                "OutputHandler": app_module.OutputHandler,
-                "ToolExecutor": app_module.ToolExecutor,
-                "CommandProcess...
-Now let me check the tests for this file to understand what functionality needs to be preserved:
+[result]     def _apply_theme(self: _ContextTreeMixin) -> None:
+        """Apply the current theme class to the screen."""
+        with contextlib.suppress(Exception):
+            screen = self.screen  # type:...
+Now let me check if there are any tests for this file:
 [tool] glob({'pattern': '**/test*textual_mixins*.py'})
 
-[result] tests/cli/test_textual_mixins_actual_bug.py
+[result] tests/cli/test_textual_mixins.py
+tests/cli/test_textual_mixins_actual_bug.py
 tests/cli/test_textual_mixins_asyncio_lock_bug.py
 tests/cli/test_textual_mixins_attribute_error_bug.py
-tests/cli/test_textual_mixins_bool_conversion_bug.py
-...
-Interesting! There are many test files for this module. Let me check one of them to understand what bugs have been identified:
-[tool] read_file({'path': 
-'tests/cli/test_textual_mixins_four_lenses_real_bug.py'})
+tests/cli/test_textu...
+There are many test files. Let me look at the main test file to understand the structure:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins.py', 'start_line': 1, 
+'end_line': 100})
 
-[result] """Test for a real bug in textual_mixins.py found through Four Lenses 
-analysis.
+[result] """Tests for Henchman CLI textual mixins."""
 
-This test demonstrates a REAL bug that causes InvalidStateError or lost 
-confirmations.
-"""
+import pytest
+import asyncio
+from unittest.mock import MagicMock, AsyncMock, patch
+from typing import AsyncIterator, List
 
-from __future__ import anno...
-Now let me look at the actual `_cleanup_confirm_futures` method to understand the bug:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-600, 'end_line': 650})
-
-[result]         # but we check anyway for safety
-        futures_dict = getattr(self, '_confirm_futures', None)
-        if futures_dict is None:
-            return  # Nothing to clean up
-
-        # We're in s...
-Now let me create the bug report stub and analyze the code through the Four Lenses:
+from henchman.cli.textual_mixin...
+Now let me create the documentation stub as required by the workflow:
 [tool] write_file({'path': 
 '.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
 Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
-2025-03-18T16:30:00+00:00\n## Bug Summary\nThe `_cleanup_confirm_futures` method
-has a race condition where it cancels futures while their callbacks might be 
-concurrently trying to set results, causing lost confirmations and potential 
-InvalidStateError exceptions.\n\n## Lens\nPhase 2: State & Side Effects (The 
-Entropy Audit) - Shared State race condition\n\n## Expected vs. Observed\n| 
-Expected Behavior | Observed Risk |\n|---|---|\n| Cleanup should safely cancel 
-pending confirmations without interfering with in-progress callbacks | Callbacks
-may try to set results on futures that are being cancelled, causing 
-InvalidStateError (suppressed) and lost confirmations |\n| App shutdown should 
-gracefully handle pending confirmations | Race between cleanup and callback 
-execution can leave futures in inconsistent states |\n| Each confirmation 
-request should get a definitive result (True/False) | Some confirmations may be 
-lost (future cancelled instead of getting result) |\n\n## Root Cause\nThe 
-`_cleanup_confirm_futures` method is called during app shutdown (on_unmount) and
-cancels all pending confirmation futures. However, these futures may have 
-callbacks that are still executing (e.g., user clicks OK on modal dialog while 
-app is shutting down). The callback uses 
-`contextlib.suppress(asyncio.InvalidStateError)` to handle this race, but the 
-suppression hides the error and the future ends up cancelled instead of having a
-proper result set.\n\nThe race occurs because:\n1. `_cleanup_confirm_futures` 
-pops futures from dict and cancels them\n2. Callbacks (from modal dialogs) may 
-be concurrently trying to set results on these futures\n3. If `future.cancel()` 
-happens while `future.set_result()` is executing, we get InvalidStateError\n4. 
-The error is suppressed, but the confirmation result is lost\n\n## Fix 
-Plan\nModify `_cleanup_confirm_futures` to first check if futures are already 
-done before cancelling them. If a future is already done (has result/exception),
-leave it alone. Only cancel futures that are still pending. This prevents the 
-race condition and ensures completed confirmations maintain their results.\n\n##
-Status: IN PROGRESS'})
+2025-03-18T18:00:00Z\n## Bug Summary\nThe `_textual_confirm` method in 
+`_InitMixin` has a race condition where the callback function can access 
+`self._confirm_futures` dictionary after it has been cleaned up by 
+`_cleanup_confirm_futures`, potentially causing `KeyError` or incorrect 
+state.\n\n## Lens\n**Lens 2: State & Side Effects (The Entropy Audit)** - The 
+bug involves shared mutable state (`_confirm_futures` dictionary) that can be 
+modified concurrently by multiple async tasks without proper 
+synchronization.\n\n## Expected vs. Observed\n| Expected Behavior | Observed 
+Risk |\n|---|---|\n| Callback safely removes future from dictionary | Race 
+condition: callback may try to pop from dict after cleanup removed it |\n| 
+Cleanup cancels all pending futures | Cleanup may run while callback is 
+executing, causing KeyError |\n| Dictionary operations are atomic | Concurrent 
+dict access without lock in callback path |\n\n## Root Cause\nThe `_callback` 
+function inside `_textual_confirm` uses `self._confirm_futures.pop(req_id, 
+None)` without acquiring the `_confirm_lock`. Meanwhile, 
+`_cleanup_confirm_futures` (called during shutdown) also accesses the same 
+dictionary without the lock. This creates a TOCTOU (Time-Of-Check-Time-Of-Use) 
+race condition where:\n1. Callback checks if future exists\n2. Cleanup runs and 
+removes the future\n3. Callback tries to pop the future → KeyError or incorrect 
+state\n\n## Fix Plan\nAdd lock acquisition in the callback path OR make the pop 
+operation idempotent and race-safe. Since the callback runs in sync context 
+(from screen callback) and cleanup runs in sync context (on_unmount), we need to
+ensure atomic access to the dictionary.\n\n## Status: IN PROGRESS'})
 
-[result] Successfully wrote 2201 bytes to 
+[result] Successfully wrote 1751 bytes to 
 .agent_tasks/four-lenses-cli-textual_mixins/README.md...
-I need to examine the code more carefully to understand the actual bug. Let me look at the `_cleanup_confirm_futures` method and the callback logic more closely:
+Now let me examine the actual code more carefully to understand the exact bug. Let me look at the `_textual_confirm` method and `_cleanup_confirm_futures`:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+490, 'end_line': 600})
+
+[result]         if ctx:
+            ctx.tool_manager.set_confirmation_handler(self._textual_confirm)
+
+    async def _textual_confirm(self: _InitMixin, request: ConfirmationRequest) 
+-> bool:
+        """Show a ...
+
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
 620, 'end_line': 650})
 
@@ -121,144 +104,114 @@ I need to examine the code more carefully to understand the actual bug. Let me l
                 except Exception as exc:  # noqa: BLE001
                     # Log but continue cleaning up other futures
                     # This can happen if t...
-Now let me look at the callback logic in `_textual_confirm`:
+I need to examine the `_cleanup_confirm_futures` method more carefully. Let me read the full method:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-525, 'end_line': 580})
+610, 'end_line': 640})
 
-[result]         def _callback(result: object | None) -> None:
-            # Try to set the future result
-            # Use contextlib.suppress to handle race where future was cancelled
-            # between c...
-Now I need to think about this more carefully. Looking at the code:
+[result]         keys = list(futures_dict.keys())
+        for req_id in keys:
+            # Pop the future from dict BEFORE cancelling it
+            # This prevents callbacks triggered by cancel() from access...
+Now I need to understand the actual bug. Looking at the code, I see that the `_callback` function in `_textual_confirm` uses `futures_dict.pop(req_id, None)` without acquiring the lock. The comment says "We don't need to acquire the lock here because..." but actually there IS a race condition. Let me trace through the logic:
 
-1. The callback uses `contextlib.suppress(asyncio.InvalidStateError)` when calling `future.set_result()`
-2. `_cleanup_confirm_futures` calls `future.cancel()` on all futures
-3. If a future is cancelled while `set_result()` is being called, `InvalidStateError` is raised but suppressed
+1. `_cleanup_confirm_futures` gets `keys = list(futures_dict.keys())` 
+2. It then iterates through keys and does `future = futures_dict.pop(req_id, None)`
+3. Meanwhile, `_callback` might be running and also tries to `futures_dict.pop(req_id, None)`
 
-Actually, wait. Let me re-examine the problem. The callback suppresses `InvalidStateError`, but what happens after that? The future might be cancelled, but the callback still tries to set a result. Actually, looking at the code again:
+The issue is that `_cleanup_confirm_futures` gets a snapshot of keys, but if `_callback` runs and removes a key between getting the snapshot and popping it, then `futures_dict.pop(req_id, None)` in cleanup will return `None` (which is handled). However, there's a deeper issue: what if the callback runs AFTER cleanup has popped the future but BEFORE it cancels it? Then the callback will try to set the future result, but the future might already be cancelled.
 
-```python
-with contextlib.suppress(asyncio.InvalidStateError):
-    if result is True:
-        future.set_result(True)
-    elif result is False or result is None:
-        future.set_result(False)
-    else:
-        # ... convert and set result
-```
+Actually, looking more carefully at the code, I see that the callback uses `with contextlib.suppress(asyncio.InvalidStateError):` which handles the case where the future is already done/cancelled. So that part seems OK.
 
-If `future.set_result()` raises `InvalidStateError` (because the future was cancelled), the error is suppressed and the callback continues. Then it removes the future from the dictionary. So the future ends up cancelled, not with the result.
+But wait, I need to think about this more carefully. Let me re-examine the actual bug. The callback is called from the screen when the user responds. The cleanup is called during shutdown (`on_unmount`). The race would be:
+1. User clicks confirm/deny on screen
+2. Screen calls `_callback` 
+3. Meanwhile, app is shutting down, `_cleanup_confirm_futures` is called
+4. Both try to access/modify the same dictionary
 
-But actually, I think there's a deeper issue. Let me check what happens when `future.cancel()` is called on a future that already has a result set. Actually, `future.cancel()` should have no effect on a future that's already done (has result or exception). Let me verify this by writing a test:
-[tool] python_exec({'code': 'import asyncio\n\nasync def 
-test_future_cancel_after_set_result():\n    """Test what happens when we cancel 
-a future that already has a result."""\n    loop = asyncio.get_event_loop()\n   
-future = loop.create_future()\n    \n    # Set result first\n    
-future.set_result(True)\n    print(f"Future done after set_result: 
-{future.done()}")\n    print(f"Future result: {future.result()}")\n    \n    # 
-Try to cancel\n    was_cancelled = future.cancel()\n    print(f"future.cancel() 
-returned: {was_cancelled}")\n    print(f"Future cancelled: 
-{future.cancelled()}")\n    print(f"Future done after cancel: 
-{future.done()}")\n    \n    # Try to get result again\n    try:\n        result
-= future.result()\n        print(f"Still can get result: {result}")\n    except 
-Exception as e:\n        print(f"Error getting result: {e}")\n\nasync def 
-test_future_set_result_after_cancel():\n    """Test what happens when we try to 
-set result on cancelled future."""\n    loop = asyncio.get_event_loop()\n    
-future = loop.create_future()\n    \n    # Cancel first\n    future.cancel()\n  
-print(f"\\nFuture cancelled after cancel: {future.cancelled()}")\n    \n    # 
-Try to set result\n    try:\n        future.set_result(True)\n        
-print("set_result succeeded (unexpected!)")\n    except 
-asyncio.InvalidStateError:\n        print("set_result raised InvalidStateError 
-(expected)")\n    \n    print(f"Future done: {future.done()}")\n    
-print(f"Future cancelled: {future.cancelled()}")\n\nif __name__ == "__main__":\n
-asyncio.run(test_future_cancel_after_set_result())\n    
-asyncio.run(test_future_set_result_after_cancel())'})
+Actually, I think I need to look for a different bug. Let me examine the code through the Four Lenses:
 
-[result] Future done after set_result: True
-Future result: True
-future.cancel() returned: False
-Future cancelled: False
-Future done after cancel: True
-Still can get result: True
+**Lens 1: Logic Gaps** - The code has defensive programming with `getattr` and `contextlib.suppress`, but are there any silent failures?
 
-Future cancelled after cancel:...
-Good! So `future.cancel()` returns `False` and has no effect if the future is already done. And `future.set_result()` raises `InvalidStateError` if the future is already done (cancelled or has result).
+**Lens 2: State & Side Effects** - The dictionary is shared mutable state. The callback doesn't use the lock, but cleanup also doesn't use the lock (it's sync context). Actually, `_cleanup_confirm_futures` is called from sync context (`on_unmount`), so it can't acquire an async lock.
 
-So the actual bug is: if `_cleanup_confirm_futures` runs while a callback is executing, the callback's `set_result()` will raise `InvalidStateError` (suppressed), and the future ends up cancelled instead of having the user's choice (True/False).
+**Lens 3: Performance & Resource Management** - No obvious issues.
 
-But wait, actually the callback removes the future from the dictionary BEFORE `_cleanup_confirm_futures` can cancel it... unless there's a race. Let me trace through the logic:
+**Lens 4: Forensic Refactor** - Let me look for actual bugs...
 
-1. Callback starts executing (user clicked OK)
-2. Callback tries `future.set_result(True)`
-3. Meanwhile, `_cleanup_confirm_futures` pops future from dict and calls `future.cancel()`
-4. If `cancel()` happens before/during `set_result()`, we get `InvalidStateError`
+Wait! I think I found it! Look at line 550 in the callback:
 
-Actually, I think the real issue is in the order of operations in `_cleanup_confirm_futures`. It does:
-```python
-future = futures_dict.pop(req_id, None)
-if future is not None:
-    future.cancel()
-```
-
-But the callback also does:
 ```python
 futures_dict = getattr(self, '_confirm_futures', None)
 if futures_dict is not None:
     futures_dict.pop(req_id, None)
 ```
 
-So both try to pop the future from the dict. Whichever runs first wins. If cleanup runs first and cancels, callback gets `InvalidStateError`. If callback runs first and sets result, cleanup's `cancel()` has no effect.
+But `req_id` is captured from the outer scope when the callback is defined. What if `self._confirm_futures` has been set to `None` or a different dictionary? Actually, that's handled by the `getattr` check.
 
-Actually, I think the bug report I wrote might not be quite right. Let me think about what the actual functional impact is...
+Hmm, let me look at the actual test files to see what bugs have been identified:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_race_condition_bug.py',
+'start_line': 1, 'end_line': 50})
 
-Actually, wait! I think I see a REAL bug. Look at the callback code again:
+[result] """Test for race condition bug in _cleanup_confirm_futures."""
 
-```python
-with contextlib.suppress(asyncio.InvalidStateError):
-    if result is True:
-        future.set_result(True)
-    elif result is False or result is None:
-        future.set_result(False)
-    else:
-        # Unexpected value - log warning and convert to bool
-        logger.warning(...)
-        if result:
-            future.set_result(True)
-        else:
-            future.set_result(False)
-```
+from __future__ import annotations
 
-The callback suppresses `InvalidStateError` but doesn't check if the future was already done! So if `future.set_result()` fails (because future was cancelled), the callback just continues silently. The future ends up cancelled, not with the user's choice!
+import asyncio
+from unittest.mock import MagicMock, patch
 
-The user clicks "OK" (True), but the future gets cancelled instead of getting `True`. That's a bug!
+import pytest
 
-Actually, let me re-read the code more carefully. Oh wait, I see another issue! Look at the `except asyncio.CancelledError` block in `_textual_confirm`:
+from henchman.cli.textual_...
+Interesting! This test suggests there's a `RuntimeError: dictionary changed size during iteration` bug. Let me look at the `_cleanup_confirm_futures` method again:
 
 ```python
-except asyncio.CancelledError:
-    # Remove future from dictionary
-    # Use getattr to avoid TOCTOU race with _cleanup_confirm_futures
+def _cleanup_confirm_futures(self: _InitMixin) -> None:
+    """Clean up all pending confirmation futures."""
+    # Note: This is called from on_unmount which is sync
+    # Get reference to dict atomically to avoid TOCTOU race
+    # _confirm_futures is guaranteed to exist after defensive initialization
+    # but we check anyway for safety
     futures_dict = getattr(self, '_confirm_futures', None)
-    if futures_dict is not None:
-        futures_dict.pop(req_id, None)
-    # future.cancel() is idempotent for asyncio Futures
-    # No need to check future.done() first (avoids TOCTOU race)
-    future.cancel()
-    raise
+    if futures_dict is None:
+        return  # Nothing to clean up
+
+    # We're in sync context but using asyncio.Lock
+    # Since this is shutdown cleanup, we accept potential races
+    # Don't try to acquire the lock in sync context
+    # Collect keys first to avoid modifying dict during iteration
+    # if future.cancel() triggers callbacks that modify the dict
+    keys = list(futures_dict.keys())
+    for req_id in keys:
+        # Pop the future from dict BEFORE cancelling it
+        # This prevents callbacks triggered by cancel() from accessing
+        # the future in the dict during cleanup
+        future = futures_dict.pop(req_id, None)
+        if future is not None:
+            # future.cancel() is idempotent for asyncio Futures
+            # No need to check future.done() first (avoids TOCTOU race)
+            try:
+                future.cancel()
+            except Exception as exc:  # noqa: BLE001
+                # Log but continue cleaning up other futures
+                # This can happen if the future is in an invalid state
+                logger.error(
+                    "Failed to cancel confirmation future %s: %s",
+                    req_id,
+                    exc,
+                )
 ```
 
-If the `_textual_confirm` coroutine itself is cancelled (e.g., task cancelled), it cancels the future. But what if the callback already set a result? Then `future.cancel()` will have no effect (returns False). That's probably fine.
+Ah! I see the bug now! The code gets `keys = list(futures_dict.keys())` to avoid "dictionary changed size during iteration", but then it calls `futures_dict.pop(req_id, None)` inside the loop. If a callback runs concurrently and also calls `futures_dict.pop(req_id, None)` for the SAME `req_id`, then the second `pop` will return `None` (which is handled). But what if the callback removes a DIFFERENT key that hasn't been processed yet? Actually, that's OK because we're iterating over `keys` (a snapshot), not the dictionary itself.
 
-Actually, I think I need to write a test to understand the actual behavior better. But first, let me check if there are any existing tests that fail:
+Wait, actually the real bug might be different. Let me think... The callback runs in the screen's callback context (sync). Cleanup runs in `on_unmount` (sync). They could be running in different threads? Actually, Textual is single-threaded for UI operations. But callbacks from screens might run in the same thread.
+
+Actually, I think I need to write a test to understand the exact bug. But first, let me check if there are any existing failing tests:
 [tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_four_lenses_real_bug.py -xvs 2>&1 | head -100'})
+tests/cli/test_textual_mixins_race_condition_bug.py -xvs 2>&1 | head -100'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-The tests pass. Let me run a more comprehensive test to see if there are any failing tests:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins*.py -x 2>&1 | tail -50'})
-
+Let me run a specific test to see if it fails

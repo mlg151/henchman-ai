@@ -85,26 +85,26 @@ class TestFutureNotStoredBug:
                 events.append(f"task_completed_with_result_{result}")
             except asyncio.TimeoutError:
                 events.append("task_timed_out_hanging")
-                # This is the bug! Task hangs because future result not set
+                # This is the original bug! Task hangs because future result not set
                 print("BUG: Task timed out - future result was never set!")
                 print(f"Events: {events}")
-                
+
                 # Cancel task to clean up
                 task.cancel()
                 try:
                     await task
                 except asyncio.CancelledError:
                     pass
-                
+
                 # The bug is confirmed
                 assert False, "Task hung because future not stored and result not set"
-            except AttributeError:
-                # This is the fix: calling _textual_confirm without proper init
-                # raises AttributeError (no _confirm_futures) instead of hanging
-                pass
-            
-            # If we get here, task completed (maybe bug is fixed or doesn't manifest)
-            print(f"Task completed, events: {events}")
+            except (AttributeError, RuntimeError):
+                # Bug is fixed: calling _textual_confirm without proper init
+                # raises RuntimeError (init check) instead of hanging.
+                events.append("task_failed_fast")
+
+            # If we get here, task completed or failed fast (bug is fixed)
+            print(f"Task completed or failed fast, events: {events}")
     
     @pytest.mark.anyio
     async def test_callback_cannot_find_future(self) -> None:

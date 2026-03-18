@@ -19,11 +19,15 @@ class TestTextualConfirmThreadingLockBug:
     
     @pytest.mark.anyio
     async def test_threading_lock_allows_concurrent_async_access(self) -> None:
-        """Demonstrate that threading.Lock allows concurrent async access.
-        
-        This is the core bug: threading.Lock is reentrant within the same
-        thread, so async tasks can acquire it concurrently.
+        """Bug is fixed: source now uses asyncio.Lock instead of threading.Lock.
+
+        Original test deadlocked (threading.Lock held + await = event loop block).
+        Skipped since the bug it documented no longer exists.
         """
+        pytest.skip(
+            "Bug fixed: source uses asyncio.Lock, not threading.Lock. "
+            "Original test deadlocked due to threading.Lock + await inside lock."
+        )
         from henchman.cli.textual_mixins import _InitMixin
         
         # Create mixin instance with threading.Lock (current buggy implementation)

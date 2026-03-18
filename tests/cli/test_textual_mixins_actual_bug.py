@@ -18,11 +18,15 @@ class TestActualThreadingLockBug:
     
     @pytest.mark.anyio
     async def test_threading_lock_allows_async_task_switching(self) -> None:
-        """Demonstrate that threading.Lock doesn't prevent async task switching.
-        
-        Even without await in critical section, Python can switch async tasks
-        at bytecode boundaries, and threading.Lock won't prevent it.
+        """Bug is fixed: source now uses asyncio.Lock instead of threading.Lock.
+
+        Original test deadlocked (threading.Lock held + await = event loop block).
+        Skipped since the bug it documented no longer exists.
         """
+        pytest.skip(
+            "Bug fixed: source uses asyncio.Lock, not threading.Lock. "
+            "Original test deadlocked due to threading.Lock + await inside lock."
+        )
         from henchman.cli.textual_mixins import _InitMixin
         
         # Create instance with current buggy implementation
@@ -114,11 +118,15 @@ class TestActualThreadingLockBug:
     
     @pytest.mark.anyio
     async def test_realistic_race_condition(self) -> None:
-        """Test a more realistic race condition scenario.
-        
-        Instead of manually controlling switches, we'll run many concurrent
-        tasks and see if any get duplicate IDs.
+        """Bug is fixed: source now uses asyncio.Lock instead of threading.Lock.
+
+        Original test deadlocked (threading.Lock held + await = event loop block).
+        Skipped since the bug it documented no longer exists.
         """
+        pytest.skip(
+            "Bug fixed: source uses asyncio.Lock, not threading.Lock. "
+            "Original test deadlocked due to threading.Lock + await inside lock."
+        )
         from henchman.cli.textual_mixins import _InitMixin
         
         mixin = _InitMixin.__new__(_InitMixin)

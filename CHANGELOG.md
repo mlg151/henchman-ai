@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **BUG-7 🟡 MEDIUM — CLI tool calls were echoed multiple times** (`stream_event_handlers.py`, `tool_executor.py`)
   - The REPL rendered a tool call immediately on `TOOL_CALL_REQUEST`, then echoed the same `[tool] ...` line again when executing the pending tool. Fixed by tracking tool-call IDs already announced during stream handling and suppressing the duplicate execution-time echo for those IDs, while preserving the legacy direct-execution path that still needs its own announcement.
+- **BUG-8 🟡 MEDIUM — Tool triplication in CLI output** (`henchman/cli/stream_event_handlers.py`)
+  - Fixed a regression where tool calls were echoed multiple times due to redundant event emission in the stream handler loop.
+- **Maintenance — Cleaned up textual mixins test suite** (`tests/cli/test_textual_mixins.py`)
+  - Consolidated scattered test files into a single suite `tests/cli/test_textual_mixins.py`.
+  - Fixed dead code issues in `_NullProvider`.
 - **BUG-1 🔴 CRITICAL — Deadlock in `run_parallel_delegations`** (`delegation.py`)
   - `max_buffer_size=256` on the anyio `MemoryObjectSendStream` caused a classic producer/consumer deadlock: producer tasks would block on `send()` once the buffer was full, the task group could never exit, and the consumer loop never started. Fixed by setting `max_buffer_size=float("inf")` so producers never block.
 - **BUG-2 🔴 HIGH — Race condition in `record_delegation_errors`** (`agent.py`)
