@@ -1,42 +1,42 @@
-# Code Smell Report — 👍 B (Score: 80.0/100)
+# Code Smell Report — ⚠️ C (Score: 78.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T20:00:39.420468+00:00_
+_Generated: 2026-03-18T21:00:28.185554+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
-| **Overall Grade** | 👍 B |
-| **Overall Score** | 80.0/100 |
-| **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 46,978 |
-| **Total Smells** | 377 |
-| **Avg Maintainability Index** | 69.5 |
-| **Avg Cyclomatic Complexity** | 13.3 |
+| **Overall Grade** | ⚠️ C |
+| **Overall Score** | 78.8/100 |
+| **Files Scanned** | 222 |
+| **Total Lines (non-blank)** | 47,773 |
+| **Total Smells** | 454 |
+| **Avg Maintainability Index** | 69.7 |
+| **Avg Cyclomatic Complexity** | 13.1 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 205 |
-| medium | 164 |
-| high | 8 |
+| low | 251 |
+| medium | 190 |
+| high | 13 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Duplicate Code | 124 |
-| Missing Type Hint | 58 |
-| Long Method | 47 |
-| Primitive Obsession | 40 |
-| Feature Envy | 39 |
-| Magic Number | 25 |
-| Complex Function | 16 |
-| Deep Nesting | 15 |
-| Large Class | 13 |
+| Duplicate Code | 137 |
+| Missing Type Hint | 85 |
+| Long Method | 53 |
+| Feature Envy | 47 |
+| Primitive Obsession | 46 |
+| Magic Number | 30 |
+| Deep Nesting | 23 |
+| Complex Function | 19 |
+| Large Class | 14 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -46,60 +46,60 @@ These are the highest-impact smells to address first:
    Function 'extract_brief_fields' is an exact duplicate of '_build_storage_kwargs' at metrics/exporter.py:55  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-2. **cli/app.py:42** — 🟠 HIGH — Duplicate Code  
+2. **chat/discord_bot.py:78** — 🟠 HIGH — Feature Envy  
+   Method 'DiscordBot._setup_events' accesses 'message' 12 times but 'self' only 7 times  
+   → _Move Method — consider moving '_setup_events' to the class that owns 'message'._
+
+3. **chat/manager.py:153** — 🟠 HIGH — Feature Envy  
+   Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 4 times  
+   → _Move Method — consider moving '_handle_message' to the class that owns 'message'._
+
+4. **chat/manager.py:237** — 🟠 HIGH — Feature Envy  
+   Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times  
+   → _Move Method — consider moving '_handle_command' to the class that owns 'message'._
+
+5. **cli/app.py:43** — 🟠 HIGH — Duplicate Code  
    Function '_import_attrs' is an exact duplicate of '_import_attrs' at core/agent.py:98  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-3. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
+6. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
    Function '_textual_confirm' has 90 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-4. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
+7. **cli/textual_widgets.py:498** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '__init__' (line 498), '_add_message_with_prefix' (line 1004)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
+
+8. **cli/textual_widgets.py:1026** — 🟠 HIGH — Duplicate Code  
+   Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1034  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+9. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
    Function '_check_os_compatibility' is an exact duplicate of '_compress_ranges' at tools/builtins/coverage_map.py:206  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-5. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+10. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_cost_csv_rows' at metrics/dashboard.py:224  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-6. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+11. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
+12. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
    Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-8. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
+13. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
    Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
-   Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-11. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:36** — 🟡 MEDIUM — Complex Function  
-   Function '_detect_server_type' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-12. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
-   Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
-   Function 'execute' has cyclomatic complexity 14 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:37** — 🟡 MEDIUM — Complex Function  
-   Function '_format_function_sig' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:138** — 🟡 MEDIUM — Complex Function  
-   Function '_summarize_python' has cyclomatic complexity 11 (rank C)  
+15. **/home/matthew/mlg-cli/src/henchman/chat/manager.py:153** — 🟡 MEDIUM — Complex Function  
+   Function '_handle_message' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -107,20 +107,44 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_mixins.py | ❌ F | 36.0 | 13 | 1488 | 1 | 0.0 |
-| 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
-| 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
-| 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
-| 5 | agents/working_memory.py | 🔶 D | 65.4 | 5 | 535 | 43 | 0.0 |
-| 6 | metrics/dashboard.py | 🔶 D | 67.2 | 3 | 340 | 61 | 0.0 |
-| 7 | cli/commands/builtins.py | 🔶 D | 69.0 | 6 | 276 | 67 | 0.0 |
-| 8 | utils/validation.py | 🔶 D | 69.6 | 7 | 192 | 59 | 11.5 |
-| 9 | agents/metrics_reporter.py | 🔶 D | 69.9 | 6 | 251 | 56 | 0.0 |
-| 10 | cli/commands/context.py | ⚠️ C | 70.0 | 4 | 549 | 47 | 0.0 |
+| 1 | chat/manager.py | ❌ F | 16.9 | 37 | 275 | 56 | 11.5 |
+| 2 | cli/textual_mixins.py | ❌ F | 36.0 | 13 | 1488 | 1 | 0.0 |
+| 3 | cli/textual_widgets.py | ❌ F | 47.1 | 8 | 1037 | 26 | 0.0 |
+| 4 | chat/discord_bot.py | ❌ F | 51.3 | 18 | 232 | 61 | 0.0 |
+| 5 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
+| 6 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
+| 7 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
+| 8 | agents/working_memory.py | 🔶 D | 65.4 | 5 | 535 | 43 | 0.0 |
+| 9 | metrics/dashboard.py | 🔶 D | 67.2 | 3 | 340 | 61 | 0.0 |
+| 10 | cli/commands/builtins.py | 🔶 D | 69.0 | 6 | 276 | 67 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 197 additional files omitted._
+_Showing 20 worst files. 202 additional files omitted._
+
+### chat/manager.py — ❌ F (16.9/100)
+
+LOC: 275 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 11.5
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 153 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'message'. |
+| 237 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times | Move Method — consider moving '_handle_command' to the class that owns 'message'. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 93% similar to '__init__' at cli/ui_renderer.py:80 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 153 | 🟡 MEDIUM | Long Method | Function '_handle_message' has 74 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 153 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'bot' 6 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'bot'. |
+| 153 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'event' 5 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'event'. |
+| 153 | 🟡 MEDIUM | Complex Function | Function '_handle_message' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 208 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 214 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 237 | 🟡 MEDIUM | Long Method | Function '_handle_command' has 71 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 237 | 🟡 MEDIUM | Complex Function | Function '_handle_command' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 295 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_command' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 305 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_command' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 344 | 🟡 MEDIUM | Duplicate Code | Function 'bots' is 100% similar to 'parameters' at tools/builtins/git_ops.py:290 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 344 | 🟡 MEDIUM | Duplicate Code | Function 'bots' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:92 | Extract Shared Function — identify the common logic and parameterise the differences. |
+
+_... and 22 more smells._
 
 ### cli/textual_mixins.py — ❌ F (36.0/100)
 
@@ -141,6 +165,45 @@ LOC: 1488 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 | 621 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_cleanup_confirm_futures' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 1265 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
 | 1811 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+### cli/textual_widgets.py — ❌ F (47.1/100)
+
+LOC: 1037 | Classes: 17 | Functions: 6 | MI: 26 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 498 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '__init__' (line 498), '_add_message_with_prefix' (line 1004) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1026 | 🟠 HIGH | Duplicate Code | Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1034 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 1026 | 🟡 MEDIUM | Duplicate Code | Function 'add_user_message' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1026 | 🟡 MEDIUM | Duplicate Code | Function 'add_user_message' is 100% similar to '_import_from_node_contains_module' at tools/builtins/import_graph.py:611 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1034 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1034 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to '_import_from_node_contains_module' at tools/builtins/import_graph.py:611 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 498 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: prefix: Name(id='str', ctx=Load()), content: Name(id='str', ctx=Load()), trusted: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 1004 | 🟢 LOW | Primitive Obsession | Function '_add_message_with_prefix' has 3 primitive-typed parameters: prefix: Name(id='str', ctx=Load()), text: Name(id='str', ctx=Load()), trusted: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+### chat/discord_bot.py — ❌ F (51.3/100)
+
+LOC: 232 | Classes: 1 | Functions: 1 | MI: 61 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 78 | 🟠 HIGH | Feature Envy | Method 'DiscordBot._setup_events' accesses 'message' 12 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'message'. |
+| 78 | 🟡 MEDIUM | Long Method | Function '_setup_events' has 69 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 78 | 🟡 MEDIUM | Feature Envy | Method 'DiscordBot._setup_events' accesses 'client' 9 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'client'. |
+| 139 | 🟡 MEDIUM | Duplicate Code | Function 'on_disconnect' is 100% similar to 'on_resumed' at chat/discord_bot.py:145 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 49 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 78 | 🟢 LOW | Missing Type Hint | Function '_setup_events' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 94 | 🟢 LOW | Long Method | Function 'on_message' has 37 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 151 | 🟢 LOW | Missing Type Hint | Function 'platform' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 160 | 🟢 LOW | Missing Type Hint | Function 'is_connected' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 168 | 🟢 LOW | Missing Type Hint | Function 'start' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 177 | 🟢 LOW | Missing Type Hint | Function 'stop' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 187 | 🟢 LOW | Missing Type Hint | Function 'send_message' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 187 | 🟢 LOW | Primitive Obsession | Function 'send_message' has 3 primitive-typed parameters: user_id: Name(id='str', ctx=Load()), content: Name(id='str', ctx=Load()), split_long: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 223 | 🟢 LOW | Missing Type Hint | Function 'send_typing' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 240 | 🟢 LOW | Missing Type Hint | Function 'set_message_handler' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 3 more smells._
 
 ### utils/compaction.py — ❌ F (57.2/100)
 
@@ -347,42 +410,7 @@ LOC: 397 | Classes: 4 | Functions: 12 | MI: 49 | Avg CC: 0.0
 | 223 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_stream_event' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 424 | 🟢 LOW | Long Method | Function 'event_generator' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
-### utils/message_clusterer.py — ⚠️ C (73.4/100)
-
-LOC: 328 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 15 | 🟢 LOW | Large Class | Class 'MessageClusterer' spans 443 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 24 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: cluster_similarity_threshold: Name(id='float', ctx=Load()), minimum_word_length: Name(id='int', ctx=Load()), minimum_shared_words: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 69 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._cluster_tool_call_sequences' accesses 'curr_msg' 3 times but 'self' only 2 times | Move Method — consider moving '_cluster_tool_call_sequences' to the class that owns 'curr_msg'. |
-| 69 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._cluster_tool_call_sequences' accesses 'next_msg' 3 times but 'self' only 2 times | Move Method — consider moving '_cluster_tool_call_sequences' to the class that owns 'next_msg'. |
-| 148 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._should_merge_adjacent_clusters' accesses 'last_msg' 4 times but 'self' only 0 times | Move Method — consider moving '_should_merge_adjacent_clusters' to the class that owns 'last_msg'. |
-| 148 | 🟢 LOW | Feature Envy | Method 'MessageClusterer._should_merge_adjacent_clusters' accesses 'first_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_should_merge_adjacent_clusters' to the class that owns 'first_msg'. |
-| 185 | 🟢 LOW | Long Method | Function '_cluster_topic_similarity' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 265 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_extract_cluster_keywords' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-
-### tools/security/shell_secure.py — ⚠️ C (73.5/100)
-
-LOC: 487 | Classes: 3 | Functions: 14 | MI: 51 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 37 | 🟡 MEDIUM | Long Method | Function '_default_allowed_commands' has 55 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 96 | 🟡 MEDIUM | Duplicate Code | Function '_default_denied_patterns' is 100% similar to '_get_default_keywords' at utils/intelligent_context_extractor.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 332 | 🟡 MEDIUM | Duplicate Code | Function '_apply_moderate_security' is 100% similar to '_apply_permissive_security' at tools/security/shell_secure.py:344 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 576 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), timeout: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
-### tools/builtins/import_graph.py — ⚠️ C (73.7/100)
-
-LOC: 504 | Classes: 5 | Functions: 21 | MI: 36 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 267 | 🟡 MEDIUM | Duplicate Code | Function 'extract_imports' is 100% similar to 'extract_critical_sections' at utils/message_analyzer.py:106 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 278 | 🟡 MEDIUM | Duplicate Code | Function 'classify_import' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-## ✨ Clean Files (86 files with no smells)
+## ✨ Clean Files (85 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -416,7 +444,6 @@ LOC: 504 | Classes: 5 | Functions: 21 | MI: 36 | Avg CC: 0.0
 - cli/input.py — 👍 B
 - cli/prompts.py — ✅ A
 - cli/textual_screens.py — 👍 B
-- cli/textual_widgets.py — ⚠️ C
 - config/__init__.py — ✅ A
 - config/settings.py — 👍 B
 - core/__init__.py — ✅ A

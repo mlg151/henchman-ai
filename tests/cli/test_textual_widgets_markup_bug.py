@@ -91,6 +91,11 @@ class TestSystemMessageRichMarkup:
             content="[bold]test[/bold]",
         )
         rendered = str(msg.renderable)
-        assert "\\[bold\\]" in rendered, (
-            f"Default (untrusted) should escape markup: {rendered!r}"
+        # markup_escape escapes '[' to '\[' but doesn't escape ']'
+        # So we check for '\[' before 'bold' and '\[' before '/bold'
+        assert "\\[bold]" in rendered, (
+            f"Default (untrusted) should escape opening tag: {rendered!r}"
+        )
+        assert "\\[/bold]" in rendered, (
+            f"Default (untrusted) should escape closing tag: {rendered!r}"
         )

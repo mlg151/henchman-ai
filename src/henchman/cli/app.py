@@ -17,6 +17,7 @@ import click
 from rich.console import Console
 
 from henchman.cli.json_output import JsonOutputRenderer
+from henchman.cli.chat_serve import chat_serve_command
 from henchman.cli.serve import serve_command
 from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
@@ -769,6 +770,7 @@ def _execute_chat_command(config: RunConfig) -> None:
 
 # Add serve command to CLI group
 cli.add_command(serve_command)
+cli.add_command(chat_serve_command)
 
 
 def main() -> None:  # pragma: no cover

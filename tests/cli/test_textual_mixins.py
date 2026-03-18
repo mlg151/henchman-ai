@@ -345,3 +345,39 @@ class TestNullProviderDeadCodeBug:
         with pytest.raises(RuntimeError, match="No model provider available"):
             async for _ in stream:
                 pytest.fail("Should not yield anything before raising")
+class TestBoolConversionBug:
+    """Test the bool conversion bug in _textual_confirm._callback."""
+
+    @pytest.mark.anyio
+    async def test_callback_with_various_values(self) -> None:
+        """Test _callback behavior with various input values.
+        
+        This tests that the callback handles True/False/None explicitly
+        without relying on ambiguous bool() conversion.
+        """
+        from henchman.cli.textual_mixins import _InitMixin
+        
+        # We'll use source inspection to verify explicit handling
+        source = inspect.getsource(_InitMixin._textual_confirm)
+        
+        # Check that we don't call bool() on the result
+        # The comment contains "bool(result)" but that's just documentation
+        lines = source.split('\n')
+        bool_call_found = False
+        for line in lines:
+            stripped = line.strip()
+            # Look for actual bool() calls, not comments
+            if (stripped.startswith('bool(') or '= bool(' in line or 'bool(' in line) and not line.strip().startswith('#'):
+                # Check if it's in a comment
+                if '#' in line:
+                    comment_start = line.find('#')
+                    if line.find('bool(') > comment_start:
+                        continue  # bool() is in a comment
+                bool_call_found = True
+        
+        assert not bool_call_found, "Callback should not use bool(result)"
+        
+        # Check for explicit handling
+        assert "if result is True" in source or "result is True" in source, "Callback should handle True explicitly"
+        assert "elif result is False or result is None" in source or "result is False" in source, "Callback should handle False/None explicitly"
+
