@@ -1,7 +1,7 @@
-[2026-03-18T04:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T06:00:03Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-18T04:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T06:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -13,13 +13,13 @@ I'll start by reading the smell report to understand the context, then examine t
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T04:00:38.954022+00:00_
+_Generated: 2026-03-18T06:00:33.424762+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me examine the target file to understand its structure and functionality:
+Now let me read the target file to understand its structure and functionality:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
 'end_line': 100})
 
@@ -39,25 +39,14 @@ Let me continue reading the file to understand its structure better:
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
 # --------------------------------------------------...
-Let me continue reading to see more of the file structure:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-200, 'end_line': 300})
+Let me check for test files to understand what tests exist:
+[tool] glob({'pattern': '**/test*textual*.py'})
 
-[result]     """
-    try:
-        if widget_type is None:
-            return app.query_one(selector)  # type: ignore[no-any-return]
-        return app.query_one(selector, widget_type)  # type: ignore[no-any-re...
-Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual_mixins*'})
-
-[result] 
-tests/cli/__pycache__/test_textual_mixins_actual_bug.cpython-312-pytest-9.0.2.py
-c
-tests/cli/__pycache__/test_textual_mixins_asyncio_lock_bug.cpython-312-pytest-9.
-0.2.pyc
-tests/cli/__pycache__/test_tex...
-Let me look at the actual test files to understand what's already been tested:
+[result] .agent_tasks/auto-improve/test_textual_widgets_refactor.py
+.agent_tasks/debug-scripts/test_minimal_textual.py
+.agent_tasks/debug-scripts/test_textual_debug.py
+.agent_tasks/debug-scripts/test_textual_f...
+Let me check the existing test for textual_mixins to understand what's already being tested:
 [tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
 'start_line': 1, 'end_line': 50})
 
@@ -70,15 +59,163 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import ...
-Let me examine the file more thoroughly to understand its structure and find potential bugs. Let me look at the `_NullProvider` class more closely since it seems to be a key component:
+Now let me examine the target file more thoroughly, looking for potential bugs through the Four Lenses:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-80, 'end_line': 150})
+200, 'end_line': 300})
 
-[result]     "_StatusBarMixin",
-    "_extract_line_text",
-]
+[result]     """
+    try:
+        if widget_type is None:
+            return app.query_one(selector)  # type: ignore[no-any-return]
+        return app.query_one(selector, widget_type)  # type: ignore[no-any-re...
+Let me continue reading the file to look for potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+300, 'end_line': 400})
 
-logger = logging.getLogger(__name__)
+[result]     @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_context.orchestrator``."""
+        return self._get_context_attr("orchestrator")
+
+    @orchestrator.setter
+    ...
+Let me look at the `_NullProvider` class more closely since it's a core component:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+50, 'end_line': 100})
+
+[result]     from henchman.cli.textual_messages import (
+        AgentContentMessage,
+        AgentFinishedMessage,
+        AgentStatusMessage,
+        AgentThoughtMessage,
+        CommandOutputMessage,
+      ...
+Now let me examine the `_NullProvider` class more carefully. Looking at the code, I can see it's a fallback provider that raises errors when used. Let me check the `chat_completion_stream` method more closely:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+70, 'end_line': 95})
+
+[result]     "_HistoryMixin",
+    "_InitMixin",
+    "_InputHandlerMixin",
+    "_MessageHandlerMixin",
+    "_NullProvider",
+    "_PaneActionMixin",
+    "_ProviderMixin",
+    "_ProxyMixin",
+    "_PublicAPIMixin"...
+Let me look at the actual `_NullProvider` class implementation:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 150})
+
+[result] }
+
 
 # ------------------------------------------------------------------ #
-# Constants                            ...
+# NullProvider (fallback when no real provider is configured)          #
+# --------------------------------------------------...
+Now I need to analyze this through the **Four Lenses of Failure**:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_NullProvider.chat_completion_stream` method, I see a potential **Logic Gap**:
+
+```python
+async def chat_completion_stream(
+    self: _NullProvider,
+    _messages: list[Message],
+    _tools: list[ToolDeclaration] | None = None,
+    **_kwargs: Any,
+) -> AsyncIterator[StreamChunk]:
+    """Raise an error indicating no provider is configured."""
+    if False:  # pragma: no cover
+        yield StreamChunk()  # Makes this an async generator for type checking
+    raise RuntimeError(_NO_PROVIDER_MSG)
+```
+
+**The Bug**: The `if False:` statement with a `yield` inside creates an unreachable code path that's meant to make the function an async generator for type checking. However, when the `RuntimeError` is raised, the function never actually yields anything, which means it's not a proper async generator. Async generators should yield at least one value before raising an exception, or the exception should be raised before the first `yield`.
+
+**Expected vs Observed**:
+- **Expected**: When called as an async generator, it should either yield something (even if just a placeholder) or raise the exception immediately without the unreachable yield.
+- **Observed**: The function has an unreachable `yield` statement that makes it technically an async generator, but when the exception is raised, no values are yielded, which could cause issues with code expecting a proper async generator.
+
+## Phase 2: State & Side Effects
+
+The `_NullProvider` is stateless, so no issues here.
+
+## Phase 3: Performance & Resource Management
+
+No performance issues, but the unreachable code could cause confusion.
+
+## Phase 4: The Forensic Refactor
+
+The fix should be to either:
+1. Remove the `if False:` guard and always yield a placeholder `StreamChunk` before raising the exception
+2. Or raise the exception immediately without the unreachable yield
+
+Actually, looking more carefully at the code, I think there's a **more serious bug**: The `if False:` statement with `yield` inside creates an async generator, but when `RuntimeError` is raised immediately, the generator never yields anything. This could cause issues with code that expects to iterate over the generator.
+
+Let me check if there are any tests that might be failing because of this:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'start_line': 40, 'end_line': 60})
+
+[result]         provider = self._make_null_provider()
+        with pytest.raises(RuntimeError):
+            await provider.chat_completion([])
+
+    @pytest.mark.anyio
+    async def test_null_provider_chat_com...
+The test shows that it expects to iterate over the generator (`async for _ in result:`), but the generator raises an exception immediately. This is actually correct behavior for an async generator - it can raise an exception without yielding anything.
+
+However, let me think about this more carefully. The issue is that the `if False:` with `yield` creates an async generator function, but the `yield` statement is unreachable. This is a code smell but not necessarily a bug in functionality.
+
+Let me look for other potential bugs. Let me check the `_read_context_file_content` function:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+220, 'end_line': 260})
+
+[result] 
+
+async def _read_context_file_content(path: Path) -> str:
+    """Read a context file and return formatted display content.
+
+    Args:
+        path: Path to the file to read.
+
+    Returns:
+        For...
+Wait, I see a potential bug in `_read_context_file_content`! Look at the logic:
+
+```python
+try:
+    stat = await asyncio.to_thread(path.stat)
+    size_kb = stat.st_size / _FILE_SIZE_DIVISOR
+except OSError as exc:
+    return f"[bold]{path.name}[/bold] - Error getting file info: {exc}"
+
+try:
+    full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
+except (OSError, UnicodeDecodeError) as exc:
+    return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {exc}"
+```
+
+**The Bug**: If the first `try` block fails (OSError when calling `path.stat()`), the function returns early with an error message. But if the second `try` block fails, it tries to use `size_kb` in the error message. However, `size_kb` was only calculated in the first `try` block which succeeded. This is fine.
+
+Actually, wait. Let me re-examine. The real issue might be elsewhere. Let me look at the `_fill_context_tree` function:
+
+```python
+def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
+    """Discover and mount context files into a Tree widget.
+
+    Args:
+        tree: The Tree widget to populate.
+    """
+    try:
+        context_loader = _import_module("henchman.config.context").ContextLoader()
+        files = context_loader.discover_files()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to load context files: %s", exc)  # noqa: TRY400
+        with contextlib.suppress(Exception):
+            tree.root.add_leaf(f"Error loading context: {exc}")
+        return
+```
+
+There's a `logger.error` call with a `# noqa: TRY

@@ -418,7 +418,13 @@ class PluginManager(ExtensionManager):
             raise
 
     async def check_updates(self: PluginManager) -> dict[str, PluginUpdateInfo]:
-        """Return available updates for installed plugins."""
+        """Return available updates for installed plugins.
+
+        Returns:
+            Dictionary mapping plugin names to PluginUpdateInfo objects for plugins
+            that have newer versions available in the registry. Empty dictionary
+            if all plugins are up-to-date.
+        """
         updates: dict[str, PluginUpdateInfo] = {}
         for plugin_name, installation in self.installed_plugins.items():
             latest_metadata = await self.get_plugin_info(plugin_name)

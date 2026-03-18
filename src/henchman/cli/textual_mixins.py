@@ -136,9 +136,9 @@ class _NullProvider(ModelProvider):
         **_kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
-        raise RuntimeError(_NO_PROVIDER_MSG)
         if False:  # pragma: no cover
             yield StreamChunk()  # Makes this an async generator for type checking
+        raise RuntimeError(_NO_PROVIDER_MSG)
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""
@@ -500,20 +500,19 @@ class _InitMixin:
         # collisions when memory addresses are reused after garbage collection
         # Use lock to make counter increment atomic in concurrent execution
         # But for backward compatibility with tests, check if lock exists
-        if hasattr(self, '_confirm_lock'):
-            # Use async with for asyncio.Lock
-            async with self._confirm_lock:  # type: ignore[attr-defined]
-                req_id = self._confirm_counter  # type: ignore[attr-defined]
-                self._confirm_counter += 1  # type: ignore[attr-defined]
-                # Check if _confirm_futures exists before storing future
-                if hasattr(self, '_confirm_futures'):
-                    self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
-        else:
+        if not hasattr(self, '_confirm_lock'):
+            # Create lock if it doesn't exist (for backward compatibility)
+            # This fixes the race condition in the old else branch
+            self._confirm_lock = asyncio.Lock()
+        
+        # Use async with for asyncio.Lock
+        async with self._confirm_lock:  # type: ignore[attr-defined]
             req_id = self._confirm_counter  # type: ignore[attr-defined]
             self._confirm_counter += 1  # type: ignore[attr-defined]
-            # Check if _confirm_futures exists before storing future
-            if hasattr(self, '_confirm_futures'):
-                self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+            # Ensure _confirm_futures exists (for backward compatibility)
+            if not hasattr(self, '_confirm_futures'):
+                self._confirm_futures = {}
+            self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
             # Try to set the future result
