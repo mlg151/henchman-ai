@@ -356,6 +356,7 @@ class OpenAICompatibleProvider(ModelProvider):
 
             if finish_reason and pending_tool_calls:
                 tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
+                pending_tool_calls.clear()  # prevent re-yield if API sends multiple finish chunks
 
             yield StreamChunk(
                 content=content,

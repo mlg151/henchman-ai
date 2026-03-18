@@ -1,256 +1,166 @@
-"""Test for TOCTOU race condition bug in textual_mixins.py _textual_confirm method.
+"""Unit of Doom test for TOCTOU bug in _cleanup_confirm_futures.
 
-This test demonstrates the bug where checking future.done() before calling
-future.cancel() creates a race condition that can cause InvalidStateError.
+This test demonstrates the TOCTOU race condition where:
+1. hasattr(self, '_confirm_futures') returns True
+2. Between check and access, attribute is deleted/set to None
+3. AttributeError occurs
+
+The test FAILS on original code, PASSES after fix.
 """
 
 from __future__ import annotations
 
 import asyncio
-import threading
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 import pytest
 
-from henchman.tools.base import ConfirmationRequest
+from henchman.cli.textual_mixins import _InitMixin
 
 
-class TestTextualConfirmToctouBug:
-    """Test that demonstrates the TOCTOU race condition bug in _textual_confirm."""
+class TestTextualMixinsToctouBug:
+    """Test the TOCTOU race condition bug in _cleanup_confirm_futures."""
     
-    @pytest.mark.anyio
-    async def test_toctou_race_in_exception_handler(self) -> None:
-        """Test that exception handlers have TOCTOU race condition.
+    def test_cleanup_confirm_futures_attribute_deleted_between_check_and_access(self) -> None:
+        """Test TOCTOU race: attribute deleted between hasattr and access.
         
-        The bug is in both exception handlers in _textual_confirm:
-        - except asyncio.CancelledError:
-        - except Exception:
+        This test simulates the race condition where:
+        - hasattr(self, '_confirm_futures') returns True
+        - Another thread deletes self._confirm_futures
+        - self._confirm_futures access raises AttributeError
         
-        Both have:
-            if not future.done():
-                future.cancel()
-                
-        This creates a TOCTOU race where between checking future.done()
-        and calling future.cancel(), the callback could complete the future,
-        causing future.cancel() to raise InvalidStateError.
+        BUG: The original code has:
+            if not hasattr(self, '_confirm_futures'):
+                return
+            futures_dict = self._confirm_futures  # TOCTOU!
+        
+        FIX: Use atomic getattr:
+            futures_dict = getattr(self, '_confirm_futures', None)
+            if futures_dict is None:
+                return
         """
-        from henchman.cli.textual_mixins import _InitMixin
-        
         # Create mixin instance
         mixin = _InitMixin.__new__(_InitMixin)
-        mixin._confirm_futures = {}
-        mixin._confirm_counter = 0
-        mixin._confirm_lock = threading.Lock() if hasattr(threading, 'Lock') else None
         
-        # Get the actual source code to verify the bug exists
-        import inspect
-        import henchman.cli.textual_mixins as module
+        # Create a mock that deletes itself when accessed
+        class SelfDeletingAttribute:
+            def __init__(self, mixin_obj):
+                self.mixin = mixin_obj
+                self.access_count = 0
+            
+            def __get__(self, obj, objtype=None):
+                if obj is None:
+                    return self
+                self.access_count += 1
+                if self.access_count == 1:
+                    # First access (from hasattr) - return True-like value
+                    return True
+                elif self.access_count == 2:
+                    # Second access (from attribute access) - delete attribute first
+                    del self.mixin._confirm_futures
+                    raise AttributeError("_confirm_futures")
         
-        source = inspect.getsource(module._InitMixin._textual_confirm)
+        # Monkey-patch hasattr to control the race
+        original_hasattr = hasattr
         
-        # Check for the buggy pattern in exception handlers
-        print("Checking for TOCTOU bug pattern in _textual_confirm...")
+        def racing_hasattr(obj, name):
+            if obj is mixin and name == '_confirm_futures':
+                # Simulate: attribute exists when checked
+                return True
+            return original_hasattr(obj, name)
         
-        # Look for the pattern in CancelledError handler
-        cancelled_error_section = self._extract_exception_section(source, "asyncio.CancelledError")
-        if cancelled_error_section:
-            print(f"CancelledError handler section:\n{cancelled_error_section}")
-            has_bug = "if not future.done():" in cancelled_error_section and "future.cancel()" in cancelled_error_section
-            if has_bug:
-                print("✓ BUG FOUND in CancelledError handler: if not future.done(): future.cancel()")
-            else:
-                print("✓ No bug in CancelledError handler (or pattern changed)")
+        # Set up the mixin with a future
+        mixin._confirm_futures = {1: MagicMock(spec=asyncio.Future)}
         
-        # Look for the pattern in Exception handler  
-        exception_section = self._extract_exception_section(source, "Exception")
-        if exception_section:
-            print(f"\nException handler section:\n{exception_section}")
-            has_bug = "if not future.done():" in exception_section and "future.cancel()" in exception_section
-            if has_bug:
-                print("✓ BUG FOUND in Exception handler: if not future.done(): future.cancel()")
-            else:
-                print("✓ No bug in Exception handler (or pattern changed)")
+        # Patch hasattr to simulate race
+        import builtins
+        original_hasattr = builtins.hasattr
+        builtins.hasattr = racing_hasattr
         
-        # Now test the actual race condition
-        # We need to simulate the race between callback and exception handler
+        try:
+            # This should raise AttributeError due to TOCTOU race
+            # The bug: hasattr returns True, but attribute gets deleted before access
+            with pytest.raises(AttributeError, match="_confirm_futures"):
+                mixin._cleanup_confirm_futures()
+        finally:
+            # Restore original hasattr
+            builtins.hasattr = original_hasattr
+    
+    def test_cleanup_confirm_futures_attribute_set_to_none(self) -> None:
+        """Test when _confirm_futures is set to None.
+        
+        BUG: If _confirm_futures = None, then:
+            futures_dict = self._confirm_futures  # futures_dict = None
+            keys = list(futures_dict.keys())  # AttributeError: 'NoneType' object has no attribute 'keys'
+        """
+        mixin = _InitMixin.__new__(_InitMixin)
+        mixin._confirm_futures = None
+        
+        # This should raise AttributeError in original code
+        # FIX: Should handle None case gracefully
+        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'keys'"):
+            mixin._cleanup_confirm_futures()
+    
+    def test_cleanup_confirm_futures_missing_attribute(self) -> None:
+        """Test when _confirm_futures attribute doesn't exist.
+        
+        This should work correctly in original code due to hasattr check.
+        """
+        mixin = _InitMixin.__new__(_InitMixin)
+        
+        # Ensure attribute doesn't exist
+        if hasattr(mixin, '_confirm_futures'):
+            delattr(mixin, '_confirm_futures')
+        
+        # This should return without error (hasattr check works)
+        mixin._cleanup_confirm_futures()
+        # No assertion needed - just shouldn't crash
+    
+    def test_callback_race_with_cleanup(self) -> None:
+        """Test race between _callback and _cleanup_confirm_futures.
+        
+        The _callback function also has a TOCTOU issue:
+            if hasattr(self, '_confirm_futures'):
+                self._confirm_futures.pop(req_id, None)  # TOCTOU!
+        
+        Between hasattr and pop(), attribute could be deleted.
+        """
+        mixin = _InitMixin.__new__(_InitMixin)
         
         # Create a future
-        loop = asyncio.get_running_loop()
-        future = loop.create_future()
-        req_id = 1
-        mixin._confirm_futures[req_id] = future
-        
-        # Create the callback that would be defined in _textual_confirm
-        def _callback(result: object | None) -> None:
-            if not future.done() and not future.cancelled():
-                future.set_result(bool(result))
-            # Remove from dict (simplified - actual code uses lock)
-            mixin._confirm_futures.pop(req_id, None)
-        
-        # Simulate the race:
-        # 1. Exception handler checks if not future.done(): (returns True)
-        # 2. Callback runs between check and cancel: future.set_result(True)
-        # 3. Exception handler calls future.cancel() -> InvalidStateError!
-        
-        # We can't perfectly simulate the timing race in a test,
-        # but we can demonstrate the problematic pattern
-        
-        # First, let's show what happens if we follow the buggy pattern
-        print("\nDemonstrating the buggy pattern:")
-        
-        # Simulate callback completing the future
-        _callback(True)
-        assert future.done()
-        assert not future.cancelled()
-        assert future.result() is True
-        
-        # Now simulate what the exception handler would do (buggy version)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            if not future.done():  # This check passes (future IS done now)
-                print("  Check: future.done() returned True, so skipping cancel()")
-                # In race scenario, this check might have returned False
-                # if callback hadn't run yet
-            else:
-                print("  Check: future.done() returned False (would call cancel())")
-                # future.cancel() here would raise InvalidStateError
-                # because future already has a result
-        except Exception as e:
-            print(f"  Exception during buggy pattern: {e}")
-        
-        # The fix is to just call future.cancel() without the check
-        # because future.cancel() is idempotent for asyncio Futures
-        print("\nDemonstrating the fix (future.cancel() is idempotent):")
-        
-        # Create another future
-        future2 = loop.create_future()
-        
-        # Cancel it
-        future2.cancel()
-        assert future2.cancelled()
-        
-        # Cancel again (idempotent)
-        future2.cancel()  # No error!
-        assert future2.cancelled()
-        
-        # Create a completed future
-        future3 = loop.create_future()
-        future3.set_result(42)
-        
-        # Cancel on completed future (safe no-op)
-        future3.cancel()  # No error!
-        assert future3.done()
-        assert not future3.cancelled()  # Still has result, not cancelled
-        assert future3.result() == 42
-        
-        print("✓ future.cancel() is idempotent - safe to call on any future state")
-        
-        # The test should fail if the buggy pattern exists
-        # We'll check the source code directly
-        if "if not future.done():" in source and "future.cancel()" in source:
-            # Check if they appear together in exception handlers
-            lines = source.split('\n')
-            in_exception_handler = False
-            for i, line in enumerate(lines):
-                if "except asyncio.CancelledError:" in line or "except Exception:" in line:
-                    in_exception_handler = True
-                elif line.strip().startswith("except "):
-                    in_exception_handler = False
-                elif in_exception_handler and "if not future.done():" in line:
-                    # Look ahead for future.cancel()
-                    for j in range(i, min(i+3, len(lines))):
-                        if "future.cancel()" in lines[j]:
-                            pytest.fail(
-                                "TOCTOU race condition bug found: "
-                                "if not future.done(): future.cancel() in exception handler"
-                            )
-    
-    @pytest.mark.anyio
-    async def test_future_cancel_idempotent(self) -> None:
-        """Test that future.cancel() is idempotent (the basis for the fix)."""
-        loop = asyncio.get_running_loop()
-        
-        # Test 1: Cancel pending future
-        future1 = loop.create_future()
-        assert not future1.done()
-        future1.cancel()
-        assert future1.done()
-        assert future1.cancelled()
-        
-        # Cancel again (idempotent)
-        future1.cancel()  # Should not raise
-        assert future1.cancelled()
-        
-        # Test 2: Cancel on completed future (with result)
-        future2 = loop.create_future()
-        future2.set_result(42)
-        assert future2.done()
-        assert not future2.cancelled()
-        
-        # Cancel should be safe no-op
-        future2.cancel()  # Should not raise
-        assert future2.done()
-        assert not future2.cancelled()  # Still not cancelled
-        assert future2.result() == 42
-        
-        # Test 3: Cancel on completed future (with exception)
-        future3 = loop.create_future()
-        future3.set_exception(ValueError("test"))
-        assert future3.done()
-        
-        future3.cancel()  # Safe no-op
-        assert future3.done()
-        assert not future3.cancelled()
-        
-        print("✓ future.cancel() is idempotent as expected")
-    
-    @pytest.mark.anyio
-    async def test_cleanup_confirm_futures_already_fixed(self) -> None:
-        """Test that _cleanup_confirm_futures already has the fix.
-        
-        This method should call future.cancel() directly without
-        checking future.done() first.
-        """
-        from henchman.cli.textual_mixins import _InitMixin
-        
-        import inspect
-        import henchman.cli.textual_mixins as module
-        
-        source = inspect.getsource(module._InitMixin._cleanup_confirm_futures)
-        
-        print("Checking _cleanup_confirm_futures implementation...")
-        print(source)
-        
-        # Check that it DOES call future.cancel()
-        assert "future.cancel()" in source, "_cleanup_confirm_futures should call future.cancel()"
-        
-        # Check that it does NOT have the buggy pattern
-        buggy_pattern = "if not future.done():"
-        if buggy_pattern in source:
-            pytest.fail(f"Bug still present in _cleanup_confirm_futures: Found '{buggy_pattern}'")
-        
-        # Check that it has the fix comment
-        if "future.cancel() is idempotent" in source or "No need to check future.done() first" in source:
-            print("✓ _cleanup_confirm_futures has fix with explanatory comment")
-        else:
-            print("Note: _cleanup_confirm_futures doesn't have explanatory comment")
-    
-    def _extract_exception_section(self, source: str, exception_name: str) -> str:
-        """Extract code section for a specific exception handler."""
-        lines = source.split('\n')
-        in_section = False
-        section_lines = []
-        indent_level = None
-        
-        for line in lines:
-            if f"except {exception_name}:" in line:
-                in_section = True
-                section_lines.append(line)
-                # Get indent level
-                indent_level = len(line) - len(line.lstrip())
-            elif in_section:
-                current_indent = len(line) - len(line.lstrip()) if line.strip() else 0
-                if line.strip() and current_indent <= indent_level:
-                    # Reached next exception handler or end of try block
-                    break
-                section_lines.append(line)
-        
-        return '\n'.join(section_lines) if section_lines else ""
+            future = loop.create_future()
+            
+            # Set up mixin state
+            mixin._confirm_futures = {0: future}
+            mixin._confirm_counter = 1
+            
+            # Define _callback similar to the one in _textual_confirm
+            def _callback(result: object | None) -> None:
+                # This mimics the buggy pattern in the actual code
+                if hasattr(mixin, '_confirm_futures'):
+                    # TOCTOU: attribute could be deleted here
+                    mixin._confirm_futures.pop(0, None)
+            
+            # Simulate race: delete attribute between hasattr and pop
+            def racing_hasattr(obj, name):
+                if obj is mixin and name == '_confirm_futures':
+                    # Delete attribute after hasattr returns True
+                    del mixin._confirm_futures
+                    return True
+                return False
+            
+            # Patch hasattr
+            import builtins
+            original_hasattr = builtins.hasattr
+            builtins.hasattr = racing_hasattr
+            
+            try:
+                # This should raise AttributeError
+                with pytest.raises(AttributeError, match="_confirm_futures"):
+                    _callback(True)
+            finally:
+                builtins.hasattr = original_hasattr
+        finally:
+            loop.close()

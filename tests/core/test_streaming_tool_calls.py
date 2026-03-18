@@ -133,3 +133,36 @@ class TestStreamingToolCallAccumulation:
         assert agent.messages[-1].tool_call_id == "stream_call"
         assert agent.messages[-2].role == "assistant"
         assert agent.messages[-2].tool_calls[0].id == "stream_call"
+
+    @pytest.mark.anyio
+    async def test_no_tool_triplication_on_multiple_finish_chunks(self):
+        """Regression test: tool calls must not triplicate when provider sends
+        multiple chunks carrying finish_reason (e.g. some OpenAI-compat APIs)."""
+        tool_call = ToolCall(id="call_x", name="shell", arguments={"command": "ls"})
+        chunks = [
+            # Normal delta chunks carry the tool call pieces
+            StreamChunk(tool_calls=[tool_call], finish_reason=None),
+            # API sends finish_reason on three consecutive chunks (the triplication trigger)
+            StreamChunk(finish_reason=FinishReason.TOOL_CALLS),
+            StreamChunk(finish_reason=FinishReason.TOOL_CALLS),
+            StreamChunk(finish_reason=FinishReason.TOOL_CALLS),
+        ]
+
+        provider = MockStreamingProvider(chunks)
+        agent = Agent(provider=provider, tool_registry=ToolRegistry())
+
+        events = []
+        async for event in agent.run("Test"):
+            events.append(event)
+
+        tool_call_events = [e for e in events if e.type == EventType.TOOL_CALL_REQUEST]
+        assert len(tool_call_events) == 1, (
+            f"Expected exactly 1 TOOL_CALL_REQUEST, got {len(tool_call_events)} "
+            "(triplication bug)"
+        )
+
+        # Only one assistant message should be appended to history
+        assistant_messages = [m for m in agent.messages if m.role == "assistant"]
+        assert len(assistant_messages) == 1, (
+            f"Expected 1 assistant message, got {len(assistant_messages)}"
+        )

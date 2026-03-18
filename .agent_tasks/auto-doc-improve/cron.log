@@ -177805,3 +177805,167 @@ INFO    -  Documentation built in 1.10 seconds
 }
 [2026-03-18T12:00:01Z] Verification passed.
 Committing changes...
+[main ff5d528] docs(auto-improve): automated documentation improvement
+ 17 files changed, 4622 insertions(+), 550 deletions(-)
+ create mode 100644 tests/cli/test_textual_mixins_boolean_bug_unit_of_doom.py
+ create mode 100644 tests/cli/test_textual_mixins_four_lenses_real_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_future_cancel_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_real_functional_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_unit_of_doom.py
+[2026-03-18T12:00:01Z] Done.
+[2026-03-18T14:00:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the current state of the documentation to understand what needs improvement. The smell report shows a perfect score of 100.0/100 with no smells, which is excellent. However, I should still verify if there are any subtle issues that might not be captured by the automated detection.
+
+Let me first check what was done in the last improvement to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-18T12:05:00Z
+
+## Files Changed
+1. `src/henchman/mcp/manager.py`
+
+## Smell Category Addressed
+**Incomplete Docstring** (LOW severity) - Two method...
+Now let me check the current documentation structure to see if there are any subtle issues that might need attention. Since the smell report shows a perfect score, I should look for potential improvements that might not be caught by automated detection. Let me examine the mkdocs.yml configuration to ensure all documentation pages are properly organized:
+[tool] read_file({'path': 'mkdocs.yml'})
+
+[result] site_name: Henchman-AI
+site_url: https://github.com/mlg151/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
+
+repo_name: mlg151/henchman-ai
+repo_...
+The mkdocs.yml looks well-structured. Let me check if there are any documentation files that might not be included in the navigation. Let me look at the docs directory structure:
+[tool] ls({'path': 'docs'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+RELEASE_CHECKLIST.md
+agents.md
+api.md
+architecture.md
+configuration.md
+evals/
+extensions.md
+getting-started.md
+index.md
+intelligent-context-management.md
+javascripts/
+mcp....
+All documentation files appear to be in the navigation. Let me check if there are any root-level documentation files that might need to be linked or if there are any consistency issues. Let me examine the README.md to see if it aligns with the documentation:
+[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 50})
+
+[result] # Henchman-AI
+
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+The README looks good. Let me check if there are any inconsistencies between the README and the documentation. Let me look at the tools documentation to ensure it matches the actual tools available:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 100})
+
+[result] # Tools
+
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
+can use to interact with your system.
+
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|---...
+The tools documentation looks comprehensive and matches what I see in the tools directory. Let me check if there are any tools missing from the documentation by comparing with the actual tools directory:
+[tool] ls({'path': 'src/henchman/tools/builtins'})
+
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+ask_user.py
+ask_user.py,cover
+code_format.py
+code_format.py,cover
+coverage_map.py
+coverage_map.py,cover
+dead_code.py
+dead_code.py,cover
+deep_research.py
+deep...
+I count 34 Python files (excluding `__init__.py`, `__pycache__/`, and `.py,cover` files), which matches the documentation. However, I notice there's a `shell.py.backup` file that shouldn't be there. Let me check if this is an issue:
+[tool] read_file({'path': 'src/henchman/tools/builtins/shell.py.backup', 
+'start_line': 1, 'end_line': 10})
+
+[result] """Shell tool implementation.
+
+Executes shell commands with timeout support, output capture, and
+optional interactive sudo via PTY forwarding.
+"""
+
+from __future__ import annotations
+
+import asyncio
+i...
+This appears to be a backup file that shouldn't be in the repository. This is a documentation issue because it's extraneous code that could confuse developers. Let me check if this file is tracked by git:
+[tool] git_ops({'action': 'status', 'path': 'src/henchman/tools/builtins'})
+
+[result] ## main...origin/main [ahead 10]
+ M .agent_tasks/auto-doc-improve/cron.log
+ M .agent_tasks/auto-doc-improve/doc-smell-report.md
+ M .agent_tasks/auto-doc-improve/last-run.log
+ M .agent_tasks/auto-impro...
+I need to focus on my role as Tech Lead. Let me check the current working memory and understand the task at hand. I'm looking at documentation improvement, and I found a backup file that shouldn't be in the repository. This is a documentation/cleanliness issue that should be addressed.
+
+Let me first check if there are any other backup files in the codebase:
+[tool] shell({'command': 'find . -name "*.backup" -o -name "*.bak" -o -name 
+"*.old" -o -name "*~" | grep -v ".git" | grep -v "__pycache__" | head -20'})
+
+[result] ./src/henchman/tools/builtins/shell.py.backup
+./src/henchman/providers/openai_compat.py.backup
+./src/henchman/cli/commands/session.py.backup
+./src/henchman/cli/commands/session.py.bak
+./src/henchman/c...
+There are multiple backup files in the repository! This is a documentation/cleanliness issue. These backup files shouldn't be tracked in the repository. Let me check if they're actually needed or if they're accidental leftovers:
+[tool] shell({'command': 'ls -la ./src/henchman/tools/builtins/shell.py*'})
+
+[result] -rw-rw-r-- 1 matthew matthew 23118 Mar 16 20:26 
+./src/henchman/tools/builtins/shell.py
+-rw-rw-r-- 1 matthew matthew 21576 Feb 26 14:40 
+./src/henchman/tools/builtins/shell.py.backup
+-rw-rw-r-- 1 matthe...
+The backup file is older than the current file. Let me check the content difference to see if it's actually needed:
+[tool] shell({'command': 'diff -u ./src/henchman/tools/builtins/shell.py.backup 
+./src/henchman/tools/builtins/shell.py | head -50'})
+
+[result] --- ./src/henchman/tools/builtins/shell.py.backup      2026-02-26 
+14:40:10.825511655 -0500
++++ ./src/henchman/tools/builtins/shell.py      2026-03-16 20:26:22.755722866 
+-0400
+@@ -8,20 +8,26 @@
+ 
+ import asyncio...
+The
+[tech_lead] completed work
+[2026-03-18T14:00:02Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.41 seconds
+[2026-03-18T14:00:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-18T14:00:02Z] Verification passed.
+Committing changes...

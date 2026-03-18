@@ -13,7 +13,7 @@ class TestTruncationRefactor:
         """Set up test fixture."""
         self.truncator = IntelligentTruncator(safety_limit=100)
     
-    @patch('henchman.utils.intelligent_context.TokenCounter')
+    @patch('henchman.utils.intelligent_context_formatter.TokenCounter')
     def test_truncate_with_marker_consolidated(self, mock_token_counter):
         """Test the consolidated truncate_with_marker method."""
         # Mock token counting
