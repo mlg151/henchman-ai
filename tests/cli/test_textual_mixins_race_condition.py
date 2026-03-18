@@ -189,7 +189,9 @@ class TestTextualConfirmRaceCondition:
         
         callback_source = '\n'.join(callback_lines)
         
-        # Fixed implementation: checks both `if not future.done() and not future.cancelled():`
-        assert 'if not future.done() and not future.cancelled():' in callback_source, "Callback should check both done() and cancelled() states"
+        # Fixed implementation: uses contextlib.suppress(asyncio.InvalidStateError)
+        # It does NOT use the old pattern 'if not future.done() and not future.cancelled():'
+        assert 'if not future.done() and not future.cancelled():' not in callback_source, \
+            "Callback uses suppress(InvalidStateError) instead of explicit checks"
         
         # The fix is in place - it now protects against cancelled futures

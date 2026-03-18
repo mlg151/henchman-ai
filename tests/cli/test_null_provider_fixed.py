@@ -61,7 +61,8 @@ def test_method_still_raises():
         
         async def test():
             with pytest.raises(RuntimeError, match="No model provider available"):
-                async for _ in provider.chat_completion_stream([]):
+                stream = await provider.chat_completion_stream([])
+                async for _ in stream:
                     pass
         
         asyncio.run(test())

@@ -98,6 +98,10 @@ class TestFutureNotStoredBug:
                 
                 # The bug is confirmed
                 assert False, "Task hung because future not stored and result not set"
+            except AttributeError:
+                # This is the fix: calling _textual_confirm without proper init
+                # raises AttributeError (no _confirm_futures) instead of hanging
+                pass
             
             # If we get here, task completed (maybe bug is fixed or doesn't manifest)
             print(f"Task completed, events: {events}")

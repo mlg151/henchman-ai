@@ -1,26 +1,27 @@
-[2026-03-18T14:00:03Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T16:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-18T14:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T16:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — 👍 B (Score: 80.1/100)
+[result] # Code Smell Report — 👍 B (Score: 80.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T14:00:36.997092+00:00_
+_Generated: 2026-03-18T16:00:42.937629+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me read the target file to understand its structure and functionality:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+Now let me read the target file to understand its structure and identify potential bugs:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -28,77 +29,9 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-Now let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual_mixins*'})
-
-[result] 
-tests/cli/__pycache__/test_textual_mixins_actual_bug.cpython-312-pytest-9.0.2.py
-c
-tests/cli/__pycache__/test_textual_mixins_asyncio_lock_bug.cpython-312-pytest-9.
-0.2.pyc
-tests/cli/__pycache__/test_tex...
-Let me look at the actual test files to understand what's already been tested:
-[tool] ls({'path': 'tests/cli'})
-
-[result] __init__.py
-__pycache__/
-commands/
-test_additional_coverage.py
-test_agent_command.py
-test_app.py
-test_app_coverage_100.py
-test_app_extended.py
-test_app_input_coverage.py
-test_builtins.py
-test_chat_com...
-I can see there are many test files for textual_mixins. Let me examine the file more closely to understand its structure and identify potential bugs. First, let me create the documentation stub as required:
-[tool] write_file({'path': 
-'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
-Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
-2025-03-18T14:00:00Z\n## Bug Summary\nThe `_NullProvider.chat_completion_stream`
-method has an unreachable `yield` statement inside `if False:` that makes the 
-function appear to be a generator but will never actually yield, causing type 
-checking issues and potential runtime confusion.\n\n## Lens\n**Phase 1: The 
-Intent vs. Reality Check** - Logic Gaps\n\n## Expected vs. Observed\n| Expected 
-Behavior | Observed Risk |\n|---|---|\n| `_NullProvider.chat_completion_stream` 
-should either properly implement the async generator interface or raise an error
-without pretending to be a generator | The method has `if False: yield 
-StreamChunk()` which creates an unreachable code path that makes static analysis
-tools think it's a generator when it's not |\n| Type checkers should see the 
-method returns `AsyncIterator[StreamChunk]` | The unreachable `yield` tricks 
-type checkers into thinking it's a valid generator |\n| The method should 
-clearly communicate it cannot stream | The `if False:` construct is a hack that 
-obscures the actual behavior |\n\n## Root Cause\nThe `_NullProvider` class is a 
-fallback provider that raises `RuntimeError` when used. The 
-`chat_completion_stream` method needs to be an async generator (returning 
-`AsyncIterator[StreamChunk]`) to satisfy the `ModelProvider` interface, but it 
-never actually yields anything - it only raises an exception. The developer 
-added `if False: yield StreamChunk()` to make the function syntactically an 
-async generator, but this creates dead code and confuses both humans and 
-tools.\n\n## Fix Plan\nRemove the `if False:` guard and the unreachable `yield` 
-statement. Instead, make the method a proper async generator that immediately 
-raises the `RuntimeError`. This can be done by either:\n1. Keeping it as an 
-async generator with `async def` and `raise` (which is valid Python)\n2. Or 
-restructuring to avoid the unreachable code\n\n## Status: IN PROGRESS"})
-
-[result] Successfully wrote 1959 bytes to 
-.agent_tasks/four-lenses-cli-textual_mixins/README.md...
-Now let me examine the specific code in question more closely:
+Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-70, 'end_line': 100})
-
-[result]     "_HistoryMixin",
-    "_InitMixin",
-    "_InputHandlerMixin",
-    "_MessageHandlerMixin",
-    "_NullProvider",
-    "_PaneActionMixin",
-    "_ProviderMixin",
-    "_ProxyMixin",
-    "_PublicAPIMixin"...
-
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 130})
+100, 'end_line': 300})
 
 [result] }
 
@@ -106,86 +39,226 @@ Now let me examine the specific code in question more closely:
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
 # --------------------------------------------------...
-
+Let me continue reading to see the main functionality, particularly around the `_textual_confirm` method mentioned in the smell report:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-130, 'end_line': 150})
+450, 'end_line': 600})
 
-[result]         raise RuntimeError(_NO_PROVIDER_MSG)
+[result]                 "UIRenderer": app_module.UIRenderer,
+                "OutputHandler": app_module.OutputHandler,
+                "ToolExecutor": app_module.ToolExecutor,
+                "CommandProcess...
+Now let me check the tests for this file to understand what functionality needs to be preserved:
+[tool] glob({'pattern': '**/test*textual_mixins*.py'})
 
-    async def chat_completion_stream(
-        self: _NullProvider,
-        _messages: list[Message],
-        _tools: list[ToolDeclaration] | None = None,
+[result] tests/cli/test_textual_mixins_actual_bug.py
+tests/cli/test_textual_mixins_asyncio_lock_bug.py
+tests/cli/test_textual_mixins_attribute_error_bug.py
+tests/cli/test_textual_mixins_bool_conversion_bug.py
 ...
-✗ \[error] Command timed out after 3600.0 seconds. Partial output:
-(no output)
-Now I need to examine the code through the Four Lenses to identify a real bug. Let me analyze the `_NullProvider.chat_completion_stream` method more carefully:
-
-**Phase 1: The Intent vs. Reality Check**
-- **Logic Gaps**: The method has `if False: yield StreamChunk()` which is unreachable code. This is a hack to make the function appear as an async generator for type checking, but it creates dead code.
-- **Type Safety**: The method signature returns `AsyncIterator[StreamChunk]`, but it never actually yields anything (the yield is unreachable). This could confuse static analysis tools.
-
-**Phase 2: State & Side Effects**
-- No shared state issues here - it's a simple fallback class.
-
-**Phase 3: Performance & Resource Management**
-- No performance issues - it just raises an exception.
-
-**Phase 4: The Forensic Refactor**
-- The bug is that the method pretends to be an async generator but isn't one. The `if False:` guard is a code smell.
-
-However, wait - I need to check if this is actually a bug or just a code smell. Let me look at existing tests to see if this has been addressed:
+Interesting! There are many test files for this module. Let me check one of them to understand what bugs have been identified:
 [tool] read_file({'path': 
-'tests/cli/test_textual_mixins_null_provider_unreachable_yield.py'})
+'tests/cli/test_textual_mixins_four_lenses_real_bug.py'})
 
-[result] """Failing test for unreachable yield bug in 
-_NullProvider.chat_completion_stream."""
+[result] """Test for a real bug in textual_mixins.py found through Four Lenses 
+analysis.
 
-from __future__ import annotations
+This test demonstrates a REAL bug that causes InvalidStateError or lost 
+confirmations.
+"""
 
-import ast
-import pytest
+from __future__ import anno...
+Now let me look at the actual `_cleanup_confirm_futures` method to understand the bug:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+600, 'end_line': 650})
 
+[result]         # but we check anyway for safety
+        futures_dict = getattr(self, '_confirm_futures', None)
+        if futures_dict is None:
+            return  # Nothing to clean up
 
-class TestNullProviderUnreachableYieldBug:
-    """...
-The test suite is taking too long. Let me run a smaller subset to check if my changes broke anything:
+        # We're in s...
+Now let me create the bug report stub and analyze the code through the Four Lenses:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
+2025-03-18T16:30:00+00:00\n## Bug Summary\nThe `_cleanup_confirm_futures` method
+has a race condition where it cancels futures while their callbacks might be 
+concurrently trying to set results, causing lost confirmations and potential 
+InvalidStateError exceptions.\n\n## Lens\nPhase 2: State & Side Effects (The 
+Entropy Audit) - Shared State race condition\n\n## Expected vs. Observed\n| 
+Expected Behavior | Observed Risk |\n|---|---|\n| Cleanup should safely cancel 
+pending confirmations without interfering with in-progress callbacks | Callbacks
+may try to set results on futures that are being cancelled, causing 
+InvalidStateError (suppressed) and lost confirmations |\n| App shutdown should 
+gracefully handle pending confirmations | Race between cleanup and callback 
+execution can leave futures in inconsistent states |\n| Each confirmation 
+request should get a definitive result (True/False) | Some confirmations may be 
+lost (future cancelled instead of getting result) |\n\n## Root Cause\nThe 
+`_cleanup_confirm_futures` method is called during app shutdown (on_unmount) and
+cancels all pending confirmation futures. However, these futures may have 
+callbacks that are still executing (e.g., user clicks OK on modal dialog while 
+app is shutting down). The callback uses 
+`contextlib.suppress(asyncio.InvalidStateError)` to handle this race, but the 
+suppression hides the error and the future ends up cancelled instead of having a
+proper result set.\n\nThe race occurs because:\n1. `_cleanup_confirm_futures` 
+pops futures from dict and cancels them\n2. Callbacks (from modal dialogs) may 
+be concurrently trying to set results on these futures\n3. If `future.cancel()` 
+happens while `future.set_result()` is executing, we get InvalidStateError\n4. 
+The error is suppressed, but the confirmation result is lost\n\n## Fix 
+Plan\nModify `_cleanup_confirm_futures` to first check if futures are already 
+done before cancelling them. If a future is already done (has result/exception),
+leave it alone. Only cancel futures that are still pending. This prevents the 
+race condition and ensures completed confirmations maintain their results.\n\n##
+Status: IN PROGRESS'})
+
+[result] Successfully wrote 2201 bytes to 
+.agent_tasks/four-lenses-cli-textual_mixins/README.md...
+I need to examine the code more carefully to understand the actual bug. Let me look at the `_cleanup_confirm_futures` method and the callback logic more closely:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+620, 'end_line': 650})
+
+[result]                     future.cancel()
+                except Exception as exc:  # noqa: BLE001
+                    # Log but continue cleaning up other futures
+                    # This can happen if t...
+Now let me look at the callback logic in `_textual_confirm`:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+525, 'end_line': 580})
+
+[result]         def _callback(result: object | None) -> None:
+            # Try to set the future result
+            # Use contextlib.suppress to handle race where future was cancelled
+            # between c...
+Now I need to think about this more carefully. Looking at the code:
+
+1. The callback uses `contextlib.suppress(asyncio.InvalidStateError)` when calling `future.set_result()`
+2. `_cleanup_confirm_futures` calls `future.cancel()` on all futures
+3. If a future is cancelled while `set_result()` is being called, `InvalidStateError` is raised but suppressed
+
+Actually, wait. Let me re-examine the problem. The callback suppresses `InvalidStateError`, but what happens after that? The future might be cancelled, but the callback still tries to set a result. Actually, looking at the code again:
+
+```python
+with contextlib.suppress(asyncio.InvalidStateError):
+    if result is True:
+        future.set_result(True)
+    elif result is False or result is None:
+        future.set_result(False)
+    else:
+        # ... convert and set result
+```
+
+If `future.set_result()` raises `InvalidStateError` (because the future was cancelled), the error is suppressed and the callback continues. Then it removes the future from the dictionary. So the future ends up cancelled, not with the result.
+
+But actually, I think there's a deeper issue. Let me check what happens when `future.cancel()` is called on a future that already has a result set. Actually, `future.cancel()` should have no effect on a future that's already done (has result or exception). Let me verify this by writing a test:
+[tool] python_exec({'code': 'import asyncio\n\nasync def 
+test_future_cancel_after_set_result():\n    """Test what happens when we cancel 
+a future that already has a result."""\n    loop = asyncio.get_event_loop()\n   
+future = loop.create_future()\n    \n    # Set result first\n    
+future.set_result(True)\n    print(f"Future done after set_result: 
+{future.done()}")\n    print(f"Future result: {future.result()}")\n    \n    # 
+Try to cancel\n    was_cancelled = future.cancel()\n    print(f"future.cancel() 
+returned: {was_cancelled}")\n    print(f"Future cancelled: 
+{future.cancelled()}")\n    print(f"Future done after cancel: 
+{future.done()}")\n    \n    # Try to get result again\n    try:\n        result
+= future.result()\n        print(f"Still can get result: {result}")\n    except 
+Exception as e:\n        print(f"Error getting result: {e}")\n\nasync def 
+test_future_set_result_after_cancel():\n    """Test what happens when we try to 
+set result on cancelled future."""\n    loop = asyncio.get_event_loop()\n    
+future = loop.create_future()\n    \n    # Cancel first\n    future.cancel()\n  
+print(f"\\nFuture cancelled after cancel: {future.cancelled()}")\n    \n    # 
+Try to set result\n    try:\n        future.set_result(True)\n        
+print("set_result succeeded (unexpected!)")\n    except 
+asyncio.InvalidStateError:\n        print("set_result raised InvalidStateError 
+(expected)")\n    \n    print(f"Future done: {future.done()}")\n    
+print(f"Future cancelled: {future.cancelled()}")\n\nif __name__ == "__main__":\n
+asyncio.run(test_future_cancel_after_set_result())\n    
+asyncio.run(test_future_set_result_after_cancel())'})
+
+[result] Future done after set_result: True
+Future result: True
+future.cancel() returned: False
+Future cancelled: False
+Future done after cancel: True
+Still can get result: True
+
+Future cancelled after cancel:...
+Good! So `future.cancel()` returns `False` and has no effect if the future is already done. And `future.set_result()` raises `InvalidStateError` if the future is already done (cancelled or has result).
+
+So the actual bug is: if `_cleanup_confirm_futures` runs while a callback is executing, the callback's `set_result()` will raise `InvalidStateError` (suppressed), and the future ends up cancelled instead of having the user's choice (True/False).
+
+But wait, actually the callback removes the future from the dictionary BEFORE `_cleanup_confirm_futures` can cancel it... unless there's a race. Let me trace through the logic:
+
+1. Callback starts executing (user clicked OK)
+2. Callback tries `future.set_result(True)`
+3. Meanwhile, `_cleanup_confirm_futures` pops future from dict and calls `future.cancel()`
+4. If `cancel()` happens before/during `set_result()`, we get `InvalidStateError`
+
+Actually, I think the real issue is in the order of operations in `_cleanup_confirm_futures`. It does:
+```python
+future = futures_dict.pop(req_id, None)
+if future is not None:
+    future.cancel()
+```
+
+But the callback also does:
+```python
+futures_dict = getattr(self, '_confirm_futures', None)
+if futures_dict is not None:
+    futures_dict.pop(req_id, None)
+```
+
+So both try to pop the future from the dict. Whichever runs first wins. If cleanup runs first and cancels, callback gets `InvalidStateError`. If callback runs first and sets result, cleanup's `cancel()` has no effect.
+
+Actually, I think the bug report I wrote might not be quite right. Let me think about what the actual functional impact is...
+
+Actually, wait! I think I see a REAL bug. Look at the callback code again:
+
+```python
+with contextlib.suppress(asyncio.InvalidStateError):
+    if result is True:
+        future.set_result(True)
+    elif result is False or result is None:
+        future.set_result(False)
+    else:
+        # Unexpected value - log warning and convert to bool
+        logger.warning(...)
+        if result:
+            future.set_result(True)
+        else:
+            future.set_result(False)
+```
+
+The callback suppresses `InvalidStateError` but doesn't check if the future was already done! So if `future.set_result()` fails (because future was cancelled), the callback just continues silently. The future ends up cancelled, not with the user's choice!
+
+The user clicks "OK" (True), but the future gets cancelled instead of getting `True`. That's a bug!
+
+Actually, let me re-read the code more carefully. Oh wait, I see another issue! Look at the `except asyncio.CancelledError` block in `_textual_confirm`:
+
+```python
+except asyncio.CancelledError:
+    # Remove future from dictionary
+    # Use getattr to avoid TOCTOU race with _cleanup_confirm_futures
+    futures_dict = getattr(self, '_confirm_futures', None)
+    if futures_dict is not None:
+        futures_dict.pop(req_id, None)
+    # future.cancel() is idempotent for asyncio Futures
+    # No need to check future.done() first (avoids TOCTOU race)
+    future.cancel()
+    raise
+```
+
+If the `_textual_confirm` coroutine itself is cancelled (e.g., task cancelled), it cancels the future. But what if the callback already set a result? Then `future.cancel()` will have no effect (returns False). That's probably fine.
+
+Actually, I think I need to write a test to understand the actual behavior better. But first, let me check if there are any existing tests that fail:
 [tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_unit_of_doom.py -xvs --tb=short'})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Interesting! There's already a test for this issue. Let me check if the test passes:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_null_provider_unreachable_yield.py -x -q 
---tb=short'})
+tests/cli/test_textual_mixins_four_lenses_real_bug.py -xvs 2>&1 | head -100'})
 
 [result] ============================= test session starts 
 ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
-rootdir: /home/matthew/mlg-cli
-configfile: pyproject.toml
-p...
-Good! The test is failing because it expects an `AttributeError` but now we raise a `RuntimeError`. This is actually better - we're providing a clearer error message. Let me check what the test expectsThe: test passes! So the issue I identified has already been fixed. Let me look more carefully at the actual code to find a real bug. Let me examine the `_textual_confirm` method which was flagged as a long method in the smell report:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-488, 'end_line': 550})
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+The tests pass. Let me run a more comprehensive test to see if there are any failing tests:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins*.py -x 2>&1 | tail -50'})
 
-[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
-
-        Args:
-            request: The tool confirmation request.
-...
-
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_unit_of_doom.py', 
-'start_line': 20, 'end_line': 40})
-
-[result]     @pytest.mark.anyio
-    async def test_textual_confirm_raises_attribute_error_without_init(self) -> 
-None:
-        """Unit of Doom: _textual_confirm raises AttributeError when state not 
-initialized....

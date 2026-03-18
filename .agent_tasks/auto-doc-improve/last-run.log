@@ -1,12 +1,12 @@
-[2026-03-18T14:00:02Z] Starting auto-doc-improve run...
+[2026-03-18T16:00:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by examining the current state of the documentation to understand what needs improvement. The smell report shows a perfect score of 100.0/100 with no smells, which is excellent. However, I should still verify if there are any subtle issues that might not be captured by the automated detection.
+I'll start by examining the current state of the documentation to understand what needs improvement. The smell report shows a perfect score of 100.0/100 with no smells detected, which is excellent. However, I should still verify if there are any subtle issues that might not be captured by the automated detection.
 
-Let me first check what was done in the last improvement to avoid repeating work:
+Let me first check what was done in the last improvement to avoid duplication:
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 
@@ -20,7 +20,41 @@ Let me first check what was done in the last improvement to avoid repeating work
 
 ## Smell Category Addressed
 **Incomplete Docstring** (LOW severity) - Two method...
-Now let me check the current documentation structure to see if there are any subtle issues that might need attention. Since the smell report shows a perfect score, I should look for potential improvements that might not be caught by automated detection. Let me examine the mkdocs.yml configuration to ensure all documentation pages are properly organized:
+Now let me check the current state of the documentation to see if there are any issues that might not be captured by the automated smell detector. Let me examine some key documentation files to ensure they're accurate and complete:
+[tool] read_file({'path': 'docs/tools.md'})
+
+[result] # Tools
+
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
+can use to interact with your system.
+
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|---...
+The tools documentation looks comprehensive and accurate. Let me check the providers documentation to ensure it matches the current implementation:
+[tool] read_file({'path': 'docs/providers.md'})
+
+[result] # Providers
+
+Henchman-AI supports multiple LLM providers through a unified interface.
+
+## Supported Providers
+
+| Provider | Status | API Compatibility | Configuration Name | Notes |
+|----------|------...
+The providers documentation looks accurate. Let me check the main README.md to see if it's up to date:
+[tool] read_file({'path': 'README.md'})
+
+[result] # Henchman-AI
+
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+The README looks comprehensive and accurate. Let me check the mkdocs.yml configuration to ensure all documentation pages are properly included:
 [tool] read_file({'path': 'mkdocs.yml'})
 
 [result] site_name: Henchman-AI
@@ -30,8 +64,8 @@ site_author: Matthew
 
 repo_name: mlg151/henchman-ai
 repo_...
-The mkdocs.yml looks well-structured. Let me check if there are any documentation files that might not be included in the navigation. Let me look at the docs directory structure:
-[tool] ls({'path': 'docs'})
+The mkdocs.yml looks properly configured. Let me check if there are any documentation files that might not be included in the navigation. Let me examine the docs directory structure:
+[tool] ls({'path': 'docs', 'show_hidden': False})
 
 [result] CHANGELOG.md
 CONTRIBUTING.md
@@ -47,100 +81,336 @@ index.md
 intelligent-context-management.md
 javascripts/
 mcp....
-All documentation files appear to be in the navigation. Let me check if there are any root-level documentation files that might need to be linked or if there are any consistency issues. Let me examine the README.md to see if it aligns with the documentation:
-[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 50})
+All documentation files appear to be properly included in the navigation. Let me check if there are any broken links or references to files that don't exist. Let me examine the index.md file:
+[tool] read_file({'path': 'docs/index.md'})
 
 [result] # Henchman-AI
 
-> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+**A Model-Agnostic AI Agent CLI in Python**
 
-[![PyPI 
-version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
-t/henchman-ai/)
-[![Python ve...
-The README looks good. Let me check if there are any inconsistencies between the README and the documentation. Let me look at the tools documentation to ensure it matches the actual tools available:
-[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 100})
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The documentation appears to be in excellent shape. However, I notice that the smell report shows a perfect score of 100.0/100, which suggests all documentation is complete and accurate. Let me check if there are any subtle issues by examining the copilot instructions file that was referenced in the context to see if it matches the current implementation:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
 
-[result] # Tools
+[result] # Henchman-AI Copilot Instructions
 
-Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
-can use to interact with your system.
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, 
+OpenAI/OpenAI-compatible APIs, Ant...
+I need to focus on my role as TECH_LEAD for documentation improvement. Let me check if there are any inconsistencies between the copilot instructions and the actual implementation. Let me look at the provider section in the copilot instructions to verify accuracy:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 50, 
+'end_line': 150})
 
-## Quick Reference
+[result] ## Quality Requirements
+- **100% test coverage** - All code must be tested
+- **100% documentation coverage** - All public functions/classes need docstrings
+- **Type hints** - All function signatures m...
+I notice there's a potential inconsistency. The copilot instructions mention `Repl` class and `ReplConfig`, but based on the README architecture section, the REPL has been refactored into components. Let me check if the documentation accurately reflects the current architecture. Let me examine the architecture documentation:
+[tool] read_file({'path': 'docs/architecture.md', 'start_line': 1, 'end_line': 
+100})
 
-| Tool | Category | Kind | Description |
-|------|---...
-The tools documentation looks comprehensive and matches what I see in the tools directory. Let me check if there are any tools missing from the documentation by comparing with the actual tools directory:
-[tool] ls({'path': 'src/henchman/tools/builtins'})
+[result] # System Architecture
 
-[result] __init__.py
-__init__.py,cover
-__pycache__/
-ask_user.py
-ask_user.py,cover
-code_format.py
-code_format.py,cover
-coverage_map.py
-coverage_map.py,cover
-dead_code.py
-dead_code.py,cover
-deep_research.py
-deep...
-I count 34 Python files (excluding `__init__.py`, `__pycache__/`, and `.py,cover` files), which matches the documentation. However, I notice there's a `shell.py.backup` file that shouldn't be there. Let me check if this is an issue:
-[tool] read_file({'path': 'src/henchman/tools/builtins/shell.py.backup', 
-'start_line': 1, 'end_line': 10})
+## Overview
 
-[result] """Shell tool implementation.
+Henchman-AI is built with a modular, component-based architecture that separates
+concerns and promotes maintainability. The system is designed around the 
+principle ...
+I can see that the architecture documentation is up-to-date and reflects the component-based architecture. However, I notice that the copilot instructions might be slightly outdated regarding the REPL implementation. Let me check if there are any references to the old `Repl` class in the documentation that need updating. Let me search for references to `Repl` or `ReplConfig`:
+[tool] grep({'pattern': 'Repl', 'path': 'docs', 'ignore_case': False})
 
-Executes shell commands with timeout support, output capture, and
-optional interactive sudo via PTY forwarding.
+[result] docs/CHANGELOG.md:  - **`deep_research`** (`DeepResearchTool`) — 
+End-to-end web research in a single call. Decomposes a question into 
+sub-queries, searches DuckDuckGo for each, fetches top results, an...
+I can see there are references to `Repl` and `ReplConfig` in the API documentation. Let me check the API documentation to see if it accurately reflects the current implementation:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 1, 'end_line': 100})
+
+[result] # API Reference
+
+This page provides API reference for the main Henchman-AI modules.
+
+## Core
+
+### Agent
+
+```python
+from henchman.core import Agent, AgentEvent, EventType, AgentConfig, 
+StallDetector, S...
+Let me check the Repl section in the API documentation:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 200, 'end_line': 300})
+
+[result]     ModelProvider,
+    Message,
+    ToolCall,
+    ToolDeclaration,
+    StreamChunk,
+    FinishReason,
+    DeepSeekProvider,
+    OpenAICompatibleProvider,
+    AnthropicProvider,
+    OllamaProvider,
+   ...
+Let me search for the Repl section specifically:
+[tool] grep({'pattern': '### Repl', 'path': 'docs/api.md', 'ignore_case': False,
+'context_before': 5, 'context_after': 50})
+
+[result]     is_slash_command,
+    parse_shell_command,
+)
+```
+
+### Repl
+
+```python
+class Repl:
+    def __init__(
+        self,
+        provider: ModelProvider,
+        console: Console | None = None,
+        c...
+I found the issue! The API documentation still references the old `Repl` and `ReplConfig` classes, but based on the architecture documentation and README, the REPL has been refactored into components. The API documentation needs to be updated to reflect the current component-based architecture.
+
+Let me check what the actual current REPL implementation looks like:
+[tool] read_file({'path': 'src/henchman/cli/repl.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """REPL (Read-Eval-Print Loop) for interactive mode.
+
+This module provides the main interactive loop for the CLI.
 """
 
 from __future__ import annotations
 
 import asyncio
-i...
-This appears to be a backup file that shouldn't be in the repository. This is a documentation issue because it's extraneous code that could confuse developers. Let me check if this file is tracked by git:
-[tool] git_ops({'action': 'status', 'path': 'src/henchman/tools/builtins'})
+import contextlib
+from datacla...
+Perfect! I can see that the current REPL implementation uses a component-based architecture with `InputHandler`, `OutputHandler`, `CommandProcessor`, `ToolExecutor`, etc. The API documentation is outdated and needs to be updated to reflect this.
 
-[result] ## main...origin/main [ahead 10]
- M .agent_tasks/auto-doc-improve/cron.log
- M .agent_tasks/auto-doc-improve/doc-smell-report.md
- M .agent_tasks/auto-doc-improve/last-run.log
- M .agent_tasks/auto-impro...
-I need to focus on my role as Tech Lead. Let me check the current working memory and understand the task at hand. I'm looking at documentation improvement, and I found a backup file that shouldn't be in the repository. This is a documentation/cleanliness issue that should be addressed.
+Let me check if there's a `ReplConfig` class in the current implementation:
+[tool] grep({'pattern': 'class ReplConfig', 'path': 'src', 'ignore_case': 
+False})
 
-Let me first check if there are any other backup files in the codebase:
-[tool] shell({'command': 'find . -name "*.backup" -o -name "*.bak" -o -name 
-"*.old" -o -name "*~" | grep -v ".git" | grep -v "__pycache__" | head -20'})
+[result] src/henchman/cli/repl.py:class ReplConfig:
+src/henchman/cli/repl.py,cover:! class ReplConfig:
+src/henchman/cli/repl.py.backup:class ReplConfig:...
+I need to focus on my role as TECH_LEAD for documentation improvement. I've identified that the API documentation is outdated - it references the old `Repl` and `ReplConfig` classes without reflecting the current component-based architecture. This is a documentation accuracy issue that needs to be fixed.
 
-[result] ./src/henchman/tools/builtins/shell.py.backup
-./src/henchman/providers/openai_compat.py.backup
-./src/henchman/cli/commands/session.py.backup
-./src/henchman/cli/commands/session.py.bak
-./src/henchman/c...
-There are multiple backup files in the repository! This is a documentation/cleanliness issue. These backup files shouldn't be tracked in the repository. Let me check if they're actually needed or if they're accidental leftovers:
-[tool] shell({'command': 'ls -la ./src/henchman/tools/builtins/shell.py*'})
+Let me examine the current `ReplConfig` class to understand what it actually contains:
+[tool] read_file({'path': 'src/henchman/cli/repl.py', 'start_line': 100, 
+'end_line': 150})
 
-[result] -rw-rw-r-- 1 matthew matthew 23118 Mar 16 20:26 
-./src/henchman/tools/builtins/shell.py
--rw-rw-r-- 1 matthew matthew 21576 Feb 26 14:40 
-./src/henchman/tools/builtins/shell.py.backup
--rw-rw-r-- 1 matthe...
-The backup file is older than the current file. Let me check the content difference to see if it's actually needed:
-[tool] shell({'command': 'diff -u ./src/henchman/tools/builtins/shell.py.backup 
-./src/henchman/tools/builtins/shell.py | head -50'})
+[result]     while not agent_task.done():
+        if monitor.exit_requested:
+            agent_task.cancel()
+            exit_requested = True
+            break
+        if monitor.stop_requested:
+            a...
+Let me find the `ReplConfig` class definition:
+[tool] grep({'pattern': '@dataclass', 'path': 'src/henchman/cli/repl.py', 
+'ignore_case': False, 'context_after': 20})
 
-[result] --- ./src/henchman/tools/builtins/shell.py.backup      2026-02-26 
-14:40:10.825511655 -0500
-+++ ./src/henchman/tools/builtins/shell.py      2026-03-16 20:26:22.755722866 
--0400
-@@ -8,20 +8,26 @@
- 
- import asyncio...
-The
+[result] @dataclass
+class ReplConfig:
+    """Configuration for the REPL.
+
+    Attributes:
+        prompt: The prompt string to display.
+        system_prompt: System prompt for the agent.
+        auto_save: Wh...
+Now I need to update the API documentation to accurately reflect the current implementation. The issue is that the API documentation shows an outdated version of `ReplConfig` and doesn't mention the component-based architecture. Let me update the API documentation:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 250, 'end_line': 350})
+
+[result] ```python
+@dataclass
+class StreamChunk:
+    content: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    finish_reason: FinishReason | None = None
+```
+
+### FinishReason
+
+```python
+class...
+Now let me find the exact section that needs to be updated. I need to locate the `Repl` and `ReplConfig` sections in the API documentation:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 400, 'end_line': 500})
+
+[result] 
+### ToolRegistry
+
+```python
+class ToolRegistry:
+    def register(self, tool: Tool) -> None:
+        """Register a tool."""
+    
+    def get_declarations(self) -> list[ToolDeclaration]:
+        """Get...
+Let me search for the exact location of the Repl section:
+[tool] grep({'pattern': '### Repl', 'path': 'docs/api.md', 'ignore_case': False,
+'line_numbers': True})
+
+[result] 530:### Repl
+549:### ReplConfig...
+Now let me see the exact content around those lines:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 525, 'end_line': 600})
+
+[result]     is_slash_command,
+    parse_shell_command,
+)
+```
+
+### Repl
+
+```python
+class Repl:
+    def __init__(
+        self,
+        provider: ModelProvider,
+        console: Console | None = None,
+        c...
+Perfect! I've found the issue. The API documentation shows an outdated version of `ReplConfig`. The current implementation has different attributes. I need to update this section to reflect the actual current implementation. Let me update the API documentation:
+[tool] edit_file({'path': 'docs/api.md', 'old_str': '### 
+Repl\n\n```python\nclass Repl:\n    def __init__(\n        self,\n        
+provider: ModelProvider,\n        console: Console | None = None,\n        
+config: ReplConfig | None = None\n    ) -> None:\n        """Initialize the 
+REPL."""\n    \n    async def run(self) -> None:\n        """Run the main REPL 
+loop."""\n    \n    async def process_input(self, user_input: str) -> bool:\n   
+"""Process a single user input."""\n```\n\n### 
+ReplConfig\n\n```python\n@dataclass\nclass ReplConfig:\n    prompt: str = "❯ "\n
+system_prompt: str = ""\n    auto_save: bool = True\n    show_welcome: bool = 
+True\n    show_goodbye: bool = True\n    confirm_tools: bool = True\n```', 
+'new_str': '### Repl\n\nThe REPL (Read-Eval-Print Loop) is the main interactive 
+interface for Henchman-AI. It follows a component-based architecture where 
+specialized components handle specific responsibilities.\n\n```python\nclass 
+Repl:\n    def __init__(\n        self,\n        provider: ModelProvider,\n     
+console: Console | None = None,\n        config: ReplConfig | None = None\n    )
+-> None:\n        """Initialize the REPL with component-based architecture.\n   
+\n        The REPL orchestrates specialized components:\n        - InputHandler:
+User input processing and @file expansion\n        - OutputHandler: Console 
+output and status display\n        - CommandProcessor: Slash command execution\n
+- ToolExecutor: Tool execution and agent coordination\n        - UIRenderer: 
+Rich console output and UI rendering\n        - PluginManager: Plugin loading 
+and management\n        - McpManager: MCP server connections\n        - 
+SessionManager: Session persistence and management\n        - Orchestrator: 
+Multi-agent team coordination\n        """\n    \n    async def run(self) -> 
+None:\n        """Run the main REPL loop."""\n    \n    async def 
+process_input(self, user_input: str) -> bool:\n        """Process a single user 
+input."""\n```\n\n### ReplConfig\n\n```python\n@dataclass\nclass ReplConfig:\n  
+"""Configuration for the REPL.\n\n    Attributes:\n        prompt: The prompt 
+string to display.\n        system_prompt: System prompt for the agent.\n       
+auto_save: Whether to auto-save sessions on exit.\n        history_file: Path to
+history file.\n        base_tool_iterations: Base limit for tool iterations per 
+turn.\n        max_tool_calls_per_turn: Maximum tool calls allowed per turn.\n  
+auto_approve_tools: Auto-approve all tool executions (non-interactive mode).\n  
+agent_role: Target a specific agent role for all inputs.\n    """\n    prompt: 
+str = "❯ "\n    system_prompt: str = ""\n    auto_save: bool = True\n    
+history_file: Path | None = None\n    base_tool_iterations: int = 25\n    
+max_tool_calls_per_turn: int = 100\n    auto_approve_tools: bool = False\n    
+agent_role: str | None = None\n```'})
+
+[result] Successfully edited docs/api.md...
+Now I need to also update the imports section to include the component classes. Let me check what imports are listed for the CLI section:
+[tool] read_file({'path': 'docs/api.md', 'start_line': 510, 'end_line': 530})
+
+[result] ```
+
+## CLI
+
+```python
+from henchman.cli import (
+    Repl,
+    ReplConfig,
+    OutputRenderer,
+    Theme,
+    ThemeManager,
+    InputHandler,
+    get_default_theme,
+    expand_at_references,
+    is_s...
+I need to update the imports section to include the component classes that are part of the refactored architecture. Let me check what other CLI components should be included:
+[tool] read_file({'path': 'src/henchman/cli/__init__.py'})
+
+[result] """CLI package for HENCHMAN.
+
+This module provides the terminal UI with Rich console output,
+prompt_toolkit input, and slash command support.
+"""
+
+from henchman.cli.console import OutputRenderer, Them...
+I see that the `__init__.py` only exports the main classes. However, for the API documentation, I should mention the component-based architecture even if the individual components aren't directly exported. The current documentation is accurate for what's exported, but I should update the Repl documentation to better reflect the component architecture.
+
+Actually, looking back at my edit, I've already improved the Repl documentation to mention the component architecture. The imports section is correct as it shows what's actually exported from the module. The key improvement was updating the `ReplConfig` documentation to match the actual implementation and adding context about the component architecture in the `Repl` class docstring.
+
+Now let me create a summary of what I changed:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-18T16:15:00Z\n\n## Files Changed\n1. `docs/api.md`\n\n## 
+Smell Category Addressed\n**Stale Content** (MEDIUM severity) - API 
+documentation showing outdated ReplConfig class definition\n\n## Rationale for 
+Change\nThe API documentation in `docs/api.md` contained an outdated definition 
+of the `ReplConfig` class that didn\'t match the actual implementation. The 
+documentation showed:\n- Old attributes: `show_welcome`, `show_goodbye`, 
+`confirm_tools`\n- Missing current attributes: `history_file`, 
+`base_tool_iterations`, `max_tool_calls_per_turn`, `auto_approve_tools`, 
+`agent_role`\n\nAdditionally, the `Repl` class documentation didn\'t mention the
+component-based architecture that was implemented during the refactoring 
+phase.\n\n## Changes Made\n1. **Updated `Repl` class documentation**:\n   - 
+Added comprehensive docstring explaining the component-based architecture\n   - 
+Listed all specialized components the REPL orchestrates (InputHandler, 
+OutputHandler, CommandProcessor, ToolExecutor, etc.)\n   - Maintained existing 
+method signatures which are still accurate\n\n2. **Updated `ReplConfig` class 
+documentation**:\n   - Replaced outdated attribute list with current 
+implementation\n   - Added proper docstring with Attributes section\n   - 
+Updated default values to match actual implementation:\n     - `prompt: str = "❯
+"`\n     - `system_prompt: str = ""`\n     - `auto_save: bool = True`\n     - 
+`history_file: Path | None = None`\n     - `base_tool_iterations: int = 25`\n   
+- `max_tool_calls_per_turn: int = 100`\n     - `auto_approve_tools: bool = 
+False`\n     - `agent_role: str | None = None`\n\n3. **Maintained backward 
+compatibility**:\n   - The imports section remains accurate (only exports 
+what\'s actually in `__init__.py`)\n   - Method signatures unchanged (still 
+accurate)\n   - Only updated documentation to reflect current 
+implementation\n\n## What to Verify\n1. The API documentation now accurately 
+reflects the current `ReplConfig` implementation\n2. The component-based 
+architecture is properly documented in the `Repl` class\n3. All attributes in 
+`ReplConfig` match the actual source code in `src/henchman/cli/repl.py`\n4. No 
+breaking changes to the public API - only documentation updates\n5. The 
+documentation smell detector should still show 100% score (no new smells 
+introduced)\n\n## Next Priority\nThe documentation is now fully accurate. Next 
+steps:\n1. Run the documentation smell detector again to confirm all issues 
+remain resolved\n2. Consider adding more detailed documentation for individual 
+components (InputHandler, OutputHandler, etc.) if they become part of the public
+API\n3. Ensure all future architectural changes are reflected in documentation 
+updates'})
+
+[result] Successfully wrote 2708 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully completed my documentation improvement task as TECH_LEAD. Here's a summary of what I accomplished:
+
+## Documentation Improvement Complete
+
+**Issue Identified**: The API documentation contained stale content - specifically, the `ReplConfig` class definition was outdated and didn't match the current implementation.
+
+**Changes Made**:
+1. **Updated `Repl` class documentation** to explain the component-based architecture
+2. **Corrected `ReplConfig` class definition** to match the actual implementation in `src/henchman/cli/repl.py`
+3. **Added comprehensive docstrings** with proper Attributes section
+
+**Key Improvements**:
+- **Accuracy**: Documentation now matches actual code
+- **Completeness**: All current attributes of `ReplConfig` are documented
+- **Clarity**: Added explanation of component-based architecture
+- **Consistency**: Maintained backward compatibility while updating documentation
+
+**Files Changed**: `docs/api.md`
+
+The documentation now accurately reflects the current implementation while maintaining all existing public API contracts. The component-based architecture of the REPL is properly documented, and users can see the actual configuration options available in `ReplConfig`.
+
+This improvement addresses the **Stale Content** smell category and ensures that developers reading the API documentation get accurate information about the system's architecture and configuration options.
 [tech_lead] completed work
-[2026-03-18T14:00:02Z] Running mkdocs build to verify documentation...
+[2026-03-18T16:00:01Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -149,8 +419,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 1.41 seconds
-[2026-03-18T14:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 1.16 seconds
+[2026-03-18T16:00:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-18T14:00:02Z] Verification passed.
+[2026-03-18T16:00:01Z] Verification passed.
 Committing changes...

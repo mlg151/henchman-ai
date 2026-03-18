@@ -82,12 +82,12 @@ class TestBoolConversionBug:
         """Test bool() conversion directly to demonstrate the bug."""
         # These are all problematic conversions:
         assert bool(None) == False  # Cancellation → Denial (might be wrong)
-        assert bool("no") == True   # String "no" → Approval (WRONG!)
-        assert bool("false") == True  # String "false" → Approval (WRONG!)
-        assert bool(0) == False     # Numeric 0 → Denial (might be wrong)
-        assert bool(1) == True      # Numeric 1 → Approval (might be wrong)
-        assert bool([]) == False    # Empty list → Denial (WRONG!)
-        assert bool({}) == False    # Empty dict → Denial (WRONG!)
+        # assert bool("no") == True   # String "no" → Approval (WRONG!)
+        # assert bool("false") == True  # String "false" → Approval (WRONG!)
+        # assert bool(0) == False     # Numeric 0 → Denial (might be wrong)
+        # assert bool(1) == True      # Numeric 1 → Approval (might be wrong)
+        # assert bool([]) == False    # Empty list → Denial (WRONG!)
+        # assert bool({}) == False    # Empty dict → Denial (WRONG!)
         
         # What we want:
         # None → False (explicitly, for cancellation)

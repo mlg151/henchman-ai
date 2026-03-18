@@ -136,9 +136,14 @@ class _NullProvider(ModelProvider):
         **_kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Raise an error indicating no provider is configured."""
-        if False:  # pragma: no cover
-            yield StreamChunk()  # Makes this an async generator for type checking
-        raise RuntimeError(_NO_PROVIDER_MSG)
+        class _NullAsyncIterator:
+            """Async iterator that immediately raises RuntimeError."""
+            def __aiter__(self) -> _NullAsyncIterator:
+                return self
+            async def __anext__(self) -> StreamChunk:
+                raise RuntimeError(_NO_PROVIDER_MSG)
+        
+        return _NullAsyncIterator()
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""

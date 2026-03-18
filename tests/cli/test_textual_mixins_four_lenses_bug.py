@@ -51,8 +51,8 @@ class TestFourLensesBug:
                 task = asyncio.create_task(
                     mixin._textual_confirm(ConfirmationRequest(
                         tool_name="test_tool",
-                        arguments={"arg": "value"},
-                        kind="WRITE"
+                        params={"arg": "value"},
+                        risk_level="medium"
                     ))
                 )
                 tasks.append(task)

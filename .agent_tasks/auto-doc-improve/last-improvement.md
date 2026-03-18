@@ -1,46 +1,54 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-18T12:05:00Z
+2026-03-18T16:15:00Z
 
 ## Files Changed
-1. `src/henchman/mcp/manager.py`
+1. `docs/api.md`
 
 ## Smell Category Addressed
-**Incomplete Docstring** (LOW severity) - Two methods missing Returns sections
+**Stale Content** (MEDIUM severity) - API documentation showing outdated ReplConfig class definition
 
 ## Rationale for Change
-The documentation smell report identified two methods in McpManager that return values but have no Returns: sections:
-1. `McpManager.connect_all` (line 159) - returns `None` but missing Returns section
-2. `McpManager.disconnect_all` (line 183) - returns `None` but missing Returns section
+The API documentation in `docs/api.md` contained an outdated definition of the `ReplConfig` class that didn't match the actual implementation. The documentation showed:
+- Old attributes: `show_welcome`, `show_goodbye`, `confirm_tools`
+- Missing current attributes: `history_file`, `base_tool_iterations`, `max_tool_calls_per_turn`, `auto_approve_tools`, `agent_role`
 
-According to Google-style docstring conventions, all methods that return values (including `None`) must have a `Returns:` section. Both methods already had brief descriptions but needed:
-- Enhanced descriptions explaining what the methods do
-- Proper `Returns:` sections stating they return `None`
-- Consistent formatting with other methods in the file
+Additionally, the `Repl` class documentation didn't mention the component-based architecture that was implemented during the refactoring phase.
 
 ## Changes Made
-1. **`connect_all` method**:
-   - Enhanced description: "Iterates through all configured MCP servers, establishes connections, and registers their tools. If a server fails to connect, the error is silently ignored and the method continues with the next server."
-   - Added `Returns: None` section
-   - Maintained existing implementation unchanged
+1. **Updated `Repl` class documentation**:
+   - Added comprehensive docstring explaining the component-based architecture
+   - Listed all specialized components the REPL orchestrates (InputHandler, OutputHandler, CommandProcessor, ToolExecutor, etc.)
+   - Maintained existing method signatures which are still accurate
 
-2. **`disconnect_all` method**:
-   - Enhanced description: "Closes connections to all connected MCP servers and clears internal state including client instances and registered tools."
-   - Added `Returns: None` section
-   - Maintained existing implementation unchanged
+2. **Updated `ReplConfig` class documentation**:
+   - Replaced outdated attribute list with current implementation
+   - Added proper docstring with Attributes section
+   - Updated default values to match actual implementation:
+     - `prompt: str = "❯ "`
+     - `system_prompt: str = ""`
+     - `auto_save: bool = True`
+     - `history_file: Path | None = None`
+     - `base_tool_iterations: int = 25`
+     - `max_tool_calls_per_turn: int = 100`
+     - `auto_approve_tools: bool = False`
+     - `agent_role: str | None = None`
 
-3. Both docstrings now follow the same pattern as other methods in the file (like `get_all_tools` which already had proper Returns section)
+3. **Maintained backward compatibility**:
+   - The imports section remains accurate (only exports what's actually in `__init__.py`)
+   - Method signatures unchanged (still accurate)
+   - Only updated documentation to reflect current implementation
 
 ## What to Verify
-1. The smell detector should no longer flag `McpManager.connect_all` and `McpManager.disconnect_all` for missing Returns sections
-2. The documentation accurately describes each method's behavior
-3. The docstrings maintain consistent Google-style formatting with other methods in the file
-4. No other documentation issues were introduced
-5. All public methods in `src/henchman/mcp/manager.py` now have complete docstrings with proper Returns sections
+1. The API documentation now accurately reflects the current `ReplConfig` implementation
+2. The component-based architecture is properly documented in the `Repl` class
+3. All attributes in `ReplConfig` match the actual source code in `src/henchman/cli/repl.py`
+4. No breaking changes to the public API - only documentation updates
+5. The documentation smell detector should still show 100% score (no new smells introduced)
 
 ## Next Priority
-The documentation smell report now shows 0 smells (100% score). Next steps:
-1. Run the documentation smell detector again to confirm all issues are resolved
-2. Check for any newly introduced documentation issues
-3. Consider running comprehensive documentation tests to ensure all public APIs are properly documented
+The documentation is now fully accurate. Next steps:
+1. Run the documentation smell detector again to confirm all issues remain resolved
+2. Consider adding more detailed documentation for individual components (InputHandler, OutputHandler, etc.) if they become part of the public API
+3. Ensure all future architectural changes are reflected in documentation updates
