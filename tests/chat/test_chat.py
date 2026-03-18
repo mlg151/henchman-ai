@@ -503,3 +503,48 @@ class TestChatManager:
 
         await manager.stop_all()
         mock_bot.stop.assert_called_once()
+
+    def test_get_provider_settings_string_instead_of_dict(self, mock_settings: MagicMock) -> None:
+        """Test that _get_provider_settings handles string provider settings gracefully.
+        
+        This tests the bug fix: if provider settings in configuration is a string
+        (e.g., "deepseek-chat") instead of a dict, the method should handle it
+        gracefully instead of raising TypeError.
+        """
+        from henchman.chat.manager import ChatManager
+        import henchman.chat.manager as chat_manager_module
+
+        manager = ChatManager(mock_settings)
+        
+        # Mock provider settings to return a string instead of dict
+        # This simulates misconfigured YAML: providers.deepseek: "deepseek-chat"
+        mock_settings.providers.deepseek = "deepseek-chat"  # String, not dict!
+        
+        # Mock logger to capture warning
+        mock_logger = MagicMock()
+        with patch.object(chat_manager_module, 'logger', mock_logger):
+            # This should NOT raise ValueError/TypeError
+            # With the bug, dict("deepseek-chat") raises ValueError
+            # With the fix, it should log warning and return defaults
+            settings = manager._get_provider_settings("deepseek")
+            
+            # Should log warning about non-dict settings (only once, not duplicate)
+            # Check that warning was called at least once with the right message
+            mock_logger.warning.assert_called()
+            # Find the call about non-dict settings
+            non_dict_warning_called = False
+            for call in mock_logger.warning.call_args_list:
+                args = call[0]
+                if len(args) > 0 and "not a dictionary" in args[0]:
+                    non_dict_warning_called = True
+                    # Check that provider name is in args (should be second arg)
+                    if len(args) > 1:
+                        assert args[1] == "deepseek"
+                    break
+            assert non_dict_warning_called, "Should have logged warning about non-dict settings"
+            
+            # Should return defaults (not empty dict)
+            assert settings is not None
+            # Should include model default for deepseek
+            assert "model" in settings
+            assert settings["model"] == "deepseek-chat"
