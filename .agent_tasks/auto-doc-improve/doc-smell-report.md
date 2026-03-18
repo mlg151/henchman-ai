@@ -1,80 +1,68 @@
-# Documentation Smell Report — ✅ A (Score: 99.9/100)
+# Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-18T00:00:03.399069+00:00_
+_Generated: 2026-03-18T02:00:02.860976+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 99.9/100 |
+| **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 192 |
-| **Total Smells** | 12 |
+| **Total Smells** | 9 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 12 |
+| low | 9 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 12 |
+| Incomplete Docstring | 9 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/agents/pool.py:313** — 🟢 LOW — Incomplete Docstring  
-   'AgentPool.reset_agent' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'AgentPool.reset_agent'._
-
-2. **src/henchman/agents/pool.py:322** — 🟢 LOW — Incomplete Docstring  
-   'AgentPool.reset_all' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'AgentPool.reset_all'._
-
-3. **src/henchman/agents/pool.py:327** — 🟢 LOW — Incomplete Docstring  
-   'AgentPool.shutdown' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'AgentPool.shutdown'._
-
-4. **src/henchman/extensions/plugin_database.py:148** — 🟢 LOW — Incomplete Docstring  
+1. **src/henchman/extensions/plugin_database.py:148** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.initialize' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.initialize'._
 
-5. **src/henchman/extensions/plugin_database.py:171** — 🟢 LOW — Incomplete Docstring  
+2. **src/henchman/extensions/plugin_database.py:171** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.save_installation' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.save_installation'._
 
-6. **src/henchman/extensions/plugin_database.py:180** — 🟢 LOW — Incomplete Docstring  
+3. **src/henchman/extensions/plugin_database.py:180** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.delete_installation' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.delete_installation'._
 
-7. **src/henchman/extensions/plugin_manager.py:368** — 🟢 LOW — Incomplete Docstring  
+4. **src/henchman/extensions/plugin_manager.py:368** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'._
 
-8. **src/henchman/extensions/plugin_manager.py:417** — 🟢 LOW — Incomplete Docstring  
+5. **src/henchman/extensions/plugin_manager.py:417** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.check_updates' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.check_updates'._
 
-9. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
+6. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
    'McpClient.connect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.connect'._
 
-10. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
+7. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
    'McpClient.disconnect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.disconnect'._
 
-11. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
+8. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
    'McpManager.connect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.connect_all'._
 
-12. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
+9. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
    'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.disconnect_all'._
 
@@ -83,35 +71,25 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/agents/pool.py | ✅ A | 94.0 | 3 | 2026-03-17 |
-| 2 | src/henchman/extensions/plugin_database.py | ✅ A | 94.0 | 3 | 2026-03-17 |
-| 3 | src/henchman/extensions/plugin_manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 4 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 5 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
-| 6 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
-| 7 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 8 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 9 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 10 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 12 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 13 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 14 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 1 | src/henchman/extensions/plugin_database.py | ✅ A | 94.0 | 3 | 2026-03-17 |
+| 2 | src/henchman/extensions/plugin_manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 3 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 4 | src/henchman/mcp/manager.py | ✅ A | 96.0 | 2 | 2026-03-17 |
+| 5 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-17 |
+| 6 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 7 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 8 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 9 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 13 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
 
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 222 additional files omitted._
-
-### src/henchman/agents/pool.py — ✅ A (94.0/100) (last modified 2026-03-17)
-
-Public APIs: 11 | Documented: 11 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 313 | 🟢 LOW | Incomplete Docstring | 'AgentPool.reset_agent' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'AgentPool.reset_agent'. |
-| 322 | 🟢 LOW | Incomplete Docstring | 'AgentPool.reset_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'AgentPool.reset_all'. |
-| 327 | 🟢 LOW | Incomplete Docstring | 'AgentPool.shutdown' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'AgentPool.shutdown'. |
 
 ### src/henchman/extensions/plugin_database.py — ✅ A (94.0/100) (last modified 2026-03-17)
 
@@ -150,7 +128,7 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 | 159 | 🟢 LOW | Incomplete Docstring | 'McpManager.connect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.connect_all'. |
 | 183 | 🟢 LOW | Incomplete Docstring | 'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'McpManager.disconnect_all'. |
 
-## ✨ Clean Files (242 files with no smells)
+## ✨ Clean Files (243 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -233,6 +211,7 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 - src/henchman/agents/orchestrator_turns.py — ✅ A
 - src/henchman/agents/orchestrator_types.py — ✅ A
 - src/henchman/agents/orchestrator_validation.py — ✅ A
+- src/henchman/agents/pool.py — ✅ A
 - src/henchman/agents/presets.py — ✅ A
 - src/henchman/agents/prompts.py — ✅ A
 - src/henchman/agents/working_memory.py — ✅ A

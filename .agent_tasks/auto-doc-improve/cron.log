@@ -176422,3 +176422,261 @@ INFO    -  Documentation built in 1.04 seconds
 }
 [2026-03-18T00:00:02Z] Verification passed.
 Committing changes...
+[main d7e5f3b] docs(auto-improve): automated documentation improvement
+ 20 files changed, 4932 insertions(+), 1091 deletions(-)
+ create mode 100644 test_simple_lock.py
+ create mode 100644 tests/cli/test_textual_mixins_callback_race_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_cleanup_race_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_unhandled_task_bug.py
+ create mode 100644 tests/cli/test_textual_mixins_unhandled_task_bug_failing.py
+ create mode 100644 tests/cli/test_textual_mixins_unhandled_task_failing.py
+[2026-03-18T00:00:02Z] Done.
+[2026-03-18T02:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the highest-priority documentation smell from the report: the missing Returns section for `PluginDatabase.initialize` method. Let me first check what the current documentation looks like.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 140, 'end_line': 160})
+
+
+[result]     def __init__(self: PluginDatabase, db_path: Path) -> None:
+        """Initialize plugin database.
+
+        Args:
+            db_path: Path to SQLite database file.
+        """
+        self.db_path...
+I can see the issue. The `initialize` method has a docstring but it's missing a Returns section. However, looking at the method signature, it returns `None`. Let me check if there are any other methods with similar issues by looking at the other reported lines.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 165, 'end_line': 185})
+
+[result]                 if installation is not None:
+                    installations[installation.metadata.name] = installation
+        finally:
+            conn.close()
+        return installations
+
+    as...
+I see the pattern. All three methods (`initialize`, `save_installation`, `delete_installation`) return `None` but their docstrings don't have a Returns section. According to Google-style docstring conventions, methods that return `None` should still have a Returns section that says "None". Let me check what the actual return type annotations are to confirm:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Database operations for plugin management."""
+
+from __future__ import annotations
+
+import json
+import logging
+import sqlite3
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+fro...
+Now let me check the method signatures more carefully by looking at the actual method definitions:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 135, 'end_line': 155})
+
+[result] 
+    This class handles all SQLite database operations for tracking
+    installed plugins, their metadata, and installation status.
+    """
+
+    def __init__(self: PluginDatabase, db_path: Path) -> No...
+Perfect! I can see that `initialize` returns `None` (as indicated by `-> None`). According to Google-style docstring conventions, methods that return `None` should include a Returns section that says "None". Let me fix this first issue by adding the missing Returns section.
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def initialize(self: PluginDatabase) -> None:\n        
+"""Create necessary tables and indexes if they don\'t exist."""\n        
+_initialize_plugin_db(self.db_path)', 'new_str': '    async def initialize(self:
+PluginDatabase) -> None:\n        """Create necessary tables and indexes if they
+don\'t exist.\n\n        Returns:\n            None\n        """\n        
+_initialize_plugin_db(self.db_path)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check the `save_installation` method to fix it as well:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 170, 'end_line': 180})
+
+[result]                     installations[installation.metadata.name] = 
+installation
+        finally:
+            conn.close()
+        return installations
+
+    async def save_installation(self: PluginDatabas...
+
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def save_installation(self: PluginDatabase, installation: 
+PluginInstallation) -> None:\n        """Save plugin installation to 
+database.\n\n        Args:\n            installation: Plugin installation 
+record.\n        """\n        db_path = self.db_path\n        
+_save_installation_to_db(db_path, installation)', 'new_str': '    async def 
+save_installation(self: PluginDatabase, installation: PluginInstallation) -> 
+None:\n        """Save plugin installation to database.\n\n        Args:\n      
+installation: Plugin installation record.\n\n        Returns:\n            
+None\n        """\n        db_path = self.db_path\n        
+_save_installation_to_db(db_path, installation)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check the `delete_installation` method:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 180, 'end_line': 190})
+
+[result] 
+        Returns:
+            None
+        """
+        db_path = self.db_path
+        _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_na...
+
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 180, 'end_line': 195})
+
+[result] 
+        Returns:
+            None
+        """
+        db_path = self.db_path
+        _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_na...
+
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def delete_installation(self: PluginDatabase, plugin_name:
+str) -> None:\n        """Delete plugin installation from database.\n\n        
+Args:\n            plugin_name: Name of plugin to delete.\n        """\n        
+_delete_installation_from_db(self.db_path, plugin_name)', 'new_str': '    async 
+def delete_installation(self: PluginDatabase, plugin_name: str) -> None:\n      
+"""Delete plugin installation from database.\n\n        Args:\n            
+plugin_name: Name of plugin to delete.\n\n        Returns:\n            None\n  
+"""\n        _delete_installation_from_db(self.db_path, plugin_name)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-18T00:00:00Z
+
+## Files Changed
+1. `src/henchman/agents/pool.py`
+
+## Smell Category Addressed
+**Incomplete Docstring** (LOW severity)
+
+## Rational...
+Perfect! I can see that my current work addresses the next priority items mentioned in the last improvement. Now let me create a summary of what I've done:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-18T02:00:00Z\n\n## Files Changed\n1. 
+`src/henchman/extensions/plugin_database.py`\n\n## Smell Category 
+Addressed\n**Incomplete Docstring** (LOW severity)\n\n## Rationale for 
+Change\nThe smell report identified three methods in `PluginDatabase` class that
+return values but have no Returns: sections:\n1. Line 148: 
+`PluginDatabase.initialize` returns `None` but missing Returns section\n2. Line 
+171: `PluginDatabase.save_installation` returns `None` but missing Returns 
+section  \n3. Line 180: `PluginDatabase.delete_installation` returns `None` but 
+missing Returns section\n\nFrom code analysis:\n- All three methods have return 
+type annotation `-> None`\n- According to Google-style docstring conventions, 
+methods that return `None` should still have a Returns section stating "None"\n-
+The methods perform database operations but don\'t return any value\n- 
+`initialize`: Creates necessary database tables and indexes\n- 
+`save_installation`: Saves plugin installation record to database\n- 
+`delete_installation`: Deletes plugin installation from database\n\n## Changes 
+Made\n1. Added `Returns: None` section to `initialize()` method\n2. Added 
+`Returns: None` section to `save_installation()` method  \n3. Added `Returns: 
+None` section to `delete_installation()` method\n4. All docstrings now follow 
+consistent Google-style format with proper sections\n\n## What to Verify\n1. The
+smell detector should no longer flag these three methods for missing Returns 
+sections\n2. The documentation accurately reflects that all three methods return
+`None`\n3. The docstrings maintain consistent formatting with other methods in 
+the file\n4. No other documentation issues were introduced\n\n## Next 
+Priority\nThe next highest priority issues are in 
+`src/henchman/extensions/plugin_manager.py`:\n1. Line 368: 
+`PluginManager.uninstall_plugin` missing Returns section\n2. Line 417: 
+`PluginManager.check_updates` missing Returns section'})
+
+[result] Successfully wrote 1938 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me verify my changes by checking the updated file:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 145, 'end_line': 165})
+
+[result]         """
+        self.db_path = db_path
+
+    async def initialize(self: PluginDatabase) -> None:
+        """Create necessary tables and indexes if they don't exist.
+
+        Returns:
+            No...
+
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 170, 'end_line': 190})
+
+[result]                     installations[installation.metadata.name] = 
+installation
+        finally:
+            conn.close()
+        return installations
+
+    async def save_installation(self: PluginDatabas...
+
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 185, 'end_line': 195})
+
+[result]         _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_name: str) -> 
+None:
+        """Delete plugin installation from database.
+
+      ...
+Perfect! All three methods now have proper Returns sections. Let me also run a quick check to ensure I haven't introduced any formatting issues:
+[tool] code_format({'path': 'src/henchman/extensions/plugin_database.py'})
+
+[result] Formatted: src/henchman/extensions/plugin_database.py...
+## Summary
+
+I have successfully completed one documentation improvement as requested. Here's what I changed:
+
+**Improvement Made:** Fixed incomplete docstrings in `src/henchman/extensions/plugin_database.py`
+
+**Details:**
+- Added missing `Returns: None` sections to three methods that return `None`:
+  1. `PluginDatabase.initialize()` - Creates necessary database tables and indexes
+  2. `PluginDatabase.save_installation()` - Saves plugin installation record to database  
+  3. `PluginDatabase.delete_installation()` - Deletes plugin installation from database
+
+**Rationale:** According to Google-style docstring conventions, methods that return `None` should still include a Returns section stating "None". This improves documentation completeness and consistency.
+
+**Verification:** 
+- All three methods now have proper Returns sections
+- The changes maintain consistent formatting with other methods in the file
+- No source code behavior was altered - only documentation was updated
+- Ruff formatting was applied to ensure code style consistency
+
+**Next Priority:** The documentation smell report shows the next issues are in `src/henchman/extensions/plugin_manager.py` (lines 368 and 417) for similar missing Returns sections.
+
+The improvement has been recorded in `.agent_tasks/auto-doc-improve/last-improvement.md` with full details for tracking purposes.
+[tech_lead] completed work
+[2026-03-18T02:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.02 seconds
+[2026-03-18T02:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-18T02:00:01Z] Verification passed.
+Committing changes...

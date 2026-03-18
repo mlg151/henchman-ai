@@ -1,220 +1,239 @@
-[2026-03-18T00:00:02Z] Starting auto-doc-improve run...
+[2026-03-18T02:00:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by checking what was last improved to avoid repeating work, then address the highest-priority documentation smell.
-[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+I'll start by examining the highest-priority documentation smell from the report: the missing Returns section for `PluginDatabase.initialize` method. Let me first check what the current documentation looks like.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 140, 'end_line': 160})
 
+
+[result]     def __init__(self: PluginDatabase, db_path: Path) -> None:
+        """Initialize plugin database.
+
+        Args:
+            db_path: Path to SQLite database file.
+        """
+        self.db_path...
+I can see the issue. The `initialize` method has a docstring but it's missing a Returns section. However, looking at the method signature, it returns `None`. Let me check if there are any other methods with similar issues by looking at the other reported lines.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 165, 'end_line': 185})
+
+[result]                 if installation is not None:
+                    installations[installation.metadata.name] = installation
+        finally:
+            conn.close()
+        return installations
+
+    as...
+I see the pattern. All three methods (`initialize`, `save_installation`, `delete_installation`) return `None` but their docstrings don't have a Returns section. According to Google-style docstring conventions, methods that return `None` should still have a Returns section that says "None". Let me check what the actual return type annotations are to confirm:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Database operations for plugin management."""
+
+from __future__ import annotations
+
+import json
+import logging
+import sqlite3
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+fro...
+Now let me check the method signatures more carefully by looking at the actual method definitions:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 135, 'end_line': 155})
+
+[result] 
+    This class handles all SQLite database operations for tracking
+    installed plugins, their metadata, and installation status.
+    """
+
+    def __init__(self: PluginDatabase, db_path: Path) -> No...
+Perfect! I can see that `initialize` returns `None` (as indicated by `-> None`). According to Google-style docstring conventions, methods that return `None` should include a Returns section that says "None". Let me fix this first issue by adding the missing Returns section.
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def initialize(self: PluginDatabase) -> None:\n        
+"""Create necessary tables and indexes if they don\'t exist."""\n        
+_initialize_plugin_db(self.db_path)', 'new_str': '    async def initialize(self:
+PluginDatabase) -> None:\n        """Create necessary tables and indexes if they
+don\'t exist.\n\n        Returns:\n            None\n        """\n        
+_initialize_plugin_db(self.db_path)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check the `save_installation` method to fix it as well:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 170, 'end_line': 180})
+
+[result]                     installations[installation.metadata.name] = 
+installation
+        finally:
+            conn.close()
+        return installations
+
+    async def save_installation(self: PluginDatabas...
+
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def save_installation(self: PluginDatabase, installation: 
+PluginInstallation) -> None:\n        """Save plugin installation to 
+database.\n\n        Args:\n            installation: Plugin installation 
+record.\n        """\n        db_path = self.db_path\n        
+_save_installation_to_db(db_path, installation)', 'new_str': '    async def 
+save_installation(self: PluginDatabase, installation: PluginInstallation) -> 
+None:\n        """Save plugin installation to database.\n\n        Args:\n      
+installation: Plugin installation record.\n\n        Returns:\n            
+None\n        """\n        db_path = self.db_path\n        
+_save_installation_to_db(db_path, installation)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check the `delete_installation` method:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 180, 'end_line': 190})
+
+[result] 
+        Returns:
+            None
+        """
+        db_path = self.db_path
+        _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_na...
+
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 180, 'end_line': 195})
+
+[result] 
+        Returns:
+            None
+        """
+        db_path = self.db_path
+        _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_na...
+
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'old_str': '    async def delete_installation(self: PluginDatabase, plugin_name:
+str) -> None:\n        """Delete plugin installation from database.\n\n        
+Args:\n            plugin_name: Name of plugin to delete.\n        """\n        
+_delete_installation_from_db(self.db_path, plugin_name)', 'new_str': '    async 
+def delete_installation(self: PluginDatabase, plugin_name: str) -> None:\n      
+"""Delete plugin installation from database.\n\n        Args:\n            
+plugin_name: Name of plugin to delete.\n\n        Returns:\n            None\n  
+"""\n        _delete_installation_from_db(self.db_path, plugin_name)'})
+
+[result] Successfully edited src/henchman/extensions/plugin_database.py...
+Now let me check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 [result] # Last Documentation Improvement
 
 ## Date/Time
-2026-03-17T22:15:00Z
+2026-03-18T00:00:00Z
 
 ## Files Changed
-1. `src/henchman/extensions/plugin_manager.py`
+1. `src/henchman/agents/pool.py`
 
 ## Smell Category Addressed
-**Incomplete Docstring** (MEDIUM sever...
-Perfect! The last improvement was for `PluginManager.scan_security`. Now I need to address the next highest priority issue, which is the first item in the prioritised fix queue: `AgentPool.reset_agent` missing a Returns section at line 313 in `src/henchman/agents/pool.py`.
+**Incomplete Docstring** (LOW severity)
 
-Let me examine the current state of this file:
-[tool] read_file({'path': 'src/henchman/agents/pool.py', 'start_line': 305, 
-'end_line': 320})
-
-[result]     def list_active_agents(self: "AgentPool") -> list[AgentIdentity]:
-        """List all currently instantiated agents.
-
-        Returns:
-            List of AgentIdentities for all active agents.
-  ...
-I can see the issue. The method signature shows it returns `-> None`, but the docstring doesn't have a Returns section. Let me check the full method to understand its behavior better:
-[tool] read_file({'path': 'src/henchman/agents/pool.py', 'start_line': 310, 
-'end_line': 320})
-
-[result]         """
-        return [agent.identity for agent in self._agents.values() if 
-agent.identity]
-
-    def reset_agent(self: "AgentPool", role: str) -> None:
-        """Reset an agent's history.
-
-     ...
-The method returns `None` (as indicated by `-> None` in the signature). According to Google-style docstrings, methods that return `None` should still have a Returns section stating that they return `None`. Let me fix this by adding the Returns section:
-[tool] edit_file({'path': 'src/henchman/agents/pool.py', 'old_str': '    def 
-reset_agent(self: "AgentPool", role: str) -> None:\n        """Reset an agent\'s
-history.\n\n        Args:\n            role: The role ID.\n        """\n        
-if role in self._agents:\n            self._agents[role].clear_history()', 
-'new_str': '    def reset_agent(self: "AgentPool", role: str) -> None:\n        
-"""Reset an agent\'s history.\n\n        Args:\n            role: The role 
-ID.\n\n        Returns:\n            None\n        """\n        if role in 
-self._agents:\n            self._agents[role].clear_history()'})
-
-[result] Successfully edited src/henchman/agents/pool.py...
-Now let me verify the change was made correctly:
-[tool] read_file({'path': 'src/henchman/agents/pool.py', 'start_line': 310, 
-'end_line': 325})
-
-[result]         """
-        return [agent.identity for agent in self._agents.values() if 
-agent.identity]
-
-    def reset_agent(self: "AgentPool", role: str) -> None:
-        """Reset an agent's history.
-
-     ...
-Good! Now let me check the next two methods in the same file that also need Returns sections. Let me look at `reset_all`:
-[tool] read_file({'path': 'src/henchman/agents/pool.py', 'start_line': 322, 
-'end_line': 335})
-
-[result]         if role in self._agents:
-            self._agents[role].clear_history()
-
-    def reset_all(self: "AgentPool") -> None:
-        """Reset history for all agents in the pool."""
-        for agent...
-I see both `reset_all` and `shutdown` methods also return `None` but don't have Returns sections. Let me fix them as well:
-[tool] edit_file({'path': 'src/henchman/agents/pool.py', 'old_str': '    def 
-reset_all(self: "AgentPool") -> None:\n        """Reset history for all agents 
-in the pool."""\n        for agent in self._agents.values():\n            
-agent.clear_history()', 'new_str': '    def reset_all(self: "AgentPool") -> 
-None:\n        """Reset history for all agents in the pool.\n\n        
-Returns:\n            None\n        """\n        for agent in 
-self._agents.values():\n            agent.clear_history()'})
-
-[result] Successfully edited src/henchman/agents/pool.py...
-Now let me fix the `shutdown` method:
-[tool] edit_file({'path': 'src/henchman/agents/pool.py', 'old_str': '    def 
-shutdown(self: "AgentPool") -> None:\n        """Cleanup all agents and 
-subscriptions."""\n        self._agents.clear()', 'new_str': '    def 
-shutdown(self: "AgentPool") -> None:\n        """Cleanup all agents and 
-subscriptions.\n\n        Returns:\n            None\n        """\n        
-self._agents.clear()'})
-
-[result] Successfully edited src/henchman/agents/pool.py...
-Let me verify all three changes were made correctly:
-[tool] read_file({'path': 'src/henchman/agents/pool.py', 'start_line': 310, 
-'end_line': 340})
-
-[result]         """
-        return [agent.identity for agent in self._agents.values() if 
-agent.identity]
-
-    def reset_agent(self: "AgentPool", role: str) -> None:
-        """Reset an agent's history.
-
-     ...
-Perfect! Now I need to document this improvement in the `.agent_tasks/auto-doc-improve/last-improvement.md` file. Let me create the directory if it doesn't exist and write the summary:
-[tool] shell({'command': 'mkdir -p .agent_tasks/auto-doc-improve'})
-
-[result] (no output)...
-
+## Rational...
+Perfect! I can see that my current work addresses the next priority items mentioned in the last improvement. Now let me create a summary of what I've done:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-18T00:00:00Z\n\n## Files Changed\n1. 
-`src/henchman/agents/pool.py`\n\n## Smell Category Addressed\n**Incomplete 
-Docstring** (LOW severity)\n\n## Rationale for Change\nThe smell report 
-identified three methods in `AgentPool` class that return values but have no 
-Returns: sections:\n1. Line 313: `AgentPool.reset_agent` returns `None` but 
-missing Returns section\n2. Line 322: `AgentPool.reset_all` returns `None` but 
-missing Returns section  \n3. Line 327: `AgentPool.shutdown` returns `None` but 
+Date/Time\n2026-03-18T02:00:00Z\n\n## Files Changed\n1. 
+`src/henchman/extensions/plugin_database.py`\n\n## Smell Category 
+Addressed\n**Incomplete Docstring** (LOW severity)\n\n## Rationale for 
+Change\nThe smell report identified three methods in `PluginDatabase` class that
+return values but have no Returns: sections:\n1. Line 148: 
+`PluginDatabase.initialize` returns `None` but missing Returns section\n2. Line 
+171: `PluginDatabase.save_installation` returns `None` but missing Returns 
+section  \n3. Line 180: `PluginDatabase.delete_installation` returns `None` but 
 missing Returns section\n\nFrom code analysis:\n- All three methods have return 
 type annotation `-> None`\n- According to Google-style docstring conventions, 
 methods that return `None` should still have a Returns section stating "None"\n-
-The methods perform operations but don\'t return any value\n- `reset_agent`: 
-Clears history for a specific agent by role\n- `reset_all`: Clears history for 
-all agents in the pool\n- `shutdown`: Clears all agents from the pool (cleanup 
-operation)\n\n## Changes Made\n1. Added `Returns: None` section to 
-`reset_agent()` method\n2. Added `Returns: None` section to `reset_all()` method
-\n3. Added `Returns: None` section to `shutdown()` method\n4. All docstrings now
-follow consistent Google-style format with proper sections\n\n## What to 
-Verify\n1. The smell detector should no longer flag these three methods for 
-missing Returns sections\n2. The documentation accurately reflects that all 
-three methods return `None`\n3. The docstrings maintain consistent formatting 
-with other methods in the file\n4. No other documentation issues were 
-introduced\n\n## Next Priority\nThe next highest priority issues are in 
-`src/henchman/extensions/plugin_database.py`:\n1. Line 148: 
-`PluginDatabase.initialize` missing Returns section\n2. Line 171: 
-`PluginDatabase.save_installation` missing Returns section  \n3. Line 180: 
-`PluginDatabase.delete_installation` missing Returns section'})
+The methods perform database operations but don\'t return any value\n- 
+`initialize`: Creates necessary database tables and indexes\n- 
+`save_installation`: Saves plugin installation record to database\n- 
+`delete_installation`: Deletes plugin installation from database\n\n## Changes 
+Made\n1. Added `Returns: None` section to `initialize()` method\n2. Added 
+`Returns: None` section to `save_installation()` method  \n3. Added `Returns: 
+None` section to `delete_installation()` method\n4. All docstrings now follow 
+consistent Google-style format with proper sections\n\n## What to Verify\n1. The
+smell detector should no longer flag these three methods for missing Returns 
+sections\n2. The documentation accurately reflects that all three methods return
+`None`\n3. The docstrings maintain consistent formatting with other methods in 
+the file\n4. No other documentation issues were introduced\n\n## Next 
+Priority\nThe next highest priority issues are in 
+`src/henchman/extensions/plugin_manager.py`:\n1. Line 368: 
+`PluginManager.uninstall_plugin` missing Returns section\n2. Line 417: 
+`PluginManager.check_updates` missing Returns section'})
 
-[result] Successfully wrote 1922 bytes to 
+[result] Successfully wrote 1938 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me run a quick check to ensure the changes are syntactically correct and the file still works:
-[tool] python_exec({'code': 'import ast\nwith 
-open(\'src/henchman/agents/pool.py\', \'r\') as f:\n    content = f.read()\n    
-tree = ast.parse(content)\n    print(f"File parsed successfully. Contains 
-{len(tree.body)} top-level statements.")\n    \n    # Check for the three 
-methods\n    class_defs = [node for node in tree.body if isinstance(node, 
-ast.ClassDef)]\n    for class_def in class_defs:\n        if class_def.name == 
-\'AgentPool\':\n            methods = [node for node in class_def.body if 
-isinstance(node, ast.FunctionDef)]\n            method_names = [m.name for m in 
-methods]\n            print(f"AgentPool class has {len(methods)} methods")\n    
-print(f"Methods: {method_names}")\n            \n            # Check our three 
-methods\n            for method_name in [\'reset_agent\', \'reset_all\', 
-\'shutdown\']:\n                if method_name in method_names:\n               
-print(f"✓ {method_name} found in class")\n                else:\n               
-print(f"✗ {method_name} NOT found in class")'})
+Now let me verify my changes by checking the updated file:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 145, 'end_line': 165})
 
-[result] File parsed successfully. Contains 11 top-level statements.
-AgentPool class has 11 methods
-Methods: ['__init__', 'environment_context', '_resolve_provider', 
-'_build_system_prompt', 'get_agent', 'get_i...
-Excellent! The file parses correctly and all three methods are present. Let me also verify the docstring format by checking a sample:
-[tool] python_exec({'code': 'import re\n\nwith 
-open(\'src/henchman/agents/pool.py\', \'r\') as f:\n    content = f.read()\n    
-\n    # Check reset_agent docstring\n    reset_agent_pattern = r\'def 
-reset_agent.*?\\"\\"\\"(.*?)\\"\\"\\"\'\n    match = 
-re.search(reset_agent_pattern, content, re.DOTALL)\n    if match:\n        
-docstring = match.group(1)\n        print("reset_agent docstring:")\n        
-print(docstring)\n        print("\\nContains \'Returns:\' section:", "Returns:" 
-in docstring)\n        print("Contains \'None\' in Returns:", "None" in 
-docstring and "Returns:" in docstring)\n    else:\n        print("Could not find
-reset_agent docstring")'})
+[result]         """
+        self.db_path = db_path
 
-[result] reset_agent docstring:
-Reset an agent's history.
-
-        Args:
-            role: The role ID.
+    async def initialize(self: PluginDatabase) -> None:
+        """Create necessary tables and indexes if they don't exist.
 
         Returns:
-            None
-        
+            No...
 
-Contains 'Returns:' section: True
-Contains 'None' in Returns...
-Perfect! The documentation improvement has been successfully completed. Let me create a summary of what was accomplished:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 170, 'end_line': 190})
 
+[result]                     installations[installation.metadata.name] = 
+installation
+        finally:
+            conn.close()
+        return installations
+
+    async def save_installation(self: PluginDatabas...
+
+[tool] read_file({'path': 'src/henchman/extensions/plugin_database.py', 
+'start_line': 185, 'end_line': 195})
+
+[result]         _save_installation_to_db(db_path, installation)
+
+    async def delete_installation(self: PluginDatabase, plugin_name: str) -> 
+None:
+        """Delete plugin installation from database.
+
+      ...
+Perfect! All three methods now have proper Returns sections. Let me also run a quick check to ensure I haven't introduced any formatting issues:
+[tool] code_format({'path': 'src/henchman/extensions/plugin_database.py'})
+
+[result] Formatted: src/henchman/extensions/plugin_database.py...
 ## Summary
 
-I have successfully addressed the highest-priority documentation smell from the report. The improvement focused on:
+I have successfully completed one documentation improvement as requested. Here's what I changed:
 
-**Files Changed**: `src/henchman/agents/pool.py`
+**Improvement Made:** Fixed incomplete docstrings in `src/henchman/extensions/plugin_database.py`
 
-**Smell Category**: Incomplete Docstring (LOW severity)
+**Details:**
+- Added missing `Returns: None` sections to three methods that return `None`:
+  1. `PluginDatabase.initialize()` - Creates necessary database tables and indexes
+  2. `PluginDatabase.save_installation()` - Saves plugin installation record to database  
+  3. `PluginDatabase.delete_installation()` - Deletes plugin installation from database
 
-**Changes Made**:
-1. Added `Returns: None` section to `AgentPool.reset_agent()` method
-2. Added `Returns: None` section to `AgentPool.reset_all()` method  
-3. Added `Returns: None` section to `AgentPool.shutdown()` method
+**Rationale:** According to Google-style docstring conventions, methods that return `None` should still include a Returns section stating "None". This improves documentation completeness and consistency.
 
-**Rationale**: All three methods have return type annotation `-> None` but were missing the required Returns section in their Google-style docstrings. According to documentation conventions, methods that return `None` should explicitly state this in the Returns section.
+**Verification:** 
+- All three methods now have proper Returns sections
+- The changes maintain consistent formatting with other methods in the file
+- No source code behavior was altered - only documentation was updated
+- Ruff formatting was applied to ensure code style consistency
 
-**Verification**:
-- ✅ File parses correctly with Python's AST module
-- ✅ All three methods are present in the class
-- ✅ Docstrings now contain proper `Returns:` sections
-- ✅ Returns sections correctly state `None` as the return value
-- ✅ Consistent formatting maintained with other methods in the file
+**Next Priority:** The documentation smell report shows the next issues are in `src/henchman/extensions/plugin_manager.py` (lines 368 and 417) for similar missing Returns sections.
 
-**Next Priority**: The smell report indicates the next issues to address are in `src/henchman/extensions/plugin_database.py` (lines 148, 171, 180) where similar missing Returns sections need to be added.
-
-This improvement maintains the project's 100% documentation coverage requirement and follows the principle of **COMPLETENESS** - ensuring all public APIs are fully documented according to Google-style conventions.
+The improvement has been recorded in `.agent_tasks/auto-doc-improve/last-improvement.md` with full details for tracking purposes.
 [tech_lead] completed work
-[2026-03-18T00:00:02Z] Running mkdocs build to verify documentation...
+[2026-03-18T02:00:01Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -223,8 +242,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 1.04 seconds
-[2026-03-18T00:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 1.02 seconds
+[2026-03-18T02:00:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-18T00:00:02Z] Verification passed.
+[2026-03-18T02:00:01Z] Verification passed.
 Committing changes...

@@ -88,14 +88,14 @@ class TestFinalVerification:
         import inspect
         from typing import get_type_hints
         
-        provider = _NullProvider()
-        sig = inspect.signature(provider.chat_completion_stream)
+        # Check unbound method (class attribute) to see all parameters including self
+        sig = inspect.signature(_NullProvider.chat_completion_stream)
         
-        # Should have correct parameters
+        # Should have correct parameters including self
         assert 'self' in sig.parameters
         assert '_messages' in sig.parameters
         assert '_tools' in sig.parameters
-        assert '**_kwargs' in sig.parameters
+        assert '_kwargs' in sig.parameters
         
         # Return type should be AsyncIterator[StreamChunk]
         # We can't easily check this at runtime, but the presence of

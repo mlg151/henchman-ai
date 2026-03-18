@@ -1,7 +1,7 @@
-[2026-03-18T00:00:03Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T02:00:02Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-18T00:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T02:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -9,18 +9,19 @@ I'll start by reading the smell report to understand the context, then examine t
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — 👍 B (Score: 80.5/100)
+[result] # Code Smell Report — 👍 B (Score: 80.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T00:00:31.828582+00:00_
+_Generated: 2026-03-18T02:00:36.251705+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
+'end_line': 100})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -28,51 +29,9 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-The file is quite large (1458 lines). Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual_mixins*.py'})
-
-[result] tests/cli/test_textual_mixins_actual_bug.py
-tests/cli/test_textual_mixins_asyncio_lock_bug.py
-tests/cli/test_textual_mixins_attribute_error_bug.py
-tests/cli/test_textual_mixins_bug.py
-tests/cli/test_t...
-Let me check one of these test files to understand what bugs have already been identified:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
-
-[result] """Failing test for the id() collision bug in textual_mixins.py."""
-
-from __future__ import annotations
-
-import asyncio
-from unittest.mock import MagicMock, patch
-import pytest
-
-from henchman.tools.ba...
-Now let me examine the actual source code more carefully, particularly the `_textual_confirm` method which seems to have issues:
+Let me continue reading the file to understand its structure better:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-491, 'end_line': 600})
-
-[result]     async def _textual_confirm(self: _InitMixin, request: 
-ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
-
-        Args:
-            request: The tool confirmation request.
-...
-Now let me check the `_cleanup_confirm_futures` method more closely. I see there's a potential issue with the cleanup logic. Let me also look at the `_NullProvider` class:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-50, 'end_line': 100})
-
-[result]     from henchman.cli.textual_messages import (
-        AgentContentMessage,
-        AgentFinishedMessage,
-        AgentStatusMessage,
-        AgentThoughtMessage,
-        CommandOutputMessage,
-      ...
-
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 150})
+100, 'end_line': 300})
 
 [result] }
 
@@ -80,110 +39,113 @@ Now let me check the `_cleanup_confirm_futures` method more closely. I see there
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
 # --------------------------------------------------...
-Now let me examine the `_cleanup_confirm_futures` method more carefully. I need to understand the Four Lenses of Failure for this code:
-
-## Phase 1: The Intent vs. Reality Check
-
-Looking at the `_cleanup_confirm_futures` method (lines 585-610), I see a potential **Logic Gap**:
-
-1. The method is called from `on_unmount` (a synchronous context)
-2. It tries to cancel futures in a synchronous context
-3. The comment says "We're in sync context but using asyncio.Lock" and "Since this is shutdown cleanup, we accept potential races"
-4. There's a **silent failure risk**: If `future.cancel()` raises an exception, it's not caught
-
-Let me check if there's a try-except around the `future.cancel()` call:
+Let me continue reading to understand more of the file structure:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-585, 'end_line': 610})
+300, 'end_line': 500})
 
-[result]             tabs.active = "tab-chat"
+[result]         ctx = getattr(self, "core_context", None)
+        return getattr(ctx, name, None) if ctx else None
 
+    @property
+    def orchestrator(self: _ProxyMixin) -> Any:
+        """Proxy to ``core_con...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*textual_mixins*.py'})
 
-# ------------------------------------------------------------------ #
-# Mixin: provider resolution & switching                              #
-# ----------------...
-Let me check the `_cleanup_confirm_futures` method more carefully:
+[result] tests/cli/test_textual_mixins_actual_bug.py
+tests/cli/test_textual_mixins_asyncio_lock_bug.py
+tests/cli/test_textual_mixins_attribute_error_bug.py
+tests/cli/test_textual_mixins_bug.py
+tests/cli/test_t...
+Let me look at the test files to understand what bugs have already been identified:
+[tool] read_file({'path': 'tests/cli/test_textual_mixins_coverage.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Tests for textual_mixins.py coverage - focusing on missing lines."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import ...
+Let me check the actual bug report to see what's already been found:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-whisperer-delegation/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+debug...
+✗ \[error] Command timed out after 3600.0 seconds. Partial output:
+(no output)
+Let me check the existing four-lenses analysis for this file:Let me check the directory structure
+[tool] read_file({'path': 
+'.agent_tasks/four-lenses-cli-textual_mixins/README.md'})
+
+[result] # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
+## Date: 2025-03-18T00:00:00Z
+
+## Bug 1: Unhandled Exception in Cleanup (Already Fixed)
+**Bug Summary**: The `_cleanup_confirm_futures` met...
+ and look for any failing tests more carefully:
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_additional_coverage.py
+test_agent_command.py
+test_app.py
+test_app_coverage_100.py
+test_app_extended.py
+test_app_input_coverage.py
+test_builtins.py
+test_chat_com...
+I need to examine the target file more thoroughly to find a real bug. Let me continue reading the file, particularly focusing on the `_textual_confirm` method which was mentioned in the previous bug report:Let me check one of the failing test files to see what bug it's testing
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-570, 'end_line': 610})
+491, 'end_line': 600})
 
-[result]         keys = list(self._confirm_futures.keys())  # type: 
-ignore[attr-defined]
-        for req_id in keys:
-            # Pop the future from dict BEFORE cancelling it
-            # This prevents call...
-Now I need to look at the full `_cleanup_confirm_futures` method:
+:[result]     async def _textual_confirm(self: _InitMixin, request: 
+ConfirmationRequest) -> bool:
+        """Show a modal confirmation dialog.
+
+        Args:
+            request: The tool confirmation request.
+...
+
+[tool] read_file({'path': 
+'tests/cli/test_textual_mixins_unhandled_task_bug_failing.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """Failing test for unhandled task bug in _textual_confirm callback.
+
+This test demonstrates the bug where the callback in _textual_confirm
+creates an asyncio task but doesn't store it.
+"""
+
+from __fu...
+Now let me examine the `_NullProvider` class more closely, as it seems to have some interesting behavior:Let me run a quick test to see
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-555, 'end_line': 585})
+70, 'end_line': 120})
 
-[result]             # No need to check future.done() first (avoids TOCTOU race)
-            future.cancel()
-            raise
+ if there[result]     "_HistoryMixin",
+    "_InitMixin",
+    "_InputHandlerMixin",
+    "_MessageHandlerMixin",
+    "_NullProvider",
+    "_PaneActionMixin",
+    "_ProviderMixin",
+    "_ProxyMixin",
+    "_PublicAPIMixin"...
+ are any actual failing tests:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/test_textual_mixins_null_provider_bug.py -xvs 2>&1 | tail -50'})
 
-    def _cleanup_confirm_futures(self: _InitMixin) -> None:
-        """Clean up a...
-Now let me check the `_NullProvider.chat_completion_stream` method more carefully. I see a potential bug there:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-120, 'end_line': 140})
-
-[result]         """The unique name of this provider."""
-        return self._name
-
-    async def chat_completion(
-        self: _NullProvider,
-        _messages: list[Any],
-        _tools: list[Any] | None = ...
-
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-140, 'end_line': 150})
-
-[result]         # This makes the yield statement actually reachable (not dead 
-code)
-        # The chunk is empty (all None fields) and will likely be ignored by 
-callers
-        yield StreamChunk()  # type: ig...
-Now I need to examine this through the **Four Lenses of Failure**:
-
-## Phase 1: The Intent vs. Reality Check
-
-Looking at `_NullProvider.chat_completion_stream`:
-- **Intent**: Yield an empty chunk, then raise `RuntimeError(_NO_PROVIDER_MSG)`
-- **Reality**: The `yield StreamChunk()` line has `# type: ignore[misc]` comment, suggesting type issues
-- **Logic Gap**: The method yields ONE empty chunk, then raises an exception. But what if the caller doesn't iterate to the second item? The error might not be raised!
-
-## Phase 2: State & Side Effects
-
-The `_cleanup_confirm_futures` method:
-- **Shared State**: Accesses `self._confirm_futures` dictionary
-- **Immutability Issue**: Modifies the dictionary while iterating (pops items)
-- **Scope Creep**: Does cleanup in synchronous context but deals with async futures
-
-## Phase 3: Performance & Resource Management
-
-The `_cleanup_confirm_futures` method:
-- **Algorithmic Efficiency**: O(n) - fine for cleanup
-- **Resource Leaks**: Calls `future.cancel()` but doesn't handle exceptions
-
-## Phase 4: The Forensic Refactor
-
-Let me identify the **ONE real bug** in core functionality. Looking at the `_NullProvider.chat_completion_stream`:
-
-**The Bug**: The method yields `StreamChunk()` with `# type: ignore[misc]`. This suggests the `StreamChunk` constructor requires arguments, but it's being called without them. This could cause a `TypeError` at runtime.
-
-Let me check what `StreamChunk` requires:
-[tool] rag_search({'query': 'StreamChunk class definition parameters'})
-
-[result] Found 5 relevant code chunks:
-
-[1] tests/agents/test_delegation_e2e.py (lines 71-153, score: 0.716)
-```
-        elif isinstance(response, list):
-            yield StreamChunk(tool_calls=response, fini...
-Let me check the StreamChunk definition in the providers/base.py:
-[tool] rag_search({'query': 'class StreamChunk definition in providers base'})
-
-[result] Found 5 relevant code chunks:
-
-[1] tests/cli/test_textual_mixins_null_provider_bug.py (lines 113-167, score: 
-0.708)
-```
-        # First iteration should yield an empty chunk
-        chunk = await gen....
