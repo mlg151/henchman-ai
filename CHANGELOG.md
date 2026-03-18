@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-03-18
+
 ### Fixed
+- **Discord bot infinite loop and duplicate responses** (`chat/manager.py`)
+  - The `while True` outer loop in `_handle_message` called `agent.continue_with_tool_results()` unconditionally after every stream. Since that method returns an async generator (never raises), the `except Exception: break` never triggered, causing infinite iterations. Each iteration generated a duplicate LLM response and hit the inner 50-event safety limit, producing repeated "Maximum tool iterations reached" warnings. Fixed by tracking `had_tool_calls` in `_process_stream` and only continuing when tool calls were actually made. Added a 20-round outer safety limit.
+- **`/clear` command wiped system prompt** (`chat/manager.py`)
+  - `messages.clear()` removed the system prompt along with conversation history, causing "Messages list cannot be empty" provider errors on subsequent messages. Fixed by using `agent.clear_history()` which preserves the system prompt.
 - **BUG-7 🟡 MEDIUM — CLI tool calls were echoed multiple times** (`stream_event_handlers.py`, `tool_executor.py`)
   - The REPL rendered a tool call immediately on `TOOL_CALL_REQUEST`, then echoed the same `[tool] ...` line again when executing the pending tool. Fixed by tracking tool-call IDs already announced during stream handling and suppressing the duplicate execution-time echo for those IDs, while preserving the legacy direct-execution path that still needs its own announcement.
 - **BUG-8 🟡 MEDIUM — Tool triplication in CLI output** (`henchman/cli/stream_event_handlers.py`)
