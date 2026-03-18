@@ -17,7 +17,7 @@ import click
 from rich.console import Console
 
 from henchman.cli.json_output import JsonOutputRenderer
-from henchman.cli.chat_serve import chat_serve_command
+from henchman.cli.chat_serve import xyzbot_command
 from henchman.cli.serve import serve_command
 from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
@@ -663,9 +663,18 @@ def cli(ctx: click.Context) -> None:
     Returns:
         None: This function doesn't return anything.
     """
+    import sys
+    print(f"DEBUG: cli() called, invoked_subcommand={ctx.invoked_subcommand}", file=sys.stderr)
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
+
+@cli.command(name="xyztest")
+def xyztest_command() -> None:
+    """Test command for debugging."""
+    import sys
+    print("DEBUG: xyztest_command called", file=sys.stderr)
+    click.echo("XYZTest command works!")
 
 @cli.command(name="chat")
 @click.option("-p", "--prompt", help="Run with a single prompt and exit")
@@ -769,8 +778,8 @@ def _execute_chat_command(config: RunConfig) -> None:
 
 
 # Add serve command to CLI group
+cli.add_command(xyzbot_command)
 cli.add_command(serve_command)
-cli.add_command(chat_serve_command)
 
 
 def main() -> None:  # pragma: no cover

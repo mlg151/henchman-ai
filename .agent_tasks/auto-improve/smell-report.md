@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-18T21:00:28.185554+00:00_
+_Generated: 2026-03-18T22:00:39.488112+00:00_
 
 ## Executive Summary
 
@@ -11,18 +11,19 @@ _Generated: 2026-03-18T21:00:28.185554+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.8/100 |
 | **Files Scanned** | 222 |
-| **Total Lines (non-blank)** | 47,773 |
-| **Total Smells** | 454 |
+| **Total Lines (non-blank)** | 47,810 |
+| **Total Smells** | 462 |
 | **Avg Maintainability Index** | 69.7 |
-| **Avg Cyclomatic Complexity** | 13.1 |
+| **Avg Cyclomatic Complexity** | 13.2 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 251 |
-| medium | 190 |
-| high | 13 |
+| low | 252 |
+| medium | 194 |
+| high | 15 |
+| critical | 1 |
 
 ### Smells by Category
 
@@ -30,84 +31,84 @@ _Generated: 2026-03-18T21:00:28.185554+00:00_
 |:---------|------:|
 | Duplicate Code | 137 |
 | Missing Type Hint | 85 |
-| Long Method | 53 |
-| Feature Envy | 47 |
+| Long Method | 54 |
+| Feature Envy | 48 |
 | Primitive Obsession | 46 |
 | Magic Number | 30 |
-| Deep Nesting | 23 |
-| Complex Function | 19 |
+| Deep Nesting | 28 |
+| Complex Function | 20 |
 | Large Class | 14 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator_events.py:30** — 🟠 HIGH — Duplicate Code  
+1. **chat/manager.py:178** — 🔴 CRITICAL — Deep Nesting  
+   Nesting depth 8 in '_get_provider_settings' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+2. **agents/orchestrator_events.py:30** — 🟠 HIGH — Duplicate Code  
    Function 'extract_brief_fields' is an exact duplicate of '_build_storage_kwargs' at metrics/exporter.py:55  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-2. **chat/discord_bot.py:78** — 🟠 HIGH — Feature Envy  
+3. **chat/discord_bot.py:78** — 🟠 HIGH — Feature Envy  
    Method 'DiscordBot._setup_events' accesses 'message' 12 times but 'self' only 7 times  
    → _Move Method — consider moving '_setup_events' to the class that owns 'message'._
 
-3. **chat/manager.py:153** — 🟠 HIGH — Feature Envy  
+4. **chat/manager.py:174** — 🟠 HIGH — Deep Nesting  
+   Nesting depth 6 in '_get_provider_settings' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+5. **chat/manager.py:176** — 🟠 HIGH — Deep Nesting  
+   Nesting depth 7 in '_get_provider_settings' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+6. **chat/manager.py:190** — 🟠 HIGH — Feature Envy  
    Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 4 times  
    → _Move Method — consider moving '_handle_message' to the class that owns 'message'._
 
-4. **chat/manager.py:237** — 🟠 HIGH — Feature Envy  
+7. **chat/manager.py:274** — 🟠 HIGH — Feature Envy  
    Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times  
    → _Move Method — consider moving '_handle_command' to the class that owns 'message'._
 
-5. **cli/app.py:43** — 🟠 HIGH — Duplicate Code  
+8. **cli/app.py:43** — 🟠 HIGH — Duplicate Code  
    Function '_import_attrs' is an exact duplicate of '_import_attrs' at core/agent.py:98  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-6. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
+9. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
    Function '_textual_confirm' has 90 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-7. **cli/textual_widgets.py:498** — 🟠 HIGH — Primitive Obsession  
+10. **cli/textual_widgets.py:498** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '__init__' (line 498), '_add_message_with_prefix' (line 1004)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-8. **cli/textual_widgets.py:1026** — 🟠 HIGH — Duplicate Code  
+11. **cli/textual_widgets.py:1026** — 🟠 HIGH — Duplicate Code  
    Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1034  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
+12. **extensions/plugin_compatibility.py:91** — 🟠 HIGH — Duplicate Code  
    Function '_check_os_compatibility' is an exact duplicate of '_compress_ranges' at tools/builtins/coverage_map.py:206  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-10. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+13. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_cost_csv_rows' at metrics/dashboard.py:224  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-11. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
+14. **metrics/dashboard.py:218** — 🟠 HIGH — Duplicate Code  
    Function '_write_token_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
+15. **metrics/dashboard.py:224** — 🟠 HIGH — Duplicate Code  
    Function '_write_cost_csv_rows' is an exact duplicate of '_write_tool_csv_rows' at metrics/dashboard.py:230  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-13. **utils/compaction.py:881** — 🟠 HIGH — Duplicate Code  
-   Function '_format_messages_for_summary' is an exact duplicate of '_generate_cluster_summary' at utils/compression_strategy.py:278  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-14. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
-   Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/chat/manager.py:153** — 🟡 MEDIUM — Complex Function  
-   Function '_handle_message' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | chat/manager.py | ❌ F | 16.9 | 37 | 275 | 56 | 11.5 |
+| 1 | chat/manager.py | ❌ F | 15.6 | 45 | 302 | 52 | 12.3 |
 | 2 | cli/textual_mixins.py | ❌ F | 36.0 | 13 | 1488 | 1 | 0.0 |
 | 3 | cli/textual_widgets.py | ❌ F | 47.1 | 8 | 1037 | 26 | 0.0 |
 | 4 | chat/discord_bot.py | ❌ F | 51.3 | 18 | 232 | 61 | 0.0 |
@@ -122,29 +123,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 202 additional files omitted._
 
-### chat/manager.py — ❌ F (16.9/100)
+### chat/manager.py — ❌ F (15.6/100)
 
-LOC: 275 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 11.5
+LOC: 302 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 12.3
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 153 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'message'. |
-| 237 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times | Move Method — consider moving '_handle_command' to the class that owns 'message'. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 93% similar to '__init__' at cli/ui_renderer.py:80 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Long Method | Function '_handle_message' has 74 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 153 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'bot' 6 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'bot'. |
-| 153 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'event' 5 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'event'. |
-| 153 | 🟡 MEDIUM | Complex Function | Function '_handle_message' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 208 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 214 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 237 | 🟡 MEDIUM | Long Method | Function '_handle_command' has 71 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 237 | 🟡 MEDIUM | Complex Function | Function '_handle_command' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 295 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_command' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 305 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_command' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 344 | 🟡 MEDIUM | Duplicate Code | Function 'bots' is 100% similar to 'parameters' at tools/builtins/git_ops.py:290 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 344 | 🟡 MEDIUM | Duplicate Code | Function 'bots' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:92 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 178 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in '_get_provider_settings' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 174 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_get_provider_settings' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 176 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_get_provider_settings' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 190 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'message'. |
+| 274 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times | Move Method — consider moving '_handle_command' to the class that owns 'message'. |
+| 35 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 93% similar to '__init__' at cli/ui_renderer.py:80 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 123 | 🟡 MEDIUM | Long Method | Function '_get_provider_settings' has 57 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 123 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._get_provider_settings' accesses 'defaults' 9 times but 'self' only 1 times | Move Method — consider moving '_get_provider_settings' to the class that owns 'defaults'. |
+| 123 | 🟡 MEDIUM | Complex Function | Function '_get_provider_settings' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 172 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_get_provider_settings' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 190 | 🟡 MEDIUM | Long Method | Function '_handle_message' has 74 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 190 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'bot' 6 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'bot'. |
+| 190 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._handle_message' accesses 'event' 5 times but 'self' only 4 times | Move Method — consider moving '_handle_message' to the class that owns 'event'. |
+| 190 | 🟡 MEDIUM | Complex Function | Function '_handle_message' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 245 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_handle_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
-_... and 22 more smells._
+_... and 30 more smells._
 
 ### cli/textual_mixins.py — ❌ F (36.0/100)
 
