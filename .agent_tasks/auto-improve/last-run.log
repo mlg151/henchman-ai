@@ -1,7 +1,7 @@
-[2026-03-17T22:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-18T00:00:03Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-17T22:00:02Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+[2026-03-18T00:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
@@ -9,19 +9,18 @@ I'll start by reading the smell report to understand the context, then examine t
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — 👍 B (Score: 80.1/100)
+[result] # Code Smell Report — 👍 B (Score: 80.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T22:00:35.967696+00:00_
+_Generated: 2026-03-18T00:00:31.828582+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|...
-Now let me examine the target file to understand its structure and functionality:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 1,
-'end_line': 100})
+Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
 
 [result] """Mixin classes for HenchmanTextualApp.
 
@@ -29,68 +28,15 @@ Extracted from textual_app.py to reduce class size and improve
 maintainability. Each mixin encapsulates a specific concern of the
 Textual TUI application.
 """...
-Let me continue reading the file to understand its structure better:
-[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
-100, 'end_line': 200})
+The file is quite large (1458 lines). Let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*textual_mixins*.py'})
 
-[result] }
-
-
-# ------------------------------------------------------------------ #
-# NullProvider (fallback when no real provider is configured)          #
-# --------------------------------------------------...
-Let me look at the test file to understand what tests exist:
-[tool] ls({'path': 'tests'})
-
-[result] MagicMock/
-README.md
-__init__.py
-__pycache__/
-agents/
-api/
-cli/
-config/
-conftest.py
-core/
-e2e/
-empty_message_validation/
-extensions/
-henchman/
-integration/
-knowledge/
-mcp/
-metrics/
-providers/
-rag/
-smo...
-
-[tool] ls({'path': 'tests/cli'})
-
-[result] __init__.py
-__pycache__/
-commands/
-test_additional_coverage.py
-test_agent_command.py
-test_app.py
-test_app_coverage_100.py
-test_app_extended.py
-test_app_input_coverage.py
-test_builtins.py
-test_chat_com...
-Let me check if there's a test file specifically for textual_mixins:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
-'start_line': 1, 'end_line': 50})
-
-[result] """Failing test for the id() collision bug in textual_mixins.py."""
-
-from __future__ import annotations
-
-import asyncio
-from unittest.mock import MagicMock, patch
-import pytest
-
-from henchman.tools.ba...
-Let me look at the actual bug test to understand what the issue is:
+[result] tests/cli/test_textual_mixins_actual_bug.py
+tests/cli/test_textual_mixins_asyncio_lock_bug.py
+tests/cli/test_textual_mixins_attribute_error_bug.py
+tests/cli/test_textual_mixins_bug.py
+tests/cli/test_t...
+Let me check one of these test files to understand what bugs have already been identified:
 [tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py'})
 
 [result] """Failing test for the id() collision bug in textual_mixins.py."""
@@ -102,7 +48,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from henchman.tools.ba...
-Now let me examine the actual `_textual_confirm` method in the target file to see the bug:
+Now let me examine the actual source code more carefully, particularly the `_textual_confirm` method which seems to have issues:
 [tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
 491, 'end_line': 600})
 
@@ -113,67 +59,131 @@ ConfirmationRequest) -> bool:
         Args:
             request: The tool confirmation request.
 ...
-I can see there's already a test file that identifies a potential bug with `id(future)` usage. Let me check if the current code still has this bug by looking at the actual implementation more carefully. First, let me create the documentation stub as required:
-[tool] write_file({'path': 
-'.agent_tasks/four-lenses-cli-textual_mixins/README.md', 'content': "# Four 
-Lenses Bug Report: src/henchman/cli/textual_mixins.py\n## Date: 
-2025-03-17T22:15:00Z\n## Bug Summary\nThe `_textual_confirm` method uses 
-`id(future)` as dictionary keys for tracking confirmation futures, which can 
-lead to key collisions when memory addresses are reused after garbage 
-collection.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic 
-Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
-|\n|---|---|\n| Each confirmation request should have a unique identifier that 
-persists for the lifetime of the confirmation dialog | Using `id(future)` 
-creates identifiers that can be reused when Python recycles memory addresses 
-|\n| The system should reliably track pending confirmations and clean them up 
-properly | Memory address reuse can cause late callbacks to affect wrong futures
-or cleanup to remove wrong entries |\n| Concurrent confirmation requests should 
-not interfere with each other | Key collisions could cause race conditions in 
-the `_confirm_futures` dictionary |\n\n## Root Cause\nThe code uses `id(future)`
-as a dictionary key in `_confirm_futures`. While `id()` returns a unique 
-identifier for an object's lifetime, Python can and does reuse memory addresses 
-after objects are garbage collected. If:\n1. Future A is created with memory 
-address X\n2. Future A completes and is garbage collected\n3. Future B is 
-created and gets the same memory address X (memory reuse)\n4. A late callback 
-for Future A could affect Future B\n\nThe current implementation attempts to 
-mitigate this with a counter system, but there's still a race condition in the 
-initialization logic.\n\n## Fix Plan\n1. Ensure `_confirm_counter` is always 
-used instead of `id(future)` \n2. Make the counter increment atomic with proper 
-locking\n3. Verify all code paths use the counter-based approach 
-consistently\n4. Add a test that demonstrates the bug and verifies the fix\n\n##
-Status: IN PROGRESS"})
+Now let me check the `_cleanup_confirm_futures` method more closely. I see there's a potential issue with the cleanup logic. Let me also look at the `_NullProvider` class:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+50, 'end_line': 100})
 
-[result] Successfully wrote 1893 bytes to 
-.agent_tasks/four-lenses-cli-textual_mixins/README.md...
-Now let me examine the current implementation more carefully. Looking at the code I read earlier, I see it already tries to use `_confirm_counter`, but let me check if there are any remaining uses of `id(future)`:
-[tool] grep({'pattern': 'id\\(future\\)', 'path': 
-'src/henchman/cli/textual_mixins.py'})
+[result]     from henchman.cli.textual_messages import (
+        AgentContentMessage,
+        AgentFinishedMessage,
+        AgentStatusMessage,
+        AgentThoughtMessage,
+        CommandOutputMessage,
+      ...
 
-[result]         # Use a counter-based ID instead of id(future) to avoid 
-potential...
-Good! The comment says it uses a counter-based ID instead of `id(future)`. Let me check if there are any actual uses of `id(future)` in the code:
-[tool] grep({'pattern': 'id\\(', 'path': 'src/henchman/cli/textual_mixins.py'})
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+100, 'end_line': 150})
 
-[result]         # Use a counter-based ID instead of id(future) to avoid 
-potential...
-So the code doesn't actually use `id(future)` anymore. However, let me run the failing test to see what it's actually testing:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/cli/test_textual_mixins_bug_failing.py -x -q --tb=short'})
+[result] }
 
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
-rootdir: /home/matthew/mlg-cli
-configfile: pyproject.toml
-p...
-Interesting! The test passes. Let me look at the actual test to understand what it's checking:
-[tool] read_file({'path': 'tests/cli/test_textual_mixins_bug_failing.py', 
-'start_line': 30, 'end_line': 80})
 
-[result]                 self._confirm_counter = 100
-                
-        app = MockApp()
-        
-        # We need to test the actual _textual_confirm method
-        # But it requires push_screen which w...
-Wait, the test is checking for `id(future)` in the source code, but the test passes! That means the current implementation doesn't have `id(future)` in it. Let me check if there's another test that actually fails:
+# ------------------------------------------------------------------ #
+# NullProvider (fallback when no real provider is configured)          #
+# --------------------------------------------------...
+Now let me examine the `_cleanup_confirm_futures` method more carefully. I need to understand the Four Lenses of Failure for this code:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_cleanup_confirm_futures` method (lines 585-610), I see a potential **Logic Gap**:
+
+1. The method is called from `on_unmount` (a synchronous context)
+2. It tries to cancel futures in a synchronous context
+3. The comment says "We're in sync context but using asyncio.Lock" and "Since this is shutdown cleanup, we accept potential races"
+4. There's a **silent failure risk**: If `future.cancel()` raises an exception, it's not caught
+
+Let me check if there's a try-except around the `future.cancel()` call:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+585, 'end_line': 610})
+
+[result]             tabs.active = "tab-chat"
+
+
+# ------------------------------------------------------------------ #
+# Mixin: provider resolution & switching                              #
+# ----------------...
+Let me check the `_cleanup_confirm_futures` method more carefully:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+570, 'end_line': 610})
+
+[result]         keys = list(self._confirm_futures.keys())  # type: 
+ignore[attr-defined]
+        for req_id in keys:
+            # Pop the future from dict BEFORE cancelling it
+            # This prevents call...
+Now I need to look at the full `_cleanup_confirm_futures` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+555, 'end_line': 585})
+
+[result]             # No need to check future.done() first (avoids TOCTOU race)
+            future.cancel()
+            raise
+
+    def _cleanup_confirm_futures(self: _InitMixin) -> None:
+        """Clean up a...
+Now let me check the `_NullProvider.chat_completion_stream` method more carefully. I see a potential bug there:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+120, 'end_line': 140})
+
+[result]         """The unique name of this provider."""
+        return self._name
+
+    async def chat_completion(
+        self: _NullProvider,
+        _messages: list[Any],
+        _tools: list[Any] | None = ...
+
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py', 'start_line': 
+140, 'end_line': 150})
+
+[result]         # This makes the yield statement actually reachable (not dead 
+code)
+        # The chunk is empty (all None fields) and will likely be ignored by 
+callers
+        yield StreamChunk()  # type: ig...
+Now I need to examine this through the **Four Lenses of Failure**:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at `_NullProvider.chat_completion_stream`:
+- **Intent**: Yield an empty chunk, then raise `RuntimeError(_NO_PROVIDER_MSG)`
+- **Reality**: The `yield StreamChunk()` line has `# type: ignore[misc]` comment, suggesting type issues
+- **Logic Gap**: The method yields ONE empty chunk, then raises an exception. But what if the caller doesn't iterate to the second item? The error might not be raised!
+
+## Phase 2: State & Side Effects
+
+The `_cleanup_confirm_futures` method:
+- **Shared State**: Accesses `self._confirm_futures` dictionary
+- **Immutability Issue**: Modifies the dictionary while iterating (pops items)
+- **Scope Creep**: Does cleanup in synchronous context but deals with async futures
+
+## Phase 3: Performance & Resource Management
+
+The `_cleanup_confirm_futures` method:
+- **Algorithmic Efficiency**: O(n) - fine for cleanup
+- **Resource Leaks**: Calls `future.cancel()` but doesn't handle exceptions
+
+## Phase 4: The Forensic Refactor
+
+Let me identify the **ONE real bug** in core functionality. Looking at the `_NullProvider.chat_completion_stream`:
+
+**The Bug**: The method yields `StreamChunk()` with `# type: ignore[misc]`. This suggests the `StreamChunk` constructor requires arguments, but it's being called without them. This could cause a `TypeError` at runtime.
+
+Let me check what `StreamChunk` requires:
+[tool] rag_search({'query': 'StreamChunk class definition parameters'})
+
+[result] Found 5 relevant code chunks:
+
+[1] tests/agents/test_delegation_e2e.py (lines 71-153, score: 0.716)
+```
+        elif isinstance(response, list):
+            yield StreamChunk(tool_calls=response, fini...
+Let me check the StreamChunk definition in the providers/base.py:
+[tool] rag_search({'query': 'class StreamChunk definition in providers base'})
+
+[result] Found 5 relevant code chunks:
+
+[1] tests/cli/test_textual_mixins_null_provider_bug.py (lines 113-167, score: 
+0.708)
+```
+        # First iteration should yield an empty chunk
+        chunk = await gen....
