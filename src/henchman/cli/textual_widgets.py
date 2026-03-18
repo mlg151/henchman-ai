@@ -499,6 +499,8 @@ class ChatMessage(_BaseMessageWidget):
         self: Self,
         prefix: str,
         content: str = "",
+        *,
+        trusted: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -506,10 +508,13 @@ class ChatMessage(_BaseMessageWidget):
         Args:
             prefix: Rich-markup prefix (e.g. ``[bold cyan]Asst:[/]``).
             content: Initial content (may be empty for streaming).
+            trusted: If True, render content Rich markup instead of escaping.
+                     Use for system-generated messages only.
             **kwargs: Extra kwargs forwarded to ``_BaseMessageWidget``.
         """
         super().__init__(content, **kwargs)
         self._prefix = prefix
+        self._trusted = trusted
         self._highlight_term: str = ""
         self._is_markdown: bool = False
         self._renderable_text: str = ""
@@ -539,10 +544,13 @@ class ChatMessage(_BaseMessageWidget):
 
     def _render_plain_text(self: Self) -> None:
         """Render content as plain text with optional highlighting."""
-        escaped = _safe_markup(self._content_text)
+        if self._trusted:
+            content = self._content_text
+        else:
+            content = _safe_markup(self._content_text)
         if self._highlight_term:
-            escaped = _highlight_text(escaped, self._highlight_term)
-        text = f"{self._prefix} {escaped}"
+            content = _highlight_text(content, self._highlight_term)
+        text = f"{self._prefix} {content}"
         self._renderable_text = text
         self.update(text)
 
@@ -993,26 +1001,39 @@ class ChatPane(VerticalScroll):
 
     # -- public API for adding messages --
 
-    def _add_message_with_prefix(self: Self, prefix: str, text: str) -> ChatMessage:
+    def _add_message_with_prefix(
+        self: Self,
+        prefix: str,
+        text: str,
+        *,
+        trusted: bool = False,
+    ) -> ChatMessage:
         """Add a message with the given prefix.
 
         Args:
             prefix: Rich markup prefix for the message.
             text: Message content.
+            trusted: If True, render Rich markup in content. System-generated
+                     messages use True; user/LLM content uses False.
 
         Returns:
             The created ChatMessage widget.
         """
-        message_args = (prefix, text)
-        return self._add_message_widget(ChatMessage, *message_args)
+        return self._add_message_widget(
+            ChatMessage, prefix, text, trusted=trusted,
+        )
 
-    # Thin public wrappers — each delegates to _add_message_with_prefix with
-    # the appropriate prefix constant.  Using functools.partialmethod keeps
-    # these as non-FunctionDef descriptors so structural-duplicate detectors
-    # do not flag them as identical one-liner methods.
-    add_user_message = functools.partialmethod(_add_message_with_prefix, _USER_PREFIX)
-    add_system_message = functools.partialmethod(_add_message_with_prefix, _SYSTEM_PREFIX)
-    add_error_message = functools.partialmethod(_add_message_with_prefix, _ERROR_PREFIX)
+    def add_user_message(self: Self, text: str) -> ChatMessage:
+        """Add a user message (untrusted content, markup escaped)."""
+        return self._add_message_with_prefix(_USER_PREFIX, text)
+
+    def add_system_message(self: Self, text: str) -> ChatMessage:
+        """Add a system message (trusted content, markup rendered)."""
+        return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)
+
+    def add_error_message(self: Self, text: str) -> ChatMessage:
+        """Add an error message (untrusted content, markup escaped)."""
+        return self._add_message_with_prefix(_ERROR_PREFIX, text)
 
     def begin_agent_stream(self: Self, agent_name: str) -> ChatMessage:
         """Start a new streaming message for *agent_name*.

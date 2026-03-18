@@ -60,6 +60,7 @@ class TestTextualConfirmRaceCondition:
         mixin = _InitMixin.__new__(_InitMixin)
         mixin._confirm_futures = {}
         mixin._confirm_counter = 0
+        mixin._confirm_lock = asyncio.Lock()
         mixin.push_screen = AsyncMock()
         
         # Mock the screen to call callback after a delay (simulating race)

@@ -32,9 +32,9 @@ class TestTextualMixinsSimpleToctouBug:
         # Set _confirm_futures to None (simulating bug or race condition)
         mixin._confirm_futures = None
         
-        # This should raise AttributeError in original code
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'keys'"):
-            mixin._cleanup_confirm_futures()
+        # Bug is fixed: should return gracefully, not raise AttributeError
+        result = mixin._cleanup_confirm_futures()
+        assert result is None  # Returns None (exits early due to None check)
     
     def test_cleanup_confirm_futures_with_missing_attribute(self) -> None:
         """Test that _cleanup_confirm_futures handles missing attribute.

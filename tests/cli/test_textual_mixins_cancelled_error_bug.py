@@ -22,33 +22,35 @@ class TestCancelledErrorBug:
         should be caught by the specific handler and re-raised.
         """
         # Create a mock mixin instance
-        mixin = _InitMixin()
+        mixin = MagicMock(spec=_InitMixin)
         
         # Initialize the state that _textual_confirm expects
         mixin._confirm_futures = {}
         mixin._confirm_counter = 0
         mixin._confirm_lock = asyncio.Lock()
+        mixin.push_screen = AsyncMock(side_effect=asyncio.CancelledError)
         
-        # Mock the push_screen to raise CancelledError immediately
-        with patch.object(mixin, 'push_screen', side_effect=asyncio.CancelledError):
-            # Create a simple confirmation request
-            request = ConfirmationRequest(
-                tool_name="test_tool",
-                tool_kind="WRITE",
-                arguments={"file": "test.txt"},
-                description="Test tool execution"
-            )
-            
-            # asyncio.CancelledError should be caught by the specific handler
-            # and re-raised after cleanup
-            try:
-                await mixin._textual_confirm(request)
-                pytest.fail("Should have raised asyncio.CancelledError")
-            except asyncio.CancelledError:
-                # This is what should happen - CancelledError is re-raised
-                pass
-            except Exception as e:
-                pytest.fail(f"Wrong exception type: {type(e).__name__}: {e}")
+        # Get the actual method
+        confirm_method = _InitMixin._textual_confirm
+        
+        # Create a simple confirmation request
+        request = ConfirmationRequest(
+            tool_name="test_tool",
+            description="Test tool execution",
+            params={"file": "test.txt"},
+            risk_level="medium"
+        )
+        
+        # asyncio.CancelledError should be caught by the specific handler
+        # and re-raised after cleanup
+        try:
+            await confirm_method(mixin, request)
+            pytest.fail("Should have raised asyncio.CancelledError")
+        except asyncio.CancelledError:
+            # This is what should happen - CancelledError is re-raised
+            pass
+        except Exception as e:
+            pytest.fail(f"Wrong exception type: {type(e).__name__}: {e}")
 
     @pytest.mark.anyio
     async def test_exception_order_bug(self) -> None:

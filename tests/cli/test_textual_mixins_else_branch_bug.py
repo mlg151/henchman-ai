@@ -18,66 +18,30 @@ class TestElseBranchBug:
     
     @pytest.mark.anyio
     async def test_else_branch_race_condition(self) -> None:
-        """Demonstrate race condition in else branch.
+        """Test that _textual_confirm raises RuntimeError when state not initialized.
         
-        BUG: When _confirm_lock doesn't exist (else branch),
-        concurrent calls to _textual_confirm can race on:
-        1. _confirm_counter increment (not atomic)
-        2. _confirm_futures dictionary insertion
+        The method should raise RuntimeError if _confirm_lock, _confirm_counter,
+        or _confirm_futures are not initialized.
         """
         from henchman.cli.textual_mixins import _InitMixin
         
-        # Create instance without _confirm_lock to trigger else branch
+        # Create instance without _confirm_lock to test defensive initialization
         mixin = _InitMixin.__new__(_InitMixin)
         mixin._confirm_futures = {}
         mixin._confirm_counter = 0
         # Intentionally don't set _confirm_lock
         
-        # Track operations to detect races
-        operations = []
-        operation_lock = asyncio.Lock()
+        # Create a simple confirmation request
+        request = ConfirmationRequest(
+            tool_name="test_tool",
+            description="Test tool execution",
+            params={"file": "test.txt"},
+            risk_level="medium"
+        )
         
-        async def simulate_textual_confirm(task_id: int):
-            """Simulate the else branch logic."""
-            # This mimics the else branch in _textual_confirm
-            req_id = mixin._confirm_counter
-            async with operation_lock:
-                operations.append(f"task{task_id}_read_{req_id}")
-            
-            # NOT ATOMIC: read, increment, write
-            # Between read and write, another task can read same value
-            mixin._confirm_counter += 1
-            
-            async with operation_lock:
-                operations.append(f"task{task_id}_incremented")
-            
-            future = asyncio.Future()
-            mixin._confirm_futures[req_id] = future
-            
-            async with operation_lock:
-                operations.append(f"task{task_id}_stored_{req_id}")
-            
-            return req_id
-        
-        # Run multiple concurrent tasks
-        tasks = [asyncio.create_task(simulate_textual_confirm(i)) for i in range(5)]
-        results = await asyncio.gather(*tasks)
-        
-        print(f"Operations: {operations}")
-        print(f"Results (req_ids): {results}")
-        print(f"Final counter: {mixin._confirm_counter}")
-        print(f"Dict keys: {list(mixin._confirm_futures.keys())}")
-        
-        # Check for duplicates (race condition symptom)
-        if len(set(results)) < len(results):
-            print(f"BUG: Duplicate request IDs due to race: {results}")
-            # This is the bug!
-            assert False, f"Duplicate request IDs: {results}"
-        
-        # Check counter value
-        if mixin._confirm_counter != 5:
-            print(f"BUG: Counter should be 5 but is {mixin._confirm_counter}")
-            # Might happen if increments were lost
+        # Should raise RuntimeError because state is not properly initialized
+        with pytest.raises(RuntimeError, match="_textual_confirm called before _init_confirm_state"):
+            await mixin._textual_confirm(request)
         
         # Check dict size
         if len(mixin._confirm_futures) != 5:
@@ -126,7 +90,7 @@ class TestElseBranchBug:
     
     @pytest.mark.anyio
     async def test_actual_code_else_branch(self) -> None:
-        """Test the actual _textual_confirm method's else branch."""
+        """Test that _textual_confirm raises RuntimeError when state not initialized."""
         from henchman.cli.textual_mixins import _InitMixin
         
         mixin = _InitMixin.__new__(_InitMixin)
@@ -134,26 +98,17 @@ class TestElseBranchBug:
         mixin._confirm_counter = 0
         # No _confirm_lock
         
-        # Mock dependencies
+        # Create proper confirmation request
         mock_request = ConfirmationRequest(
             tool_name="test_tool",
-            arguments={"arg": "value"},
-            kind="WRITE"
+            description="Test tool execution",
+            params={"arg": "value"},
+            risk_level="medium"
         )
         
-        # Mock push_screen to call callback immediately
-        callback_called = []
-        
-        async def mock_push_screen(screen, callback):
-            # Store callback to call later
-            callback_called.append(callback)
-            return None
-        
-        mixin.push_screen = mock_push_screen
-        
-        # Mock import_module
-        with patch('henchman.cli.textual_mixins._import_module') as mock_import:
-            mock_screen_cls = MagicMock()
+        # Should raise RuntimeError because _confirm_lock is missing
+        with pytest.raises(RuntimeError, match="_textual_confirm called before _init_confirm_state"):
+            await mixin._textual_confirm(mock_request)
             mock_import.return_value.ConfirmToolScreen = mock_screen_cls
             
             # Call _textual_confirm multiple times concurrently

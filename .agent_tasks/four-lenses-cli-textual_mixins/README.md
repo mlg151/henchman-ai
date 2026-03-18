@@ -1,26 +1,22 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
 ## Date: 2026-03-18T20:00:39.420468+00:00
 ## Bug Summary
-The `_textual_confirm` method has a race condition where the callback function can access `self._confirm_futures` after it has been cleaned up by `_cleanup_confirm_futures`, potentially causing `KeyError` or unexpected behavior during application shutdown.
+The `_cleanup_confirm_futures` method cannot synchronize with `_textual_confirm` because it's called from synchronous `on_unmount` context but tries to coordinate with an `asyncio.Lock`. This creates a race condition where cleanup can modify `_confirm_futures` dictionary while `_textual_confirm` is concurrently accessing it.
 
 ## Lens
-**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state mutation without proper synchronization during cleanup.
+**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state mutation without proper synchronization due to async/sync context mismatch.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Cleanup should safely cancel all pending futures without race conditions | Callback can try to pop from `_confirm_futures` dict after cleanup has removed it |
-| Futures should be properly removed from dict when cancelled | Race between callback's `pop()` and cleanup's `pop()` can cause issues |
-| Application shutdown should be deterministic and safe | Potential `KeyError` or unexpected state during async cleanup |
+| Synchronization should work in both async and sync contexts | `_cleanup_confirm_futures` can't acquire `asyncio.Lock` in sync context |
+| State modifications should be atomic and race-free | Cleanup can modify dictionary while `_textual_confirm` holds the lock |
+| Shutdown should be deterministic and safe | Potential dictionary corruption or inconsistent state during concurrent access |
 
 ## Root Cause
-The `_cleanup_confirm_futures` method iterates through the `_confirm_futures` dictionary and cancels futures, but the callback in `_textual_confirm` also tries to remove futures from the same dictionary. During shutdown, there's a race condition where:
-1. Cleanup starts and gets list of keys
-2. Callback runs (triggered by future cancellation or screen dismissal)
-3. Callback tries to pop from dictionary that cleanup is modifying
-4. Either `KeyError` or inconsistent state can occur
+`_textual_confirm` uses `asyncio.Lock` for synchronization (appropriate for async context), but `_cleanup_confirm_futures` is called from `on_unmount` which is synchronous. The cleanup method cannot acquire the async lock, so it operates without synchronization, creating a race condition with concurrent `_textual_confirm` operations.
 
 ## Fix Plan
-Add synchronization using the existing `_confirm_lock` in the cleanup method to protect dictionary access. The lock should be acquired before accessing the dictionary to ensure atomic operations.
+Replace `asyncio.Lock` with `threading.Lock` (or a reentrant lock) that works in both async and sync contexts. This allows `_cleanup_confirm_futures` to properly synchronize with `_textual_confirm`.
 
 ## Status: IN PROGRESS
