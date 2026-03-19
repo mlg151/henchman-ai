@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/chat/manager.py
-## Date: 2025-04-11T00:00:00Z
+## Date: 2026-03-19T01:00:27.555248+00:00
 ## Bug Summary
-In `_get_provider_settings` method, line 132 calls `dict(provider_settings)` without type checking. If `provider_settings` is not a dict (e.g., a string from misconfigured YAML), this raises `TypeError: cannot convert dictionary update sequence element #0 to a sequence`.
+In `_process_stream` method, when a tool execution fails, the error message is sent to the user via `bot.send_message()`. If this send operation fails (e.g., network error, rate limit), the agent is never notified of the failure via `agent.submit_tool_result()`, causing the agent to hang indefinitely waiting for a tool result.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,29 +9,29 @@ In `_get_provider_settings` method, line 132 calls `dict(provider_settings)` wit
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Method should handle malformed provider settings gracefully | Raises `TypeError` crashing the application |
-| Invalid configuration should be detected and defaulted | Silent crash with cryptic error message |
-| Code should validate input types before conversion | Assumes `provider_settings` is always a dict or None |
+| Agent should always receive tool result (success or error) | Agent hangs if error message cannot be sent to user |
+| Tool execution failures should be robust to downstream errors | Failure in error reporting breaks the agent loop |
+| Error handling should be atomic: either both notify user AND agent, or neither | Partial failure leaves agent in inconsistent state |
 
 ## Root Cause
-Line 129: `provider_settings = getattr(self._settings.providers, settings_attr, None)` can return any type (not just dict or None) if the configuration is malformed. Line 131 checks `if provider_settings:` which is True for non-empty strings/collections. Line 132 `return dict(provider_settings)` assumes it's a dict or dict-like, but strings, ints, etc. cause `TypeError`.
+Lines 335-342 in `_process_stream`: The `try` block only covers tool execution. If `bot.send_message()` fails in the `except` block, `agent.submit_tool_result()` is never called. The agent remains blocked waiting for a tool result that will never arrive.
 
 ## Fix Plan
-1. Add type checking before calling `dict(provider_settings)`.
-2. If `provider_settings` is not a dict, log warning and return defaults.
-3. Handle common misconfigurations (strings) by converting to dict with model key.
+1. Wrap the entire error handling logic (lines 335-342) in a nested try-except.
+2. Ensure `agent.submit_tool_result()` is called even if sending the error message fails.
+3. Log the secondary failure separately.
 
 ## Status: FIXED
 
 ## Files Changed
 1. `src/henchman/chat/manager.py`:
-   - Added type checking in `_get_provider_settings` method before calling `dict(provider_settings)`
-   - Added `_get_provider_defaults` helper method to avoid code duplication
-   - Added warning logging for non-dict provider settings
-   - Returns defaults when provider settings is not a dict
+   - Added nested try-except in `_process_stream` method (lines 335-352)
+   - Wrapped `bot.send_message()` call in error handling block
+   - Ensured `agent.submit_tool_result()` is always called even if sending error message fails
+   - Added warning log for secondary failure when sending error message fails
 
 2. `tests/chat/test_chat.py`:
-   - Added `test_get_provider_settings_string_instead_of_dict` test
-   - Test verifies method handles string provider settings gracefully (no TypeError)
-   - Test checks warning is logged about non-dict settings
-   - Test verifies defaults are returned
+   - Added `test_tool_error_send_message_failure` test method
+   - Test verifies that agent receives tool result even when error message sending fails
+   - Test uses mock bot that fails on second `send_message()` call
+   - Test confirms `agent.submit_tool_result()` is called despite the failure

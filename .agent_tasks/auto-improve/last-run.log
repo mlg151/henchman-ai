@@ -1,19 +1,19 @@
-[2026-03-19T00:00:02Z] Starting Four Lenses bug-hunt run...
+[2026-03-19T01:00:03Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-19T00:00:02Z] Targeting lowest-graded file: src/henchman/chat/manager.py
+[2026-03-19T01:00:03Z] Targeting lowest-graded file: src/henchman/chat/manager.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
-I'll start by analyzing the target file using the Four Lenses of Failure. Let me first read the smell report for context, then examine the target file and its tests.
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
 
-[result] # Code Smell Report — ⚠️ C (Score: 78.6/100)
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-19T00:00:42.920010+00:00_
+_Generated: 2026-03-19T01:00:27.555248+00:00_
 
 ## Executive Summary
 
@@ -33,29 +33,20 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.chat...
 Now let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*manager*.py'})
+[tool] glob({'pattern': '**/test*chat*manager*.py'})
 
-[result] .agent_tasks/auto-improve/test_edge_cases_plugin_manager.py
-tests/cli/test_repl_session_manager.py
-tests/cli/test_session_manager_errors.py
-tests/core/test_session_manager.py
-tests/extensions/test_man...
-Let me search for tests related to chat/manager:
-[tool] grep({'pattern': 'chat.*manager', 'path': 'tests', 'ignore_case': True})
+[result] No matches found...
 
-[result] 
-tests/MagicMock/mock.rag.cache_dir/125572362825280/b0c5ce5844ad8acc/manifest.jso
-n:{"files": {".github/copilot-instructions.md": 
-"3f9a03cbb9d661c7bb3ad570579e4dc4c168cd524217f5d3fb5054498d6bec98", ".gi...
-Let me check if there are any tests specifically for chat/manager.py:
-[tool] grep({'pattern': 'ChatManager', 'path': 'tests', 'ignore_case': True})
+[tool] glob({'pattern': '**/test*chat*.py'})
 
-[result] tests/chat/test_chat.py:# Tests for ChatManager
-tests/chat/test_chat.py:class TestChatManager:
-tests/chat/test_chat.py:    """Tests for ChatManager."""
-tests/chat/test_chat.py:        from henchman.ch...
-Good! There are tests for ChatManager. Let me examine the test file:
-[tool] read_file({'path': 'tests/chat/test_chat.py'})
+[result] tests/chat/test_chat.py
+tests/chat/test_chat_integration.py
+tests/cli/test_chat_command.py
+tests/cli/test_textual_enhanced_chatmessage.py
+tests/cli/test_thinking_in_chat.py...
+Let me check the chat tests to understand the test structure:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 1, 
+'end_line': 50})
 
 [result] """Comprehensive tests for henchman.chat module.
 
@@ -67,1054 +58,730 @@ from __future__ import annotations
 
 import asyncio
 from dateti...
-Now let me analyze the code through the Four Lenses of Failure:
+Let me check if there are any tests specifically for the manager:
+[tool] grep({'pattern': 'ChatManager', 'path': 'tests/chat', 'line_numbers': 
+True})
+
+[result] tests/chat/test_chat.py:196:# Tests for ChatManager
+tests/chat/test_chat.py:200:class TestChatManager:
+tests/chat/test_chat.py:201:    """Tests for ChatManager."""
+tests/chat/test_chat.py:214:        ...
+Good! Now let me read the ChatManager tests to understand the existing test coverage:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 196, 
+'end_line': 300})
+
+[result] # Tests for ChatManager
+# ---------------------------------------------------------------------------
+
+
+class TestChatManager:
+    """Tests for ChatManager."""
+
+    @pytest.fixture
+    def mock_settin...
+Now let me analyze the target file through the Four Lenses of Failure:
 
 ## Phase 1: The Intent vs. Reality Check
 
-Looking at the `_get_provider_settings` method (lines 137-163), I can see a **Logic Gap**:
+Looking at the code, I can see several potential issues:
+
+1. **Logic Gaps**: In the `_get_provider_settings` method (lines 137-163), there's a potential silent failure. If `provider_settings` is not a dict, it logs a warning and returns defaults. However, if `provider_settings` is `None`, the code falls through to the warning about missing settings. This seems okay.
+
+2. **Type Safety**: In `_process_stream` method (lines 231-351), there's a potential issue with accessing attributes on `tool_call` object using `getattr` with default values. If `tool_call` doesn't have these attributes, it could cause issues. But the bigger issue is in the error handling.
+
+Let me examine the error handling more closely in `_process_stream`:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 280, 
+'end_line': 310})
+
+[result]                     
+                    if not is_in_code_block:
+                        should_flush = True
+                    elif chunk_len >= 2500:
+                        # Safety limit: if it'...
+I need to analyze the code more carefully. Let me continue examining the error handling:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 310, 
+'end_line': 340})
+
+[result]                     user_id,
+                    f"🔧 Running: `{tool_name}`",
+                )
+
+                try:
+                    # Execute the tool
+                    result = await agent.to...
+
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 340, 
+'end_line': 360})
+
+[result]                     # Submit error to agent so it can recover
+                    agent.submit_tool_result(tool_id, f"Error: {tool_err}")
+
+            elif event.type == EventType.TOOL_CALL_RESULT:
+  ...
+Now let me check the `_handle_message` method for potential issues:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 360, 
+'end_line': 420})
+
+[result] 
+        This method implements the complete agent loop:
+        1. Streams the agent's response
+        2. Detects tool call requests
+        3. Executes tools using the tool registry
+        4. Subm...
+
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 420, 
+'end_line': 460})
+
+[result]                     "Max continuation rounds reached for user %s", 
+message.user_id
+                )
+                await bot.send_message(
+                    message.user_id,
+                    "⚠...
+Now let me create the documentation stub as required:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-whisperer-delegation/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+debug...
+
+[tool] ls({'path': '.agent_tasks/four-lenses-chat-manager'})
+
+[result] README.md...
+Let me read the existing README:
+[tool] read_file({'path': '.agent_tasks/four-lenses-chat-manager/README.md'})
+
+[result] # Four Lenses Bug Report: src/henchman/chat/manager.py
+## Date: 2025-04-11T00:00:00Z
+## Bug Summary
+In `_get_provider_settings` method, line 132 calls `dict(provider_settings)` 
+without type checking. ...
+Interesting! This bug has already been fixed. Let me check the current code to see if the fix is actually there:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 125, 
+'end_line': 165})
+
+[result]             provider=provider,
+            system_prompt=system_prompt,
+            tool_registry=tool_manager.registry,
+        )
+
+        self._user_agents[user_id] = agent
+        self._user_histor...
+I need to analyze the current code more carefully. Let me look at the actual `_get_provider_settings` method to see if the bug mentioned in the README is actually fixed:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 165, 
+'end_line': 200})
+
+[result]         elif provider_name == "together":
+            defaults.setdefault("model", 
+"meta-llama/Llama-3.2-3B-Instruct-Turbo")
+        elif provider_name == "groq":
+            defaults.setdefault("mode...
+
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 200, 
+'end_line': 230})
+
+[result] 
+        if provider_settings is not None:
+            # Handle case where provider_settings is not a dict
+            # (e.g., string from misconfigured YAML)
+            if isinstance(provider_setti...
+Good! The bug mentioned in the README has already been fixed. The code now properly handles non-dict provider settings. Now I need to find a **different** bug using the Four Lenses approach.
+
+Let me analyze the code more carefully through all four lenses:
+
+## Phase 1: The Intent vs. Reality Check (Logic Gaps)
+
+Looking at the `_process_stream` method again, I see a potential issue. When a tool call fails, the code submits an error message to the agent using `agent.submit_tool_result(tool_id, f"Error: {tool_err}")`. However, what if `tool_err` is not a string? The `f"Error: {tool_err}"` will convert it to a string, but what if `tool_err` is `None` or has a `__str__` method that raises an exception?
+
+Actually, looking more carefully at line 342: `agent.submit_tool_result(tool_id, f"Error: {tool_err}")`. If `tool_err` is an exception object, its `__str__()` method should work. But wait, let me check if there's a more subtle bug.
+
+Actually, I think I found a real bug! Look at line 336 in the error handling:
 
 ```python
-def _get_provider_settings(self, provider_name: str) -> dict[str, Any]:
-    """Get provider settings for the given provider name.
-
-    Args:
-        provider_name: Name of the provider.
-
-    Returns:
-        Dictionary of provider settings.
-    """
-    provider_settings_map = {
-        "deepseek": "deepseek",
-        "openai": "openai",
-        "anthropic": "anthropic",
-        "ollama": "ollama",
-        "openrouter": "openrouter",
-        "openai_compat": "openai_compat",
-        "together": "together",
-        "groq": "groq",
-        "fireworks": "fireworks",
-    }
-
-    if provider_name not in provider_settings_map:
-        return {}
-
-    settings_attr = provider_settings_map[provider_name]
-    provider_settings = getattr(self._settings.providers, settings_attr, None)
-
-    if provider_settings:
-        # Handle case where provider_settings is not a dict
-        # (e.g., string from misconfigured YAML)
-        if isinstance(provider_settings, dict):
-            return dict(provider_settings)
-        else:
-            # Log warning and return defaults
-            logger.warning(
-                "Provider '%s' settings is not a dictionary (type: %s). "
-                "Using defaults instead. Please fix configuration.",
-                provider_name,
-                type(provider_settings).__name__,
-            )
-            # Return defaults directly instead of falling through
-            # to avoid duplicate warning
-            return self._get_provider_defaults(provider_name)
-    
-    # Provider settings are missing - return reasonable defaults
-    # This fixes the bug where empty dict {} was returned
-    defaults = self._get_provider_defaults(provider_name)
-    
-    logger.warning(
-        "Provider '%s' is configured as default but has no settings. "
-        "Using defaults: %s. Please configure provider settings in your configuration.",
-        provider_name,
-        {k: "***" if "key" in k.lower() else v for k, v in defaults.items()},
-    )
-    
-    return defaults
+error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
+await bot.send_message(user_id, error_msg)
 ```
 
-**The Bug**: There's a **Type Safety** issue in the `_get_provider_defaults` method (lines 137-163). Looking at the test `test_get_provider_settings_string_instead_of_dict`, I can see that the code handles the case where `provider_settings` is a string (not a dict). However, there's a deeper issue:
+If `tool_err` is an exception with a very long error message (like a traceback), this could exceed Discord's message length limits or cause other issues. But more importantly, look at the `_handle_message` method's error handling (lines 455-460):
 
-In the `_get_provider_defaults` method, there's a **CRITICAL** deep nesting issue (depth 8 according to the smell report). Let me examine that method more closely:
-[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 137, 
-'end_line': 190})
+```python
+except Exception:
+    logger.exception("Error processing message from %s", message.user_id)
+    await bot.send_message(
+        message.user_id,
+        "❌ Sorry, an error occurred while processing your request. Please try again.",
+    )
+```
 
-[result]     def _get_provider_defaults(self, provider_name: str) -> dict[str, 
+This catches ALL exceptions but doesn't re-raise them. This means if there's an error in `_process_stream` or anywhere in the main loop, it gets swallowed and the user just gets a generic error message. The agent state might be left in an inconsistent state!
+
+## Phase 2: State & Side Effects (The Entropy Audit)
+
+The `_user_agents` and `_user_histories` dictionaries are mutable state. If an exception occurs during message processing, the agent might be left in a bad state but remains in the dictionary. Subsequent messages will use this potentially broken agent.
+
+## Phase 3: Performance & Resource Management
+
+The `max_iterations` limit in `_process_stream` (line 231) is good, but what about the `max_continuation_rounds` in `_handle_message` (line 381)? It's set to 20, which seems reasonable, but there's no check for total iterations across all rounds.
+
+## Phase 4: The Forensic Refactor
+
+Actually, I think I found the real bug! Let me look at the test file to see if there are any tests for error handling:
+[tool] grep({'pattern': 'exception|error|Exception|Error', 'path': 
+'tests/chat/test_chat.py', 'line_numbers': True})
+
+[result] 183:class TestDiscordBotImportError:
+187:        """Test that missing discord.py raises ImportError."""
+191:            with pytest.raises(ImportError, match="discord.py is required"):
+488:        # S...
+Let me check the integration tests:
+[tool] read_file({'path': 'tests/chat/test_chat_integration.py', 'start_line': 
+1, 'end_line': 50})
+
+[result] """Full integration tests for the Discord chat pipeline.
+
+These tests exercise the real ChatManager, Agent, and ToolRegistry end-to-end.
+Only the following are substituted:
+  - User messages: ChatMess...
+Now, let me think about the actual bug. Looking back at the code, I notice something in the `_process_stream` method. Look at lines 280-310:
+
+```python
+# Execute the tool call
+tool_call = event.data
+tool_name = getattr(tool_call, "name", "unknown")
+tool_args = getattr(tool_call, "arguments", {})
+tool_id = getattr(tool_call, "id", "unknown")
+```
+
+What if `event.data` is `None`? Or what if it's not an object with those attributes? The `getattr` calls will return defaults, but then `tool_name` could be `"unknown"`, and when we try to execute `tool_name` with the tool registry, it might fail.
+
+Actually, wait. Let me check what `ToolCall` type actually looks like:
+[tool] grep({'pattern': 'class ToolCall', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/cli/textual_app.py.bak2:158:class 
+ToolCallRequestMessage(Message):
+src/henchman/cli/textual_app.py.bak2:173:class ToolCallResultMessage(Message):
+src/henchman/cli/textual_messages.py:61:c...
+
+[tool] read_file({'path': 'src/henchman/providers/base.py', 'start_line': 46, 
+'end_line': 70})
+
+[result] class ToolCall:
+    """A tool call requested by the model."""
+
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
+class ToolDeclaration:
+    """Declaration of a tool available to the...
+So `ToolCall` is a dataclass with `id`, `name`, and `arguments` attributes. The `getattr` calls with defaults are actually defensive programming. But wait, what if `event.data` is not a `ToolCall` object? What if it's something else?
+
+Actually, I think I need to look more carefully. Let me check what type `event.data` should be for `EventType.TOOL_CALL_REQUEST`:
+[tool] grep({'pattern': 'EventType.TOOL_CALL_REQUEST', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/agents/orchestrator_loop.py:116:        if event.type == 
+EventType.TOOL_CALL_REQUEST:
+src/henchman/agents/orchestrator_loop.py,cover:108:!             if event.type 
+== EventType.TOOL_CALL...
+Let me check the `agent_streaming.py` file to see what data is passed for `TOOL_CALL_REQUEST`:
+[tool] read_file({'path': 'src/henchman/core/agent_streaming.py', 'start_line': 
+180, 'end_line': 200})
+
+[result]     stop_reasons = (FinishReason.STOP, FinishReason.LENGTH, 
+FinishReason.CONTENT_FILTER)
+    if chunk.finish_reason in stop_reasons:
+        if state.has_unreported_content():
+            events.appen...
+I need to focus on finding a real bug. Let me re-examine the code more systematically. Actually, I think I found something! Look at the `_handle_message` method again, specifically the loop:
+
+```python
+for _round in range(max_continuation_rounds + 1):
+    response_parts, current_chunk, had_tool_calls = await self._process_stream(
+        agent, bot, message.user_id, stream, response_parts, current_chunk
+    )
+
+    # Only continue if tool calls were made and results submitted
+    if not had_tool_calls:
+        break
+
+    # Continue the agent with the submitted tool results
+    stream = agent.continue_with_tool_results()
+```
+
+The bug is in the loop logic! Look at line 381: `for _round in range(max_continuation_rounds + 1):`
+
+This means the loop runs `max_continuation_rounds + 1` times. If `max_continuation_rounds = 20`, then the loop runs 21 times (0 through 20 inclusive). But the `else` clause at line 389 says "Max continuation rounds reached" when actually we've exceeded the limit by 1!
+
+Actually, wait. That's not quite right either. The loop runs 21 times, but we check `if not had_tool_calls: break` each time. So if we have tool calls every round, we'd do 21 rounds before hitting the `else` clause. That's one more than the intended 20.
+
+But actually, I think there's a more serious bug! Let me trace through the logic:
+
+1. First iteration (round 0): Run agent with user input
+2. If tool calls happen, `had_tool_calls = True`, don't break
+3. Get new stream with `agent.continue_with_tool_results()`
+4. Second iteration (round 1): Process the continuation
+5. etc.
+
+So if `max_continuation_rounds = 20`, we allow:
+- 1 initial run with user input
+- Up to 20 continuations after tool results
+- Total: 21 agent invocations
+
+That seems reasonable actually. The comment says "Safety limit on tool continuation rounds" which suggests it's counting continuation rounds, not total rounds. So round 0 is the initial run, rounds 1-20 are continuations.
+
+But wait! There's still a bug! Look at the `else` clause:
+
+```python
+else:
+    logger.warning(
+        "Max continuation rounds reached for user %s", message.user_id
+    )
+    await bot.send_message(
+        message.user_id,
+        "⚠️ Maximum tool rounds reached. Stopping.",
+    )
+```
+
+The `else` clause executes when the loop completes without hitting a `break`. So if we do 21 iterations (0 through 20), we show the warning. But the user might have gotten 20 tool continuations, which is the limit. That seems okay.
+
+Actually, I think I need to look for a different bug. Let me examine the error handling more carefully. Actually, I think I found it!
+
+Look at the `_process_stream` method's error handling for tool execution (lines 325-342):
+
+```python
+except Exception as tool_err:
+    logger.exception(
+        "Tool execution failed: %s for user %s", tool_name, user_id
+    )
+    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
+    await bot.send_message(user_id, error_msg)
+
+    # Submit error to agent so it can recover
+    agent.submit_tool_result(tool_id, f"Error: {tool_err}")
+```
+
+What if `agent.submit_tool_result` raises an exception? The exception won't be caught because it's outside the `try` block! The `try` block only covers `await agent.tool_registry.execute(tool_name, tool_args)`.
+
+Actually, wait. Let me check the indentation:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 315, 
+'end_line': 345})
+
+[result]                     # Execute the tool
+                    result = await agent.tool_registry.execute(tool_name, 
+tool_args)
+
+                    # Truncate very long results for display
+              ...
+Yes! The `try` block ends at line 333, and lines 335-342 are outside the `try` block! So if `agent.submit_tool_result(tool_id, f"Error: {tool_err}")` raises an exception, it won't be caught by this `except` block. It would propagate up and be caught by the outer `except Exception:` in `_handle_message` (line 455), which would give the user a generic error message.
+
+But actually, that's probably okay because the outer handler catches it. The agent might be left in a bad state though.
+
+Wait, I think I found a real bug! Look at lines 335-342 again:
+
+```python
+except Exception as tool_err:
+    logger.exception(
+        "Tool execution failed: %s for user %s", tool_name, user_id
+    )
+    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
+    await bot.send_message(user_id, error_msg)
+
+    # Submit error to agent so it can recover
+    agent.submit_tool_result(tool_id, f"Error: {tool_err}")
+```
+
+The `logger.exception` call will log the full traceback. But then we try to send a message to the user with `f"❌ Tool `{tool_name}` failed: {tool_err}"`. If `tool_err` is an exception with a very long message (like a multi-line traceback), this could fail or exceed message limits.
+
+But more importantly, what if `await bot.send_message(user_id, error_msg)` fails? Then we won't submit the error result to the agent! The agent will be waiting for a tool result that never comes!
+
+Actually, that's the bug! If sending the error message to the user fails, we skip `agent.submit_tool_result`. The agent will hang waiting for a tool result.
+
+Let me write a test to confirm this bug. First, let me update the documentation stub:
+[tool] write_file({'path': '.agent_tasks/four-lenses-chat-manager/README.md', 
+'content': '# Four Lenses Bug Report: src/henchman/chat/manager.py\n## Date: 
+2026-03-19T01:00:27.555248+00:00\n## Bug Summary\nIn `_process_stream` method, 
+when a tool execution fails, the error message is sent to the user via 
+`bot.send_message()`. If this send operation fails (e.g., network error, rate 
+limit), the agent is never notified of the failure via 
+`agent.submit_tool_result()`, causing the agent to hang indefinitely waiting for
+a tool result.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic 
+Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| Agent should always receive tool result (success or error) | 
+Agent hangs if error message cannot be sent to user |\n| Tool execution failures
+should be robust to downstream errors | Failure in error reporting breaks the 
+agent loop |\n| Error handling should be atomic: either both notify user AND 
+agent, or neither | Partial failure leaves agent in inconsistent state |\n\n## 
+Root Cause\nLines 335-342 in `_process_stream`: The `try` block only covers tool
+execution. If `bot.send_message()` fails in the `except` block, 
+`agent.submit_tool_result()` is never called. The agent remains blocked waiting 
+for a tool result that will never arrive.\n\n## Fix Plan\n1. Wrap the entire 
+error handling logic (lines 335-342) in a nested try-except.\n2. Ensure 
+`agent.submit_tool_result()` is called even if sending the error message 
+fails.\n3. Log the secondary failure separately.\n\n## Status: IN PROGRESS\n\n##
+Files Changed\n(To be filled after implementation)'})
+
+[result] Successfully wrote 1520 bytes to 
+.agent_tasks/four-lenses-chat-manager/README.md...
+Now I need to write a failing test first (TDD). Let me check the existing test structure:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 470, 
+'end_line': 530})
+
+[result]         assert "Recent Conversation" in call_args[0][1]
+
+    @pytest.mark.anyio
+    async def test_handle_message_no_bot(self, mock_settings: MagicMock) -> 
+None:
+        """Test handling message when ...
+Now I need to add a test for the bug I found. Let me add it to the test file:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 530, 
+'end_line': 600})
+
+[result]             
+            # Should log warning about non-dict settings (only once, not 
+duplicate)
+            # Check that warning was called at least once with the right message
+            mock_logge...
+Now let me add a test for the bug I found. First, let me see the end of the file:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 600, 
+'end_line': 650})
+
+[result] ...
+Good, the file ends at line 600. Now let me add a test for the bug. First, I need to understand the test structure better. Let me look at a test that tests `_process_stream`:
+[tool] grep({'pattern': '_process_stream', 'path': 'tests/chat/test_chat.py', 
+'line_numbers': True})
+
+[result] No matches found...
+Let me check the integration tests:
+[tool] grep({'pattern': '_process_stream', 'path': 
+'tests/chat/test_chat_integration.py', 'line_numbers': True})
+
+[result] 703:        # Stream as one big chunk to test the chunking logic in 
+_process_stream...
+Actually, I think I should write a simpler unit test that directly tests the bug. Let me create a new test method in the test file. First, let me see the full structure of the test file:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 1, 
+'end_line': 30})
+
+[result] """Comprehensive tests for henchman.chat module.
+
+Covers base abstractions, Discord bot (with mocks), chat manager, and CLI 
+command.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from dateti...
+I need to write a failing test for the bug. Let me add a test to the `TestChatManager` class. First, let me check where the class ends:
+[tool] read_file({'path': 'tests/chat/test_chat.py', 'start_line': 590, 
+'end_line': 600})
+
+[result] ...
+The file ends at line 600. Let me add my test at the end of the `TestChatManager` class. First, I need to edit the file:
+[tool] edit_file({'path': 'tests/chat/test_chat.py', 'old_str': '            # 
+Should return defaults (not empty dict)\n            assert settings is not 
+None\n            # Should include model default for deepseek\n            
+assert "model" in settings\n            assert settings["model"] == 
+"deepseek-chat"', 'new_str': '            # Should return defaults (not empty 
+dict)\n            assert settings is not None\n            # Should include 
+model default for deepseek\n            assert "model" in settings\n            
+assert settings["model"] == "deepseek-chat"\n\n    @pytest.mark.anyio\n    async
+def test_tool_error_send_message_failure(self, mock_settings: MagicMock) -> 
+None:\n        """Test that agent still receives tool result when error message 
+send fails.\n        \n        This tests the bug: when a tool execution fails 
+and sending the error\n        message to the user also fails, the agent should 
+still receive the\n        tool result via submit_tool_result().\n        """\n 
+from henchman.chat.manager import ChatManager\n        from henchman.core.events
+import AgentEvent, EventType\n        \n        manager = 
+ChatManager(mock_settings)\n        \n        # Create mock agent\n        
+mock_agent = MagicMock()\n        mock_agent.tool_registry.execute.side_effect =
+Exception("Tool execution failed")\n        \n        # Create mock bot that 
+fails to send message\n        mock_bot = AsyncMock()\n        
+mock_bot.send_message.side_effect = Exception("Failed to send message")\n       
+\n        # Create a mock tool call event\n        mock_tool_call = 
+MagicMock()\n        mock_tool_call.name = "test_tool"\n        
+mock_tool_call.arguments = {}\n        mock_tool_call.id = "tool_123"\n        
+\n        # Create mock stream with a TOOL_CALL_REQUEST event\n        async def
+mock_stream():\n            yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, 
+data=mock_tool_call, source_agent=None)\n        \n        # Call 
+_process_stream\n        response_parts = []\n        current_chunk = ""\n      
+\n        # This should not raise an exception\n        result = await 
+manager._process_stream(\n            agent=mock_agent,\n            
+bot=mock_bot,\n            user_id="test_user",\n            
+stream=mock_stream(),\n            response_parts=response_parts,\n            
+current_chunk=current_chunk,\n        )\n        \n        # Check that 
+bot.send_message was attempted (and failed)\n        
+mock_bot.send_message.assert_called_once()\n        \n        # THE BUG: 
+agent.submit_tool_result should still be called even though\n        # 
+bot.send_message failed. But with the current code, it won\'t be.\n        # 
+This assertion will FAIL with the buggy code:\n        
+mock_agent.submit_tool_result.assert_called_once_with("tool_123", "Error: Tool 
+execution failed")'})
+
+[result] Successfully edited tests/chat/test_chat.py...
+Now let me run this test to confirm it fails (as expected with the bug):
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py::TestChatManager::test_tool_error_send_message_failure 
+-xvs'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Good! The test fails, but not in the way I expected. It fails because `bot.send_message` is called earlier (line 309) to send the "🔧 Running: `test_tool`" message, not the error message. Let me fix my test:
+[tool] edit_file({'path': 'tests/chat/test_chat.py', 'old_str': '    
+@pytest.mark.anyio\n    async def test_tool_error_send_message_failure(self, 
+mock_settings: MagicMock) -> None:\n        """Test that agent still receives 
+tool result when error message send fails.\n        \n        This tests the 
+bug: when a tool execution fails and sending the error\n        message to the 
+user also fails, the agent should still receive the\n        tool result via 
+submit_tool_result().\n        """\n        from henchman.chat.manager import 
+ChatManager\n        from henchman.core.events import AgentEvent, EventType\n   
+\n        manager = ChatManager(mock_settings)\n        \n        # Create mock 
+agent\n        mock_agent = MagicMock()\n        
+mock_agent.tool_registry.execute.side_effect = Exception("Tool execution 
+failed")\n        \n        # Create mock bot that fails to send message\n      
+mock_bot = AsyncMock()\n        mock_bot.send_message.side_effect = 
+Exception("Failed to send message")\n        \n        # Create a mock tool call
+event\n        mock_tool_call = MagicMock()\n        mock_tool_call.name = 
+"test_tool"\n        mock_tool_call.arguments = {}\n        mock_tool_call.id = 
+"tool_123"\n        \n        # Create mock stream with a TOOL_CALL_REQUEST 
+event\n        async def mock_stream():\n            yield 
+AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=mock_tool_call, 
+source_agent=None)\n        \n        # Call _process_stream\n        
+response_parts = []\n        current_chunk = ""\n        \n        # This should
+not raise an exception\n        result = await manager._process_stream(\n       
+agent=mock_agent,\n            bot=mock_bot,\n            user_id="test_user",\n
+stream=mock_stream(),\n            response_parts=response_parts,\n            
+current_chunk=current_chunk,\n        )\n        \n        # Check that 
+bot.send_message was attempted (and failed)\n        
+mock_bot.send_message.assert_called_once()\n        \n        # THE BUG: 
+agent.submit_tool_result should still be called even though\n        # 
+bot.send_message failed. But with the current code, it won\'t be.\n        # 
+This assertion will FAIL with the buggy code:\n        
+mock_agent.submit_tool_result.assert_called_once_with("tool_123", "Error: Tool 
+execution failed")', 'new_str': '    @pytest.mark.anyio\n    async def 
+test_tool_error_send_message_failure(self, mock_settings: MagicMock) -> None:\n 
+"""Test that agent still receives tool result when error message send fails.\n  
+\n        This tests the bug: when a tool execution fails and sending the 
+error\n        message to the user also fails, the agent should still receive 
+the\n        tool result via submit_tool_result().\n        """\n        from 
+henchman.chat.manager import ChatManager\n        from henchman.core.events 
+import AgentEvent, EventType\n        \n        manager = 
+ChatManager(mock_settings)\n        \n        # Create mock agent\n        
+mock_agent = MagicMock()\n        mock_agent.tool_registry.execute.side_effect =
+Exception("Tool execution failed")\n        \n        # Create mock bot that 
+succeeds for first message but fails for error message\n        mock_bot = 
+AsyncMock()\n        # First call succeeds (sending "🔧 Running: `test_tool`")\n
+# Second call fails (sending error message)\n        
+mock_bot.send_message.side_effect = [None, Exception("Failed to send error 
+message")]\n        \n        # Create a mock tool call event\n        
+mock_tool_call = MagicMock()\n        mock_tool_call.name = "test_tool"\n       
+mock_tool_call.arguments = {}\n        mock_tool_call.id = "tool_123"\n        
+\n        # Create mock stream with a TOOL_CALL_REQUEST event\n        async def
+mock_stream():\n            yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, 
+data=mock_tool_call, source_agent=None)\n        \n        # Call 
+_process_stream\n        response_parts = []\n        current_chunk = ""\n      
+\n        # This should not raise an exception (error should be caught)\n       
+result = await manager._process_stream(\n            agent=mock_agent,\n        
+bot=mock_bot,\n            user_id="test_user",\n            
+stream=mock_stream(),\n            response_parts=response_parts,\n            
+current_chunk=current_chunk,\n        )\n        \n        # Check that 
+bot.send_message was called twice\n        assert 
+mock_bot.send_message.call_count == 2\n        \n        # THE BUG: 
+agent.submit_tool_result should still be called even though\n        # the 
+second bot.send_message failed. But with the current code, it won\'t be.\n      
+# This assertion will FAIL with the buggy code:\n        
+mock_agent.submit_tool_result.assert_called_once_with("tool_123", "Error: Tool 
+execution failed")'})
+
+[result] Successfully edited tests/chat/test_chat.py...
+Now let me run the test again:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py::TestChatManager::test_tool_error_send_message_failure 
+-xvs'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Good! The test is failing because `bot.send_message` raises an exception when trying to send the error message. The exception propagates up and `agent.submit_tool_result` is never called. This confirms the bug!
+
+Now I need to fix the bug. The issue is in the `_process_stream` method. When `bot.send_message` fails in the `except` block, we need to still call `agent.submit_tool_result`. Let me fix it:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 325, 
+'end_line': 345})
+
+[result]                     await bot.send_message(
+                        user_id,
+                        f"✅ Result:\n```\n{display_result}\n```",
+                    )
+
+                    # Submit resul...
+I need to wrap the error message sending in a try-except to ensure `agent.submit_tool_result` is always called:
+[tool] edit_file({'path': 'src/henchman/chat/manager.py', 'old_str': '          
+except Exception as tool_err:\n                    logger.exception(\n          
+"Tool execution failed: %s for user %s", tool_name, user_id\n                   
+)\n                    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"\n
+await bot.send_message(user_id, error_msg)\n\n                    # Submit error
+to agent so it can recover\n                    
+agent.submit_tool_result(tool_id, f"Error: {tool_err}")', 'new_str': '          
+except Exception as tool_err:\n                    logger.exception(\n          
+"Tool execution failed: %s for user %s", tool_name, user_id\n                   
+)\n                    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"\n
+try:\n                        await bot.send_message(user_id, error_msg)\n      
+except Exception as send_err:\n                        logger.warning(\n        
+"Failed to send error message to user %s: %s",\n                            
+user_id,\n                            send_err,\n                        )\n    
+# Continue anyway - we still need to submit the tool result\n\n                 
+# Submit error to agent so it can recover\n                    
+agent.submit_tool_result(tool_id, f"Error: {tool_err}")'})
+
+[result] Successfully edited src/henchman/chat/manager.py...
+Now let me run the test again to see if it passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py::TestChatManager::test_tool_error_send_message_failure 
+-xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! The test passes. Now I need to run all tests to make sure I didn't break anything:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py -xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! All tests pass. Now let me run the full test suite to make sure I didn't break anything else:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+-q --tb=short'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good! All tests pass. Now let me update the README to mark the bug as fixed:
+[tool] edit_file({'path': '.agent_tasks/four-lenses-chat-manager/README.md', 
+'old_str': '## Status: IN PROGRESS\n\n## Files Changed\n(To be filled after 
+implementation)', 'new_str': '## Status: FIXED\n\n## Files Changed\n1. 
+`src/henchman/chat/manager.py`:\n   - Added nested try-except in 
+`_process_stream` method (lines 335-352)\n   - Wrapped `bot.send_message()` call
+in error handling block\n   - Ensured `agent.submit_tool_result()` is always 
+called even if sending error message fails\n   - Added warning log for secondary
+failure when sending error message fails\n\n2. `tests/chat/test_chat.py`:\n   - 
+Added `test_tool_error_send_message_failure` test method\n   - Test verifies 
+that agent receives tool result even when error message sending fails\n   - Test
+uses mock bot that fails on second `send_message()` call\n   - Test confirms 
+`agent.submit_tool_result()` is called despite the failure'})
+
+[result] Successfully edited .agent_tasks/four-lenses-chat-manager/README.md...
+Now let me run the CI script to make sure everything passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh'})
+
+✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
+
+Let me check what scripts are available:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+refactor_tools.py
+run_evals.sh
+smell_detector/...
+Let me run the tests with coverage to ensure we maintain 100% coverage:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py --cov=src/henchman/chat/manager.py 
+--cov-report=term-missing'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! The tests pass. Now let me check if there are any linting issues:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ruff check 
+src/henchman/chat/manager.py --fix'})
+
+✗ \[error] W293 Blank line contains whitespace
+   --> src/henchman/chat/manager.py:139:1
+    |
+137 |     def _get_provider_defaults(self, provider_name: str) -> dict\[str, 
 Any]:
-        """Get default settings for a provider.
-        
-        Args:
-            provider_name: Name of the provider.
-    ...
-[2026-03-19T00:00:02Z] Running pytest to verify tests pass...
+138 |         """Get default setti
+Let me fix the remaining whitespace issues:
+[tool] edit_file({'path': 'src/henchman/chat/manager.py', 'old_str': '    def 
+_get_provider_defaults(self, provider_name: str) -> dict[str, Any]:\n        
+"""Get default settings for a provider.\n        \n        Args:\n            
+provider_name: Name of the provider.\n            \n        Returns:\n          
+Dictionary of default provider settings.\n        """', 'new_str': '    def 
+_get_provider_defaults(self, provider_name: str) -> dict[str, Any]:\n        
+"""Get default settings for a provider.\n\n        Args:\n            
+provider_name: Name of the provider.\n\n        Returns:\n            Dictionary
+of default provider settings.\n        """'})
+
+[result] Successfully edited src/henchman/chat/manager.py...
+Now let me run ruff check again:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ruff check 
+src/henchman/chat/manager.py'})
+
+[result] All checks passed!
+...
+Good! Now let me run mypy to check type hints:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && mypy 
+src/henchman/chat/manager.py'})
+
+[result] Success: no issues found in 1 source file
+...
+Perfect! Now let me run the full test suite one more time to make sure everything still works:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat.py::TestChatManager::test_tool_error_send_message_failure 
+-xvs'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Perfect! The test passes. Let me also run a quick check on the integration tests:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/chat/test_chat_integration.py -xvs -k "test_" | head -100'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
+argument but 2 were given
+[2026-03-19T01:00:03Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
 configfile: pyproject.toml
 plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
 asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
-collected 5369 items
-
-tests/agents/test_agents_coverage.py ................................... [  0%]
-...................................................................      [  1%]
-tests/agents/test_completion_status.py ................................  [  2%]
-tests/agents/test_config.py ..                                           [  2%]
-tests/agents/test_coverage_gaps_agents.py .............................. [  3%]
-....................................                                     [  3%]
-tests/agents/test_delegation_coverage_100.py ........................... [  4%]
-.......................                                                  [  4%]
-tests/agents/test_delegation_e2e.py ...........                          [  4%]
-tests/agents/test_delegation_error_handling.py ........                  [  5%]
-tests/agents/test_identity.py ..                                         [  5%]
-tests/agents/test_infinite_loop_fix.py .....                             [  5%]
-tests/agents/test_ledger.py ............................                 [  5%]
-tests/agents/test_ledger_coverage.py ........                            [  5%]
-tests/agents/test_ledger_edge_cases.py .....................             [  6%]
-tests/agents/test_ledger_refactor.py .........................           [  6%]
-tests/agents/test_ledger_refactoring.py ......                           [  6%]
-tests/agents/test_ledger_refactoring_smells.py ......                    [  6%]
-tests/agents/test_ledger_smell_fixes.py ...............                  [  7%]
-tests/agents/test_metrics_reporter.py ...........................        [  7%]
-tests/agents/test_orchestrator.py ...................................... [  8%]
-...................                                                      [  8%]
-tests/agents/test_pool.py ..........                                     [  8%]
-tests/agents/test_presets.py ......                                      [  9%]
-tests/agents/test_prompts.py ........................................... [  9%]
-.........                                                                [ 10%]
-tests/agents/test_thinking_protocol.py .......                           [ 10%]
-tests/agents/test_working_memory.py .................................... [ 10%]
-.......................................                                  [ 11%]
-tests/agents/test_working_memory_actual_bug.py ....                      [ 11%]
-tests/agents/test_working_memory_actual_core_bug.py .....                [ 11%]
-tests/agents/test_working_memory_algorithm_bug.py .....                  [ 11%]
-tests/agents/test_working_memory_bool_bug.py ...                         [ 11%]
-tests/agents/test_working_memory_bug.py .                                [ 11%]
-tests/agents/test_working_memory_bug_end_minus_one.py ....               [ 11%]
-tests/agents/test_working_memory_bug_error_message.py ...                [ 12%]
-tests/agents/test_working_memory_bug_find.py .....                       [ 12%]
-tests/agents/test_working_memory_bug_validation.py ..                    [ 12%]
-tests/agents/test_working_memory_bug_validation_order.py ..              [ 12%]
-tests/agents/test_working_memory_core_bug.py ......                      [ 12%]
-tests/agents/test_working_memory_dash_inconsistency.py .                 [ 12%]
-tests/agents/test_working_memory_deserialization_bug.py ..               [ 12%]
-tests/agents/test_working_memory_edge_case_bug.py ....                   [ 12%]
-tests/agents/test_working_memory_edge_cases.py .......                   [ 12%]
-tests/agents/test_working_memory_empty_lines_read_bug.py ...             [ 12%]
-tests/agents/test_working_memory_empty_lines_read_bug_fix.py ...         [ 12%]
-tests/agents/test_working_memory_end_minus_one_bug.py ...                [ 12%]
-tests/agents/test_working_memory_entry_validation_bug.py .               [ 12%]
-tests/agents/test_working_memory_error_message.py ..                     [ 12%]
-tests/agents/test_working_memory_find_bug.py ..........                  [ 12%]
-tests/agents/test_working_memory_float_bug.py ...                        [ 13%]
-tests/agents/test_working_memory_float_minus_one_bug.py ....             [ 13%]
-tests/agents/test_working_memory_float_precision_bug.py .                [ 13%]
-tests/agents/test_working_memory_four_lenses_bug_fix.py ...              [ 13%]
-tests/agents/test_working_memory_full_contains_bug.py .....              [ 13%]
-tests/agents/test_working_memory_full_token_bug.py ......                [ 13%]
-tests/agents/test_working_memory_full_token_bug_fix.py .....             [ 13%]
-tests/agents/test_working_memory_invalid_lines_read_bug.py .             [ 13%]
-tests/agents/test_working_memory_isdigit_bug.py ......                   [ 13%]
-tests/agents/test_working_memory_isdigit_fix.py .....                    [ 13%]
-tests/agents/test_working_memory_key_insights_bug.py ....                [ 13%]
-tests/agents/test_working_memory_line_number_validation_bug.py ....      [ 13%]
-tests/agents/test_working_memory_logic_bug.py ...                        [ 13%]
-tests/agents/test_working_memory_merge_bug.py ....                       [ 13%]
-tests/agents/test_working_memory_misleading_message_bug.py ...           [ 14%]
-tests/agents/test_working_memory_missing_return.py ..                    [ 14%]
-tests/agents/test_working_memory_none_bug.py ...                         [ 14%]
-tests/agents/test_working_memory_none_vs_empty_bug.py ...                [ 14%]
-tests/agents/test_working_memory_parse_bug.py ..                         [ 14%]
-tests/agents/test_working_memory_real_bug.py ....                        [ 14%]
-tests/agents/test_working_memory_real_bug_found.py ...                   [ 14%]
-tests/agents/test_working_memory_real_failing_bug.py ....                [ 14%]
-tests/agents/test_working_memory_type_safety_bug.py ..                   [ 14%]
-tests/agents/test_working_memory_unicode_dash_bug.py ...                 [ 14%]
-tests/agents/test_working_memory_unicode_dash_bug2.py .                  [ 14%]
-tests/agents/test_working_memory_unicode_digit_bug.py ....               [ 14%]
-tests/agents/test_working_memory_validation_bug.py ..                    [ 14%]
-tests/agents/test_working_memory_validation_bug_fix.py ...               [ 14%]
-tests/agents/test_working_memory_validation_order_bug.py ...             [ 14%]
-tests/agents/test_working_memory_whitespace_bug.py ......                [ 14%]
-tests/api/test_api.py .................................................. [ 15%]
-..........................                                               [ 16%]
-tests/chat/test_chat.py ............................                     [ 16%]
-tests/cli/commands/test_context.py ........                              [ 16%]
-tests/cli/commands/test_model.py .............                           [ 17%]
-tests/cli/commands/test_model_integration.py ...                         [ 17%]
-tests/cli/commands/test_plan.py .......                                  [ 17%]
-tests/cli/commands/test_plan_branch.py ...                               [ 17%]
-tests/cli/commands/test_session.py .....                                 [ 17%]
-tests/cli/commands/test_session_resume_id.py .                           [ 17%]
-tests/cli/commands/test_unlimited.py ..............                      [ 17%]
-tests/cli/test_additional_coverage.py .................................  [ 18%]
-tests/cli/test_agent_command.py ...........                              [ 18%]
-tests/cli/test_app.py ....................                               [ 19%]
-tests/cli/test_app_coverage_100.py .........................             [ 19%]
-tests/cli/test_app_extended.py .....                                     [ 19%]
-tests/cli/test_app_input_coverage.py ................................... [ 20%]
-.........                                                                [ 20%]
-tests/cli/test_builtins.py .......................                       [ 20%]
-tests/cli/test_chat_command.py ...................                       [ 21%]
-tests/cli/test_cli_smoke.py ....                                         [ 21%]
-tests/cli/test_command_processor.py ............                         [ 21%]
-tests/cli/test_commands.py ................                              [ 21%]
-tests/cli/test_commands_repro.py ..                                      [ 21%]
-tests/cli/test_console.py ..........................................     [ 22%]
-tests/cli/test_console_confirm.py ...                                    [ 22%]
-tests/cli/test_console_coverage.py ..................................... [ 23%]
-......                                                                   [ 23%]
-tests/cli/test_context_strategy_coverage.py ............................ [ 23%]
-..........                                                               [ 24%]
-tests/cli/test_core_init.py ........                                     [ 24%]
-tests/cli/test_coverage_gaps_cli.py .................................... [ 24%]
-........................................................................ [ 26%]
-..............................................................           [ 27%]
-tests/cli/test_delegation_session.py .....                               [ 27%]
-tests/cli/test_enhanced_tool_display.py ........                         [ 27%]
-tests/cli/test_escape_cancellation.py ........                           [ 27%]
-tests/cli/test_input.py ....................                             [ 28%]
-tests/cli/test_input_bindings.py ...                                     [ 28%]
-tests/cli/test_input_handler.py ..............                           [ 28%]
-tests/cli/test_interrupt.py .                                            [ 28%]
-tests/cli/test_json_output.py ............                               [ 28%]
-tests/cli/test_keyboard_fixes.py ..                                      [ 28%]
-tests/cli/test_keyboard_integration.py ..                                [ 28%]
-tests/cli/test_keyboard_interrupt.py ...                                 [ 28%]
-tests/cli/test_keyboard_verification.py ....                             [ 28%]
-tests/cli/test_loop_protection.py .............                          [ 29%]
-tests/cli/test_markup_safety.py ........................................ [ 29%]
-........................................................................ [ 31%]
-...................................                                      [ 31%]
-tests/cli/test_mcp_command.py ............                               [ 32%]
-tests/cli/test_mcp_logging.py ......                                     [ 32%]
-tests/cli/test_misc_commands_coverage.py ............................... [ 32%]
-..                                                                       [ 32%]
-tests/cli/test_null_provider_fixed.py ..                                 [ 32%]
-tests/cli/test_null_provider_unreachable_yield_final.py .                [ 32%]
-tests/cli/test_orchestration_leak_fix.py .                               [ 33%]
-tests/cli/test_output_handler.py .................                       [ 33%]
-tests/cli/test_output_stream_coverage.py ............................... [ 33%]
-..........................                                               [ 34%]
-tests/cli/test_repl.py ................................                  [ 34%]
-tests/cli/test_repl_attribute_fix.py .......................             [ 35%]
-tests/cli/test_repl_session_manager.py ...........                       [ 35%]
-tests/cli/test_repl_startup_message.py .                                 [ 35%]
-tests/cli/test_repl_toolbar.py .........                                 [ 35%]
-tests/cli/test_session_helpers_coverage.py ............................. [ 36%]
-........................................                                 [ 37%]
-tests/cli/test_session_manager_errors.py ...                             [ 37%]
-tests/cli/test_simple_null_provider_bug.py .                             [ 37%]
-tests/cli/test_team_command.py .....                                     [ 37%]
-tests/cli/test_textual_app.py ..................                         [ 37%]
-tests/cli/test_textual_app_coverage_100.py .......                       [ 37%]
-tests/cli/test_textual_bridge_bugs.py .....                              [ 37%]
-tests/cli/test_textual_bridge_coverage_100.py .............              [ 38%]
-tests/cli/test_textual_config.py ..                                      [ 38%]
-tests/cli/test_textual_config_bugs.py ...                                [ 38%]
-tests/cli/test_textual_config_coverage_100.py ...........                [ 38%]
-tests/cli/test_textual_coverage.py ..................................... [ 39%]
-.........................                                                [ 39%]
-tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 39%]
-tests/cli/test_textual_functional_final.py .......................       [ 40%]
-tests/cli/test_textual_integration.py .................................. [ 40%]
-.............                                                            [ 41%]
-tests/cli/test_textual_mixins.py ........                                [ 41%]
-tests/cli/test_textual_phase1.py ....                                    [ 41%]
-tests/cli/test_textual_phase2.py ...                                     [ 41%]
-tests/cli/test_textual_phase3.py ..                                      [ 41%]
-tests/cli/test_textual_phase4.py ...                                     [ 41%]
-tests/cli/test_textual_progress_indicators.py ....                       [ 41%]
-tests/cli/test_textual_screens_bugs.py ...                               [ 41%]
-tests/cli/test_textual_screens_refactoring.py ..................         [ 41%]
-tests/cli/test_textual_search.py ............                            [ 42%]
-tests/cli/test_textual_session_management.py .....                       [ 42%]
-tests/cli/test_textual_tool_boxes.py ...                                 [ 42%]
-tests/cli/test_textual_widgets_bugs.py .....                             [ 42%]
-tests/cli/test_textual_widgets_markup_bug.py .....                       [ 42%]
-tests/cli/test_textual_widgets_refactoring.py .....                      [ 42%]
-tests/cli/test_theme_command.py ...............                          [ 42%]
-tests/cli/test_thinking_in_chat.py .............                         [ 43%]
-tests/cli/test_thinking_indicator.py ...........                         [ 43%]
-tests/cli/test_thinking_streaming_and_tool_spacing.py .......            [ 43%]
-tests/cli/test_thinking_tool_display.py ..........                       [ 43%]
-tests/cli/test_ui_renderer_methods.py ..................                 [ 44%]
-tests/config/test_context.py .................................           [ 44%]
-tests/config/test_environment.py ....................................... [ 45%]
-..........                                                               [ 45%]
-tests/config/test_missing_coverage.py .....                              [ 45%]
-tests/config/test_schema.py ................                             [ 45%]
-tests/config/test_schema_errors.py ..                                    [ 45%]
-tests/config/test_settings.py .........................                  [ 46%]
-tests/core/test_agent.py ............................                    [ 46%]
-tests/core/test_agent_coverage_100.py .........                          [ 47%]
-tests/core/test_automatic_compaction.py .....                            [ 47%]
-tests/core/test_compaction_start_index.py ....                           [ 47%]
-tests/core/test_coverage_boost.py ...................................... [ 47%]
-                                                                         [ 47%]
-tests/core/test_eventbus.py ......                                       [ 48%]
-tests/core/test_events.py .............                                  [ 48%]
-tests/core/test_intelligent_context_integration.py ............          [ 48%]
-tests/core/test_missing_coverage.py .................................    [ 49%]
-tests/core/test_session.py ..........................                    [ 49%]
-tests/core/test_session_enhanced.py ..............                       [ 49%]
-tests/core/test_session_errors.py ..                                     [ 49%]
-tests/core/test_session_manager.py ..................................... [ 50%]
-.                                                                        [ 50%]
-tests/core/test_streaming_tool_calls.py ....                             [ 50%]
-tests/core/test_turn_state.py ............                               [ 50%]
-tests/e2e/test_agent_interaction.py .                                    [ 50%]
-tests/e2e/test_context_safety.py ....                                    [ 51%]
-tests/e2e/test_mcp_integration.py .......                                [ 51%]
-tests/e2e/test_plan_mode_workflow.py .                                   [ 51%]
-tests/e2e/test_serena_cli_integration.py .........                       [ 51%]
-tests/e2e/test_tool_fix.py ....                                          [ 51%]
-tests/empty_message_validation/test_empty_messages.py .......            [ 51%]
-tests/extensions/test_base.py ........                                   [ 51%]
-tests/extensions/test_command.py .....                                   [ 51%]
-tests/extensions/test_manager.py ........................                [ 52%]
-tests/extensions/test_missing_coverage.py ...........                    [ 52%]
-tests/extensions/test_plugin_coverage.py ............................... [ 53%]
-........................................................................ [ 54%]
-....                                                                     [ 54%]
-tests/extensions/test_plugin_manager.py .........                        [ 54%]
-tests/extensions/test_plugin_manager_refactor.py ..............          [ 54%]
-tests/extensions/test_plugin_manager_refactoring.py .....                [ 55%]
-tests/extensions/test_plugin_manager_type_hints.py ......                [ 55%]
-tests/extensions/test_plugin_models.py ..............                    [ 55%]
-tests/henchman/cli/test_textual_app.py ...............                   [ 55%]
-tests/henchman/cli/test_textual_widgets.py .........                     [ 55%]
-tests/integration/test_anthropic_functional.py s                         [ 55%]
-tests/integration/test_context_limits.py ...........                     [ 56%]
-tests/integration/test_mcp_serena.py .s....                              [ 56%]
-tests/integration/test_tool_integration.py .....s.                       [ 56%]
-tests/knowledge/test_missing_coverage.py .................               [ 56%]
-tests/knowledge/test_scanner.py ...................                      [ 56%]
-tests/knowledge/test_scanner_coverage.py .......................         [ 57%]
-tests/knowledge/test_store.py .............................              [ 57%]
-tests/mcp/test_client.py ..........                                      [ 58%]
-tests/mcp/test_config.py .....                                           [ 58%]
-tests/mcp/test_filtered_stream.py ....                                   [ 58%]
-tests/mcp/test_manager.py ...........                                    [ 58%]
-tests/mcp/test_tool.py .......                                           [ 58%]
-tests/metrics/test_collector.py ........................................ [ 59%]
-......................                                                   [ 59%]
-tests/metrics/test_dashboard.py ........................................ [ 60%]
-...                                                                      [ 60%]
-tests/metrics/test_exporter.py ................................          [ 61%]
-tests/metrics/test_init.py ..                                            [ 61%]
-tests/metrics/test_models.py .....................                       [ 61%]
-tests/metrics/test_storage.py .......................................... [ 62%]
-..                                                                       [ 62%]
-tests/providers/test_413_error_handling.py .........                     [ 62%]
-tests/providers/test_anthropic.py .............................          [ 63%]
-tests/providers/test_anthropic_ratelimit.py .s.                          [ 63%]
-tests/providers/test_anthropic_validation.py .....                       [ 63%]
-tests/providers/test_base.py ...............                             [ 63%]
-tests/providers/test_deepseek.py .......                                 [ 63%]
-tests/providers/test_missing_coverage.py .............                   [ 63%]
-tests/providers/test_ollama.py .........                                 [ 64%]
-tests/providers/test_openai_compat.py ............................       [ 64%]
-tests/providers/test_openrouter.py ...........                           [ 64%]
-tests/providers/test_registry.py ........                                [ 64%]
-tests/providers/test_utils.py ......................                     [ 65%]
-tests/rag/test_chunker.py .............                                  [ 65%]
-tests/rag/test_concurrency.py .............                              [ 65%]
-tests/rag/test_concurrency_smoke.py .....                                [ 65%]
-tests/rag/test_coverage_boost.py ....................................... [ 66%]
-...                                                                      [ 66%]
-tests/rag/test_embedder.py .......                                       [ 66%]
-tests/rag/test_indexer.py ....................                           [ 67%]
-tests/rag/test_missing_coverage.py .....                                 [ 67%]
-tests/rag/test_rag_command.py ....................                       [ 67%]
-tests/rag/test_rag_concurrency_integration.py ......                     [ 67%]
-tests/rag/test_rag_search_tool.py ...........                            [ 68%]
-tests/rag/test_repo_id.py ................                               [ 68%]
-tests/rag/test_store.py ...........                                      [ 68%]
-tests/rag/test_system.py ...........                                     [ 68%]
-tests/smoke/test_escape_key_behavior.py .......                          [ 68%]
-tests/smoke/test_large_file_handling.py ............                     [ 69%]
-tests/test_branch_coverage.py .....................                      [ 69%]
-tests/test_context_management.py .............                           [ 69%]
-tests/test_coverage_suite.py .......                                     [ 69%]
-tests/test_init.py ....                                                  [ 69%]
-tests/test_interactive.py ..                                             [ 69%]
-tests/test_main.py .s                                                    [ 69%]
-tests/test_phase5.py ..                                                  [ 70%]
-tests/test_phase6_1.py .                                                 [ 70%]
-tests/test_phase6_2.py .                                                 [ 70%]
-tests/test_phase6_3.py .                                                 [ 70%]
-tests/test_phase7.py ..                                                  [ 70%]
-tests/test_progress.py .                                                 [ 70%]
-tests/test_settings_persistence.py .                                     [ 70%]
-tests/test_version.py ...                                                [ 70%]
-tests/test_visualization.py .                                            [ 70%]
-tests/tools/test_ask_user_comprehensive.py .......                       [ 70%]
-tests/tools/test_ask_user_tool.py ........                               [ 70%]
-tests/tools/test_base.py ....................                            [ 70%]
-tests/tools/test_code_format.py .............                            [ 71%]
-tests/tools/test_coverage_map.py .................................       [ 71%]
-tests/tools/test_dead_code.py ................................           [ 72%]
-tests/tools/test_deep_research.py ....................                   [ 72%]
-tests/tools/test_delegate.py ..                                          [ 72%]
-tests/tools/test_delegate_enhanced.py .....                              [ 72%]
-tests/tools/test_diff_view.py ....................                       [ 73%]
-tests/tools/test_directory_tools.py ................                     [ 73%]
-tests/tools/test_env_inspect.py ..................                       [ 73%]
-tests/tools/test_file_overview.py .....................................  [ 74%]
-tests/tools/test_file_tools.py ......................................... [ 75%]
-.                                                                        [ 75%]
-tests/tools/test_git_ops.py ............................                 [ 75%]
-tests/tools/test_grep_tool.py ..................................         [ 76%]
-tests/tools/test_import_graph.py .................................       [ 77%]
-tests/tools/test_kg_common.py .......                                    [ 77%]
-tests/tools/test_kg_query.py ........................                    [ 77%]
-tests/tools/test_kg_update.py .......................                    [ 78%]
-tests/tools/test_lint_check.py ...................                       [ 78%]
-tests/tools/test_patch_apply.py .....................................    [ 79%]
-tests/tools/test_pattern_search.py ..................................... [ 79%]
-                                                                         [ 79%]
-tests/tools/test_pip_inspect.py ...........                              [ 80%]
-tests/tools/test_plan_mode_enforcement.py .....                          [ 80%]
-tests/tools/test_pytest_run.py .......................                   [ 80%]
-tests/tools/test_python_ast.py .................                         [ 80%]
-tests/tools/test_python_ast_helpers.py ............................      [ 81%]
-tests/tools/test_python_exec.py ...................                      [ 81%]
-tests/tools/test_registry.py .................................           [ 82%]
-tests/tools/test_research_notes.py ..................................... [ 83%]
-                                                                         [ 83%]
-tests/tools/test_security_extended.py .................................. [ 83%]
-...............................................................          [ 84%]
-tests/tools/test_shell_advanced.py ....                                  [ 84%]
-tests/tools/test_shell_coverage_extra.py ............................... [ 85%]
-.........                                                                [ 85%]
-tests/tools/test_shell_interactive.py ....                               [ 85%]
-tests/tools/test_shell_secure.py ....................................... [ 86%]
-......................................................................   [ 87%]
-tests/tools/test_shell_sudo_logic.py ....                                [ 87%]
-tests/tools/test_shell_tool.py ..................                        [ 88%]
-tests/tools/test_symbol_trace.py .................................       [ 88%]
-tests/tools/test_test_gen.py ....................................        [ 89%]
-tests/tools/test_traceback_parse.py ......................               [ 89%]
-tests/tools/test_utils.py .............                                  [ 90%]
-tests/tools/test_web_fetch_tool.py ...............                       [ 90%]
-tests/ui_integration/test_agent.py ........                              [ 90%]
-tests/ui_integration/test_compaction_llm.py ..                           [ 90%]
-tests/ui_integration/test_events.py ..                                   [ 90%]
-tests/ui_integration/test_llm.py ................                        [ 90%]
-tests/ui_integration/test_mcp.py ...........                             [ 91%]
-tests/ui_integration/test_plan_mode.py .....                             [ 91%]
-tests/ui_integration/test_repl_e2e.py ..                                 [ 91%]
-tests/ui_integration/test_repl_integration.py ......s...                 [ 91%]
-tests/ui_integration/test_session.py ..                                  [ 91%]
-tests/ui_integration/test_slash_commands.py ......................       [ 91%]
-tests/ui_integration/test_tokens_llm.py ...                              [ 91%]
-tests/ui_integration/test_tool_calls.py .........                        [ 92%]
-tests/ui_integration/test_tool_integration.py ...                        [ 92%]
-tests/utils/test_backslash_in_comment_bug.py ..                          [ 92%]
-tests/utils/test_compaction.py .....                                     [ 92%]
-tests/utils/test_compaction_edge_cases.py ..........                     [ 92%]
-tests/utils/test_compaction_validation.py ..............                 [ 92%]
-tests/utils/test_comprehensive_bug.py ......                             [ 92%]
-tests/utils/test_content_extractor.py ....................               [ 93%]
-tests/utils/test_content_extractor_edge_cases.py .......                 [ 93%]
-tests/utils/test_coverage_boost.py ..................................... [ 94%]
-...................................................                      [ 95%]
-tests/utils/test_double_quote_apostrophe_bug_final.py .                  [ 95%]
-tests/utils/test_failing_bug.py ...                                      [ 95%]
-tests/utils/test_has_language_bug.py .                                   [ 95%]
-tests/utils/test_intelligent_compaction.py ..........                    [ 95%]
-tests/utils/test_intelligent_context.py .........................        [ 95%]
-tests/utils/test_intelligent_context_apostrophe_bug.py ...               [ 95%]
-tests/utils/test_intelligent_context_apostrophe_bug_failing.py ..        [ 95%]
-tests/utils/test_intelligent_context_apostrophe_bug_final.py ..          [ 95%]
-tests/utils/test_intelligent_context_ar_bug.py .                         [ 95%]
-tests/utils/test_intelligent_context_bug.py ..                           [ 95%]
-tests/utils/test_intelligent_context_bug_find.py ......                  [ 96%]
-tests/utils/test_intelligent_context_bug_fix_verification.py ..          [ 96%]
-tests/utils/test_intelligent_context_bug_yve.py .                        [ 96%]
-tests/utils/test_intelligent_context_contraction_bug.py ...              [ 96%]
-tests/utils/test_intelligent_context_contraction_bug_fixed.py ...        [ 96%]
-tests/utils/test_intelligent_context_four_lenses_bug.py ...              [ 96%]
-tests/utils/test_intelligent_context_four_lenses_bug_final.py ..         [ 96%]
-tests/utils/test_intelligent_context_four_lenses_real_bug.py ......      [ 96%]
-tests/utils/test_intelligent_context_index_error_bug.py ..               [ 96%]
-tests/utils/test_intelligent_context_index_error_bug_final.py ..         [ 96%]
-tests/utils/test_intelligent_context_mayve_bug.py .                      [ 96%]
-tests/utils/test_intelligent_context_mismatched_fence_bug.py ....        [ 96%]
-tests/utils/test_intelligent_context_raw_string_backslash_bug.py ...     [ 96%]
-tests/utils/test_intelligent_context_real_bug.py ..                      [ 96%]
-tests/utils/test_intelligent_context_real_bug_final.py ....              [ 96%]
-tests/utils/test_intelligent_context_reasoning_bug.py ...                [ 96%]
-tests/utils/test_intelligent_context_triple_quote_bug.py ...             [ 96%]
-tests/utils/test_intelligent_context_ur_bug.py ..                        [ 96%]
-tests/utils/test_intelligent_context_ur_ru_bug.py ..                     [ 96%]
-tests/utils/test_intelligent_context_yve_bug_final.py ...                [ 97%]
-tests/utils/test_intelligent_truncation_refactoring.py ......            [ 97%]
-tests/utils/test_lazy_import.py ......                                   [ 97%]
-tests/utils/test_missing_coverage.py .......                             [ 97%]
-tests/utils/test_multi_turn_tool_calls.py ....                           [ 97%]
-tests/utils/test_protected_zone.py ........                              [ 97%]
-tests/utils/test_ratelimit.py .....................                      [ 97%]
-tests/utils/test_raw_string_backslash_bug.py ..                          [ 98%]
-tests/utils/test_retry.py ................                               [ 98%]
-tests/utils/test_summarization.py ................................       [ 98%]
-tests/utils/test_tiktoken_integration.py ......................          [ 99%]
-tests/utils/test_token_counter_extended.py ..                            [ 99%]
-tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
-tests/utils/test_truncation_refactor.py ....                             [ 99%]
-tests/utils/test_validation.py ......................./home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/core/session_models.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: arc (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/core/session_templates.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/core/turn.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/base.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/constants.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/manager.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/models.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_compatibility.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_database.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_installer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_manager.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_registry_client.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/extensions/plugin_security_scanner.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/knowledge/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/knowledge/models.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/knowledge/scanner.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/knowledge/store.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/mcp/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/mcp/client.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/mcp/config.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/mcp/manager.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/mcp/tool.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/collector.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/dashboard.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/exporter.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/models.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/metrics/storage.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/anthropic.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/base.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/deepseek.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/ollama.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/openai_compat.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/openrouter.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/registry.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/providers/utils.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/chunker.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/concurrency.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/embedder.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/indexer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/repo_id.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/store.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/rag/system.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/base.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/ask_user.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/code_format.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/coverage_map.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/dead_code.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/deep_research.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/delegate.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/diff_view.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/file_edit.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/file_read.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/file_write.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/git_ops.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/glob_tool.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_common.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_query.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/lint_check.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/pattern_search.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/pip_inspect.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast_helpers.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/python_exec.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/rag_search.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/research_notes.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/shell.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/symbol_trace.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/test_gen.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/web_fetch.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/builtins/web_search.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/registry.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/security.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/security/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/security/shell_secure.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/tools/utils.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/__init__.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/cluster_utils.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/compaction.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/compression_strategy.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/importance_scorer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_aggregator.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_config.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_detector.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_formatter.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_parser.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_summarizer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_topic_extractor.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_types.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/lazy_import.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/message_analyzer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/message_clusterer.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/message_compactor.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/ratelimit.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/registry.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/retry.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/serialization.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/sorting_utils.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/tokens.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/utils/validation.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-/home/matthew/anaconda3/lib/python3.12/site-packages/coverage/report_core.py:113: CoverageWarning: Couldn't parse '/home/matthew/mlg-cli/src/henchman/version.py': Couldn't use data file '/home/matthew/mlg-cli/.coverage': no such table: tracer (couldnt-parse); see https://coverage.readthedocs.io/en/7.13.1/messages.html#warning-couldnt-parse
-  coverage._warn(msg, slug="couldnt-parse")
-                   [100%]
-
-=============================== warnings summary ===============================
-tests/rag/test_concurrency_smoke.py:142
-  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    @pytest.mark.e2e
-
-tests/cli/test_app_coverage_100.py::TestInitializeJsonProcessing::test_initialize_json_processing_with_rag_system[asyncio]
-tests/cli/test_app_extended.py::test_run_interactive_plan_mode
-tests/cli/test_output_stream_coverage.py::TestOutputHandlerCoverage::test_start_background_indexing_no_rag
-tests/tools/test_diff_view.py::TestDiffViewTool::test_run_git_method
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(self, name, parent):
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/cli/test_console_coverage.py::TestToolManagerCoverage::test_set_plan_mode
-tests/cli/test_coverage_gaps_cli.py::TestReplMissingLines::test_initialize_mcp_error[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
-    def __init__(self, name, parent):
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/cli/test_coverage_gaps_cli.py::TestUIRendererMissingLines::test_ui_renderer_stop_thinking_not_started
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/deprecated.py:97: RuntimeWarning: coroutine 'TestOutputHandlerMissingLines.test_show_turn_status_rag_index.<locals>.fake_index_async' was never awaited
-    def check_ispytest(ispytest: bool) -> None:
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/cli/test_output_stream_coverage.py::TestStreamEventHandlers::test_handle_thought_continues
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:657: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    raise AttributeError(name)
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
-  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:648: RuntimeWarning: Failed to load settings: Corrupted settings file. Using defaults.
-    self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
-
-tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
-  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:650: RuntimeWarning: Failed to gather environment: Format error.
-    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
-
-tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
-  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:650: RuntimeWarning: Failed to gather environment: Cannot gather env.
-    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
-
-tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
-  tests/e2e/test_context_safety.py:53: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
-    def test_compactor_safety_limit(self):
-
-tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
-  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    if model_name.startswith(model_prefix):
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
-    if iscoroutinefunction(getattr(spec, attr, None)):
-
-tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields_set__` attribute is deprecated, use `model_fields_set` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
-    if iscoroutinefunction(getattr(spec, attr, None)):
-
-tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_computed_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
-    if iscoroutinefunction(getattr(spec, attr, None)):
-
-tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
-    if iscoroutinefunction(getattr(spec, attr, None)):
-
-tests/extensions/test_plugin_coverage.py::TestPluginManagerExtended::test_search_plugins_delegates_to_client[asyncio]
-  /home/matthew/mlg-cli/src/henchman/extensions/plugin_manager.py:238: DeprecationWarning: Using individual query/page/page_size/category parameters is deprecated. Use the search_params parameter instead.
-    resolved_search_params = _build_search_params(search_params, legacy_request)
-
-tests/extensions/test_plugin_coverage.py::TestPluginInstallerHelpers::test_extract_archive_file_tar_gz
-  /home/matthew/mlg-cli/src/henchman/extensions/plugin_installer.py:266: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
-    tar_ref.extractall(target_dir)
-
-tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=28549) is multi-threaded, use of fork() may lead to deadlocks in the child.
-    self.pid = os.fork()
-
-tests/test_interactive.py::test_tool_form
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_interactive.py::test_tab_completion
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_phase5.py::test_accessibility
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_phase5.py::test_keybindings
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_phase6_1.py::test_style_overrides
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_phase6_2.py::test_plugin_system
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_phase6_3.py::test_layout_settings
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_progress.py::test_progress_manager
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_settings_persistence.py::test_settings_persistence
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/test_visualization.py::test_visualization
-  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
-  Did you mean to use `assert` instead of `return`?
-  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
-    warnings.warn(
-
-tests/tools/test_coverage_map.py::TestCoverageMapTool::test_per_function_json
-  /home/matthew/anaconda3/lib/python3.12/json/decoder.py:353: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    obj, end = self.scan_once(s, idx)
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/tools/test_import_graph.py::TestImportGraphInternals::test_collect_local_modules_nonexistent_dir
-  /home/matthew/anaconda3/lib/python3.12/inspect.py:2444: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    for offset, name in enumerate(positional[non_default_count:]):
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/tools/test_lint_check.py::TestLintCheckTool::test_output_truncation
-  /home/matthew/anaconda3/lib/python3.12/pathlib.py:407: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def _load_parts(self):
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
-tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
-tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
-tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
-tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
-tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
-tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
-  /home/matthew/mlg-cli/src/henchman/core/agent_streaming.py:215: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    async for chunk in ctx.provider.chat_completion_stream(
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  <string>:2: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:431: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def _parse_key(key: Keys | str) -> str | Keys:
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
-tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
-tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
-  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:836: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    async for chunk in provider.chat_completion_stream(
-  Enable tracemalloc to get traceback where the object was allocated.
-  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================================ tests coverage ================================
-_______________ coverage: platform linux, python 3.12.7-final-0 ________________
-
-Name                                                  Stmts   Miss Branch BrPart  Cover   Missing
--------------------------------------------------------------------------------------------------
-src/henchman/__init__.py                                  5      0      0      0   100%
-src/henchman/__main__.py                                  1      0      0      0   100%
-src/henchman/agents/__init__.py                           7      0      0      0   100%
-src/henchman/agents/config.py                             2      0      0      0   100%
-src/henchman/agents/delegation.py                       401      0    126      0   100%
-src/henchman/agents/file_read_decision_maker.py         105      7     56      0    93%   147-148, 281-285
-src/henchman/agents/identity.py                           9      0      0      0   100%
-src/henchman/agents/ledger.py                           153      2     22      1    98%   400-401
-src/henchman/agents/line_range_utils.py                 113     23     52      1    78%   138-139, 146-147, 164-165, 172-173, 189, 246-269
-src/henchman/agents/metrics.py                          162      0     22      0   100%
-src/henchman/agents/metrics_reporter.py                 123      0     16      0   100%
-src/henchman/agents/orchestrator.py                      50      0      8      0   100%
-src/henchman/agents/orchestrator_anchoring.py            67      0     34      0   100%
-src/henchman/agents/orchestrator_components.py           21      0      6      0   100%
-src/henchman/agents/orchestrator_delegation_ctrl.py      81      0     34      2    98%   143->182, 177->143
-src/henchman/agents/orchestrator_events.py               17      0      4      0   100%
-src/henchman/agents/orchestrator_execution.py            66      3     26      1    93%   89, 107-108
-src/henchman/agents/orchestrator_init.py                 58      0      6      0   100%
-src/henchman/agents/orchestrator_loop.py                 87      0     26      0   100%
-src/henchman/agents/orchestrator_metrics_ctrl.py         14      0      2      0   100%
-src/henchman/agents/orchestrator_prompts.py              18      0      0      0   100%
-src/henchman/agents/orchestrator_run.py                  21      0      2      0   100%
-src/henchman/agents/orchestrator_tech_lead.py            15      0      2      0   100%
-src/henchman/agents/orchestrator_timeout.py              39      0     20      0   100%
-src/henchman/agents/orchestrator_tools.py                30      0     10      0   100%
-src/henchman/agents/orchestrator_turns.py                35      0      6      0   100%
-src/henchman/agents/orchestrator_types.py                90      0      0      0   100%
-src/henchman/agents/orchestrator_validation.py           27      0      4      0   100%
-src/henchman/agents/pool.py                              91      1     34      0    99%   173
-src/henchman/agents/presets.py                           51      0     18      0   100%
-src/henchman/agents/prompts.py                           58      0     14      0   100%
-src/henchman/agents/working_memory.py                   256     10     68      7    95%   66, 115, 127-128, 150-151, 154, 241-242, 428->exit, 455->exit, 507
-src/henchman/api/__init__.py                              2      0      0      0   100%
-src/henchman/api/auth.py                                 12      0      6      0   100%
-src/henchman/api/endpoints/__init__.py                    2      0      0      0   100%
-src/henchman/api/endpoints/chat.py                      182      0     68      0   100%
-src/henchman/api/endpoints/health.py                     38      0      4      0   100%
-src/henchman/api/server.py                               61      0      4      0   100%
-src/henchman/api/state.py                                10      0      0      0   100%
-src/henchman/chat/__init__.py                            10      5      2      0    42%   34-39
-src/henchman/chat/base.py                                37      0      0      0   100%
-src/henchman/chat/discord_bot.py                        129     56     38      1    53%   85-91, 100-149, 154-155, 160-161, 187-188, 196-198, 217-234, 245-251, 303->306, 315
-src/henchman/chat/manager.py                            208     91     84      9    51%   85, 113, 157, 160-170, 255-339, 366-367, 379-426, 442, 466, 518-524, 533->532
-src/henchman/cli/__init__.py                              4      0      0      0   100%
-src/henchman/cli/app.py                                 281      2     72      0    99%   673-674
-src/henchman/cli/chat_serve.py                           53     41      8      0    20%   58-118, 136-144
-src/henchman/cli/command_processor.py                    46      0     12      0   100%
-src/henchman/cli/commands/__init__.py                    69      1     12      1    98%   167
-src/henchman/cli/commands/agent.py                       91      0     24      0   100%
-src/henchman/cli/commands/builtins.py                   115      0     20      0   100%
-src/henchman/cli/commands/chat.py                       117      0     34      0   100%
-src/henchman/cli/commands/context.py                    231      0     48      0   100%
-src/henchman/cli/commands/extensions.py                  28      0      4      0   100%
-src/henchman/cli/commands/mcp.py                         98      0     30      0   100%
-src/henchman/cli/commands/model.py                      165      0     50      0   100%
-src/henchman/cli/commands/plan.py                        41      0     12      0   100%
-src/henchman/cli/commands/rag.py                        122      0     26      0   100%
-src/henchman/cli/commands/session.py                    411      0     96      0   100%
-src/henchman/cli/commands/team.py                        43      0     12      0   100%
-src/henchman/cli/commands/theme.py                      115      0     30      0   100%
-src/henchman/cli/commands/unlimited.py                   39      0     12      0   100%
-src/henchman/cli/console.py                             294      0     58      0   100%
-src/henchman/cli/console_helpers.py                      40      0      8      0   100%
-src/henchman/cli/core_init.py                            52      0      6      0   100%
-src/henchman/cli/input.py                               167      0     54      0   100%
-src/henchman/cli/input_handler.py                        44      2     10      0    96%   14-15
-src/henchman/cli/json_output.py                          31      0      8      0   100%
-src/henchman/cli/output_handler.py                      123      2     30      0    99%   222-223
-src/henchman/cli/plugins.py                              59      0     20      0   100%
-src/henchman/cli/prompts.py                               9      0      0      0   100%
-src/henchman/cli/repl.py                                202      0     42      0   100%
-src/henchman/cli/serve.py                                35      0      6      0   100%
-src/henchman/cli/session_manager.py                      70      0     22      0   100%
-src/henchman/cli/stream_event_handlers.py               156      0     70      0   100%
-src/henchman/cli/textual_app.py                          82      0      6      0   100%
-src/henchman/cli/textual_bridge.py                      178      0     46      0   100%
-src/henchman/cli/textual_config.py                      108      0     22      0   100%
-src/henchman/cli/textual_driver.py                       11      0      0      0   100%
-src/henchman/cli/textual_messages.py                     52      0      0      0   100%
-src/henchman/cli/textual_mixins.py                      844    159    218     53    75%   121, 130, 150, 169-176, 223-224, 239-240, 244-245, 249->251, 252->254, 273-274, 302-303, 308, 317, 326, 335, 344, 387, 490->exit, 529-566, 573, 578->582, 584-593, 603, 615-624, 633->exit, 661-667, 696-702, 741, 744, 758-767, 779, 794, 860-861, 902->exit, 919, 944, 951, 967, 981-982, 997-998, 1010-1018, 1060, 1070->1072, 1083-1084, 1089, 1095, 1106->exit, 1116-1132, 1144-1145, 1149, 1175, 1330->exit, 1354->exit, 1373, 1377-1378, 1392, 1396-1397, 1414->exit, 1433, 1439, 1464->exit, 1491-1493, 1504, 1585->1587, 1600->exit, 1606, 1620, 1636, 1650-1651, 1666, 1668-1672, 1688->1686, 1704-1710, 1719, 1723-1724, 1737->1735, 1752, 1755, 1763-1768, 1774, 1776, 1780, 1803-1809, 1826->exit, 1843->1845, 1845->exit
-src/henchman/cli/textual_screens.py                     126      6     30      3    94%   261->exit, 352, 385, 447-451
-src/henchman/cli/textual_widgets.py                     471     33     92     11    91%   109, 169, 268-269, 317-318, 349-351, 448, 456-459, 467-471, 475-477, 654, 684, 698-700, 766, 772-773, 785, 801, 836, 883, 909, 986->exit
-src/henchman/cli/tool_executor.py                        96      0     36      0   100%
-src/henchman/cli/tool_manager.py                         32      0      8      0   100%
-src/henchman/cli/ui_renderer.py                         103      0     18      0   100%
-src/henchman/config/__init__.py                           5      0      0      0   100%
-src/henchman/config/context.py                           97      0     46      0   100%
-src/henchman/config/environment.py                      114      0     42      0   100%
-src/henchman/config/schema.py                           115      0      2      0   100%
-src/henchman/config/settings.py                          78      0     30      0   100%
-src/henchman/core/__init__.py                             9      0      0      0   100%
-src/henchman/core/agent.py                              276      1     84      2    99%   110, 616->620
-src/henchman/core/agent_config.py                        14      0      0      0   100%
-src/henchman/core/agent_stall.py                         38      0     12      0   100%
-src/henchman/core/agent_streaming.py                     70      0     24      0   100%
-src/henchman/core/eventbus.py                            51      0     12      0   100%
-src/henchman/core/events.py                              29      0      0      0   100%
-src/henchman/core/session.py                              5      0      0      0   100%
-src/henchman/core/session_branch.py                      15      0      2      0   100%
-src/henchman/core/session_data.py                        34      0      0      0   100%
-src/henchman/core/session_export.py                      53      0     24      0   100%
-src/henchman/core/session_helpers.py                     29      0      2      0   100%
-src/henchman/core/session_manager.py                     61      0     10      0   100%
-src/henchman/core/session_manager_base.py                58      0     16      0   100%
-src/henchman/core/session_merge.py                       56      0     20      0   100%
--------------------------------------------------------------------------------------------------
-TOTAL                                                  9625    445   2462     92    94%
-=========== 5363 passed, 6 skipped, 45 warnings in 192.71s (0:03:12) ===========
-[2026-03-19T00:00:02Z] All tests passed.
-Committing changes...
-[main 6bf81dd] fix(four-lenses): four-lenses-chat-manager
- 1 file changed, 630 insertions(+), 1 deletion(-)
-[2026-03-19T00:00:02Z] Auto-improve complete.
-[2026-03-18T04:00:02Z] Running pytest to verify tests pass...
-============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
-rootdir: /home/matthew/mlg-cli
-configfile: pyproject.toml
-plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
-collected 5387 items
+collected 5388 items
 
 tests/agents/test_agents_coverage.py ................................... [  0%]
 ...................................................................      [  1%]
@@ -1198,7 +865,7 @@ tests/agents/test_working_memory_validation_order_bug.py ...             [ 14%]
 tests/agents/test_working_memory_whitespace_bug.py ......                [ 14%]
 tests/api/test_api.py .................................................. [ 15%]
 ..........................                                               [ 16%]
-tests/chat/test_chat.py ............................                     [ 16%]
+tests/chat/test_chat.py .............................                    [ 16%]
 tests/chat/test_chat_integration.py ..................                   [ 17%]
 tests/cli/commands/test_context.py ........                              [ 17%]
 tests/cli/commands/test_model.py .............                           [ 17%]
@@ -1332,7 +999,7 @@ tests/e2e/test_serena_cli_integration.py .........                       [ 51%]
 tests/e2e/test_tool_fix.py ....                                          [ 51%]
 tests/empty_message_validation/test_empty_messages.py .......            [ 51%]
 tests/extensions/test_base.py ........                                   [ 51%]
-tests/extensions/test_command.py .....                                   [ 51%]
+tests/extensions/test_command.py .....                                   [ 52%]
 tests/extensions/test_manager.py ........................                [ 52%]
 tests/extensions/test_missing_coverage.py ...........                    [ 52%]
 tests/extensions/test_plugin_coverage.py ............................... [ 53%]
@@ -1532,23 +1199,29 @@ tests/rag/test_concurrency_smoke.py:142
     @pytest.mark.e2e
 
 tests/cli/test_app_coverage_100.py::TestProcessToolCalls::test_process_tool_calls_executes_and_submits[asyncio]
-tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_index_async
-tests/cli/test_output_stream_coverage.py::TestToolExecutorCoverage::test_handle_confirmation_approved[asyncio]
-tests/tools/test_diff_view.py::TestDiffViewTool::test_run_git_method
-  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:655: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __getattr__(self, name):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_context_strategy_coverage.py::TestStrategyManager::test_manage_strategy_set_valid[asyncio]
+tests/cli/test_coverage_gaps_cli.py::TestReplMissingLines::test_run_agent_with_monitor_exit_requested[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
     def __init__(self, name, parent):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/cli/test_coverage_gaps_cli.py::TestModelCommandMissingLines::test_test_provider_connection_no_default_model
+tests/cli/test_coverage_gaps_cli.py::TestModelCommandMissingLines::test_get_api_key_for_provider_returns_from_env
   /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'TestOutputHandlerMissingLines.test_show_turn_status_rag_index.<locals>.fake_index_async' was never awaited
     def __init__(self, name, parent):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/cli/test_coverage_gaps_cli.py::TestConsoleMissingLines::test_markdown_with_open_code_fence
-  /home/matthew/anaconda3/lib/python3.12/site-packages/rich/control.py:192: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
-    return text.translate(_translate_table)
+tests/cli/test_output_stream_coverage.py::TestToolExecutorCoverage::test_should_stop_due_to_limits_spinning
+tests/cli/test_output_stream_coverage.py::TestToolExecutorCoverage::test_handle_confirmation_approved[asyncio]
+tests/tools/test_diff_view.py::TestDiffViewTool::test_run_git_method
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1599,7 +1272,7 @@ tests/extensions/test_plugin_coverage.py::TestPluginInstallerHelpers::test_extra
     tar_ref.extractall(target_dir)
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=47985) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=82860) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -1662,15 +1335,15 @@ tests/test_visualization.py::test_visualization
   See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
     warnings.warn(
 
-tests/tools/test_coverage_map.py::TestCoverageMapTool::test_fully_covered_file_not_reported
-  /home/matthew/anaconda3/lib/python3.12/xml/etree/ElementTree.py:569: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    self._root = parser._parse_whole(source)
+tests/tools/test_coverage_map.py::TestCoverageMapTool::test_per_function_json
+  /home/matthew/anaconda3/lib/python3.12/json/decoder.py:353: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    obj, end = self.scan_once(s, idx)
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/tools/test_kg_common.py::TestFindGitRoot::test_returns_path_on_success
-  /home/matthew/anaconda3/lib/python3.12/inspect.py:3072: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    params = OrderedDict((param.name, param) for param in parameters)
+tests/tools/test_import_graph.py::TestImportGraphInternals::test_collect_local_modules_nonexistent_dir
+  /home/matthew/anaconda3/lib/python3.12/inspect.py:2444: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    for offset, name in enumerate(positional[non_default_count:]):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1693,8 +1366,7 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/coverage/collector.py:239: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def lock_data(self) -> None:
+  <string>:2: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1758,8 +1430,8 @@ src/henchman/api/server.py                                     61      0      4 
 src/henchman/api/state.py                                      10      0      0      0   100%
 src/henchman/chat/__init__.py                                  10      5      2      0    42%   34-39
 src/henchman/chat/base.py                                      37      0      0      0   100%
-src/henchman/chat/discord_bot.py                              129     56     38      1    53%   85-91, 100-149, 154-155, 160-161, 187-188, 196-198, 217-234, 245-251, 303->306, 315
-src/henchman/chat/manager.py                                  208     35     84      9    80%   85, 113, 157, 160-170, 260-265, 281-283, 316-324, 329, 424-426, 442, 518-524, 533->532
+src/henchman/chat/discord_bot.py                              156     68     54      8    50%   85-91, 100-149, 154-155, 160-161, 187-188, 196-198, 217-234, 245-251, 288-295, 304, 315, 322, 340, 346, 350, 356->359, 368
+src/henchman/chat/manager.py                                  219     32     90     10    81%   85, 113, 157, 160-170, 260-265, 283-286, 298-300, 354, 449-451, 467, 543-549, 558->557
 src/henchman/cli/__init__.py                                    4      0      0      0   100%
 src/henchman/cli/app.py                                       281      2     72      0    99%   673-674
 src/henchman/cli/chat_serve.py                                 53     41      8      0    20%   58-118, 136-144
@@ -1883,7 +1555,7 @@ src/henchman/tools/builtins/file_edit.py                      115      0     28 
 src/henchman/tools/builtins/file_overview.py                  163     11     68      9    91%   64, 67-70, 73, 78->84, 103->109, 106-107, 111->110, 161, 209->213, 289-290
 src/henchman/tools/builtins/file_read.py                       64      1     12      1    97%   192
 src/henchman/tools/builtins/file_write.py                      29      0      0      0   100%
-src/henchman/tools/builtins/git_ops.py                        114      1     30      1    99%   249
+src/henchman/tools/builtins/git_ops.py                        114      0     30      0   100%
 src/henchman/tools/builtins/glob_tool.py                       48      0     10      0   100%
 src/henchman/tools/builtins/grep.py                           208      1     48      1    99%   512
 src/henchman/tools/builtins/import_graph.py                   260      1     84      1    99%   169
@@ -1940,7 +1612,7 @@ src/henchman/utils/tokens.py                                   65      0     18 
 src/henchman/utils/validation.py                               91      0     36      0   100%
 src/henchman/version.py                                         3      0      0      0   100%
 -------------------------------------------------------------------------------------------------------
-TOTAL                                                       20010    661   5296    210    96%
-=========== 5381 passed, 6 skipped, 43 warnings in 181.17s (0:03:01) ===========
-[2026-03-18T04:00:02Z] All tests passed.
+TOTAL                                                       20048    669   5318    217    96%
+=========== 5382 passed, 6 skipped, 44 warnings in 178.77s (0:02:58) ===========
+[2026-03-19T01:00:03Z] All tests passed.
 Committing changes...

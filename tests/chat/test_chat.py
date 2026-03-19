@@ -548,3 +548,58 @@ class TestChatManager:
             # Should include model default for deepseek
             assert "model" in settings
             assert settings["model"] == "deepseek-chat"
+
+    @pytest.mark.anyio
+    async def test_tool_error_send_message_failure(self, mock_settings: MagicMock) -> None:
+        """Test that agent still receives tool result when error message send fails.
+        
+        This tests the bug: when a tool execution fails and sending the error
+        message to the user also fails, the agent should still receive the
+        tool result via submit_tool_result().
+        """
+        from henchman.chat.manager import ChatManager
+        from henchman.core.events import AgentEvent, EventType
+        
+        manager = ChatManager(mock_settings)
+        
+        # Create mock agent
+        mock_agent = MagicMock()
+        mock_agent.tool_registry.execute.side_effect = Exception("Tool execution failed")
+        
+        # Create mock bot that succeeds for first message but fails for error message
+        mock_bot = AsyncMock()
+        # First call succeeds (sending "🔧 Running: `test_tool`")
+        # Second call fails (sending error message)
+        mock_bot.send_message.side_effect = [None, Exception("Failed to send error message")]
+        
+        # Create a mock tool call event
+        mock_tool_call = MagicMock()
+        mock_tool_call.name = "test_tool"
+        mock_tool_call.arguments = {}
+        mock_tool_call.id = "tool_123"
+        
+        # Create mock stream with a TOOL_CALL_REQUEST event
+        async def mock_stream():
+            yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=mock_tool_call, source_agent=None)
+        
+        # Call _process_stream
+        response_parts = []
+        current_chunk = ""
+        
+        # This should not raise an exception (error should be caught)
+        result = await manager._process_stream(
+            agent=mock_agent,
+            bot=mock_bot,
+            user_id="test_user",
+            stream=mock_stream(),
+            response_parts=response_parts,
+            current_chunk=current_chunk,
+        )
+        
+        # Check that bot.send_message was called twice
+        assert mock_bot.send_message.call_count == 2
+        
+        # THE BUG: agent.submit_tool_result should still be called even though
+        # the second bot.send_message failed. But with the current code, it won't be.
+        # This assertion will FAIL with the buggy code:
+        mock_agent.submit_tool_result.assert_called_once_with("tool_123", "Error: Tool execution failed")
