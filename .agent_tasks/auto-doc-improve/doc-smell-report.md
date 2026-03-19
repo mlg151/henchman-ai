@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-18T22:00:03.161721+00:00_
+_Generated: 2026-03-19T00:00:03.226588+00:00_
 
 ## Executive Summary
 
@@ -11,59 +11,51 @@ _Generated: 2026-03-18T22:00:03.161721+00:00_
 | **Overall Score** | 99.9/100 |
 | **Doc Files Scanned** | 22 |
 | **Source Files Checked** | 196 |
-| **Total Smells** | 9 |
+| **Total Smells** | 7 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 5 |
-| medium | 4 |
+| low | 4 |
+| medium | 3 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 9 |
+| Incomplete Docstring | 7 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/cli/chat_serve.py:32** — 🟡 MEDIUM — Incomplete Docstring  
-   'xyzbot_command' has 3 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: platform, token, user_id_
-
-2. **src/henchman/cli/textual_widgets.py:1026** — 🟡 MEDIUM — Incomplete Docstring  
+1. **src/henchman/cli/textual_widgets.py:1026** — 🟡 MEDIUM — Incomplete Docstring  
    'ChatPane.add_user_message' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: text_
 
-3. **src/henchman/cli/textual_widgets.py:1030** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/cli/textual_widgets.py:1030** — 🟡 MEDIUM — Incomplete Docstring  
    'ChatPane.add_system_message' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: text_
 
-4. **src/henchman/cli/textual_widgets.py:1034** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/cli/textual_widgets.py:1034** — 🟡 MEDIUM — Incomplete Docstring  
    'ChatPane.add_error_message' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: text_
 
-5. **src/henchman/cli/app.py:673** — 🟢 LOW — Incomplete Docstring  
+4. **src/henchman/cli/app.py:671** — 🟢 LOW — Incomplete Docstring  
    'xyztest_command' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'xyztest_command'._
 
-6. **src/henchman/cli/chat_serve.py:32** — 🟢 LOW — Incomplete Docstring  
-   'xyzbot_command' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'xyzbot_command'._
-
-7. **src/henchman/cli/textual_widgets.py:1026** — 🟢 LOW — Incomplete Docstring  
+5. **src/henchman/cli/textual_widgets.py:1026** — 🟢 LOW — Incomplete Docstring  
    'ChatPane.add_user_message' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ChatPane.add_user_message'._
 
-8. **src/henchman/cli/textual_widgets.py:1030** — 🟢 LOW — Incomplete Docstring  
+6. **src/henchman/cli/textual_widgets.py:1030** — 🟢 LOW — Incomplete Docstring  
    'ChatPane.add_system_message' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ChatPane.add_system_message'._
 
-9. **src/henchman/cli/textual_widgets.py:1034** — 🟢 LOW — Incomplete Docstring  
+7. **src/henchman/cli/textual_widgets.py:1034** — 🟢 LOW — Incomplete Docstring  
    'ChatPane.add_error_message' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ChatPane.add_error_message'._
 
@@ -73,20 +65,20 @@ These are the highest-impact documentation smells to address first:
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
 | 1 | src/henchman/cli/textual_widgets.py | ⚠️ C | 79.0 | 6 | 2026-03-18 |
-| 2 | src/henchman/cli/chat_serve.py | ✅ A | 93.0 | 2 | 2026-03-18 |
-| 3 | src/henchman/cli/app.py | ✅ A | 98.0 | 1 | 2026-03-18 |
-| 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-18 |
-| 5 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 6 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 7 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 8 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 9 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 10 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 12 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-18 |
-| 13 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-18 |
-| 14 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
-| 15 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 2 | src/henchman/cli/app.py | ✅ A | 98.0 | 1 | 2026-03-18 |
+| 3 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-18 |
+| 4 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 5 | README.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 6 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 7 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 8 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
+| 11 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-18 |
+| 12 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-18 |
+| 13 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
+| 14 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-17 |
 
 ## 📁 Per-File Details
 
@@ -105,24 +97,15 @@ Public APIs: 44 | Documented: 44 | Coverage: 100.0%
 | 1030 | 🟢 LOW | Incomplete Docstring | 'ChatPane.add_system_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.add_system_message'. |
 | 1034 | 🟢 LOW | Incomplete Docstring | 'ChatPane.add_error_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.add_error_message'. |
 
-### src/henchman/cli/chat_serve.py — ✅ A (93.0/100) (last modified 2026-03-18)
-
-Public APIs: 1 | Documented: 1 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 32 | 🟡 MEDIUM | Incomplete Docstring | 'xyzbot_command' has 3 parameter(s) but no Args: section in docstring | Add an Args: section documenting: platform, token, user_id |
-| 32 | 🟢 LOW | Incomplete Docstring | 'xyzbot_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'xyzbot_command'. |
-
 ### src/henchman/cli/app.py — ✅ A (98.0/100) (last modified 2026-03-18)
 
 Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 673 | 🟢 LOW | Incomplete Docstring | 'xyztest_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'xyztest_command'. |
+| 671 | 🟢 LOW | Incomplete Docstring | 'xyztest_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'xyztest_command'. |
 
-## ✨ Clean Files (215 files with no smells)
+## ✨ Clean Files (216 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -184,6 +167,7 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 - src/henchman/chat/base.py — ✅ A
 - src/henchman/chat/discord_bot.py — ✅ A
 - src/henchman/chat/manager.py — ✅ A
+- src/henchman/cli/chat_serve.py — ✅ A
 - src/henchman/cli/command_processor.py — ✅ A
 - src/henchman/cli/commands/__init__.py — ✅ A
 - src/henchman/cli/commands/agent.py — ✅ A
