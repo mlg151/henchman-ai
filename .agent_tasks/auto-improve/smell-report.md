@@ -1,28 +1,28 @@
-# Code Smell Report — ⚠️ C (Score: 78.6/100)
+# Code Smell Report — ⚠️ C (Score: 78.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-19T00:00:42.920010+00:00_
+_Generated: 2026-03-19T01:00:27.555248+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.6/100 |
+| **Overall Score** | 78.4/100 |
 | **Files Scanned** | 222 |
-| **Total Lines (non-blank)** | 47,944 |
-| **Total Smells** | 474 |
+| **Total Lines (non-blank)** | 47,991 |
+| **Total Smells** | 487 |
 | **Avg Maintainability Index** | 69.6 |
-| **Avg Cyclomatic Complexity** | 13.2 |
+| **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 251 |
-| medium | 203 |
-| high | 19 |
+| low | 258 |
+| medium | 208 |
+| high | 20 |
 | critical | 1 |
 
 ### Smells by Category
@@ -31,13 +31,13 @@ _Generated: 2026-03-19T00:00:42.920010+00:00_
 |:---------|------:|
 | Duplicate Code | 137 |
 | Missing Type Hint | 87 |
-| Long Method | 55 |
+| Long Method | 56 |
 | Feature Envy | 51 |
 | Primitive Obsession | 47 |
-| Magic Number | 33 |
-| Deep Nesting | 31 |
-| Complex Function | 19 |
-| Large Class | 14 |
+| Magic Number | 37 |
+| Deep Nesting | 37 |
+| Complex Function | 20 |
+| Large Class | 15 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -63,55 +63,55 @@ These are the highest-impact smells to address first:
    Method 'DiscordBot._setup_events' accesses 'message' 14 times but 'self' only 7 times  
    → _Move Method — consider moving '_setup_events' to the class that owns 'message'._
 
-6. **chat/manager.py:165** — 🟠 HIGH — Deep Nesting  
+6. **chat/discord_bot.py:268** — 🟠 HIGH — Long Method  
+   Function '_split_message' has 90 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+7. **chat/manager.py:165** — 🟠 HIGH — Deep Nesting  
    Nesting depth 6 in '_get_provider_defaults' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-7. **chat/manager.py:167** — 🟠 HIGH — Deep Nesting  
+8. **chat/manager.py:167** — 🟠 HIGH — Deep Nesting  
    Nesting depth 7 in '_get_provider_defaults' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-8. **chat/manager.py:231** — 🟠 HIGH — Long Method  
-   Function '_process_stream' has 85 lines (threshold: 30)  
+9. **chat/manager.py:231** — 🟠 HIGH — Long Method  
+   Function '_process_stream' has 102 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-9. **chat/manager.py:334** — 🟠 HIGH — Deep Nesting  
+10. **chat/manager.py:351** — 🟠 HIGH — Deep Nesting  
    Nesting depth 6 in '_process_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-10. **chat/manager.py:341** — 🟠 HIGH — Feature Envy  
+11. **chat/manager.py:358** — 🟠 HIGH — Feature Envy  
    Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 5 times  
    → _Move Method — consider moving '_handle_message' to the class that owns 'message'._
 
-11. **chat/manager.py:431** — 🟠 HIGH — Feature Envy  
+12. **chat/manager.py:448** — 🟠 HIGH — Feature Envy  
    Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times  
    → _Move Method — consider moving '_handle_command' to the class that owns 'message'._
 
-12. **cli/app.py:43** — 🟠 HIGH — Duplicate Code  
+13. **cli/app.py:43** — 🟠 HIGH — Duplicate Code  
    Function '_import_attrs' is an exact duplicate of '_import_attrs' at core/agent.py:98  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-13. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
+14. **cli/textual_mixins.py:493** — 🟠 HIGH — Long Method  
    Function '_textual_confirm' has 90 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-14. **cli/textual_widgets.py:498** — 🟠 HIGH — Primitive Obsession  
+15. **cli/textual_widgets.py:498** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '__init__' (line 498), '_add_message_with_prefix' (line 1004)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
-
-15. **cli/textual_widgets.py:1026** — 🟠 HIGH — Duplicate Code  
-   Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1034  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | chat/manager.py | ❌ F | 14.2 | 57 | 414 | 47 | 12.0 |
-| 2 | cli/textual_mixins.py | ❌ F | 36.0 | 13 | 1488 | 1 | 0.0 |
-| 3 | chat/discord_bot.py | ❌ F | 41.7 | 18 | 240 | 60 | 0.0 |
-| 4 | cli/textual_widgets.py | ❌ F | 47.1 | 8 | 1037 | 26 | 0.0 |
+| 1 | chat/manager.py | ❌ F | 13.9 | 60 | 422 | 46 | 13.5 |
+| 2 | chat/discord_bot.py | ❌ F | 16.4 | 28 | 264 | 55 | 19.0 |
+| 3 | cli/textual_mixins.py | ❌ F | 36.0 | 13 | 1488 | 1 | 0.0 |
+| 4 | cli/textual_widgets.py | ❌ F | 47.1 | 8 | 1052 | 26 | 0.0 |
 | 5 | utils/compaction.py | ❌ F | 57.2 | 7 | 856 | 30 | 11.0 |
 | 6 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 7 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
@@ -123,20 +123,20 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 202 additional files omitted._
 
-### chat/manager.py — ❌ F (14.2/100)
+### chat/manager.py — ❌ F (13.9/100)
 
-LOC: 414 | Classes: 1 | Functions: 0 | MI: 47 | Avg CC: 12.0
+LOC: 422 | Classes: 1 | Functions: 0 | MI: 46 | Avg CC: 13.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 169 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in '_get_provider_defaults' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 165 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_get_provider_defaults' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 167 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_get_provider_defaults' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 231 | 🟠 HIGH | Long Method | Function '_process_stream' has 85 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 334 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 341 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 5 times | Move Method — consider moving '_handle_message' to the class that owns 'message'. |
-| 431 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times | Move Method — consider moving '_handle_command' to the class that owns 'message'. |
-| 22 | 🟡 MEDIUM | Large Class | Class 'ChatManager' spans 532 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 231 | 🟠 HIGH | Long Method | Function '_process_stream' has 102 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 351 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 358 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_message' accesses 'message' 17 times but 'self' only 5 times | Move Method — consider moving '_handle_message' to the class that owns 'message'. |
+| 448 | 🟠 HIGH | Feature Envy | Method 'ChatManager._handle_command' accesses 'message' 15 times but 'self' only 8 times | Move Method — consider moving '_handle_command' to the class that owns 'message'. |
+| 22 | 🟡 MEDIUM | Large Class | Class 'ChatManager' spans 549 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 35 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 93% similar to '__init__' at cli/ui_renderer.py:80 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 73 | 🟡 MEDIUM | Long Method | Function '_get_or_create_agent' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 137 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._get_provider_defaults' accesses 'defaults' 8 times but 'self' only 0 times | Move Method — consider moving '_get_provider_defaults' to the class that owns 'defaults'. |
@@ -145,7 +145,31 @@ LOC: 414 | Classes: 1 | Functions: 0 | MI: 47 | Avg CC: 12.0
 | 231 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._process_stream' accesses 'event' 9 times but 'self' only 0 times | Move Method — consider moving '_process_stream' to the class that owns 'event'. |
 | 231 | 🟡 MEDIUM | Feature Envy | Method 'ChatManager._process_stream' accesses 'EventType' 5 times but 'self' only 0 times | Move Method — consider moving '_process_stream' to the class that owns 'EventType'. |
 
-_... and 42 more smells._
+_... and 45 more smells._
+
+### chat/discord_bot.py — ❌ F (16.4/100)
+
+LOC: 264 | Classes: 1 | Functions: 1 | MI: 55 | Avg CC: 19.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 78 | 🟠 HIGH | Long Method | Function '_setup_events' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 78 | 🟠 HIGH | Feature Envy | Method 'DiscordBot._setup_events' accesses 'client' 11 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'client'. |
+| 78 | 🟠 HIGH | Feature Envy | Method 'DiscordBot._setup_events' accesses 'message' 14 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'message'. |
+| 268 | 🟠 HIGH | Long Method | Function '_split_message' has 90 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 94 | 🟡 MEDIUM | Long Method | Function 'on_message' has 50 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function 'on_disconnect' is 100% similar to 'on_resumed' at chat/discord_bot.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 268 | 🟡 MEDIUM | Complex Function | Function '_split_message' has cyclomatic complexity 19 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 339 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_split_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 345 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_split_message' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 38 | 🟢 LOW | Large Class | Class 'DiscordBot' spans 331 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 49 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 78 | 🟢 LOW | Missing Type Hint | Function '_setup_events' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 164 | 🟢 LOW | Missing Type Hint | Function 'platform' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 173 | 🟢 LOW | Missing Type Hint | Function 'is_connected' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 181 | 🟢 LOW | Missing Type Hint | Function 'start' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 13 more smells._
 
 ### cli/textual_mixins.py — ❌ F (36.0/100)
 
@@ -167,42 +191,18 @@ LOC: 1488 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 | 1265 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
 | 1811 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
-### chat/discord_bot.py — ❌ F (41.7/100)
-
-LOC: 240 | Classes: 1 | Functions: 1 | MI: 60 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 78 | 🟠 HIGH | Long Method | Function '_setup_events' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 78 | 🟠 HIGH | Feature Envy | Method 'DiscordBot._setup_events' accesses 'client' 11 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'client'. |
-| 78 | 🟠 HIGH | Feature Envy | Method 'DiscordBot._setup_events' accesses 'message' 14 times but 'self' only 7 times | Move Method — consider moving '_setup_events' to the class that owns 'message'. |
-| 94 | 🟡 MEDIUM | Long Method | Function 'on_message' has 50 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 152 | 🟡 MEDIUM | Duplicate Code | Function 'on_disconnect' is 100% similar to 'on_resumed' at chat/discord_bot.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 49 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 78 | 🟢 LOW | Missing Type Hint | Function '_setup_events' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 164 | 🟢 LOW | Missing Type Hint | Function 'platform' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 173 | 🟢 LOW | Missing Type Hint | Function 'is_connected' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 181 | 🟢 LOW | Missing Type Hint | Function 'start' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 190 | 🟢 LOW | Missing Type Hint | Function 'stop' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 200 | 🟢 LOW | Missing Type Hint | Function 'send_message' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 200 | 🟢 LOW | Primitive Obsession | Function 'send_message' has 3 primitive-typed parameters: user_id: Name(id='str', ctx=Load()), content: Name(id='str', ctx=Load()), split_long: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 236 | 🟢 LOW | Missing Type Hint | Function 'send_typing' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 253 | 🟢 LOW | Missing Type Hint | Function 'set_message_handler' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 3 more smells._
-
 ### cli/textual_widgets.py — ❌ F (47.1/100)
 
-LOC: 1037 | Classes: 17 | Functions: 6 | MI: 26 | Avg CC: 0.0
+LOC: 1052 | Classes: 17 | Functions: 6 | MI: 26 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 498 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '__init__' (line 498), '_add_message_with_prefix' (line 1004) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 1026 | 🟠 HIGH | Duplicate Code | Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1034 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 1026 | 🟠 HIGH | Duplicate Code | Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:1048 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 1026 | 🟡 MEDIUM | Duplicate Code | Function 'add_user_message' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 1026 | 🟡 MEDIUM | Duplicate Code | Function 'add_user_message' is 100% similar to '_import_from_node_contains_module' at tools/builtins/import_graph.py:611 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1034 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1034 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to '_import_from_node_contains_module' at tools/builtins/import_graph.py:611 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1048 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1048 | 🟡 MEDIUM | Duplicate Code | Function 'add_error_message' is 100% similar to '_import_from_node_contains_module' at tools/builtins/import_graph.py:611 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 498 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: prefix: Name(id='str', ctx=Load()), content: Name(id='str', ctx=Load()), trusted: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 1004 | 🟢 LOW | Primitive Obsession | Function '_add_message_with_prefix' has 3 primitive-typed parameters: prefix: Name(id='str', ctx=Load()), text: Name(id='str', ctx=Load()), trusted: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 

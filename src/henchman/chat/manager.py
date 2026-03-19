@@ -114,13 +114,13 @@ class ChatManager:
 
         # Register built-in tools for the agent
         from henchman.cli.tool_manager import ToolManager
-        
+
         tool_manager = ToolManager(self._settings)
         tool_manager.register_builtin_tools()
-        
+
         # Auto-approve all tools for Discord (non-interactive mode)
         tool_manager.set_auto_approve(auto_approve=True)
-        
+
         agent = Agent(
             provider=provider,
             system_prompt=system_prompt,
@@ -130,26 +130,26 @@ class ChatManager:
         self._user_agents[user_id] = agent
         self._user_histories[user_id] = []
 
-        logger.info("Created new agent for user %s with %d tools", 
+        logger.info("Created new agent for user %s with %d tools",
                     user_id, len(tool_manager.registry.list_tools()))
         return agent
 
     def _get_provider_defaults(self, provider_name: str) -> dict[str, Any]:
         """Get default settings for a provider.
-        
+
         Args:
             provider_name: Name of the provider.
-            
+
         Returns:
             Dictionary of default provider settings.
         """
         defaults: dict[str, Any] = {}
-        
+
         # Add API key from environment if available
         api_key = get_api_key_for_provider(provider_name)
         if api_key:
             defaults["api_key"] = api_key
-        
+
         # Add provider-specific defaults
         if provider_name == "deepseek":
             defaults.setdefault("model", "deepseek-chat")
@@ -168,7 +168,7 @@ class ChatManager:
             defaults.setdefault("model", "llama-3.1-8b-instant")
         elif provider_name == "fireworks":
             defaults.setdefault("model", "accounts/fireworks/models/llama-v3p1-8b-instruct")
-        
+
         return defaults
 
     def _get_provider_settings(self, provider_name: str) -> dict[str, Any]:
@@ -214,18 +214,18 @@ class ChatManager:
                 # Return defaults directly instead of falling through
                 # to avoid duplicate warning
                 return self._get_provider_defaults(provider_name)
-        
+
         # Provider settings are missing - return reasonable defaults
         # This fixes the bug where empty dict {} was returned
         defaults = self._get_provider_defaults(provider_name)
-        
+
         logger.warning(
             "Provider '%s' is configured as default but has no settings. "
             "Using defaults: %s. Please configure provider settings in your configuration.",
             provider_name,
             {k: "***" if "key" in k.lower() else v for k, v in defaults.items()},
         )
-        
+
         return defaults
 
     async def _process_stream(
@@ -236,7 +236,7 @@ class ChatManager:
         stream: Any,
         response_parts: list[str],
         current_chunk: str,
-        max_iterations: int = 50,
+        max_iterations: int = 2500,
     ) -> tuple[list[str], str, bool]:
         """Process an agent stream, executing tool calls and collecting content.
 
@@ -247,7 +247,7 @@ class ChatManager:
             stream: Async iterator of agent events.
             response_parts: List to collect response chunks.
             current_chunk: Current content chunk being accumulated.
-            max_iterations: Safety limit to prevent infinite loops.
+            max_iterations: Safety limit to prevent infinite loops (events per turn).
 
         Returns:
             Tuple of (response_parts, current_chunk, had_tool_calls).
@@ -257,18 +257,35 @@ class ChatManager:
         async for event in stream:
             iteration += 1
             if iteration > max_iterations:
-                logger.warning("Max iterations reached for user %s", user_id)
+                logger.warning("Max stream iterations reached for user %s", user_id)
                 await bot.send_message(
                     user_id,
-                    "⚠️ Maximum tool iterations reached. Stopping to prevent infinite loops.",
+                    "⚠️ Maximum response length exceeded. Stopping.",
                 )
                 break
 
             if event.type == EventType.CONTENT:
                 current_chunk += event.data
 
-                # Send chunk when it approaches Discord's limit
-                if len(current_chunk) >= 1800:
+                # Check if we should flush the chunk
+                # We want to avoid splitting inside a code block if possible,
+                # unless the chunk is getting too large (letting the bot handle strict splitting)
+                should_flush = False
+                chunk_len = len(current_chunk)
+
+                if chunk_len >= 1800:
+                    # Basic check: are we inside a code block?
+                    # Count odd number of code fences
+                    is_in_code_block = current_chunk.count("```") % 2 != 0
+
+                    if not is_in_code_block:
+                        should_flush = True
+                    elif chunk_len >= 2500:
+                        # Safety limit: if it's getting huge, flush anyway and let the bot's
+                        # internal splitter handle the markdown logic (since it handles >2000 chars)
+                        should_flush = True
+
+                if should_flush:
                     await bot.send_message(user_id, current_chunk)
                     response_parts.append(current_chunk)
                     current_chunk = ""
@@ -318,7 +335,15 @@ class ChatManager:
                         "Tool execution failed: %s for user %s", tool_name, user_id
                     )
                     error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
-                    await bot.send_message(user_id, error_msg)
+                    try:
+                        await bot.send_message(user_id, error_msg)
+                    except Exception as send_err:
+                        logger.warning(
+                            "Failed to send error message to user %s: %s",
+                            user_id,
+                            send_err,
+                        )
+                        # Continue anyway - we still need to submit the tool result
 
                     # Submit error to agent so it can recover
                     agent.submit_tool_result(tool_id, f"Error: {tool_err}")

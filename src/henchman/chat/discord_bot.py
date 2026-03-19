@@ -265,40 +265,93 @@ class DiscordBot(ChatBot):
         self._message_handler = handler
 
     @staticmethod
-    def _split_message(content: str, limit: int) -> list[str]:
-        """Split a message into chunks respecting line breaks.
-
-        Args:
-            content: Message content to split.
-            limit: Maximum characters per chunk.
-
-        Returns:
-            List of message chunks.
-        """
+    def _split_message(content: str, limit: int = 2000) -> list[str]:
+        """Split a message into chunks respecting line breaks and code blocks."""
         if len(content) <= limit:
             return [content]
 
-        chunks: list[str] = []
+        chunks = []
         current_chunk = ""
+        code_block_lang: str | None = None
 
-        for line in content.split("\n"):
-            # If adding this line would exceed limit
-            if len(current_chunk) + len(line) + 1 > limit:
+        lines = content.split('\n')
+        
+        for i, line in enumerate(lines):
+            # Check for code block markers
+            stripped = line.strip()
+            # Check if line toggles code block
+            is_code_block_toggle = stripped.startswith("```")
+            
+            # Determine state change
+            next_lang = code_block_lang
+            if is_code_block_toggle:
+                if code_block_lang is not None:
+                    if stripped == "```":
+                        next_lang = None
+                else:
+                    if len(stripped) > 3:
+                        next_lang = stripped[3:].strip()
+                    else:
+                        next_lang = ""
+
+            # Calculate overhead
+            # We need to close the current block if we split: "\n```"
+            close_overhead = 4 if code_block_lang is not None else 0
+            
+            # We need to open the next block if we split: "```{lang}\n"
+            open_overhead = 0
+            if code_block_lang is not None:
+                open_overhead = len(f"```{code_block_lang}\n")
+
+            # Check if line fits
+            prefix = "\n" if current_chunk else ""
+            
+            # If we add this line, we must ensure we still have room to close the block if needed
+            # So the check is: current + prefix + line + close_overhead <= limit
+            if len(current_chunk) + len(prefix) + len(line) + close_overhead > limit:
+                # Must split
+                if code_block_lang is not None:
+                    # Close current block
+                    current_chunk += "\n```"
+                
                 if current_chunk:
                     chunks.append(current_chunk)
-                # If single line exceeds limit, split it
-                if len(line) > limit:
-                    while len(line) > limit:
-                        chunks.append(line[:limit])
-                        line = line[limit:]
-                    current_chunk = line
+                
+                # Start new chunk
+                if code_block_lang is not None:
+                    current_chunk = f"```{code_block_lang}\n{line}"
                 else:
                     current_chunk = line
+                
+                # Handle case where line itself is too long for the new chunk
+                # Recalculate reserve for the *end* of this new line (needs closing)
+                while len(current_chunk) + close_overhead > limit:
+                    # We need to hard-split the line
+                    # Max allowed content in this chunk
+                    allowed_len = limit - close_overhead
+                    
+                    if len(current_chunk) > allowed_len:
+                        # Take what fits
+                        part = current_chunk[:allowed_len]
+                        remainder = current_chunk[allowed_len:]
+                        
+                        # Close this part
+                        if code_block_lang is not None:
+                            part += "\n```"
+                        
+                        chunks.append(part)
+                        
+                        # Start next part
+                        if code_block_lang is not None:
+                            current_chunk = f"```{code_block_lang}\n{remainder}"
+                        else:
+                            current_chunk = remainder
+                    else:
+                        break
             else:
-                if current_chunk:
-                    current_chunk += "\n" + line
-                else:
-                    current_chunk = line
+                current_chunk += prefix + line
+
+            code_block_lang = next_lang
 
         if current_chunk:
             chunks.append(current_chunk)
