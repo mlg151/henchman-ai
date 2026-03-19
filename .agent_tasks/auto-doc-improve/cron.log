@@ -179320,3 +179320,185 @@ Committing changes...
  create mode 100644 test_command.py
  create mode 100644 test_henchman.py
 [2026-03-18T22:00:01Z] Done.
+[2026-03-19T00:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by examining the current state of the documentation improvement task and then address the highest-priority issue from the smell report.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-18T22:05:00Z
+
+## Files Changed
+1. `src/henchman/cli/chat_serve.py`
+
+## Smell Category Addressed
+**Incomplete Docstring** (MEDIUM severity) - Miss...
+Now I'll examine the highest-priority issue from the smell report: the incomplete docstrings in `src/henchman/cli/textual_widgets.py` for the `ChatPane` methods.
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+1020, 'end_line': 1040})
+
+[result]             The created ChatMessage widget.
+        """
+        return self._add_message_widget(
+            ChatMessage, prefix, text, trusted=trusted,
+        )
+
+    def add_user_message(self: Self,...
+Let me see more context around these methods to understand their full implementation:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+1010, 'end_line': 1060})
+
+[result]     ) -> ChatMessage:
+        """Add a message with the given prefix.
+
+        Args:
+            prefix: Rich markup prefix for the message.
+            text: Message content.
+            trusted: If ...
+Now let me check what `_add_message_with_prefix` does to understand the implementation better:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+990, 'end_line': 1015})
+
+[result]         """Mount a widget, falling back to direct append if not 
+attached.
+
+        Args:
+            widget: Widget to add.
+        """
+        _perform_pane_operation(functools.partial(self.mount, wi...
+Perfect! Now I understand the issue. The three methods (`add_user_message`, `add_system_message`, and `add_error_message`) are missing proper Google-style docstrings with Args: and Returns: sections. Let me fix all three at once since they have the same pattern.
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def add_user_message(self: Self, text: str) -> ChatMessage:\n        """Add a 
+user message (untrusted content, markup escaped)."""\n        return 
+self._add_message_with_prefix(_USER_PREFIX, text)', 'new_str': '    def 
+add_user_message(self: Self, text: str) -> ChatMessage:\n        """Add a user 
+message (untrusted content, markup escaped).\n        \n        Args:\n         
+text: Message content to display. Markup is escaped for security.\n            
+\n        Returns:\n            The created ChatMessage widget.\n        """\n  
+return self._add_message_with_prefix(_USER_PREFIX, text)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def add_system_message(self: Self, text: str) -> ChatMessage:\n        """Add a 
+system message (trusted content, markup rendered)."""\n        return 
+self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)', 'new_str': '
+def add_system_message(self: Self, text: str) -> ChatMessage:\n        """Add a 
+system message (trusted content, markup rendered).\n        \n        Args:\n   
+text: Message content to display. Markup is rendered for rich formatting.\n     
+\n        Returns:\n            The created ChatMessage widget.\n        """\n  
+return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def add_error_message(self: Self, text: str) -> ChatMessage:\n        """Add an 
+error message (untrusted content, markup escaped)."""\n        return 
+self._add_message_with_prefix(_ERROR_PREFIX, text)', 'new_str': '    def 
+add_error_message(self: Self, text: str) -> ChatMessage:\n        """Add an 
+error message (untrusted content, markup escaped).\n        \n        Args:\n   
+text: Error message content to display. Markup is escaped for security.\n       
+\n        Returns:\n            The created ChatMessage widget.\n        """\n  
+return self._add_message_with_prefix(_ERROR_PREFIX, text)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me verify the changes by reading the updated section:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+1020, 'end_line': 1050})
+
+[result]             The created ChatMessage widget.
+        """
+        return self._add_message_widget(
+            ChatMessage, prefix, text, trusted=trusted,
+        )
+
+    def add_user_message(self: Self,...
+Let me complete the verification by checking the rest of the `add_error_message` method and then document this improvement:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+1045, 'end_line': 1055})
+
+[result]         """
+        return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)
+
+    def add_error_message(self: Self, text: str) -> ChatMessage:
+        """Add an error message (untruste...
+Perfect! Now let me create the documentation improvement summary:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-19T00:00:00Z\n\n## Files Changed\n1. 
+`src/henchman/cli/textual_widgets.py`\n\n## Smell Category 
+Addressed\n**Incomplete Docstring** (MEDIUM and LOW severity) - Missing Args: 
+and Returns: sections in ChatPane message methods\n\n## Rationale for 
+Change\nThree methods in the `ChatPane` class had incomplete Google-style 
+docstrings:\n\n1. **`add_user_message(self, text)`**: Missing Args: section for 
+`text` parameter and Returns: section\n2. **`add_system_message(self, text)`**: 
+Missing Args: section for `text` parameter and Returns: section  \n3. 
+**`add_error_message(self, text)`**: Missing Args: section for `text` parameter 
+and Returns: section\n\nThese were identified as MEDIUM severity for missing 
+Args: sections and LOW severity for missing Returns: sections. Without proper 
+documentation:\n- Developers wouldn\'t know what the `text` parameter should 
+contain\n- They wouldn\'t understand the security implications (markup escaped 
+vs rendered)\n- They wouldn\'t know what type of object is returned\n- The API 
+would be harder to use correctly\n\n## Changes Made\n1. **Added Args: sections**
+for all three methods:\n   - Documented the `text` parameter with clear 
+descriptions\n   - Added security context: "Markup is escaped for security" for 
+user/error messages\n   - Added formatting context: "Markup is rendered for rich
+formatting" for system messages\n\n2. **Added Returns: sections** for all three 
+methods:\n   - Consistently documented that each returns "The created 
+ChatMessage widget"\n   - Matched the return type hint `-> ChatMessage`\n\n3. 
+**Preserved existing descriptions**: Kept the original one-line descriptions 
+that explain the purpose of each method:\n   - "Add a user message (untrusted 
+content, markup escaped)"\n   - "Add a system message (trusted content, markup 
+rendered)"\n   - "Add an error message (untrusted content, markup 
+escaped)"\n\n## What to Verify\n1. All three methods now have complete 
+Google-style docstrings with Args: and Returns: sections\n2. The `text` 
+parameter is properly documented for each method\n3. Security implications 
+(markup escaping) are clearly explained\n4. Return values are consistently 
+documented as "The created ChatMessage widget"\n5. The documentation smell 
+detector should show 6 fewer incomplete docstring smells for this file (3 MEDIUM
++ 3 LOW)\n\n## Next Priority\nThe next highest-priority smell from the report is
+in `src/henchman/cli/app.py` where `xyztest_command` has a LOW severity 
+incomplete docstring (missing Returns: section). This should be fixed next to 
+complete the docstring coverage.'})
+
+[result] Successfully wrote 2580 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+## Summary
+
+I've successfully addressed the highest-priority documentation smell from the report. I fixed **6 incomplete docstring issues** in `src/henchman/cli/textual_widgets.py` by adding proper Args: and Returns: sections to three methods:
+
+1. **`ChatPane.add_user_message`** - Added Args: for `text` parameter and Returns: section
+2. **`ChatPane.add_system_message`** - Added Args: for `text` parameter and Returns: section  
+3. **`ChatPane.add_error_message`** - Added Args: for `text` parameter and Returns: section
+
+**Key improvements made:**
+- Added clear parameter documentation explaining what the `text` parameter should contain
+- Included security context: markup escaping for user/error messages vs rendering for system messages
+- Added consistent Returns: sections documenting that each method returns "The created ChatMessage widget"
+- Preserved the original descriptive one-line summaries
+
+This addresses both the MEDIUM severity issues (missing Args: sections) and LOW severity issues (missing Returns: sections) identified in the smell report. The changes follow Google-style docstring conventions and make the API more discoverable and easier to use correctly.
+
+The next priority is the remaining incomplete docstring in `src/henchman/cli/app.py` for the `xyztest_command` function.
+[tech_lead] completed work
+[2026-03-19T00:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 2.69 seconds
+[2026-03-19T00:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-19T00:00:01Z] Verification passed.
+Committing changes...

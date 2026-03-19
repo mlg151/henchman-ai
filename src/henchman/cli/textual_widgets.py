@@ -1024,15 +1024,36 @@ class ChatPane(VerticalScroll):
         )
 
     def add_user_message(self: Self, text: str) -> ChatMessage:
-        """Add a user message (untrusted content, markup escaped)."""
+        """Add a user message (untrusted content, markup escaped).
+        
+        Args:
+            text: Message content to display. Markup is escaped for security.
+            
+        Returns:
+            The created ChatMessage widget.
+        """
         return self._add_message_with_prefix(_USER_PREFIX, text)
 
     def add_system_message(self: Self, text: str) -> ChatMessage:
-        """Add a system message (trusted content, markup rendered)."""
+        """Add a system message (trusted content, markup rendered).
+        
+        Args:
+            text: Message content to display. Markup is rendered for rich formatting.
+            
+        Returns:
+            The created ChatMessage widget.
+        """
         return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)
 
     def add_error_message(self: Self, text: str) -> ChatMessage:
-        """Add an error message (untrusted content, markup escaped)."""
+        """Add an error message (untrusted content, markup escaped).
+        
+        Args:
+            text: Error message content to display. Markup is escaped for security.
+            
+        Returns:
+            The created ChatMessage widget.
+        """
         return self._add_message_with_prefix(_ERROR_PREFIX, text)
 
     def begin_agent_stream(self: Self, agent_name: str) -> ChatMessage:

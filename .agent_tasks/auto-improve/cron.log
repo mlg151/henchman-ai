@@ -871798,3 +871798,150 @@ TOTAL                                                       20006    735   5292 
 =========== 5363 passed, 6 skipped, 42 warnings in 185.98s (0:03:05) ===========
 [2026-03-18T22:00:02Z] All tests passed.
 Committing changes...
+[2026-03-19T00:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-19T00:00:02Z] Targeting lowest-graded file: src/henchman/chat/manager.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by analyzing the target file using the Four Lenses of Failure. Let me first read the smell report for context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.6/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-19T00:00:42.920010+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me examine the target file `src/henchman/chat/manager.py`:
+[tool] read_file({'path': 'src/henchman/chat/manager.py'})
+
+[result] """Chat manager for coordinating chat bot integrations with 
+Henchman-AI."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING, Any
+
+from henchman.chat...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*manager*.py'})
+
+[result] .agent_tasks/auto-improve/test_edge_cases_plugin_manager.py
+tests/cli/test_repl_session_manager.py
+tests/cli/test_session_manager_errors.py
+tests/core/test_session_manager.py
+tests/extensions/test_man...
+Let me search for tests related to chat/manager:
+[tool] grep({'pattern': 'chat.*manager', 'path': 'tests', 'ignore_case': True})
+
+[result] 
+tests/MagicMock/mock.rag.cache_dir/125572362825280/b0c5ce5844ad8acc/manifest.jso
+n:{"files": {".github/copilot-instructions.md": 
+"3f9a03cbb9d661c7bb3ad570579e4dc4c168cd524217f5d3fb5054498d6bec98", ".gi...
+Let me check if there are any tests specifically for chat/manager.py:
+[tool] grep({'pattern': 'ChatManager', 'path': 'tests', 'ignore_case': True})
+
+[result] tests/chat/test_chat.py:# Tests for ChatManager
+tests/chat/test_chat.py:class TestChatManager:
+tests/chat/test_chat.py:    """Tests for ChatManager."""
+tests/chat/test_chat.py:        from henchman.ch...
+Good! There are tests for ChatManager. Let me examine the test file:
+[tool] read_file({'path': 'tests/chat/test_chat.py'})
+
+[result] """Comprehensive tests for henchman.chat module.
+
+Covers base abstractions, Discord bot (with mocks), chat manager, and CLI 
+command.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from dateti...
+Now let me analyze the code through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_get_provider_settings` method (lines 137-163), I can see a **Logic Gap**:
+
+```python
+def _get_provider_settings(self, provider_name: str) -> dict[str, Any]:
+    """Get provider settings for the given provider name.
+
+    Args:
+        provider_name: Name of the provider.
+
+    Returns:
+        Dictionary of provider settings.
+    """
+    provider_settings_map = {
+        "deepseek": "deepseek",
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "ollama": "ollama",
+        "openrouter": "openrouter",
+        "openai_compat": "openai_compat",
+        "together": "together",
+        "groq": "groq",
+        "fireworks": "fireworks",
+    }
+
+    if provider_name not in provider_settings_map:
+        return {}
+
+    settings_attr = provider_settings_map[provider_name]
+    provider_settings = getattr(self._settings.providers, settings_attr, None)
+
+    if provider_settings:
+        # Handle case where provider_settings is not a dict
+        # (e.g., string from misconfigured YAML)
+        if isinstance(provider_settings, dict):
+            return dict(provider_settings)
+        else:
+            # Log warning and return defaults
+            logger.warning(
+                "Provider '%s' settings is not a dictionary (type: %s). "
+                "Using defaults instead. Please fix configuration.",
+                provider_name,
+                type(provider_settings).__name__,
+            )
+            # Return defaults directly instead of falling through
+            # to avoid duplicate warning
+            return self._get_provider_defaults(provider_name)
+    
+    # Provider settings are missing - return reasonable defaults
+    # This fixes the bug where empty dict {} was returned
+    defaults = self._get_provider_defaults(provider_name)
+    
+    logger.warning(
+        "Provider '%s' is configured as default but has no settings. "
+        "Using defaults: %s. Please configure provider settings in your configuration.",
+        provider_name,
+        {k: "***" if "key" in k.lower() else v for k, v in defaults.items()},
+    )
+    
+    return defaults
+```
+
+**The Bug**: There's a **Type Safety** issue in the `_get_provider_defaults` method (lines 137-163). Looking at the test `test_get_provider_settings_string_instead_of_dict`, I can see that the code handles the case where `provider_settings` is a string (not a dict). However, there's a deeper issue:
+
+In the `_get_provider_defaults` method, there's a **CRITICAL** deep nesting issue (depth 8 according to the smell report). Let me examine that method more closely:
+[tool] read_file({'path': 'src/henchman/chat/manager.py', 'start_line': 137, 
+'end_line': 190})
+
+[result]     def _get_provider_defaults(self, provider_name: str) -> dict[str, 
+Any]:
+        """Get default settings for a provider.
+        
+        Args:
+            provider_name: Name of the provider.
+    ...
