@@ -198,7 +198,7 @@ class ChatManager:
         settings_attr = provider_settings_map[provider_name]
         provider_settings = getattr(self._settings.providers, settings_attr, None)
 
-        if provider_settings:
+        if provider_settings is not None:
             # Handle case where provider_settings is not a dict
             # (e.g., string from misconfigured YAML)
             if isinstance(provider_settings, dict):
