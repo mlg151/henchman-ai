@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.14] - 2026-03-18
+## [0.3.15] - 2026-03-18
+
+### Fixed
+- **Discord bot: `max_iterations` was counting every content chunk, not tool calls** (`chat/manager.py`)
+  - The 50-iteration limit applied to every streamed content event, so a normal greeting response (100+ content chunks) would immediately hit the cap and emit "Maximum tool iterations reached". Fixed by only counting `TOOL_CALL_REQUEST` events toward the iteration limit.
+- **Discord bot: stall detection caused duplicate responses and hallucinated tool calls** (`chat/manager.py`)
+  - The stall detector is designed for task-oriented CLI sessions. On Discord it would see casual greetings containing phrases like "Let me know..." and inject a nudge message ("Do not narrate, use tools NOW"). The LLM would then hallucinate a user task and call tools unprompted. Fixed by disabling stall detection on Discord agent instances.
+- **Discord bot: improved system prompt prevents unprompted tool usage** (`chat/manager.py`)
+  - Tightened the system prompt with explicit rules: only respond to the user's message, don't use tools for greetings/casual conversation, never invent tasks the user didn't ask for.
+- **`_get_provider_settings` silent false-positive warning for empty dict config** (`chat/manager.py`)
+  - `if provider_settings:` treated an explicit `providers.deepseek: {}` (empty dict = use defaults) as falsy, falling through to the "missing settings" warning branch. Fixed by using `if provider_settings is not None:`.
+
+
 
 ### Fixed
 - **Discord bot infinite loop and duplicate responses** (`chat/manager.py`)
