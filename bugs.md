@@ -267,6 +267,33 @@
 - **Description:**
   `_user_agents` maps `user_id -> Agent` with no eviction strategy. Each agent holds a `messages` list, `ToolRegistry`, and `ModelProvider`. After thousands of unique users, memory grows linearly. No idle-timeout or LRU eviction exists.
 
+### BUG-026: Unhandled KeyError when agent config references unregistered provider
+- **Severity:** medium
+- **Status:** open
+- **Found:** 2026-05-31
+- **File:** `src/henchman/agents/pool.py:193`
+- **Replication:**
+  1. Configure an agent with `provider: "non_existent_provider"` in settings.yaml.
+  2. Start the application.
+  3. `AgentPool._resolve_provider` calls `self.provider_registry.get(config.provider)`.
+  4. `ProviderRegistry.get()` raises `KeyError` for unregistered names.
+  5. Crash propagates through orchestration startup.
+- **Description:**
+  `ProviderRegistry.get()` raises `KeyError` when the provider name is not registered — it does NOT return `None`. The call site at `pool.py:192-193` guards against `None`/empty-string for `config.provider` but does NOT validate that the provider name is actually registered. Any misconfigured provider name triggers an unhandled `KeyError`. Should either use `self.provider_registry._providers.get(config.provider)` (returns None) or wrap in `try/except KeyError` to fall back to default.
+
+### BUG-027: Unsafe type cast in ToolMessage.__init__ accepts arbitrary non-string values
+- **Severity:** low
+- **Status:** open
+- **Found:** 2026-05-31
+- **File:** `src/henchman/cli/textual_widgets.py:476-478`
+- **Replication:**
+  1. Pass a truthy non-string value (e.g., `[1,2]` or `42`) as the `thought` argument to `ToolMessage.__init__`.
+  2. The condition `tool_call is None and thought and not isinstance(thought, str)` evaluates True.
+  3. `typing.cast("ToolCallProtocol", thought)` returns the value unchanged (no-op at runtime).
+  4. Value stored as `self._tool_call` with zero structural validation.
+- **Description:**
+  `typing.cast()` performs no runtime conversion — it's a type-checker hint. Any truthy non-string value passes through and is stored as `self._tool_call`. Downstream code guards with `hasattr`/`getattr`, so it doesn't crash, but silently accepts mis-typed data producing garbled display. A runtime `isinstance` check or structural validation should replace the cast.
+
 ---
 
 ## Resolved Bugs
