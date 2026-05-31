@@ -8,21 +8,24 @@
 
 ## Open Bugs
 
-### BUG-004: MCP manager silently swallows server connection failures
-- **Severity:** medium
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/mcp/manager.py:63`
-- **Replication:**
-  1. Configure an MCP server with invalid credentials or unreachable endpoint
-  2. Start the application
-  3. No error, warning, or diagnostic output is produced — the server simply doesn't appear
-- **Description:**
-  `MCPManager.connect_all()` iterates configured servers and calls `connect_server()` for each. Any exception during connection is caught by a bare `except Exception: continue` with no logging. The module has no logger at all. This means MCP server connection failures (network errors, auth failures, config issues) are completely invisible to users — there is no way to diagnose why a configured MCP server isn't working.
+_None_
 
 ---
 
 ## Resolved Bugs
+
+### BUG-004: MCP manager silently swallows server connection failures
+- **Severity:** medium
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **Found:** 2026-05-31
+- **File:** `src/henchman/mcp/manager.py:63`
+- **Root Cause:**
+  `MCPManager.connect_all()` used bare `except Exception: continue` with no logging. The module had no logger configured. MCP server connection failures were completely invisible.
+- **Fix:**
+  1. Added `import logging` and module-level `logger = logging.getLogger(__name__)`
+  2. Changed `except Exception: continue` to `except Exception: logger.warning("Failed to connect to MCP server %r", server_name, exc_info=True); continue`
+- **Verification:** All 10 MCP tests pass, full suite 2773 passed.
 
 ### BUG-003: `DelegationManager.wait_for_delegation` raises exception when delegation failed
 - **Severity:** medium
