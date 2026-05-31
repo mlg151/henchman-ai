@@ -1,281 +1,151 @@
-"""MCP manager for multiple servers.
-
-This module provides the McpManager class for managing
-connections to multiple MCP servers.
-"""
+"""Compatibility MCP manager with lightweight server lifecycle support."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable
 
-from henchman.mcp.client import McpClient, McpToolResult
+logger = logging.getLogger(__name__)
+
+from henchman.config.schema import McpServerConfig
+from henchman.mcp.auth import McpAuthService
+from henchman.mcp.client import McpClient, McpClientProtocol
+from henchman.mcp.tool import McpTool
 
 if TYPE_CHECKING:
-    from typing import Self
-
     from henchman.config.schema import Settings
-    from henchman.mcp.config import McpServerConfig
-    from henchman.mcp.tool import McpTool
-
-# Log-suppression environment variable sets applied per server type.
-_PYTHON_LOG_SUPPRESSION: dict[str, str] = {
-    "PYTHONWARNINGS": "ignore",
-    "LOGLEVEL": "WARNING",
-    "PYTHON_LOG_LEVEL": "WARNING",
-}
-_SERENA_LOG_SUPPRESSION: dict[str, str] = {
-    "SERENA_LOG_LEVEL": "WARNING",
-    **_PYTHON_LOG_SUPPRESSION,
-}
-_TERMINAL_SUPPRESSION: dict[str, str] = {
-    "NO_COLOR": "1",
-    "TERM": "dumb",
-}
+    from henchman.mcp.client import McpToolDefinition
 
 
-def _detect_server_type(name: str, command: str, args: list[str]) -> str:
-    """Detect the runtime type of a server from its name, command, and args.
-
-    Returns one of: 'serena', 'python', 'node', or 'unknown'.
-    """
-    if "serena" in name.lower() or any("serena" in arg.lower() for arg in args):
-        return "serena"
-    if (
-        "python" in command.lower()
-        or "uvx" in command.lower()
-        or any(".py" in arg.lower() for arg in args)
-    ):
-        return "python"
-    if "node" in command.lower() or "npx" in command.lower() or "npm" in command.lower():
-        return "node"
-    return "unknown"
-
-
-def _build_logging_env(
-    name: str,
-    server_config: object,
-    base_env: dict[str, str],
-) -> dict[str, str]:
-    """Build an environment dict with logging suppression applied for *server_config*.
-
-    Args:
-        name: Server name, used to detect Serena.
-        server_config: Server configuration with command and args attributes.
-        base_env: Starting environment variables from config.
-
-    Returns:
-        Updated environment dict with logging suppression applied.
-    """
-    env = dict(base_env)
-    command: str = getattr(server_config, "command", "")
-    args: list[str] = getattr(server_config, "args", [])
-    server_type = _detect_server_type(name, command, args)
-
-    if server_type == "serena":
-        env.update(_SERENA_LOG_SUPPRESSION)
-    elif server_type == "python":
-        env.update(_PYTHON_LOG_SUPPRESSION)
-    elif server_type == "node":
-        env["NODE_ENV"] = "production"
-
-    env.update(_TERMINAL_SUPPRESSION)
-    return env
-
-
-def _build_mcp_server_config(
-    name: str,
-    server_config: Any,
-    mcp_logging_enabled: bool,
-) -> McpServerConfig:
-    """Build a McpServerConfig from raw settings, optionally suppressing logs.
-
-    Args:
-        name: Server name.
-        server_config: Raw settings object with command, args, env, trusted attrs.
-        mcp_logging_enabled: When False, logging suppression env vars are injected.
-
-    Returns:
-        Configured McpServerConfig instance.
-    """
-    from henchman.mcp.config import McpServerConfig
-
-    env = dict(server_config.env)
-    if not mcp_logging_enabled:
-        env = _build_logging_env(name, server_config, env)
-
-    return McpServerConfig(
-        command=server_config.command,
-        args=server_config.args,
-        env=env,
-        trusted=server_config.trusted,
-    )
+ClientFactory = Callable[[str, McpServerConfig, bool], McpClientProtocol]
 
 
 class McpManager:
-    """Manages multiple MCP server connections.
-
-    Handles connecting to, disconnecting from, and discovering
-    tools across multiple MCP servers.
-    """
+    """Manage configured MCP clients and expose their wrapped tools."""
 
     def __init__(
-        self: Self,
-        configs: dict[str, McpServerConfig],
+        self,
+        configs: dict[str, McpServerConfig] | None = None,
         *,
         verbose: bool = False,
+        client_factory: ClientFactory | None = None,
     ) -> None:
-        """Initialize the manager.
+        """Initialize the manager with server configurations."""
 
-        Args:
-            configs: Map of server name to configuration.
-            verbose: If True, show MCP server logs. If False, suppress INFO/DEBUG logs.
-        """
-        self.configs = configs
-        self.verbose = verbose
-        self.clients: dict[str, McpClient] = {}
-        self._tools: list[McpTool] = []
+        self.configs = dict(configs or {})
+        self.clients: dict[str, McpClientProtocol] = {}
+        self._verbose = verbose
+        self._auth_tokens: dict[str, str] = {}
+        self._client_factory = client_factory or McpClient  # type: ignore[assignment]
 
-    def get_server_names(self: Self) -> list[str]:
-        """Get names of configured servers.
-
-        Returns:
-            List of server names.
-        """
-        return list(self.configs.keys())
-
-    def is_trusted(self: Self, server_name: str) -> bool:
-        """Check if a server is trusted.
-
-        Args:
-            server_name: Name of the server.
-
-        Returns:
-            True if server is trusted.
-        """
-        if server_name not in self.configs:
-            return False
-        return self.configs[server_name].trusted
-
-    async def connect_all(self: Self) -> None:
-        """Connect to all configured servers.
-        
-        Iterates through all configured MCP servers, establishes connections,
-        and registers their tools. If a server fails to connect, the error
-        is silently ignored and the method continues with the next server.
-        
-        Returns:
-            None
-        """
-        from henchman.mcp.tool import McpTool
-
-        for name, config in self.configs.items():
-            client = McpClient(name=name, config=config, verbose=self.verbose)
-            try:
-                await client.connect()
-                self.clients[name] = client
-
-                # Create tool wrappers
-                for tool_def in client.get_tools():
-                    self._tools.append(
-                        McpTool(
-                            mcp_tool=tool_def,
-                            client=client,
-                            server_name=name,
-                            trusted=config.trusted,
-                        ),
-                    )
-            except Exception:  # pragma: no cover
-                # Log error but continue with other servers
-                pass
-
-    async def disconnect_all(self: Self) -> None:
-        """Disconnect from all servers.
-        
-        Closes connections to all connected MCP servers and clears internal
-        state including client instances and registered tools.
-        
-        Returns:
-            None
-        """
-        for client in self.clients.values():
-            await client.disconnect()
-        self.clients.clear()
-        self._tools.clear()
-
-    def get_all_tools(self: Self) -> list[McpTool]:
-        """Get all tools from all connected servers.
-
-        Returns:
-            List of McpTool wrappers.
-        """
-        return self._tools
-
-    async def call_tool(
-        self: Self,
-        server_name: str,
-        tool_name: str,
-        arguments: dict[str, Any],
-    ) -> McpToolResult:
-        """Call a tool on a specific server.
-
-        Args:
-            server_name: Name of the server.
-            tool_name: Name of the tool.
-            arguments: Tool arguments.
-
-        Returns:
-            Tool execution result.
-
-        Raises:
-            KeyError: If server not found.
-        """
-        if server_name not in self.clients:
-            msg = f"Unknown MCP server: {server_name}"
-            raise KeyError(msg)
-
-        return await self.clients[server_name].call_tool(tool_name, arguments)
-
-    @staticmethod
-    def _build_logging_env(
-        name: str,
-        server_config: object,
-        base_env: dict[str, str],
-    ) -> dict[str, str]:
-        """Build environment dict with logging suppression for a server.
-
-        Delegates to the module-level :func:`_build_logging_env`.
-
-        Args:
-            name: Server name, used to detect Serena.
-            server_config: Server configuration with command and args attributes.
-            base_env: Starting environment variables from config.
-
-        Returns:
-            Updated environment dict with logging suppression applied.
-        """
-        return _build_logging_env(name, server_config, base_env)
-
-    @staticmethod
+    @classmethod
     def create_from_settings(
-        settings: Settings | None,
-        *,
+        cls,
+        settings: Settings,
         mcp_logging_enabled: bool = False,
-    ) -> McpManager | None:
-        """Create McpManager from application settings.
+        *,
+        project_root: Path | None = None,
+    ) -> McpManager:
+        """Create a manager from application settings."""
 
-        Args:
-            settings: Application settings with mcp_servers.
-            mcp_logging_enabled: Whether MCP logging is enabled.
+        manager = cls(settings.mcp_servers, verbose=mcp_logging_enabled)
+        auth_service = McpAuthService(project_root)
+        for server_name in settings.mcp_servers:
+            token = auth_service.get_token(server_name)
+            if token:
+                manager.set_auth_token(server_name, token)
+        return manager
 
-        Returns:
-            McpManager instance or None if no servers configured.
-        """
-        if not settings or not hasattr(settings, "mcp_servers") or not settings.mcp_servers:
-            return None
+    async def connect_all(self) -> None:
+        """Attempt to connect every configured MCP server."""
 
-        mcp_configs: dict[str, McpServerConfig] = {
-            name: _build_mcp_server_config(name, server_config, mcp_logging_enabled)
-            for name, server_config in settings.mcp_servers.items()
-        }
+        for server_name in self.configs:
+            try:
+                await self.connect_server(server_name)
+            except Exception:
+                logger.warning("Failed to connect to MCP server %r", server_name, exc_info=True)
+                continue
 
-        return McpManager(mcp_configs, verbose=mcp_logging_enabled)
+    async def connect_server(self, server_name: str) -> None:
+        """Connect one configured MCP server."""
+
+        config = self.configs[server_name]
+        client_config = config
+        auth_token = self._auth_tokens.get(server_name)
+        if auth_token:
+            client_config = config.model_copy(
+                update={"env": {**config.env, "HMN_MCP_AUTH_TOKEN": auth_token}},
+            )
+
+        client = self._client_factory(server_name, client_config, self._verbose)
+        await client.connect()
+        self.clients[server_name] = client
+
+    async def disconnect_all(self) -> None:
+        """Disconnect all active MCP clients."""
+
+        for server_name in list(self.clients):
+            await self.disconnect_server(server_name)
+
+    async def disconnect_server(self, server_name: str) -> None:
+        """Disconnect one active MCP client."""
+
+        client = self.clients.pop(server_name, None)
+        if client is None:
+            return
+        await client.disconnect()
+
+    def get_all_tools(self) -> list[McpTool]:
+        """Return wrapped tools from all connected clients."""
+
+        wrapped: list[McpTool] = []
+        for server_name, client in self.clients.items():
+            config = self.configs.get(server_name, McpServerConfig(command="true"))
+            for tool_definition in client.get_tools():
+                wrapped.append(
+                    McpTool(
+                        mcp_tool=tool_definition,
+                        client=client,
+                        server_name=server_name,
+                        trusted=config.trusted,
+                    ),
+                )
+        return wrapped
+
+    def list_servers(self) -> list[dict[str, object]]:
+        """Return status metadata for all configured servers."""
+
+        return [
+            {
+                "name": server_name,
+                "connected": server_name in self.clients,
+                "trusted": config.trusted,
+                "auth_configured": server_name in self._auth_tokens,
+            }
+            for server_name, config in self.configs.items()
+        ]
+
+    def discover_tools(self, server_name: str | None = None) -> list[McpToolDefinition]:
+        """Return discovered tool definitions for one or all servers."""
+
+        if server_name is not None:
+            client = self.clients.get(server_name)
+            if client is None:
+                return []
+            return list(client.get_tools())
+
+        discovered: list[McpToolDefinition] = []
+        for client in self.clients.values():
+            discovered.extend(client.get_tools())
+        return discovered
+
+    def set_auth_token(self, server_name: str, token: str) -> None:
+        """Store an in-memory auth token for one server."""
+
+        self._auth_tokens[server_name] = token
+
+    def clear_auth_token(self, server_name: str) -> None:
+        """Remove an in-memory auth token for one server."""
+
+        self._auth_tokens.pop(server_name, None)
