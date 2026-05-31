@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -39,7 +40,7 @@ class DelegationTask:
     output_buffer: deque[str] = field(default_factory=lambda: deque(maxlen=100))
     completed: bool = False
     error: str | None = None
-    start_time: float = field(default_factory=lambda: asyncio.get_event_loop().time())
+    start_time: float = field(default_factory=time.monotonic)
 
 
 class DelegationManager:
@@ -47,7 +48,7 @@ class DelegationManager:
 
     def __init__(self, delegation_runner: DelegationRunner) -> None:
         """Initialize the delegation manager.
-        
+
         Args:
             delegation_runner: The delegation runner to use for executing delegations.
         """
@@ -63,12 +64,12 @@ class DelegationManager:
         depth: int,
     ) -> str:
         """Start a delegation asynchronously.
-        
+
         Args:
             source_agent: The agent that initiated the delegation.
             tool_call: The tool call that triggered the delegation.
             depth: Current delegation depth.
-            
+
         Returns:
             Delegation task ID.
         """
@@ -80,7 +81,7 @@ class DelegationManager:
         task = tool_call.arguments.get("task", "")
 
         # Create future for the delegation result
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         task_future = loop.create_future()
 
         # Create delegation task
@@ -111,7 +112,7 @@ class DelegationManager:
         tool_call: ToolCall,
     ) -> None:
         """Run a delegation in the background.
-        
+
         Args:
             delegation_task: The delegation task to run.
             tool_call: The original tool call.
@@ -176,7 +177,7 @@ class DelegationManager:
 
     def get_ongoing_delegations(self) -> list[DelegationTask]:
         """Get list of ongoing delegations.
-        
+
         Returns:
             List of ongoing delegation tasks.
         """
@@ -184,10 +185,10 @@ class DelegationManager:
 
     def get_delegation(self, task_id: str) -> DelegationTask | None:
         """Get a delegation task by ID.
-        
+
         Args:
             task_id: The delegation task ID.
-            
+
         Returns:
             The delegation task, or None if not found.
         """
@@ -212,11 +213,11 @@ class DelegationManager:
 
     def tail_delegation_output(self, task_id: str, lines: int = 25) -> str:
         """Get the last N lines of output from a delegation.
-        
+
         Args:
             task_id: The delegation task ID.
             lines: Number of lines to return.
-            
+
         Returns:
             The last N lines of output, or error message if delegation not found.
         """
@@ -233,14 +234,14 @@ class DelegationManager:
 
     async def wait_for_delegation(self, task_id: str, timeout: float | None = None) -> tuple[str, bool]:
         """Wait for a delegation to complete.
-        
+
         Args:
             task_id: The delegation task ID.
             timeout: Timeout in seconds, or None for no timeout.
-            
+
         Returns:
             Tuple of (result_content, success).
-            
+
         Raises:
             asyncio.TimeoutError: If timeout is reached.
             ValueError: If delegation not found.
@@ -250,16 +251,21 @@ class DelegationManager:
             raise ValueError(f"Delegation {task_id} not found.")
 
         if task.completed and task.task_future.done():
-            return task.task_future.result()
+            try:
+                return task.task_future.result()
+            except (asyncio.CancelledError, Exception) as e:
+                error_msg = str(e) if str(e) else type(e).__name__
+                logger.warning("Delegation %s result retrieval failed: %s", task_id, error_msg)
+                return (f"Delegation failed: {error_msg}", False)
 
         return await asyncio.wait_for(task.task_future, timeout)
 
     def cancel_delegation(self, task_id: str) -> bool:
         """Cancel an ongoing delegation.
-        
+
         Args:
             task_id: The delegation task ID.
-            
+
         Returns:
             True if delegation was cancelled, False otherwise.
         """
@@ -281,10 +287,10 @@ class DelegationManager:
 
     def submit_delegation_result(self, task_id: str) -> bool:
         """Submit the result of a completed delegation to the source agent.
-        
+
         Args:
             task_id: The delegation task ID.
-            
+
         Returns:
             True if result was submitted, False otherwise.
         """
