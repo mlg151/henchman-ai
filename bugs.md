@@ -8,7 +8,17 @@
 
 ## Open Bugs
 
-_None_
+### BUG-004: MCP manager silently swallows server connection failures
+- **Severity:** medium
+- **Status:** open
+- **Found:** 2026-05-31
+- **File:** `src/henchman/mcp/manager.py:63`
+- **Replication:**
+  1. Configure an MCP server with invalid credentials or unreachable endpoint
+  2. Start the application
+  3. No error, warning, or diagnostic output is produced — the server simply doesn't appear
+- **Description:**
+  `MCPManager.connect_all()` iterates configured servers and calls `connect_server()` for each. Any exception during connection is caught by a bare `except Exception: continue` with no logging. The module has no logger at all. This means MCP server connection failures (network errors, auth failures, config issues) are completely invisible to users — there is no way to diagnose why a configured MCP server isn't working.
 
 ---
 
