@@ -8,7 +8,21 @@
 
 ## Open Bugs
 
-_None_
+### BUG-003: `DelegationManager.wait_for_delegation` raises exception when delegation failed
+- **Severity:** medium
+- **Status:** open
+- **Found:** 2026-05-31
+- **File:** `src/henchman/agents/delegation_manager.py:253-254`
+- **Replication:**
+  ```python
+  # Any delegation that fails with an exception in _run_delegation (line 165)
+  # will have its future resolved via set_exception(). Calling wait_for_delegation
+  # on that task will re-raise the original exception instead of returning a tuple.
+  ```
+- **Description:**
+  When `_run_delegation` catches an exception (line 165), it calls `task_future.set_exception(e)` (line 171) and sets `task.completed = True` (line 167). When `wait_for_delegation` is subsequently called, the check at line 253 (`task.completed and task.task_future.done()`) is True, so it calls `task_future.result()` — which re-raises the original exception, violating the method contract to return `tuple[str, bool]`. The caller gets an unexpected exception instead of an error tuple.
+  
+  Contrast with `submit_delegation_result` (line 297) which _does_ wrap the same call in `try/except`.
 
 ---
 
