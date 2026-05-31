@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import types
 from dataclasses import asdict, fields
 from typing import Any, TypeVar, Union, get_args, get_origin, get_type_hints
 
@@ -59,7 +60,7 @@ class SerializableDataclass(AsDictMixin):
             if hasattr(item_type, "from_dict") and isinstance(val, list):
                 return [item_type.from_dict(i) for i in val]
 
-        if origin is Union:
+        if origin in (Union, types.UnionType):
             non_none = [a for a in args if a is not type(None)]
             if non_none:
                 return cls._deserialize_val(val, non_none[0])
