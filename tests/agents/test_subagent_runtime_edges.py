@@ -235,3 +235,142 @@ async def test_shared_registry_keeps_managers_and_primary_scopes_independent(
     finally:
         await unrestricted.aclose()
         await restricted.aclose()
+
+
+@pytest.mark.parametrize("operation", ["cancel", "spawn", "message"])
+async def test_subagent_control_stays_responsive_during_child_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any, operation: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    started = asyncio.Event()
+
+    class BlockedMutation(_NamedTool):
+        async def execute(self, **params: object) -> ToolResult:
+            started.set()
+            await asyncio.Event().wait()
+            return ToolResult(content="unreachable")
+
+    async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
+        del kwargs
+        if messages[0].content == "blocked child":
+            yield StreamChunk(
+                tool_calls=[ToolCall(id="mutate", name="mutate", arguments={})],
+                finish_reason=FinishReason.TOOL_CALLS,
+            )
+        else:
+            yield _response("done")
+
+    provider = OllamaProvider()
+    monkeypatch.setattr(provider, "chat_completion_stream", stream)
+    registry = ToolRegistry()
+    registry.register(BlockedMutation("mutate", ToolKind.WRITE))
+    orch = Orchestrator(provider, tool_registry=registry)
+    try:
+        child = orch.subagents.spawn(
+            "task", role="custom", system_prompt="blocked child", tools=["mutate"],
+        )
+        await asyncio.wait_for(started.wait(), 2)
+        if operation == "cancel":
+            name, arguments = "manage_subagents", {
+                "action": "cancel", "conversation_id": child.conversation_id,
+            }
+        elif operation == "spawn":
+            name, arguments = "invoke_subagent", {
+                "task": "task", "role": "custom", "system_prompt": "other", "tools": [],
+            }
+        else:
+            name, arguments = "send_message", {
+                "conversation_id": child.conversation_id, "message": "guidance",
+            }
+        result = await asyncio.wait_for(orch.tech_lead.tool_registry.execute(name, arguments), 2)
+        assert result.success, result.content
+        if operation == "cancel":
+            assert orch.subagents.get(child.conversation_id).cancelled
+    finally:
+        await orch.aclose()
+
+
+async def test_notifications_do_not_reset_primary_tool_round_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reads = 0
+
+    class RecordedRead(_NamedTool):
+        async def execute(self, **params: object) -> ToolResult:
+            nonlocal reads
+            reads += 1
+            return ToolResult(content="read")
+
+    async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
+        del kwargs
+        if messages[0].content == "leaf":
+            yield _response("Leaf result")
+        elif messages[-1].role == "user" and (
+            "Leaf result" in (messages[-1].content or "") or messages[-1].content == "next task"
+        ):
+            yield StreamChunk(
+                tool_calls=[ToolCall(id="extra", name="read_file", arguments={})],
+                finish_reason=FinishReason.TOOL_CALLS,
+            )
+        elif not any(message.role == "tool" for message in messages):
+            yield _launch("leaf", [])
+        else:
+            yield _response("done")
+
+    provider = OllamaProvider()
+    monkeypatch.setattr(provider, "chat_completion_stream", stream)
+    registry = ToolRegistry()
+    registry.register(RecordedRead("read_file"))
+    orch = Orchestrator(provider, tool_registry=registry)
+    orch.tech_lead.base_tool_iterations = 1
+    try:
+        events = [event async for event in orch.run("task")]
+        assert reads == 0
+        assert any(event.type == EventType.ERROR and "iteration limit" in event.data for event in events)
+        assert orch.last_completion_status.value == "timed_out"
+        assert orch.tech_lead._orchestrator_loop_state.tool_round_count == 1
+        events = [event async for event in orch.run("next task")]
+        assert reads == 1
+        assert orch.last_completion_status.value == "completed"
+    finally:
+        await orch.aclose()
+
+
+async def test_nested_notifications_preserve_dynamic_tool_call_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
+        del kwargs
+        system = messages[0].content or ""
+        if system == "leaf":
+            yield _response("Leaf result")
+        elif system == "middle":
+            if messages[-1].role == "user" and "Leaf result" in (messages[-1].content or ""):
+                yield StreamChunk(
+                    tool_calls=[ToolCall(id="read", name="read_file", arguments={})],
+                    finish_reason=FinishReason.TOOL_CALLS,
+                )
+            elif not any(message.role == "tool" for message in messages):
+                yield _launch("leaf", [])
+            else:
+                yield _response("Middle continues")
+        elif not any(message.role == "tool" for message in messages):
+            yield _launch("middle", ["invoke_subagent", "read_file"])
+        else:
+            yield _response("Primary reviewed results")
+
+    provider = OllamaProvider()
+    monkeypatch.setattr(provider, "chat_completion_stream", stream)
+    registry = ToolRegistry()
+    registry.register(_NamedTool("read_file"))
+    settings = Settings()
+    settings.agents.max_delegation_turns = 2
+    orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    try:
+        async with asyncio.timeout(3):
+            _events = [event async for event in orch.run("nested task")]
+        middle = next(record for record in orch.subagents.list() if record.system_prompt == "middle")
+        assert middle.status == "errored"
+        assert "Turn limit (2)" in (middle.error or "")
+    finally:
+        await orch.aclose()
