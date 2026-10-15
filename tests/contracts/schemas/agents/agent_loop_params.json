@@ -33,6 +33,18 @@
       "description": "Maximum number of tool-call turns",
       "minimum": 0
     },
+    "prior_tool_rounds": {
+      "type": "integer",
+      "description": "Tool rounds consumed before a background notification resumes the run",
+      "minimum": 0,
+      "default": 0
+    },
+    "prior_tool_calls": {
+      "type": "integer",
+      "description": "Tool calls consumed before a background notification resumes the run",
+      "minimum": 0,
+      "default": 0
+    },
     "msg_start_index": {
       "type": "integer",
       "description": "Message history start index",
