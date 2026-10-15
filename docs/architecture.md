@@ -471,6 +471,10 @@ Compatibility adapters preserve documented public imports and legacy attributes 
 
 ### Future Evolution
 
+The [standards adoption RFC](standards.md) records the researched MCP, A2A,
+OpenTelemetry, and tool-schema boundaries, implementation gaps, and phased
+acceptance criteria. These protocol adoption phases remain future work.
+
 The component architecture enables future enhancements:
 
 1. **Enhanced Plugin System**: More extension points and lifecycle hooks

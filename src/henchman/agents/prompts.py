@@ -27,8 +27,9 @@ PYTHON_DEVELOPMENT_WORKFLOW = """
   `python_ast` with `action="quality"` for bounded review candidates; inspect its
   coverage/errors and validate findings before refactoring.
 - The harness automatically applies Black to changed Python sources after file
-  edits and commands, before returning tool results. Ordinary formatting needs
-  no separate tool call. Resolve reported formatting failures before claiming
+  edits and foreground shell commands, before returning tool results. Python
+  execution formats only its supplied snippet; format generated Python files
+  explicitly with `code_format`. Resolve reported workspace-formatting failures before claiming
   verification, and reread changed files when line ranges or exact text matter.
   When a command edits Python, run tests or builds in a later call so they use
   the formatted sources.
