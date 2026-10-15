@@ -1,6 +1,46 @@
 # Tools
 
-Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent can use to interact with your system.
+Henchman-AI registers built-in tools according to the active runtime and agent preset. The table below documents the core tool set; use `/tools`, help search, doctor, or `tool_search` for the live inventory instead of relying on a hard-coded count.
+
+When context cannot hold every tool schema, the request exposes `tool_search` and
+a selection of core coding tools. Search an exact tool name to prioritize its
+schema for the next request. Results show five entries by default, with a total
+and next offset; pass `offset` to continue or `limit` from 1 to 100 to change the
+page size. Up to five executable tools on the returned page receive schema
+priority. Searches use the current agent's registered scope;
+prioritization grants no new permissions. A new user turn resets priorities, and
+an explicitly requested schema that cannot fit produces a context error. See
+[request accounting](configuration.md#context-management-settings).
+
+For a required tool outside the acting agent's scope, an agent with
+`delegate_task` can query `tool_search(scope="team", query="pytest_run")`.
+Team lookup requires an exact tool name and returns paginated enabled role
+identifiers with that tool registered in their scope. It uses cached scopes when
+available and current registration plus configuration otherwise, without starting
+specialists or creating provider clients. It excludes the caller and aliases of
+that same agent. A runtime without team lookup reports it unavailable.
+
+Team results are capability metadata: they do not promise model readiness,
+approval, or current execution availability. They grant no tool access and do not
+prioritize foreign schemas. Keep explicit tool/environment/check requirements in
+the delegation brief and inspect the specialist's observed results. A default
+local search miss says nothing about another role's tools.
+
+
+Discovery surfaces share one capability matrix and distinguish these important boundaries:
+
+| Capability | Classification |
+|------------|----------------|
+| `goal` | Runtime-dependent interactive continuation with the registered `goal_status` tool |
+| `background shell` / `background python_exec` | Each requires its executor plus registered task get/list/output/stop tools |
+| `web_search` | Runtime-wired only when the tool is registered |
+| `mcp` and `mcp_auth` | Runtime-wired only when both tools are registered |
+| `skill` | Local-only discovery and inspection |
+| `schedule_cron` | Metadata-only; it does not start a background runner |
+| `workflow` | Metadata-only definitions/previews; run and trigger actions do not execute commands |
+| Integration blueprints, including Slack | Export-only |
+| Plugin marketplace install | Unavailable; local plugin lifecycle remains available |
+| Agent registry install | Unavailable; local agent workflows remain available |
 
 ## Quick Reference
 
@@ -14,23 +54,24 @@ Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
 | `ls` | Directory Operations | READ | List directory contents |
 | `glob` | Directory Operations | READ | Find files matching patterns |
 | `grep` | Directory Operations | READ | Search file contents with regex |
-| `code_format` | Code Analysis | WRITE | Run ruff format on Python files |
+| `code_format` | Code Analysis | WRITE | Run Black on Python files |
 | `lint_check` | Code Analysis | READ | Run ruff/mypy linting |
 | `dead_code` | Code Analysis | READ | Detect unused code |
-| `python_ast` | Code Analysis | READ | Parse Python AST and symbol table |
+| `python_ast` | Code Analysis | READ | Symbol tables and bounded Python quality scans |
 | `import_graph` | Code Analysis | READ | Analyze import dependencies |
 | `pattern_search` | Code Analysis | READ | Search code using natural language descriptions |
 | `symbol_trace` | Code Analysis | READ | Trace symbol provenance across codebase |
 | `pytest_run` | Testing | EXECUTE | Run pytest tests |
 | `coverage_map` | Testing | READ | Parse coverage reports |
 | `test_gen` | Testing | WRITE | Generate pytest test stubs |
+| `verify_plan_execution` | Testing | EXECUTE | Track steps and run recorded acceptance checks |
 | `git_ops` | Git Operations | READ | Run git operations (status, log, blame, etc.) |
 | `diff_view` | Git Operations | READ | Show git diffs |
 | `env_inspect` | Environment | READ | Inspect Python environment |
 | `pip_inspect` | Environment | READ | Query installed packages |
-| `python_exec` | Python Execution | EXECUTE | Execute Python code in subprocess |
+| `python_exec` | Python Execution | EXECUTE | Start tracked background Python processes |
 | `traceback_parse` | Python Execution | READ | Parse Python tracebacks |
-| `shell` | Shell Execution | EXECUTE | Execute shell commands |
+| `shell` | Shell Execution | EXECUTE | Start tracked background shell commands |
 | `web_fetch` | Web Operations | NETWORK | Fetch content from URLs |
 | `web_search` | Web Operations | NETWORK | Search the web |
 | `deep_research` | Web Operations | NETWORK | End-to-end web research with synthesis |
@@ -38,10 +79,21 @@ Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
 | `kg_update` | Knowledge Graph | WRITE | Update knowledge graph |
 | `rag_search` | RAG | READ | Semantic code search |
 | `research_notes` | Knowledge Graph | WRITE | Persistent note-taking scratchpad |
-| `ask_user` | Agent Interaction | READ | Ask user questions |
-| `delegate_task` | Agent Interaction | READ | Delegate tasks to specialist agents |
+| `ask_user` | Agent Interaction | READ | REPL/Textual input; headless calls report unavailable |
+| `delegate_task` | Agent Interaction | EXECUTE | Delegate tasks to specialist agents |
 
 ## Built-in Tools
+
+### Workflow preparation
+
+The `workflow` tool stores local definitions, renders step previews and manages
+local trigger/bridge records. `run` and `trigger` report execution unavailable:
+their records contain `rendered_steps`, zero `executed_steps` and status
+`execution_unavailable`. No command, test, build or CI job runs through this path.
+Historical records retain their original fields and are not proof of execution.
+Use actual command/test tools or bounded argv checks in
+[`verify_plan_execution`](#verify_plan_execution) for execution and inspect their
+observed results. Local checks do not establish a hosted CI run.
 
 ### File Operations
 
@@ -54,7 +106,11 @@ Read the contents of a file.
   "name": "read_file",
   "kind": "READ",
   "parameters": {
-    "path": "string (required) - Path to the file"
+    "path": "string (required) - Path to the file",
+    "start_line": "integer (optional) - First line to read, 1-based",
+    "end_line": "integer (optional) - Last line to read, inclusive; -1 for EOF",
+    "max_chars": "integer (optional) - Output character limit, default 50000",
+    "line_numbers": "boolean (optional) - Absolute line-number prefixes, default false"
   }
 }
 ```
@@ -90,11 +146,29 @@ Make surgical edits to a file using search and replace.
   "kind": "WRITE",
   "parameters": {
     "path": "string (required) - Path to the file",
-    "old_str": "string (required) - Text to replace",
-    "new_str": "string (required) - Replacement text"
+    "old_str": "string (optional) - Exact text that occurs once; omit for line mode",
+    "new_str": "string (required) - Full replacement text",
+    "start_line": "integer (optional) - First line to replace, 1-based",
+    "end_line": "integer (optional) - Last line to replace, inclusive",
+    "dry_run": "boolean (optional) - Preview the diff without writing"
   }
 }
 ```
+
+Supply either `old_str` or both line bounds. Mixed modes and incomplete line
+ranges are rejected. If a string has multiple matches, read the current file and
+include enough surrounding text to identify exactly one occurrence. Preserve
+that surrounding text in `new_str` except for the intended changes.
+
+For line edits, first use `read_file` with `line_numbers: true`. It returns absolute
+1-based prefixes such as `12: text`, including when reading a partial range.
+Prefixes are display annotations: omit them from replacement text. Plain reads
+remain the default; numbered prefixes count toward `max_chars` (the truncation
+notice is additional). A line edit replaces the **entire inclusive range** with
+`new_str`; include every line that should remain in that range. An end bound past
+EOF is clamped to EOF. Preview with `dry_run`, and reread after edits before
+using line numbers again. These tools do not establish semantic correctness;
+inspect the diff and run relevant tests.
 
 #### patch_apply
 
@@ -185,9 +259,42 @@ Search file contents with regular expressions.
 
 ### Code Analysis & Quality
 
+#### Automatic Python formatting
+
+The harness runs Black after authorized file edits and foreground commands, before returning
+their tool results. Verification therefore sees the formatted files without a
+separate model formatting call. Black uses the project's `pyproject.toml` settings;
+the normal Black defaults apply when none are configured. It is included as a
+runtime dependency.
+
+Background `shell` and `python_exec` launches return before source writes finish,
+so they skip automatic formatting and explicitly report that in the receipt.
+Run `code_format` after those jobs complete and before dependent checks, or use
+`background: false`. See [background execution](#background-execution).
+
+For a command that both edits source and runs checks or builds artifacts, Black
+runs after that command completes. Run verification or the build in a subsequent
+call so it uses the formatted sources.
+
+Direct `write_file` and `edit_file` calls track their Python target. Other write
+and execute tools track changed `.py` and `.pyi` files in their working directory.
+Unchanged files retain their existing formatting. Command tracking prunes child
+symlinks, virtual environments, dependency/cache directories and build outputs.
+Background writes or command writes outside that working directory are not
+attested by these snapshots. Explicit file edits can target other directories.
+
+Tracking is bounded to 5,000 source files and 20,000 directory entries. Black runs
+with one worker and a combined 30-second deadline; each changed source is limited
+to 2 MiB. Tracking, parsing, configuration and formatter failures are reported as
+unsuccessful tool results. A failed command remains failed even if its partial
+Python writes were formatted. Cancellation propagates after subprocess cleanup.
+Formatting establishes style, so lint, types, tests and review remain required.
+
 #### code_format
 
-Run ruff format on Python files.
+Run Black on an explicitly selected Python file or directory. Ordinary agent
+edits are already formatted automatically; this tool supports explicit formatting
+requests. It uses the same bounded Black backend and project configuration.
 
 ```json
 {
@@ -202,6 +309,17 @@ Run ruff format on Python files.
 #### lint_check
 
 Run ruff and/or mypy on Python code.
+
+Check-only calls are read-only. With `fix: true`, the invocation is a write:
+normal confirmation policies apply, Plan Mode blocks it even when the tool is
+auto-approved, and the harness runs Black on observed Python changes in the
+explicit file or directory before returning the result. This also applies to
+targets outside the current working directory. Failed checks remain failed even
+when their partial fixes were formatted.
+
+Unsupported checker names and option-like paths fail validation. Targets are
+passed after the option separator. Missing checkers and nonzero exits remain
+failures; timeout and cancellation trigger bounded subprocess cleanup.
 
 ```json
 {
@@ -234,18 +352,51 @@ Detect unused imports, functions, and classes.
 
 #### python_ast
 
-Parse Python file and return symbol table.
+With the default `action="symbols"`, parse one Python file and return its symbol
+table. Use `action="quality"` for a file or directory to find duplicate syntax,
+long methods, and deep nesting without importing or executing project code.
 
 ```json
 {
   "name": "python_ast",
   "kind": "READ",
   "parameters": {
-    "path": "string (required) - Path to Python file to analyze",
-    "include_docstrings": "boolean (optional) - Include docstrings in output"
+    "path": "string (required) - Python file, or directory for quality scans",
+    "action": "symbols (default) | quality",
+    "include_docstrings": "boolean (optional) - Include docstrings in symbol output",
+    "max_files": "integer (optional) - Quality scan budget; default 500, maximum 5000",
+    "max_findings": "integer (optional) - Quality output budget; default 100, maximum 500"
   }
 }
 ```
+
+
+Quality output is JSON containing `findings`, `errors`, `complete`, `truncated`,
+coverage counts, and applied limits. Each finding identifies a file, line range,
+qualified function or method, and a suggested review action. Findings themselves
+do not make tool execution fail; read/parse errors or an incomplete scan do.
+
+- Duplicate candidates require matching AST syntax with at least 20 nodes after
+  removing docstrings and normalizing the outer function name. Identifiers,
+  literals, call targets, signatures, and decorators remain significant. A later
+  occurrence points to the first location. These are candidates for review, not
+  proof of interchangeable behavior: globals, decorators and surrounding scopes
+  still need inspection. Renamed and partial clones can be missed.
+- Long methods start at 30 physical body lines excluding the leading docstring;
+  comments, blank lines, and nested definitions count toward that span.
+- Deep nesting starts at four statement-level control-flow levels. Comprehensions
+  and conditional expressions do not count. `elif` alternatives do not
+  add artificial depth; nested functions have their own depth. The report gives
+  the deepest location for each affected function.
+
+Scanning prunes dependency/cache/build directories and `.agent_tasks`, skips child
+symlinks, and does not interpret `.gitignore`. Explicit files can be selected
+inside an excluded directory. Hard limits are 1 MiB per file, 10 MiB total source,
+20,000 directory entries, and 20 reported errors. A one-byte overflow read can be
+used to establish that a byte limit was exceeded. Cancellation stops further
+traversal after the current bounded file. Narrow the path when a report is partial.
+An empty findings list is not proof that code is smell-free. Continue with caller
+inspection, tests, Ruff, and mypy through the existing tools.
 
 #### import_graph
 
@@ -303,6 +454,17 @@ Trace a symbol's full provenance across a codebase: definition site(s), all impo
 
 Run pytest on test files.
 
+Targets are test paths or node IDs, not command-line options. Tool options are
+passed separately from the target. Results distinguish test execution, collection
+without execution, and no tests collected; successful collection does not establish
+that tests passed. Invalid arguments and failed or missing checkers are failures.
+
+Execution success requires completed-session evidence and at least one passed
+test call. Inherited collection-only settings, entirely skipped runs, and missing
+evidence cannot establish passing execution. The explicit Henchman pytest plugin
+records this evidence independently, preserving project-configured JUnit report
+destinations. Timeout and cancellation trigger bounded subprocess cleanup.
+
 ```json
 {
   "name": "pytest_run",
@@ -359,6 +521,10 @@ Generate pytest test stubs from Python signatures.
 #### git_ops
 
 Run git operations: status, log, blame, show, etc.
+
+For `show`, `ref` selects the commit (default `HEAD`) and `path` restricts its diff
+to that file. Paths containing spaces remain a single argument after Git's `--`
+separator.
 
 ```json
 {
@@ -435,7 +601,14 @@ Query installed Python packages.
 
 #### python_exec
 
-Execute Python code in a subprocess.
+Start Python code in a background subprocess by default. Each invocation returns
+a unique task ID; see [background execution](#background-execution). Set
+`background: false` to wait for stdout/stderr in the tool result.
+
+Supply Python source in `code`, and use `cwd` to select its working directory.
+The `command` argument and shell syntax are not translated into Python. Missing
+or blank code returns guidance and performs no execution; use `shell` only when
+it is allowed in the current tool scope.
 
 ```json
 {
@@ -444,7 +617,8 @@ Execute Python code in a subprocess.
   "parameters": {
     "code": "string (required) - Python code to execute",
     "timeout": "integer (optional) - Execution timeout in seconds",
-    "cwd": "string (optional) - Working directory for execution"
+    "cwd": "string (optional) - Working directory for execution",
+    "background": "boolean (optional, default true) - Return a tracked task ID immediately"
   }
 }
 ```
@@ -467,7 +641,40 @@ Parse Python traceback into structured data.
 
 #### shell
 
-Execute shell commands.
+Start shell commands in the background by default. Each call returns a unique
+task ID. Set `background: false` when the caller needs the command's final output
+in the same result. Interactive terminal input requires foreground execution.
+
+Input, output, append and descriptor redirects are supported, including
+`> file`, `>> file`, `< file`, `2>&1` and `> /dev/null`. Redirect destinations
+are not banned by the default validator or secure-shell presets. An explicit
+custom `allow_redirects=False` policy can still prohibit them.
+
+Quoted Python snippets such as `python -c "value = 4; print(value + 1)"` are
+validated as a whole command and passed through unchanged apart from outer
+whitespace. Semicolons, ampersands and pipes inside quoted arguments are not
+split by the default shell tool's validation pass. Existing pattern restrictions,
+quote validation and EXECUTE approval still apply. This is not a shell sandbox.
+The lower-level helper's optional command-prefix policy retains its existing
+conservative subcommand checks and quoting limitations.
+
+Commands must stay on one line. Literal control characters and escaped `\n`
+sequences are rejected, including inside quoted arguments. These rejections give
+recovery guidance while retaining the validation failure. For multiline Python,
+use `python_exec` when it is allowed in the current agent's tool scope; otherwise
+submit supported single-line commands.
+
+Commands use the host's native default shell: `/bin/sh` on Linux/macOS and
+`cmd.exe` on Windows. Use syntax and quoting for that shell; POSIX commands are
+not translated into Windows commands. Output capture, working-directory selection,
+and timeouts use the subprocess transport on all platforms. Linux additionally
+checks procfs for exited processes when available.
+
+Interactive PTY forwarding and the noninteractive `sudo -A` rewrite are Unix-only.
+Windows runs commands through its native shell without importing Unix terminal
+modules or applying the sudo rewrite. `python_exec` is useful for portable Python
+snippets: it uses the current interpreter directly and captures UTF-8 stdout/stderr
+independently of the inherited console encoding.
 
 ```json
 {
@@ -477,13 +684,61 @@ Execute shell commands.
     "command": "string (required) - Command to execute",
     "timeout": "integer (optional) - Command timeout in seconds",
     "cwd": "string (optional) - Working directory",
-    "interactive": "boolean (optional) - Enable interactive mode"
+    "interactive": "boolean (optional) - Enable interactive mode with background=false",
+    "background": "boolean (optional, default true) - Return a tracked task ID immediately"
   }
 }
 ```
 
 !!! warning "Security Note"
     Shell commands require user confirmation by default. The `HENCHMAN_CLI=1` environment variable is set during execution.
+
+### Background execution
+
+`shell` and `python_exec` share the existing project task service. Multiple shell
+and Python jobs can run simultaneously; starting another job does not replace
+an earlier one. A launch receipt means the process started, not that it passed.
+
+| Tool | Use |
+|------|-----|
+| `task_list` | List job IDs and states for the current project |
+| `task_get(task_id=...)` | Inspect one job's state and exit code |
+| `task_output(task_id=..., lines=25)` | Read captured output while running or after exit |
+| `task_stop(task_id=...)` | Stop a selected job without stopping other jobs |
+
+Use the ID from each launch when checking results. Python output is unbuffered
+and UTF-8. Both tools retain `cwd` and timeout behavior (`0` means unlimited).
+Automatic formatting is skipped at background launch because the process may
+still be writing files. After completion, run `code_format` on changed Python
+files before dependent verification, or use `background: false` for the existing
+automatic-formatting transaction. Launch receipts explain this distinction.
+Keep commands in the foreground of their own subprocess (omit trailing `&`) so
+the task ID represents their lifetime. On POSIX, child processes in the owned
+process group are terminated when the parent exits or the task is stopped.
+Windows currently terminates the direct subprocess.
+Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
+to the current application runtime; saved records/logs survive exit, but jobs
+are not a detached service and are not restarted on session resume.
+
+Interactive chat accepts messages while work is underway and processes them in
+order at agent-turn boundaries. `/goal pause` is available during processing;
+it stops future goal turns, while the current turn can finish. Esc interrupts
+the active turn and pauses its goal. Background jobs remain independently
+controllable with `task_stop`.
+
+### Goal completion
+
+`/goal <objective>` starts a session goal and keeps the interactive agent working
+across turns. `/goal status`, `/goal pause`, `/goal resume`, `/goal complete` and
+`/goal clear` manage its lifecycle. Use `/goal set <objective>` for objectives
+that would otherwise look like a control word. Goals persist with sessions.
+
+The registered `goal_status` tool reads the current goal or completes it using
+its current `goal_id` and a verification summary. Replacing a goal invalidates
+old completion IDs. Agent completion is rejected while project jobs are still
+running; the user can explicitly override completion with `/goal complete`.
+Runtime errors and interrupted turns pause continuation. This is interactive
+session execution, separate from cron scheduling.
 
 ### Web Operations
 
@@ -614,7 +869,25 @@ Persistent in-session note-taking scratchpad. Write, append, read, list, or sear
 
 #### ask_user
 
-Ask the user a question and wait for response. This is a **critical tool** for agent interaction that enables collaborative problem-solving by allowing the agent to seek clarification, gather requirements, or confirm decisions.
+Ask a question through a runtime-supplied asynchronous input handler. Success means
+an actual nonempty answer was received. Unbound calls, missing answers, and timeout
+are failures; cancellation propagates to the handler.
+
+The classic REPL collects a literal answer with a dedicated terminal prompt. It
+serializes questions and suspends the interrupt-key reader while input is active.
+EOF means unanswered; Ctrl+C cancels the active question. Answers bypass command
+expansion and command history and are retained as tool results in session history.
+
+Textual collects answers in a modal dialog. Escape cancels without an answer;
+blank submissions leave the dialog open. Questions and tool approvals are
+serialized. Timeout or task cancellation retires the dialog. If an unrelated
+modal obscures it, that modal stays open and the expired question closes when
+it becomes visible again; queued tool prompts wait for its removal.
+
+Headless execution has no input channel and reports the unanswered question
+explicitly. Embedders can pass `question_handler` when constructing `AskUserTool`
+or `ToolManager`. Help, doctor, and tool-search status report this runtime
+dependency through the shared discovery capability matrix.
 
 **When to use `ask_user`:**
 - **Clarification needed**: When requirements are ambiguous or incomplete
@@ -634,7 +907,7 @@ Ask the user a question and wait for response. This is a **critical tool** for a
 - "Which database should I use for this feature: PostgreSQL or SQLite?"
 - "The file `config.yaml` already exists. Should I overwrite it or create a backup first?"
 - "I found 3 possible solutions. Which approach aligns best with your priorities?"
-- "I need API credentials to proceed. Please provide your access token."
+- "Which configured environment should I use for verification?"
 
 ```json
 {
@@ -684,11 +957,12 @@ Delegate a task to a specialist agent. This is a **critical tool** for the multi
 ```json
 {
   "name": "delegate_task",
-  "kind": "READ",
+  "kind": "EXECUTE",
   "parameters": {
     "agent": "string (required) - Specialist agent role: 'planner', 'explorer', 'engineer', 'data_engineer'",
     "task": "string (required) - Precise description of the task",
-    "done_when": "string (required) - Explicit exit condition",
+    "done_when": "string (optional) - Declared exit condition for the specialist",
+    "completion_requirement": "actions (default) | response - Required execution evidence",
     "context": "string (optional) - Free-form context",
     "files": "array (optional) - List of file paths to read/modify",
     "background": "string (optional) - Summary of prior work",
@@ -697,6 +971,90 @@ Delegate a task to a specialist agent. This is a **critical tool** for the multi
   }
 }
 ```
+
+Delegation requires an active orchestrator. Interactive and headless CLI runs
+(including JSON formats) share that orchestrator and execute the selected
+specialist. Standalone registry execution remains unavailable. Delegation is an
+`EXECUTE` tool: the caller must have it registered, and normal plan-mode and
+confirmation policies apply before starting a specialist. Cached specialists
+inherit current parent plan mode and confirmation handling; explicit per-agent
+auto-approval settings still apply.
+
+The default `actions` requirement rejects a tool-free promise. Explicit `response`
+allows advice based on supplied context to finish as `responded`. Neither mode
+verifies that implementation requirements were met: `done_when` and `requirements`
+are declared criteria, not automatically executed checks. Completion/tool-result
+metadata includes `task_verified: false`; the lead must review actual artifacts
+and verification evidence. See [completion semantics](architecture.md#overview).
+
+### Plan Acceptance Checks
+
+#### verify_plan_execution
+
+Create an ordered checklist with optional acceptance checks, then run those checks
+against the project. Actions are `create`, `list`, `next`, `complete`, `status`,
+and `verify`. `complete` records reported step progress and optional evidence text;
+it does not run checks or establish correctness. `verify` requires a `plan_id`
+with recorded checks and executes their assertions independently of that text.
+
+Create the checks before implementation when using `file_changed`, so its baseline
+captures the original file. Checks cannot be changed through this tool after
+creation; create a new plan to revise the assertions.
+
+```json
+{
+  "action": "create",
+  "title": "Repair invoice totals",
+  "steps": ["Inspect existing calculation helpers", "Reuse the helper and test"],
+  "checks": [
+    {"kind": "file_exists", "path": "src/invoices.py"},
+    {"kind": "file_contains", "path": "src/invoices.py", "text": "calculate_total"},
+    {"kind": "file_changed", "path": "src/invoices.py"},
+    {"kind": "pytest", "path": "tests/test_invoices.py", "timeout": 60},
+    {"kind": "command", "argv": ["ruff", "check", "src/invoices.py"], "expected_exit": 0, "timeout": 60}
+  ]
+}
+```
+
+Use the returned identifier with `{"action": "verify", "plan_id": "plan-..."}`.
+
+| Check kind | Assertion |
+|------------|-----------|
+| `file_exists` | The project-relative path resolves to a regular file. |
+| `file_contains` | A UTF-8 file contains the supplied literal `text`. |
+| `file_changed` | The file's SHA-256 differs from its creation-time baseline; creating a previously absent file also qualifies. Baseline read errors fail the check. |
+| `command` | An argv command exits with `expected_exit` (default `0`). |
+| `pytest` | Pytest exits successfully and its independent session evidence confirms completed test execution with at least one passed test call. Collection-only and entirely skipped runs cannot pass. |
+
+Paths use project-relative forward slashes. Absolute paths, parent traversal, and
+symlinks resolving outside the project are rejected for file and pytest targets.
+Pytest paths can include node selectors such as `tests/test_invoices.py::test_total`.
+Command argv runs in the project directory without shell interpolation. It is
+ordinary process execution, not a sandbox; command arguments and test code can
+access whatever the process permits. The tool has kind `EXECUTE` and follows the
+runtime's normal execution approval policy. The confirmation request includes the
+recorded checks and commands; `status` also displays their specifications.
+
+A plan can record 1–20 checks, which run sequentially. File-content reads are
+limited to 1 MiB; `file_exists` only reads metadata. Captured stdout and stderr each
+retain at most 64 KiB and report truncation. Command and pytest timeouts default
+to 60 seconds and accept integers from 1 to 300. Each command accepts up to 64
+arguments and 16 KiB of UTF-8 argument text. Paths and literal text are bounded to
+4,096 characters. These limits bound observations; they do not establish a total
+application memory budget or verify operation on the target 16 GB laptop with CPU operation and optional GPU acceleration.
+
+Reports include `checks_passed`, per-check observations, timestamps, and a
+`spec_digest` binding a finished report to its recorded specifications.
+`task_verified` remains `false`: a literal match does not prove reuse, a changed
+file does not prove a correct fix, and passing selected tests does not prove
+complete requirements coverage. The tool does not establish that criteria were
+approved by a user. Select checks that reflect the task and review their scope.
+
+Records live in `.henchman/plans/verification.json`. `status` shows reported step
+progress and the latest historical verification state. Saved results do not
+establish the current workspace state; run `verify` again after changes. Legacy
+plans without checks remain readable and require a new plan with checks before
+using `verify`.
 
 ## Tool Kinds
 

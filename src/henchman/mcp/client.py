@@ -11,18 +11,46 @@ import re
 import sys
 from contextlib import AsyncExitStack, suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing import Self
-
-    from mcp.client.session import ClientSession
-
-    from henchman.mcp.config import McpServerConfig
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from mcp.client.stdio import stdio_client
 
 from mcp import ClientSession, StdioServerParameters
+
+if TYPE_CHECKING:
+    from typing import Self
+
+    from henchman.config.schema import McpServerConfig
+
+
+@runtime_checkable
+class McpClientProtocol(Protocol):
+    """Protocol defining the minimal interface for MCP clients."""
+
+    async def connect(self) -> None:
+        """Connect to the MCP server."""
+        ...
+
+    async def disconnect(self) -> None:
+        """Disconnect from the MCP server."""
+        ...
+
+    def get_tools(self) -> list[McpToolDefinition]:
+        """Return the list of discovered tools."""
+        ...
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the client is currently connected."""
+        ...
+
+    async def call_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+    ) -> McpToolResult:
+        """Call a named tool on the connected server."""
+        ...
 
 # Precompiled patterns for log-line detection (avoids recompilation on every write).
 _LOG_TIMESTAMP_RE = re.compile(

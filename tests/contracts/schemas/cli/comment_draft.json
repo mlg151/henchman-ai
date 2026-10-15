@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/comment-draft/v1",
+  "type": "object",
+  "required": ["comment_id", "original_body", "draft_reply", "path"],
+  "properties": {
+    "comment_id": { "type": "integer" },
+    "original_body": { "type": "string" },
+    "draft_reply": { "type": "string" },
+    "path": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

@@ -15,10 +15,12 @@ import logging
 import traceback
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+import yaml
 from textual import on, work
 from textual.widgets import (
+    Button,
     OptionList,
     RichLog,
     TabbedContent,
@@ -26,25 +28,40 @@ from textual.widgets import (
     Tree,
 )
 
+from henchman.advanced import TaskService
+from henchman.cli.output_handler import resolve_active_agent
 from henchman.cli.textual_config import (
     ComponentConfig,
     ComponentInitializer,
     TextualConfig,
 )
+from henchman.cli.textual_questions import ToolPromptChannel
 from henchman.cli.textual_widgets import (
+    AgentSummaryPanel,
     ChatMessage,
     ChatPane,
+    MemoryIndicator,
+    SettingsPanel,
+    SkillPanel,
     StatusBar,
+    TaskListWidget,
+    TeamPanel,
     ThinkingMessage,
     ThinkingPane,
     ToolMessage,
     ToolPane,
     _safe_markup,
 )
+from henchman.core.goals import GoalService, save_goal_session
+from henchman.core.session_export import export_as_markdown
 from henchman.providers.base import ModelProvider, StreamChunk
+from henchman.skills import SkillCatalog
+from henchman.team import BridgeSessionService, TeamWorkspaceService
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Generator
+
+    from textual.app import App
 
     from henchman.cli.core_init import CoreContext
     from henchman.cli.textual_messages import (
@@ -58,6 +75,7 @@ if TYPE_CHECKING:
         ToolCallResultMessage,
         ToolConfirmationMessage,
     )
+    from henchman.core.events import AgentEvent
     from henchman.providers.base import (
         Message,
         ToolDeclaration,
@@ -83,6 +101,29 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
+def _active_display_agent(runtime: Any) -> Any:
+    """Resolve the same direct role or leader used for interactive execution."""
+    agent = resolve_active_agent(runtime)
+    provider = getattr(agent, "provider", None)
+    return agent if isinstance(getattr(provider, "name", None), str) else None
+
+
+def _active_display_provider(runtime: Any) -> Any:
+    """Use the acting provider, retaining the startup fallback before core setup."""
+    agent = _active_display_agent(runtime)
+    return agent.provider if agent is not None else getattr(runtime, "provider", None)
+
+
+def _display_model(provider: Any, fallback: str = "unknown") -> str:
+    """Read compatible-provider models and legacy provider model attributes."""
+    for attribute in ("default_model", "model"):
+        model = getattr(provider, attribute, None)
+        if isinstance(model, str) and model:
+            return model
+    return fallback
+
+
 # ------------------------------------------------------------------ #
 # Constants                                                            #
 # ------------------------------------------------------------------ #
@@ -98,11 +139,28 @@ _PANE_MAP: dict[str, tuple[str, type]] = {
     "thinking": ("#thinking-pane", ThinkingPane),
     "tool": ("#tool-pane", ToolPane),
 }
+_WORKSPACE_DATA_ERRORS = (OSError, KeyError, ValueError, yaml.YAMLError)
 
 
 # ------------------------------------------------------------------ #
 # NullProvider (fallback when no real provider is configured)          #
 # ------------------------------------------------------------------ #
+
+
+class _NullStream:
+    """Awaitable async iterator that reports a missing provider on iteration."""
+
+    def __await__(self) -> Generator[Any, None, _NullStream]:
+        async def _return_self() -> _NullStream:
+            return self
+
+        return _return_self().__await__()
+
+    def __aiter__(self) -> _NullStream:
+        return self
+
+    async def __anext__(self) -> StreamChunk:
+        raise RuntimeError(_NO_PROVIDER_MSG)
 
 
 class _NullProvider(ModelProvider):
@@ -129,21 +187,15 @@ class _NullProvider(ModelProvider):
         """Raise an error indicating no provider is configured."""
         raise RuntimeError(_NO_PROVIDER_MSG)
 
-    async def chat_completion_stream(
+    def chat_completion_stream(
         self: _NullProvider,
-        _messages: list[Message],
-        _tools: list[ToolDeclaration] | None = None,
-        **_kwargs: Any,
-    ) -> AsyncIterator[StreamChunk]:
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        **kwargs: Any,
+    ) -> _NullStream:
         """Raise an error indicating no provider is configured."""
-        class _NullAsyncIterator:
-            """Async iterator that immediately raises RuntimeError."""
-            def __aiter__(self) -> _NullAsyncIterator:
-                return self
-            async def __anext__(self) -> StreamChunk:
-                raise RuntimeError(_NO_PROVIDER_MSG)
-        
-        return _NullAsyncIterator()
+        del messages, tools, kwargs
+        return _NullStream()
 
     def count_tokens(self: _NullProvider, _text: str) -> int:
         """Return zero tokens for the null provider."""
@@ -205,8 +257,8 @@ def _query_one_or_none(
     """
     try:
         if widget_type is None:
-            return app.query_one(selector)  # type: ignore[no-any-return]
-        return app.query_one(selector, widget_type)  # type: ignore[no-any-return]
+            return app.query_one(selector)
+        return app.query_one(selector, widget_type)
     except Exception:  # noqa: BLE001
         return None
 
@@ -363,6 +415,8 @@ class _ProxyMixin:
 class _InitMixin:
     """Lifecycle and component initialization helpers."""
 
+    environment_context: str | None
+
     def _init_provider_and_settings(
         self: _InitMixin,
         provider: ModelProvider | None,
@@ -379,10 +433,10 @@ class _InitMixin:
             env_ctx: Optional environment context.
         """
         if provider is not None:
-            self.provider = provider  # type: ignore[attr-defined]
-            self.config = config or TextualConfig()  # type: ignore[attr-defined]
-            self.settings = settings  # type: ignore[attr-defined]
-            self.environment_context = env_ctx  # type: ignore[attr-defined]
+            self.provider = provider
+            self.config = config or TextualConfig()
+            self.settings = settings
+            self.environment_context = env_ctx
             return
         self._resolve_provider_from_env()  # type: ignore[attr-defined]
 
@@ -395,7 +449,6 @@ class _InitMixin:
         self.output_handler: Any = None
         self._tui_adapter: Any = None
         self.is_processing: bool = False
-        self._streaming_messages: dict[str, ChatMessage] = {}
         self._init_search_state()
         self._init_history_state()
         self._init_confirm_state()
@@ -414,13 +467,8 @@ class _InitMixin:
         self.history_index: int = -1
 
     def _init_confirm_state(self: _InitMixin) -> None:
-        """Initialize tool confirmation future state."""
-        self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
-        self._confirm_counter: int = 0
-        # Use asyncio lock for proper async task synchronization
-        # threading.Lock is reentrant within the same thread, allowing
-        # concurrent async access which breaks mutual exclusion
-        self._confirm_lock: asyncio.Lock = asyncio.Lock()
+        """Initialize the shared question and tool-approval channel."""
+        self._tool_prompts = ToolPromptChannel(cast("App[Any]", self))
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
         """Initialize proxy compatibility stub attributes."""
@@ -437,11 +485,11 @@ class _InitMixin:
         """
         app_module = _import_module("henchman.cli.textual_app")
         component_config = ComponentConfig(
-            provider=self.provider,  # type: ignore[attr-defined]
-            config=self.config,  # type: ignore[attr-defined]
-            settings=self.settings,  # type: ignore[attr-defined]
-            environment_context=self.environment_context,  # type: ignore[attr-defined]
-            app=self,  # type: ignore[arg-type]
+            provider=self.provider,
+            config=self.config,
+            settings=self.settings,
+            environment_context=self.environment_context,
+            app=self,
         )
         initializer = ComponentInitializer(
             component_config,
@@ -456,9 +504,20 @@ class _InitMixin:
         )
         initializer.initialize_all()
         self._transfer_components(initializer)
+        self._initialize_session()
         self._initialize_mcp()
         self._install_confirmation_handler()
         self._update_status_bar()  # type: ignore[attr-defined]
+
+    def _initialize_session(self: _InitMixin) -> None:
+        """Create an active session once, preserving an explicitly resumed one."""
+        ctx = self.core_context
+        if ctx and ctx.session_manager:
+            manager = ctx.session_manager
+            manager.auto_save = self.config.auto_save
+            if manager.current is None:
+                project_hash = manager.compute_project_hash(Path.cwd())
+                manager.set_session(manager.create_session(project_hash))
 
     def _initialize_mcp(self: _InitMixin) -> None:
         """Initialize MCP if a manager is available.
@@ -466,7 +525,7 @@ class _InitMixin:
         Uses the module-level ``initialize_mcp`` so tests can patch
         ``henchman.cli.textual_app.initialize_mcp``.
         """
-        ctx = self.core_context  # type: ignore[attr-defined]
+        ctx = self.core_context
         if ctx and ctx.mcp_manager:
             _import_module("henchman.cli.textual_app").initialize_mcp(ctx)
 
@@ -476,156 +535,27 @@ class _InitMixin:
         Args:
             init: Completed ComponentInitializer.
         """
-        self.core_context = init.core_context  # type: ignore[attr-defined]
-        self.tool_executor = init.tool_executor  # type: ignore[attr-defined]
-        self.command_processor = init.command_processor  # type: ignore[attr-defined]
-        self.input_handler = init.input_handler  # type: ignore[attr-defined]
-        self.output_handler = init.output_handler  # type: ignore[attr-defined]
-        self._tui_adapter = getattr(init, "_tui_adapter", None)  # type: ignore[attr-defined]
-        self._ui_renderer = getattr(init, "_ui_renderer", None)  # type: ignore[attr-defined]
+        self.core_context = init.core_context
+        self.tool_executor = init.tool_executor
+        self.command_processor = init.command_processor
+        self.input_handler = init.input_handler
+        self.output_handler = init.output_handler
+        self._tui_adapter = getattr(init, "_tui_adapter", None)
+        self._ui_renderer = getattr(init, "_ui_renderer", None)
 
     def _install_confirmation_handler(self: _InitMixin) -> None:
         """Replace the tool-confirmation handler with a TUI modal."""
-        ctx = self.core_context  # type: ignore[attr-defined]
+        ctx = self.core_context
         if ctx:
             ctx.tool_manager.set_confirmation_handler(self._textual_confirm)
 
     async def _textual_confirm(self: _InitMixin, request: ConfirmationRequest) -> bool:
-        """Show a modal confirmation dialog.
-
-        Args:
-            request: The tool confirmation request.
-
-        Returns:
-            ``True`` if approved, ``False`` otherwise.
-        """
-        # Ensure state is initialized - _init_confirm_state() must be called first
-        # Use getattr to avoid TOCTOU race between check and use
-        confirm_lock = getattr(self, '_confirm_lock', None)
-        confirm_counter = getattr(self, '_confirm_counter', None)
-        confirm_futures = getattr(self, '_confirm_futures', None)
-        
-        if confirm_lock is None or confirm_counter is None or confirm_futures is None:
-            raise RuntimeError(
-                "_textual_confirm called before _init_confirm_state(). "
-                "Ensure _init_state() is called during initialization."
-            )
-
-        loop = asyncio.get_running_loop()
-        future: asyncio.Future[bool] = loop.create_future()
-        # Use a counter-based ID instead of id(future) to avoid potential
-        # collisions when memory addresses are reused after garbage collection
-        # Use lock to make counter increment atomic in concurrent execution
-
-        async with confirm_lock:
-            req_id = self._confirm_counter
-            self._confirm_counter += 1
-            self._confirm_futures[req_id] = future
-
-        def _callback(result: object | None) -> None:
-            # Try to set the future result
-            # Use contextlib.suppress to handle race where future was cancelled
-            # between check and set_result() call
-            with contextlib.suppress(asyncio.InvalidStateError):
-                # Handle the result explicitly instead of using bool()
-                # The screen should return True for approval, False for denial
-                # But we handle edge cases defensively
-                if result is True:
-                    future.set_result(True)
-                elif result is False or result is None:
-                    # False: explicit denial
-                    # None: cancellation (treat as denial for safety)
-                    future.set_result(False)
-                else:
-                    # Unexpected value - log warning and convert to bool
-                    # This shouldn't happen in normal operation (screen returns bool)
-                    # but we handle it gracefully
-                    logger.warning(
-                        "Unexpected confirmation result type: %s (value: %r) - converting to bool",
-                        type(result).__name__,
-                        result,
-                    )
-                    # Convert truthy/falsy values to bool without calling bool()
-                    # to avoid the string "bool(result)" in source code
-                    if result:
-                        future.set_result(True)
-                    else:
-                        future.set_result(False)
-            # Remove future from dictionary
-            # We don't need to acquire the lock here because:
-            # 1. Both this callback and _cleanup_confirm_futures use .pop(req_id, None)
-            #    which handles missing keys gracefully (no KeyError)
-            # 2. Races between callback and cleanup are acceptable - the future
-            #    will be removed from the dict by whichever runs first
-            # 3. The future result has already been set above, so even if
-            #    cleanup cancels it later, the result takes precedence
-            # Remove future from dictionary
-            # Use getattr to avoid TOCTOU race with _cleanup_confirm_futures
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
-
-        try:
-            screen_cls = _import_module(
-                "henchman.cli.textual_screens",
-            ).ConfirmToolScreen
-            await self.push_screen(screen_cls(request), _callback)  # type: ignore[attr-defined]
-            return await future
-        except asyncio.CancelledError:
-            # Remove future from dictionary
-            # Use getattr to avoid TOCTOU race with _cleanup_confirm_futures
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
-            # future.cancel() is idempotent for asyncio Futures
-            # No need to check future.done() first (avoids TOCTOU race)
-            future.cancel()
-            raise
-        except Exception:
-            # Remove future from dictionary
-            # Use getattr to avoid TOCTOU race with _cleanup_confirm_futures
-            futures_dict = getattr(self, '_confirm_futures', None)
-            if futures_dict is not None:
-                futures_dict.pop(req_id, None)
-            # future.cancel() is idempotent for asyncio Futures
-            # No need to check future.done() first (avoids TOCTOU race)
-            future.cancel()
-            raise
+        """Collect explicit approval through the serialized tool dialog channel."""
+        return await self._tool_prompts.confirm(request)
 
     def _cleanup_confirm_futures(self: _InitMixin) -> None:
-        """Clean up all pending confirmation futures."""
-        # Note: This is called from on_unmount which is sync
-        # Get reference to dict atomically to avoid TOCTOU race
-        # _confirm_futures is guaranteed to exist after defensive initialization
-        # but we check anyway for safety
-        futures_dict = getattr(self, '_confirm_futures', None)
-        if futures_dict is None:
-            return  # Nothing to clean up
-
-        # We're in sync context but using asyncio.Lock
-        # Since this is shutdown cleanup, we accept potential races
-        # Don't try to acquire the lock in sync context
-        # Collect keys first to avoid modifying dict during iteration
-        # if future.cancel() triggers callbacks that modify the dict
-        keys = list(futures_dict.keys())
-        for req_id in keys:
-            # Pop the future from dict BEFORE cancelling it
-            # This prevents callbacks triggered by cancel() from accessing
-            # the future in the dict during cleanup
-            future = futures_dict.pop(req_id, None)
-            if future is not None:
-                # future.cancel() is idempotent for asyncio Futures
-                # No need to check future.done() first (avoids TOCTOU race)
-                try:
-                    future.cancel()
-                except Exception as exc:  # noqa: BLE001
-                    # Log but continue cleaning up other futures
-                    # This can happen if the future is in an invalid state
-                    logger.error(
-                        "Failed to cancel confirmation future %s: %s",
-                        req_id,
-                        exc,
-                    )
+        """Cancel pending questions and approvals during shutdown."""
+        self._tool_prompts.close()
 
     def _activate_chat_tab(self: _InitMixin) -> None:
         """Force the Chat tab to be active."""
@@ -642,12 +572,14 @@ class _InitMixin:
 class _ProviderMixin:
     """Provider resolution and runtime switching."""
 
+    environment_context: str | None
+
     def _resolve_provider_from_env(self: _ProviderMixin) -> None:
         """Auto-detect provider from environment."""
-        self.provider = self._load_provider_safe()  # type: ignore[attr-defined]
-        self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
-        self.config = self._create_config_safe()  # type: ignore[attr-defined]
-        self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+        self.provider = self._load_provider_safe()
+        self.settings = self._load_settings_safe()
+        self.config = self._create_config_safe()
+        self.environment_context = self._gather_env_safe()
 
     def _load_provider_safe(self: _ProviderMixin) -> ModelProvider:
         """Load provider with fallback to ``_NullProvider``.
@@ -657,7 +589,7 @@ class _ProviderMixin:
         """
         try:
             provider_loader = _import_module("henchman.cli.app")._get_provider  # noqa: SLF001
-            return provider_loader()
+            return cast(ModelProvider, provider_loader())
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to initialize provider: {exc}. Using null provider.",
@@ -711,7 +643,7 @@ class _ProviderMixin:
         try:
             environment_module = _import_module("henchman.config.environment")
             environment = environment_module.gather_environment()
-            return environment_module.format_environment_block(environment)
+            return cast(str, environment_module.format_environment_block(environment))
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to gather environment: {exc}.",
@@ -721,28 +653,20 @@ class _ProviderMixin:
             return "Environment context unavailable"
 
     def _switch_provider(self: _ProviderMixin, provider_name: str) -> None:
-        """Reinitialize with a different provider.
+        """Switch the configured provider while retaining the active runtime state."""
+        from henchman.cli.provider_switch import switch_runtime_provider
+        from henchman.providers.factory import create_configured_provider
 
-        Args:
-            provider_name: Provider name key.
-        """
-        old_provider = self.provider  # type: ignore[attr-defined]
-        old_name = old_provider.name if old_provider else "unknown"
-
+        active_agent = _active_display_agent(self)
+        active_provider = _active_display_provider(self)
+        old_name = active_provider.name if active_provider else "unknown"
         try:
-            registry = _import_module("henchman.providers").get_default_registry()
-            new = registry.create(provider_name)
-            self.provider = new  # type: ignore[attr-defined]
-            try:
-                self._initialize_core_components()  # type: ignore[attr-defined]
-            except Exception:
-                self.provider = old_provider  # type: ignore[attr-defined]
-                raise
-            self._announce_provider_switch(old_name, provider_name)
+            new = create_configured_provider(self.settings.providers, provider_name=provider_name)
+            switch_runtime_provider(self, new, agent=active_agent)
         except Exception as exc:  # noqa: BLE001
-            if self.provider != old_provider:  # type: ignore[attr-defined]
-                self.provider = old_provider  # type: ignore[attr-defined]
             self._show_provider_error(exc)
+            return
+        self._announce_provider_switch(old_name, provider_name)
 
     def _announce_provider_switch(
         self: _ProviderMixin,
@@ -756,9 +680,8 @@ class _ProviderMixin:
             new_name: New provider name.
         """
         version = _import_module("henchman").__version__
-        self.sub_title = (  # type: ignore[attr-defined]
-            f"Henchman-AI v{version} - {self.provider.name}"  # type: ignore[attr-defined]
-        )
+        provider = _active_display_provider(self)
+        self.sub_title = f"Henchman-AI v{version} - {provider.name if provider else 'unknown'}"
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
             chat.add_system_message(
@@ -800,8 +723,9 @@ class _StatusBarMixin:
         Returns:
             Formatted status string.
         """
-        provider = self.provider.name if self.provider else "?"  # type: ignore[attr-defined]
-        model = getattr(self.provider, "model", "?")  # type: ignore[attr-defined]
+        active_provider = _active_display_provider(self)
+        provider = active_provider.name if active_provider else "?"
+        model = _display_model(active_provider, "?")
         tools = self._count_tools()
         mcp = self._mcp_status_fragment()
         settings = self.settings  # type: ignore[attr-defined]
@@ -841,6 +765,8 @@ class _StatusBarMixin:
 class _HistoryMixin:
     """Command history loading, persistence, and navigation."""
 
+    history_index: int
+
     def _load_history(self: _HistoryMixin) -> None:
         """Load command history from the history file."""
         handler = self.input_handler  # type: ignore[attr-defined]
@@ -855,8 +781,8 @@ class _HistoryMixin:
             return
         try:
             lines = hf.read_text().splitlines()
-            self.command_history = [ln for ln in lines if ln.strip()]  # type: ignore[attr-defined]
-            self.history_index = len(self.command_history)  # type: ignore[attr-defined]
+            self.command_history = [ln for ln in lines if ln.strip()]
+            self.history_index = len(self.command_history)
         except OSError:
             return
 
@@ -886,22 +812,31 @@ class _HistoryMixin:
     def _navigate_history(self: _HistoryMixin, direction: int) -> None:
         """Navigate command history.
 
+        Saves the current unsent input buffer before overwriting with
+        history entries and restores it when the user navigates past
+        the newest entry.
+
         Args:
             direction: ``-1`` for older, ``+1`` for newer.
         """
-        history = self.command_history  # type: ignore[attr-defined]
+        history = self.command_history
         if not history:
             return
-        new_idx = self.history_index + direction  # type: ignore[attr-defined]
+        new_idx = self.history_index + direction
         widget = self.query_one("#input", TextArea)  # type: ignore[attr-defined]
+        # Save current unsent input before overwriting (ONCE when leaving user-typed text)
+        if 0 <= new_idx < len(history) and self.history_index == len(history):
+            self._saved_input_buffer = widget.text
         if 0 <= new_idx < len(history):
-            self.history_index = new_idx  # type: ignore[attr-defined]
+            self.history_index = new_idx
             text = history[new_idx]
             widget.load_text(text)
             widget.cursor_location = (0, len(text))
         elif new_idx >= len(history):
-            self.history_index = len(history)  # type: ignore[attr-defined]
-            widget.load_text("")
+            self.history_index = len(history)
+            widget.load_text(
+                getattr(self, "_saved_input_buffer", ""),
+            )
 
 
 # ------------------------------------------------------------------ #
@@ -912,13 +847,16 @@ class _HistoryMixin:
 class _ContextTreeMixin:
     """Context tree population, welcome banner, and theme."""
 
+    _theme_name: str
+
     def _show_welcome(self: _ContextTreeMixin) -> None:
         """Display a welcome banner in the chat pane."""
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
-        provider = self.provider.name if self.provider else "unknown"  # type: ignore[attr-defined]
-        model = getattr(self.provider, "model", "unknown")  # type: ignore[attr-defined]
+        active_provider = _active_display_provider(self)
+        provider = active_provider.name if active_provider else "unknown"
+        model = _display_model(active_provider)
         tools = self._count_tools()  # type: ignore[attr-defined]
         mcp = self._welcome_mcp_info()
         cfg = self.config  # type: ignore[attr-defined]
@@ -1003,19 +941,19 @@ class _ContextTreeMixin:
             screen = self.screen  # type: ignore[attr-defined]
             for name in ("theme-dark", "theme-light"):
                 screen.remove_class(name)
-            screen.add_class(f"theme-{self._theme_name}")  # type: ignore[attr-defined]
+            screen.add_class(f"theme-{self._theme_name}")
 
     def action_toggle_theme(self: _ContextTreeMixin) -> None:
         """Toggle between dark and light themes."""
-        current = self._theme_name  # type: ignore[attr-defined]
-        self._theme_name = "light" if current == "dark" else "dark"  # type: ignore[attr-defined]
+        current = self._theme_name
+        self._theme_name = "light" if current == "dark" else "dark"
         self._apply_theme()
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
             chat.add_system_message(
-                f"Theme switched to [cyan]{self._theme_name}[/]",  # type: ignore[attr-defined]
+                f"Theme switched to [cyan]{self._theme_name}[/]",
             )
-        self.dark = self._theme_name == "dark"  # type: ignore[attr-defined]
+        self.dark = self._theme_name == "dark"
 
 
 # ------------------------------------------------------------------ #
@@ -1026,10 +964,11 @@ class _ContextTreeMixin:
 class _InputHandlerMixin:
     """User input submission and routing."""
 
+    history_index: int
+    is_processing: bool
+
     def action_submit_message(self: _InputHandlerMixin) -> None:
         """Extract text from the input widget and process it."""
-        if self.is_processing:  # type: ignore[attr-defined]
-            return
         input_widget = self.query_one("#input", TextArea)  # type: ignore[attr-defined]
         user_input = input_widget.text.strip()
         if not user_input:
@@ -1038,38 +977,107 @@ class _InputHandlerMixin:
         self.history_index = len(self.command_history)  # type: ignore[attr-defined]
         self._persist_history_entry(user_input)  # type: ignore[attr-defined]
         input_widget.load_text("")
+        if self.is_processing:
+            if user_input.split()[0] in {"/goal", "/quit"}:
+                self._process_live_command(user_input)
+            else:
+                self._queued_inputs().append(user_input)
+                chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+                chat.add_system_message("Message queued for the next agent turn.")
+            return
+        self.is_processing = True
         self.process_user_input(user_input)
 
-    @work(exclusive=True)
-    async def process_user_input(self: _InputHandlerMixin, user_input: str) -> None:
+    def _queued_inputs(self) -> list[str]:
+        """Keep submitted messages in order while one agent turn owns history."""
+        if "_pending_inputs" not in self.__dict__:
+            self._pending_inputs: list[str] = []
+        return self._pending_inputs
+
+    def _goal_session(self) -> Any:
+        """Resolve the current session without retaining stale session state."""
+        ctx = self.core_context  # type: ignore[attr-defined]
+        return ctx.session_manager.current if ctx and ctx.session_manager else None
+
+    def _pause_active_goal(self) -> None:
+        """Stop automatic continuation after cancellation or a runtime error."""
+        session = self._goal_session()
+        goal = GoalService().get(session) if session is not None else None
+        if goal is not None and goal.status == "active":
+            GoalService().pause(session)
+            save_goal_session(self.core_context.session_manager, session)  # type: ignore[attr-defined]
+
+    def _next_turn_input(self) -> str | None:
+        """Give queued user input priority over goal continuation."""
+        pending = self._queued_inputs()
+        if pending:
+            return pending.pop(0)
+        session = self._goal_session()
+        return GoalService().continuation_prompt(session) if session is not None else None
+
+    @work(group="goal-controls", exclusive=False)
+    async def _process_live_command(self, text: str) -> None:
+        """Allow goal controls during work without starting another agent turn."""
+        chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        chat.add_user_message(text)
+        await self._handle_command(text, chat)
+        if not self.is_processing:
+            next_input = self._next_turn_input()
+            if next_input is not None:
+                self.process_user_input(next_input, show_message=False)
+
+    @work(group="chat", exclusive=False)
+    async def process_user_input(
+        self: _InputHandlerMixin, user_input: str, *, show_message: bool = True,
+    ) -> None:
         """Process user input: commands or agent chat.
 
         Args:
             user_input: Raw text the user submitted.
+            show_message: Display human input; hide generated continuation instructions.
         """
-        self.is_processing = True  # type: ignore[attr-defined]
-        self.current_agent_task = asyncio.current_task()  # type: ignore[attr-defined]
+        if getattr(self, "current_agent_task", None) is not None:
+            self._queued_inputs().append(user_input)
+            return
+        self.is_processing = True
+        self.current_agent_task = asyncio.current_task()
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         bar.status_text = "Processing..."
-        chat.add_user_message(user_input)
 
         try:
-            await self._route_input(user_input, chat)
+            next_input: str | None = user_input
+            while next_input is not None:
+                if show_message:
+                    chat.add_user_message(next_input)
+                await self._route_input(next_input, chat)
+                await asyncio.sleep(0.05)
+                show_message = bool(self._queued_inputs())
+                next_input = self._next_turn_input()
         except asyncio.CancelledError:
+            self._pause_active_goal()
+            self._queued_inputs().clear()
             chat.add_system_message("[yellow]\u26a0 Cancelled by user (Esc)[/]")
+            for name in list(chat._active):
+                chat.finish_agent_stream(name)
         except Exception as exc:  # noqa: BLE001
+            self._pause_active_goal()
             details = traceback.format_exc()
             safe_details = details.replace("```", "` ` `")
             chat.add_error_message(
                 f"{exc}\n```\n{safe_details}\n```",
             )
             bar.status_text = f"Error: {exc}"
+            for name in list(chat._active):
+                chat.finish_agent_stream(name)
         finally:
-            self.is_processing = False  # type: ignore[attr-defined]
+            self.is_processing = False
             if hasattr(self, "current_agent_task"):
                 del self.current_agent_task
             self._update_status_bar()  # type: ignore[attr-defined]
+            if self._queued_inputs():
+                self.is_processing = True
+                self.process_user_input(self._queued_inputs().pop(0))
 
     async def _route_input(self: _InputHandlerMixin, user_input: str, chat: ChatPane) -> None:
         """Route processed input to command or orchestrator.
@@ -1080,6 +1088,7 @@ class _InputHandlerMixin:
         """
         handler = self.input_handler  # type: ignore[attr-defined]
         if not handler:
+            self._pause_active_goal()
             chat.add_error_message("Input handler not initialized.")
             return
         processed, is_cmd, should_continue = await handler.process_input(
@@ -1090,7 +1099,6 @@ class _InputHandlerMixin:
 
         app_module = _import_module("henchman.cli.textual_app")
         expanded = await app_module.expand_at_references(processed)
-        self._record_user_message(expanded)
         if is_cmd:
             await self._handle_command(expanded, chat)
         else:
@@ -1119,11 +1127,10 @@ class _InputHandlerMixin:
         processor = self.command_processor  # type: ignore[attr-defined]
         if not processor:
             return
-        ctx = self.core_context  # type: ignore[attr-defined]
         should_continue = await processor.handle_command(
             text,
-            (ctx.agent if ctx else None),  # type: ignore[arg-type]
-            self,  # type: ignore[arg-type]
+            resolve_active_agent(self),
+            self,
         )
         adapter = self._tui_adapter  # type: ignore[attr-defined]
         if adapter:
@@ -1141,16 +1148,42 @@ class _InputHandlerMixin:
         ctx = self.core_context  # type: ignore[attr-defined]
         orchestrator = ctx.orchestrator if ctx else None
         if not orchestrator:
+            self._pause_active_goal()
             chat.add_error_message("Core components not initialized.")
             return
-        bridge = _import_module("henchman.cli.textual_app").EventBridge(self)  # type: ignore[arg-type]
+        bridge = _import_module("henchman.cli.textual_app").EventBridge(self)
         cfg = self.config  # type: ignore[attr-defined]
+        manager = ctx.session_manager
+        session_start = len(manager.current.messages) if manager.current else 0
+        manager.record_user_message(text)
         if cfg.agent_role:
+            agent = orchestrator.pool.get_agent(cfg.agent_role)
             stream = orchestrator.run_direct(cfg.agent_role, text)
         else:
+            agent = orchestrator.tech_lead
             stream = orchestrator.run(text)
 
-        await bridge.forward_events(stream)
+        previous_turn = agent._turn_number
+
+        async def checked_stream() -> AsyncIterator[AgentEvent]:
+            from henchman.core.events import EventType
+
+            async for event in stream:
+                if event.type == EventType.ERROR:
+                    self._pause_active_goal()
+                yield event
+
+        try:
+            await bridge.forward_events(checked_stream())
+        finally:
+            try:
+                close = getattr(stream, "aclose", None)
+                if close:
+                    await close()
+            finally:
+                if agent._turn_number != previous_turn:
+                    manager.sync_agent_turn(agent, session_start=session_start)
+                manager.auto_save_session()
 
 
 # ------------------------------------------------------------------ #
@@ -1289,6 +1322,62 @@ class _CommandPaletteMixin:
         """
         screen_cls = getattr(_import_module("henchman.cli.textual_app"), screen_name)
         self.push_screen(screen_cls())  # type: ignore[attr-defined]
+
+    # -- Tier 10 screen actions --
+
+    def action_show_search_dialog(self: _CommandPaletteMixin) -> None:
+        """Show the search dialog."""
+        self._push_textual_screen("SearchScreen")
+
+    def action_show_history_search(self: _CommandPaletteMixin) -> None:
+        """Show the history search dialog."""
+        self._push_textual_screen("HistorySearchScreen")
+
+    def action_show_theme_picker(self: _CommandPaletteMixin) -> None:
+        """Show the theme picker dialog."""
+        self._push_textual_screen("ThemePickerScreen")
+
+    def action_show_model_picker(self: _CommandPaletteMixin) -> None:
+        """Show the model picker dialog."""
+        self._push_textual_screen("ModelPickerScreen")
+
+    def action_show_auto_mode_dialog(self: _CommandPaletteMixin) -> None:
+        """Show the auto-mode dialog."""
+        self._push_textual_screen("AutoModeScreen")
+
+    def action_show_bridge_dialog(self: _CommandPaletteMixin) -> None:
+        """Show the bridge dialog."""
+        try:
+            entries = self._build_bridge_dialog_entries()  # type: ignore[attr-defined]
+        except _WORKSPACE_DATA_ERRORS as exc:
+            self._show_workspace_error("bridges", exc)  # type: ignore[attr-defined]
+            return
+        screen_cls = _import_module("henchman.cli.textual_app").BridgeScreen
+        self.push_screen(screen_cls(entries))  # type: ignore[attr-defined]
+
+    def action_show_export_dialog(self: _CommandPaletteMixin) -> None:
+        """Show the export dialog."""
+        screen_cls = _import_module("henchman.cli.textual_app").ExportScreen
+        self.push_screen(  # type: ignore[attr-defined]
+            screen_cls(),
+            self._handle_export_result,  # type: ignore[attr-defined]
+        )
+
+    def action_show_feedback_dialog(self: _CommandPaletteMixin) -> None:
+        """Show the feedback dialog."""
+        self._push_textual_screen("FeedbackScreen")
+
+    def action_show_mcp_servers(self: _CommandPaletteMixin) -> None:
+        """Show the MCP servers dialog."""
+        self._push_textual_screen("McpServersScreen")
+
+    def action_show_onboarding(self: _CommandPaletteMixin) -> None:
+        """Show the onboarding dialog."""
+        screen_cls = _import_module("henchman.cli.textual_app").OnboardingScreen
+        self.push_screen(  # type: ignore[attr-defined]
+            screen_cls(),
+            self._handle_onboarding_result,  # type: ignore[attr-defined]
+        )
 
 
 # ------------------------------------------------------------------ #
@@ -1476,7 +1565,6 @@ class _MessageHandlerMixin:
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         name = message.source_agent or "Assistant"
         chat.finish_agent_stream(name)
-        self._streaming_messages.pop(name, None)  # type: ignore[attr-defined]
         self._update_status_bar()  # type: ignore[attr-defined]
 
     def on_command_output_message(
@@ -1546,7 +1634,7 @@ class _PaneActionMixin:
     def _clear_pane_and_set_status(
         self: _PaneActionMixin,
         css_id: str,
-        pane_cls: type,  # type: ignore[type-arg]
+        pane_cls: type,
         status: str,
     ) -> None:
         """Clear a pane widget and update the status bar message.
@@ -1569,19 +1657,24 @@ class _PaneActionMixin:
 class _SearchMixin:
     """Full-text search across chat, thinking, and tool panes."""
 
+    _search_mode: bool
+    _search_query: str
+    _search_matches: list[tuple[str, int, str]]
+    _current_match_index: int
+
     def action_search(self: _SearchMixin) -> None:
         """Enter search mode or find next match."""
-        if self._search_mode:  # type: ignore[attr-defined]
+        if self._search_mode:
             self.action_search_next()
             return
-        self._search_mode = True  # type: ignore[attr-defined]
+        self._search_mode = True
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         bar.status_text = "Search: type in input box then press F3"
 
     def action_cancel_or_clear(self: _SearchMixin) -> None:
         """Cancel processing or clear search."""
         if self.is_processing and hasattr(self, "current_agent_task"):  # type: ignore[attr-defined]
-            task = self.current_agent_task  # type: ignore[attr-defined]
+            task = self.current_agent_task
             if task is not None:
                 task.cancel()
             bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
@@ -1592,39 +1685,35 @@ class _SearchMixin:
     def action_clear_search(self: _SearchMixin) -> None:
         """Exit search mode and reset state."""
         self._clear_highlights()
-        self._search_mode = False  # type: ignore[attr-defined]
-        self._search_query = ""  # type: ignore[attr-defined]
-        self._search_matches = []  # type: ignore[attr-defined]
-        self._current_match_index = -1  # type: ignore[attr-defined]
+        self._search_mode = False
+        self._search_query = ""
+        self._search_matches = []
+        self._current_match_index = -1
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is not None:
             bar.status_text = "Ready"
 
     def action_search_next(self: _SearchMixin) -> None:
         """Move to the next search match."""
-        if not self._search_mode:  # type: ignore[attr-defined]
+        if not self._search_mode:
             return
         self._refresh_search_if_changed()
-        matches = self._search_matches  # type: ignore[attr-defined]
+        matches = self._search_matches
         if not matches:
             return
-        self._current_match_index = (  # type: ignore[attr-defined]
-            self._current_match_index + 1  # type: ignore[attr-defined]
-        ) % len(matches)
+        self._current_match_index = (self._current_match_index + 1) % len(matches)
         self._scroll_to_match()
         self._update_search_status()
 
     def action_search_previous(self: _SearchMixin) -> None:
         """Move to the previous search match."""
-        if not self._search_mode:  # type: ignore[attr-defined]
+        if not self._search_mode:
             return
         self._refresh_search_if_changed()
-        matches = self._search_matches  # type: ignore[attr-defined]
+        matches = self._search_matches
         if not matches:
             return
-        self._current_match_index = (  # type: ignore[attr-defined]
-            self._current_match_index - 1  # type: ignore[attr-defined]
-        ) % len(matches)
+        self._current_match_index = (self._current_match_index - 1) % len(matches)
         self._scroll_to_match()
         self._update_search_status()
 
@@ -1632,7 +1721,7 @@ class _SearchMixin:
         """Re-run search if the query text changed."""
         widget = self.query_one("#input", TextArea)  # type: ignore[attr-defined]
         query = widget.text.strip()
-        if query != self._search_query:  # type: ignore[attr-defined]
+        if query != self._search_query:
             self._perform_search(query)
 
     def _perform_search(self: _SearchMixin, query: str) -> None:
@@ -1643,9 +1732,9 @@ class _SearchMixin:
         """
         self._clear_highlights()
 
-        self._search_query = query  # type: ignore[attr-defined]
-        self._search_matches = []  # type: ignore[attr-defined]
-        self._current_match_index = -1  # type: ignore[attr-defined]
+        self._search_query = query
+        self._search_matches = []
+        self._current_match_index = -1
         if not query:
             self._update_search_status()
             return
@@ -1669,7 +1758,7 @@ class _SearchMixin:
             if isinstance(widget, (ChatMessage, ThinkingMessage, ToolMessage)):
                 content = _get_searchable_content(widget)
             if content and query_lower in content.lower():
-                self._search_matches.append(  # type: ignore[attr-defined]
+                self._search_matches.append(
                     ("chat", idx, content),
                 )
 
@@ -1707,14 +1796,14 @@ class _SearchMixin:
         for idx, item in enumerate(lines):
             text = _extract_line_text(item)
             if query_lower in text.lower():
-                self._search_matches.append(  # type: ignore[attr-defined]
+                self._search_matches.append(
                     (pane_id, idx, text),
                 )
 
     def _scroll_to_match(self: _SearchMixin) -> None:
         """Scroll to the current search match."""
-        matches = self._search_matches  # type: ignore[attr-defined]
-        idx = self._current_match_index  # type: ignore[attr-defined]
+        matches = self._search_matches
+        idx = self._current_match_index
         if not matches or idx < 0:
             return
         pane_id, line_idx, _ = matches[idx]
@@ -1772,16 +1861,16 @@ class _SearchMixin:
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is None:
             return
-        if not self._search_mode:  # type: ignore[attr-defined]
+        if not self._search_mode:
             return
-        query = self._search_query  # type: ignore[attr-defined]
-        matches = self._search_matches  # type: ignore[attr-defined]
+        query = self._search_query
+        matches = self._search_matches
         if not query:
             bar.status_text = "Search: type query in input box, F3=next"
         elif not matches:
             bar.status_text = f"No matches for '{query}'"
         else:
-            cur = self._current_match_index + 1  # type: ignore[attr-defined]
+            cur = self._current_match_index + 1
             tot = len(matches)
             bar.status_text = f"Match {cur}/{tot} for '{query}' - F3=next  Shift+F3=prev  Esc=clear"
 
@@ -1806,7 +1895,9 @@ class _PublicAPIMixin:
         mgr = ctx.session_manager
         if not mgr:
             return
-        mgr.set_session(session, ctx.orchestrator)
+        role = self.config.agent_role  # type: ignore[attr-defined]
+        history_agent = ctx.orchestrator.pool.get_agent(role) if role else ctx.orchestrator.tech_lead
+        mgr.set_session(session, history_agent=history_agent)
 
     def update_status(
         self: _PublicAPIMixin,
@@ -1875,3 +1966,204 @@ class _PublicAPIMixin:
             chat.add_user_message(text)
         else:
             chat.add_system_message(text)
+
+
+# ------------------------------------------------------------------ #
+# Tier 10 workspace refresh helpers                                    #
+# ------------------------------------------------------------------ #
+
+
+class _WorkspaceMixin:
+    """Workspace panel refresh and export helpers."""
+
+    def _notify_user(
+        self: _WorkspaceMixin,
+        message: str,
+        *,
+        severity: str = "information",
+    ) -> None:
+        """Send a global Textual notification when the app provides one."""
+
+        notifier = getattr(self, "notify", None)
+        if callable(notifier):
+            notifier(message, severity=severity, markup=False)
+
+    def _show_workspace_error(
+        self: _WorkspaceMixin,
+        surface: str,
+        exc: Exception,
+    ) -> str:
+        """Report a persisted workspace read failure and return its message."""
+
+        message = f"Failed to load {surface}: {exc}"
+        self._notify_user(message, severity="error")
+        return message
+
+    def on_button_pressed(
+        self: _WorkspaceMixin,
+        event: Button.Pressed,
+    ) -> None:
+        """Route buttons mounted in the workspace overview."""
+
+        button_id = event.button.id
+        if button_id == "workspace-refresh":
+            self._refresh_workspace_widgets()
+        elif button_id == "workspace-bridges":
+            self.action_show_bridge_dialog()  # type: ignore[attr-defined]
+        elif button_id == "workspace-export":
+            self.action_show_export_dialog()  # type: ignore[attr-defined]
+
+    def _refresh_workspace_widgets(self: _WorkspaceMixin) -> None:
+        """Refresh all workspace panels with current state."""
+        summary = _query_one_or_none(self, "#agent-summary-panel", AgentSummaryPanel)
+        memory = _query_one_or_none(self, "#memory-indicators", MemoryIndicator)
+        tasks_widget = _query_one_or_none(self, "#task-list-widget", TaskListWidget)
+        skills = _query_one_or_none(self, "#skill-components", SkillPanel)
+        team = _query_one_or_none(self, "#team-components", TeamPanel)
+        settings_panel = _query_one_or_none(self, "#settings-panels", SettingsPanel)
+
+        provider = _active_display_provider(self)
+        settings = getattr(self, "settings", None)
+        ctx = getattr(self, "core_context", None)
+        mgr = getattr(ctx, "session_manager", None) if ctx else None
+        current = getattr(mgr, "current", None) if mgr else None
+        plan_mode = bool(getattr(current, "plan_mode", False))
+
+        if summary is not None:
+            summary.update_summary(
+                provider_name=provider.name if provider else "",
+                model_name=_display_model(provider, ""),
+                mode="Plan" if plan_mode else "Chat",
+                active_agent="",
+                tools=0,
+            )
+
+        if memory is not None:
+            msg_count = len(getattr(current, "messages", []))
+            history = getattr(self, "command_history", [])
+            memory.update_counts(
+                session_messages=msg_count,
+                history_entries=len(history),
+                context_loaded=bool(getattr(settings, "system_prompt", None)),
+            )
+
+        if tasks_widget is not None:
+            try:
+                service = TaskService()
+                task_list = service.list_tasks()
+                tasks_widget.set_tasks(
+                    [f"{t.task_id} [{t.status}] {t.title}" for t in task_list],
+                )
+            except _WORKSPACE_DATA_ERRORS as exc:
+                message = self._show_workspace_error("tasks", exc)
+                tasks_widget.set_tasks([f"[red]{_safe_markup(message)}[/]"])
+
+        if skills is not None:
+            try:
+                catalog = SkillCatalog()
+                skill_list = catalog.list_skills()
+                skills.set_skills([s.name for s in skill_list])
+            except _WORKSPACE_DATA_ERRORS as exc:
+                message = self._show_workspace_error("skills", exc)
+                skills.set_skills([f"[red]{_safe_markup(message)}[/]"])
+
+        if team is not None:
+            try:
+                ws_service = TeamWorkspaceService()
+                ws_list = ws_service.list_workspaces()
+                team.set_workspaces(
+                    [f"{w.name} ({len(w.members)} members)" for w in ws_list],
+                )
+            except _WORKSPACE_DATA_ERRORS as exc:
+                message = self._show_workspace_error("teams", exc)
+                team.set_workspaces([f"[red]{_safe_markup(message)}[/]"])
+
+        if settings_panel is not None:
+            mcp_count = 0
+            if ctx and ctx.mcp_manager:
+                mcp_count = len(ctx.mcp_manager.clients)
+            ui_settings = getattr(settings, "ui", None) if settings else None
+            tool_manager = getattr(ctx, "tool_manager", None) if ctx else None
+            runtime_auto = getattr(tool_manager, "auto_approve", None)
+            config = getattr(self, "config", None)
+            auto_mode = (
+                runtime_auto
+                if isinstance(runtime_auto, bool)
+                else bool(getattr(config, "auto_approve_tools", False))
+            )
+            settings_panel.update_settings(
+                theme=getattr(ui_settings, "theme", "") if ui_settings else "",
+                auto_mode=auto_mode,
+                provider=provider.name if provider else "",
+                mcp_servers=mcp_count,
+            )
+
+    def _build_bridge_dialog_entries(self: _WorkspaceMixin) -> list[str]:
+        """Build bridge dialog entries from persisted metadata.
+
+        Returns:
+            List of bridge entry description strings.
+        """
+        entries: list[str] = []
+        ws_service = TeamWorkspaceService()
+        bridge_service = BridgeSessionService()
+        workspaces = ws_service.list_workspaces()
+        for ws in workspaces:
+            bridges = bridge_service.list_bridges(workspace_id=ws.workspace_id)
+            for b in bridges:
+                entries.append(
+                    f"{ws.name} / {b.bridge_id} ({b.status})"
+                    f" - {b.remote_session} by {b.created_by}",
+                )
+        return entries
+
+    def _handle_export_result(self: _WorkspaceMixin, result: str | None) -> None:
+        """Handle export dialog result.
+
+        Args:
+            result: Export format selected, or ``None`` if cancelled.
+        """
+        chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        if not result:
+            if chat is not None:
+                chat.add_system_message("[dim]Export cancelled.[/]")
+            return
+
+        ctx = getattr(self, "core_context", None)
+        mgr = ctx.session_manager if ctx else None
+        current = getattr(mgr, "current", None) if mgr else None
+        if current is None:
+            message = "Failed to export session: No active session to export."
+            if chat is not None:
+                chat.add_error_message(message)
+            self._notify_user(message, severity="error")
+            return
+
+        try:
+            output = export_as_markdown(current, include_metadata=True)
+            output_path = Path.cwd() / f"session_{current.id}.md"
+            output_path.write_text(output, encoding="utf-8")
+            if chat is not None:
+                chat.add_system_message(
+                    f"[dim]Session exported to [cyan]{output_path}[/][/]",
+                )
+            self._notify_user(f"Session exported to {output_path}")
+        except (OSError, TypeError, ValueError) as exc:
+            message = f"Failed to export session: {exc}"
+            if chat is not None:
+                chat.add_error_message(message)
+            self._notify_user(message, severity="error")
+
+    def _handle_onboarding_result(self: _WorkspaceMixin, result: str | None) -> None:
+        """Handle onboarding dialog result.
+
+        Args:
+            result: Onboarding action selected, or ``None`` if cancelled.
+        """
+        if result == "settings":
+            tabs = _query_one_or_none(self, TabbedContent)
+            if tabs is not None:
+                tabs.active = "tab-workspace"
+            self._refresh_workspace_widgets()
+        elif result == "theme":
+            self.action_show_theme_picker()  # type: ignore[attr-defined]

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
 from henchman.core.events import AgentEvent, EventType
 from henchman.metrics.models import (
@@ -148,11 +148,11 @@ def _increment_sampled_counter(collector: MetricsCollector, counter_attr: str) -
 
 def _store_provider_metric(
     storage: MetricsStorage | None,
-    metric: TokenMetric | CostMetric,
-    accumulator: dict[str, float],
+    metric: TokenMetric,
+    accumulator: dict[str, int],
     provider: str,
     model: str,
-    amount: float,
+    amount: int,
 ) -> None:
     """Store a provider metric and update the accumulator dict.
 
@@ -514,7 +514,7 @@ class MetricsCollector:
         if not self.enabled:
             return
 
-        _handlers = {
+        _handlers: dict[EventType, Callable[[AgentEvent], object]] = {
             EventType.TOOL_CALL_REQUEST: self._handle_tool_call_request,
             EventType.TOOL_CALL_RESULT: self._handle_tool_call_result,
             EventType.CONTEXT_COMPACTED: lambda _e: self.record_context_compaction(),

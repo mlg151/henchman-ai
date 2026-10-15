@@ -7,19 +7,27 @@ Tests that verify complete user flows including:
 - Error handling
 """
 
+from functools import partial
 from unittest.mock import Mock
 
 import pytest
+from prompt_toolkit import PromptSession
+from prompt_toolkit.input import create_pipe_input
+from prompt_toolkit.output import DummyOutput
 from rich.console import Console
 
 from henchman.cli.repl import Repl, ReplConfig
-from henchman.providers.base import FinishReason, StreamChunk, ToolCall
+from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
 
 
 class TestReplE2E:
     @pytest.fixture
     def mock_provider(self):
-        provider = Mock()
+        provider = Mock(spec=ModelProvider)
+        provider.name = "mock"
+        provider.required_tool_names = partial(ModelProvider.required_tool_names, provider)
+        provider.estimate_input_tokens = partial(ModelProvider.estimate_input_tokens, provider)
+        provider.prepare_output_budget = partial(ModelProvider.prepare_output_budget, provider)
         # Ensure chat_completion_stream is setup to accept calls
         return provider
 
@@ -29,6 +37,7 @@ class TestReplE2E:
         config = ReplConfig()
         repl = Repl(provider=mock_provider, console=console, config=config)
         repl.config.auto_save = False
+        repl.agent.set_context_limit(96_000, context_window=128_000)
         # Manually initialize session manager and session as we skip repl.run()
         from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
@@ -46,8 +55,8 @@ class TestReplE2E:
         original_tool_executor = repl.tool_executor
 
         async def _simple_run_agent_with_monitor(
-            event_stream, agent, assistant_content, status_msg
-        ):  # noqa: ARG001
+            event_stream, agent, assistant_content, _status_msg
+        ):
             """Simplified version that skips KeyMonitor for testing."""
             await original_tool_executor.process_agent_stream(
                 event_stream, agent, assistant_content, None
@@ -84,12 +93,16 @@ class TestReplE2E:
 
         mock_provider.chat_completion_stream.side_effect = side_effect
 
-        # Run the agent
-        await repl._run_agent("Please ask me a question")
+        # A real terminal input channel supplies the tool answer.
+        with create_pipe_input() as pipe:
+            repl.input_handler.prompt_session = PromptSession(input=pipe, output=DummyOutput())
+            pipe.send_text("Doing well!\n")
+            await repl._run_agent("Please ask me a question")
 
         # Verify tool was executed (output contains ask_user info)
         output = repl.console.export_text()
-        assert "User input would be collected here" in output
+        assert "Doing well!" in output
+        assert "User input would be collected here" not in output
         # REPL uses [result] format for tool results
         assert "[result]" in output or "ask_user" in output
 
@@ -100,6 +113,8 @@ class TestReplE2E:
         # Note: content from tool call continuation is rendered but not separately recorded
         assert len(repl.session_manager.current.messages) >= 1
         assert repl.session_manager.current.messages[0].role == "user"
+        tool_results = [m for m in repl.session_manager.current.messages if m.role == "tool"]
+        assert any(m.content == "Doing well!" for m in tool_results)
 
     async def test_multi_turn_conversation(self, repl, mock_provider):
         """Test that context is maintained across multiple turns."""

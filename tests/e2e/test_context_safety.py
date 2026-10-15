@@ -6,8 +6,8 @@ from henchman.tools.builtins.shell import ShellTool
 from henchman.utils.compaction import ContextCompactor
 
 
-@pytest.mark.asyncio
 class TestContextSafety:
+    @pytest.mark.asyncio
     async def test_shell_tool_truncation(self):
         """Test that ShellTool truncates excessive output."""
         tool = ShellTool()
@@ -17,13 +17,14 @@ class TestContextSafety:
         # Using python -c to generate it
         cmd = f"python3 -c 'print(\"a\" * {limit + 1000})'"
 
-        result = await tool.execute(command=cmd)
+        result = await tool.execute(command=cmd, background=False)
 
         assert result.success
         assert len(result.content) < limit + 200  # Allow for "truncated" message
         assert "output truncated" in result.content
         assert len(result.content) <= limit + len(f"\n... (output truncated after {limit} chars)")
 
+    @pytest.mark.asyncio
     async def test_glob_tool_truncation(self, tmp_path):
         """Test that GlobTool truncates matching list."""
         from henchman.tools.builtins.glob_tool import _MAX_MATCHES
@@ -81,6 +82,7 @@ class TestContextSafety:
         assert compacted[0].content == "System prompt"
         assert compacted[1].content == "Here is a huge message:"
 
+    @pytest.mark.asyncio
     async def test_compactor_safety_limit_preserves_tool_calls(self):
         """Test that safety limit preserves tool call structure even if content is truncated."""
         # Use token limit large enough to fit overhead

@@ -5,13 +5,11 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.pattern_search import (
-    PatternSearchTool,
     PatternMatch,
     PatternSearchParams,
+    PatternSearchTool,
     _build_pattern_search_report,
     _collect_files,
     _deduplicate_and_rank,
@@ -20,7 +18,6 @@ from henchman.tools.builtins.pattern_search import (
     _extract_structural_patterns,
     _search_file_structural,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper function tests
@@ -325,3 +322,25 @@ class TestPatternSearchTool:
         tool = PatternSearchTool()
         req = tool.needs_confirmation({"description": "test"})
         assert req is None
+
+
+async def test_inheritance_search_preserves_identifier_case(tmp_path: Path) -> None:
+    """Natural-language case folding must not change case-sensitive Python identifiers."""
+    source = tmp_path / "handlers.py"
+    source.write_text(
+        "class ExistingHandler(BaseHandler):\n    pass\n"
+        "class DifferentHandler(basehandler):\n    pass\n",
+        encoding="utf-8",
+    )
+    for description in (
+        "classes that inherit from BaseHandler",
+        "classes that INHERIT FROM BaseHandler",
+        "subclass of BaseHandler",
+    ):
+        result = await PatternSearchTool().execute(
+            description=description, path=str(source), strategy="structural",
+        )
+        assert result.success
+        assert "ExistingHandler" in result.content
+        assert "DifferentHandler" not in result.content
+        assert "inherits:BaseHandler" in result.content

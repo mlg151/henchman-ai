@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SharedFileRecord",
+  "description": "Persisted file share in one team workspace.",
+  "type": "object",
+  "properties": {
+    "file_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "sender": { "type": "string" },
+    "original_path": { "type": "string" },
+    "shared_path": { "type": "string" },
+    "recipient": { "type": ["string", "null"] },
+    "note": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["file_id", "workspace_id", "sender", "original_path", "shared_path", "created_at"]
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/metrics-response/v1",
+  "type": "object",
+  "required": ["requests", "tokens", "tools"],
+  "properties": {
+    "requests": {
+      "type": "object",
+      "required": ["total", "successful", "failed"],
+      "properties": {
+        "total": { "type": "integer" },
+        "successful": { "type": "integer" },
+        "failed": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "tokens": {
+      "type": "object",
+      "required": ["prompt", "completion", "total"],
+      "properties": {
+        "prompt": { "type": "integer" },
+        "completion": { "type": "integer" },
+        "total": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "tools": {
+      "type": "object",
+      "required": ["total_calls", "successful_calls", "failed_calls"],
+      "properties": {
+        "total_calls": { "type": "integer" },
+        "successful_calls": { "type": "integer" },
+        "failed_calls": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

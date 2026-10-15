@@ -99,11 +99,16 @@ class Registry(Generic[T]):
             A sorted list of registered items.
         """
         items = self.list_items()
+        key_fn: Callable[[T], Any]
         if key is None:
             # Sort by name (registry key) by default
             # Create a mapping from item to name for efficient lookup
             item_to_name = {v: k for k, v in self._items.items()}
-            key_fn = lambda item: item_to_name[item]
+
+            def name_key(item: T) -> Any:
+                return item_to_name[item]
+
+            key_fn = name_key
         else:
             key_fn = key
 

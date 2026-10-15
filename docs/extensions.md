@@ -6,7 +6,7 @@ Henchman-AI supports multiple extension mechanisms for adding custom functionali
 |--------|---------|----------|
 | **Extensions** | Add tools, commands, and context to the agent | `~/.henchman/extensions/` |
 | **UI Plugins** | Extend the CLI with custom slash commands and UI elements | `~/.henchman/plugins/` |
-| **Plugin Marketplace** | Discover, install, and manage plugins from a central registry | Built-in registry client |
+| **Marketplace boundary** | Guard remote install attempts and report unavailable registry metadata | Remote installs unavailable in this variant |
 
 ## Extension Types
 
@@ -164,6 +164,13 @@ def get_tools(self) -> list[Tool]:
     return [MyTool()]
 ```
 
+Tools with both read-only and mutating modes can override
+`execution_kind(params)` while retaining a static catalog `kind`. Return the
+invocation's `ToolKind` so confirmation, Plan Mode, network retries and automatic
+formatting use the actual mode. The default returns `self.kind`. For example,
+`lint_check` is listed as READ but classifies `fix=True` as WRITE. An override of
+`needs_confirmation` remains responsible for its own confirmation behavior.
+
 ### Adding Custom Commands
 
 ```python
@@ -295,16 +302,13 @@ The `PluginManager` class (in `src/henchman/cli/plugins.py`) provides:
 
 ## Plugin Marketplace
 
-Henchman-AI includes a plugin marketplace system for discovering, installing, and managing plugins from a central registry. This system is separate from the local extension/plugin systems and provides:
+Remote marketplace installation is **unavailable in this variant**. The shipped user-facing plugin surface supports local plugin discovery/loading plus listing and removing locally persisted installations. The `plugin install` command is a guarded boundary: unless a real registry provides usable metadata, it returns explicit unavailable or lookup-failure guidance and must not be interpreted as a working hosted marketplace.
 
-- **Plugin discovery**: Search for plugins by name, category, or description
-- **Installation management**: Install, update, and uninstall plugins
-- **Security scanning**: Check plugin permissions and security
-- **Compatibility checking**: Verify plugin compatibility with your system
+Marketplace-oriented models, registry clients, security scanners, and manager methods remain internal integration seams. Their presence in the Python package does not mean that a central Henchman registry is deployed or that remote search/install/update operations are supported.
 
 ### PluginManager Class
 
-The marketplace `PluginManager` class (in `src/henchman/extensions/plugin_manager.py`) provides:
+The marketplace-facing `PluginManager` class (in `src/henchman/extensions/plugin_manager.py`) defines these integration interfaces:
 
 | Method | Description |
 |--------|-------------|
@@ -316,9 +320,15 @@ The marketplace `PluginManager` class (in `src/henchman/extensions/plugin_manage
 | `check_updates()` | Check for available updates |
 | `scan_security(plugin_name)` | Scan plugin for security issues |
 
-### Plugin Metadata
+These methods require a real registry/backend to make remote operations available. Local extension packages installed with `pip`, entry-point discovery, workspace/user plugin loading, and local list/remove flows do not depend on a hosted marketplace.
 
-Plugins in the marketplace include structured metadata:
+The archive installer validates every member before extraction. Tar packages may
+contain only regular files and directories; symbolic links, hard links, devices,
+and named pipes are rejected on every supported Python version.
+
+### Plugin Metadata Model
+
+The marketplace integration seam models structured metadata that a future or separately configured backend can provide:
 
 ```python
 from henchman.extensions.models import PluginMetadata
@@ -342,7 +352,7 @@ metadata = PluginMetadata(
 |-------|----------|---------|
 | `ExtensionManager` | `src/henchman/extensions/manager.py` | Manages local Extensions (tools, commands, context) |
 | `PluginManager` (UI) | `src/henchman/cli/plugins.py` | Manages UI Plugins (CLI extensions) |
-| `PluginManager` (Marketplace) | `src/henchman/extensions/plugin_manager.py` | Manages plugin marketplace operations |
+| `PluginManager` (Marketplace) | `src/henchman/extensions/plugin_manager.py` | Defines guarded marketplace interfaces; no remote backend ships in this variant |
 
 The `ExtensionManager` class provides the following methods:
 
@@ -385,7 +395,7 @@ description = "My custom extension for Henchman-AI"
 authors = [{name = "Your Name", email = "your.email@example.com"}]
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "henchman-ai>=0.1.0",
     # Add your extension's dependencies here

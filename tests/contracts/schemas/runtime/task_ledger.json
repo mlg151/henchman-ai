@@ -1,0 +1,65 @@
+{
+  "$id": "henchman/contracts/runtime/task-ledger/v1",
+  "title": "TaskLedger",
+  "description": "Shape contract for the serialised TaskLedger dataclass.",
+  "type": "object",
+  "required": ["goal", "checklist", "delegations", "verified"],
+  "properties": {
+    "goal": {
+      "type": "string",
+      "description": "The original user request (never mutated)"
+    },
+    "checklist": {
+      "type": "array",
+      "description": "Ordered list of checklist items for the mission plan",
+      "items": {
+        "type": "object",
+        "required": ["description", "done"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What needs to be done"
+          },
+          "done": {
+            "type": "boolean",
+            "description": "Whether this item has been completed"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "delegations": {
+      "type": "array",
+      "description": "Ordered list of delegation records",
+      "items": {
+        "type": "object",
+        "required": ["agent", "task", "status", "summary"],
+        "properties": {
+          "agent": {
+            "type": "string",
+            "description": "Role of the delegated agent"
+          },
+          "task": {
+            "type": "string",
+            "description": "Short description of the delegated task"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "completed", "failed"],
+            "description": "Current status of the delegation"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Result summary returned by the agent"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "verified": {
+      "type": "boolean",
+      "description": "Whether the overall task has been verified"
+    }
+  },
+  "additionalProperties": false
+}

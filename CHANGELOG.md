@@ -5,9 +5,122 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-**Note on historical measurements**: Line counts marked with "(historical snapshot)" represent file sizes and refactoring achievements **at the time of the change**. These are intentionally preserved historical records, not current file sizes. They document the scale of refactoring work and are valuable for understanding project evolution, even though the specific numbers may become "stale" relative to the current codebase.
+**Note on historical measurements and claims**: Versioned entries describe the state reported at the time of each release. Line counts, test totals, and coverage statements are preserved as historical records, not guarantees about the current tree. Line counts explicitly marked with "(historical snapshot)" likewise record the scale of earlier refactoring rather than current file sizes.
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-10-14
+
+### Added
+
+- `/goal` starts persistent session objectives with automatic interactive continuation, status, pause, resume, completion and clear controls. Structured completion checks the current goal revision and requires a verification summary.
+
+### Changed
+
+- Shell and `python_exec` calls launch independently tracked background jobs by default, with output/status/stop tools and explicit `background=false` foreground execution. Interactive frontends retain messages submitted during work and serialize agent turns.
+- Shell validation and secure-shell presets allow redirects, including `/dev/null` and descriptor duplication; unrelated command checks and execution approvals remain enforced.
+- **Coherent workflow guidance** — Shared default prompts ask agents to keep related edits and required checks under one owner, verify the final relevant state, reuse sufficiently evidenced checks and return timely handoffs. Explicit user/project requirements and independent review remain in effect. Supplied-context advice does not require ceremonial checks. These are instructions, not runtime enforcement; paired live outcomes have not been measured. See [team execution guidance](docs/agents.md#headless-team-execution).
+- **Automatic Black formatting** — The shared harness formats observed Python changes after authorized edits and foreground commands, before verification can consume their results. Black ships at runtime, honors project configuration and reports failures explicitly. Manual `code_format` uses the same bounded backend. The team evaluation's version 3 retains behavior/workflow requirements and checks Black formatting independently.
+- **Complete delegation mission context** — Specialists receive the full original request, preserving requirements beyond the former 500-character cutoff. Only the status board's goal preview is shortened; explicit subtask criteria and request-capacity checks remain in effect.
+- **Retry diagnostic isolation** — Reused specialists clear prior execution errors when a new run starts. Current tool continuations retain their diagnostics, and previously returned handoffs remain unchanged.
+- **Lint-fix execution policy** — `lint_check(fix=True)` uses write authorization, respects Plan Mode and formats observed fixes with Black before returning, including explicit targets outside the working directory. Extension tools can classify invocation modes through `execution_kind(params)`.
+- **Evaluation runtime parity** — Team evaluations receive the CLI's actual workspace environment snapshot. All evaluation profiles now observe final harness results, preserving formatter failures, policy denials and unexecuted calls instead of recording raw implementation success too early.
+
+- **Offline package evaluation** — The explicit team runner supports a package artifact task with protected packaging/data/tests, a pinned local dependency, independent offline rebuild, submitted-wheel installation in a fresh environment, installed CLI/reuse checks and returned specialist-review evidence. Shared artifact observation preserves the existing workflow oracle. Evaluator checks do not attest agent-side installation or hosted CI; live DevOps outcomes remain unverified.
+
+- **Proportionate planning and handoffs** — Default roles share planning and handoff fragments, use concise decisions and findings, and reserve saved tracking for requested or durable coordination. Related changes retain their required checks under coherent ownership; final evidence fields, full review coverage and explicit documentation requirements remain required. Mandatory public thinking transcripts were removed.
+
+- **Team tool discovery** — `tool_search(scope="team", query="<exact tool name>")` reports enabled role capabilities from live registration and scoped tools without creating agents/providers or expanding execution permissions. Default searches explain their local boundary; delegation guidance preserves explicit verification tool requirements.
+
+- **Specialist execution guidance** — Delegations disclose current call and tool-round limits before work starts, recomputing them for cached agents without changing enforcement. Default verification guidance accepts structured test/lint tools and project commands, honors explicit tool requirements and requires observed passing checks on the final changes.
+
+- **Delegation handoff accuracy** — `BLOCKERS: none` and blank blocker fields no longer turn successful specialist actions into false failures. Completion fields come from the final assistant message without consuming following lines; later quoted field names do not replace earlier report fields. Runtime failures and genuine blockers remain unsuccessful, with neutral completion-evidence warnings.
+
+- **Proportionate task artifacts** — Default agent prompts return short discovery findings directly and reserve task folders, scratch probes and README updates for requested or useful durable work. Explicit user/project documentation rules still apply; created supporting artifacts remain under `.agent_tasks/`. All five roles share one workspace-policy fragment.
+
+- **OpenRouter text reasoning continuity** — Compatible streams now accept `reasoning` alongside `reasoning_content`, retaining text through tool turns and subsequent requests without duplicating aliases. Structured or encrypted reasoning blocks remain unsupported.
+
+- **Production team evaluation** — An explicit team profile runs the real orchestrator with copied settings, attributed tool evidence and authoritative root completion. A Python reuse/CLI scenario independently checks behavior, helper reuse, fixed Ruff/mypy gates and workflow ordering against observed artifact changes; a report runner preserves results and closes owned clients. Offline contracts do not establish model competence.
+
+- **Live role tool scopes** — The leader now honors its configured tool and approval lists. Allowed tools registered later, including MCP tools, reach cached agent scopes; removals and replacements affect subsequent calls. Default leader tools include plan verification, and scoped discovery stays independent.
+
+- **Context-sized tool discovery** — Requests that cannot fit a full catalog can expose discovery and core coding schemas, then prioritize up to five tools from the latest search. Default specialists include scope-bound search; paginated discovery retains full inventory access and execution policies remain in effect. Required prompts, requested schemas and output still receive explicit overflow errors.
+
+- **Request context accounting** — Team settings and model switches now retain raw request capacity separately from the conversation target. Per-call estimates include serialized messages, tool schemas and reserved output; complete older turns can be omitted without changing history. Oversized required inputs fail locally. Configured output caps are retained, while compatible providers receive a bounded default when unset. Estimates are not exact server counts.
+
+- **Context length during model switches** — `/model set <provider> [model] --context-length <tokens>` updates the session capacity and effective conversation budgets for the leader and cached/future specialists while preserving history and model overrides. `/model` displays the selected capacity and effective budget; omitting the option retains the current policy.
+
+- **Engineer evaluation profile** — Behavioral evals can opt into the production engineer prompt, preset and available tool scope with `EVAL_PROFILE=engineer`. The minimal baseline remains the default; profile metadata records actual tools, prompt digest and context budget alongside independent correctness checks.
+
+- **Team event streaming** — Serial specialist events now flow through the orchestrator immediately with consumer backpressure, avoiding whole-batch event retention. Closing a nested stream stops remaining work, preserves completed-call evidence, and records interrupted delegations as failed.
+
+- **Local model target** — Raised the planned laptop baseline to 16 GB RAM, with CPU operation and optional GPU acceleration. Selection and hardware validation remain open.
+
+- **Headless team execution** — JSON CLI formats now use the configured orchestrator and honor `--agent`, with source-agent attribution and one authoritative final result. Shared loops bound tool rounds and record per-agent execution evidence. Delegation follows registry authorization; cached specialist scopes inherit current plan mode and confirmation handling.
+
+- **Plan acceptance observations** — `verify_plan_execution` can record immutable file, command, and pytest checks at plan creation and run them with `verify`. Bounded sequential execution records timestamps, specification digests, and historical results; reported step completion and passing selected checks do not establish whole-task correctness. The tool now uses normal `EXECUTE` policy.
+
+- **Response completion** — Normal answers now report `responded` without requiring tools. Delegations still require successful actions by default, with an explicit response-only option for advice. Runtime events and JSON output distinguish execution from unestablished task verification; terminal completion labels say “finished execution.”
+- **Python quality analysis** — `python_ast(action="quality")` now reports bounded syntax-clone, long-method and deep-nesting candidates with qualified symbols, source locations, errors, and scan coverage. Reused repository detectors now ship in the installed package; script imports remain compatible. Duplicate comparison preserves meaningful names/literals, and nesting distinguishes flat `elif` alternatives.
+- **Python reuse workflow** — Default specialist toolsets now include the existing file overview, symbol tracing, and pattern search tools. Shared role guidance asks agents to inspect reusable implementations and tests, carry evidence into handoffs, and review integrated verification results. Custom allowlists remain unchanged.
+- **Native-platform verification** — Added an independent Linux/macOS/Windows installed-wheel CI matrix covering CLI aliases, local RAG operations and locking, Python execution, REPL/Textual question channels and interruption, and offline five-provider coding workflows outside the source checkout. Hosted results are required before platform verification is claimed.
+- **Supported Python range** — Runtime metadata and CI now target Python 3.11 through 3.14. The built wheel is smoke-installed at both ends of that range after the normal test/build jobs.
+- **RAG and knowledge-graph dependency floors** — Raised ChromaDB to `chromadb>=1.5.9` for current packaging compatibility and declared `scipy>=1.11.2` directly because NetworkX PageRank queries require SciPy at runtime.
+- **Post-build install smoke coverage** — Package smoke jobs verify wheels on Python 3.11 and 3.14 and the source distribution on Python 3.11. Each checks both entry-point versions, CLI help and unknown-command behavior, API readiness, and an explicit-embedding Chroma add/query round trip without external credentials or model downloads.
+- **Operational runtime recovery** — Restored console routing, dependency-bound builtin tools, live-registry tool search, real Textual task/skill/team/session services, and truthful API version, liveness, and readiness responses.
+- **Capability documentation truth** — Public docs now follow the shared discovery capability matrix and distinguish runtime-wired, local-only, export-only, metadata-only, unavailable, docs-only, and intentionally undiscoverable surfaces. Fixed tool counts and blanket completion/production-readiness claims were removed.
+- **Enforceable coverage policy** — CI now enforces a truthful 90% whole-project branch-coverage floor for the expanded recovery tree while retaining the expectation that changed behavior is fully tested.
+
+### Fixed
+
+- **Subprocess coverage configuration** — Pin the project coverage configuration for child interpreters, preventing line/branch data mismatches from contaminating exact shell and Python output checks.
+
+- **Plugin archive extraction** — Reject tar links, devices, and named pipes before extracting any members, preventing archive-created links from escaping the installation directory on older supported Python versions.
+
+- **Python execution recovery** — Missing Python source now explains the required `code` and optional `cwd` fields, preserving failure status and keeping mistaken shell command arguments unexecuted and unreflected.
+
+- **Shell newline recovery** — Rejected literal or escaped newlines now explain the single-line command requirement and point to `python_exec` only when allowed. Validation, execution permissions and other error categories remain unchanged.
+
+- **Workflow execution truth** — Workflow run/trigger helpers no longer report rendered strings as completed commands. New records retain previews with zero executed steps and explicit execution-unavailable status; tools return unsuccessful execution results. Historical records remain intact, and shared discovery classifies the surface as metadata-only.
+
+- **Chat session continuation** — `/chat resume` retains saved text reasoning alongside assistant/tool history in the command fallback path, preserving the next compatible-provider request without displaying that reasoning.
+
+- **Configured team leader** — The actual leader now shares the pool's cached instance and honors its saved provider, model, identity and prompt, retaining history through direct execution, resets and model/context switching. Partial builtin-role settings inherit preset metadata; explicit lists retain replacement semantics.
+- **Active model displays and commands** — REPL and Textual provider/model labels and slash commands follow the acting leader or direct specialist. The toolbar honors an explicit context capacity, and provider selection switches the direct agent while preserving other pinned roles.
+- **Active agent reuse** — Delegation rejects a running or reserved agent before clearing its history, preventing self/ancestor delegation from corrupting the shared leader's transcript. Reservations cover suspended startup and release on success, failure and cancellation.
+
+- **Acting-agent tool dispatch** — Fallback terminal and standalone JSON execution now use the acting agent's registry for execution and approval classification. Explicitly supplied empty runtime registries are retained for later tool registration.
+
+- **Ollama request defaults** — Saved compatible options, including output token caps, now reach the shared provider request path. Unsupported SDK keywords still fail before a runtime switch changes active references.
+
+- **Context switch setter integration** — The agent accepts the raw `context_window` passed by the runtime switcher, fixing the unexpected-keyword failure when selecting a context length.
+
+- **Quoted Python verification commands** — The default shell tool no longer recursively splits quoted snippets at semicolons, ampersands or pipes. Balanced `python -c` verification commands reach the shell unchanged while existing whole-command restrictions and execution approval remain in effect.
+
+- **Edit targeting and recovery** — Reject incomplete line ranges even when `old_str` is supplied. Ambiguous-match errors guide a fresh read and unique contextual replacement. Optional `read_file(line_numbers=true)` exposes current absolute line numbers; line edits use the same newline boundaries, including files containing form feeds or Unicode separators. Edit guidance explains full-range replacement and previews.
+
+- **Keyless compatible endpoints** — Supply an explicit placeholder only to the SDK when no API key is configured, retaining empty saved settings and avoiding SDK credential inheritance. This supports SDK versions that reject empty credentials for local servers.
+
+- **Python evaluation false passes** — Live evaluation wrappers reject missing, failed or interrupted turns even when their results are ignored. Counter, class-extension, rename and multi-file scenarios now check independent behavior instead of accepting shared state, unchanged code or comments. Portable child checks bound diagnostics and distinguish completed assertions from premature exit zero.
+
+- **Team context limits** — The leader and specialists now receive the configured conversation limit and compaction threshold. Cached agents preserve explicit budgets across provider switches; standalone pools retain model-derived limits when no budget is supplied.
+
+- **Turn evidence isolation** — Completion checks use the final committed answer rather than discarded retry text. New turns and cleared history reset stall failures while preserving detector settings; tool continuations retain the current turn's evidence. Unbound delegation now reports unavailable instead of claiming execution.
+- **Completion integrity** — Provider failures and abnormal finishes now report `failed` even after successful tools. Specialist prose cannot override runtime status; unsuccessful or missing delegation outcomes fail the tool result and ledger entry. Nested tool calls no longer inflate parent success, and terminal UIs no longer render failed or unknown outcomes as completed.
+- **Python symbol signatures** — AST symbol output now preserves positional-only and keyword-only parameters, defaults, variadic arguments, and annotations.
+- **Terminal interruption** — Bare Escape now interrupts after a bounded input-idle timeout; fragmented arrow and function-key sequences do not accidentally cancel the turn. Question prompts release the key monitor after answers, timeout, or cancellation.
+- **Conversational history** — Replies no longer gain a fabricated user message demanding a `THINKING:` prefix. Planning guidance is task-appropriate; concrete tool and completion evidence checks remain separate.
+- **User-input evidence** — Unbound `ask_user` no longer fabricates a successful answer. A supplied async handler must return an actual answer; timeout and missing responses fail explicitly. Classic REPL and Textual now bind actual input channels with serialized prompts and cancellation cleanup; headless remains unavailable and discovery distinguishes that dependency.
+- **Behavioral evaluation integrity** — Evaluations use the shared provider factory and bounded headless loop. Explicit provider selection cannot silently fall back, whole-turn timeouts are enforced, and incomplete/error terminals fail. A Python reuse scenario checks real inspection, edits, test execution, and use of the existing helper. The installed coding-workflow fixture prevents stale bytecode after instantaneous same-size edits.
+- **Python verification and discovery** — Inheritance searches preserve Python identifier case. Pytest and lint tools validate runtime selections. Pytest requires completed-session evidence and a passed test call for execution success; inherited collection and entirely skipped runs cannot establish verification. Its independent report preserves project JUnit artifacts. Interrupted subprocess cleanup uses bounded terminate/kill/reap attempts. Git file-specific commit inspection passes the revision and path as separate arguments, including paths containing spaces.
+- **Platform portability** — Shell and RAG startup no longer require Unix-only imports on Windows. RAG uses native POSIX/Windows locks without truncating existing lockfiles. Shell process checks use procfs only on Linux, correctly parse names containing spaces, and preserve native Windows commands without Unix sudo rewrites. Upgrade detection recognizes Windows uv/pipx paths while preserving safe argv and ambiguity handling. Owned Python snippets emit UTF-8 output to match the capture decoder.
+- **Interactive session continuity** — REPL and Textual save settled turns after completion or cancellation, including full tool results, reasoning, and partial replies. An independent turn transcript preserves evidence across context compaction. Resume restores the selected agent without leaking summaries from the previous session or duplicating the configured system prompt. Interrupted execution preserves completed tool results and cancels unanswered calls without duplicate responses.
+- **Coding-loop interruption and completion** — Provider streams close deterministically and preserve original errors when cleanup also fails. Cancelled partial replies retain an interruption marker. Tool batches with missing or duplicate identities are rejected before dispatch. Headless JSON execution uses bounded iteration, correlated tool results, one terminal completion, and nonzero failure exits. Interactive stream errors stop queued work and preserve cancelled requests and multi-round tool declarations.
+- **Configured provider selection and switching** — Shared provider construction honors explicit selection instead of inferring DeepSeek from unrelated credentials. Compatible model names, provider-specific environment keys, key references, keyless Ollama/local endpoints, and saved OpenRouter request options are applied consistently. Runtime model switches update effective model state while retaining session history and tool bindings; configuration success is no longer presented as a network connection test.
+- **Provider stream reliability** — OpenRouter and other compatible adapters reject malformed/non-object tool arguments, retain usage-only chunks, and propagate transport failures instead of returning successful assistant text. Anthropic shares argument validation. The agent retains text on finish chunks, reports interrupted streams, and stops stall retries after provider errors. Partial tool calls from truncated responses are not saved as completed requests.
+- **REPL chat turn presentation** — Replaced the permanent per-turn `CHAT`/token line (which exposed literal Rich markup) with a transient thinking indicator. Mode and token usage now remain in the bottom toolbar, and direct-agent turns show a plain role detail.
+- **Deterministic operational probes** — `/v1/health` and `/v1/ready` bypass request rate limiting, preventing monitoring traffic from consuming the application request bucket or receiving HTTP 429.
+- **Non-Git project context boundary** — Context discovery outside a Git repository now stops at the current working directory. It does not inherit instruction files from parent directories or scan subdirectories without a repository root, while global `~/.henchman/HENCHMAN.md` context remains available.
 
 ## [0.3.15] - 2026-03-18
 
@@ -784,7 +897,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/mlg151/henchman-ai/compare/v0.3.17...v0.4.0
 [0.3.13]: https://github.com/mlg151/henchman-ai/compare/v0.3.11...v0.3.13
 [0.3.11]: https://github.com/mlg151/henchman-ai/compare/v0.3.10...v0.3.11
 [0.3.10]: https://github.com/mlg151/henchman-ai/compare/v0.3.9...v0.3.10

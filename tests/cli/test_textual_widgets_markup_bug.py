@@ -6,6 +6,7 @@ Fix: Add `trusted` flag so system messages render markup, user content is escape
 """
 
 from rich.console import Console
+from rich.text import Text
 
 from henchman.cli.textual_widgets import ChatMessage, ChatPane
 
@@ -26,16 +27,10 @@ class TestSystemMessageRichMarkup:
         assert "\\[bold\\]" not in rendered, (
             f"Escaped backslashes found in trusted output: {rendered!r}"
         )
-        # Verify Rich actually renders bold by extracting plain text
-        console = Console(force_terminal=True)
-        with console.capture() as capture:
-            console.print(rendered, markup=True, highlight=False, end="")
-        plain = capture.get()
-        assert "Henchman-AI" in plain
-        # ANSI bold escape should be present in the console output
-        assert "\x1b[1m" in plain, (
-            f"No ANSI bold escape in console output: {plain!r}"
-        )
+        # Verify the semantic style without depending on terminal colour settings.
+        parsed = Text.from_markup(rendered)
+        offset = parsed.plain.index("Henchman-AI")
+        assert parsed.get_style_at_offset(Console(), offset).bold is True
 
     def test_system_message_with_colored_markup(self):
         """Markup like [cyan]text[/] should render, not appear literally."""
@@ -48,15 +43,14 @@ class TestSystemMessageRichMarkup:
         assert "\\[cyan\\]" not in rendered, (
             f"Escaped backslashes found in trusted output: {rendered!r}"
         )
-        console = Console(force_terminal=True)
-        with console.capture() as capture:
-            console.print(rendered, markup=True, highlight=False, end="")
-        plain = capture.get()
-        assert "old" in plain and "new" in plain
-        # ANSI cyan escape should be present
-        assert "\x1b[" in plain, (
-            f"No ANSI color escape in console output: {plain!r}"
-        )
+        parsed = Text.from_markup(rendered)
+        assert "old" in parsed.plain and "new" in parsed.plain
+        console = Console()
+        for token in ("old", "new"):
+            offset = parsed.plain.index(token)
+            color = parsed.get_style_at_offset(console, offset).color
+            assert color is not None
+            assert color.name == "cyan"
 
     def test_chatpane_add_system_message_renders_markup(self):
         """Messages added via add_system_message should render Rich markup."""

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
 
-from .orchestrator_types import RESULT_PREVIEW_LENGTH
+from .orchestrator_types import RESULT_PREVIEW_LENGTH, CompletionRequirement
 
 if TYPE_CHECKING:
     from henchman.core.agent import Agent
@@ -27,6 +27,19 @@ _BRIEF_FIELDS = (
 )
 
 
+def get_completion_requirement(
+    arguments: dict[str, Any] | None,
+) -> CompletionRequirement:
+    """Validate the requested outcome, retaining actions as the default."""
+    raw = (arguments or {}).get("completion_requirement", "actions")
+    try:
+        return CompletionRequirement(raw)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            "completion_requirement must be 'actions' or 'response'.",
+        ) from exc
+
+
 def extract_brief_fields(arguments: dict[str, Any]) -> dict[str, Any]:
     """Extract delegation brief fields from tool arguments.
 
@@ -36,7 +49,9 @@ def extract_brief_fields(arguments: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Dictionary containing only the brief fields from the input arguments.
     """
-    return {f: arguments.get(f) for f in _BRIEF_FIELDS}
+    brief = {f: arguments.get(f) for f in _BRIEF_FIELDS}
+    brief["completion_requirement"] = get_completion_requirement(arguments).value
+    return brief
 
 
 def create_delegation_event(
@@ -88,7 +103,8 @@ def create_tool_result_event(
         data={
             "tool_call_id": tool_call.id,
             "tool_name": tool_call.name,
-            "result": (result_content or "")[:RESULT_PREVIEW_LENGTH],
+            "result": result_content or "",
+            "preview": (result_content or "")[:RESULT_PREVIEW_LENGTH],
             "success": success,
         },
         source_agent=agent.identity.id if agent.identity else None,

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/skills/skill_definition/v1",
+  "type": "object",
+  "required": ["name", "description", "instructions", "source_path", "source_kind"],
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "instructions": { "type": "string" },
+    "source_path": { "type": "string" },
+    "source_kind": { "type": "string" }
+  },
+  "additionalProperties": false
+}

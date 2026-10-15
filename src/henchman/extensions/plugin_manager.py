@@ -30,6 +30,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+class PluginMarketplaceUnavailableError(RuntimeError):
+    """Raised when the plugin marketplace is not available."""
+
+
+class PluginRegistryLookupError(RuntimeError):
+    """Raised when a plugin registry lookup fails."""
+
 PLUGIN_MANAGER_NOT_INITIALIZED = "Plugin manager not initialized"
 SEARCH_DEPRECATION_STACKLEVEL = 3
 
@@ -177,7 +185,7 @@ class PluginManager(ExtensionManager):
 
     async def initialize(self: PluginManager) -> None:
         """Initialize storage, clients, and enabled plugins.
-        
+
         Returns:
             None
         """
@@ -197,7 +205,7 @@ class PluginManager(ExtensionManager):
 
     async def close(self: PluginManager) -> None:
         """Close the registry client and reset initialization state.
-        
+
         Returns:
             None
         """
@@ -217,7 +225,7 @@ class PluginManager(ExtensionManager):
         search_params: PluginSearchParams | None = None,
     ) -> PluginSearchResult:
         """Search the plugin registry.
-        
+
         Args:
             query: Search query string. If None, returns all plugins.
             page: Page number (1-indexed). Defaults to 1.
@@ -225,10 +233,10 @@ class PluginManager(ExtensionManager):
             category: Filter by category. If None, searches all categories.
             search_params: Advanced search parameters. If provided, overrides individual
                 query/page/page_size/category parameters.
-        
+
         Returns:
             PluginSearchResult containing matching plugins and pagination info.
-        
+
         Raises:
             RuntimeError: If plugin manager is not initialized.
         """
@@ -244,16 +252,16 @@ class PluginManager(ExtensionManager):
         version: str | None = None,
     ) -> PluginMetadata | None:
         """Fetch plugin metadata from the registry.
-        
+
         Args:
             plugin_name: Name of the plugin to fetch metadata for.
             version: Optional specific version of the plugin. If None, fetches
                 the latest version.
-        
+
         Returns:
             PluginMetadata object containing plugin information if found,
             None if the plugin does not exist in the registry.
-        
+
         Raises:
             RuntimeError: If plugin manager is not initialized.
         """
@@ -269,18 +277,18 @@ class PluginManager(ExtensionManager):
         confirm_permissions: bool = True,
     ) -> PluginInstallation:
         """Install a plugin from the registry.
-        
+
         Args:
             plugin_name: Name of the plugin to install.
             version: Optional specific version of the plugin. If None, installs
                 the latest version.
             confirm_permissions: Whether to log and confirm plugin permissions
                 before installation. Defaults to True.
-        
+
         Returns:
             PluginInstallation object containing installation details including
             metadata, installation path, and timestamps.
-        
+
         Raises:
             RuntimeError: If plugin manager is not initialized or plugin is
                 incompatible with the current environment.
@@ -367,13 +375,13 @@ class PluginManager(ExtensionManager):
 
     async def uninstall_plugin(self: PluginManager, plugin_name: str) -> None:
         """Uninstall a plugin and remove its local state.
-        
+
         Args:
             plugin_name: Name of the plugin to uninstall.
-            
+
         Returns:
             None
-            
+
         Raises:
             RuntimeError: If plugin manager is not initialized.
             ValueError: If plugin is not installed.
@@ -388,15 +396,15 @@ class PluginManager(ExtensionManager):
 
     async def update_plugin(self: PluginManager, plugin_name: str) -> PluginInstallation | None:
         """Update an installed plugin to the latest version.
-        
+
         Args:
             plugin_name: Name of the plugin to update.
-        
+
         Returns:
             PluginInstallation object for the newly installed version if update
             was successful and a newer version was available, None if the plugin
             was not found in the registry or was already up-to-date.
-        
+
         Raises:
             RuntimeError: If plugin manager is not initialized.
             ValueError: If plugin is not installed.
@@ -439,13 +447,13 @@ class PluginManager(ExtensionManager):
 
     async def scan_security(self: PluginManager, plugin_name: str) -> SecurityReport:
         """Run a security scan for an installed plugin.
-        
+
         Args:
             plugin_name: Name of the installed plugin to scan.
-            
+
         Returns:
             SecurityReport with scan results including warnings, errors, and risk level.
-            
+
         Raises:
             ValueError: If the plugin is not installed.
         """

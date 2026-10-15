@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SessionVcrCassette",
+  "description": "Persisted session playback recording.",
+  "type": "object",
+  "properties": {
+    "session_id": { "type": "string" },
+    "tag": { "type": ["string", "null"] },
+    "events": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "message" },
+              "index": { "type": "integer" },
+              "role": { "type": "string" },
+              "content": { "type": ["string", "null"] },
+              "tool_call_id": { "type": ["string", "null"] },
+              "tool_calls": { "type": "array" },
+              "agent_id": { "type": ["string", "null"] }
+            },
+            "required": ["type", "index", "role"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "summary" },
+              "index": { "type": "integer" },
+              "summary": { "type": "string" }
+            },
+            "required": ["type", "index", "summary"]
+          }
+        ]
+      }
+    }
+  },
+  "required": ["session_id", "events"]
+}

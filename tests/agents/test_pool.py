@@ -200,3 +200,61 @@ def test_agent_pool_shutdown():
 
     pool.shutdown()
     assert len(pool._agents) == 0
+
+
+def test_custom_shell_scope_can_track_jobs_without_gaining_launch_tools():
+    """Changing to background defaults must leave custom agents able to follow jobs."""
+    parent = ToolRegistry()
+    for name in ("shell", "task_get", "task_list", "task_output", "task_stop", "task_create",
+                 "python_exec", "goal_status"):
+        parent.register(MockTool(name))
+    scope = create_scoped_registry(parent, ["shell"])
+    assert {"task_get", "task_list", "task_output", "task_stop", "goal_status"} <= set(
+        scope.list_tools()
+    )
+    assert scope.get("python_exec") is None
+    assert scope.get("task_create") is None
+    scope.unregister("task_stop")
+    assert scope.get("task_stop") is None
+    parent.unregister("task_get")
+    assert scope.get("task_get") is None
+
+
+def test_read_only_custom_scope_can_complete_goal_without_task_control():
+    parent = ToolRegistry()
+    for name in ("read_file", "goal_status", "task_get", "task_stop"):
+        parent.register(MockTool(name))
+    scope = create_scoped_registry(parent, ["read_file"])
+    assert scope.get("goal_status") is not None
+    assert scope.get("task_stop") is None
+    assert scope.get("task_get") is None
+
+
+def test_custom_job_tracking_discovery_matches_live_scope():
+    parent = ToolRegistry()
+    for name in ("delegate_task", "python_exec", "task_output", "goal_status"):
+        parent.register(MockTool(name))
+    configs = {
+        "tech_lead": AgentConfig(name="Lead", role="tech_lead", description="Lead", tools=["delegate_task"]),
+        "engineer": AgentConfig(name="Engineer", role="engineer", description="Code", tools=["python_exec"]),
+    }
+    pool = AgentPool(configs, MagicMock(spec=ModelProvider), None, parent, EventBus())
+    pool.get_agent("tech_lead")
+    assert pool.find_team_tool_roles("task_output", requester_role="tech_lead") == ["engineer"]
+    pool.get_agent("engineer")
+    assert pool.find_team_tool_roles("task_output", requester_role="tech_lead") == ["engineer"]
+
+
+async def test_companion_task_stop_preserves_parent_confirmation_denial():
+    parent = ToolRegistry()
+    parent.register(MockTool("shell", ToolKind.EXECUTE))
+    parent.register(MockTool("task_stop", ToolKind.WRITE))
+
+    async def deny(_request):
+        return False
+
+    parent.set_confirmation_handler(deny)
+    scope = create_scoped_registry(parent, ["shell"])
+    result = await scope.execute("task_stop", {"task_id": "existing-job"})
+    assert not result.success
+    assert "denied" in result.error.lower()

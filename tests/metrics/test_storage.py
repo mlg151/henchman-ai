@@ -1,7 +1,7 @@
 """Tests for henchman.metrics.storage."""
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -140,8 +140,8 @@ class TestMetricsQueryParams:
 
     def test_date_filters(self) -> None:
         """Test query with start/end date filters."""
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 12, 31, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 12, 31, tzinfo=UTC)
         params = MetricsQueryParams(start_date=start, end_date=end)
         query, vals = params.build_query()
         assert "timestamp >=" in query
@@ -158,8 +158,8 @@ class TestMetricsQueryParams:
 
     def test_all_filters(self) -> None:
         """Test query with all filters set."""
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 12, 31, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 12, 31, tzinfo=UTC)
         params = MetricsQueryParams(
             metric_type=MetricType.COST,
             session_id="s1",
@@ -301,8 +301,8 @@ class TestMetricsStorage:
 
     def test_get_metrics_date_filter(self, storage_with_data: MetricsStorage) -> None:
         """Test filtering metrics by date range."""
-        start = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2030, 1, 1, tzinfo=timezone.utc)
+        start = datetime(2020, 1, 1, tzinfo=UTC)
+        end = datetime(2030, 1, 1, tzinfo=UTC)
         results = storage_with_data.get_metrics(start_date=start, end_date=end)
         assert len(results) >= 1
 
@@ -410,8 +410,8 @@ class TestMetricsStorage:
 
     def test_get_aggregated_stats_with_dates(self, storage_with_data: MetricsStorage) -> None:
         """Test aggregated stats with date range."""
-        start = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2030, 1, 1, tzinfo=timezone.utc)
+        start = datetime(2020, 1, 1, tzinfo=UTC)
+        end = datetime(2030, 1, 1, tzinfo=UTC)
         results = storage_with_data.get_aggregated_stats(
             MetricType.TOKEN_USAGE,
             group_by="day",
@@ -542,8 +542,6 @@ class TestSessionMetricsAnalyzer:
             max_metrics=10,
         )
         # Monkeypatch fetchone to return None to hit line 729
-        original_get_connection = storage._get_connection
-
         from collections.abc import Generator
         from contextlib import contextmanager
 

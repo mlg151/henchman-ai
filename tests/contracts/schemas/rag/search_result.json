@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://henchman.local/schemas/rag/search_result",
+  "title": "SearchResult",
+  "type": "object",
+  "properties": {
+    "content": { "type": "string" },
+    "file_path": { "type": "string" },
+    "start_line": { "type": "integer" },
+    "end_line": { "type": "integer" },
+    "score": { "type": "number" },
+    "chunk_id": { "type": "string" }
+  },
+  "required": ["content", "file_path", "start_line", "end_line", "score", "chunk_id"],
+  "additionalProperties": false
+}

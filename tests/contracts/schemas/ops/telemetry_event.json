@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "required": ["event_id", "category", "event_type", "payload", "created_at"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "category": {"const": "telemetry"},
+    "event_type": {"type": "string"},
+    "payload": {
+      "type": "object",
+      "required": ["tokens", "tool_calls"],
+      "properties": {
+        "tokens": {"type": "integer"},
+        "tool_calls": {"type": "integer"}
+      }
+    },
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

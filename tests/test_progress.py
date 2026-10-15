@@ -40,13 +40,11 @@ def test_progress_manager():
         _progress = pm.start_task("task1", "Downloading", total=100)
 
         if "task1" not in pm.tasks:
-            print("❌ Task not added to manager")
-            return False
+            raise AssertionError("Task not added to manager")
 
         # Check if progress was started
         if not progress_mock.start.called:
-            print("❌ Progress.start() not called")
-            return False
+            raise AssertionError("Progress.start() not called")
 
         # Test updating a task
         print("Updating task...")
@@ -54,29 +52,25 @@ def test_progress_manager():
 
         # Verify update was called on the correct Progress instance
         if not progress_mock.update.called:
-            print("❌ Progress.update() not called")
-            return False
+            raise AssertionError("Progress.update() not called")
 
         # Test completing a task
         print("Completing task...")
         pm.complete_task("task1")
 
         if "task1" in pm.tasks:
-            print("❌ Task not removed after completion")
-            return False
+            raise AssertionError("Task not removed after completion")
 
         if not progress_mock.stop.called:
-            print("❌ Progress.stop() not called")
-            return False
+            raise AssertionError("Progress.stop() not called")
 
         print("✅ ProgressManager basic operations working")
-        return True
 
 
 if __name__ == "__main__":
     try:
-        success = test_progress_manager()
-        sys.exit(0 if success else 1)
+        test_progress_manager()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         sys.exit(1)

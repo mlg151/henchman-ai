@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import multiprocessing
 import tempfile
-import time
+from multiprocessing.queues import Queue
+from multiprocessing.synchronize import Event
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -13,6 +15,20 @@ from henchman.config.schema import RagSettings
 from henchman.rag.concurrency import RagLock
 from henchman.rag.store import VectorStore
 from henchman.rag.system import RagSystem, initialize_rag
+
+
+def _acquire_rag_lock(
+    lock_path: str,
+    result_queue: Queue[bool],
+    release_event: Event,
+) -> None:
+    """Acquire a RAG lock in a picklable subprocess entry point."""
+    lock = RagLock(Path(lock_path))
+    acquired = lock.acquire(timeout=0.5)
+    result_queue.put(acquired)
+    if acquired:
+        release_event.wait(timeout=5.0)
+        lock.release()
 
 
 class TestRagSystemConcurrency:
@@ -258,44 +274,33 @@ class TestMultiProcessRag:
 
     def test_lock_across_processes(self) -> None:
         """Test that locks work across different processes."""
-        import multiprocessing
-
-        def worker(lock_path: str, result_queue: multiprocessing.Queue) -> None:
-            """Worker function that tries to acquire lock."""
-            from henchman.rag.concurrency import RagLock
-
-            lock = RagLock(Path(lock_path))
-            acquired = lock.acquire(timeout=0.5)
-            result_queue.put(acquired)
-            if acquired:
-                time.sleep(0.2)  # Hold lock briefly
-                lock.release()
-
         with tempfile.TemporaryDirectory() as tmpdir:
             lock_path = Path(tmpdir) / "cross_process.lock"
             result_queue = multiprocessing.Queue()
+            release_event = multiprocessing.Event()
 
             # Start worker process
-            process = multiprocessing.Process(target=worker, args=(str(lock_path), result_queue))
+            process = multiprocessing.Process(
+                target=_acquire_rag_lock,
+                args=(str(lock_path), result_queue, release_event),
+            )
             process.start()
 
-            # Give worker time to acquire lock
-            time.sleep(0.1)
+            try:
+                worker_acquired = result_queue.get(timeout=3.0)
 
-            # Try to acquire lock in main process - should fail
-            lock = RagLock(lock_path)
-            acquired = lock.acquire(timeout=0.1)
-
-            # Wait for worker to finish
-            process.join()
-
-            # Check results
-            worker_acquired = result_queue.get(timeout=1.0)
+                # Try to acquire while the worker holds the lock - should fail
+                lock = RagLock(lock_path)
+                acquired = lock.acquire(timeout=0.1)
+            finally:
+                release_event.set()
+                process.join(timeout=3.0)
 
             # Worker should have acquired lock
             assert worker_acquired is True
             # Main process should not have acquired lock
             assert acquired is False
+            assert process.exitcode == 0
 
 
 if __name__ == "__main__":

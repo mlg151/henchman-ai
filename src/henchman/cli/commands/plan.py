@@ -35,6 +35,40 @@ def _toggle_plan_mode(ctx: CommandContext) -> bool:
     return new_mode
 
 
+def apply_plan_mode(
+    *,
+    enabled: bool,
+    session: object | None = None,
+    tool_registry: object | None = None,
+    agent: object | None = None,
+) -> None:
+    """Apply plan mode to the active session's tool registry and agent.
+
+    Args:
+        enabled: Whether plan mode should be enabled.
+        session: Optional session to mark with plan_mode flag.
+        tool_registry: The tool registry to set plan mode on.
+        agent: The agent to update with plan mode prompt.
+    """
+    if tool_registry is not None:
+        from henchman.tools.registry import ToolRegistry
+
+        if isinstance(tool_registry, ToolRegistry):
+            tool_registry.set_plan_mode(enabled=enabled)
+
+    # Mark the session with the plan_mode flag if it supports it
+    if session is not None and hasattr(session, "plan_mode"):
+        session.plan_mode = enabled
+
+    if agent is not None and hasattr(agent, "system_prompt"):
+        system_prompt = agent.system_prompt
+        if isinstance(system_prompt, str):
+            if enabled and PLAN_MODE_PROMPT not in system_prompt:
+                agent.system_prompt = system_prompt + PLAN_MODE_PROMPT
+            elif not enabled:
+                agent.system_prompt = system_prompt.replace(PLAN_MODE_PROMPT, "")
+
+
 def _apply_plan_mode_to_tools(ctx: CommandContext, enabled: bool) -> None:
     """Apply plan-mode setting to the tool registry.
 

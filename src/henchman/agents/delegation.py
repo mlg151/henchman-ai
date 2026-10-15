@@ -7,15 +7,22 @@ import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import anyio
 
+from henchman.agents.orchestrator_execution import _close_stream, closing_event_stream
 from henchman.agents.orchestrator_types import AgentLoopParams
+from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
 
-from .orchestrator_anchoring import _enrich_completion_from_report
+from .orchestrator_anchoring import (
+    _enrich_completion_from_report,
+    completion_evidence,
+)
+from .orchestrator_events import get_completion_requirement
+from .pool import ActiveAgentError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
@@ -87,22 +94,47 @@ MAX_PARALLEL_DELEGATION_BUFFER: int = 10_000
 
 _STOP_WORDS: frozenset[str] = frozenset(
     {
-        "a", "an", "and", "are", "as", "at", "be", "by", "do", "for",
-        "from", "has", "he", "in", "is", "it", "its", "of", "on", "or",
-        "that", "the", "this", "to", "was", "were", "will", "with",
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "do",
+        "for",
+        "from",
+        "has",
+        "he",
+        "in",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "this",
+        "to",
+        "was",
+        "were",
+        "will",
+        "with",
     },
 )
 """Common words excluded when scoring context relevance."""
 
 # Pre-compiled regex patterns for performance
 _COMPLETION_REPORT_PATTERNS = {
-    "status": re.compile(r"(?i)STATUS:\s*([^\n]*)"),
-    "files_modified": re.compile(r"(?i)FILES_MODIFIED:\s*([^\n]*)"),
-    "tests_run": re.compile(r"(?i)TESTS_RUN:\s*([^\n]*)"),
-    "verification": re.compile(r"(?i)VERIFICATION:\s*([^\n]*)"),
-    "blockers": re.compile(r"(?i)BLOCKERS:\s*([^\n]*)"),
-    "handoff_notes": re.compile(r"(?i)HANDOFF_NOTES:\s*([^\n]*)"),
-    "artifacts": re.compile(r"(?i)ARTIFACTS:\s*([^\n]*)"),
+    "status": re.compile(r"(?im)^[ \t]*STATUS:[ \t]*([^\r\n]*)"),
+    "files_modified": re.compile(r"(?im)^[ \t]*FILES_MODIFIED:[ \t]*([^\r\n]*)"),
+    "tests_run": re.compile(r"(?im)^[ \t]*TESTS_RUN:[ \t]*([^\r\n]*)"),
+    "verification": re.compile(r"(?im)^[ \t]*VERIFICATION:[ \t]*([^\r\n]*)"),
+    "blockers": re.compile(r"(?im)^[ \t]*BLOCKERS:[ \t]*([^\r\n]*)"),
+    "handoff_notes": re.compile(r"(?im)^[ \t]*HANDOFF_NOTES:[ \t]*([^\r\n]*)"),
+    "artifacts": re.compile(r"(?im)^[ \t]*ARTIFACTS:[ \t]*([^\r\n]*)"),
 }
 """Pre-compiled regex patterns for parsing completion reports."""
 
@@ -142,16 +174,12 @@ def _score_context_relevance(
     if entry.get("agent") == target_role:
         score += SAME_AGENT_RELEVANCE_BONUS
 
-    task_tokens = {
-        w.lower() for w in task.split() if w.lower() not in _STOP_WORDS
-    }
+    task_tokens = {w.lower() for w in task.split() if w.lower() not in _STOP_WORDS}
     if not task_tokens:
         return score
 
     entry_text = (entry.get("summary", "") or "") + " " + (entry.get("files_modified", "") or "")
-    summary_tokens = {
-        w.lower() for w in entry_text.split() if w.lower() not in _STOP_WORDS
-    }
+    summary_tokens = {w.lower() for w in entry_text.split() if w.lower() not in _STOP_WORDS}
 
     overlap = task_tokens & summary_tokens
     score += KEYWORD_OVERLAP_WEIGHT * (len(overlap) / len(task_tokens))
@@ -179,10 +207,7 @@ def _validate_agent_messages_attr(agent: Any, role: str) -> str | None:
             f"AgentProtocol. Missing required 'messages' attribute."
         )
     if agent.messages is None:
-        return (
-            f"Agent '{role}' has messages=None. "
-            f"Expected Sequence[Message], got NoneType."
-        )
+        return f"Agent '{role}' has messages=None. Expected Sequence[Message], got NoneType."
     if isinstance(agent.messages, (str, bytes)) or not isinstance(agent.messages, Sequence):
         msg_type = type(agent.messages).__name__
         return (
@@ -207,10 +232,7 @@ def _validate_agent_messages_content(agent: Any, role: str) -> str | None:
     try:
         sample = agent.messages[0]
     except (IndexError, TypeError) as exc:
-        return (
-            f"Agent '{role}' messages sequence is invalid: "
-            f"cannot access index 0: {exc}"
-        )
+        return f"Agent '{role}' messages sequence is invalid: cannot access index 0: {exc}"
     if not (hasattr(sample, "role") and hasattr(sample, "content")):
         return (
             f"Agent '{role}' messages appear to not be Message instances. "
@@ -280,7 +302,7 @@ def _add_to_shared_context(
         "agent": target_role,
         "summary": summary_text,
         "files_modified": files_modified,
-        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
     }
     shared_context.append(entry)
     if len(shared_context) > MAX_SHARED_CONTEXT_ENTRIES:
@@ -415,14 +437,21 @@ def _get_status_value(status: Any) -> str:
     Returns:
         The status value string, or "UNKNOWN_STATUS" if not extractable.
     """
-    try:
-        return status.value
-    except AttributeError:
-        pass
+    value = getattr(status, "value", None)
+    if isinstance(value, str):
+        return value
     with contextlib.suppress(Exception):
         if status is not None:
             return str(status)
     return "UNKNOWN_STATUS"
+
+
+def _final_completion_report(target_agent: Agent, msg_start: int) -> str:
+    """Read the last assistant message in this delegation, including an empty one."""
+    for message in reversed(target_agent.messages[msg_start:]):
+        if message.role == "assistant":
+            return message.content or ""
+    return ""
 
 
 def _build_agent_summary(target_agent: Any, msg_start: int) -> str:
@@ -436,11 +465,7 @@ def _build_agent_summary(target_agent: Any, msg_start: int) -> str:
         Summary string, optionally with a tool-error digest appended.
     """
     messages = target_agent.messages
-    summary_parts = (
-        m.content
-        for m in messages[msg_start:]
-        if m.role == "assistant" and m.content
-    )
+    summary_parts = (m.content for m in messages[msg_start:] if m.role == "assistant" and m.content)
     summary = "\n\n".join(summary_parts)
     tool_errors = _fetch_agent_errors(target_agent)
     if tool_errors:
@@ -618,10 +643,7 @@ def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> No
 def _get_valid_target_agent_for_execution(params: DelegationParams) -> Any:
     """Return the validated target agent for a delegation."""
     if params.target_agent is None:
-        msg = (
-            f"Cannot prepare execution for agent '{params.target_role}': "
-            "target_agent is None."
-        )
+        msg = f"Cannot prepare execution for agent '{params.target_role}': target_agent is None."
         raise ValueError(msg)
     target_agent = params.target_agent
     error = _check_agent_protocol_compliance(target_agent, params.target_role)
@@ -665,9 +687,51 @@ def _populate_execution_params(
     params.msg_start = len(target_agent.messages)
 
 
+def _render_runtime_limits(agent: Any, max_calls: int) -> str:
+    """Describe the current execution settings without changing their enforcement."""
+    lines = ["## Runtime Limits for This Delegation"]
+    if type(max_calls) is int:
+        if max_calls > 0:
+            lines.append(
+                f"Tool-call stop threshold: {max_calls} individual requested calls, "
+                "including failed calls. Each call in a batch counts separately; "
+                "the threshold is checked after the entire batch executes. "
+                "Reaching it stops this delegation before another model response. "
+                "Finish verification and report before exhausting this threshold."
+            )
+        else:
+            lines.append("Tool-call stop threshold: disabled for this execution.")
+    batches = getattr(agent, "base_tool_iterations", AgentConfig().base_tool_iterations)
+    if type(batches) is int and batches >= 0:
+        lines.append(
+            f"Tool-batch limit: {batches} executed batches. "
+            "A batch contains one or more requested tool calls. "
+            + ("With zero batches, no tool batch can execute. " if batches == 0 else "")
+            + "A final answer without tools is allowed after the last permitted batch "
+            "if the tool-call stop threshold has not been reached."
+        )
+    capacity = getattr(agent, "context_window", None)
+    if type(capacity) is int and capacity > 0:
+        lines.append(
+            f"Request context capacity: {capacity} tokens, including instructions, "
+            "messages, tool schemas and reserved output."
+        )
+    elif capacity is None:
+        lines.append("Request context capacity: not explicitly configured.")
+    target = getattr(agent, "max_tokens", None)
+    if type(target) is int and target > 0:
+        lines.append(f"Conversation compaction target: {target} tokens.")
+    lines.append(
+        "These are execution settings, not an exact remaining-token count. "
+        "Use focused reads and concise results; reserve time for verification and your final report."
+    )
+    return "\n".join(lines)
+
+
 async def _execute_loop(
     runner: DelegationRunner,
     params: DelegationParams,
+    loop_params: AgentLoopParams | None = None,
 ) -> AsyncIterator[AgentEvent]:
     """Execute the agent loop for a single delegation.
 
@@ -683,23 +747,32 @@ async def _execute_loop(
         RuntimeError: If agent loop execution fails.
     """
     max_turns = runner.settings.agents.max_delegation_turns
-    loop_params = AgentLoopParams(
-        agent=params.target_agent,
-        input_text=params.full_task,
-        depth=params.depth,
-        max_turns=max_turns,
-        msg_start_index=params.msg_start,
+    if loop_params is None:
+        loop_params = AgentLoopParams()
+    loop_params.agent = params.target_agent
+    loop_params.depth = params.depth
+    loop_params.max_turns = max_turns
+    loop_params.msg_start_index = params.msg_start
+    loop_params.completion_requirement = get_completion_requirement(params.brief)
+    loop_params.input_text = (
+        f"{params.full_task}\n\n{_render_runtime_limits(loop_params.agent, loop_params.max_turns)}"
     )
     agent_loop_result = runner._run_agent_loop(loop_params)  # noqa: SLF001
+    primary_error: BaseException | None = None
     try:
         async for event in agent_loop_result:
             yield event
     except Exception as exc:
+        primary_error = exc
         msg = (
-            f"Failed to execute agent loop for '{params.target_role}': "
-            f"{type(exc).__name__}: {exc}"
+            f"Failed to execute agent loop for '{params.target_role}': {type(exc).__name__}: {exc}"
         )
         raise RuntimeError(msg) from exc
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        await _close_stream(agent_loop_result, primary_error=primary_error)
 
 
 async def _finalize_execution(
@@ -736,10 +809,11 @@ async def _finalize_execution(
     yield AgentEvent(
         type=EventType.AGENT_COMPLETED,
         data={
+            **parsed,
             "agent": params.target_role,
             "summary": summary,
             "status": status_value,
-            **parsed,
+            **completion_evidence(params.target_agent),
         },
         source_agent="orchestrator",
     )
@@ -794,6 +868,11 @@ class DelegationRunner:
         Yields:
             AgentEvents from the specialist agent.
         """
+        try:
+            get_completion_requirement(params.brief)
+        except ValueError as exc:
+            yield self._make_error_event(str(exc))
+            return
         if self._is_delegation_depth_exceeded(params.depth):
             async for event in self._yield_depth_exceeded_error():
                 yield event
@@ -804,6 +883,23 @@ class DelegationRunner:
             yield target_agent
             return
         params.target_agent = target_agent
+        loop_params = AgentLoopParams(agent=target_agent)
+        try:
+            with self.pool.claim_agent(target_agent, owner=loop_params):
+                stream = self._run_claimed_delegation(params, loop_params)
+                async with closing_event_stream(stream) as events:
+                    async for event in events:
+                        yield event
+        except ActiveAgentError as exc:
+            yield self._make_error_event(str(exc))
+
+    async def _run_claimed_delegation(
+        self,
+        params: DelegationParams,
+        loop_params: AgentLoopParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Prepare, execute and finalize while holding the target reservation."""
+        target_role = params.target_role
         try:
             _prepare_execution(self, params)
         except (ValueError, AttributeError, TypeError, RuntimeError) as exc:
@@ -816,8 +912,16 @@ class DelegationRunner:
             data={"agent": target_role},
             source_agent="orchestrator",
         )
-        async for event in self._execute_and_finalize(params):
-            yield event
+        stream = self._execute_and_finalize(params, loop_params)
+        primary_error: BaseException | None = None
+        try:
+            async for event in stream:
+                yield event
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
+            await _close_stream(stream, primary_error=primary_error)
 
     async def _resolve_target_agent(
         self: DelegationRunner,
@@ -844,6 +948,7 @@ class DelegationRunner:
     async def _execute_and_finalize(
         self: DelegationRunner,
         params: DelegationParams,
+        loop_params: AgentLoopParams | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute the agent loop and finalize delegation results.
 
@@ -854,22 +959,29 @@ class DelegationRunner:
             AgentEvents from execution and finalization.
         """
         target_role = params.target_role
+        stream = _execute_loop(self, params, loop_params)
+        primary_error: BaseException | None = None
         try:
-            async for event in _execute_loop(self, params):
+            async for event in stream:
                 yield event
         except Exception as exc:  # noqa: BLE001
+            primary_error = exc
             yield self._make_error_event(
-                f"Failed to execute delegation for '{target_role}': "
-                f"{type(exc).__name__}: {exc}",
+                f"Failed to execute delegation for '{target_role}': {type(exc).__name__}: {exc}",
             )
             return
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
+            await _close_stream(stream, primary_error=primary_error)
         try:
-            async for event in _finalize_execution(self, params):
-                yield event
+            async with closing_event_stream(_finalize_execution(self, params)) as events:
+                async for event in events:
+                    yield event
         except Exception as exc:  # noqa: BLE001
             yield self._make_error_event(
-                f"Failed to finalize delegation for '{target_role}': "
-                f"{type(exc).__name__}: {exc}",
+                f"Failed to finalize delegation for '{target_role}': {type(exc).__name__}: {exc}",
             )
 
     def _make_error_event(
@@ -973,14 +1085,11 @@ class DelegationRunner:
         )
         relevant = scored[:RECENT_CONTEXT_ENTRIES]
         handoff_lines = [
-            f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}"
-            for entry in relevant
+            f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}" for entry in relevant
         ]
         handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
         existing_bg = brief.get("background") or ""
-        brief["background"] = (
-            f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
-        )
+        brief["background"] = f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
 
     def _inject_failure_context(
         self: DelegationRunner,
@@ -996,9 +1105,7 @@ class DelegationRunner:
         if not self.ledger:
             return
         prior_failures = [
-            d
-            for d in self.ledger.delegations
-            if d.agent == target_role and d.status == "FAILED"
+            d for d in self.ledger.delegations if d.agent == target_role and d.status == "FAILED"
         ]
         if not prior_failures:
             return
@@ -1010,9 +1117,7 @@ class DelegationRunner:
             f"Avoid repeating the same approach."
         )
         existing_bg = brief.get("background") or ""
-        brief["background"] = (
-            f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
-        )
+        brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
 
     def _prepare_delegation_context(
         self: DelegationRunner,
@@ -1055,7 +1160,7 @@ class DelegationRunner:
         """
         _validate_messages_access(target_agent, msg_start)
         summary = _build_agent_summary(target_agent, msg_start)
-        parsed = self._parse_completion_report(summary)
+        parsed = self._parse_completion_report(_final_completion_report(target_agent, msg_start))
         base_status = self._assess_completion(target_agent)
         status = _enrich_completion_from_report(base_status, parsed)
         return summary, parsed, status

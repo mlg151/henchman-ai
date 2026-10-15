@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/tool-call/v1",
+  "type": "object",
+  "required": ["id", "name", "arguments"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "arguments": { "type": "object" }
+  },
+  "additionalProperties": false
+}

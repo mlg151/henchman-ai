@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterable
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -23,6 +23,7 @@ class ReadFileConfig:
     start_line: int = 1
     end_line: int = -1
     max_chars: int = DEFAULT_MAX_CHARS
+    line_numbers: bool = False
 
 
 def _config_from_read_kwargs(path: str, kwargs: dict[str, Any]) -> ReadFileConfig:
@@ -40,6 +41,7 @@ def _config_from_read_kwargs(path: str, kwargs: dict[str, Any]) -> ReadFileConfi
         start_line=int(kwargs.get("start_line", 1)),
         end_line=int(kwargs.get("end_line", -1)),
         max_chars=int(kwargs.get("max_chars", DEFAULT_MAX_CHARS)),
+        line_numbers=bool(kwargs.get("line_numbers", False)),
     )
 
 
@@ -49,7 +51,7 @@ def _would_exceed_char_limit(max_chars: int, chars_read: int, line: str) -> bool
 
 
 async def _read_lines_from_file(
-    file_handle: AsyncIterator[str],
+    file_handle: AsyncIterable[str],
     config: ReadFileConfig,
 ) -> list[str]:
     """Read and filter lines from an async-iterable file handle.
@@ -65,12 +67,14 @@ async def _read_lines_from_file(
     current_line = 0
     chars_read = 0
 
-    async for line in file_handle:  # type: ignore[union-attr]
+    async for line in file_handle:
         current_line += 1
         if current_line < config.start_line:
             continue
         if config.end_line != -1 and current_line > config.end_line:
             break
+        if config.line_numbers:
+            line = f"{current_line}: {line}"
         if _would_exceed_char_limit(config.max_chars, chars_read, line):
             lines.append(line[: config.max_chars - chars_read])
             lines.append(f"\n... (truncated after {config.max_chars} chars)")
@@ -137,7 +141,9 @@ class ReadFileTool(Tool):
         return (
             "Read the contents of a file. Supports optional line range for large files. "
             "Always use start_line/end_line to read specific ranges when dealing with "
-            "large files to avoid exceeding context limits."
+            "large files to avoid exceeding context limits. Use line_numbers=true "
+            "to get current 1-based line numbers before a line-range edit. Number "
+            "prefixes are display annotations, not file content; omit them from edits."
         )
 
     @property
@@ -165,6 +171,14 @@ class ReadFileTool(Tool):
                     "description": f"Maximum characters to return. Default: {DEFAULT_MAX_CHARS}",
                     "default": DEFAULT_MAX_CHARS,
                 },
+                "line_numbers": {
+                    "type": "boolean",
+                    "description": (
+                        "Prefix each line with its absolute 1-based number and ': '. "
+                        "Prefixes count toward max_chars and are not file content."
+                    ),
+                    "default": False,
+                },
             },
             "required": ["path"],
         }
@@ -183,7 +197,7 @@ class ReadFileTool(Tool):
 
         Args:
             path: Path to the file to read.
-            **kwargs: Optional ``start_line``, ``end_line``, and ``max_chars``.
+            **kwargs: Optional ``start_line``, ``end_line``, ``max_chars``, ``line_numbers``.
 
         Returns:
             ToolResult with file contents or error.

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import coerce_int
 
 
 @dataclass
@@ -605,7 +606,8 @@ def _coerce_kwarg(
 ) -> bool | int:
     """Coerce a keyword argument using a default appropriate for the target type."""
     default = False if coercer is bool else 0
-    return coercer(kwargs.get(key, default))
+    value = kwargs.get(key, default)
+    return bool(value) if coercer is bool else coerce_int(value)
 
 
 def _grep_params_from_kwargs(pattern: str, kwargs: dict[str, object]) -> GrepParameters:

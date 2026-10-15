@@ -1,0 +1,22 @@
+{
+  "$id": "henchman/contracts/runtime/decision-entry/v1",
+  "title": "DecisionEntry",
+  "description": "Shape contract for the serialised DecisionEntry dataclass.",
+  "type": "object",
+  "required": ["decision", "rationale", "impact"],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "description": "The decision that was made"
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Why the decision was made"
+    },
+    "impact": {
+      "type": "string",
+      "description": "Assessed impact of the decision (e.g. 'high', 'medium', 'low')"
+    }
+  },
+  "additionalProperties": false
+}

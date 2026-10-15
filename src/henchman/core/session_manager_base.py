@@ -64,6 +64,39 @@ class _SessionManagerBase:
         """Clear the current session."""
         self._current = None
 
+    def _project_current_path(
+        self: _SessionManagerBase, project_hash: str
+    ) -> Path:
+        """Return the file path used to persist a project's current session ID."""
+        return self.data_dir / ".current" / f"{project_hash}.txt"
+
+    def get_project_current(
+        self: _SessionManagerBase, project_hash: str
+    ) -> str | None:
+        """Return the current session ID for a project, or None."""
+        path = self._project_current_path(project_hash)
+        if path.exists():
+            return path.read_text().strip()
+        return None
+
+    def set_project_current(
+        self: _SessionManagerBase,
+        project_hash: str,
+        session_id: str,
+    ) -> None:
+        """Persist the current session ID for a project."""
+        path = self._project_current_path(project_hash)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(session_id)
+
+    def clear_project_current(
+        self: _SessionManagerBase, project_hash: str
+    ) -> None:
+        """Remove the persisted current session ID for a project."""
+        path = self._project_current_path(project_hash)
+        if path.exists():
+            path.unlink()
+
     # ------------------------------------------------------------------
     # CRUD operations
     # ------------------------------------------------------------------

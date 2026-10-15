@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import shutil
 import sys
@@ -11,11 +12,13 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import Literal
 
 import aiohttp
 
 from henchman.extensions.constants import PluginConstants
 from henchman.extensions.models import PluginMetadata, PluginSource
+from henchman.tools.security import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +204,8 @@ def _parse_github_url(source_url: str) -> tuple[str, str | None]:
 async def _download_archive(url: str) -> Path:
     """Download *url* to a temporary file and return its :class:`Path`.
 
+    Validates the URL against SSRF attacks before making the HTTP request.
+
     Args:
         url: Remote URL of an archive to download.
 
@@ -209,8 +214,12 @@ async def _download_archive(url: str) -> Path:
         deleting it).
 
     Raises:
+        SSRFError: If the URL points to a private/localhost IP address.
         RuntimeError: If the HTTP response is not 200 or the download fails.
     """
+    # Validate URL to prevent SSRF attacks
+    validate_url(url)
+
     try:
         async with aiohttp.ClientSession() as session, session.get(url) as response:
             if response.status != _HTTP_OK:
@@ -226,13 +235,41 @@ async def _download_archive(url: str) -> Path:
         raise RuntimeError(msg) from e
 
 
-def _tar_open_mode(source_url: str) -> str | None:
+def _tar_open_mode(source_url: str) -> Literal["r:gz", "r"] | None:
     """Return the tarfile open mode for *source_url*, or ``None`` if unsupported."""
     if source_url.endswith((".tar.gz", ".tgz")):
         return "r:gz"
     if source_url.endswith(".tar"):
         return "r"
     return None
+
+
+def _validate_archive_member_path(member_path: str, target_dir: Path) -> None:
+    """Validate that an archive member path does not escape *target_dir*.
+
+    Rejects both absolute paths (e.g. ``/etc/passwd``) and relative traversal
+    (e.g. ``../../evil.txt``).
+
+    Args:
+        member_path: Path of an archive member.
+        target_dir: Intended extraction directory.
+
+    Raises:
+        ValueError: If the member path would write outside *target_dir*.
+    """
+    # Reject absolute paths
+    if os.path.isabs(member_path):
+        msg = f"Archive member {member_path} is outside the target directory"
+        raise ValueError(msg)
+
+    # Reject path traversal (e.g. ../ or a/../../)
+    target_resolved = target_dir.resolve()
+    member_resolved = (target_dir / member_path).resolve()
+    try:
+        member_resolved.relative_to(target_resolved)
+    except ValueError:
+        msg = f"Archive member {member_path} is outside the target directory"
+        raise ValueError(msg) from None
 
 
 def _extract_archive_file(
@@ -243,6 +280,8 @@ def _extract_archive_file(
     """Extract an archive file to *target_dir*.
 
     Archive type is inferred from the *source_url* extension.
+    All member paths are validated to prevent zip/tar slip attacks.
+    Tar archives may contain only regular files and directories.
 
     Args:
         archive_path: Local path to the downloaded archive.
@@ -251,10 +290,14 @@ def _extract_archive_file(
 
     Raises:
         RuntimeError: If the archive format is unsupported.
+        ValueError: If a member escapes *target_dir* or has an unsafe type.
     """
     if source_url.endswith(".zip"):
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
-            zip_ref.extractall(target_dir)
+            for member_name in zip_ref.namelist():
+                _validate_archive_member_path(member_name, target_dir)
+            # ZIP paths are checked above; ZipFile does not extract tar links.
+            zip_ref.extractall(target_dir)  # nosec B202
         return
 
     tar_mode = _tar_open_mode(source_url)
@@ -263,7 +306,13 @@ def _extract_archive_file(
         raise RuntimeError(msg)
 
     with tarfile.open(archive_path, tar_mode) as tar_ref:
-        tar_ref.extractall(target_dir)
+        for member in tar_ref.getmembers():
+            _validate_archive_member_path(member.name, target_dir)
+            if not (member.isfile() or member.isdir()):
+                msg = f"Unsupported archive member type: {member.name}"
+                raise ValueError(msg)
+        # All paths and types are checked before extraction, including on 3.11.
+        tar_ref.extractall(target_dir)  # nosec B202
 
 
 def _copy_local_path(source_path: Path, target_dir: Path) -> None:

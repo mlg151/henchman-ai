@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/knowledge/observation/v1",
+  "type": "object",
+  "required": ["content", "source", "timestamp", "author"],
+  "properties": {
+    "content": { "type": "string" },
+    "source": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "author": { "type": "string" }
+  },
+  "additionalProperties": false
+}

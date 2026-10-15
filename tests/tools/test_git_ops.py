@@ -174,11 +174,24 @@ class TestGitOpsTool:
         result = await tool.execute(action="log", ref="HEAD", max_count=3)
         assert isinstance(result.content, str)
 
-    async def test_show_with_path(self) -> None:
-        """Show commit contents for specific file."""
+    async def test_show_with_path(self, tmp_path) -> None:
+        """Show only the requested committed file, preserving spaces in paths."""
+        import subprocess
+
+        subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+        (tmp_path / "module with spaces.py").write_text("VALUE = 'requested'\n")
+        (tmp_path / "unrelated.py").write_text("VALUE = 'unrelated'\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+             "-c", "commit.gpgsign=false", "commit", "-m", "Fixture"],
+            cwd=tmp_path, check=True, capture_output=True,
+        )
         tool = GitOpsTool()
-        result = await tool.execute(action="show", path="pyproject.toml")
-        assert isinstance(result.content, str)
+        result = await tool.execute(action="show", path="module with spaces.py", cwd=str(tmp_path))
+        assert result.success, result.content
+        assert "+VALUE = 'requested'" in result.content
+        assert "unrelated.py" not in result.content
 
     async def test_stash_list_empty_output(self) -> None:
         """Stash list with no stashes returns clean message."""
@@ -213,18 +226,16 @@ class TestGitOpsTool:
 
     async def test_run_git_timeout(self) -> None:
         """_run_git handles timeout."""
-        import asyncio
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from henchman.tools.builtins.git_ops import _run_git
 
         mock_process = MagicMock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_process.communicate = AsyncMock(side_effect=TimeoutError())
         with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
-                ok, output = await _run_git(["status"])
-                assert ok is False
-                assert "timed out" in output
+            ok, output = await _run_git(["status"])
+            assert ok is False
+            assert "timed out" in output
 
 
 class TestGitOpsCoverageGaps:

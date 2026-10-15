@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 DEFAULT_FILENAMES: tuple[str, ...] = (
     "HENCHMAN.md",
+    ".henchman/HENCHMAN.md",
     ".github/copilot-instructions.md",
     ".gemini/GEMINI.md",
 )
@@ -70,6 +71,7 @@ class ContextLoader:
         filenames: Sequence[str] | None = None,
         *,
         include_subdirs: bool = False,
+        start_dir: Path | None = None,
     ) -> None:
         """Initialize the context loader.
 
@@ -79,6 +81,8 @@ class ContextLoader:
             filenames: Sequence of filenames / relative paths to discover.
                 Defaults to :data:`DEFAULT_FILENAMES`.
             include_subdirs: Whether to search subdirectories.
+            start_dir: Directory to start discovery from. When omitted,
+                the current working directory is used.
         """
         if filename is not None:
             self.filenames: tuple[str, ...] = (filename,)
@@ -87,6 +91,7 @@ class ContextLoader:
         else:
             self.filenames = DEFAULT_FILENAMES
         self.include_subdirs = include_subdirs
+        self._start_dir = start_dir
 
     @property
     def filename(self) -> str:
@@ -213,11 +218,12 @@ class ContextLoader:
         Returns:
             List of paths to context files, ordered from root to current.
         """
-        cwd = Path.cwd().resolve()
+        cwd = (self._start_dir or Path.cwd()).resolve()
         git_root = self._find_git_root(cwd)
+        stop_at = git_root or cwd
 
         files = self._global_context_files()
-        files.extend(self._ancestor_context_files(cwd, git_root or cwd, files))
+        files.extend(self._ancestor_context_files(cwd, stop_at, files))
         if self.include_subdirs and git_root:
             files.extend(self._subdir_context_files(cwd))
         return files

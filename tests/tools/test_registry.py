@@ -605,7 +605,7 @@ class TestRegistryCoverageGaps:
         registry = ToolRegistry()
         registry.register(MockReadTool())
 
-        async def exploding_execute(name: str, params: dict) -> None:
+        async def exploding_execute(_name: str, _params: dict) -> None:
             raise RuntimeError("tool exploded")
 
         with patch.object(registry, "execute", side_effect=RuntimeError("exploded again")):

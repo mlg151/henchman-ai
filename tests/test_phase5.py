@@ -30,8 +30,7 @@ def test_accessibility():
     # Verify unicode check mark
     args = console_mock.print.call_args[0][0]
     if "✓" not in args:
-        print(f"❌ Normal mode missing checkmark: {args}")
-        return False
+        raise AssertionError(f"Normal mode missing checkmark: {args}")
 
     # 2. Test Accessible Mode
     renderer_access = OutputRenderer(console=console_mock, accessible_mode=True)
@@ -39,8 +38,7 @@ def test_accessibility():
     # Verify text label
     args = console_mock.print.call_args[0][0]
     if "[OK]" not in args:
-        print(f"❌ Accessible mode missing [OK]: {args}")
-        return False
+        raise AssertionError(f"Accessible mode missing [OK]: {args}")
     print("✅ Accessible mode (messages) verified")
 
     # 3. Test Table accessibilty
@@ -54,10 +52,7 @@ def test_accessibility():
             if last_arg.box == box.ASCII:
                 print("✅ Accessible table uses ASCII box")
             else:
-                print(f"❌ Accessible table uses {last_arg.box}")
-                return False
-
-    return True
+                raise AssertionError(f"Accessible table uses {last_arg.box}")
 
 
 def test_keybindings():
@@ -79,13 +74,13 @@ def test_keybindings():
     # However, if creating the session didn't crash, it means the keys were processed.
 
     print("✅ create_session accepted keybindings")
-    return True
 
 
 if __name__ == "__main__":
     try:
-        success = test_accessibility() and test_keybindings()
-        sys.exit(0 if success else 1)
+        test_accessibility()
+        test_keybindings()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

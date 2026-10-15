@@ -16,10 +16,13 @@ This module targets specific uncovered code paths in:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from henchman.agents.delegation import DelegationRunner
 
 # ---------------------------------------------------------------------------
 # delegation.py – missing lines
@@ -446,28 +449,33 @@ class TestDelegationMissingLines:
         )
         runner._get_target_agent_with_error_handling = AsyncMock(return_value=mock_agent)
 
-        async def empty_loop(*args: Any, **kwargs: Any) -> Any:
+        async def empty_loop(*_args: Any, **_kwargs: Any) -> Any:
             return
             yield  # type: ignore
 
-        with patch("henchman.agents.delegation._prepare_execution"):
-            with patch("henchman.agents.delegation._execute_loop",
-                       return_value=empty_loop()):
-                with patch("henchman.agents.delegation._finalize_execution") as mock_fin:
-                    async def raise_value_error(*a: Any) -> Any:
-                        raise ValueError("finalize failed")
-                        yield  # type: ignore
+        with (
+            patch("henchman.agents.delegation._prepare_execution"),
+            patch(
+                "henchman.agents.delegation._execute_loop",
+                return_value=empty_loop(),
+            ),
+            patch("henchman.agents.delegation._finalize_execution") as mock_fin,
+        ):
 
-                    mock_fin.return_value = raise_value_error()
-                    params = DelegationParams(
-                        target_role="explorer",
-                        task="test",
-                        brief=None,
-                        depth=0,
-                    )
-                    events = []
-                    async for event in runner.run_delegation(params):
-                        events.append(event)
+            async def raise_value_error(*_args: Any) -> Any:
+                raise ValueError("finalize failed")
+                yield  # type: ignore
+
+            mock_fin.return_value = raise_value_error()
+            params = DelegationParams(
+                target_role="explorer",
+                task="test",
+                brief=None,
+                depth=0,
+            )
+            events = []
+            async for event in runner.run_delegation(params):
+                events.append(event)
 
         assert any(e.type == EventType.ERROR for e in events)
 
@@ -730,11 +738,16 @@ class TestOrchestratorExecutionMissingLines:
 
         params = AgentLoopParams(agent=mock_agent, input_text="test", depth=0)
 
-        with patch("henchman.agents.orchestrator_execution.check_colon_stall", return_value=None):
-            with patch("henchman.agents.orchestrator_execution.finalize_loop"):
-                events = []
-                async for e in controller.run_agent_loop(params):
-                    events.append(e)
+        with (
+            patch(
+                "henchman.agents.orchestrator_execution.check_colon_stall",
+                return_value=None,
+            ),
+            patch("henchman.agents.orchestrator_execution.finalize_loop"),
+        ):
+            events = []
+            async for e in controller.run_agent_loop(params):
+                events.append(e)
 
         assert any(e.type == EventType.CONTENT for e in events)
 
@@ -790,9 +803,11 @@ class TestOrchestratorInitMissingLines:
         provider = MagicMock()
         provider.name = "mock"
 
-        with patch("henchman.agents.orchestrator_init._init_core"):
-            with patch("henchman.agents.orchestrator_init._init_agents"):
-                init_orchestrator(orchestrator, provider, config=None)
+        with (
+            patch("henchman.agents.orchestrator_init._init_core"),
+            patch("henchman.agents.orchestrator_init._init_agents"),
+        ):
+            init_orchestrator(orchestrator, provider, config=None)
 
     def test_init_agents_with_custom_agent_configs(self) -> None:
         """Lines 112-113: _init_agents merges custom agent configs from settings."""
@@ -813,14 +828,16 @@ class TestOrchestratorInitMissingLines:
         provider = MagicMock()
         config = OrchestratorConfig()
 
-        with patch("henchman.agents.orchestrator_init.get_default_team", return_value={}):
-            with patch("henchman.agents.orchestrator_init._create_pool"):
-                with patch("henchman.agents.orchestrator_init.setup_tech_lead"):
-                    with patch(
-                        "henchman.agents.orchestrator_init.DelegationRunner"
-                    ) as mock_dr:
-                        mock_dr.return_value = MagicMock()
-                        _init_agents(orchestrator, provider, config)
+        with (
+            patch(
+                "henchman.agents.orchestrator_init.get_default_team", return_value={}
+            ),
+            patch("henchman.agents.orchestrator_init._create_pool"),
+            patch("henchman.agents.orchestrator_init.setup_tech_lead"),
+            patch("henchman.agents.orchestrator_init.DelegationRunner") as mock_dr,
+        ):
+            mock_dr.return_value = MagicMock()
+            _init_agents(orchestrator, provider, config)
 
 
 # ---------------------------------------------------------------------------
@@ -999,28 +1016,23 @@ class TestOrchestratorLoopMissingLines:
 class TestOrchestratorComponentsMissingLines:
     """Cover missing paths in orchestrator_components.py."""
 
-    def test_check_thinking_pattern_stripped_no_thinking(self) -> None:
-        """Line 61: check_thinking_pattern calls handle_missing_thinking."""
+    def test_check_thinking_pattern_preserves_plain_response(self) -> None:
+        """Optional response formatting cannot append a fabricated user turn."""
+        from types import SimpleNamespace
+
+        from henchman.agents.metrics import OrchestratorMetrics
         from henchman.agents.orchestrator_components import AgentValidator
         from henchman.providers.base import Message
 
-        orchestrator = MagicMock()
-        orchestrator.metrics = MagicMock()
-        orchestrator.settings.agents.thinking_required = True
-
+        answer = Message(role="assistant", content="No thinking header here")
+        agent = SimpleNamespace(messages=[answer], current_turn_messages=[answer])
+        orchestrator = SimpleNamespace(metrics=OrchestratorMetrics(), tech_lead=agent)
         validator = AgentValidator(orchestrator=orchestrator)
 
-        agent = MagicMock()
-        agent.messages = [Message(role="assistant", content="No thinking here")]
-
-        with patch(
-            "henchman.agents.orchestrator_components.should_check_thinking", return_value=True
-        ), patch(
-            "henchman.agents.orchestrator_components.handle_missing_thinking"
-        ) as mock_missing:
-            mock_missing.return_value = MagicMock()
-            result = validator.check_thinking_pattern(agent)
-        mock_missing.assert_called_once()
+        assert validator.check_thinking_pattern(agent) is None
+        assert agent.messages == [answer]
+        assert agent.current_turn_messages == [answer]
+        assert orchestrator.metrics.thinking_pattern_usage == 0
 
     def test_check_thinking_pattern_empty_content(self) -> None:
         """Line 62: check_thinking_pattern returns None when content is empty."""
@@ -1154,13 +1166,12 @@ class TestPoolMissingLines:
         """Lines 129-130: get_agent creates agent with provider from registry."""
         from henchman.agents.config import AgentConfig
         from henchman.agents.pool import AgentPool
+        from henchman.config.schema import ProviderSettings
+        from henchman.providers import get_default_registry
 
         provider = MagicMock()
         provider.name = "mock"
-        provider_registry = MagicMock()
-        mock_provider_cls = MagicMock()
-        mock_provider_cls.return_value = MagicMock()
-        provider_registry.get.return_value = mock_provider_cls
+        provider_registry = get_default_registry()
 
         config = AgentConfig(
             name="Explorer",
@@ -1174,10 +1185,12 @@ class TestPoolMissingLines:
             parent_tool_registry=MagicMock(),
             provider_registry=provider_registry,
             event_bus=MagicMock(),
+            provider_settings=ProviderSettings(openai={"api_key": "test-key", "model": "gpt-4o"}),
         )
         agent = pool.get_agent("explorer")
         assert agent is not None
-        provider_registry.get.assert_called_with("openai")
+        assert agent.provider.default_model == "gpt-4o"
+        assert agent.provider.api_key == "test-key"
 
     def test_get_agent_with_custom_system_prompt(self) -> None:
         """Lines 149->157: get_agent uses custom system_prompt from config."""
@@ -1220,7 +1233,7 @@ class TestPoolMissingLines:
             event_bus=MagicMock(),
         )
         # Create the agent in pool
-        agent = pool.get_agent("agent")
+        pool.get_agent("agent")
         # Now reset it
         pool.reset_agent("agent")
         # Should not raise
@@ -1290,10 +1303,12 @@ class TestOrchestratorInitMissingLinesExtra:
         provider = MagicMock()
         config = OrchestratorConfig()  # Non-None config
 
-        with patch("henchman.agents.orchestrator_init._init_core"):
-            with patch("henchman.agents.orchestrator_init._init_agents"):
-                # config is not None - skips OrchestratorConfig() creation
-                init_orchestrator(orchestrator, provider, config=config)
+        with (
+            patch("henchman.agents.orchestrator_init._init_core"),
+            patch("henchman.agents.orchestrator_init._init_agents"),
+        ):
+            # config is not None - skips OrchestratorConfig() creation
+            init_orchestrator(orchestrator, provider, config=config)
 
     def test_initialize_orchestrator_without_config(self) -> None:
         """Line 69->71: init_orchestrator creates OrchestratorConfig when config=None."""
@@ -1307,10 +1322,12 @@ class TestOrchestratorInitMissingLinesExtra:
 
         provider = MagicMock()
 
-        with patch("henchman.agents.orchestrator_init._init_core"):
-            with patch("henchman.agents.orchestrator_init._init_agents"):
-                # config=None triggers OrchestratorConfig() creation
-                init_orchestrator(orchestrator, provider, config=None)
+        with (
+            patch("henchman.agents.orchestrator_init._init_core"),
+            patch("henchman.agents.orchestrator_init._init_agents"),
+        ):
+            # config=None triggers OrchestratorConfig() creation
+            init_orchestrator(orchestrator, provider, config=None)
 
 
 # ---------------------------------------------------------------------------

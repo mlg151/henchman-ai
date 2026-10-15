@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/performance_metrics/v1",
+  "title": "PerformanceMetrics",
+  "description": "Shape contract for the serialized PerformanceMetrics dataclass (agents/metrics).",
+  "type": "object",
+  "required": [
+    "task_start_time",
+    "task_end_time",
+    "task_duration_minutes",
+    "files_accessed",
+    "tool_usage_by_type",
+    "delegation_rate",
+    "file_re_reads",
+    "error_rate",
+    "context_window_usage"
+  ],
+  "properties": {
+    "task_start_time": {
+      "type": "number",
+      "description": "Unix timestamp when the task started"
+    },
+    "task_end_time": {
+      "type": "number",
+      "description": "Unix timestamp when the task ended"
+    },
+    "task_duration_minutes": {
+      "type": "number",
+      "description": "Task duration in minutes"
+    },
+    "files_accessed": {
+      "type": "object",
+      "description": "Map of file path to access count",
+      "additionalProperties": { "type": "integer" }
+    },
+    "tool_usage_by_type": {
+      "type": "object",
+      "description": "Map of tool name to usage count",
+      "additionalProperties": { "type": "integer" }
+    },
+    "delegation_rate": {
+      "type": "number",
+      "description": "Rate of delegation (0.0 to 100.0)"
+    },
+    "file_re_reads": {
+      "type": "integer",
+      "description": "Count of file re-reads detected"
+    },
+    "error_rate": {
+      "type": "number",
+      "description": "Error rate percentage (0.0 to 100.0)"
+    },
+    "context_window_usage": {
+      "type": "number",
+      "description": "Context window usage percentage"
+    }
+  },
+  "additionalProperties": false
+}

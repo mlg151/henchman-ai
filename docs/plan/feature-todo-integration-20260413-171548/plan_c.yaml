@@ -1,0 +1,497 @@
+plan_id: feature-todo-integration-20260413-171548
+objective: Restore roadmap/help/docs truth by fixing the highest-risk broken UX first, then narrowing every overstated claim that is not truly shipped.
+created_at: "2026-04-13T17:15:48Z"
+created_by: gem-team:gem-planner
+status: pending_approval
+research_confidence: high
+
+plan_metrics:
+  wave_1_task_count: 3
+  total_dependencies: 12
+  risk_score: medium
+
+tldr: |
+  Variant C is truth-alignment-first. Land only the smallest runtime fixes that immediately stop the worst user harm — reconnect `web_search` to a truthful runtime surface and turn crashing marketplace installs into explicit unsupported guidance — then use those settled facts to aggressively narrow roadmap, help, and canonical docs around Tier 3/Tier 6/Tier 7/Tier 8/Tier 10 claims that are still local-only, metadata-only, blueprint-only, stubbed, or undiscoverable.
+open_questions: []
+
+pre_mortem:
+  overall_risk_level: medium
+  critical_failure_modes:
+    - scenario: Docs are narrowed before the crashy install paths are fixed, so users still hit broken agent/plugin install flows even though the wording is more cautious.
+      likelihood: medium
+      impact: critical
+      mitigation: Sequence the plan so install-path guardrails land in wave 1 and block all documentation work on passing targeted CLI regressions.
+    - scenario: The web_search repair swaps one stub for another by bypassing the real implementation or hiding optional dependency failures behind misleading success states.
+      likelihood: medium
+      impact: high
+      mitigation: Bind the Tier 1 export to the existing concrete implementation, keep dependency-unavailable messaging explicit, and verify through the same registry/help paths users hit.
+    - scenario: The truth pass over-corrects and demotes confirmed-real foundations such as canonical `.henchman`, Tier 1/Tier 2 wiring, and local discovery of agents/skills/plugins.
+      likelihood: medium
+      impact: high
+      mitigation: Use the PRD preserved truths plus AGENTS.md architectural notes as a review checklist before any roadmap/doc claim is rewritten.
+  assumptions:
+    - The concrete DuckDuckGo-based web search tool under src/henchman/tools/builtins/web_search.py is the intended runtime implementation to reuse rather than a new backend to build.
+    - Agent/plugin registry installs remain out of scope unless they can be made truthful with boundary-level error handling instead of a real hosted marketplace.
+    - Canonical roadmap/public truth surfaces for this pass are FEATURE_TODO.md, TODOS.md, README.md, docs/index.md, and CLI help/discovery copy.
+    - Canonical `.henchman` behavior, Tier 1 plus most Tier 2 wiring, and local agent/skill/plugin discovery stay preserved and should not be re-opened.
+
+implementation_specification:
+  code_structure: Keep this variant adapter-heavy and backend-light. Repair truth at the boundaries where users experience it — builtin tool export wiring, top-level CLI command handlers, and canonical docs/help text — while avoiding new registries, runners, webhook services, Slack runtimes, sync backends, or Textual feature implementation.
+  affected_areas:
+    - src/henchman/tools/builtins for Tier 1 tool exports and registry-visible metadata
+    - src/henchman/cli/app.py plus CLI command modules for agents-platform, plugin, help, and doctor truth messaging
+    - FEATURE_TODO.md and TODOS.md as the roadmap source of truth
+    - README.md and docs/index.md as the public product truth surface
+    - tests/cli and tests/tools targeted regression suites for truth-alignment verification
+  component_details:
+    - component: Web search export surface
+      responsibility: Ensure the runtime-visible `web_search` tool points at the real implementation or emits a truthful dependency-unavailable result instead of a hardcoded stub.
+      interfaces:
+        - WebSearchTool export in henchman.tools.builtins.tier1_tools
+        - iter_available_builtin_tool_classes() registry discovery
+    - component: Agent marketplace boundary
+      responsibility: Keep local list/show/publish behavior real while converting registry install flows into explicit unsupported or registry-unavailable outcomes instead of crashes.
+      interfaces:
+        - henchman agents-platform list|show|install|remove|publish
+        - AgentPlatformManager.install_agent()
+    - component: Plugin marketplace boundary
+      responsibility: Keep local plugin persistence/list/remove behavior real while preventing install flows from pretending the marketplace is shipped.
+      interfaces:
+        - henchman plugin list|install|remove
+        - PluginManager.install_plugin()
+    - component: Discovery truth layer
+      responsibility: Make top-level help/discovery copy reflect shipped, local-only, export-only, metadata-only, or unavailable states for risky surfaces.
+      interfaces:
+        - root CLI lazy-command help_text values
+        - henchman help search results and summaries
+        - henchman doctor truth notes for required/discoverable surfaces
+    - component: Canonical roadmap and public docs
+      responsibility: Rewrite roadmap/public claims so Tier 3 marketplace/install flows, schedule_cron execution, MCP reload/registration, Slack runtime integration, Tier 8 services, and Tier 10 dialogs are no longer represented as complete without runtime proof.
+      interfaces:
+        - FEATURE_TODO.md and TODOS.md tier summaries
+        - README.md feature/status sections
+        - docs/index.md entrypoint links and guidance
+  dependencies:
+    - component: Web search export surface
+      relationship: Supplies truthful runtime metadata to help, doctor, and tool discovery without inventing a new search backend.
+    - component: Agent marketplace boundary
+      relationship: Supplies non-crashing install semantics and truthful command copy to discovery/help and roadmap documentation.
+    - component: Plugin marketplace boundary
+      relationship: Supplies non-crashing install semantics and truthful command copy to discovery/help and public documentation.
+    - component: Discovery truth layer
+      relationship: Produces the canonical vocabulary that roadmap and public docs reuse for shipped versus partial surfaces.
+    - component: Canonical roadmap and public docs
+      relationship: Consume discovery/runtime truth and expose it in durable written form for maintainers and users.
+  integration_points:
+    - src/henchman/tools/builtins/tier1_tools.py and src/henchman/tools/builtins/__init__.py
+    - src/henchman/cli/commands/agents_platform_command.py and src/henchman/agents/platform_manager.py
+    - src/henchman/cli/commands/plugin_command.py and src/henchman/extensions/plugin_manager.py
+    - src/henchman/cli/app.py, src/henchman/cli/commands/help_command.py, and src/henchman/cli/commands/doctor_command.py
+    - FEATURE_TODO.md, TODOS.md, README.md, and docs/index.md
+
+contracts:
+  - from_task: truth-web-search-runtime
+    to_task: truth-discovery-surfaces
+    interface: Canonical runtime status for `web_search`, including real implementation binding and dependency-unavailable messaging.
+    format: Builtin tool export plus registry-visible name/description/error contract.
+  - from_task: truth-agents-platform-guardrails
+    to_task: truth-discovery-surfaces
+    interface: Structured install outcomes for agent registry actions that distinguish local discovery from unavailable marketplace behavior.
+    format: Click-facing text/json payloads and narrowed command help strings.
+  - from_task: truth-plugin-guardrails
+    to_task: truth-discovery-surfaces
+    interface: Structured install outcomes for plugin marketplace actions that distinguish local persistence from unavailable remote registry behavior.
+    format: Click-facing text/json payloads and narrowed command help strings.
+  - from_task: truth-discovery-surfaces
+    to_task: truth-roadmap-docs
+    interface: Canonical status vocabulary for shipped, local-only, export-only, metadata-only, undiscoverable, and unavailable surfaces.
+    format: Approved claim matrix keyed by surface name.
+  - from_task: truth-roadmap-docs
+    to_task: truth-public-docs
+    interface: Maintainer-approved truth classifications for each tier and disputed feature surface.
+    format: Edited roadmap status inventory with preserved confirmed-real foundations.
+  - from_task: truth-public-docs
+    to_task: truth-review-gate
+    interface: Final public claim set for README/docs entrypoints after truth narrowing.
+    format: Canonical docs diff plus verification checklist.
+
+tasks:
+  - id: truth-web-search-runtime
+    title: Reconnect runtime web_search to a truthful exported implementation
+    description: |
+      Use the smallest safe code change to stop advertising a stub as a shipped Tier 1 tool. Rebind the Tier 1 `WebSearchTool` export to the concrete implementation that already exists under `src/henchman/tools/builtins/web_search.py`, preserve explicit dependency-unavailable behavior when optional packages are missing, and verify that registry/help discovery sees the same runtime truth users will execute.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: false
+    conflicts_with: []
+    security_sensitive: true
+    file_targets:
+      - src/henchman/tools/builtins/tier1_tools.py
+      - src/henchman/tools/builtins/__init__.py
+      - tests/tools/test_tier1_tools.py
+    context_files:
+      docs/prd.yaml: The PRD explicitly calls web_search export drift a must-resolve truth issue.
+      src/henchman/tools/builtins/web_search.py: Existing concrete implementation should be reused instead of creating a new search backend.
+      tests/cli/test_help_command.py: Help/discovery must report the same tool surface the registry exports.
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 120
+    focus_area: tier1 runtime truth
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py -q
+    acceptance_checks:
+      - The exported `web_search` tool no longer resolves to a hardcoded unavailable placeholder when a concrete implementation exists.
+      - Optional dependency failures remain explicit and deterministic instead of crashing or falsely succeeding.
+      - Registry/discovery output derives from the same exported class users invoke at runtime.
+    acceptance_criteria:
+      - Tier 1 runtime discovery can truthfully describe `web_search` after this task lands.
+      - No new hosted search service, registry, or remote backend is introduced.
+      - The final user-visible behavior is either real DuckDuckGo-backed search or a clear dependency-unavailable result.
+    failure_modes:
+      - scenario: The export is rewired but the registry still instantiates stale placeholder metadata, leaving help/tool_search inconsistent with execution.
+        likelihood: medium
+        impact: high
+        mitigation: Verify through both direct tool tests and help/discovery tests that the same export path is used end to end.
+    task_definition: Replace the runtime web_search stub with a truthful, already-present implementation path.
+    details: Keep this focused on export wiring and regression coverage, not broader search UX or dependency management redesign.
+    tech_stack:
+      - Python 3.12
+      - aiohttp
+      - beautifulsoup4
+      - pytest
+    test_coverage: Direct tool execution plus registry/help visibility regression coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: truth-agents-platform-guardrails
+    title: Make agents-platform install flows truthful instead of crashy
+    description: |
+      Preserve the real local parts of `agents-platform` — list, show, remove, and local publish — while making registry-backed install behavior fail truthfully. Add boundary-level handling so `henchman agents-platform install` returns explicit unsupported or registry-unavailable guidance instead of surfacing placeholder-manager crashes, and narrow command copy so the CLI no longer implies a complete marketplace exists.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: false
+    conflicts_with: []
+    security_sensitive: false
+    file_targets:
+      - src/henchman/cli/commands/agents_platform_command.py
+      - src/henchman/agents/platform_manager.py
+      - tests/cli/test_agents_platform_command.py
+    context_files:
+      docs/prd.yaml: Agent install and marketplace claims are explicitly in scope for truth reduction or small wiring repair.
+      src/henchman/agents/platform_manager.py: Registry calls currently return no metadata and need truthful boundary handling, not a hosted marketplace implementation.
+      README.md: Public copy currently overstates install behavior and should inherit the settled command truth from this task.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 180
+    focus_area: agent install UX
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_agents_platform_command.py -q
+    acceptance_checks:
+      - Install attempts return actionable unsupported or registry-unavailable guidance with non-zero failure semantics instead of a traceback.
+      - Local discovery and local publish flows remain intact and are not demoted accidentally.
+      - Command help text no longer claims a fully shipped registry install path.
+    acceptance_criteria:
+      - "`agents-platform install` cannot crash from known stubbed registry behavior in normal use."
+      - "`agents-platform` remains truthful about what is local versus what is not shipped."
+      - No remote marketplace, hosted registry, or publish backend is added.
+    failure_modes:
+      - scenario: The guardrail hides real local failures behind one generic unsupported message, making debugging harder and masking regressions.
+        likelihood: medium
+        impact: medium
+        mitigation: Restrict the new unsupported path to registry-metadata absence and keep local validation errors explicit.
+    task_definition: Turn the highest-risk agent marketplace mismatch into a safe, truthful boundary.
+    details: Favor explicit unsupported guidance and narrowed copy over speculative registry implementation.
+    tech_stack:
+      - Python 3.12
+      - click
+      - anyio
+      - pytest
+    test_coverage: CLI regression coverage for list/show/publish plus install negative-path handling.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: truth-plugin-guardrails
+    title: Make plugin install flows truthful instead of crashy
+    description: |
+      Keep local plugin listing/removal and sandbox-aware persistence intact, but stop the CLI from acting like the marketplace is production-ready. Add guardrails around registry lookup and install behavior so `henchman plugin install` returns clear unsupported or registry-unavailable guidance rather than surfacing placeholder-manager failures or writing misleading placeholder installations.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: false
+    conflicts_with: []
+    security_sensitive: true
+    file_targets:
+      - src/henchman/cli/commands/plugin_command.py
+      - src/henchman/extensions/plugin_manager.py
+      - tests/cli/test_plugin_command.py
+    context_files:
+      docs/prd.yaml: Plugin install and marketplace claims are explicitly listed as crashing/stubbed surfaces.
+      src/henchman/extensions/plugin_manager.py: Registry search/info are placeholder-only and should be reflected truthfully at the command boundary.
+      docs/extensions.md: Extension docs must ultimately inherit the clarified split between local plugin loading and unfinished marketplace behavior.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: plugin install UX
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_plugin_command.py -q
+    acceptance_checks:
+      - Install attempts fail with explicit unsupported or registry-unavailable guidance instead of traceback-driven crashes.
+      - List/remove operations for already-known local plugins continue to work.
+      - The command no longer writes marketplace-success-looking payloads when registry metadata is absent.
+    acceptance_criteria:
+      - "`plugin install` is safe and truthful under the current stubbed registry state."
+      - Plugin command copy distinguishes local plugin persistence from a fully shipped marketplace.
+      - No new registry service, downloader, or remote plugin execution path is built.
+    failure_modes:
+      - scenario: A guardrail still leaves behind placeholder extension writes, so users think installation succeeded even though nothing real was installed.
+        likelihood: medium
+        impact: high
+        mitigation: Block install before any filesystem write when registry metadata is missing and cover it with CLI regression tests.
+    task_definition: Turn the plugin marketplace mismatch into a safe, non-misleading command surface.
+    details: Preserve existing local plugin mechanics; do not expand into update/search/security-scan backend work.
+    tech_stack:
+      - Python 3.12
+      - click
+      - anyio
+      - pytest
+    test_coverage: CLI regression coverage for install failure semantics plus local list/remove stability.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: truth-discovery-surfaces
+    title: Align top-level help and discovery copy to shipped runtime truth
+    description: |
+      After the wave 1 boundary fixes settle runtime semantics, align CLI discovery so it no longer advertises aspirational surfaces as complete. Update root-command help text plus help/doctor discovery summaries so they clearly distinguish shipped behavior from local-only, export-only, metadata-only, or unavailable surfaces across `web_search`, `agents-platform`, `plugin`, skill CLI discoverability, integration exports, and the absent `/mcp` interactive registration.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - truth-web-search-runtime
+      - truth-agents-platform-guardrails
+      - truth-plugin-guardrails
+    parallelizable: false
+    conflicts_with: []
+    security_sensitive: false
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/help_command.py
+      - src/henchman/cli/commands/doctor_command.py
+    context_files:
+      docs/prd.yaml: Help, doctor, and discovery alignment are explicit success criteria.
+      src/henchman/cli/commands/skill_command.py: Skill CLI is list/show discovery only and should not be presented as full runtime invocation wiring.
+      src/henchman/cli/commands/integration_commands.py: Tier 7 integration commands are export scaffolds and should stay described that way.
+      tests/cli/test_help_command.py: Search results need regression coverage around narrowed command/tool wording.
+      tests/cli/test_doctor_command.py: Doctor output should remain deterministic while reporting truthful capability state.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 240
+    focus_area: discoverability truth
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_doctor_command.py -q
+    acceptance_checks:
+      - Root CLI help no longer implies fully shipped marketplace/install or interactive MCP surfaces that are not actually wired.
+      - Help/doctor wording distinguishes local discovery and scaffold export from runtime-complete capability.
+      - The narrowed vocabulary is stable enough for roadmap and README authors to reuse verbatim.
+    acceptance_criteria:
+      - CLI discovery surfaces are truthful for the highest-risk disputed areas named in the PRD.
+      - "`/mcp` is not advertised as available until it is actually registered and startup token reload exists."
+      - Discovery copy preserves confirmed-real Tier 1/Tier 2 foundations and local discovery behavior.
+    failure_modes:
+      - scenario: Discovery copy is tightened in one command surface but stale root help text still reintroduces the same false claim elsewhere.
+        likelihood: medium
+        impact: high
+        mitigation: Update root CLI help and shared help/doctor summaries in the same task and verify both together.
+    task_definition: Produce one canonical runtime vocabulary for what is shipped versus merely present in source.
+    details: Prefer explicit qualifiers such as local-only, export-only, and unavailable over building new runtime detection frameworks.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: CLI help and doctor regression coverage for narrowed capability text.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: truth-roadmap-docs
+    title: Rewrite roadmap files to match verified capability truth
+    description: |
+      Narrow the maintainer-facing roadmap first. Rewrite FEATURE_TODO.md and TODOS.md so they stop marking disputed Tier 3/Tier 6/Tier 7/Tier 8/Tier 10 surfaces as complete unless runtime wiring is actually verified, while preserving the confirmed truths around canonical `.henchman`, real Tier 1 plus most Tier 2, and local discovery of agents/skills/plugins.
+    wave: 3
+    agent: gem-documentation-writer
+    priority: high
+    status: pending
+    dependencies:
+      - truth-discovery-surfaces
+    parallelizable: true
+    conflicts_with: []
+    security_sensitive: false
+    file_targets:
+      - FEATURE_TODO.md
+      - TODOS.md
+    context_files:
+      docs/prd.yaml: The PRD defines the preserve-versus-narrow rule set for every disputed surface.
+      AGENTS.md: Canonical `.henchman`, local file sync, and Tier 1/Tier 2 stability constraints must remain intact.
+      README.md: Public docs should inherit the same roadmap truth vocabulary after this task settles it.
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 260
+    focus_area: roadmap truth
+    verification:
+      - rg -n "web_search|agents-platform|plugin|schedule_cron|MCP|Slack|Tier 8|Tier 10" FEATURE_TODO.md TODOS.md
+    acceptance_checks:
+      - Roadmap tiers no longer label stubbed, crashing, or undiscoverable surfaces as complete.
+      - Confirmed-real local and foundational surfaces remain marked accurately rather than being reopened.
+      - The resulting roadmap language gives implementers a truthful baseline for future planning.
+    acceptance_criteria:
+      - FEATURE_TODO.md and TODOS.md agree on what is done, partial, local-only, or still open.
+      - Schedule metadata persistence, MCP reload/registration gaps, Slack blueprint-only integration, and disputed Tier 8/Tier 10 claims are narrowed.
+      - The canonical `.henchman` model and real local discovery surfaces remain explicitly preserved.
+    failure_modes:
+      - scenario: The roadmap is narrowed inconsistently across files, leaving FEATURE_TODO.md and TODOS.md disagreeing about the same surface.
+        likelihood: medium
+        impact: high
+        mitigation: Treat FEATURE_TODO.md as the detailed source and update TODOS.md only after the detailed statuses are settled.
+    task_definition: Make the maintainer roadmap truthful before editing user-facing marketing copy.
+    details: Favor precise state labels over checkboxes that imply runtime completeness.
+    tech_stack:
+      - Markdown
+      - ripgrep
+    test_coverage: Claim-audit verification via targeted grep over disputed surfaces.
+    task_type: update
+    audience: developers
+    coverage_matrix:
+      - Tier 3 marketplace/install claims
+      - Tier 6 schedule/MCP claims
+      - Tier 7 Slack runtime versus blueprint claims
+      - Tier 8 and Tier 10 completion claims
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: truth-public-docs
+    title: Narrow public README and docs entrypoints to speed-to-truth scope
+    description: |
+      Once roadmap truth is settled, rewrite the public-facing docs that most users see first. Remove "all phases complete" style messaging, narrow README and docs entrypoint claims around `web_search`, skills/plugins/agents install behavior, integration surfaces, and docs index guidance, and make the plugin/extensions page clearly separate real local plugin loading from the unfinished marketplace story.
+    wave: 3
+    agent: gem-documentation-writer
+    priority: high
+    status: pending
+    dependencies:
+      - truth-discovery-surfaces
+      - truth-roadmap-docs
+    parallelizable: true
+    conflicts_with: []
+    security_sensitive: false
+    file_targets:
+      - README.md
+      - docs/index.md
+      - docs/extensions.md
+    context_files:
+      FEATURE_TODO.md: Public docs should inherit the settled maintainer truth rather than diverge again.
+      src/henchman/cli/app.py: Root command help text is the runtime truth source for command surfaces.
+      docs/mcp.md: MCP guide wording should remain consistent with the fact that `/mcp` is not yet a registered interactive command.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: public truth
+    verification:
+      - rg -n "Complete|web_search|agents-platform|plugin|Slack|MCP" README.md docs/index.md docs/extensions.md
+    acceptance_checks:
+      - README no longer claims a fully complete 13-phase product when major later-tier surfaces are only library/config/blueprint level.
+      - Public docs distinguish local discovery/loading from unfinished marketplace/runtime flows.
+      - Docs index points readers toward truthful canonical docs instead of implying every linked system is end-to-end shipped.
+    acceptance_criteria:
+      - README, docs/index.md, and docs/extensions.md are consistent with the roadmap truth vocabulary.
+      - Public docs preserve the confirmed Tier 1/Tier 2 and local discovery realities while narrowing overstated claims.
+      - Users are less likely to attempt unsupported installs or expect hidden runtime backends after reading the docs.
+    failure_modes:
+      - scenario: README is narrowed but extension docs still describe a full central marketplace, recreating the same false expectation through a secondary entrypoint.
+        likelihood: medium
+        impact: high
+        mitigation: Update the plugin/extensions entrypoint in the same wave as README and cross-check shared terminology before review.
+    task_definition: Turn canonical public docs into a truthful reflection of the shipped runtime.
+    details: This is a docs parity pass, not a redesign of the documentation site or a deep rewrite of every secondary guide.
+    tech_stack:
+      - Markdown
+      - ripgrep
+    test_coverage: Claim-audit verification via targeted grep over public entrypoint docs.
+    task_type: update
+    audience: stakeholders
+    coverage_matrix:
+      - Project status messaging
+      - Tier 1 web_search wording
+      - Agents/platform/plugin marketplace wording
+      - Docs entrypoint guidance
+      - Local plugin loading versus marketplace split
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: truth-review-gate
+    title: Review the truth-alignment pass for regressions, scope drift, and residual false claims
+    description: |
+      Run a final review once runtime guardrails and canonical docs are updated. Validate that the fastest risky repairs landed first, targeted CLI/tool regressions are green, no task expanded into building missing backends, and the final roadmap/help/docs set is internally consistent about what is shipped, local-only, export-only, metadata-only, or unavailable.
+    wave: 4
+    agent: gem-reviewer
+    priority: medium
+    status: pending
+    dependencies:
+      - truth-web-search-runtime
+      - truth-agents-platform-guardrails
+      - truth-plugin-guardrails
+      - truth-discovery-surfaces
+      - truth-roadmap-docs
+      - truth-public-docs
+    parallelizable: false
+    conflicts_with: []
+    security_sensitive: true
+    file_targets:
+      - tests/cli
+      - tests/tools
+      - docs
+    context_files:
+      docs/prd.yaml: Reviewer must validate every acceptance criterion and scope boundary against the final diff.
+      AGENTS.md: Reviewer must ensure `.henchman` semantics and update-docs expectations stayed preserved.
+      FEATURE_TODO.md: Final roadmap wording is the maintainer source of truth and must match README/help.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 180
+    focus_area: final truth audit
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py tests/cli/test_agents_platform_command.py tests/cli/test_plugin_command.py tests/cli/test_help_command.py tests/cli/test_doctor_command.py -q
+      - rg -n "Complete|web_search|agents-platform|plugin|schedule_cron|MCP|Slack|Tier 8|Tier 10" FEATURE_TODO.md TODOS.md README.md docs/index.md docs/extensions.md
+    acceptance_checks:
+      - The most dangerous user-facing broken UX is fixed before docs narrowing relies on it.
+      - No reviewed change crosses into new marketplace backends, schedulers, webhook servers, Slack runtimes, settings sync services, or Textual feature builds.
+      - Canonical docs/help/roadmap now agree on disputed surfaces and preserve confirmed-real foundations.
+    acceptance_criteria:
+      - The final implementation satisfies the PRD's truth-audit framing and remains within scope.
+      - Security-sensitive boundary changes around web/network/plugin surfaces are explicitly reviewed.
+      - The plan output is ready for orchestration handoff with no hidden dependency on missing backend work.
+    failure_modes:
+      - scenario: Each individual area looks truthful in isolation, but cross-file drift leaves README, FEATURE_TODO, and CLI help disagreeing about the same surface.
+        likelihood: medium
+        impact: high
+        mitigation: Review all canonical truth surfaces together using one disputed-surface checklist before approval.
+    task_definition: Execute the final safety and truth-consistency gate for variant C.
+    details: Focus reviewer attention on material false claims, crash paths, and scope expansion only.
+    tech_stack:
+      - pytest
+      - ripgrep
+    test_coverage: Combined targeted regression run plus cross-doc claim audit.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true

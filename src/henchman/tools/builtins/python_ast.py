@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import ast
+import asyncio
+import json
 from pathlib import Path
+from threading import Event
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.builtins.python_ast_helpers import generate_symbol_table
@@ -14,8 +17,16 @@ _PYTHON_AST_PARAMETERS: dict[str, object] = {
     "properties": {
         "path": {
             "type": "string",
-            "description": "Path to the Python file to analyze",
+            "description": "Python file to inspect, or directory for action=quality",
         },
+        "action": {
+            "type": "string",
+            "enum": ["symbols", "quality"],
+            "default": "symbols",
+            "description": "Symbol table or bounded duplicate/long-method/nesting analysis",
+        },
+        "max_files": {"type": "integer", "minimum": 1, "maximum": 5000, "default": 500},
+        "max_findings": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
         "include_docstrings": {
             "type": "boolean",
             "description": "Include first-line docstrings in output",
@@ -46,7 +57,8 @@ class PythonAstTool(Tool):
             "Parse a Python file and return its symbol table: classes, "
             "functions, methods, imports, decorators, line ranges, "
             "docstrings, and method types (static/classmethod/property/abstract). "
-            "Use this to understand file structure without reading the full contents."
+            "Use action=quality on a file or directory for syntax-clone candidates, "
+            "long methods and deep nesting, with locations and explicit scan limits."
         )
 
     parameters = _PYTHON_AST_PARAMETERS
@@ -61,6 +73,9 @@ class PythonAstTool(Tool):
         path: str = "",
         *,
         include_docstrings: bool = True,
+        action: str = "symbols",
+        max_files: int = 500,
+        max_findings: int = 100,
         **kwargs: object,
     ) -> ToolResult:
         """Parse a Python file and return its symbol table.
@@ -68,11 +83,19 @@ class PythonAstTool(Tool):
         Args:
             path: Path to the Python file.
             include_docstrings: Include first-line docstrings in output.
+            action: Symbol table (default) or bounded quality scan.
+            max_files: Quality scan file budget.
+            max_findings: Quality scan finding budget.
             **kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with the symbol table.
         """
+        if action not in ("symbols", "quality"):
+            return ToolResult(content="Unknown python_ast action", success=False, error="Invalid action")
+        if action == "quality":
+            return await _quality_result(path, max_files, max_findings)
+
         validation_error = validate_file_path(path)
         if validation_error is not None:
             return validation_error
@@ -102,3 +125,25 @@ class PythonAstTool(Tool):
             include_docstrings=include_docstrings,
         )
         return ToolResult(content="\n".join(sections), success=True)
+
+
+async def _quality_result(path: str, max_files: int, max_findings: int) -> ToolResult:
+    """Run bounded analysis off the event loop, stopping traversal on cancellation."""
+    from henchman.analysis.smells.scanner import ScanOptions, scan_quality
+
+    try:
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError("path must be a nonempty string")
+        options = ScanOptions(max_files=max_files, max_findings=max_findings)
+    except ValueError as exc:
+        return ToolResult(content=str(exc), success=False, error=str(exc))
+    stop = Event()
+    try:
+        report = await asyncio.to_thread(scan_quality, path, options, stop)
+    finally:
+        stop.set()
+    return ToolResult(
+        content=json.dumps(report.to_dict(), ensure_ascii=False),
+        success=report.complete,
+        error=None if report.complete else "Quality scan incomplete; inspect errors and limits",
+    )

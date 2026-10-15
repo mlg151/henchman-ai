@@ -1,0 +1,71 @@
+{
+  "$id": "henchman/contracts/knowledge/important-entity-rank/v1",
+  "title": "ImportantEntityRank",
+  "description": "Ranked knowledge-store entity paired with its importance score.",
+  "type": "object",
+  "required": ["entity", "score"],
+  "properties": {
+    "entity": {
+      "type": "object",
+      "required": [
+        "id",
+        "entity_type",
+        "name",
+        "description",
+        "file_path",
+        "tags",
+        "observations"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "entity_type": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "file_path": {
+          "type": ["string", "null"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["content", "source", "timestamp", "author"],
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "score": {
+      "type": "number"
+    }
+  },
+  "additionalProperties": false
+}

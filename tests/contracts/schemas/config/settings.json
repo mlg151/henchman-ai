@@ -1,0 +1,192 @@
+{
+  "$id": "henchman/contracts/config/settings/v1",
+  "title": "Settings",
+  "description": "Shape contract for the root Settings model — consumer-facing config contract.",
+  "type": "object",
+  "required": ["providers", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
+  "properties": {
+    "providers": {
+      "type": "object",
+      "description": "Provider configuration",
+      "required": ["default", "deepseek", "openai", "anthropic", "ollama", "openrouter", "openai_compat", "together", "groq", "fireworks"],
+      "properties": {
+        "default": { "type": "string" },
+        "deepseek": { "type": "object", "additionalProperties": true },
+        "openai": { "type": "object", "additionalProperties": true },
+        "anthropic": { "type": "object", "additionalProperties": true },
+        "ollama": { "type": "object", "additionalProperties": true },
+        "openrouter": { "type": "object", "additionalProperties": true },
+        "openai_compat": { "type": "object", "additionalProperties": true },
+        "together": { "type": "object", "additionalProperties": true },
+        "groq": { "type": "object", "additionalProperties": true },
+        "fireworks": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tool behavior configuration",
+      "required": ["auto_approve_read", "shell_timeout", "sandbox"],
+      "properties": {
+        "auto_approve_read": { "type": "boolean" },
+        "shell_timeout": { "type": "integer", "minimum": 0 },
+        "sandbox": { "type": "string", "enum": ["none", "docker"] }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "description": "Terminal UI settings",
+      "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides"],
+      "properties": {
+        "output_style": { "type": "string", "enum": ["compact", "verbose", "json"] },
+        "theme": { "type": "string" },
+        "show_line_numbers": { "type": "boolean" },
+        "mcp_logging": { "type": "boolean" },
+        "accessible_mode": { "type": "boolean" },
+        "keybindings": { "type": "object", "additionalProperties": { "type": "string" } },
+        "style_overrides": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "description": "Context management settings",
+      "required": ["max_tokens", "compaction_threshold", "auto_compact", "intelligent_context", "importance_threshold", "cluster_similarity_threshold", "adaptive_compression"],
+      "properties": {
+        "max_tokens": { "type": "integer", "minimum": 0 },
+        "compaction_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "auto_compact": { "type": "boolean" },
+        "intelligent_context": { "type": "boolean" },
+        "importance_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cluster_similarity_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "adaptive_compression": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "mcp_servers": {
+      "type": "object",
+      "description": "MCP server configurations keyed by server name",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["command", "args", "env", "trusted"],
+        "properties": {
+          "command": { "type": "string" },
+          "args": { "type": "array", "items": { "type": "string" } },
+          "env": { "type": "object", "additionalProperties": { "type": "string" } },
+          "trusted": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "rag": {
+      "type": "object",
+      "description": "RAG settings",
+      "required": ["enabled", "chunk_size", "chunk_overlap", "top_k", "embedding_model", "cache_dir", "file_extensions"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "chunk_size": { "type": "integer", "minimum": 1 },
+        "chunk_overlap": { "type": "integer", "minimum": 0 },
+        "top_k": { "type": "integer", "minimum": 1 },
+        "embedding_model": { "type": "string" },
+        "cache_dir": { "type": ["string", "null"] },
+        "file_extensions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "agents": {
+      "type": "object",
+      "description": "Multi-agent system settings",
+      "required": ["team_preset", "agents", "max_delegation_depth", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
+      "properties": {
+        "team_preset": { "type": "string" },
+        "agents": {
+          "type": "object",
+          "description": "Custom agent configurations keyed by role",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["name", "role", "description", "tools", "enabled"],
+            "properties": {
+              "name": { "type": "string" },
+              "role": { "type": "string" },
+              "description": { "type": "string" },
+              "system_prompt": { "type": ["string", "null"] },
+              "tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+              "provider": { "type": ["string", "null"] },
+              "model": { "type": ["string", "null"] },
+              "auto_approve": { "type": "array", "items": { "type": "string" } },
+              "can_delegate_to": { "type": "array", "items": { "type": "string" } },
+              "enabled": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "max_delegation_depth": { "type": "integer", "minimum": 0 },
+        "max_delegation_turns": { "type": "integer", "minimum": 0 },
+        "shared_context_max_tokens": { "type": "integer", "minimum": 0 },
+        "max_delegation_retries": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "api": {
+      "type": "object",
+      "description": "API server configuration",
+      "required": ["require_auth", "api_keys", "rate_limits", "cors"],
+      "properties": {
+        "require_auth": { "type": "boolean" },
+        "api_keys": { "type": "array", "items": { "type": "string" } },
+        "rate_limits": { "type": "object", "additionalProperties": { "type": "string" } },
+        "cors": { "type": "object", "additionalProperties": true },
+        "proxy": { "type": "object", "additionalProperties": true },
+        "oauth": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "chat": {
+      "type": "object",
+      "description": "Chat integration configuration",
+      "required": ["discord", "slack"],
+      "properties": {
+        "discord": {
+          "type": "object",
+          "required": ["enabled", "token", "allowed_user_id", "allowed_channel_ids", "mention_only", "system_prompt"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "token": { "type": ["string", "null"] },
+            "allowed_user_id": { "type": ["string", "null"] },
+            "allowed_channel_ids": { "type": "array", "items": { "type": "string" } },
+            "mention_only": { "type": "boolean" },
+            "system_prompt": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "slack": {
+          "type": "object",
+          "required": ["enabled", "app_token", "bot_token", "signing_secret", "allowed_user_id"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "app_token": { "type": ["string", "null"] },
+            "bot_token": { "type": ["string", "null"] },
+            "signing_secret": { "type": ["string", "null"] },
+            "allowed_user_id": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "voice": {
+      "type": "object",
+      "description": "Voice integration configuration",
+      "required": ["enabled", "preferred_voice", "tts_command", "stt_command"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "preferred_voice": { "type": ["string", "null"] },
+        "tts_command": { "type": ["array", "null"], "items": { "type": "string" } },
+        "stt_command": { "type": ["array", "null"], "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

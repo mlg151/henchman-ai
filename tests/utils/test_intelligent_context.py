@@ -1,25 +1,9 @@
 """Tests for intelligent context management."""
 
 import pytest
-from henchman.providers.base import Message, ToolCall
+
 from henchman.utils.intelligent_context import (
-    IntelligentContextManager,
     ContentExtractor,
-    IntelligentContextConstants,
-    IntelligentContextConfig,
-    IntelligentContextParams,
-    PreservedContent,
-    ConversationTypeDetector,
-    ImportanceSorter,
-    MessageSafetyEnforcer,
-    TokenCounterWrapper,
-    IntelligentTruncator,
-    SequenceValidator,
-    MessagePreserver,
-    CompressionConfig,
-    IntelligentCompactionResult,
-    ResultCreationParams,
-    SummaryGenerator,
 )
 
 
@@ -79,7 +63,7 @@ print("`hello`")
 
 def test_extract_code_blocks_raw_string_backslash_bug():
     """Test extracting code blocks with raw strings containing backslashes.
-    
+
     This test verifies that raw string handling correctly preserves backslashes.
     """
     content = '''```python
@@ -96,7 +80,7 @@ print(path)
 
 def test_extract_code_blocks_empty_code_blocks():
     """Test extracting empty code blocks.
-    
+
     This test exposes a bug where empty code blocks are not extracted.
     """
     # Test 1: Empty code block with no content - 6 backticks is NOT a valid code block
@@ -105,18 +89,18 @@ def test_extract_code_blocks_empty_code_blocks():
     blocks1 = ContentExtractor.extract_code_blocks(content1)
     # 6 consecutive backticks is not a valid code block
     assert len(blocks1) == 0, f"6 backticks should not be a code block: expected 0, got {len(blocks1)}"
-    
+
     # Test 2: Empty code block with newlines
     content2 = '```\n```'
     blocks2 = ContentExtractor.extract_code_blocks(content2)
     assert len(blocks2) == 1, f"Empty code block with newlines not extracted: expected 1, got {len(blocks2)}"
-    
+
     # Test 3: Empty code block with language
     content3 = '```python\n```'
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Empty code block with language not extracted: expected 1, got {len(blocks3)}"
     assert 'python' in blocks3[0], f"Language not preserved in empty code block: {blocks3[0]}"
-    
+
     # Test 4: Code block with only whitespace
     content4 = '```   \n   \n   ```'
     blocks4 = ContentExtractor.extract_code_blocks(content4)
@@ -125,7 +109,7 @@ def test_extract_code_blocks_empty_code_blocks():
 
 def test_extract_code_blocks_combined_string_prefixes():
     """Test that combined string prefixes (br, rb, fr, rf) are recognized as raw strings.
-    
+
     This test exposes a bug where combined prefixes like br" are not recognized
     as raw strings, causing incorrect backslash handling.
     """
@@ -138,7 +122,7 @@ print(data)
     assert len(blocks1) == 1, f"Expected 1 code block, got {len(blocks1)}"
     # The source should preserve double backslash (\\ in source becomes \ in string)
     assert 'br"Hello\\nWorld"' in blocks1[0], f"br string not preserved correctly: {blocks1[0]}"
-    
+
     # Test 2: rb prefix (raw bytes string) - same as br
     content2 = '''```python
 data = rb"Hello\\nWorld"
@@ -147,7 +131,7 @@ print(data)
     blocks2 = ContentExtractor.extract_code_blocks(content2)
     assert len(blocks2) == 1, f"Expected 1 code block, got {len(blocks2)}"
     assert 'rb"Hello\\nWorld"' in blocks2[0], f"rb string not preserved correctly: {blocks2[0]}"
-    
+
     # Test 3: fr prefix (formatted raw string)
     content3 = '''```python
 name = "world"
@@ -157,7 +141,7 @@ print(msg)
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Expected 1 code block, got {len(blocks3)}"
     assert 'fr"Hello {name}\\n"' in blocks3[0], f"fr string not preserved correctly: {blocks3[0]}"
-    
+
     # Test 4: rf prefix (raw formatted string) - same as fr
     content4 = '''```python
 name = "world"
@@ -167,7 +151,7 @@ print(msg)
     blocks4 = ContentExtractor.extract_code_blocks(content4)
     assert len(blocks4) == 1, f"Expected 1 code block, got {len(blocks4)}"
     assert 'rf"Hello {name}\\n"' in blocks4[0], f"rf string not preserved correctly: {blocks4[0]}"
-    
+
     # Test 5: Triple-quoted raw string with prefix
     content5 = '''```python
 doc = br"""Hello\\nWorld"""
@@ -180,7 +164,7 @@ print(doc)
 
 def test_extract_code_blocks_four_backticks():
     """Test extracting code blocks with 4 backticks (Markdown allows ≥3).
-    
+
     This test exposes a bug where extra backticks are included in code content.
     """
     # Test 1: 4 backticks with language
@@ -200,7 +184,7 @@ def test_extract_code_blocks_four_backticks():
         code_start = block1.find('```\n') + 4
         code = block1[code_start:-3]
         assert not code.startswith('`python'), f"Code starts with backtick: {code[:50]}"
-    
+
     # Test 2: 4 backticks without language
     content2 = '````\nprint("hello")\n````'
     blocks2 = ContentExtractor.extract_code_blocks(content2)
@@ -214,39 +198,39 @@ def test_extract_code_blocks_four_backticks():
 
 def test_extract_code_blocks_carriage_return_line_ending():
     """Test extracting code blocks preceded by carriage return (\r) line ending.
-    
+
     This test verifies that code blocks after \r are recognized.
     """
     # Test with \r (old Mac line ending)
     content = 'Some text\r```python\nprint("hello")\n```'
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Code block after \\r not extracted: expected 1, got {len(result)}"
-    
+
     # Test with \r\n (Windows) - should work
     content2 = 'Some text\r\n```python\nprint("hello")\n```'
     result2 = ContentExtractor.extract_code_blocks(content2)
     assert len(result2) == 1, f"Code block after \\r\\n not extracted: expected 1, got {len(result2)}"
-    
+
     # Test with \n (Unix) - should work
     content3 = 'Some text\n```python\nprint("hello")\n```'
-    result3 = ContentExtractor.extract_code_blocks(content3)
+    ContentExtractor.extract_code_blocks(content3)
 
 
 def test_extract_code_blocks_raw_string_double_backslash():
     """Test extracting code blocks with raw strings containing double backslashes.
-    
+
     This test exposes a bug where code blocks with r"\\\\" are not extracted.
     """
     # Test 1: Raw string with double backslash
     content1 = 'Some text\n```python\nprint(r"\\\\")\n```\nMore text'
     result1 = ContentExtractor.extract_code_blocks(content1)
     assert len(result1) == 1, f"Code block with r'\\\\' not extracted: expected 1, got {len(result1)}. Content: {repr(content1)}"
-    
+
     # Test 2: Just the code block
     content2 = '```python\nprint(r"\\\\")\n```'
     result2 = ContentExtractor.extract_code_blocks(content2)
     assert len(result2) == 1, f"Code block with r'\\\\' not extracted: expected 1, got {len(result2)}"
-    
+
     # Test 3: Raw string with multiple backslashes
     content3 = '```python\npath = r"C:\\\\Users\\\\test"\nprint(path)\n```'
     result3 = ContentExtractor.extract_code_blocks(content3)
@@ -255,7 +239,7 @@ def test_extract_code_blocks_raw_string_double_backslash():
 
 def test_extract_code_blocks_odd_number_of_backticks():
     """Test that odd number of backticks doesn't create invalid code blocks.
-    
+
     This test exposes a bug where 7+ backticks are incorrectly parsed.
     """
     # 7 backticks - should not extract or should extract empty
@@ -272,7 +256,7 @@ def test_extract_code_blocks_odd_number_of_backticks():
         if len(lines) >= 3:
             content = '\n'.join(lines[1:-1])
             assert content.strip() == '', f"Odd backticks should not extract content, got: {repr(content)}"
-    
+
     # 9 backticks
     content2 = '`````````'
     blocks2 = ContentExtractor.extract_code_blocks(content2)
@@ -282,7 +266,7 @@ def test_extract_code_blocks_odd_number_of_backticks():
         if len(lines) >= 3:
             content = '\n'.join(lines[1:-1])
             assert content.strip() == '', f"Odd backticks should not extract content, got: {repr(content)}"
-    
+
     # 11 backticks
     content3 = '```````````'
     blocks3 = ContentExtractor.extract_code_blocks(content3)
@@ -296,7 +280,7 @@ def test_extract_code_blocks_odd_number_of_backticks():
 
 def test_extract_code_blocks_uppercase_string_prefixes():
     """Test extracting code blocks with uppercase string prefixes (R, BR, FR, etc.).
-    
+
     This test exposes a bug where uppercase string prefixes are not recognized
     as raw strings, causing incorrect backslash handling.
     """
@@ -309,7 +293,7 @@ print(data)
     assert len(blocks1) == 1, f"Expected 1 code block with R prefix, got {len(blocks1)}"
     # The source should preserve double backslash (\\ in source becomes \ in string)
     assert 'R"Hello\\nWorld"' in blocks1[0], f"Uppercase R string not preserved correctly: {blocks1[0]}"
-    
+
     # Test 2: Uppercase BR prefix (bytes raw string)
     content2 = '''```python
 data = BR"Hello\\nWorld"
@@ -318,7 +302,7 @@ print(data)
     blocks2 = ContentExtractor.extract_code_blocks(content2)
     assert len(blocks2) == 1, f"Expected 1 code block with BR prefix, got {len(blocks2)}"
     assert 'BR"Hello\\nWorld"' in blocks2[0], f"Uppercase BR string not preserved correctly: {blocks2[0]}"
-    
+
     # Test 3: Mixed case prefix (Br)
     content3 = '''```python
 data = Br"Hello\\nWorld"
@@ -327,7 +311,7 @@ print(data)
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Expected 1 code block with Br prefix, got {len(blocks3)}"
     assert 'Br"Hello\\nWorld"' in blocks3[0], f"Mixed case Br string not preserved correctly: {blocks3[0]}"
-    
+
     # Test 4: Uppercase FR prefix (formatted raw string)
     content4 = '''```python
 name = "world"
@@ -337,7 +321,7 @@ print(msg)
     blocks4 = ContentExtractor.extract_code_blocks(content4)
     assert len(blocks4) == 1, f"Expected 1 code block with FR prefix, got {len(blocks4)}"
     assert 'FR"Hello {name}\\n"' in blocks4[0], f"Uppercase FR string not preserved correctly: {blocks4[0]}"
-    
+
     # Test 5: Triple-quoted uppercase raw string
     content5 = '''```python
 doc = R"""Hello\\nWorld"""
@@ -350,8 +334,8 @@ print(doc)
 
 def test_extract_code_blocks_invalid_string_prefixes():
     """Test that invalid Python string prefixes are not recognized as raw strings.
-    
-    This test exposes a bug where invalid prefixes like 'rr', 'ur', 'ru', 'rbbr' 
+
+    This test exposes a bug where invalid prefixes like 'rr', 'ur', 'ru', 'rbbr'
     are incorrectly recognized as raw string prefixes.
     """
     # Test 1: 'rr' prefix (invalid - duplicate 'r')
@@ -367,7 +351,7 @@ print(data)
     block1 = blocks1[0]
     # Check that the code contains rr"Hello\\nWorld" (preserved as-is)
     assert 'rr"Hello\\nWorld"' in block1, f"Invalid rr prefix not preserved correctly: {block1}"
-    
+
     # Test 2: 'ur' prefix (invalid in Python 3 - 'u' can't combine with 'r')
     content2 = '''```python
 data = ur"Hello\\nWorld"  # Invalid prefix
@@ -376,7 +360,7 @@ print(data)
     blocks2 = ContentExtractor.extract_code_blocks(content2)
     assert len(blocks2) == 1, f"Expected 1 code block with invalid ur prefix, got {len(blocks2)}"
     assert 'ur"Hello\\nWorld"' in blocks2[0], f"Invalid ur prefix not preserved correctly: {blocks2[0]}"
-    
+
     # Test 3: 'ru' prefix (invalid in Python 3 - 'r' can't combine with 'u')
     content3 = '''```python
 data = ru"Hello\\nWorld"  # Invalid prefix
@@ -385,7 +369,7 @@ print(data)
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Expected 1 code block with invalid ru prefix, got {len(blocks3)}"
     assert 'ru"Hello\\nWorld"' in blocks3[0], f"Invalid ru prefix not preserved correctly: {blocks3[0]}"
-    
+
     # Test 4: 'rbbr' prefix (invalid - duplicate 'b' and 'r')
     content4 = '''```python
 data = rbbr"Hello\\nWorld"  # Invalid prefix
@@ -394,7 +378,7 @@ print(data)
     blocks4 = ContentExtractor.extract_code_blocks(content4)
     assert len(blocks4) == 1, f"Expected 1 code block with invalid rbbr prefix, got {len(blocks4)}"
     assert 'rbbr"Hello\\nWorld"' in blocks4[0], f"Invalid rbbr prefix not preserved correctly: {blocks4[0]}"
-    
+
     # Test 5: 'ff' prefix (invalid - duplicate 'f')
     content5 = '''```python
 data = ff"Hello {name}"  # Invalid prefix
@@ -407,7 +391,7 @@ print(data)
 
 def test_extract_code_blocks_apostrophe_in_string_bug():
     """Test extracting code blocks with apostrophes in strings.
-    
+
     This test exposes a bug where apostrophes in words like "don't" inside strings
     cause incorrect string termination in the parser.
     """
@@ -421,7 +405,7 @@ print(message)
     # The entire string should be preserved
     block1 = blocks1[0]
     assert '"I don\'t know what to do"' in block1, f"Apostrophe in double-quoted string not preserved: {block1}"
-    
+
     # Test 2: Single-quoted string with apostrophe (should fail - apostrophe ends string)
     content2 = '''```python
 message = 'I don\\'t know what to do'  # Escaped apostrophe
@@ -432,7 +416,7 @@ print(message)
     block2 = blocks2[0]
     # The escaped apostrophe should be preserved
     assert "'I don\\'t know what to do'" in block2, f"Escaped apostrophe in single-quoted string not preserved: {block2}"
-    
+
     # Test 3: Triple-quoted string with apostrophe
     content3 = '''```python
 message = """I don't know what to do"""
@@ -442,7 +426,7 @@ print(message)
     assert len(blocks3) == 1, f"Expected 1 code block with apostrophe in triple-quoted string, got {len(blocks3)}"
     block3 = blocks3[0]
     assert '"""I don\'t know what to do"""' in block3, f"Apostrophe in triple-quoted string not preserved: {block3}"
-    
+
     # Test 4: Multiple apostrophes in string
     content4 = '''```python
 message = "It isn't right that they don't understand"
@@ -456,7 +440,7 @@ print(message)
 
 def test_extract_code_blocks_escaped_quote_bug():
     """Test extracting code blocks with escaped quotes.
-    
+
     This test exposes a bug in the _process_char function's handling of
     escaped quotes in strings, particularly with raw strings and
     consecutive backslashes.
@@ -472,7 +456,7 @@ print(s)
     block1 = blocks1[0]
     # The escaped quote should be preserved
     assert '"test\\"s value"' in block1, f"Escaped quote not preserved: {block1}"
-    
+
     # Test 2: Raw string with backslash-quote (should NOT escape)
     # In raw strings, \" is literal backslash-quote, not escaped quote
     # unless there's an odd number of backslashes before the quote
@@ -488,7 +472,7 @@ print(s)
     # Note: In Python source, \\\\ represents two backslashes
     # In the extracted block, we should see r"test\\\\" (four backslashes in source)
     assert 'r"test\\\\"' in block2, f"Raw string with backslash-backslash-quote not preserved: {block2}"
-    
+
     # Test 3: Raw string with odd number of backslashes before quote (should escape)
     content3 = '''```python
 s = r"test\\\\\\"  # Raw string: three backslashes then quote
@@ -501,7 +485,7 @@ print(s)
     # The quote is escaped (odd number of backslashes)
     # In source: \\\\\\\ represents three backslashes
     assert 'r"test\\\\\\"' in block3, f"Raw string with odd backslashes before quote not preserved: {block3}"
-    
+
     # Test 4: Complex case with multiple escaped quotes
     content4 = '''```python
 s = "He said \\"hello\\", she said \\"goodbye\\""
@@ -511,7 +495,7 @@ print(s)
     assert len(blocks4) == 1, f"Expected 1 code block with multiple escaped quotes, got {len(blocks4)}"
     block4 = blocks4[0]
     assert '"He said \\"hello\\", she said \\"goodbye\\""' in block4, f"Multiple escaped quotes not preserved: {block4}"
-    
+
     # Test 5: Edge case: backslash at end of file/block (should not crash)
     content5 = '''```python
 s = "test\\"
@@ -520,13 +504,13 @@ s = "test\\"
     # This might or might not extract a block depending on implementation
     # But it shouldn't crash
     if blocks5:
-        block5 = blocks5[0]
+        blocks5[0]
         # Should contain the string (possibly malformed)
 
 
 def test_extract_code_blocks_apostrophe_string_delimiter():
     """Test that apostrophes in single-quoted strings are treated as string delimiters.
-    
+
     In Python, 'don't' is a syntax error (should be 'don\'t').
     The parser should treat the apostrophe as a string delimiter, not as part of the word.
     """
@@ -540,7 +524,7 @@ s = 'don't panic'  # Invalid Python: apostrophe ends string
     block1 = blocks1[0]
     # Should contain the code as-is
     assert "'don't panic'" in block1, f"Code with apostrophe not preserved: {block1}"
-    
+
     # Test 2: Escaped apostrophe in single-quoted string (valid Python)
     content2 = '''```python
 s = 'don\\'t panic'  # Valid: escaped apostrophe
@@ -550,7 +534,7 @@ s = 'don\\'t panic'  # Valid: escaped apostrophe
     block2 = blocks2[0]
     # Should contain escaped apostrophe
     assert "don\\'t" in block2 or "don\'t" in block2, f"Escaped apostrophe not preserved: {block2}"
-    
+
     # Test 3: Double-quoted string with apostrophe (valid Python)
     content3 = '''```python
 s = "don't panic"  # Valid: apostrophe in double-quoted string
@@ -560,7 +544,7 @@ s = "don't panic"  # Valid: apostrophe in double-quoted string
     block3 = blocks3[0]
     # Should contain apostrophe
     assert '"don\'t panic"' in block3 or '"don\'t panic"' in block3, f"Apostrophe in double-quoted string not preserved: {block3}"
-    
+
     # Test 4: Comment with apostrophe
     content4 = '''```python
 # This isn't a string
@@ -575,7 +559,7 @@ s = "hello"
 
 def test_extract_code_blocks_line_continuation_bug():
     """Test extracting code blocks with line continuation in strings.
-    
+
     This test exposes a bug where strings with line continuation (backslash-newline)
     are incorrectly terminated at the newline, causing backticks inside the continued
     string to be misinterpreted as code block markers.
@@ -593,7 +577,7 @@ print(code)
     # The string is "hello`world`" (line continuation joins them)
     assert '"hello\\' in block1, f"Line continuation backslash not preserved: {block1}"
     assert '`world`"' in block1, f"Backticks in continued string not preserved: {block1}"
-    
+
     # Test 2: Multiple line continuations
     content2 = '''```python
 text = "first\\
@@ -603,7 +587,7 @@ print(text)
 ```'''
     blocks2 = ContentExtractor.extract_code_blocks(content2)
     assert len(blocks2) == 1, f"Expected 1 code block with multiple line continuations, got {len(blocks2)}"
-    
+
     # Test 3: Line continuation in raw string (should still work)
     content3 = '''```python
 text = r"raw\\
@@ -612,7 +596,7 @@ print(text)
 ```'''
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Expected 1 code block with line continuation in raw string, got {len(blocks3)}"
-    
+
     # Test 4: Line continuation with escaped newline (\\n vs \\\n)
     content4 = '''```python
 # \\n is newline character, \\\n is line continuation
@@ -621,7 +605,7 @@ print(repr(text))
 ```'''
     blocks4 = ContentExtractor.extract_code_blocks(content4)
     assert len(blocks4) == 1, f"Expected 1 code block with mixed newlines, got {len(blocks4)}"
-    
+
     # Test 5: Critical test - backticks after line continuation
     # If parser incorrectly ends string at newline, it will see `backtick` as code block
     content5 = '''Some text before
@@ -641,7 +625,7 @@ Some text after'''
 
 def test_extract_code_blocks_line_continuation_escaped_newline_bug():
     """Test that line continuation and escaped newlines don't terminate strings.
-    
+
     This test exposes a bug where the parser ends strings at newlines
     even when the newline is escaped (was_escaped = True).
     """
@@ -654,7 +638,7 @@ print(s)
 ```'''
     blocks1 = ContentExtractor.extract_code_blocks(content1)
     assert len(blocks1) == 1, f"Line continuation: expected 1 block, got {len(blocks1)}"
-    
+
     # Test 2: More critical - backticks after line continuation
     # If parser incorrectly ends string at newline, backticks won't be in string
     content2 = '''Some text
@@ -670,11 +654,11 @@ More text'''
     # If bug exists: parser ends string at first newline, sees ``` as code block end
     # Would extract lines 2-4 only (or wrong number of blocks)
     assert len(blocks2) == 1, f"Line continuation with backticks: expected 1 block, got {len(blocks2)}. Parser may have incorrectly ended string at newline."
-    
+
     block2 = blocks2[0]
     # Should contain the full string with backticks
     assert '```middle' in block2, f"Backticks after line continuation not in string: {block2}"
-    
+
     # Test 3: Escaped newline character \n (backslash-n)
     content3 = '''```python
 s = "hello\\nworld"  # Escaped newline character
@@ -682,7 +666,7 @@ print(s)
 ```'''
     blocks3 = ContentExtractor.extract_code_blocks(content3)
     assert len(blocks3) == 1, f"Escaped newline: expected 1 block, got {len(blocks3)}"
-    
+
     # Test 4: Raw string with backslash-newline (line continuation still works)
     content4 = '''```python
 s = r"hello\\
@@ -695,21 +679,21 @@ print(s)
 
 def test_string_prefix_validation_empty_string_bug():
     """Test that empty string is not considered a valid Python string prefix.
-    
+
     This test exposes a bug where _is_valid_string_prefix returns True for
     an empty string, which is incorrect. An empty string is not a valid
     Python string prefix.
     """
-    from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
-    
+    from henchman.utils.intelligent_context_parser import _ParserState
+
     state = _ParserState()
-    
+
     # Empty string should NOT be a valid string prefix
     assert not state._is_valid_string_prefix(""), "Empty string should not be a valid string prefix"
-    
+
     # Also test _is_valid_raw_string_prefix for consistency
     assert not state._is_valid_raw_string_prefix(""), "Empty string should not be a valid raw string prefix"
-    
+
     # Test some valid prefixes to ensure we're not breaking anything
     assert state._is_valid_string_prefix("r"), "Single 'r' should be a valid string prefix"
     assert state._is_valid_string_prefix("b"), "Single 'b' should be a valid string prefix"
@@ -721,7 +705,7 @@ def test_string_prefix_validation_empty_string_bug():
 
 def test_extract_code_blocks_none_value_bug():
     """Test that extract_code_blocks never returns None values in the list.
-    
+
     This test exposes a bug where malformed code blocks cause _extract_single_block
     to return None, which is then appended to the result list, violating the
     method's contract of returning a list of strings.
@@ -733,7 +717,7 @@ def test_extract_code_blocks_none_value_bug():
     # Should return empty list, not [None]
     assert isinstance(result1, list), f"Result should be a list, got {type(result1)}"
     assert all(isinstance(item, str) for item in result1), f"All items should be strings, got {result1}"
-    
+
     # Test 2: Mixed content with valid and malformed code blocks
     content2 = '''Some text
 ```python
@@ -749,7 +733,7 @@ print("malformed")
     assert all(isinstance(item, str) for item in result2), f"All items should be strings, got {result2}"
     assert len(result2) == 1, f"Should have 1 valid code block, got {len(result2)}"
     assert 'print("valid")' in result2[0]
-    
+
     # Test 3: Ensure we can safely iterate over result
     content3 = '```python\nprint("test")\n```'
     result3 = ContentExtractor.extract_code_blocks(content3)
@@ -757,7 +741,7 @@ print("malformed")
     for block in result3:
         assert isinstance(block, str), f"Block should be string, got {type(block)}"
         assert len(block) > 0, "Block should not be empty"
-    
+
     # Test 4: Empty or whitespace-only code blocks should still be strings
     content4 = '```\n```'
     result4 = ContentExtractor.extract_code_blocks(content4)
@@ -769,7 +753,7 @@ print("malformed")
 
 def test_extract_code_blocks_two_backticks_bug():
     """Test that two backticks don't cause infinite loop or incorrect parsing.
-    
+
     This test exposes a bug where two backticks (``) could cause the parser
     to get stuck or incorrectly advance the position.
     """
@@ -778,19 +762,19 @@ def test_extract_code_blocks_two_backticks_bug():
     result1 = ContentExtractor.extract_code_blocks(content1)
     # Should return empty list (not a valid code block)
     assert result1 == [], f"Two backticks should not be extracted as code block: {result1}"
-    
+
     # Test 2: Two backticks followed by valid code block
     content2 = '``not a block``\n```python\nprint("hello")\n```'
     result2 = ContentExtractor.extract_code_blocks(content2)
     # Should extract only the valid code block
     assert len(result2) == 1, f"Should extract 1 code block, got {len(result2)}"
     assert 'print("hello")' in result2[0]
-    
+
     # Test 3: Two backticks at end of line
     content3 = 'Some text `` more text'
     result3 = ContentExtractor.extract_code_blocks(content3)
     assert result3 == [], f"Two backticks in text should not be extracted: {result3}"
-    
+
     # Test 4: Edge case - two backticks then three backticks
     content4 = '`````python\nprint("test")\n`````'
     result4 = ContentExtractor.extract_code_blocks(content4)
@@ -803,7 +787,7 @@ def test_extract_code_blocks_two_backticks_bug():
 
 def test_extract_code_blocks_language_with_hyphen_bug():
     """Test that language specifiers with hyphens are correctly parsed.
-    
+
     This test exposes a bug where language specifiers like 'python-test'
     or 'jsx-static' are not recognized because the parser requires
     whitespace after the language, but in empty code blocks or code blocks
@@ -817,7 +801,7 @@ def test_extract_code_blocks_language_with_hyphen_bug():
     block1 = result1[0]
     # Should contain 'python-test' in the language part
     assert 'python-test' in block1, f"Language 'python-test' not preserved: {block1}"
-    
+
     # Test 2: Language with hyphen, with code
     content2 = '```python-test\nprint("test")\n```'
     result2 = ContentExtractor.extract_code_blocks(content2)
@@ -825,21 +809,21 @@ def test_extract_code_blocks_language_with_hyphen_bug():
     block2 = result2[0]
     assert 'python-test' in block2, f"Language 'python-test' not preserved in code block: {block2}"
     assert 'print("test")' in block2
-    
+
     # Test 3: Language with multiple hyphens
     content3 = '```python-3-11-test\nprint("test")\n```'
     result3 = ContentExtractor.extract_code_blocks(content3)
     assert len(result3) == 1, f"Language with multiple hyphens not extracted: expected 1, got {len(result3)}"
     block3 = result3[0]
     assert 'python-3-11-test' in block3, f"Language 'python-3-11-test' not preserved: {block3}"
-    
+
     # Test 4: Language with underscore (also allowed)
     content4 = '```python_test\nprint("test")\n```'
     result4 = ContentExtractor.extract_code_blocks(content4)
     assert len(result4) == 1, f"Language with underscore not extracted: expected 1, got {len(result4)}"
     block4 = result4[0]
     assert 'python_test' in block4, f"Language 'python_test' not preserved: {block4}"
-    
+
     # Test 5: Language with dot (e.g., 'python.json' for JSON in Python code block)
     content5 = '```python.json\n{"test": "value"}\n```'
     result5 = ContentExtractor.extract_code_blocks(content5)
@@ -850,12 +834,12 @@ def test_extract_code_blocks_language_with_hyphen_bug():
 
 def test_extract_code_blocks_language_no_whitespace_bug():
     """Test that language specifiers without whitespace before closing fence are parsed.
-    
+
     This test exposes a bug where language specifiers followed immediately by
     closing backticks (e.g., '```python```') are not recognized because the
     parser requires whitespace after the language, but in empty code blocks,
     the language is immediately followed by the closing fence.
-    
+
     THIS TEST SHOULD FAIL WITH THE CURRENT IMPLEMENTATION.
     """
     # Test 1: Empty code block with language, no whitespace after language
@@ -868,7 +852,7 @@ def test_extract_code_blocks_language_no_whitespace_bug():
     if result1:
         block1 = result1[0]
         assert 'python' in block1, f"Language 'python' not preserved: {block1}"
-    
+
     # Test 2: Same but with language that has hyphen
     content2 = '```python-test```'
     result2 = ContentExtractor.extract_code_blocks(content2)
@@ -876,14 +860,14 @@ def test_extract_code_blocks_language_no_whitespace_bug():
     if result2:
         block2 = result2[0]
         assert 'python-test' in block2, f"Language 'python-test' not preserved: {block2}"
-    
+
     # Test 3: Language with newline (valid, should work)
     content3 = '```python\n```'
     result3 = ContentExtractor.extract_code_blocks(content3)
     assert len(result3) == 1, f"Empty code block with newline not extracted: expected 1, got {len(result3)}"
     block3 = result3[0]
     assert 'python' in block3, f"Language 'python' not preserved: {block3}"
-    
+
     # Test 4: Language with space (valid, should work)
     content4 = '```python ```'
     result4 = ContentExtractor.extract_code_blocks(content4)
@@ -891,7 +875,7 @@ def test_extract_code_blocks_language_no_whitespace_bug():
     if result4:
         block4 = result4[0]
         assert 'python' in block4, f"Language 'python' not preserved: {block4}"
-    
+
     # Test 5: Non-empty code block without whitespace after language
     # This is '```pythonprint("hello")```' - malformed (no whitespace after language)
     # With the fix, it might be extracted as language='pythonprint', code='("hello")'
@@ -911,14 +895,14 @@ def test_extract_code_blocks_language_no_whitespace_bug():
 
 def test_is_apostrophe_in_word_negative_index_bug():
     """Test that _is_apostrophe_in_word handles negative indices correctly.
-    
+
     This test exposes a bug where the function raises IndexError when
     i is a negative index and i-1 is out of bounds.
     """
     from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
-    
+
     state = _ParserState()
-    
+
     # Test 1: Single quote character, i = -1 (last character)
     # This should not raise IndexError
     text1 = "'"
@@ -928,7 +912,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
         assert result1 is False, f"Expected False for single quote, got {result1}"
     except IndexError as e:
         pytest.fail(f"IndexError raised for text='{text1}', i=-1: {e}")
-    
+
     # Test 2: String "a'", i = -1 (points to the quote)
     text2 = "a'"
     try:
@@ -937,7 +921,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
         assert result2 is False, f"Expected False for 'a\\'', i=-1, got {result2}"
     except IndexError as e:
         pytest.fail(f"IndexError raised for text='{text2}', i=-1: {e}")
-    
+
     # Test 3: String "don't", i = 3 (the apostrophe)
     text3 = "don't"
     try:
@@ -946,7 +930,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
         assert result3 is True, f"Expected True for 'don\\'t', i=3, got {result3}"
     except IndexError as e:
         pytest.fail(f"IndexError raised for text='{text3}', i=3: {e}")
-    
+
     # Test 4: String "ur'", i = -1 (last character, the quote)
     # Tests string prefix detection with negative index
     text4 = "ur'"
@@ -956,7 +940,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
         assert result4 is False, f"Expected False for 'ur\\'', i=-1, got {result4}"
     except IndexError as e:
         pytest.fail(f"IndexError raised for text='{text4}', i=-1: {e}")
-    
+
     # Test 5: Edge case - i = -len(text) (first character as negative index)
     text5 = "'test"
     try:

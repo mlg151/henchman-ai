@@ -26,7 +26,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import (
+    Button,
     Footer,
     Header,
     OptionList,
@@ -63,6 +65,7 @@ from henchman.cli.textual_messages import (
     ToolConfirmationMessage,
 )
 from henchman.cli.textual_mixins import (
+    _active_display_provider,
     _CommandPaletteMixin,
     _ContextTreeMixin,
     _extract_line_text,
@@ -76,19 +79,36 @@ from henchman.cli.textual_mixins import (
     _PublicAPIMixin,
     _SearchMixin,
     _StatusBarMixin,
+    _WorkspaceMixin,
 )
 from henchman.cli.textual_screens import (
+    AutoModeScreen,
+    BridgeScreen,
     ConfirmToolScreen,
+    ExportScreen,
+    FeedbackScreen,
     HelpScreen,
+    HistorySearchScreen,
+    McpServersScreen,
+    ModelPickerScreen,
+    OnboardingScreen,
     ProviderScreen,
+    SearchScreen,
     SessionScreen,
+    ThemePickerScreen,
 )
 from henchman.cli.textual_widgets import (
+    AgentSummaryPanel,
     ChatMessage,
     ChatPane,
     HenchmanTextArea,
+    MemoryIndicator,
     ProgressIndicator,
+    SettingsPanel,
+    SkillPanel,
     StatusBar,
+    TaskListWidget,
+    TeamPanel,
     ThinkingMessage,
     ThinkingPane,
     ToolMessage,
@@ -108,6 +128,8 @@ __all__ = [
     "AgentFinishedMessage",
     "AgentStatusMessage",
     "AgentThoughtMessage",
+    "AutoModeScreen",
+    "BridgeScreen",
     "ChatMessage",
     "ChatPane",
     "CommandOutputMessage",
@@ -116,15 +138,22 @@ __all__ = [
     "ComponentInitializer",
     "ConfirmToolScreen",
     "EventBridge",
+    "ExportScreen",
+    "FeedbackScreen",
     "Footer",
     "Header",
     "HelpScreen",
     "HenchmanTextArea",
     "HenchmanTextualApp",
+    "HistorySearchScreen",
     "InputHandler",
+    "McpServersScreen",
+    "ModelPickerScreen",
+    "OnboardingScreen",
     "OutputHandler",
     "ProgressIndicator",
     "ProviderScreen",
+    "SearchScreen",
     "SessionScreen",
     "Static",
     "StatusBar",
@@ -132,6 +161,7 @@ __all__ = [
     "TabPane",
     "TabbedContent",
     "TextualConfig",
+    "ThemePickerScreen",
     "ThinkingMessage",
     "ToolCallRequestMessage",
     "ToolCallResultMessage",
@@ -167,8 +197,9 @@ class HenchmanTextualApp(
     _CommandPaletteMixin,
     _MessageHandlerMixin,
     _PaneActionMixin,
-    _SearchMixin,
     _PublicAPIMixin,
+    _SearchMixin,
+    _WorkspaceMixin,
     App,  # type: ignore[type-arg]
 ):
     """Main Textual TUI application for Henchman-AI."""
@@ -176,9 +207,9 @@ class HenchmanTextualApp(
     CSS_PATH = "henchman.tcss"
 
     # Active colour theme name ("dark" or "light").
-    _theme_name: ClassVar[str] = "dark"
+    _theme_name: str = "dark"
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
         Binding("ctrl+f", "search", "Search", show=True),
@@ -242,6 +273,10 @@ class HenchmanTextualApp(
         )
         self._init_state()
 
+    async def _textual_question(self, question: str) -> str | None:
+        """Collect an answer through the serialized Textual tool dialog."""
+        return await self._tool_prompts.ask(question)
+
     def compose(self) -> ComposeResult:
         """Build the widget tree.
 
@@ -258,10 +293,26 @@ class HenchmanTextualApp(
                 yield ToolPane(id="tool-pane")
             with TabPane("Context", id="tab-context"):
                 yield Tree("Context Files", id="context-tree")
+            with TabPane("Workspace", id="tab-workspace"):
+                yield VerticalScroll(
+                    AgentSummaryPanel(id="agent-summary-panel"),
+                    MemoryIndicator(id="memory-indicators"),
+                    TaskListWidget(id="task-list-widget"),
+                    SkillPanel(id="skill-components"),
+                    TeamPanel(id="team-components"),
+                    SettingsPanel(id="settings-panels"),
+                    Horizontal(
+                        Button("Refresh", id="workspace-refresh"),
+                        Button("Bridges", id="workspace-bridges"),
+                        Button("Export", id="workspace-export"),
+                        id="workspace-actions",
+                    ),
+                    id="workspace-overview",
+                )
         yield OptionList(id="command-palette")
         yield HenchmanTextArea(id="input", show_line_numbers=False)
-        yield StatusBar(id="status-bar")
         yield Footer()
+        yield StatusBar(id="status-bar")
 
     def on_mount(self) -> None:
         """Initialize core components after DOM is ready.
@@ -272,13 +323,15 @@ class HenchmanTextualApp(
         self._initialize_core_components()
         from henchman import __version__
 
-        self.sub_title = f"Henchman-AI v{__version__} - {self.provider.name}"
+        provider = _active_display_provider(self)
+        self.sub_title = f"Henchman-AI v{__version__} - {provider.name if provider else 'unknown'}"
         self._apply_theme()
         self._populate_context_tree()
         self._show_welcome()
         input_widget = self.query_one("#input", TextArea)
         input_widget.focus()
         self._load_history()
+        self._refresh_workspace_widgets()
         self.call_after_refresh(input_widget.focus)
         self._activate_chat_tab()
 
@@ -289,6 +342,9 @@ class HenchmanTextualApp(
             None
         """
         self._cleanup_confirm_futures()
+        ctx = self.core_context
+        if ctx and ctx.session_manager:
+            ctx.session_manager.auto_save_session()
 
 
 # ------------------------------------------------------------------ #

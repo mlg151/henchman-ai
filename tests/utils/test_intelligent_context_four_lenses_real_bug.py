@@ -1,9 +1,9 @@
-from henchman.utils.intelligent_context_parser import _ApostropheDetector
 """Test for the real bug in _is_apostrophe_in_word method."""
 
 import pytest
 
 from henchman.utils.intelligent_context_extractor import ContentExtractor, _ParserState
+from henchman.utils.intelligent_context_parser import _ApostropheDetector
 
 
 def test_invalid_string_prefix_ar():

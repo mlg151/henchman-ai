@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from henchman.chat.base import ChatMessage, ChatPlatform
 from henchman.core.events import EventType
 from henchman.providers import get_default_registry
+from henchman.providers.factory import create_configured_provider
 from henchman.providers.utils import get_api_key_for_provider
 
 if TYPE_CHECKING:
@@ -17,6 +19,67 @@ if TYPE_CHECKING:
     from henchman.core import Agent
 
 logger = logging.getLogger(__name__)
+
+# Typing indicator refresh interval in seconds.
+# Discord's typing indicator expires after ~10 seconds, so we refresh every 8s.
+# Can be overridden (e.g. in tests) by patching the module attribute.
+TYPING_REFRESH_INTERVAL = 8
+
+
+@runtime_checkable
+class _ChatAgent(Protocol):
+    """Protocol defining the expected interface for chat agents.
+
+    Any object satisfying this protocol can be used as a chat agent
+    within the ChatManager system.
+    """
+
+    tool_registry: object
+
+    async def run(self, user_input: str) -> AsyncIterator[Any]:
+        """Run the agent with user input, yielding events."""
+        ...
+
+    async def continue_with_tool_results(self) -> AsyncIterator[Any]:
+        """Continue after tool results have been submitted."""
+        ...
+
+    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+        """Submit the result of a tool call."""
+        ...
+
+    def clear_history(self) -> None:
+        """Clear the agent's conversation history."""
+        ...
+
+
+class _FallbackChatAgent:
+    """Minimal fallback chat agent implementing the _ChatAgent protocol.
+
+    Used as a stateless placeholder when a full agent cannot be created.
+    """
+
+    def __init__(self, tool_registry: object = None) -> None:
+        self.tool_registry = tool_registry if tool_registry is not None else {}
+        self._tool_results: dict[str, str] = {}
+
+    async def run(self, user_input: str) -> AsyncIterator[Any]:
+        """Run is a no-op for the fallback agent."""
+        return
+        yield  # pragma: no cover
+
+    async def continue_with_tool_results(self) -> AsyncIterator[Any]:
+        """Continue is a no-op for the fallback agent."""
+        return
+        yield  # pragma: no cover
+
+    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+        """Record a tool result."""
+        self._tool_results[tool_call_id] = result
+
+    def clear_history(self) -> None:
+        """Clear tool results history."""
+        self._tool_results.clear()
 
 
 class ChatManager:
@@ -86,12 +149,7 @@ class ChatManager:
 
         # Create new agent for user
         registry = get_default_registry()
-        provider_name = self._settings.providers.default
-
-        # Get provider settings
-        provider_settings = self._get_provider_settings(provider_name)
-
-        provider = registry.create(provider_name, **provider_settings)
+        provider = create_configured_provider(self._settings.providers, registry=registry)
 
         # Use custom system prompt if configured
         system_prompt = (
@@ -120,6 +178,8 @@ class ChatManager:
 
         # Auto-approve all tools for Discord (non-interactive mode)
         tool_manager.set_auto_approve(auto_approve=True)
+        # Wire the auto-approve handler into the registry so it takes effect
+        tool_manager.set_confirmation_handler()
 
         agent = Agent(
             provider=provider,
@@ -286,8 +346,8 @@ class ChatManager:
                         should_flush = True
 
                 if should_flush:
-                    await bot.send_message(user_id, current_chunk)
-                    response_parts.append(current_chunk)
+                    if await bot.send_message(user_id, current_chunk):
+                        response_parts.append(current_chunk)
                     current_chunk = ""
 
             elif event.type == EventType.TOOL_CALL_REQUEST:
@@ -295,8 +355,8 @@ class ChatManager:
 
                 # Flush any pending content
                 if current_chunk:
-                    await bot.send_message(user_id, current_chunk)
-                    response_parts.append(current_chunk)
+                    if await bot.send_message(user_id, current_chunk):
+                        response_parts.append(current_chunk)
                     current_chunk = ""
 
                 # Execute the tool call
@@ -391,6 +451,18 @@ class ChatManager:
             await self._handle_command(message)
             return
 
+        # Reject empty or whitespace-only content before dispatching to the agent.
+        # This prevents wasted tokens and undefined behavior when mention
+        # stripping leaves an empty string.
+        if not message.content or not message.content.strip():
+            bot = self._bots.get(message.platform)
+            if bot:
+                await bot.send_message(
+                    message.user_id,
+                    "Hi! How can I help you? Feel free to ask me anything.",
+                )
+            return
+
         # Get or create agent for user
         agent = await self._get_or_create_agent(message.user_id)
 
@@ -400,8 +472,26 @@ class ChatManager:
             logger.error("No bot found for platform %s", message.platform)
             return
 
-        # Send typing indicator
+        # Send typing indicator and start periodic refreshes
+        # (Discord's typing indicator expires after ~10 seconds)
         await bot.send_typing(message.user_id)
+
+        typing_done = asyncio.Event()
+
+        async def _refresh_typing() -> None:
+            """Periodically refresh the typing indicator while processing."""
+            while not typing_done.is_set():
+                try:
+                    await asyncio.sleep(TYPING_REFRESH_INTERVAL)
+                    if not typing_done.is_set():
+                        await bot.send_typing(message.user_id)
+                except asyncio.CancelledError:
+                    break
+                except Exception:
+                    logger.exception("Failed to refresh typing indicator")
+                    break
+
+        typing_task = asyncio.create_task(_refresh_typing())
 
         # Collect response parts
         response_parts: list[str] = []
@@ -433,8 +523,9 @@ class ChatManager:
                 )
 
             # Send remaining content
-            if current_chunk:
-                await bot.send_message(message.user_id, current_chunk)
+            if current_chunk and await bot.send_message(
+                message.user_id, current_chunk
+            ):
                 response_parts.append(current_chunk)
 
             # Store in history
@@ -452,6 +543,9 @@ class ChatManager:
                 message.user_id,
                 "❌ Sorry, an error occurred while processing your request. Please try again.",
             )
+        finally:
+            typing_done.set()
+            typing_task.cancel()
 
     async def _handle_command(self, message: ChatMessage) -> None:
         """Handle special chat commands.

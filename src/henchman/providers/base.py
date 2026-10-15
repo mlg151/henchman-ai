@@ -2,9 +2,15 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
+
+from henchman.providers.request_budget import (
+    OutputBudget,
+    estimate_serialized_input,
+    validate_output_tokens,
+)
 
 __all__ = [
     "ContextTooLargeError",
@@ -86,6 +92,24 @@ class StreamChunk:
 
 class ModelProvider(ABC):
     """Abstract base class for model providers."""
+
+    def required_tool_names(self) -> list[str]:
+        """Return named schemas that must survive optional catalog reduction."""
+        return []
+
+    def prepare_output_budget(self, default_max_tokens: int) -> OutputBudget:
+        """Reserve and request a deliberate portable output cap."""
+        cap = validate_output_tokens(default_max_tokens)
+        return OutputBudget(cap, {"max_tokens": cap})
+
+    def estimate_input_tokens(
+        self, messages: list[Message], tools: list[ToolDeclaration] | None,
+    ) -> int:
+        """Estimate generic message/tool JSON, including reasoning and schemas."""
+        payload: dict[str, Any] = {"messages": [asdict(message) for message in messages]}
+        if tools:
+            payload["tools"] = [asdict(tool) for tool in tools]
+        return estimate_serialized_input(payload)
 
     @property
     @abstractmethod

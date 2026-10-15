@@ -1,0 +1,54 @@
+{
+  "$id": "henchman/contracts/config/agent-config/v1",
+  "title": "AgentConfig",
+  "description": "Shape contract for the serialised AgentConfig model.",
+  "type": "object",
+  "required": ["name", "role", "description", "tools", "enabled"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the agent"
+    },
+    "role": {
+      "type": "string",
+      "description": "Unique role identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line description of the agent's purpose"
+    },
+    "system_prompt": {
+      "type": ["string", "null"],
+      "description": "Role-specific instructions (None for default)"
+    },
+    "tools": {
+      "type": "array",
+      "description": "Allowlist of tool names",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "provider": {
+      "type": ["string", "null"],
+      "description": "Override model provider"
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Override model name"
+    },
+    "auto_approve": {
+      "type": "array",
+      "description": "Tools to auto-approve",
+      "items": { "type": "string" }
+    },
+    "can_delegate_to": {
+      "type": "array",
+      "description": "Roles this agent can delegate to",
+      "items": { "type": "string" }
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether this agent is active"
+    }
+  },
+  "additionalProperties": false
+}

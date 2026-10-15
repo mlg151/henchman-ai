@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkflowDefinitionRecord",
+  "description": "Persisted workflow definition for a team workspace.",
+  "type": "object",
+  "properties": {
+    "workflow_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "workflow_name": { "type": "string" },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_by": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["workflow_id", "workspace_id", "workflow_name", "steps", "created_by", "created_at"]
+}

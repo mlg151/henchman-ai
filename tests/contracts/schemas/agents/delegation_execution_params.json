@@ -1,0 +1,35 @@
+{
+  "$id": "henchman/contracts/agents/delegation-execution-params/v1",
+  "title": "DelegationExecutionParams",
+  "description": "Shape contract for DelegationExecutionParams.",
+  "type": "object",
+  "required": ["target", "task", "depth"],
+  "properties": {
+    "target": {
+      "type": "string",
+      "description": "Target role identifier"
+    },
+    "task": {
+      "type": "string",
+      "description": "Task description for the execution"
+    },
+    "depth": {
+      "type": "integer",
+      "description": "Current delegation depth",
+      "minimum": 0
+    },
+    "tool_call": {
+      "description": "Optional tool call reference",
+      "type": ["string", "null"]
+    },
+    "agent": {
+      "description": "Optional agent reference",
+      "type": ["string", "null"]
+    },
+    "ledger_record": {
+      "description": "Optional ledger record reference",
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false
+}

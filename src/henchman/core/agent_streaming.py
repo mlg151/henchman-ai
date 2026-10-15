@@ -6,6 +6,9 @@ responses, and a generator function for producing agent events.
 
 from __future__ import annotations
 
+import asyncio
+import logging
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -20,7 +23,9 @@ from henchman.providers.base import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator
+
+logger = logging.getLogger(__name__)
 
 
 def _make_event(
@@ -51,6 +56,7 @@ class StreamContext:
         history: Full conversation history (mutated on finish).
         tool_declarations: Tool declarations for the provider.
         source_agent: Agent identity ID for events.
+        current_turn_messages: Optional uncompressed transcript for persistence.
     """
 
     provider: ModelProvider
@@ -58,6 +64,8 @@ class StreamContext:
     history: list[Message]
     tool_declarations: list[ToolDeclaration]
     source_agent: str | None = None
+    current_turn_messages: list[Message] | None = None
+    request_options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -139,6 +147,17 @@ class StreamState:
 # ---------------------------------------------------------------------------
 
 
+def record_message(
+    history: list[Message],
+    message: Message,
+    current_turn_messages: list[Message] | None = None,
+) -> None:
+    """Append context and retain independent turn evidence before compaction."""
+    history.append(message)
+    if current_turn_messages is not None:
+        current_turn_messages.append(deepcopy(message))
+
+
 def _accumulate_chunk(chunk: StreamChunk, state: StreamState) -> None:
     """Accumulate content, tool calls, and usage from a chunk.
 
@@ -161,6 +180,7 @@ def _handle_finish(
     state: StreamState,
     history: list[Message],
     source_agent: str | None,
+    current_turn_messages: list[Message] | None = None,
 ) -> list[AgentEvent]:
     """Handle a chunk that carries a finish_reason.
 
@@ -173,9 +193,20 @@ def _handle_finish(
     Returns:
         List of events to yield.
     """
+    if chunk.finish_reason == FinishReason.TOOL_CALLS:
+        calls = state.get_pending_tool_calls(chunk.tool_calls)
+        if not calls:
+            raise ValueError("Provider finished with tool_calls but supplied no tool requests")
+        seen_ids: set[str] = set()
+        for call in calls:
+            if not call.id.strip() or not call.name.strip():
+                raise ValueError("Provider tool calls require nonempty IDs and names")
+            if call.id in seen_ids:
+                raise ValueError("Provider tool calls require unique IDs within a response")
+            seen_ids.add(call.id)
     state.finish_reason = chunk.finish_reason
     assistant_msg = state.create_assistant_message(chunk.tool_calls)
-    history.append(assistant_msg)
+    record_message(history, assistant_msg, current_turn_messages)
     events: list[AgentEvent] = []
     stop_reasons = (FinishReason.STOP, FinishReason.LENGTH, FinishReason.CONTENT_FILTER)
     if chunk.finish_reason in stop_reasons:
@@ -194,7 +225,7 @@ async def generate_stream_events(
     state: StreamState,
     *,
     compacted: bool,
-) -> AsyncIterator[AgentEvent]:
+) -> AsyncGenerator[AgentEvent, None]:
     """Generate agent events from a provider streaming response.
 
     Args:
@@ -211,21 +242,52 @@ async def generate_stream_events(
             {"message": "Context was compacted to fit model limits"},
             ctx.source_agent,
         )
+    provider_stream = None
+    interrupted = False
     try:
-        async for chunk in ctx.provider.chat_completion_stream(
+        provider_stream = ctx.provider.chat_completion_stream(
             messages=ctx.api_messages,
             tools=ctx.tool_declarations,
-        ):
+            **ctx.request_options,
+        )
+        async for chunk in provider_stream:
+            _accumulate_chunk(chunk, state)
             if chunk.thinking:
                 yield _make_event(EventType.THOUGHT, chunk.thinking, ctx.source_agent)
-            _accumulate_chunk(chunk, state)
-            if chunk.finish_reason and state.finish_reason is None:
-                for event in _handle_finish(chunk, state, ctx.history, ctx.source_agent):
-                    yield event
-            elif chunk.content:
+            if chunk.content:
                 state.content_yielded = True
                 yield _make_event(EventType.CONTENT, chunk.content, ctx.source_agent)
+            if chunk.finish_reason and state.finish_reason is None:
+                for event in _handle_finish(
+                    chunk, state, ctx.history, ctx.source_agent, ctx.current_turn_messages,
+                ):
+                    yield event
+        if state.finish_reason is None:
+            raise ValueError("Provider stream ended without a finish reason")
+    except (asyncio.CancelledError, GeneratorExit):
+        interrupted = True
+        if state.finish_reason is None and (state.content or state.thinking):
+            # Preserve what the user saw without committing an unfinished tool
+            # request or representing a partial response as successful.
+            content = f"{state.content}\n\n" if state.content else ""
+            record_message(ctx.history, Message(
+                role="assistant",
+                content=content + "[Response interrupted.]",
+                reasoning_content=state.thinking or None,
+            ), ctx.current_turn_messages)
+        raise
     except Exception as exc:
         yield _make_event(EventType.ERROR, f"Provider error: {exc}", ctx.source_agent)
     finally:
-        yield _make_event(EventType.FINISHED, state.create_finished_data(), ctx.source_agent)
+        # AsyncIterator implementations need not expose aclose, but generators
+        # and resource-owning adapters must be closed before returning to callers.
+        close = getattr(provider_stream, "aclose", None)
+        if close is not None:
+            try:
+                await close()
+            except Exception:
+                if not interrupted:
+                    raise
+                logger.warning("Provider cleanup failed during interruption", exc_info=True)
+    # Yielding from finally masks cancellation and violates generator close.
+    yield _make_event(EventType.FINISHED, state.create_finished_data(), ctx.source_agent)

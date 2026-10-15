@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/chat/chat-message/v1",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "user_id": { "type": "string" },
+    "username": { "type": "string" },
+    "content": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "platform": { "type": "string", "enum": ["telegram", "discord", "slack"] },
+    "attachments": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "is_dm": { "type": "boolean" }
+  },
+  "required": [
+    "id",
+    "user_id",
+    "username",
+    "content",
+    "timestamp",
+    "platform",
+    "attachments",
+    "is_dm"
+  ],
+  "additionalProperties": false
+}

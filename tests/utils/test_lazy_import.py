@@ -1,7 +1,6 @@
 """Tests for lazy_import.py module."""
 
-import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,13 +21,13 @@ class TestLazyImport:
         # Create the __getattr__ function
         module_name = "test_module"
         getattr_func = getattr_for_textual_app(module_name)
-        
+
         # Mock the import from henchman.cli.textual_app
         mock_app_class = MagicMock()
         with patch("henchman.cli.textual_app.HenchmanTextualApp", mock_app_class):
             # Access 'app' attribute
             result = getattr_func("app")
-            
+
             # Should return the mocked class
             assert result is mock_app_class
 
@@ -36,11 +35,11 @@ class TestLazyImport:
         """Test that accessing unknown attribute raises AttributeError."""
         module_name = "test_module"
         getattr_func = getattr_for_textual_app(module_name)
-        
+
         # Try to access unknown attribute
         with pytest.raises(AttributeError) as exc_info:
             getattr_func("unknown_attribute")
-        
+
         # Check error message
         assert f"module {module_name!r} has no attribute 'unknown_attribute'" in str(exc_info.value)
 
@@ -48,11 +47,11 @@ class TestLazyImport:
         """Test that accessing empty attribute name raises AttributeError."""
         module_name = "test_module"
         getattr_func = getattr_for_textual_app(module_name)
-        
+
         # Try to access empty attribute name
         with pytest.raises(AttributeError) as exc_info:
             getattr_func("")
-        
+
         # Check error message
         assert f"module {module_name!r} has no attribute ''" in str(exc_info.value)
 
@@ -60,11 +59,11 @@ class TestLazyImport:
         """Test that attribute access is case-sensitive."""
         module_name = "test_module"
         getattr_func = getattr_for_textual_app(module_name)
-        
+
         # 'App' should not work, only 'app' works
         with pytest.raises(AttributeError) as exc_info:
             getattr_func("App")
-        
+
         assert f"module {module_name!r} has no attribute 'App'" in str(exc_info.value)
 
     def test_module_usage_example(self):
@@ -72,18 +71,18 @@ class TestLazyImport:
         # Simulate a module using this pattern - simpler approach
         module_name = "fake_module"
         getattr_func = getattr_for_textual_app(module_name)
-        
+
         # Mock the import from henchman.cli.textual_app
         mock_app_class = MagicMock()
         with patch("henchman.cli.textual_app.HenchmanTextualApp", mock_app_class):
             # Access 'app' attribute using the function directly
             result = getattr_func("app")
-            
+
             # Should return the mocked class
             assert result is mock_app_class
-            
+
             # Try to access unknown attribute
             with pytest.raises(AttributeError) as exc_info:
                 getattr_func("unknown_attr")
-            
+
             assert "module 'fake_module' has no attribute 'unknown_attr'" in str(exc_info.value)

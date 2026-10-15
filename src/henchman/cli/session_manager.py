@@ -7,6 +7,8 @@ session creation/loading, and session state tracking.
 
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
@@ -16,12 +18,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.core.agent import Agent
 
 
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 # ---------------------------------------------------------------------------
 # Module-level helpers (exempt from Feature Envy detection)
@@ -40,31 +43,36 @@ def _build_tool_call(tc: dict[str, Any]) -> ToolCall:
     return ToolCall(
         id=tc.get("id", ""),
         name=tc.get("name", ""),
-        arguments=tc.get("arguments", {}),
+        arguments=deepcopy(tc.get("arguments", {})),
     )
 
 
-def _sync_messages_to_agent(agent: Orchestrator, session: Session) -> None:
+def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
     """Restore session messages to the tech-lead agent's message history.
 
     Args:
-        agent: Orchestrator whose tech_lead history is repopulated.
+        agent: Agent whose history is repopulated.
         session: Session containing the messages to restore.
     """
-    agent.tech_lead.clear_history()
+    agent.clear_history()
+    prompt = agent.system_prompt
+    agent.messages = [Message(role="system", content=prompt)] if prompt else []
 
     for session_msg in session.messages:
+        if session_msg.role == "system" and session_msg.content == prompt:
+            continue
         tool_calls = (
             [_build_tool_call(tc) for tc in session_msg.tool_calls]
             if session_msg.tool_calls
             else None
         )
-        agent.tech_lead.messages.append(
+        agent.messages.append(
             Message(
                 role=session_msg.role,
                 content=session_msg.content,
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
+                reasoning_content=session_msg.reasoning_content,
             ),
         )
 
@@ -115,12 +123,19 @@ class ReplSessionManager:
         """Get the current session (alias for session attribute)."""
         return self.session
 
-    def set_session(self: Self, session: Session, agent: Orchestrator | None = None) -> None:
+    def set_session(
+        self: Self,
+        session: Session,
+        agent: Orchestrator | None = None,
+        *,
+        history_agent: Agent | None = None,
+    ) -> None:
         """Set the current session and sync with agent history.
 
         Args:
             session: The session to activate.
             agent: Optional agent to sync session messages with.
+            history_agent: Direct-mode agent whose history should be restored.
 
         Returns:
             None
@@ -128,7 +143,9 @@ class ReplSessionManager:
         self.session = session
         self.session_manager.set_current(session)
 
-        if agent:
+        if history_agent is not None:
+            _sync_messages_to_agent(history_agent, session)
+        elif agent:
             self._sync_session_to_agent(session, agent)
 
     def _sync_session_to_agent(self: Self, session: Session, agent: Orchestrator) -> None:
@@ -138,7 +155,7 @@ class ReplSessionManager:
             session: Session containing messages to restore.
             agent: Agent to restore messages to.
         """
-        _sync_messages_to_agent(agent, session)
+        _sync_messages_to_agent(agent.tech_lead, session)
 
     def auto_save_session(self: Self) -> None:
         """Auto-save the session if enabled and session has content.
@@ -154,6 +171,24 @@ class ReplSessionManager:
             return
 
         self.session_manager.save(self.session)
+
+    def sync_agent_turn(self: Self, agent: Agent, *, session_start: int) -> None:
+        """Persist the current agent turn without replacing older transcript.
+
+        Capture ``session_start`` before recording this turn's input. Prefer the
+        agent's unabridged turn transcript because active context can truncate
+        even current-turn tool results. Older persisted conversation is retained.
+        Call after closing the stream, including on cancellation, so tool results
+        and partial assistant messages have settled in authoritative history.
+        """
+        if self.session is None:
+            return
+        if not 0 <= session_start <= len(self.session.messages):
+            raise ValueError("Session turn boundary is outside the transcript")
+        messages = getattr(agent, "current_turn_messages", None) or agent.messages[agent.turn.start_index:]
+        self.session.messages[session_start:] = [
+            SessionMessage(**deepcopy(asdict(message))) for message in messages
+        ]
 
     def create_session(
         self: Self,

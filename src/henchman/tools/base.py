@@ -125,14 +125,23 @@ class Tool(ABC):
             By default, READ tools don't need confirmation, while
             WRITE, EXECUTE, and NETWORK tools do.
         """
-        if self.kind in (ToolKind.WRITE, ToolKind.EXECUTE, ToolKind.NETWORK):
+        kind = self.execution_kind(params)
+        if kind in (ToolKind.WRITE, ToolKind.EXECUTE, ToolKind.NETWORK):
             return ConfirmationRequest(
                 tool_name=self.name,
                 description=f"Execute {self.name} with parameters",
                 params=params,
-                risk_level="high" if self.kind == ToolKind.EXECUTE else "medium",
+                risk_level="high" if kind == ToolKind.EXECUTE else "medium",
             )
         return None
+
+    def execution_kind(self: Tool, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation for authorization and execution policies.
+
+        Override for tools with read-only and mutating modes. The static ``kind``
+        remains the catalog classification; ordinary tools retain that behavior.
+        """
+        return self.kind
 
     def to_declaration(self: Tool) -> ToolDeclaration:
         """Convert this tool to a ToolDeclaration for the LLM.

@@ -426,10 +426,9 @@ class TestPluginManagerRefactoring:
                 "install_plugin_package",
                 side_effect=RuntimeError("Installation failed"),
             ),
+            pytest.raises(RuntimeError, match="Failed to install plugin"),
         ):
-            # Should raise RuntimeError
-            with pytest.raises(RuntimeError, match="Failed to install plugin"):
-                await plugin_manager.install_plugin("test-plugin")
+            await plugin_manager.install_plugin("test-plugin")
 
         await plugin_manager.close()
 
@@ -445,10 +444,8 @@ class TestPluginManagerRefactoring:
             plugin_manager,
             "get_plugin_info",
             return_value=None,
-        ):
-            # Should raise ValueError
-            with pytest.raises(ValueError, match="not found in registry"):
-                await plugin_manager.install_plugin("non-existent-plugin")
+        ), pytest.raises(ValueError, match="not found in registry"):
+            await plugin_manager.install_plugin("non-existent-plugin")
 
         await plugin_manager.close()
 
@@ -475,10 +472,9 @@ class TestPluginManagerRefactoring:
                 "check_compatibility",
                 return_value=False,
             ),
+            pytest.raises(RuntimeError, match="not compatible"),
         ):
-            # Should raise RuntimeError
-            with pytest.raises(RuntimeError, match="not compatible"):
-                await plugin_manager.install_plugin("test-plugin")
+            await plugin_manager.install_plugin("test-plugin")
 
         await plugin_manager.close()
 

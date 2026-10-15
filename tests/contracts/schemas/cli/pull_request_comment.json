@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["comment_id", "body", "path", "author", "url"],
+  "properties": {
+    "comment_id": {"type": "integer", "minimum": 1},
+    "body": {"type": "string"},
+    "path": {"type": ["string", "null"]},
+    "author": {"type": ["string", "null"]},
+    "url": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

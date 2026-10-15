@@ -5,6 +5,11 @@ OpenAI-compatible API.
 """
 
 import os
+from inspect import signature
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+from openai.resources.chat.completions import AsyncCompletions
 
 from henchman.providers.openai_compat import OpenAICompatibleProvider
 
@@ -43,20 +48,31 @@ class OllamaProvider(OpenAICompatibleProvider):
         self,
         base_url: str | None = None,
         model: str = "llama3.2",
+        **request_defaults: Any,
     ) -> None:
         """Initialize the Ollama provider.
 
         Args:
             base_url: Ollama API URL. Defaults to OLLAMA_HOST env var or localhost.
             model: Default model to use.
+            **request_defaults: Compatible request options overridden per call.
         """
+        # Preserve early rejection of unknown options during runtime switches,
+        # while accepting request defaults supported by the installed SDK.
+        signature(AsyncCompletions.create).bind(
+            None, model=model, messages=[], stream=True, **request_defaults,
+        )
         default_url = os.getenv("OLLAMA_HOST", "http://localhost:11434/v1")
         actual_url = base_url or default_url
+        parts = urlsplit(actual_url)
+        if parts.path in ("", "/"):
+            actual_url = urlunsplit(parts._replace(path="/v1"))
 
         super().__init__(
             api_key="ollama",  # Ollama doesn't need a real key
             base_url=actual_url,
             default_model=model,
+            **request_defaults,
         )
 
     @property

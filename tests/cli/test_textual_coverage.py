@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from henchman.core.events import AgentEvent, EventType
+
+if TYPE_CHECKING:
+    from henchman.cli.textual_bridge import EventBridge, MessagePoster, TuiConsoleAdapter
+    from henchman.tools.base import ConfirmationRequest
 
 # ---------------------------------------------------------------------------
 # textual_bridge.py tests
@@ -532,7 +537,7 @@ class TestHelpScreen:
         screen = HelpScreen()
         mock_app = MagicMock()
         # Use object.__setattr__ to bypass property protection
-        with patch.object(type(screen), "app", new_callable=lambda: property(lambda self: mock_app)):
+        with patch.object(type(screen), "app", new_callable=lambda: property(lambda _: mock_app)):
             screen.on_button_pressed(MagicMock(button=MagicMock(id="close-help")))
         mock_app.pop_screen.assert_called_once()
 
@@ -548,7 +553,7 @@ class TestProviderScreen:
         mock_app = MagicMock()
         event = MagicMock()
         event.button.id = "btn-cancel"
-        with patch.object(type(screen), "app", new_callable=lambda: property(lambda self: mock_app)):
+        with patch.object(type(screen), "app", new_callable=lambda: property(lambda _: mock_app)):
             screen.on_button_pressed(event)
         mock_app.pop_screen.assert_called_once()
 
@@ -564,7 +569,7 @@ class TestProviderScreen:
         sel.value = Select.BLANK
         event = MagicMock()
         event.button.id = "btn-switch"
-        with patch.object(type(screen), "app", new_callable=lambda: property(lambda self: mock_app)):
+        with patch.object(type(screen), "app", new_callable=lambda: property(lambda _: mock_app)):
             screen.query_one = MagicMock(return_value=sel)
             screen.on_button_pressed(event)
         mock_app.pop_screen.assert_called_once()
@@ -579,7 +584,7 @@ class TestProviderScreen:
         sel.value = "deepseek"
         event = MagicMock()
         event.button.id = "btn-switch"
-        with patch.object(type(screen), "app", new_callable=lambda: property(lambda self: mock_app)):
+        with patch.object(type(screen), "app", new_callable=lambda: property(lambda _: mock_app)):
             screen.query_one = MagicMock(return_value=sel)
             screen.on_button_pressed(event)
         mock_app.post_message.assert_called_once()

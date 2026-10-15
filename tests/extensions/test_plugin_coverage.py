@@ -236,9 +236,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"error message"))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to install package"):
-                await _run_pip_subprocess("bad-package==0.0.0", str(tmp_path))
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to install package"),
+        ):
+            await _run_pip_subprocess("bad-package==0.0.0", str(tmp_path))
 
     @pytest.mark.anyio
     async def test_run_pip_subprocess_failure_no_stderr(self, tmp_path: Path) -> None:
@@ -247,9 +249,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", None))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to install package"):
-                await _run_pip_subprocess("bad-package", str(tmp_path))
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to install package"),
+        ):
+            await _run_pip_subprocess("bad-package", str(tmp_path))
 
     def test_copy_dir_contents(self, tmp_path: Path) -> None:
         """_copy_dir_contents copies files and dirs."""
@@ -294,9 +298,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"pip error"))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to install from PyPI"):
-                await _install_pypi_package(metadata, target)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to install from PyPI"),
+        ):
+            await _install_pypi_package(metadata, target)
 
     @pytest.mark.anyio
     async def test_run_git_clone_success(self, tmp_path: Path) -> None:
@@ -317,9 +323,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"clone failed"))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to clone repository"):
-                await _run_git_clone_subprocess("bad-url", None, str(tmp_path))
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to clone repository"),
+        ):
+            await _run_git_clone_subprocess("bad-url", None, str(tmp_path))
 
     @pytest.mark.anyio
     async def test_run_git_clone_failure_no_stderr(self, tmp_path: Path) -> None:
@@ -328,9 +336,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", None))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to clone repository"):
-                await _run_git_clone_subprocess("bad-url", None, str(tmp_path))
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to clone repository"),
+        ):
+            await _run_git_clone_subprocess("bad-url", None, str(tmp_path))
 
     def test_copy_repo_files_skips_git(self, tmp_path: Path) -> None:
         """_copy_repo_files skips .git directory."""
@@ -369,9 +379,11 @@ class TestPluginInstallerHelpers:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"error"))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError, match="Failed to install from git"):
-                await _git_clone_to_dir("bad-url", None, target)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError, match="Failed to install from git"),
+        ):
+            await _git_clone_to_dir("bad-url", None, target)
 
     def test_parse_github_url_with_branch(self) -> None:
         """Parse GitHub URL with branch succeeds."""
@@ -426,9 +438,11 @@ class TestPluginInstallerHelpers:
         mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
         mock_session.get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("aiohttp.ClientSession", return_value=mock_session):
-            with pytest.raises(RuntimeError, match="Failed to download from URL"):
-                await _download_archive("https://example.com/missing.zip")
+        with (
+            patch("aiohttp.ClientSession", return_value=mock_session),
+            pytest.raises(RuntimeError, match="Failed to download from URL"),
+        ):
+            await _download_archive("https://example.com/missing.zip")
 
     @pytest.mark.anyio
     async def test_download_archive_connection_error(self) -> None:
@@ -438,9 +452,11 @@ class TestPluginInstallerHelpers:
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session.get = MagicMock(side_effect=ConnectionError("refused"))
 
-        with patch("aiohttp.ClientSession", return_value=mock_session):
-            with pytest.raises(RuntimeError, match="Failed to download from URL"):
-                await _download_archive("https://unreachable.example.com/file.zip")
+        with (
+            patch("aiohttp.ClientSession", return_value=mock_session),
+            pytest.raises(RuntimeError, match="Failed to download from URL"),
+        ):
+            await _download_archive("https://unreachable.example.com/file.zip")
 
     def test_tar_open_mode_tar_gz(self) -> None:
         """_tar_open_mode returns r:gz for .tar.gz."""
@@ -726,9 +742,11 @@ class TestPluginInstaller:
         mock_proc.returncode = 1
         mock_proc.communicate = AsyncMock(return_value=(b"", b"pip failed"))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with pytest.raises(RuntimeError):
-                await installer.install_plugin_package(metadata)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_proc),
+            pytest.raises(RuntimeError),
+        ):
+            await installer.install_plugin_package(metadata)
 
     @pytest.mark.anyio
     async def test_install_dependencies_empty(self, installer: PluginInstaller) -> None:
@@ -1216,9 +1234,11 @@ class TestPluginManagerExtended:
         manager.installer = MagicMock()
         manager.installed_plugins = {}
 
-        with patch.object(manager, "get_plugin_info", new=AsyncMock(return_value=None)):
-            with pytest.raises(ValueError, match="not found in registry"):
-                await manager.install_plugin("nonexistent")
+        with (
+            patch.object(manager, "get_plugin_info", new=AsyncMock(return_value=None)),
+            pytest.raises(ValueError, match="not found in registry"),
+        ):
+            await manager.install_plugin("nonexistent")
 
     @pytest.mark.anyio
     async def test_install_plugin_incompatible(self, manager) -> None:
@@ -1530,10 +1550,11 @@ class TestPluginManagerExtended:
         mock_client.search_plugins = AsyncMock(return_value=mock_result)
         manager.registry_client = mock_client
 
-        result = await manager.search_plugins(query="test", page=1, page_size=10, category="ui")
+        search_params = PluginSearchParams(query="test", page=1, page_size=10, category="ui")
+        result = await manager.search_plugins(search_params=search_params)
 
         assert result is mock_result
-        mock_client.search_plugins.assert_called_once()
+        mock_client.search_plugins.assert_awaited_once_with(search_params)
 
     @pytest.mark.anyio
     async def test_install_plugin_with_dependencies(self, manager, tmp_path: Path) -> None:

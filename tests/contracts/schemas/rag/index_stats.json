@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://henchman.local/schemas/rag/index_stats",
+  "title": "IndexStats",
+  "type": "object",
+  "properties": {
+    "files_added": { "type": "integer" },
+    "files_updated": { "type": "integer" },
+    "files_removed": { "type": "integer" },
+    "files_unchanged": { "type": "integer" },
+    "total_chunks": { "type": "integer" }
+  },
+  "required": ["files_added", "files_updated", "files_removed", "files_unchanged", "total_chunks"],
+  "additionalProperties": false
+}

@@ -60,7 +60,7 @@ class TestShellToolInteractive:
         mock_process = _make_mock_process()
 
         with patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_create:
-            result = await tool.execute(command="echo test")
+            result = await tool.execute(background=False, command="echo test")
 
             mock_create.assert_called_once()
             assert result.success is True
@@ -76,7 +76,7 @@ class TestShellToolInteractive:
             patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_create,
         ):
             mock_stdin.isatty.return_value = False
-            result = await tool.execute(command="sudo echo test")
+            result = await tool.execute(background=False, command="sudo echo test")
 
             mock_create.assert_called_once()
             call_args = mock_create.call_args[0][0]

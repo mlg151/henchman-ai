@@ -7,13 +7,14 @@ Unlike OpenAI-compatible APIs, Anthropic has its own message format.
 from __future__ import annotations
 
 import asyncio
-import json
+import logging
 import os
+from contextlib import aclosing, asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator
 
 from anthropic import AsyncAnthropic, RateLimitError
 
@@ -25,11 +26,18 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.providers.utils import parse_finish_reason, validate_messages
+from henchman.providers.request_budget import (
+    OutputBudget,
+    estimate_serialized_input,
+    validate_output_tokens,
+)
+from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 from henchman.utils.ratelimit import AsyncRateLimiter
 from henchman.utils.tokens import TokenCounter
 
 __all__ = ["AnthropicProvider"]
+
+logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_MAX_TOKENS: Final[int] = 8192
@@ -261,6 +269,24 @@ def _raise_if_retries_exhausted(
         raise exc
 
 
+@asynccontextmanager
+async def _stream_context(manager: Any) -> AsyncIterator[Any]:
+    """Preserve the primary stream error when SDK context cleanup also fails."""
+    primary_error: BaseException | None = None
+    try:
+        async with manager as stream:
+            try:
+                yield stream
+            except BaseException as exc:
+                primary_error = exc
+                raise
+    except Exception as exc:
+        if primary_error is None or exc is primary_error:
+            raise
+        logger.exception("Failed to close Anthropic stream after an error")
+        raise primary_error from None
+
+
 class _AnthropicStreamProcessor:
     """Processes Anthropic API streaming responses."""
 
@@ -280,7 +306,7 @@ class _AnthropicStreamProcessor:
         self: _AnthropicStreamProcessor,
         params: dict[str, Any],
         input_tokens: int,
-    ) -> AsyncIterator[StreamChunk]:
+    ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API.
 
         Args:
@@ -291,9 +317,7 @@ class _AnthropicStreamProcessor:
             StreamChunk objects as the response is generated.
         """
         total_output_tokens = 0
-        async with self._provider._client.messages.stream(
-            **params,
-        ) as stream:
+        async with _stream_context(self._provider._client.messages.stream(**params)) as stream:
             pending_tool_calls: dict[str, dict[str, Any]] = {}
             current_tool_id: str | None = None
 
@@ -379,10 +403,7 @@ class _AnthropicStreamProcessor:
         """Build ToolCall objects from pending tool call data."""
         tool_calls = []
         for tc_data in pending_tool_calls.values():
-            try:
-                arguments = json.loads(tc_data["arguments"]) if tc_data["arguments"] else {}
-            except json.JSONDecodeError:
-                arguments = {}
+            arguments = parse_tool_arguments(tc_data["arguments"])
 
             tool_calls.append(
                 ToolCall(
@@ -445,6 +466,23 @@ class AnthropicProvider(ModelProvider):
         """The unique name of this provider."""
         return "anthropic"
 
+    def prepare_output_budget(self, default_max_tokens: int) -> OutputBudget:
+        """Reserve the configured native cap rather than the portable default."""
+        cap = validate_output_tokens(self.max_tokens)
+        return OutputBudget(cap, {"max_tokens": cap})
+
+    def estimate_input_tokens(
+        self, messages: list[Message], tools: list[ToolDeclaration] | None,
+    ) -> int:
+        """Estimate native system, message blocks and tool input schemas."""
+        system, formatted = self._format_messages(messages)
+        payload: dict[str, Any] = {"messages": formatted}
+        if system:
+            payload["system"] = system
+        if tools:
+            payload["tools"] = [_format_tool_for_anthropic(tool) for tool in tools]
+        return estimate_serialized_input(payload, model=self.default_model)
+
     @staticmethod
     def list_models() -> list[str]:
         """List available Claude models.
@@ -492,7 +530,7 @@ class AnthropicProvider(ModelProvider):
         messages: list[Message],
         tools: list[ToolDeclaration] | None = None,
         **kwargs: Any,
-    ) -> AsyncIterator[StreamChunk]:
+    ) -> AsyncGenerator[StreamChunk]:
         """Stream a chat completion from Claude.
 
         Args:
@@ -521,8 +559,9 @@ class AnthropicProvider(ModelProvider):
 
         input_tokens = TokenCounter.count_messages(messages, model=self.default_model)
 
-        async for chunk in self._stream_with_retry(params, input_tokens):
-            yield chunk
+        async with aclosing(self._stream_with_retry(params, input_tokens)) as chunks:
+            async for chunk in chunks:
+                yield chunk
 
 
     def _validate_and_repair_message_sequence(
@@ -570,7 +609,7 @@ class AnthropicProvider(ModelProvider):
         self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
-    ) -> AsyncIterator[StreamChunk]:
+    ) -> AsyncGenerator[StreamChunk]:
         """Stream with retry logic for rate limits."""
         retries = 0
 
@@ -578,8 +617,9 @@ class AnthropicProvider(ModelProvider):
             try:
                 await self._rate_limiter.wait_for_capacity(input_tokens)
 
-                async for chunk in self._process_stream(params, input_tokens):
-                    yield chunk
+                async with aclosing(self._process_stream(params, input_tokens)) as chunks:
+                    async for chunk in chunks:
+                        yield chunk
 
                 break  # Success, exit retry loop
 
@@ -593,7 +633,8 @@ class AnthropicProvider(ModelProvider):
         self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
-    ) -> AsyncIterator[StreamChunk]:
+    ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API."""
-        async for chunk in self._stream_processor.process_stream(params, input_tokens):
-            yield chunk
+        async with aclosing(self._stream_processor.process_stream(params, input_tokens)) as chunks:
+            async for chunk in chunks:
+                yield chunk

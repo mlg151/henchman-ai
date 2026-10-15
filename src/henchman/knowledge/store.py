@@ -197,7 +197,7 @@ def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str
 
 
 def _expand_frontier(
-    graph: nx.Graph,
+    graph: nx.Graph[str],
     frontier: set[str],
     visited: set[str],
     start: str,

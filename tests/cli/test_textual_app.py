@@ -194,6 +194,7 @@ class TestHenchmanTextualApp:
             environment_context=textual_app.environment_context,
             settings=mock_settings,
             auto_approve_tools=textual_app.config.auto_approve_tools,
+            question_handler=textual_app._textual_question,
         )
 
         # Verify plugin manager UI instance was set
@@ -338,56 +339,30 @@ class TestHenchmanTextualApp:
         mock_tool_pane.clear.assert_called_once()
         mock_status_bar.status_text = "Tool pane cleared"
 
-    @patch("henchman.providers.get_default_registry")
+    @patch("henchman.providers.factory.create_configured_provider")
     @patch.object(HenchmanTextualApp, "query_one")
     @patch.object(HenchmanTextualApp, "_initialize_core_components")
-    def test_switch_provider_failure_leaves_inconsistent_state(
+    def test_switch_provider_failure_preserves_runtime(
         self,
         mock_initialize_core_components,
         mock_query_one,
-        mock_get_default_registry,
+        mock_create_provider,
         textual_app,
-        mock_provider,
     ):
-        """Test Bug 5: Provider switch failure leaves app in inconsistent state.
-
-        When _initialize_core_components() fails AFTER provider assignment,
-        the provider is changed but core components aren't reinitialized.
-        """
-        # Setup mocks
-        mock_registry = MagicMock()
-        mock_get_default_registry.return_value = mock_registry
-
-        # Create a new mock provider
-        new_mock_provider = MagicMock()
-        new_mock_provider.name = "new-provider"
-        mock_registry.create.return_value = new_mock_provider
-
-        # Simulate failure: _initialize_core_components() raises exception
-        mock_initialize_core_components.side_effect = RuntimeError("Component init failed")
-
-        # Mock chat pane for error message
-        mock_chat_pane = MagicMock()
-        mock_query_one.return_value = mock_chat_pane
-
-        # Store original provider
+        """Construction failure leaves the original provider and core state intact."""
+        mock_create_provider.side_effect = ValueError("Invalid provider configuration")
+        chat = MagicMock()
+        mock_query_one.return_value = chat
         original_provider = textual_app.provider
+        original_core = textual_app.core_context
 
-        # Attempt to switch provider - should partially fail
         textual_app._switch_provider("new-provider")
 
-        # BUG: Provider IS changed even though initialization fails
-        # This test will FAIL because the bug exists
-        assert textual_app.provider == original_provider, (
-            "Provider should be rolled back when component initialization fails"
-        )
-
-        # _initialize_core_components WAS called (and failed)
-        mock_initialize_core_components.assert_called_once()
-
-        # Error message should be shown
-        mock_chat_pane.add_error_message.assert_called_once_with(
-            "Failed to switch provider: Component init failed"
+        assert textual_app.provider is original_provider
+        assert textual_app.core_context is original_core
+        mock_initialize_core_components.assert_not_called()
+        chat.add_error_message.assert_called_once_with(
+            "Failed to switch provider: Invalid provider configuration",
         )
 
     def test_on_tree_node_selected_implementation_fixed(
@@ -424,6 +399,7 @@ class TestHenchmanTextualApp:
         assert "add_error_message" in error_handler_source, (
             "Error handler should show error message"
         )
+
 
     @patch.object(HenchmanTextualApp, "query_one")
     @patch("asyncio.to_thread")
@@ -503,7 +479,8 @@ class TestHenchmanTextualApp:
         mock_load_settings.side_effect = ValueError("Corrupted settings file")
 
         # This should NOT crash - should handle exception gracefully
-        textual_app._resolve_provider_from_env()
+        with pytest.warns(RuntimeWarning, match="Failed to load settings"):
+            textual_app._resolve_provider_from_env()
 
         # Verify settings were set to defaults
         assert textual_app.settings is not None
@@ -528,7 +505,8 @@ class TestHenchmanTextualApp:
         mock_gather_environment.return_value = {}
 
         # This should NOT crash
-        textual_app._resolve_provider_from_env()
+        with pytest.warns(RuntimeWarning, match="Failed to gather environment: Format error"):
+            textual_app._resolve_provider_from_env()
 
         # Verify environment context was set to fallback
         assert textual_app.environment_context == "Environment context unavailable"
@@ -539,7 +517,8 @@ class TestHenchmanTextualApp:
         mock_gather_environment.side_effect = OSError("Cannot gather env")
 
         # This should NOT crash
-        textual_app._resolve_provider_from_env()
+        with pytest.warns(RuntimeWarning, match="Failed to gather environment: Cannot gather env"):
+            textual_app._resolve_provider_from_env()
 
         # Verify environment context was set to fallback
         assert textual_app.environment_context == "Environment context unavailable"

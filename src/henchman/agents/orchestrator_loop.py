@@ -10,8 +10,10 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from henchman.core.agent_streaming import record_message
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import Message
+from henchman.tools.base import ToolResult
 
 from .orchestrator_anchoring import (
     assess_agent_completion,
@@ -47,9 +49,11 @@ __all__ = [
     "check_turn_limits",
     "collect_events",
     "finalize_loop",
+    "has_current_turn_response",
     "inject_role_anchor",
     "last_assistant_content",
     "run_tools_and_collect",
+    "stream_tool_events",
 ]
 
 
@@ -77,21 +81,57 @@ async def run_tools_and_collect(
     Returns:
         list[AgentEvent]: List of events generated during tool execution.
     """
-    tool_ctrl = orchestrator.tool_controller
-    events = []
-    async for event in tool_ctrl.process_pending_tool_calls(
-        agent,
-        pending,
-        params.depth,
-        state.tool_errors,
-    ):
-        if event.type == EventType.TOOL_CALL_RESULT and event.data.get("success"):
-            state.successful_tool_call_count += 1
-        events.append(event)
+    # Import lazily: the execution controller imports these loop helpers.
+    from .orchestrator_execution import closing_event_stream
 
+    stream = stream_tool_events(orchestrator, agent, pending, params, state)
+    async with closing_event_stream(stream) as events:
+        return [event async for event in events]
+
+
+async def stream_tool_events(
+    orchestrator: Any,
+    agent: Agent,
+    pending: list[ToolCall],
+    params: AgentLoopParams,
+    state: LoopState,
+) -> AsyncIterator[AgentEvent]:
+    """Stream one tool batch, recording only the current agent's actual results."""
+    from .orchestrator_execution import closing_event_stream
+
+    tool_ctrl = orchestrator.tool_controller
+    pending_by_id = {call.id: call for call in pending}
+    source_agent = agent.identity.id if agent.identity else None
     state.tool_call_count += len(pending)
+    stream = tool_ctrl.process_pending_tool_calls(
+        agent, pending, params.depth, state.tool_errors,
+    )
+    async with closing_event_stream(stream) as events:
+        async for event in events:
+            if (
+                event.type == EventType.TOOL_CALL_RESULT
+                and event.data.get("tool_call_id") in pending_by_id
+                and event.source_agent == source_agent
+            ):
+                call = pending_by_id.pop(event.data["tool_call_id"])
+                success = event.data.get("success") is True
+                if success:
+                    state.successful_tool_call_count += 1
+                turn = getattr(agent, "turn", None)
+                if turn is not None:
+                    content = event.data.get("result") or ""
+                    error = None if success else event.data.get("error") or content
+                    turn.record_tool_call(
+                        call.id, call.name, call.arguments,
+                        ToolResult(content=content, success=success, error=error),
+                    )
+            yield event
+
+    state.tool_round_count += 1
+    turn = getattr(agent, "turn", None)
+    if turn is not None:
+        turn.increment_iteration()
     inject_role_anchor(orchestrator, agent, state.tool_call_count)
-    return events
 
 
 async def collect_events(
@@ -175,6 +215,9 @@ def finalize_loop(
     _set_private_attr(orchestrator, _LAST_LOOP_TOOL_CALL_COUNT_ATTR, state.tool_call_count)
     _set_private_attr(orchestrator, _LAST_LOOP_SUCCESS_COUNT_ATTR, state.successful_tool_call_count)
     _set_private_attr(orchestrator, _LAST_LOOP_TIMED_OUT_ATTR, state.timed_out)
+    _set_private_attr(orchestrator, "_last_loop_failed", state.failed)
+    # Nested or concurrent specialists must not borrow another agent's evidence.
+    _set_private_attr(agent, "_orchestrator_loop_state", state)
 
 
 # ---------------------------------------------------------------------------
@@ -215,9 +258,27 @@ def check_colon_stall(
 
     stripped = content.strip()
     if stripped and stripped.endswith(":") and len(stripped) > COLON_STALL_MIN_LENGTH:
-        agent.messages.append(Message(role="user", content=COLON_STALL_NUDGE))
+        record_message(
+            agent.messages, Message(role="user", content=COLON_STALL_NUDGE),
+            getattr(agent, "current_turn_messages", None),
+        )
         return agent.continue_with_tool_results(), retries + 1
     return None
+
+
+def has_current_turn_response(agent: Agent) -> bool:
+    """Check the committed final answer, excluding old history and internal retries."""
+    messages = getattr(agent, "current_turn_messages", None)
+    if not isinstance(messages, list) or not messages:
+        return False
+    final = messages[-1]
+    return (
+        isinstance(final, Message)
+        and final.role == "assistant"
+        and not final.tool_calls
+        and isinstance(final.content, str)
+        and bool(final.content.strip())
+    )
 
 
 def last_assistant_content(agent: Agent) -> str:

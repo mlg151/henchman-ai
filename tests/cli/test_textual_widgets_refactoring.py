@@ -1,9 +1,8 @@
 """Tests for refactoring textual_widgets.py to address duplicate code smells."""
 
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import MagicMock
 
-from henchman.cli.textual_widgets import ChatPane, ChatMessage, ThinkingMessage, ToolMessage
+from henchman.cli.textual_widgets import ChatMessage, ChatPane, ThinkingMessage, ToolMessage
 
 
 class TestChatPaneRefactoring:
@@ -124,6 +123,7 @@ class TestChatPaneRefactoring:
         widget_class, args, kwargs = calls[0]
         assert widget_class == ChatMessage
         assert args == ("[bold green]You:[/]", "User says hello")
+        assert isinstance(result1, MagicMock)
 
         # Test add_system_message
         calls.clear()
@@ -132,6 +132,7 @@ class TestChatPaneRefactoring:
         widget_class, args, kwargs = calls[0]
         assert widget_class == ChatMessage
         assert args == ("[dim]»[/]", "System message")
+        assert isinstance(result2, MagicMock)
 
         # Test add_error_message
         calls.clear()
@@ -140,6 +141,7 @@ class TestChatPaneRefactoring:
         widget_class, args, kwargs = calls[0]
         assert widget_class == ChatMessage
         assert args == ("[bold red]Error:[/]", "Error occurred")
+        assert isinstance(result3, MagicMock)
 
         # Restore original method
         pane._add_message_widget = original_method

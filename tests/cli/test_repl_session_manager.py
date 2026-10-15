@@ -114,6 +114,7 @@ class TestReplSessionManagerRestoreHistory:
         # Mock orchestrator with tech_lead
         mock_orchestrator = MagicMock()
         mock_orchestrator.tech_lead.messages = []
+        mock_orchestrator.tech_lead.system_prompt = ""
         mock_orchestrator.tech_lead.clear_history = MagicMock(
             side_effect=lambda: mock_orchestrator.tech_lead.messages.clear()
         )
@@ -142,6 +143,7 @@ class TestReplSessionManagerRestoreHistory:
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.tech_lead.messages = []
+        mock_orchestrator.tech_lead.system_prompt = ""
         mock_orchestrator.tech_lead.clear_history = MagicMock(
             side_effect=lambda: mock_orchestrator.tech_lead.messages.clear()
         )

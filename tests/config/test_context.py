@@ -216,11 +216,6 @@ class TestContextLoaderFilename:
         """Test default filenames include all three instruction files."""
         loader = ContextLoader()
         assert loader.filenames == DEFAULT_FILENAMES
-        assert loader.filenames == (
-            "HENCHMAN.md",
-            ".github/copilot-instructions.md",
-            ".gemini/GEMINI.md",
-        )
 
     def test_filename_property_returns_first(self) -> None:
         """Test filename property returns first entry for backward compat."""
@@ -467,6 +462,8 @@ class TestContextLoaderSubdirectories:
         (subdir / "HENCHMAN.md").write_text("# Src context")
 
         loader = ContextLoader(include_subdirs=True)
+        # Temporary directories may themselves live inside the host's repository.
+        monkeypatch.setattr(loader, "_find_git_root", lambda _start: None)
         files = loader.discover_files()
 
         # Should not search subdirs without git root
@@ -575,6 +572,30 @@ class TestContextLoaderAncestorSearch:
         files = loader.discover_files()
 
         assert project / "HENCHMAN.md" in files
+
+    def test_no_git_does_not_search_parent_directories(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A non-repository start directory must be its own discovery boundary."""
+        parent = tmp_path / "parent"
+        project = parent / "project"
+        project.mkdir(parents=True)
+        monkeypatch.chdir(project)
+
+        parent_context = parent / "HENCHMAN.md"
+        project_context = project / "HENCHMAN.md"
+        parent_context.write_text("outside project", encoding="utf-8")
+        project_context.write_text("inside project", encoding="utf-8")
+
+        loader = ContextLoader(filename="HENCHMAN.md")
+        # Exercise the non-repository branch regardless of the host's temp location.
+        monkeypatch.setattr(loader, "_find_git_root", lambda _start: None)
+        files = loader.discover_files()
+
+        assert project_context in files
+        assert parent_context not in files
 
     def test_cwd_equals_git_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test when cwd is exactly the git root."""

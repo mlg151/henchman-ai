@@ -58,6 +58,11 @@ class StallDetector:
     failure: bool = False
     _max_nudges: int = field(default=MAX_STALL_NUDGES)
 
+    def reset(self: StallDetector) -> None:
+        """Clear evidence from the previous turn while preserving configuration."""
+        self.nudge_count = 0
+        self.failure = False
+
     def should_skip(
         self: StallDetector,
         response_text: str,

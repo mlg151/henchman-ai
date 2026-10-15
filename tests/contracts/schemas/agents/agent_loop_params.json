@@ -1,0 +1,48 @@
+{
+  "$id": "henchman/contracts/agents/agent-loop-params/v1",
+  "title": "AgentLoopParams",
+  "description": "Shape contract for AgentLoopParams used in the agent execution loop.",
+  "type": "object",
+  "required": ["input_text", "depth", "max_turns", "msg_start_index"],
+  "properties": {
+    "completion_requirement": {
+      "type": "string",
+      "enum": ["response", "actions"],
+      "default": "actions",
+      "description": "Required execution evidence, not task verification"
+    },
+    "agent": {
+      "description": "The agent instance or reference",
+      "type": ["string", "null"]
+    },
+    "target_role": {
+      "type": ["string", "null"],
+      "description": "Optional target role identifier"
+    },
+    "input_text": {
+      "type": "string",
+      "description": "The input text to process"
+    },
+    "depth": {
+      "type": "integer",
+      "description": "Current execution depth",
+      "minimum": 0
+    },
+    "max_turns": {
+      "type": "integer",
+      "description": "Maximum number of tool-call turns",
+      "minimum": 0
+    },
+    "msg_start_index": {
+      "type": "integer",
+      "description": "Message history start index",
+      "minimum": 0
+    },
+    "brief": {
+      "type": ["object", "null"],
+      "description": "Optional context brief",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

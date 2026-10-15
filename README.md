@@ -6,19 +6,19 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/henchman-ai.svg)](https://pypi.org/project/henchman-ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI-compatible APIs, Anthropic, Ollama, OpenRouter, and more) through a unified interface. Inspired by gemini-cli, built for extensibility and production use.
+Henchman-AI is a terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI-compatible APIs, Anthropic, Ollama, OpenRouter, and more) through a unified interface. Inspired by gemini-cli, it is built for extensibility and local developer workflows.
 
-**Project Status**: ✅ **Complete** - All 13 development phases implemented, including Multi-Agent Dev Team orchestration, MCP integration, and comprehensive tool system.
+**Project status**: Beta. The core local CLI, multi-agent orchestration, registered web search, configured MCP support, and local extension loading are shipped. Remote agent/plugin marketplace installs, a Slack runtime, cron execution, and the broader remote operations platform are not shipped in this variant.
 
 ## ✨ Features
 
 - 🤝 **Multi-Agent Dev Team**: Orchestrate a team of specialists (Tech Lead, Planner, Explorer, Engineer, Data Engineer) to solve complex engineering tasks.
 - 🔄 **Model-Agnostic**: Support any LLM provider through a unified abstraction layer
 - 🐍 **Pythonic**: Leverages Python's async ecosystem and rich libraries for optimal performance
-- 🔌 **Extensible**: Plugin system for tools, providers, and custom commands
-- 🚀 **Production-Ready**: Proper error handling, comprehensive testing with 100% coverage, and semantic versioning
-- 🛠️ **Built-in Tools**: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination
-- 🔗 **MCP Integration**: Connect to external tool servers via Model Context Protocol
+- 🔌 **Extensible**: Local extensions and UI plugins for tools, context, and commands
+- 🧪 **Tested**: CI exercises Python 3.11–3.14 and smoke-tests installed wheels and the source distribution across CLI, API, and RAG boundaries
+- 🛠️ **Built-in Tools**: Runtime-registered tools for file operations, shell commands, web access, code analysis, testing, and multi-agent coordination
+- 🔗 **MCP Integration**: Connect to configured external tool servers when the `mcp` and `mcp_auth` runtime tools are registered
 - ⚡ **Fast & Efficient**: Async-first design with intelligent caching and rate limiting
 - 🔒 **Secure**: Environment-based configuration and safe execution sandboxing
 
@@ -26,10 +26,12 @@ Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM pr
 
 ### Prerequisites
 
-- **Python 3.10 or higher**: Henchman-AI requires Python 3.10+
+- **Python 3.11–3.14**: These are the currently supported and CI-tested Python versions
 - **API Key**: For your chosen LLM provider (DeepSeek, OpenAI, Anthropic, etc.)
 - **Git** (optional): For installing from source
 - **uv** (optional): For faster dependency management
+
+The base install includes `chromadb>=1.5.9` for RAG storage and `scipy>=1.11.2`, which NetworkX-backed PageRank queries require. If an older environment is missing either dependency, reinstall or upgrade Henchman-AI rather than installing only the top-level package without dependencies.
 
 ### From PyPI (Recommended)
 ```bash
@@ -74,7 +76,7 @@ uv pip install henchman-ai
 
 3. **Or run with a prompt directly**:
    ```bash
-   henchman --prompt "Explain this Python code" < example.py
+   henchman chat --prompt "Explain the Python code in @example.py"
    ```
 
 ## 🏗️ Architecture
@@ -132,7 +134,7 @@ Henchman-AI features a modular, component-based architecture designed for mainta
 
 ### Benefits of Component Architecture
 - **Single Responsibility**: Each component has a clear, focused purpose
-- **Testability**: Components can be tested independently (100% test coverage for core components)
+- **Testability**: Components can be tested independently with unit, integration, and contract suites
 - **Maintainability**: Smaller, focused classes are easier to understand and modify
 - **Extensibility**: New components can be added without modifying the REPL
 - **Performance**: Business logic moved out of REPL, leaving only orchestration
@@ -151,25 +153,27 @@ henchman --help
 henchman
 
 # Headless mode with prompt
-henchman -p "Summarize the key points from README.md"
+henchman chat -p "Summarize the key points from README.md"
 
 # Specify a provider
-henchman --provider openai_compat -p "Write a Python function to calculate fibonacci"
+henchman config set providers.default openai_compat --scope project
+henchman chat -p "Write a Python function to calculate fibonacci"
 
 # Use a specific model
-henchman --model gpt-4-turbo -p "Analyze this code for security issues"
+henchman config set providers.openai_compat.model gpt-4-turbo --scope project
+henchman chat -p "Analyze this code for security issues"
 ```
 
 ### File Operations
 ```bash
 # Read and analyze a file
-henchman -p "Review this code for bugs" < script.py
+henchman chat -p "Review @script.py for bugs"
 
 # Process multiple files
-cat *.py | henchman -p "Find common patterns in these files"
+henchman chat -p "Find common patterns in @first.py and @second.py"
 
 # Generate documentation
-henchman -p "Create API documentation for this module" < module.py > docs.md
+henchman chat -p "Create API documentation for @module.py" > docs.md
 ```
 
 ## ⚙️ Configuration
@@ -180,6 +184,8 @@ Henchman-AI uses hierarchical configuration (later settings override earlier one
 2. **User settings**: `~/.henchman/settings.yaml`
 3. **Workspace settings**: `.henchman/settings.yaml` (project-specific)
 4. **Environment variables** (highest priority)
+
+Project instruction discovery has an explicit trust boundary. Inside a Git repository, Henchman walks from the repository root to the working directory. Outside Git, it reads project context only from the current directory and does not search parents or subdirectories. Global context in `~/.henchman/HENCHMAN.md` remains separate.
 
 ### Example `settings.yaml`
 ```yaml
@@ -245,7 +251,7 @@ export HENCHMAN_TEMPERATURE="0.5"
 
 **Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings.
 
-**Configuration Names**: Use these names in your `settings.yaml` file (e.g., `providers.default: deepseek`) or with the `--provider` CLI flag.
+**Configuration Names**: Use these names in `settings.yaml` (for example, `providers.default: deepseek`) or with `henchman config set providers.default <name> --scope project`.
 
 **See [Providers](docs/providers.md) for complete details and configuration.**
 
@@ -268,11 +274,11 @@ pip install -e ".[dev]"
 # Run all tests
 pytest
 
-# Run with coverage (100% required)
-pytest --cov=henchman --cov-report=html --cov-fail-under=100
+# Run the same coverage gate configured in CI
+pytest --cov=henchman --cov-report=html --cov-fail-under=90
 
 # Run specific test categories
-pytest tests/unit/ -v
+pytest tests/api/ -v
 pytest tests/integration/ -v
 ```
 
@@ -289,13 +295,31 @@ mypy src/
 bandit -r src/
 ```
 
+CI runs the test suite on Python 3.11, 3.12, 3.13, and 3.14. It builds both distribution formats, installs the wheel on Python 3.11 and 3.14, and installs the source distribution on Python 3.11. Every artifact smoke test checks both entry-point versions, `henchman --help`, unknown-command rejection, API readiness, and an explicit-embedding Chroma add/query round trip without credentials or model downloads.
+
+## 🔎 Capability Boundaries
+
+Discovery, help, and doctor surfaces derive their status from the shared capability matrix in `src/henchman/cli/commands/discovery_capabilities.py` and, for runtime-wired tools, the live tool registry.
+
+| Capability | Current classification |
+|------------|------------------------|
+| `web_search` | Runtime-wired when registered; otherwise unavailable |
+| MCP | Runtime-wired only when both `mcp` and `mcp_auth` are registered |
+| Skills | Local-only discovery and inspection |
+| Integration blueprints, including Slack | Export-only; no runtime is launched or configured |
+| `schedule_cron` | Metadata-only; no background runner executes schedules |
+| Plugin marketplace install | Unavailable; local plugin list/remove and loading remain supported |
+| Agent registry install | Unavailable; local list/show/publish remain supported |
+| GitHub webhook helper | Documentation-only |
+| Tier 10 dialogs | Implemented in `henchman chat --tui`, intentionally absent from generic discovery |
+
 ### Building and Publishing
 ```bash
 # Build package
-hatch build
+uv build
 
 # Test build
-hatch run test
+uv run --extra dev python -m pytest --cov-fail-under=90
 
 # Publish to PyPI (requires credentials)
 hatch publish

@@ -1,0 +1,30 @@
+{
+  "$id": "henchman/contracts/runtime/progress-counts/v1",
+  "title": "ProgressCounts",
+  "description": "Shape contract for the serialised ProgressCounts dataclass.",
+  "type": "object",
+  "required": ["completed", "pending", "failed", "total"],
+  "properties": {
+    "completed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of completed delegations"
+    },
+    "pending": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of pending delegations"
+    },
+    "failed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of failed delegations"
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of delegations"
+    }
+  },
+  "additionalProperties": false
+}

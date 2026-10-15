@@ -4,18 +4,20 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from henchman.api.auth import verify_api_key
 from henchman.api.state import state
+from henchman.version import VERSION
 
 
 class HealthResponse(BaseModel):
     """Health check response model."""
 
-    status: str = Field(default="ok")
-    version: str = Field(default="0.3.11")
+    status: str = Field(default="degraded")
+    version: str = Field(default=VERSION)
     provider: str | None = Field(default=None)
     agent_ready: bool = Field(default=False)
 
@@ -39,21 +41,41 @@ class UsageResponse(BaseModel):
 router = APIRouter(prefix="/v1", tags=["health"])
 
 
+def _build_health_response() -> HealthResponse:
+    """Build a health payload from the current runtime state."""
+    agent_ready = state.agent is not None
+    provider_name = state.settings.providers.default if state.settings else None
+    return HealthResponse(
+        status="ok" if agent_ready else "degraded",
+        version=VERSION,
+        provider=provider_name,
+        agent_ready=agent_ready,
+    )
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Health check endpoint.
+    """Report process liveness and whether the model agent is ready.
 
     Returns:
         Health status information.
     """
-    provider_name = state.settings.providers.default if state.settings else None
-    agent_ready = state.agent is not None
+    return _build_health_response()
 
-    return HealthResponse(
-        status="ok",
-        version="0.3.11",
-        provider=provider_name,
-        agent_ready=agent_ready,
+
+@router.get(
+    "/ready",
+    response_model=HealthResponse,
+    responses={status.HTTP_503_SERVICE_UNAVAILABLE: {"model": HealthResponse}},
+)
+async def readiness() -> HealthResponse | JSONResponse:
+    """Return deployment readiness, failing when no agent can serve chat."""
+    payload = _build_health_response()
+    if payload.agent_ready:
+        return payload
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=payload.model_dump(),
     )
 
 

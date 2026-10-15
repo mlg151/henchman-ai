@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/health-response/v1",
+  "type": "object",
+  "required": ["status", "version", "provider", "agent_ready"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded"]
+    },
+    "version": {
+      "type": "string"
+    },
+    "provider": {
+      "type": ["string", "null"]
+    },
+    "agent_ready": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

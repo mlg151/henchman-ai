@@ -16,7 +16,7 @@ from rich.markup import escape as _escape
 from henchman.core.events import AgentEvent, EventType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from henchman.cli.output_handler import OutputHandler
     from henchman.core.agent import Agent
@@ -41,6 +41,7 @@ class StreamState:
     accumulated_content: list[str] = field(default_factory=list)
     last_agent_id: str | None = None
     session_tool_calls_flushed: bool = False
+    interrupted: bool = False
     is_thinking: bool = False
     is_own_event: bool = True
 
@@ -175,6 +176,15 @@ def _handle_tool_call_request(
         f"\n\\[tool] {_escape(tool_call.name)}({_escape(str(tool_call.arguments))})",
     )
     if state.is_own_event:
+        if state.pending_tool_calls and all(
+            call.id in state.handled_tool_call_ids for call in state.pending_tool_calls
+        ):
+            # A completed batch is followed by a new assistant response. Its
+            # tool declarations must be persisted separately from prior rounds.
+            state.pending_tool_calls.clear()
+            state.handled_tool_call_ids.clear()
+            state.announced_tool_call_ids.clear()
+            state.session_tool_calls_flushed = False
         state.announced_tool_call_ids.add(tool_call.id)
         state.pending_tool_calls.append(tool_call)
 
@@ -225,7 +235,7 @@ def _handle_agent_completed(
     event: AgentEvent,
 ) -> None:
     agent_name = _escape(event.data.get("agent", "agent"))
-    status = event.data.get("status", "completed")
+    status = event.data.get("status")
     if status == "no_work_done":
         output_handler.warning(f"\\[{agent_name}] ended without making changes")
     elif status == "stalled":
@@ -234,8 +244,14 @@ def _handle_agent_completed(
         )
     elif status == "timed_out":
         output_handler.warning(f"\\[{agent_name}] hit turn limit")
+    elif status == "failed":
+        output_handler.error(f"\\[{agent_name}] failed")
+    elif status == "completed":
+        output_handler.muted(f"\\[{agent_name}] finished execution")
+    elif status == "responded":
+        output_handler.muted(f"\\[{agent_name}] responded")
     else:
-        output_handler.muted(f"\\[{agent_name}] completed work")
+        output_handler.warning(f"\\[{agent_name}] ended — outcome unknown")
 
 
 def _handle_finished(
@@ -308,7 +324,7 @@ async def handle_post_stream_processing(
     state: StreamState,
     agent: Agent,
     content_collector: list[str] | None,
-    execute_tool_calls_fn: Callable[..., object],
+    execute_tool_calls_fn: Callable[..., Awaitable[object]],
 ) -> None:
     """Record session messages and execute unhandled tool calls after stream ends.
 
@@ -345,6 +361,27 @@ async def handle_post_stream_processing(
             agent_id=state.last_agent_id,
         )
     unhandled = [tc for tc in state.pending_tool_calls if tc.id not in state.handled_tool_call_ids]
+    if state.interrupted:
+        completed: dict[str, str] = {}
+        for message in reversed(agent.messages):
+            # Orchestration may append reminders after completing the batch.
+            # Bound the lookup at its declaration so reused IDs from earlier
+            # rounds cannot be mistaken for completed work in this round.
+            if message.role == "assistant" and message.tool_calls:
+                break
+            if message.role == "tool" and message.tool_call_id is not None:
+                completed.setdefault(message.tool_call_id, message.content or "")
+        for call in unhandled:
+            if call.id in completed:
+                # Orchestration can commit results before its buffered events
+                # reach this consumer. Preserve those results exactly once.
+                result = completed[call.id]
+            else:
+                result = "Tool execution was interrupted or cancelled."
+                agent.submit_tool_result(call.id, result)
+            sm.record_tool_result(call.id, result)
+            state.handled_tool_call_ids.add(call.id)
+        return
     if unhandled:
         await execute_tool_calls_fn(
             unhandled,

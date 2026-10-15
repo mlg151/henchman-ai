@@ -788,7 +788,7 @@ class TestRunToolsAndCollect:
 
         event = AgentEvent(type=EventType.CONTENT, data="result", source_agent="agent")
 
-        async def fake_process(*args, **kwargs):
+        async def fake_process(*_args, **_kwargs):
             yield event
 
         orchestrator.tool_controller.process_pending_tool_calls = fake_process

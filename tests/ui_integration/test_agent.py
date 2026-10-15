@@ -19,6 +19,7 @@ from henchman.core.agent import Agent
 from henchman.core.events import EventType
 from henchman.providers.base import (
     FinishReason,
+    ModelProvider,
     StreamChunk,
     ToolCall,
 )
@@ -35,7 +36,7 @@ class TestAgentProcessing:
     def create_content_provider(self, response_text: str):
         """Create a provider that returns specific content."""
 
-        class ContentProvider:
+        class ContentProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "content_test"
@@ -49,7 +50,7 @@ class TestAgentProcessing:
     def create_tool_call_provider(self, tool_name: str, arguments: dict):
         """Create a provider that triggers a specific tool call."""
 
-        class ToolCallProvider:
+        class ToolCallProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "tool_call_test"
@@ -103,7 +104,7 @@ class TestAgentProcessing:
         # Create provider that returns different responses based on conversation
         response_count = 0
 
-        class MultiTurnProvider:
+        class MultiTurnProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "multi_turn_test"
@@ -223,7 +224,7 @@ class TestAgentProcessing:
         """Test that system prompt is properly integrated with agent."""
         system_prompt = "You are a helpful assistant specialized in Python programming."
 
-        class SystemPromptProvider:
+        class SystemPromptProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "system_prompt_test"
@@ -259,7 +260,7 @@ class TestAgentProcessing:
     async def test_agent_error_handling(self, console_with_recording):
         """Test agent error handling through UI."""
 
-        class ErrorProvider:
+        class ErrorProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "error_test"
@@ -289,7 +290,7 @@ class TestAgentProcessing:
         """Test that agent properly declares tools to provider."""
         captured_tools = []
 
-        class ToolDeclarationProvider:
+        class ToolDeclarationProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "tool_declaration_test"
@@ -324,7 +325,7 @@ class TestAgentUIIntegration:
         """Test that agent is properly integrated with REPL."""
 
         # Create simple provider
-        class SimpleProvider:
+        class SimpleProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "simple_test"
@@ -355,7 +356,7 @@ class TestAgentUIIntegration:
         """Test that agent works with session management."""
 
         # Create provider
-        class SessionProvider:
+        class SessionProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "session_test"

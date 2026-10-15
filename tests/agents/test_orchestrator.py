@@ -1,16 +1,28 @@
+from functools import partial
 from unittest.mock import MagicMock
 
 import pytest
 
-from henchman.agents.orchestrator import Orchestrator
+from henchman.agents.orchestrator import CompletionStatus, Orchestrator
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
 
 
-@pytest.fixture
-def mock_provider():
+def _provider_with_budget_hooks() -> MagicMock:
+    """Mock transport while retaining concrete request budget accounting."""
     provider = MagicMock(spec=ModelProvider)
+    provider.estimate_input_tokens.side_effect = partial(
+        ModelProvider.estimate_input_tokens, provider,
+    )
+    provider.prepare_output_budget.side_effect = partial(
+        ModelProvider.prepare_output_budget, provider,
+    )
     return provider
+
+
+@pytest.fixture
+def mock_provider() -> MagicMock:
+    return _provider_with_budget_hooks()
 
 
 @pytest.mark.asyncio
@@ -248,7 +260,7 @@ async def test_agent_stall_detection_colon_ending():
     """Agent._check_for_stalling catches messages ending with ':'."""
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is not None
     assert "tool" in result.lower()
@@ -259,7 +271,7 @@ async def test_agent_stall_failure_flag_after_max_nudges():
     """Agent sets _stall_failure after exceeding max nudges."""
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     agent._max_stall_nudges = 2
     # First two nudges return a message
     r1 = await agent._check_for_stalling(
@@ -279,7 +291,7 @@ async def test_agent_stall_resets_on_tool_calls():
     """Stall nudge counter resets when the agent actually uses tools."""
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     await agent._check_for_stalling("Let me write the entire module:", had_tool_calls=False)
     assert agent._stall_nudge_count == 1
     # Tool call resets the count
@@ -292,7 +304,7 @@ async def test_agent_stall_detection_disabled_flag():
     """Setting stall_detection_enabled=False bypasses all stall checks."""
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     agent.stall_detection_enabled = False
     result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is None
@@ -304,7 +316,7 @@ async def test_agent_no_stall_on_genuine_content():
     """Agent does NOT flag substantive content as a stall."""
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     result = await agent._check_for_stalling(
         "I've updated the file and added tests. All 42 tests pass. "
         "The coverage is now 95%. Here's a summary of the changes I made.",
@@ -539,7 +551,7 @@ def test_build_timeout_summary_with_tools():
     from henchman.agents.orchestrator import TimeoutSummaryBuilder
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     msg_start = len(agent.messages)
     # Simulate some tool calls in message history
     agent.messages.append(
@@ -575,7 +587,7 @@ def test_build_timeout_summary_empty():
     from henchman.agents.orchestrator import TimeoutSummaryBuilder
     from henchman.core.agent import Agent
 
-    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent = Agent(provider=_provider_with_budget_hooks())
     msg_start = len(agent.messages)
     result = TimeoutSummaryBuilder.build_summary(agent, msg_start)
     assert "No significant progress" in result
@@ -637,27 +649,32 @@ async def test_max_delegation_turns_setting():
 
 
 @pytest.mark.asyncio
-async def test_thinking_pattern_validation(mock_provider):
-    """Test that thinking pattern validation works for Tech Lead."""
-    # Mock Tech Lead response WITHOUT thinking pattern
-    chunk = StreamChunk(content="I'll do this task.", finish_reason=FinishReason.STOP)
+@pytest.mark.parametrize(
+    ("user_input", "response"),
+    [
+        ("Hi", "Hello there!"),
+        ("Explain Python generators", "A generator yields values lazily."),
+        ("Fix the failing test", "I'll do this task."),
+    ],
+)
+async def test_response_format_does_not_inject_user_messages(mock_provider, user_input, response):
+    """Normal answers never become synthetic requests to reveal reasoning."""
+    async def async_gen(*_args, **_kwargs):
+        yield StreamChunk(content=response, finish_reason=FinishReason.STOP)
 
-    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
-        yield chunk
-
-    mock_provider.chat_completion_stream.return_value = async_gen()
+    mock_provider.chat_completion_stream.side_effect = async_gen
     orchestrator = Orchestrator(default_provider=mock_provider)
 
-    events = []
-    async for event in orchestrator.run("Test task"):
-        events.append(event)
+    events = [event async for event in orchestrator.run(user_input)]
 
-    # Check for thinking required event
-    thinking_events = [e for e in events if e.type == EventType.THINKING_REQUIRED]
-    assert len(thinking_events) > 0, (
-        "Should have THINKING_REQUIRED event when thinking pattern is missing"
-    )
-    assert "Thinking pattern missing" in thinking_events[0].data
+    assert not any(event.type == EventType.THINKING_REQUIRED for event in events)
+    assert [message.content for message in orchestrator.tech_lead.current_turn_messages] == [
+        user_input, response,
+    ]
+    assert [message.content for message in orchestrator.tech_lead.messages if message.role == "user"] == [user_input]
+    # A response is distinct from evidence that an implementation was verified.
+    assert orchestrator.last_completion_status == CompletionStatus.RESPONDED
+    assert events[-1].data["task_verified"] is False
 
 
 @pytest.mark.asyncio
@@ -868,9 +885,8 @@ def test_orchestrator_metrics_initialization(mock_provider):
 
 def test_update_tool_metrics():
     """Test update_tool_metrics method."""
-    from unittest.mock import MagicMock
 
-    mock_provider = MagicMock(spec=ModelProvider)
+    mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Test tracking a read_file call
@@ -906,9 +922,8 @@ def test_update_tool_metrics():
 def test_calculate_final_metrics():
     """Test calculate_final_metrics on OrchestratorMetrics."""
     import time
-    from unittest.mock import MagicMock
 
-    mock_provider = MagicMock(spec=ModelProvider)
+    mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Set up some metrics
@@ -942,9 +957,8 @@ def test_calculate_final_metrics():
 
 def test_get_metrics_report():
     """Test get_metrics_report method generates correct format."""
-    from unittest.mock import MagicMock
 
-    mock_provider = MagicMock(spec=ModelProvider)
+    mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Set up some metrics
@@ -999,9 +1013,8 @@ def test_get_metrics_report():
 
 def test_reset_metrics_for_run():
     """Test _reset_metrics_for_run method."""
-    from unittest.mock import MagicMock
 
-    mock_provider = MagicMock(spec=ModelProvider)
+    mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Modify some metrics
@@ -1091,7 +1104,7 @@ async def test_colon_stall_guard_nudges_agent():
         else:
             yield chunk_ok
 
-    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov = _provider_with_budget_hooks()
     mock_prov.chat_completion_stream = mock_stream
     mock_prov.default_model = "test-model"
 
@@ -1123,7 +1136,7 @@ async def test_colon_stall_guard_skips_short_responses():
     async def mock_stream(*_args, **_kwargs):
         yield chunk
 
-    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov = _provider_with_budget_hooks()
     mock_prov.chat_completion_stream = mock_stream
     mock_prov.default_model = "test-model"
 
@@ -1161,7 +1174,7 @@ async def test_colon_stall_guard_respects_max_retries():
         call_count += 1
         yield chunk
 
-    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov = _provider_with_budget_hooks()
     mock_prov.chat_completion_stream = mock_stream
     mock_prov.default_model = "test-model"
 
@@ -1197,7 +1210,7 @@ async def test_colon_stall_guard_resets_on_non_colon():
         else:
             yield chunk_ok
 
-    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov = _provider_with_budget_hooks()
     mock_prov.chat_completion_stream = mock_stream
     mock_prov.default_model = "test-model"
 
@@ -1338,7 +1351,7 @@ async def test_race_condition_on_agent_errors():
     from henchman.core.agent import Agent
 
     # Create a mock provider
-    mock_provider = MagicMock(spec=ModelProvider)
+    mock_provider = _provider_with_budget_hooks()
 
     # Create an agent
     agent = Agent(provider=mock_provider)
@@ -1399,7 +1412,6 @@ async def test_race_condition_on_agent_errors():
     legacy_agent = LegacyAgent()
 
     # Test that finalize_loop handles legacy agents with warning
-    from unittest.mock import MagicMock
 
     from henchman.agents.orchestrator_loop import finalize_loop
 

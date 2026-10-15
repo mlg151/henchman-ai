@@ -9,10 +9,14 @@ Targets specific missing lines:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from henchman.agents.delegation import DelegationRunner
+    from henchman.agents.orchestrator_delegation_ctrl import DelegationController
 
 
 class TestAddToSharedContextValidation:
@@ -101,7 +105,7 @@ class TestExecuteLoop:
         # _run_agent_loop returns something without __aiter__
         non_aiter_result = object()  # plain object, no __aiter__
 
-        def bad_loop_runner(params: Any) -> Any:
+        def bad_loop_runner(_params: Any) -> Any:
             """Return non-async-iterable."""
             return non_aiter_result
 
@@ -162,7 +166,7 @@ class TestRunDelegationExecuteLoopError:
         # Mock _prepare_execution to succeed (do nothing)
         with patch("henchman.agents.delegation._prepare_execution"):
             # Mock _execute_loop to raise an exception
-            async def raising_execute_loop(*args: Any, **kwargs: Any) -> Any:
+            async def raising_execute_loop(*_args: Any, **_kwargs: Any) -> Any:
                 """Raise during execution."""
                 raise RuntimeError("loop exploded")
                 yield  # make it an async generator
@@ -872,7 +876,7 @@ class TestDelegationControllerRetry:
 
         call_count = 0
 
-        async def mock_stream(params: Any, state: _StreamState) -> Any:
+        async def mock_stream(_params: Any, state: _StreamState) -> Any:
             nonlocal call_count
             call_count += 1
             state.had_error = True
@@ -908,7 +912,7 @@ class TestDelegationControllerRetry:
 
         call_count = 0
 
-        async def mock_stream(params: Any, state: _StreamState) -> Any:
+        async def mock_stream(_params: Any, state: _StreamState) -> Any:
             nonlocal call_count
             call_count += 1
             state.had_error = True
@@ -940,20 +944,14 @@ class TestAgentPoolModelOverride:
     """Tests for model override in AgentPool.get_agent()."""
 
     def test_model_override_applied_to_provider(self) -> None:
-        """config.model is applied to provider.default_model when available."""
-        from unittest.mock import patch
+        """An explicit agent model overrides the saved provider model."""
 
         from henchman.agents.config import AgentConfig
         from henchman.agents.pool import AgentPool
-
-        # Provider with default_model attribute
-        mock_provider = MagicMock()
-        mock_provider.default_model = "default-model"
-
-        mock_provider_cls = MagicMock(return_value=mock_provider)
-
-        mock_registry = MagicMock()
-        mock_registry.get.return_value = mock_provider_cls
+        from henchman.config.schema import ProviderSettings
+        from henchman.core.eventbus import EventBus
+        from henchman.providers import OllamaProvider, get_default_registry
+        from henchman.tools.registry import ToolRegistry
 
         config = AgentConfig(
             name="TestAgent",
@@ -967,18 +965,13 @@ class TestAgentPoolModelOverride:
 
         pool = AgentPool(
             configs={"tester": config},
-            default_provider=MagicMock(),
-            provider_registry=mock_registry,
-            parent_tool_registry=MagicMock(),
-            event_bus=MagicMock(),
+            default_provider=OllamaProvider(),
+            provider_registry=get_default_registry(),
+            parent_tool_registry=ToolRegistry(),
+            event_bus=EventBus(),
+            provider_settings=ProviderSettings(openai={"api_key": "test-key", "model": "saved"}),
         )
-        pool.parent_tool_registry.get.return_value = None
-        pool.parent_tool_registry._retry_config = None  # noqa: SLF001
-        pool.parent_tool_registry._confirmation_handler = None  # noqa: SLF001
-
-        with patch("henchman.agents.pool.create_scoped_registry") as mock_scoped, \
-             patch("henchman.agents.prompts.get_agent_prompt", return_value="prompt"):
-            mock_scoped.return_value = MagicMock()
-            pool.get_agent("tester")
-
-        assert mock_provider.default_model == "gpt-4o"
+        agent = pool.get_agent("tester")
+        assert agent.provider.default_model == "gpt-4o"
+        assert agent.provider.api_key == "test-key"
+        assert agent.model == "gpt-4o"

@@ -41,36 +41,36 @@ def validate_message_sequence(messages: list["Message"]) -> None:
             while j < len(messages) and messages[j].role == "tool":
                 tool_msg = messages[j]
                 if tool_msg.tool_call_id not in expected_ids:
-                    msg = (
+                    error_message = (
                         f"Tool message at index {j} has tool_call_id "
                         f"'{tool_msg.tool_call_id}' which doesn't match any "
                         f"tool call from assistant at index {i}. "
                         f"Expected one of: {list(expected_ids)}"
                     )
                     raise ValueError(
-                        msg,
+                        error_message,
                     )
                 if tool_msg.tool_call_id in seen_ids:
-                    msg = (
+                    error_message = (
                         f"Duplicate tool response for tool_call_id "
                         f"'{tool_msg.tool_call_id}' at index {j}."
                     )
                     raise ValueError(
-                        msg,
+                        error_message,
                     )
                 seen_ids.add(tool_msg.tool_call_id)
                 j += 1
 
             missing = expected_ids - seen_ids
             if missing:
-                msg = (
+                error_message = (
                     f"Assistant message at index {i} has tool calls without "
                     f"responses: {list(missing)}. "
                     "All tool calls must be followed by tool messages with "
                     "matching IDs."
                 )
                 raise ValueError(
-                    msg,
+                    error_message,
                 )
             # Skip past the tool messages we consumed
             i = j
@@ -78,14 +78,14 @@ def validate_message_sequence(messages: list["Message"]) -> None:
 
         if msg.role == "tool":
             # A tool message outside of an assistant+tool block is invalid
-            msg = (
+            error_message = (
                 f"Tool message at index {i} doesn't follow any assistant "
                 "message with tool_calls. "
                 "Tool messages must follow assistant messages that have "
                 "tool_calls."
             )
             raise ValueError(
-                msg,
+                error_message,
             )
 
         i += 1

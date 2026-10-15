@@ -1,0 +1,92 @@
+{
+  "$id": "henchman/contracts/runtime/working-memory/v1",
+  "title": "WorkingMemory",
+  "description": "Shape contract for the serialised WorkingMemory dataclass.",
+  "type": "object",
+  "required": ["current_task", "task_objectives", "recent_files", "active_context", "decisions_made", "completed_steps", "next_actions", "insights_gained", "problems_encountered"],
+  "properties": {
+    "current_task": {
+      "type": "string",
+      "description": "Description of the current task"
+    },
+    "task_objectives": {
+      "type": "array",
+      "description": "List of specific objectives for the task",
+      "items": { "type": "string" }
+    },
+    "recent_files": {
+      "type": "array",
+      "description": "Recently read files with metadata",
+      "items": {
+        "type": "object",
+        "required": ["path", "purpose", "lines_read", "key_insights", "timestamp"],
+        "properties": {
+          "path": { "type": "string" },
+          "purpose": { "type": "string" },
+          "lines_read": { "type": "string" },
+          "key_insights": { "type": "array", "items": { "type": "string" } },
+          "timestamp": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "active_context": {
+      "type": "object",
+      "description": "Key-value context metadata for the current task",
+      "additionalProperties": true
+    },
+    "decisions_made": {
+      "type": "array",
+      "description": "Decisions made during the task",
+      "items": {
+        "type": "object",
+        "required": ["decision", "rationale", "impact"],
+        "properties": {
+          "decision": { "type": "string" },
+          "rationale": { "type": "string" },
+          "impact": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "completed_steps": {
+      "type": "array",
+      "description": "Steps that have been completed",
+      "items": { "type": "string" }
+    },
+    "next_actions": {
+      "type": "array",
+      "description": "Planned next actions",
+      "items": {
+        "type": "object",
+        "required": ["action", "priority", "estimated_effort"],
+        "properties": {
+          "action": { "type": "string" },
+          "priority": { "type": "string" },
+          "estimated_effort": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "insights_gained": {
+      "type": "array",
+      "description": "Key insights gained during the task",
+      "items": { "type": "string" }
+    },
+    "problems_encountered": {
+      "type": "array",
+      "description": "Problems encountered during the task",
+      "items": {
+        "type": "object",
+        "required": ["problem", "status", "resolution"],
+        "properties": {
+          "problem": { "type": "string" },
+          "status": { "type": "string" },
+          "resolution": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

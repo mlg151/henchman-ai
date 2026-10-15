@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -281,7 +281,7 @@ class WorkingMemoryEntry(SerializableDataclass):
     lines_read: str = "full"
     key_insights: list[str] = field(default_factory=list)
     timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        default_factory=lambda: datetime.now(UTC).isoformat(),
         compare=False,
     )
 
@@ -586,7 +586,7 @@ class WorkingMemory(SerializableDataclass):
         """
         self.add_recent_file(
             WorkingMemoryEntry(
-                path=path,
+                path=str(path),
                 purpose=purpose,
                 lines_read=f"{line_range.start}-{line_range.end}",
                 key_insights=insights or [],

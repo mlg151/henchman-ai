@@ -130,7 +130,6 @@ class TestSessionManagerBaseMissingLines:
 
     def test_load_session_raises_ambiguous_prefix(self) -> None:
         """Line 143: ValueError when prefix matches multiple sessions."""
-        from henchman.core.session_data import Session
         from henchman.core.session_manager_base import _SessionManagerBase
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -139,13 +138,6 @@ class TestSessionManagerBaseMissingLines:
 
             # Create two sessions with IDs starting with "abc"
             for suffix in ["123", "456"]:
-                session = Session(
-                    id=f"abc{suffix}",
-                    project_hash="proj1",
-                    started="2024-01-01T00:00:00",
-                    last_updated="2024-01-01T00:00:00",
-                    messages=[],
-                )
                 import json
                 (data_dir / f"abc{suffix}.json").write_text(json.dumps({
                     "id": f"abc{suffix}",
@@ -427,26 +419,25 @@ class TestMcpManagerMissingLines:
     async def test_connect_all_creates_tools(self) -> None:
         """Lines 61-71: connect_all creates tools from connected server."""
 
+        # Mock the client
+        mock_client = MagicMock(spec=McpClient)
+        mock_client.connect = AsyncMock()
+        mock_tool_def = MagicMock()
+        mock_tool_def.name = "test_tool"
+        mock_client.get_tools.return_value = [mock_tool_def]
+
         config = McpServerConfig(
             command="fake_command",
             args=[],
             env={},
             trusted=True,
         )
-        manager = McpManager({"test": config})
-
-        # Mock the client
-        mock_client = MagicMock()
-        mock_client.connect = AsyncMock()
-        mock_tool_def = MagicMock()
-        mock_tool_def.name = "test_tool"
-        mock_client.get_tools.return_value = [mock_tool_def]
-
         with patch("henchman.mcp.manager.McpClient", return_value=mock_client):
+            manager = McpManager({"test": config})
             await manager.connect_all()
 
         assert "test" in manager.clients
-        assert len(manager._tools) == 1
+        assert len(manager.get_all_tools()) == 1
 
     @pytest.mark.anyio
     async def test_disconnect_all(self) -> None:
@@ -461,17 +452,14 @@ class TestMcpManagerMissingLines:
         await manager.disconnect_all()
 
         assert manager.clients == {}
-        assert manager._tools == []
+        assert manager.get_all_tools() == []
         mock_client.disconnect.assert_called_once()
 
     def test_get_all_tools(self) -> None:
         """Line 96: get_all_tools returns the tools list."""
         manager = McpManager({})
-        mock_tool = MagicMock()
-        manager._tools = [mock_tool]
-
         tools = manager.get_all_tools()
-        assert tools == [mock_tool]
+        assert tools == []
 
     @pytest.mark.anyio
     async def test_call_tool_unknown_server(self) -> None:

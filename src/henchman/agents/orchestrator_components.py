@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 from .orchestrator_validation import (
     check_stall_failure,
-    handle_missing_thinking,
     handle_valid_thinking,
     should_check_thinking,
 )
@@ -40,13 +39,11 @@ class AgentValidator(OrchestratorComponent):
         self: AgentValidator,
         agent: Any,
     ) -> AgentEvent | None:
-        """Validate Tech Lead thinking patterns and update metrics.
+        """Observe optional Tech Lead planning format without rewriting history.
 
-        Args:
-            agent: The agent to validate thinking patterns for.
-
-        Returns:
-            AgentEvent | None: An event if thinking pattern is missing, None otherwise.
+        Legacy providers may still emit a ``THINKING:`` prefix. Keep their
+        metrics, but an absent prefix is not evidence of an incomplete task.
+        Actual tool results and stall checks determine completion separately.
         """
         if not should_check_thinking(self.orchestrator, agent):
             return None
@@ -57,8 +54,6 @@ class AgentValidator(OrchestratorComponent):
         if stripped.startswith("THINKING:"):
             handle_valid_thinking(self.metrics, content)
             return None
-        if stripped:
-            return handle_missing_thinking(agent)
         return None
 
     def check_stall_failure(

@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpsEvent",
+  "description": "Persisted structured operational event.",
+  "type": "object",
+  "properties": {
+    "event_id": { "type": "string" },
+    "category": { "type": "string" },
+    "event_type": { "type": "string" },
+    "payload": { "type": "object" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["event_id", "category", "event_type", "payload", "created_at"]
+}

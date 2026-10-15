@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from henchman.cli.commands import Command, CommandContext
+from henchman.cli.provider_switch import switch_runtime_provider
 from henchman.config import load_settings
+from henchman.config.schema import ProviderSettings
 from henchman.providers import get_default_registry
+from henchman.providers.factory import create_configured_provider
 
 # ── Module-level helpers (no Feature Envy — not class methods) ──────────────────
 
@@ -102,7 +105,7 @@ def _print_current_configuration(
         console.print(f"  Model: [cyan]{provider.default_model}[/]")
     console.print(f"\n  Available providers: [dim]{', '.join(available)}[/]")
     console.print("\n  Use [cyan]/model list[/] to see all providers")
-    console.print("  Use [cyan]/model set <provider> [model][/] to switch")
+    console.print("  Use [cyan]/model set <provider> [model] [--context-length <tokens>][/] to switch")
     console.print("")
 
 
@@ -133,6 +136,16 @@ async def _show_current(ctx: CommandContext) -> None:
     provider = ctx.agent.provider
     available = get_default_registry().list_providers()
     _print_current_configuration(ctx.console, provider, available)
+    _show_context_limits(ctx)
+
+
+def _show_context_limits(ctx: CommandContext) -> None:
+    """Show the selected session capacity and effective conversation budget."""
+    settings = getattr(ctx.repl, "settings", None) if ctx.repl is not None else ctx.settings
+    if settings is not None:
+        ctx.console.print(f"  Context length: {settings.context.max_tokens} tokens (session)")
+    if ctx.agent is not None:
+        ctx.console.print(f"  Conversation budget: {ctx.agent.max_tokens} tokens")
 
 
 async def _list_providers(ctx: CommandContext) -> None:
@@ -148,40 +161,34 @@ async def _list_providers(ctx: CommandContext) -> None:
             console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
 
-def _test_provider_connection(
+def _show_provider_configuration(
     console: Any,
     provider: Any,
     provider_name: str,
     model_name: str | None,
 ) -> None:
-    """Test provider connection and print results."""
-    console.print(f"[dim]Testing {provider_name} connection...[/]")
-    try:
-        if hasattr(provider, "default_model"):
-            console.print(f"[green]✓ Connected to {provider_name}[/]")
-            if model_name:
-                console.print(f"[green]✓ Using model: {model_name}[/]")
-            else:
-                console.print(
-                    f"[green]✓ Using default model: {provider.default_model}[/]",
-                )
-        else:
-            console.print(f"[green]✓ Connected to {provider_name}[/]")
-    except Exception as e:
-        console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
-        console.print("[yellow]Provider created but may not work correctly.[/]")
+    """Report local configuration without implying a network connection was tested."""
+    console.print(f"[green]✓ Configured {provider_name} (connection not tested)[/]")
+    effective_model = model_name or getattr(provider, "default_model", None)
+    if effective_model:
+        console.print(f"[green]✓ Using model: {effective_model}[/]")
 
 
-def _update_agent_provider(ctx: CommandContext, new_provider: Any) -> bool:
+def _update_agent_provider(
+    ctx: CommandContext, new_provider: Any, *, context_length: int | None = None,
+) -> bool:
     """Update agent with new provider; return True on success."""
     console = ctx.console
     if ctx.agent is None:
         console.print("[red]No agent available[/]")
         return False
     old_provider = ctx.agent.provider
-    ctx.agent.provider = new_provider
     if ctx.repl is not None:
-        ctx.repl.provider = new_provider
+        switch_runtime_provider(
+            ctx.repl, new_provider, agent=ctx.agent, context_length=context_length,
+        )
+    else:
+        ctx.agent.set_provider(new_provider)
     console.print(
         f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]",
     )
@@ -218,19 +225,26 @@ def _validate_provider_exists(ctx: CommandContext, provider_name: str) -> bool:
     return True
 
 
-def _create_provider_instance(config: ProviderConfig) -> Any:
-    """Create and return a new provider instance from a ProviderConfig."""
-    registry = get_default_registry()
-    provider_kwargs: dict[str, Any] = {"api_key": config.api_key or ""}
-    if config.model:
-        provider_kwargs["model"] = config.model
-    return registry.create(config.name, **provider_kwargs)
+def _create_provider_instance(
+    config: ProviderConfig,
+    settings: ProviderSettings | None = None,
+) -> Any:
+    """Create a provider using the selected runtime's saved configuration."""
+    return create_configured_provider(
+        settings if settings is not None else load_settings().providers,
+        provider_name=config.name,
+        model=config.model,
+        api_key=config.api_key,
+        registry=get_default_registry(),
+    )
 
 
 async def _set_provider(
     ctx: CommandContext,
     provider_name: str,
     model_name: str | None = None,
+    *,
+    context_length: int | None = None,
 ) -> None:
     """Switch to a different provider.
 
@@ -247,16 +261,18 @@ async def _set_provider(
         if not _validate_provider_exists(ctx, provider_name):
             return
 
-        api_key = _get_api_key_for_provider(provider_name)
+        settings = getattr(ctx.repl, "settings", None)
+        if settings is None:
+            settings = load_settings()
         new_provider = _create_provider_instance(
-            ProviderConfig(provider_name, model_name, api_key),
+            ProviderConfig(provider_name, model_name, None),
+            settings.providers,
         )
-        _test_provider_connection(ctx.console, new_provider, provider_name, model_name)
+        _show_provider_configuration(ctx.console, new_provider, provider_name, model_name)
 
-        if not _update_agent_provider(ctx, new_provider):
+        if not _update_agent_provider(ctx, new_provider, context_length=context_length):
             return
-
-        _show_configuration_warnings(ctx, provider_name, api_key)
+        _show_context_limits(ctx)
 
     except Exception as e:
         ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
@@ -264,6 +280,39 @@ async def _set_provider(
 
 
 # ── Command class (thin orchestrator only) ──────────────────────────────────────
+
+
+def _parse_model_selection(args: list[str]) -> tuple[str, str | None, int | None]:
+    """Parse positional model selection and an optional positive context length."""
+    positional: list[str] = []
+    context_length: int | None = None
+    index = 0
+    while index < len(args):
+        value = args[index]
+        if value == "--context-length" or value.startswith("--context-length="):
+            if context_length is not None:
+                raise ValueError("Provide --context-length only once")
+            if value == "--context-length":
+                index += 1
+                if index >= len(args):
+                    raise ValueError("--context-length requires a positive integer")
+                raw_limit = args[index]
+            else:
+                raw_limit = value.split("=", 1)[1]
+            try:
+                context_length = int(raw_limit)
+            except ValueError as exc:
+                raise ValueError("--context-length requires a positive integer") from exc
+            if context_length <= 0:
+                raise ValueError("--context-length requires a positive integer")
+        elif value.startswith("-"):
+            raise ValueError(f"Unknown option: {value}")
+        else:
+            positional.append(value)
+        index += 1
+    if not 1 <= len(positional) <= 2:
+        raise ValueError("Provide a provider and at most one model")
+    return positional[0], positional[1] if len(positional) == 2 else None, context_length
 
 
 class ModelCommand(Command):
@@ -284,7 +333,7 @@ class ModelCommand(Command):
     @property
     def usage(self: ModelCommand) -> str:
         """Command usage."""
-        return "/model [list|set <provider> [<model>]]"
+        return "/model [list|set <provider> [<model>] [--context-length <tokens>]]"
 
     async def execute(self: ModelCommand, ctx: CommandContext) -> None:
         """Execute the model command.
@@ -301,7 +350,11 @@ class ModelCommand(Command):
         elif args[0] == "list":
             await _list_providers(ctx)
         elif args[0] == "set" and len(args) >= self._MIN_SET_ARGS:
-            model = args[2] if len(args) > self._MIN_SET_ARGS else None
-            await _set_provider(ctx, args[1], model)
+            try:
+                provider, model, context_length = _parse_model_selection(args[1:])
+            except ValueError as exc:
+                ctx.console.print(f"[yellow]{exc}. Usage: {self.usage}[/]")
+                return
+            await _set_provider(ctx, provider, model, context_length=context_length)
         else:
             ctx.console.print(f"[yellow]Usage: {self.usage}[/]")

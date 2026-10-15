@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["event_id", "category", "event_type", "payload", "created_at"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "category": {"const": "analytics"},
+    "event_type": {"type": "string"},
+    "payload": {"type": "object"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

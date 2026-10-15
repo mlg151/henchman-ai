@@ -1,6 +1,7 @@
 """Tests for python_exec tool."""
 
 import asyncio
+import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -38,14 +39,14 @@ class TestPythonExecTool:
     async def test_simple_print(self) -> None:
         """Execute simple print statement."""
         tool = PythonExecTool()
-        result = await tool.execute(code='print("hello world")')
+        result = await tool.execute(background=False, code='print("hello world")')
         assert result.success is True
         assert "hello world" in result.content
 
     async def test_captures_stdout(self) -> None:
         """Captures stdout from executed code."""
         tool = PythonExecTool()
-        result = await tool.execute(code="for i in range(3): print(i)")
+        result = await tool.execute(background=False, code="for i in range(3): print(i)")
         assert result.success is True
         assert "0" in result.content
         assert "1" in result.content
@@ -54,27 +55,50 @@ class TestPythonExecTool:
     async def test_captures_stderr(self) -> None:
         """Captures stderr from executed code."""
         tool = PythonExecTool()
-        result = await tool.execute(code='import sys; sys.stderr.write("warning\\n")')
+        result = await tool.execute(background=False, code='import sys; sys.stderr.write("warning\\n")')
         assert "warning" in result.content
+
+    async def test_unicode_output_ignores_inherited_legacy_encoding(self, monkeypatch, tmp_path) -> None:
+        """Owned Python output uses the same encoding as the capture decoder."""
+        monkeypatch.setenv("PYTHONIOENCODING", "cp1252")
+        monkeypatch.setenv("HENCHMAN_ENCODING_TEST", "preserved")
+        workspace = tmp_path / "workspace with spaces"
+        workspace.mkdir()
+        result = await PythonExecTool().execute(background=False,
+            code=(
+                "import os, sys; "
+                "print('caf\\u00e9'); "
+                "print('\\u4e16\\u754c', file=sys.stderr); "
+                "print(os.environ['HENCHMAN_ENCODING_TEST']); "
+                "print(os.getcwd())"
+            ),
+            cwd=str(workspace),
+        )
+        assert result.success, result.content
+        assert "café" in result.content
+        assert "世界" in result.content
+        assert "preserved" in result.content
+        assert str(workspace) in result.content
+        assert os.environ["PYTHONIOENCODING"] == "cp1252"
 
     async def test_syntax_error(self) -> None:
         """Reports syntax errors."""
         tool = PythonExecTool()
-        result = await tool.execute(code="def foo(")
+        result = await tool.execute(background=False, code="def foo(")
         assert result.success is False
         assert "SyntaxError" in result.content or "syntax" in result.content.lower()
 
     async def test_runtime_error(self) -> None:
         """Reports runtime errors."""
         tool = PythonExecTool()
-        result = await tool.execute(code="1/0")
+        result = await tool.execute(background=False, code="1/0")
         assert result.success is False
         assert "ZeroDivisionError" in result.content
 
     async def test_timeout(self) -> None:
         """Kills long-running code after timeout."""
         tool = PythonExecTool()
-        result = await tool.execute(
+        result = await tool.execute(background=False,
             code="import time; time.sleep(60)",
             timeout=1,
         )
@@ -85,7 +109,7 @@ class TestPythonExecTool:
         """Respects working directory parameter."""
         tool = PythonExecTool()
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = await tool.execute(
+            result = await tool.execute(background=False,
                 code="import os; print(os.getcwd())",
                 cwd=tmpdir,
             )
@@ -101,21 +125,21 @@ def greet(name):
 
 print(greet("World"))
 """
-        result = await tool.execute(code=code)
+        result = await tool.execute(background=False, code=code)
         assert result.success is True
         assert "Hello, World!" in result.content
 
     async def test_uses_same_python(self) -> None:
         """Uses the current Python interpreter."""
         tool = PythonExecTool()
-        result = await tool.execute(code="import sys; print(sys.executable)")
+        result = await tool.execute(background=False, code="import sys; print(sys.executable)")
         assert result.success is True
         assert "python" in result.content.lower()
 
     async def test_return_value_in_output(self) -> None:
         """Expression results are not auto-printed (like script mode)."""
         tool = PythonExecTool()
-        result = await tool.execute(code="x = 42")
+        result = await tool.execute(background=False, code="x = 42")
         assert result.success is True
         # No output expected — assignment doesn't print
         assert "42" not in result.content or result.content.strip() == ""
@@ -123,20 +147,20 @@ print(greet("World"))
     async def test_empty_code_returns_error(self) -> None:
         """Empty code string returns error."""
         tool = PythonExecTool()
-        result = await tool.execute(code="")
+        result = await tool.execute(background=False, code="")
         assert result.success is False
         assert "No code" in result.content or "Empty" in result.content
 
     async def test_whitespace_only_code_returns_error(self) -> None:
         """Whitespace-only code returns error."""
         tool = PythonExecTool()
-        result = await tool.execute(code="   \n  ")
+        result = await tool.execute(background=False, code="   \n  ")
         assert result.success is False
 
     async def test_timeout_zero_means_no_limit(self) -> None:
         """timeout=0 means no timeout limit."""
         tool = PythonExecTool()
-        result = await tool.execute(code='print("hello")', timeout=0)
+        result = await tool.execute(background=False, code='print("hello")', timeout=0)
         assert result.success is True
         assert "hello" in result.content
 
@@ -145,7 +169,7 @@ print(greet("World"))
         tool = PythonExecTool()
         # Generate output larger than MAX_OUTPUT_CHARS (100_000)
         code = 'print("x" * 200_000)'
-        result = await tool.execute(code=code)
+        result = await tool.execute(background=False, code=code)
         assert result.success is True
         assert "truncated" in result.content
 
@@ -157,8 +181,10 @@ print(greet("World"))
         mock_process.terminate = MagicMock()
         mock_process.wait = AsyncMock()
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with pytest.raises(asyncio.CancelledError):
-                await tool.execute(code='print("hello")', timeout=30)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_process),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await tool.execute(background=False, code='print("hello")', timeout=30)
 
         mock_process.terminate.assert_called_once()

@@ -408,7 +408,7 @@ class TestToolExecutorAdditionalCoverage:
         result.content = "content"
         result.success = True
         result.error = None
-        executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry.execute = AsyncMock(return_value=result)
         executor.tool_manager.registry.get = MagicMock(return_value=None)
         executor.tool_manager.registry._auto_approve_policies = set()
         executor.process_agent_stream = AsyncMock()
@@ -432,7 +432,7 @@ class TestToolExecutorAdditionalCoverage:
         result.content = "content"
         result.success = True
         result.error = None
-        executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry.execute = AsyncMock(return_value=result)
 
         await executor._run_sequential_tool_calls([tc], agent, responded_ids)
         monitor.suspend.assert_called_once()
@@ -451,7 +451,7 @@ class TestToolExecutorAdditionalCoverage:
         result.content = "content"
         result.success = True
         result.error = None
-        executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry.execute = AsyncMock(return_value=result)
 
         await executor._run_sequential_tool_calls([tc], agent, responded_ids)
         assert "tc-1" in responded_ids

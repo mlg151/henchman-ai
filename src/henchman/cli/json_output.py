@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
+from henchman.core.events import EventType
+
 if TYPE_CHECKING:
     from henchman.core.events import AgentEvent
 
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 
 def _serialize_event_data(data: Any) -> Any:
@@ -48,6 +50,11 @@ def event_to_dict(event: AgentEvent) -> dict[str, Any]:
         A dictionary representation of the event.
     """
     result: dict[str, Any] = {"type": event.type.name.lower()}
+    if event.source_agent is not None:
+        result["source_agent"] = event.source_agent
+    if event.type == EventType.FINISHED:
+        # Ending a provider stream does not verify the requested task.
+        result["task_verified"] = False
     if event.data is not None:
         result["data"] = _serialize_event_data(event.data)
     return result

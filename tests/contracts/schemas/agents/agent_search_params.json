@@ -1,0 +1,13 @@
+{
+  "$id": "henchman/contracts/agents/agent-search-params/v1",
+  "title": "AgentSearchParams",
+  "description": "Shape contract for AgentSearchParams.",
+  "type": "object",
+  "required": ["page", "page_size"],
+  "properties": {
+    "query": { "type": ["string", "null"], "description": "Search query text" },
+    "page": { "type": "integer", "description": "Page number (1-indexed)", "minimum": 1 },
+    "page_size": { "type": "integer", "description": "Results per page", "minimum": 1 }
+  },
+  "additionalProperties": false
+}

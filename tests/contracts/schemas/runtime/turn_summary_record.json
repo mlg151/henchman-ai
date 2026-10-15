@@ -1,0 +1,31 @@
+{
+  "$id": "henchman/contracts/runtime/turn-summary-record/v1",
+  "title": "TurnSummaryRecord",
+  "description": "Shape contract for TurnSummaryRecord.to_dict().",
+  "type": "object",
+  "required": ["turn_number", "summary_text"],
+  "properties": {
+    "turn_number": {
+      "type": "integer",
+      "description": "Sequential turn number in session"
+    },
+    "summary_text": {
+      "type": "string",
+      "description": "LLM-generated summary of the turn"
+    },
+    "files_modified": {
+      "type": "array",
+      "description": "List of files modified during the turn",
+      "items": { "type": "string" }
+    },
+    "tool_count": {
+      "type": "integer",
+      "description": "Number of tool calls made"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO timestamp when turn completed"
+    }
+  },
+  "additionalProperties": false
+}

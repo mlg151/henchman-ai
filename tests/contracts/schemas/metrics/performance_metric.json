@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/performance_metric/v1",
+  "type": "object",
+  "required": ["id", "timestamp", "metric_type", "tool_name", "execution_time_ms", "success"],
+  "properties": {
+    "id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "session_id": { "type": ["string", "null"] },
+    "agent_id": { "type": ["string", "null"] },
+    "user_id": { "type": ["string", "null"] },
+    "metadata": { "type": "object" },
+    "metric_type": { "const": "tool_performance" },
+    "tool_name": { "type": "string" },
+    "tool_category": { "type": "string" },
+    "execution_time_ms": { "type": ["number", "null"] },
+    "success": { "type": "boolean" },
+    "error_type": { "type": ["string", "null"] },
+    "input_size": { "type": ["integer", "null"] },
+    "output_size": { "type": ["integer", "null"] },
+    "cache_hit": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

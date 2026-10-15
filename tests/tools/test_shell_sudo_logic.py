@@ -104,7 +104,7 @@ async def test_mocked_execution():
     ):
         mock_stdin.isatty.return_value = True
         # This should use interactive mode since we're in a TTY and it's sudo
-        result = await tool.execute(command="sudo echo test")
+        result = await tool.execute(background=False, command="sudo echo test")
         assert result.success is True
         assert result.content == "test output"
 

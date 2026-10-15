@@ -12,6 +12,8 @@ class AgentConfig:
     Attributes:
         system_prompt: Optional system prompt for the agent.
         max_tokens: Maximum tokens for context. 0 means auto-detect from model.
+        context_window: Hard requested capacity including request overhead and output;
+            None preserves legacy model-derived behavior.
         model: Model name for determining context limits.
         summarize_dropped: Whether to summarize dropped messages during compaction.
         base_tool_iterations: Base limit for tool call iterations per turn.
@@ -32,3 +34,4 @@ class AgentConfig:
     importance_threshold: float = 0.5
     cluster_similarity_threshold: float = 0.7
     adaptive_compression: bool = True
+    context_window: int | None = None

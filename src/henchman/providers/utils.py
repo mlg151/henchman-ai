@@ -1,9 +1,26 @@
 """Utility functions for provider management."""
 
+import json
 import os
-from typing import Final
+from typing import Any, Final
 
 from henchman.providers.base import FinishReason, Message
+
+
+def _reject_json_constant(_value: str) -> None:
+    """Reject nonstandard NaN and Infinity literals accepted by Python's decoder."""
+    raise ValueError("Tool arguments must be a valid JSON object")
+
+
+def parse_tool_arguments(raw: str) -> dict[str, Any]:
+    """Parse complete tool arguments without inventing values for invalid input."""
+    try:
+        arguments = {} if raw == "" else json.loads(raw, parse_constant=_reject_json_constant)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("Tool arguments must be a valid JSON object") from exc
+    if not isinstance(arguments, dict):
+        raise ValueError("Tool arguments must be a valid JSON object")
+    return arguments
 
 
 def get_env_var_for_provider(provider_name: str) -> str:
@@ -21,9 +38,9 @@ def get_env_var_for_provider(provider_name: str) -> str:
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "openai_compat": "HENCHMAN_API_KEY",
-        "together": "HENCHMAN_API_KEY",
-        "groq": "HENCHMAN_API_KEY",
-        "fireworks": "HENCHMAN_API_KEY",
+        "together": "TOGETHER_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "fireworks": "FIREWORKS_API_KEY",
         "openrouter": "OPENROUTER_API_KEY",
         "ollama": "",  # Ollama doesn't need an API key
     }

@@ -4,6 +4,8 @@ UI Integration Tests for Session Management.
 Tests session management.
 """
 
+from datetime import UTC
+
 import pytest
 
 from henchman.core.agent import Agent
@@ -49,13 +51,13 @@ class TestUISession:
     def session(self):
         """Create a test session."""
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         return Session(
             id=str(uuid.uuid4()),
             project_hash="test_project",
-            started=datetime.now(timezone.utc).isoformat(),
-            last_updated=datetime.now(timezone.utc).isoformat(),
+            started=datetime.now(UTC).isoformat(),
+            last_updated=datetime.now(UTC).isoformat(),
         )
 
     @pytest.mark.asyncio

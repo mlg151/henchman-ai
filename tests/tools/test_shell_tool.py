@@ -34,43 +34,43 @@ class TestShellTool:
     async def test_shell_simple_command(self) -> None:
         """Execute simple shell command."""
         tool = ShellTool()
-        result = await tool.execute(command="echo hello")
+        result = await tool.execute(background=False, command="echo hello")
         assert result.success is True
         assert "hello" in result.content
 
     async def test_shell_command_with_exit_code(self) -> None:
         """Capture exit code from command."""
         tool = ShellTool()
-        result = await tool.execute(command="exit 0")
+        result = await tool.execute(background=False, command="exit 0")
         assert result.success is True
 
-        result = await tool.execute(command="exit 1")
+        result = await tool.execute(background=False, command="exit 1")
         assert result.success is False
 
     async def test_shell_captures_stderr(self) -> None:
         """Capture stderr output."""
         tool = ShellTool()
-        result = await tool.execute(command="echo error >&2")
+        result = await tool.execute(background=False, command="echo error >&2")
         assert "error" in result.content
 
     async def test_shell_captures_stdout_and_stderr(self) -> None:
         """Capture both stdout and stderr."""
         tool = ShellTool()
-        result = await tool.execute(command="echo out && echo err >&2")
+        result = await tool.execute(background=False, command="echo out && echo err >&2")
         assert "out" in result.content
         assert "err" in result.content
 
     async def test_shell_sets_henchman_cli_env(self) -> None:
         """HENCHMAN_CLI=1 environment variable is set."""
         tool = ShellTool()
-        result = await tool.execute(command="echo $HENCHMAN_CLI")
+        result = await tool.execute(background=False, command="echo $HENCHMAN_CLI")
         assert result.success is True
         assert "1" in result.content
 
     async def test_shell_timeout(self) -> None:
         """Command times out after specified duration."""
         tool = ShellTool()
-        result = await tool.execute(command="sleep 10", timeout=1)
+        result = await tool.execute(background=False, command="sleep 10", timeout=1)
         assert result.success is False
         assert "timeout" in result.error.lower()
 
@@ -78,20 +78,20 @@ class TestShellTool:
         """Execute command in specified working directory."""
         tool = ShellTool()
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = await tool.execute(command="pwd", cwd=tmpdir)
+            result = await tool.execute(background=False, command="pwd", cwd=tmpdir)
             assert result.success is True
             assert tmpdir in result.content
 
     async def test_shell_invalid_command(self) -> None:
         """Handle invalid command."""
         tool = ShellTool()
-        result = await tool.execute(command="nonexistent_command_xyz")
+        result = await tool.execute(background=False, command="nonexistent_command_xyz")
         assert result.success is False
 
     async def test_shell_multiline_output(self) -> None:
         """Handle multiline output."""
         tool = ShellTool()
-        result = await tool.execute(command="echo line1 && echo line2 && echo line3")
+        result = await tool.execute(background=False, command="echo line1 && echo line2 && echo line3")
         assert result.success is True
         assert "line1" in result.content
         assert "line2" in result.content
@@ -111,14 +111,14 @@ class TestShellTool:
         """Timeout=0 should mean no timeout (wait indefinitely)."""
         tool = ShellTool()
         # Quick command with timeout=0 should still complete
-        result = await tool.execute(command="echo done", timeout=0)
+        result = await tool.execute(background=False, command="echo done", timeout=0)
         assert result.success is True
         assert "done" in result.content
 
     async def test_custom_default_timeout_used_on_timeout(self) -> None:
         """Custom default_timeout is applied when no timeout passed."""
         tool = ShellTool(default_timeout=1)
-        result = await tool.execute(command="sleep 10")
+        result = await tool.execute(background=False, command="sleep 10")
         assert result.success is False
         assert "timeout" in result.error.lower()
 

@@ -1,6 +1,5 @@
 """Tests for ContentExtractor class."""
 
-import pytest
 from henchman.utils.intelligent_context import ContentExtractor
 
 
@@ -81,7 +80,7 @@ Done"""
 
     def test_extract_code_blocks_with_apostrophe_bug(self) -> None:
         """Test for bug where apostrophe in word breaks code block extraction.
-        
+
         This test demonstrates a bug where an apostrophe in a word (like "isn't")
         is incorrectly treated as a string delimiter, causing the function to
         enter string mode and never exit, preventing recognition of closing backticks.
@@ -96,7 +95,7 @@ print("done")
         assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
         assert '`this looks like closing but isn\'t`' in result[0]
         assert 'print("done")' in result[0]
-    
+
     def test_extract_code_blocks_with_various_apostrophes(self) -> None:
         """Test code block extraction with various apostrophe scenarios."""
         # Test 1: Multiple apostrophes
@@ -110,7 +109,7 @@ print("Won't fail")
         assert "It's a test" in result1[0]
         assert "Isn't this working?" in result1[0]
         assert "Won't fail" in result1[0]
-        
+
         # Test 2: Apostrophe at end of line
         content2 = '''```python
 message = "That's all folks'"
@@ -119,7 +118,7 @@ print(message)
         result2 = ContentExtractor.extract_code_blocks(content2)
         assert len(result2) == 1
         assert "That's all folks'" in result2[0]
-        
+
         # Test 3: Mixed quotes and apostrophes
         content3 = '''```python
 s1 = "It's a 'test' string"
@@ -171,11 +170,11 @@ Tool call: some_tool"""
         # Test with empty content
         result = ContentExtractor._extract_by_patterns("", ["pattern"])
         assert result == []
-        
+
         # Test with empty patterns list
         result = ContentExtractor._extract_by_patterns("content", [])
         assert result == []
-        
+
         # Test with None content (should handle gracefully)
         result = ContentExtractor._extract_by_patterns(None, ["pattern"])  # type: ignore[arg-type]
         assert result == []
@@ -183,24 +182,24 @@ Tool call: some_tool"""
     def test_get_context_around_line_edge_cases(self) -> None:
         """Test edge cases for _get_context_around_line method."""
         lines = ["line1", "line2", "line3", "line4", "line5"]
-        
+
         # Test first line
         result = ContentExtractor._get_context_around_line(lines, 0)
         assert result is not None
         assert "line1" in result
         assert "line2" in result
-        
+
         # Test last line
         result = ContentExtractor._get_context_around_line(lines, 4)
         assert result is not None
         assert "line4" in result
         assert "line5" in result
-        
+
         # Test out of bounds (should handle gracefully)
         result = ContentExtractor._get_context_around_line(lines, 10)
         # Should return context for the last valid line or None
         # The implementation returns None for empty context
-        
+
         # Test negative index
         result = ContentExtractor._get_context_around_line(lines, -1)
         # Should handle gracefully
@@ -208,17 +207,16 @@ Tool call: some_tool"""
     def test_line_contains_keyword_case_insensitive(self) -> None:
         """Test that keyword matching is case-insensitive."""
         line = "This is an IMPORTANT message"
-        keywords = ["important", "critical"]
-        
+
         # Method should be accessible (it's a static method)
         # We'll test through extract_keyword_sections which uses it
         result = ContentExtractor.extract_keyword_sections(line, ["important"])
         assert len(result) > 0
         assert "IMPORTANT" in result[0]
-    
+
     def test_code_block_with_raw_string_and_backtick(self) -> None:
         """Test code block containing raw string with backtick.
-        
+
         r"`hello`" is raw string containing backticks.
         Should not be confused with code block delimiters.
         """
@@ -229,10 +227,10 @@ print(s)
         blocks = ContentExtractor.extract_code_blocks(content)
         assert len(blocks) == 1
         assert 'r"`hello`"' in blocks[0]
-    
+
     def test_nested_code_blocks_in_string(self) -> None:
         """Test code with ``` inside string literal.
-        
+
         print("```") should not end code block.
         """
         content = '''```python
@@ -242,10 +240,10 @@ print("done")
         blocks = ContentExtractor.extract_code_blocks(content)
         assert len(blocks) == 1
         assert 'print("```")' in blocks[0]
-    
+
     def test_malformed_raw_string(self) -> None:
         """Test malformed raw string r"\\" (actually valid).
-        
+
         Actually r"\\" is valid (two backslashes).
         """
         content = '''```python
@@ -254,10 +252,10 @@ s = r"\\\\"
         blocks = ContentExtractor.extract_code_blocks(content)
         assert len(blocks) == 1
         # Check it doesn't crash
-    
+
     def test_escape_sequence_outside_string(self) -> None:
         """Test escape sequence outside string.
-        
+
         \\n in comment is just backslash-n, not newline.
         """
         content = '''```python
@@ -267,7 +265,7 @@ print("hello")
         blocks = ContentExtractor.extract_code_blocks(content)
         assert len(blocks) == 1
         assert '\\n' in blocks[0]  # Should preserve backslash-n
-    
+
     def test_comprehensive_string_parsing(self) -> None:
         """Comprehensive test for string parsing edge cases."""
         # Test mixed quotes and escapes
@@ -278,7 +276,7 @@ s3 = r"Raw \\\\ string with `backtick`"
 ```'''
         blocks = ContentExtractor.extract_code_blocks(content)
         assert len(blocks) == 1
-        
+
         # Test backtick in raw string
         content2 = '''```python
 path = r"`/tmp/test`"
@@ -287,7 +285,7 @@ print(path)
         blocks2 = ContentExtractor.extract_code_blocks(content2)
         assert len(blocks2) == 1
         assert 'r"`/tmp/test`"' in blocks2[0]
-        
+
         # Test escape sequences in strings
         content3 = '''```python
 s = "Line 1\\nLine 2\\tTab"
@@ -295,7 +293,7 @@ print(s)
 ```'''
         blocks3 = ContentExtractor.extract_code_blocks(content3)
         assert len(blocks3) == 1
-        
+
         # Test multiple code blocks with complex strings
         content4 = '''First:
 ```python

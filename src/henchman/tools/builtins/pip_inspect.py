@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from importlib.metadata import PackageNotFoundError, distribution, distributions
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -83,6 +84,41 @@ def _build_pip_output_result(stdout: bytes, stderr: bytes, returncode: int | Non
     return ToolResult(content=output, success=True)
 
 
+def _build_metadata_result(package: str | None) -> ToolResult:
+    """Inspect installed distributions when the environment has no pip module."""
+    if package:
+        try:
+            installed = distribution(package)
+        except PackageNotFoundError:
+            message = f"Package not found: {package}"
+            return ToolResult(content=f"Error: {message}", success=False, error=message)
+
+        metadata = installed.metadata
+        requires = ", ".join(installed.requires or [])
+        output = "\n".join(
+            (
+                f"Name: {metadata['Name'] or package}",
+                f"Version: {installed.version}",
+                f"Summary: {metadata['Summary'] or ''}",
+                f"Location: {installed.locate_file('')}",
+                f"Requires: {requires}",
+            )
+        )
+        return ToolResult(content=output, success=True)
+
+    rows = sorted(
+        (
+            (installed.metadata["Name"] or "<unknown>", installed.version)
+            for installed in distributions()
+        ),
+        key=lambda row: row[0].casefold(),
+    )
+    output = "Package Version\n" + "\n".join(f"{name} {version}" for name, version in rows)
+    if len(output) > MAX_OUTPUT_CHARS:
+        output = output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
+    return ToolResult(content=output, success=True)
+
+
 class PipInspectTool(Tool):
     """Query installed Python packages, versions, and dependency info.
 
@@ -140,7 +176,10 @@ class PipInspectTool(Tool):
         cmd = _build_pip_command(package)
         try:
             stdout, stderr, returncode = await _run_pip_command(cmd)
-            return _build_pip_output_result(stdout, stderr, returncode)
+            result = _build_pip_output_result(stdout, stderr, returncode)
+            if not result.success and b"No module named pip" in stderr:
+                return _build_metadata_result(package)
+            return result
         except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error querying pip: {e}",

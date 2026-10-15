@@ -46,7 +46,7 @@ DataTransformer: TypeAlias = Callable[[Any], Any] | None
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 
 class TuiConsoleAdapter:
@@ -134,7 +134,7 @@ def _build_message_from_event(
     data = transform_data(event.data) if transform_data else event.data
     data_str = f"{prefix}{data}" if prefix else str(data)
     msg_class = cast("type[Any]", message_class)
-    return msg_class(data_str, event.source_agent)
+    return cast(Message, msg_class(data_str, event.source_agent))
 
 
 def _extract_dict_field(
@@ -520,7 +520,22 @@ class EventBridge:
             return
         name = _extract_dict_field(event, "agent", "unknown")
         summary = _extract_dict_field(event, "summary", "")
-        completion_msg = f"✓ {name} completed"
+        status = event.data.get("status")
+        match status:
+            case "completed":
+                completion_msg = f"{name} finished execution"
+            case "responded":
+                completion_msg = f"{name} responded"
+            case "failed":
+                completion_msg = f"✗ {name} failed"
+            case "stalled":
+                completion_msg = f"⚠ {name} stalled — no actions taken after nudges"
+            case "timed_out":
+                completion_msg = f"⚠ {name} hit turn limit"
+            case "no_work_done":
+                completion_msg = f"⚠ {name} ended without making changes"
+            case _:
+                completion_msg = f"⚠ {name} ended — outcome unknown"
         if summary:
             completion_msg += f": {summary}"
         self._message_poster.post_status_message(event, completion_msg)

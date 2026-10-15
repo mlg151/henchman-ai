@@ -37,7 +37,7 @@ class TestThinkingIndicator:
 
             # Should create a status with thinking message
             mock_status_method.assert_called_once_with(
-                "[dim]Thinking...[/] Processing your request...", spinner="dots"
+                "[dim]Thinking…[/] Processing your request...", spinner="dots"
             )
 
             # Should start the status
@@ -57,7 +57,7 @@ class TestThinkingIndicator:
             renderer.start_thinking()
 
             # Should use default message
-            console.status.assert_called_once_with("[dim]Thinking...[/]", spinner="dots")
+            console.status.assert_called_once_with("[dim]Thinking…[/]", spinner="dots")
 
     def test_stop_thinking(self) -> None:
         """Test stopping a thinking indicator."""
@@ -145,7 +145,21 @@ class TestThinkingIndicator:
         with patch.object(console, "status", return_value=mock_status):
             renderer.start_thinking("Processing", spinner="line")
 
-            console.status.assert_called_once_with("[dim]Thinking...[/] Processing", spinner="line")
+            console.status.assert_called_once_with("[dim]Thinking…[/] Processing", spinner="line")
+
+    def test_thinking_detail_is_rendered_as_plain_text(self) -> None:
+        """Status details must not be able to inject Rich styling."""
+        console = Console(file=StringIO())
+        renderer = UIRenderer(console=console)
+
+        mock_status = MagicMock(spec=Status)
+        with patch.object(console, "status", return_value=mock_status):
+            renderer.start_thinking("[red]spoofed status[/]")
+
+            console.status.assert_called_once_with(
+                "[dim]Thinking…[/] \\[red]spoofed status\\[/]",
+                spinner="dots",
+            )
 
     def test_thinking_context_manager_exception_handling(self) -> None:
         """Test that thinking indicator stops even if exception occurs."""

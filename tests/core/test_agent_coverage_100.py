@@ -13,6 +13,8 @@ Targets missing lines:
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
 
 
@@ -214,10 +216,8 @@ class TestAgentPendingConfig:
         finally:
             object.__setattr__(agent, "_stall", stall_backup)
             # Clean up if it was stored as instance attr
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__delattr__(agent, "stall_detection_enabled")
-            except AttributeError:
-                pass
 
     def test_setattr_super_when_alias_target_absent(self) -> None:
         """Line 274: __setattr__ calls super() when instance alias target not initialized."""
@@ -237,7 +237,5 @@ class TestAgentPendingConfig:
             assert object.__getattribute__(agent, "history") == []
         finally:
             object.__setattr__(agent, "messages", messages_backup)
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__delattr__(agent, "history")
-            except AttributeError:
-                pass

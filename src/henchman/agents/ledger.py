@@ -11,10 +11,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import ParamSpec, Self, TypeVar
 
 # Constants
+MAX_GOAL_PREVIEW_LENGTH: int = 500
 MAX_DELEGATION_SUMMARY_LENGTH: int = 500  # Maximum length for delegation summaries
 DEFAULT_MAX_SUMMARY_LENGTH: int = 120  # Default for display
 DEFAULT_MAX_ENTRIES: int = 10  # Default number of entries to show
@@ -108,7 +109,7 @@ class ProgressCounts:
         )
 
 
-class DelegationStatus(str, Enum):
+class DelegationStatus(StrEnum):
     """Status of a single delegation."""
 
     PENDING = "pending"
@@ -285,9 +286,13 @@ class LedgerRenderer:
         Returns:
             A multi-line status board string.
         """
+        goal_preview = self.ledger.goal[:MAX_GOAL_PREVIEW_LENGTH]
+        omitted = len(self.ledger.goal) - len(goal_preview)
+        if omitted:
+            goal_preview += f" ... [{omitted} characters omitted from goal preview]"
         lines: list[str] = [
             "--- 📋 TASK LEDGER (auto-maintained) ---",
-            f"Goal: {self.ledger.goal}",
+            f"Goal: {goal_preview}",
         ]
 
         # Mission recap line

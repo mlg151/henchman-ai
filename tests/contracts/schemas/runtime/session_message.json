@@ -1,0 +1,44 @@
+{
+  "$id": "henchman/contracts/runtime/session-message/v1",
+  "title": "SessionMessage",
+  "description": "Shape contract for SessionMessage.to_dict().",
+  "type": "object",
+  "required": ["role", "content"],
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Message role (e.g. 'user', 'assistant', 'tool', 'system')",
+      "enum": ["user", "assistant", "tool", "system"]
+    },
+    "content": {
+      "type": ["string", "null"],
+      "description": "Message text content"
+    },
+    "tool_calls": {
+      "type": ["array", "null"],
+      "description": "Tool call requests made in this message",
+      "items": {
+        "type": "object",
+        "required": ["name", "arguments"],
+        "properties": {
+          "name": { "type": "string" },
+          "arguments": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": false
+      }
+    },
+    "tool_call_id": {
+      "type": ["string", "null"],
+      "description": "Tool call ID (for tool result messages)"
+    },
+    "agent_id": {
+      "type": ["string", "null"],
+      "description": "Agent identifier if this message was produced by an agent"
+    },
+    "reasoning_content": {
+      "type": ["string", "null"],
+      "description": "Thinking/reasoning content from the model"
+    }
+  },
+  "additionalProperties": false
+}

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.research_notes import (
-    ResearchNotesTool,
     ResearchNotesParams,
+    ResearchNotesTool,
     _action_append,
     _action_list,
     _action_read,
@@ -21,7 +19,6 @@ from henchman.tools.builtins.research_notes import (
     _note_path,
     _save_note,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper function tests

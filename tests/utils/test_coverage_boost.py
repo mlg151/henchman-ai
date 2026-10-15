@@ -18,6 +18,7 @@ import pytest
 
 from henchman.providers.base import Message, ToolCall
 from henchman.utils.compaction import (
+    CompactionParams,
     CompactionResult,
     MessageSequenceGrouper,
     ProtectedZoneManager,
@@ -28,7 +29,7 @@ from henchman.utils.compaction import (
     _is_valid_tool_message,
     _truncate_protected_zone_messages,
     _truncate_tool_message_content,
-    CompactionParams, compact_messages,
+    compact_messages,
 )
 from henchman.utils.compaction import (
     _format_messages_for_summary_content as _format_messages_for_summary,
@@ -630,7 +631,7 @@ class TestCompactionMissingLines:
         """Lines 866->875: _generate_summary_with_provider streams chunks."""
         mock_provider = MagicMock()
 
-        async def mock_stream(*args, **kwargs):
+        async def mock_stream(*_args, **_kwargs):
             chunk = MagicMock()
             chunk.content = "summarized"
             chunk.finish_reason = "stop"
@@ -648,9 +649,9 @@ class TestCompactionMissingLines:
         """Lines 878->880: exception in _generate_summary_with_provider returns None."""
         mock_provider = MagicMock()
 
-        async def mock_stream(*args, **kwargs):
+        async def mock_stream(*_args, **_kwargs):
             raise RuntimeError("provider error")
-            yield  # noqa: unreachable
+            yield  # pragma: no cover - makes this an async generator
 
         mock_provider.chat_completion_stream = mock_stream
         messages = [Message(role="user", content="test")]
@@ -741,7 +742,7 @@ class TestCompactionMissingLines2:
         """Lines 866->875: provider yields empty content chunks."""
         mock_provider = MagicMock()
 
-        async def mock_stream(*args, **kwargs):
+        async def mock_stream(*_args, **_kwargs):
             chunk1 = MagicMock()
             chunk1.content = None  # Empty content
             chunk1.finish_reason = None
@@ -900,7 +901,7 @@ class TestCompactionMissingLines3:
         """Lines 866->875: async for loop exhausts naturally (no finish_reason)."""
         mock_provider = MagicMock()
 
-        async def mock_stream(*args, **kwargs):
+        async def mock_stream(*_args, **_kwargs):
             chunk = MagicMock()
             chunk.content = "content "
             chunk.finish_reason = None  # No finish_reason → no break

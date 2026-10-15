@@ -284,7 +284,7 @@ class FileReadDecisionMaker:
                 return "Cannot determine - invalid lines_read format"
             return "Cannot determine - no valid line ranges"
 
-        empty_reason_func = get_empty_ranges_reason or _empty_reason
+        empty_reason_func = get_empty_ranges_reason
 
         if start is None or end is None:
             return _handle_partial_range_specification(

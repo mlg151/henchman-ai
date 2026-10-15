@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urljoin
 
 import aiohttp
 from pydantic import ValidationError
-from typing_extensions import Self
 
 from henchman.extensions.constants import PluginConstants
 from henchman.extensions.models import (
@@ -16,6 +15,7 @@ from henchman.extensions.models import (
     PluginSearchParams,
     PluginSearchResult,
 )
+from henchman.version import VERSION as __version__
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +208,3 @@ class PluginRegistryClient:
         except ValidationError as exc:
             logger.exception("Invalid plugin data from registry: %s", exc)
             return None
-
-
-# Import at bottom to avoid circular imports
-from henchman.version import VERSION as __version__

@@ -11,9 +11,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label, Select
+from textual.widgets import Button, Input, Label, Select
 
 from henchman.cli.textual_messages import SwitchProviderMessage
 
@@ -509,3 +509,478 @@ class SessionScreen(ModalScreen[str | None]):
             None
         """
         self.dismiss(None)
+
+
+# ------------------------------------------------------------------ #
+# Auto mode screen                                                     #
+# ------------------------------------------------------------------ #
+
+
+class AutoModeScreen(ModalScreen[bool]):
+    """Modal dialog for enabling/disabling auto mode."""
+
+    DEFAULT_CSS = """
+    AutoModeScreen {
+        align: center middle;
+    }
+    #auto-mode-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 60;
+        height: auto;
+    }
+    #auto-mode-buttons {
+        align: center middle;
+        padding-top: 1;
+    }
+    """
+
+    def on_button_pressed(self: AutoModeScreen, event: Button.Pressed) -> None:
+        """Dismiss with the user's choice.
+
+        Args:
+            event: Button press event.
+
+        Returns:
+            None
+        """
+        self.dismiss(event.button.id == "btn-enable")
+
+    def compose(self: AutoModeScreen) -> ComposeResult:
+        """Create child widgets for the auto mode screen.
+
+        Yields:
+            Widget instances for the auto-mode dialog.
+        """
+        from textual.containers import Horizontal
+        from textual.widgets import Button, Label
+
+        yield Vertical(
+            Label("Auto Mode", id="auto-mode-title"),
+            Label(
+                "Enable auto mode? The agent will automatically execute "
+                "approved tools without confirmation.",
+            ),
+            Horizontal(
+                Button("Enable", id="btn-enable", variant="primary"),
+                Button("Cancel", id="btn-cancel", variant="default"),
+                id="auto-mode-buttons",
+            ),
+            id="auto-mode-dialog",
+        )
+
+
+# ------------------------------------------------------------------ #
+# Bridge screen                                                        #
+# ------------------------------------------------------------------ #
+
+
+class BridgeScreen(ModalScreen[str | None]):
+    """Modal screen for bridge configuration."""
+
+    DEFAULT_CSS = """
+    BridgeScreen {
+        align: center middle;
+    }
+    #bridge-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 80;
+        height: auto;
+        max-height: 30;
+    }
+    """
+
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Close"),
+    ]
+
+    def __init__(self: BridgeScreen, bridge_entries: list[str] | None = None) -> None:
+        """Initialize with persisted bridge descriptions."""
+
+        super().__init__()
+        self._bridge_entries = self._build_entries(bridge_entries or [])
+
+    def compose(self: BridgeScreen) -> ComposeResult:
+        """Build the bridge listing dialog."""
+
+        from rich.markup import escape
+
+        entries = "\n".join(escape(entry) for entry in self._bridge_entries)
+        if not entries:
+            entries = "[dim]No persisted bridges.[/]"
+        yield Vertical(
+            Label("[bold]Team Bridges[/bold]"),
+            Label(entries, id="bridge-entries"),
+            Button("Close", id="btn-close", variant="primary"),
+            id="bridge-dialog",
+        )
+
+    def on_button_pressed(self: BridgeScreen, _event: Button.Pressed) -> None:
+        """Close the bridge listing."""
+
+        self.dismiss(None)
+
+    def action_cancel(self: BridgeScreen) -> None:
+        """Close the bridge listing."""
+
+        self.dismiss(None)
+
+    @staticmethod
+    def _build_entries(
+        bridge_entries: list[str],
+    ) -> list[str]:
+        """Build bridge entry options from metadata.
+
+        Args:
+            bridge_entries: Bridge connection description strings.
+
+        Returns:
+            List of bridge entry description strings.
+        """
+        return list(bridge_entries)
+
+
+# ------------------------------------------------------------------ #
+# Export screen                                                        #
+# ------------------------------------------------------------------ #
+
+
+class ExportScreen(ModalScreen[str | None]):
+    """Modal screen for export options."""
+
+    DEFAULT_CSS = """
+    ExportScreen {
+        align: center middle;
+    }
+    #export-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 60;
+        height: auto;
+    }
+    """
+
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Close"),
+    ]
+
+    def compose(self: ExportScreen) -> ComposeResult:
+        """Build the session export dialog."""
+
+        yield Vertical(
+            Label("[bold]Export Active Session[/bold]"),
+            Label("Write the active session to Markdown in the current project."),
+            Horizontal(
+                Button("Export Markdown", id="btn-markdown", variant="primary"),
+                Button("Cancel", id="btn-cancel"),
+            ),
+            id="export-dialog",
+        )
+
+    def on_button_pressed(self: ExportScreen, event: Button.Pressed) -> None:
+        """Handle button press events.
+
+        Strips the ``btn-`` prefix for cleaner dismiss values.
+
+        Args:
+            event: Button press event.
+
+        Returns:
+            None
+        """
+        btn_id = event.button.id or ""
+        self.dismiss("markdown" if btn_id == "btn-markdown" else None)
+
+    def action_cancel(self: ExportScreen) -> None:
+        """Cancel the export."""
+
+        self.dismiss(None)
+
+
+# ------------------------------------------------------------------ #
+# Feedback screen                                                      #
+# ------------------------------------------------------------------ #
+
+
+class FeedbackScreen(ModalScreen[str | None]):
+    """Modal screen for collecting user feedback."""
+
+    DEFAULT_CSS = """
+    FeedbackScreen {
+        align: center middle;
+    }
+    #feedback-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 60;
+        height: auto;
+    }
+    """
+
+    def on_button_pressed(self: FeedbackScreen, event: Button.Pressed) -> None:
+        """Handle button press events.
+
+        Dismisses with the current ``Select`` value when submitting.
+
+        Args:
+            event: Button press event.
+
+        Returns:
+            None
+        """
+        if event.button.id == "btn-submit":
+            select = self.query_one(Select)
+            self.dismiss(str(select.value) if select.value is not None else None)
+        else:
+            self.dismiss(None)
+
+
+# ------------------------------------------------------------------ #
+# History search screen                                                #
+# ------------------------------------------------------------------ #
+
+
+class HistorySearchScreen(ModalScreen[str | None]):
+    """Modal screen for searching conversation history."""
+
+    DEFAULT_CSS = """
+    HistorySearchScreen {
+        align: center middle;
+    }
+    """
+
+    @staticmethod
+    def _build_options(
+        prompts: list[str] | None = None,
+    ) -> list[tuple[str, str]]:
+        """Build history search options from recent prompts.
+
+        Args:
+            prompts: Recent conversation prompts (most recent last).
+
+        Returns:
+            List of (label, value) tuples, most recent first.
+        """
+        if prompts:
+            return [(p, p) for p in reversed(prompts)]
+        return [
+            ("Last 10 messages", "last_10"),
+            ("Last 50 messages", "last_50"),
+            ("Last 100 messages", "last_100"),
+            ("All messages", "all"),
+        ]
+
+
+# ------------------------------------------------------------------ #
+# MCP servers screen                                                   #
+# ------------------------------------------------------------------ #
+
+
+class McpServersScreen(ModalScreen[str | None]):
+    """Modal screen for viewing and managing MCP server connections."""
+
+    DEFAULT_CSS = """
+    McpServersScreen {
+        align: center middle;
+    }
+    """
+
+    @staticmethod
+    def _build_entries(
+        configured: list[str] | None = None,
+        connected: list[str] | None = None,
+    ) -> list[tuple[str, str]]:
+        """Build MCP server entry options from configs.
+
+        Args:
+            configured: List of configured server names.
+            connected: List of connected server names.
+
+        Returns:
+            List of (label, value) tuples for selection.
+        """
+        configured = configured or []
+        connected = connected or []
+        entries: list[tuple[str, str]] = []
+        for name in configured:
+            status = "connected" if name in connected else "disconnected"
+            entries.append((f"{name} ({status})", name))
+        return entries
+
+
+# ------------------------------------------------------------------ #
+# Model picker screen                                                  #
+# ------------------------------------------------------------------ #
+
+
+class ModelPickerScreen(ModalScreen[str | None]):
+    """Modal screen for selecting a model provider."""
+
+    DEFAULT_CSS = """
+    ModelPickerScreen {
+        align: center middle;
+    }
+    """
+
+    @staticmethod
+    def _build_options(settings: object) -> list[tuple[str, str]]:
+        """Build model picker options from settings.
+
+        Args:
+            settings: Application settings object.
+
+        Returns:
+            List of (label, value) tuples.
+        """
+        options: list[tuple[str, str]] = []
+        if not settings:
+            return options
+        providers = getattr(settings, "providers", None)
+        if not providers:
+            return options
+        for provider_name in ("deepseek", "anthropic", "ollama", "openai"):
+            cfg = getattr(providers, provider_name, None)
+            if not isinstance(cfg, dict) or not cfg:
+                continue
+            model = cfg.get("model") if isinstance(cfg, dict) else None
+            if model:
+                options.append((f"{provider_name} ({model})", provider_name))
+        return options
+
+
+# ------------------------------------------------------------------ #
+# Onboarding screen                                                    #
+# ------------------------------------------------------------------ #
+
+
+class OnboardingScreen(ModalScreen[str | None]):
+    """Modal screen for first-time setup wizard."""
+
+    DEFAULT_CSS = """
+    OnboardingScreen {
+        align: center middle;
+    }
+    #onboarding-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 70;
+        height: auto;
+    }
+    """
+
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Close"),
+    ]
+
+    def compose(self: OnboardingScreen) -> ComposeResult:
+        """Build the first-run navigation dialog."""
+
+        yield Vertical(
+            Label("[bold]Welcome to Henchman-AI[/bold]"),
+            Label("Choose where to continue setup."),
+            Horizontal(
+                Button("Workspace", id="btn-settings", variant="primary"),
+                Button("Theme", id="btn-theme"),
+                Button("Close", id="btn-cancel"),
+            ),
+            id="onboarding-dialog",
+        )
+
+    def on_button_pressed(self: OnboardingScreen, event: Button.Pressed) -> None:
+        """Handle button press events.
+
+        Strips the ``btn-`` prefix for simpler dismiss values.
+
+        Args:
+            event: Button press event.
+
+        Returns:
+            None
+        """
+        btn_id = event.button.id or ""
+        if btn_id == "btn-cancel":
+            self.dismiss(None)
+            return
+        value = btn_id.removeprefix("btn-") if btn_id.startswith("btn-") else btn_id
+        self.dismiss(value)
+
+    def action_cancel(self: OnboardingScreen) -> None:
+        """Close onboarding without changing views."""
+
+        self.dismiss(None)
+
+
+# ------------------------------------------------------------------ #
+# Search screen                                                        #
+# ------------------------------------------------------------------ #
+
+
+class SearchScreen(ModalScreen[str | None]):
+    """Modal screen for semantic code search."""
+
+    DEFAULT_CSS = """
+    SearchScreen {
+        align: center middle;
+    }
+    #search-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 60;
+        height: auto;
+    }
+    #search-buttons {
+        align: center middle;
+        padding-top: 1;
+    }
+    """
+
+    def on_button_pressed(self: SearchScreen, event: Button.Pressed) -> None:
+        """Handle button press events.
+
+        Args:
+            event: Button press event.
+        """
+        btn_id = event.button.id
+        if btn_id == "btn-search":
+            inp = self.query_one(Input)
+            self.dismiss(inp.value)
+        elif btn_id == "btn-clear":
+            self.dismiss("")
+        else:
+            self.dismiss(None)
+
+
+# ------------------------------------------------------------------ #
+# Theme picker screen                                                  #
+# ------------------------------------------------------------------ #
+
+
+class ThemePickerScreen(ModalScreen[str | None]):
+    """Modal screen for selecting a UI theme."""
+
+    DEFAULT_CSS = """
+    ThemePickerScreen {
+        align: center middle;
+    }
+    """
+
+    @staticmethod
+    def _build_options() -> list[tuple[str, str]]:
+        """Build theme picker options.
+
+        Returns:
+            List of (label, value) tuples.
+        """
+        return [
+            ("Dark", "dark"),
+            ("Light", "light"),
+            ("Monokai", "monokai"),
+            ("Dracula", "dracula"),
+        ]

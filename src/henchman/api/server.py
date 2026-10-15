@@ -7,25 +7,22 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from henchman.api.endpoints import chat, health
+from henchman.api.endpoints import chat, health, remote
 from henchman.api.state import state
 from henchman.config import load_settings
 from henchman.core import Agent
+from henchman.ops.rate_limits import RateLimiter
 from henchman.providers import get_default_registry
+from henchman.providers.factory import create_configured_provider
+from henchman.version import VERSION
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Awaitable, Callable
 
-
-class HealthResponse(BaseModel):
-    """Health check response model."""
-
-    status: str = Field(default="ok")
-    version: str = Field(default="0.3.11")
-    provider: str | None = Field(default=None)
+_OPERATIONAL_PROBE_PATHS = frozenset({"/v1/health", "/v1/ready"})
 
 
 class ErrorResponse(BaseModel):
@@ -86,44 +83,47 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     print("Starting Henchman-AI API server...")
 
-    # Initialize state
-    state.settings = load_settings()
-    state.provider_registry = get_default_registry()
-
-    # Load API keys from settings
-    if state.settings.api and hasattr(state.settings.api, "api_keys"):  # pragma: no branch
-        state.api_keys = set(state.settings.api.api_keys)
-
-    # Create default agent
+    state.api_keys = set()
+    state.rate_limiter = None  # type: ignore[attr-defined]
+    state._rate_limits = {}  # type: ignore[attr-defined]
     try:
-        provider_name = state.settings.providers.default
-        # Get provider settings based on provider name
-        provider_settings = _get_provider_settings(provider_name, state.settings)
+        # Initialize state
+        state.settings = load_settings()
+        state.provider_registry = get_default_registry()
 
-        provider = state.provider_registry.create(
-            provider_name,
-            **provider_settings,
-        )
-        state.agent = Agent(
-            provider=provider,
-            system_prompt="",  # Empty system prompt for API server
-        )
-        print(f"Created agent with provider: {provider_name}")
-    except Exception as e:
-        print(f"Warning: Failed to create agent: {e}")
-        state.agent = None
+        api_settings = state.settings.api
+        state.api_keys = set(api_settings.api_keys)
+        state.rate_limiter = RateLimiter()  # type: ignore[attr-defined]
+        state._rate_limits = dict(api_settings.rate_limits)  # type: ignore[attr-defined]
 
-    yield
+        # Create default agent
+        try:
+            provider_name = state.settings.providers.default
+            provider = create_configured_provider(
+                state.settings.providers,
+                registry=state.provider_registry,
+            )
+            state.agent = Agent(
+                provider=provider,
+                system_prompt="",  # Empty system prompt for API server
+            )
+            print(f"Created agent with provider: {provider_name}")
+        except Exception as e:
+            print(f"Warning: Failed to create agent: {e}")
+            state.agent = None
 
-    # Shutdown
-    print("Shutting down Henchman-AI API server...")
+        yield
+    finally:
+        state.rate_limiter = None  # type: ignore[attr-defined]
+        state._rate_limits = {}  # type: ignore[attr-defined]
+        print("Shutting down Henchman-AI API server...")
 
 
 # Create FastAPI app
 app = FastAPI(
     title="Henchman-AI API",
     description="REST API for Henchman-AI - A model-agnostic AI agent CLI",
-    version="0.3.11",
+    version=VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -138,9 +138,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def rate_limit_middleware(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """Rate-limit incoming requests based on client IP.
+
+    Operational liveness and readiness probes bypass rate limiting. Other
+    requests check ``X-Forwarded-For`` (first address in chain), then
+    ``X-Real-IP``, then ``request.client.host``.  Uses the
+    configured ``state.rate_limiter`` if one exists and rate limits are
+    stored on ``state._rate_limits`` (populated by the lifespan handler).
+    """
+    if request.url.path in _OPERATIONAL_PROBE_PATHS:
+        return await call_next(request)
+
+    rate_limiter = getattr(state, "rate_limiter", None)
+    if rate_limiter is None:
+        return await call_next(request)
+
+    # Extract client IP from proxy headers or direct connection
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    else:
+        client_ip = request.headers.get("X-Real-IP", "")
+    if not client_ip and request.client:
+        client_ip = request.client.host
+
+    if not client_ip:
+        return await call_next(request)
+
+    # Read rate limits from state._rate_limits (may be pre-set by tests or
+    # lazy-initialized from settings on the first request).
+    rate_limits = getattr(state, "_rate_limits", None)
+    if rate_limits is None:
+        # Lazy-init from settings (the lifespan may have set these already,
+        # but tests can override by setting state._rate_limits directly).
+        rate_limits = {}
+        if state.settings and hasattr(state.settings, "api") and state.settings.api:
+            rate_limits = getattr(state.settings.api, "rate_limits", {})
+        state._rate_limits = rate_limits  # type: ignore[attr-defined]
+
+    if not rate_limits:
+        return await call_next(request)
+
+    # Apply the default rate limit
+    default_limit = rate_limits.get("default")
+    if not default_limit:
+        return await call_next(request)
+
+    if not rate_limiter.allow(client_ip, default_limit):
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content=ErrorResponse(
+                error="Rate limit exceeded",
+                code="RATE_LIMIT_EXCEEDED",
+            ).model_dump(),
+        )
+
+    return await call_next(request)
+
+
 # Include routers
 app.include_router(chat.router)
 app.include_router(health.router)
+app.include_router(remote.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -155,7 +220,7 @@ async def root() -> dict[str, str]:
     """
     return {
         "message": "Henchman-AI API",
-        "version": "0.3.11",
+        "version": VERSION,
         "docs": "/docs",
     }
 

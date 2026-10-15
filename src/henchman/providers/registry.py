@@ -101,6 +101,7 @@ def get_default_registry() -> ProviderRegistry:
         _default_registry.register("ollama", OllamaProvider)
         _default_registry.register("openrouter", OpenRouterProvider)
         _default_registry.register("openai_compat", OpenAICompatibleProvider)
+        _default_registry.register("openai", OpenAICompatibleProvider)
         _default_registry.register("together", OpenAICompatibleProvider)
         _default_registry.register("groq", OpenAICompatibleProvider)
         _default_registry.register("fireworks", OpenAICompatibleProvider)

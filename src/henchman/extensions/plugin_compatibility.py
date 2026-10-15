@@ -58,19 +58,19 @@ class PluginCompatibilityChecker:
     @staticmethod
     async def check_compatibility(metadata: PluginMetadata) -> bool:
         """Check if plugin is compatible with current system.
-        
+
         Args:
             metadata: Plugin metadata containing compatibility requirements.
                 The metadata should include Henchman version, Python version,
                 and OS compatibility specifications.
-        
+
         Returns:
             True if the plugin is compatible with the current system,
             False otherwise. Compatibility is checked against:
             - Henchman-AI version (from metadata.compatibility.henchman)
             - Python version (from metadata.compatibility.python)
             - Operating system (from metadata.compatibility.os, if specified)
-        
+
         Raises:
             ImportError: If required dependencies cannot be imported.
             ValueError: If version specifications are malformed.

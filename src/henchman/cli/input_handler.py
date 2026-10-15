@@ -6,13 +6,14 @@ This module handles user input processing including prompt sessions,
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 try:
     from typing import Self
 except ImportError:
-    from typing_extensions import Self
+    from typing import Self
 
 from prompt_toolkit.completion import WordCompleter
 
@@ -115,6 +116,23 @@ class InputHandler:
         if hasattr(self.renderer, "print_newline"):
             self.renderer.print_newline()
         return await self.prompt_session.prompt_async(self.config.prompt)
+
+    async def ask_question(self, question: str) -> str | None:
+        """Read a literal answer without command expansion or command history."""
+        from prompt_toolkit import PromptSession
+
+        if self.prompt_session is None:
+            raise RuntimeError("Prompt session not initialized")
+        session: PromptSession[str] = PromptSession(
+            input=self.prompt_session.input,
+            output=self.prompt_session.output,
+        )
+        try:
+            return await session.prompt_async(f"{question}\nAnswer: ")
+        except EOFError:
+            return None
+        except KeyboardInterrupt as exc:
+            raise asyncio.CancelledError from exc
 
     def is_slash_command(self: Self, input_text: str) -> bool:
         """Check if input is a slash command.

@@ -9,7 +9,6 @@ import pytest
 
 from henchman.extensions.models import PluginEntryPoints, PluginMetadata, PluginSearchResult
 from henchman.extensions.plugin_manager import PluginManager
-from henchman.extensions.plugin_compatibility import PluginCompatibilityChecker
 
 
 class TestPluginManager:
@@ -47,15 +46,15 @@ from henchman.extensions import Extension
 
 class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension):
     """Test extension for {plugin_name}"""
-    
+
     @property
     def name(self) -> str:
         return "{plugin_name}"
-    
+
     @property
     def version(self) -> str:
         return "1.0.0"
-    
+
     @property
     def description(self) -> str:
         return "Test plugin"
@@ -92,24 +91,6 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
     async def test_search_plugins_mocked(self, plugin_manager: PluginManager) -> None:
         """Test search_plugins with mocked HTTP response."""
         await plugin_manager.initialize()
-
-        # Mock response data
-        mock_response_data = {
-            "plugins": [
-                {
-                    "name": "github-integration",
-                    "version": "1.0.0",
-                    "description": "GitHub integration for Henchman-AI",
-                    "author": "GitHub User",
-                    "entry_points": {
-                        "henchman_extensions": "github_plugin.module:GitHubPlugin",
-                    },
-                }
-            ],
-            "total": 1,
-            "page": 1,
-            "page_size": 20,
-        }
 
         # Use patch to mock the entire search_plugins method
         with patch.object(

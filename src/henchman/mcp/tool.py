@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 if TYPE_CHECKING:
-    from henchman.mcp.client import McpClient, McpToolDefinition, McpToolResult
+    from henchman.mcp.client import McpClientProtocol, McpToolDefinition, McpToolResult
 
 
 def _build_tool_result(result: McpToolResult) -> ToolResult:
@@ -42,7 +42,7 @@ class McpTool(Tool):
     def __init__(
         self: McpTool,
         mcp_tool: McpToolDefinition,
-        client: McpClient,
+        client: McpClientProtocol,
         server_name: str,
         *,
         trusted: bool = False,

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/token_metric/v1",
+  "type": "object",
+  "required": ["id", "timestamp", "metric_type", "model", "provider", "prompt_tokens", "completion_tokens", "total_tokens"],
+  "properties": {
+    "id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "session_id": { "type": ["string", "null"] },
+    "agent_id": { "type": ["string", "null"] },
+    "user_id": { "type": ["string", "null"] },
+    "metadata": { "type": "object" },
+    "metric_type": { "const": "token_usage" },
+    "model": { "type": "string" },
+    "provider": { "type": "string" },
+    "prompt_tokens": { "type": "integer" },
+    "completion_tokens": { "type": "integer" },
+    "total_tokens": { "type": "integer" },
+    "cached_tokens": { "type": ["integer", "null"] },
+    "token_limit": { "type": ["integer", "null"] },
+    "token_ratio": { "type": ["number", "null"] }
+  },
+  "additionalProperties": false
+}

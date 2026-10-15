@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProviderStreamChunk",
+  "description": "A chunk of a streaming response from a model provider.",
+  "type": "object",
+  "properties": {
+    "content": { "type": ["string", "null"] },
+    "tool_calls": { "type": ["array", "null"] },
+    "finish_reason": { "type": ["string", "null"], "enum": ["stop", "tool_calls", "length", "content_filter", null] },
+    "thinking": { "type": ["string", "null"] },
+    "usage": { "type": ["object", "null"] }
+  },
+  "required": ["content", "finish_reason"]
+}

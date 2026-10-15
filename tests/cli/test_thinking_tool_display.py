@@ -70,7 +70,7 @@ class TestThinkingToolDisplay:
         # Mock the chat pane
         mock_chat_pane = MagicMock(spec=ChatPane)
         mock_chat_pane.add_tool_message = MagicMock()
-        
+
         # Mock the tool pane
         mock_tool_pane = MagicMock()
         mock_tool_pane.write = MagicMock()
@@ -82,7 +82,7 @@ class TestThinkingToolDisplay:
         mock_tool_call.arguments = {"path": "test.txt"}
 
         # Mock query_one to return different panes based on selector
-        def mock_query_one(selector, *args, **kwargs):
+        def mock_query_one(selector, *_args, **_kwargs):
             if selector == "#chat-pane":
                 return mock_chat_pane
             elif selector == "#tool-pane":
@@ -104,7 +104,7 @@ class TestThinkingToolDisplay:
             mock_chat_pane.add_tool_message.assert_called_once_with(
                 "read_file: path='test.txt'", mock_tool_call
             )
-            
+
             # Verify tool was written to tool pane
             mock_tool_pane.write.assert_called_once()
             mock_tool_pane.scroll_end.assert_called_once_with(animate=False)

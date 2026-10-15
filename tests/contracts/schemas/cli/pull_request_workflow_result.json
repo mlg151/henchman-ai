@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/pull-request-workflow-result/v1",
+  "type": "object",
+  "required": ["commit_message", "branch", "pull_request_url"],
+  "properties": {
+    "commit_message": { "type": "string" },
+    "branch": { "type": "string" },
+    "pull_request_url": { "type": "string" }
+  },
+  "additionalProperties": false
+}

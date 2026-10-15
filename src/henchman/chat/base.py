@@ -94,7 +94,7 @@ class ChatBot(ABC):
         content: str,
         *,
         split_long: bool = True,
-    ) -> None:
+    ) -> bool:
         """Send a message to a user.
 
         Args:
@@ -103,7 +103,7 @@ class ChatBot(ABC):
             split_long: Whether to split messages exceeding platform limits.
 
         Returns:
-            None
+            True when the message was sent, otherwise False.
         """
         ...  # pragma: no cover
 

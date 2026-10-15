@@ -38,6 +38,7 @@ class OpenRouterProvider(OpenAICompatibleProvider):
             api_key=resolved_key,
             base_url=base_url,
             default_model=model,
+            **kwargs,
         )
 
     @property

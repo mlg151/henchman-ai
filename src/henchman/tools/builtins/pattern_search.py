@@ -73,11 +73,13 @@ def _extract_keywords(description: str) -> list[str]:
     return [t for t in tokens if len(t) >= _MIN_KEYWORD_LENGTH and t.lower() not in stop_words]
 
 
-def _inheritance_patterns(desc_lower: str) -> list[tuple[str, str]]:
+def _inheritance_patterns(description: str) -> list[tuple[str, str]]:
     """Extract inheritance-based structural patterns."""
     return [
         (f"inherits:{parent}", rf"class\s+\w+\s*\([^)]*{parent}[^)]*\)")
-        for match in re.finditer(r"inherit(?:s)? from (\w+)|subclass of (\w+)", desc_lower)
+        for match in re.finditer(
+            r"inherit(?:s)? from (\w+)|subclass of (\w+)", description, re.IGNORECASE,
+        )
         for parent in [match.group(1) or match.group(2)]
         if parent
     ]
@@ -125,7 +127,7 @@ def _extract_structural_patterns(description: str) -> list[tuple[str, str]]:
     """
     desc_lower = description.lower()
     return (
-        _inheritance_patterns(desc_lower)
+        _inheritance_patterns(description)
         + _decorator_patterns(description)
         + _keyword_hint_patterns(desc_lower)
     )

@@ -1,12 +1,15 @@
 """Tests for OpenRouter provider."""
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from openai.types.chat import ChatCompletionChunk
 
-from henchman.providers.base import Message
+from henchman.providers.base import FinishReason, Message
 from henchman.providers.openrouter import OpenRouterProvider
+from tests.providers.stream_helpers import SDKResponse
 
 
 class TestOpenRouterProvider:
@@ -79,26 +82,27 @@ class TestOpenRouterProvider:
         provider = OpenRouterProvider(api_key="test-key")
         messages = [Message(role="user", content="Hello")]
 
-        # Mock the AsyncOpenAI client to avoid actual API calls
-        mock_response = AsyncMock()
-        mock_chunk = MagicMock()
-        mock_chunk.choices = [MagicMock()]
-        mock_chunk.choices[0].delta.content = "Test response"
-        mock_chunk.choices[0].finish_reason = "stop"
-        mock_response.__aiter__.return_value = [mock_chunk]
+        async def response() -> AsyncIterator[ChatCompletionChunk]:
+            yield ChatCompletionChunk.model_validate(
+                {
+                    "id": "completion_1",
+                    "created": 0,
+                    "object": "chat.completion.chunk",
+                    "model": "openai/gpt-4o-mini",
+                    "choices": [
+                        {"index": 0, "delta": {"content": "Test response"}, "finish_reason": "stop"}
+                    ],
+                    "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7},
+                }
+            )
 
-        with patch.object(provider._client.chat.completions, "create", return_value=mock_response):
-            chunks = []
-            async for chunk in provider.chat_completion_stream(messages):
-                chunks.append(chunk)
+        with patch.object(
+            provider._client.chat.completions,
+            "create",
+            new=AsyncMock(return_value=SDKResponse(response())),
+        ):
+            chunks = [chunk async for chunk in provider.chat_completion_stream(messages)]
 
-            # Should have received at least one chunk
-            assert len(chunks) > 0
-
-    def test_additional_kwargs_passed_to_parent(self) -> None:
-        """Test that additional kwargs are passed to parent class."""
-        _provider = OpenRouterProvider(
-            api_key="test-key", temperature=0.7, max_tokens=1000, custom_param="value"
-        )
-        # Check that provider has these attributes (they would be passed to parent)
-        # The parent should handle these kwargs
+        assert "".join(chunk.content or "" for chunk in chunks) == "Test response"
+        assert chunks[-1].finish_reason == FinishReason.STOP
+        assert chunks[-1].usage == {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7}

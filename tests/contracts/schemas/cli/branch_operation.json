@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/branch-operation/v1",
+  "type": "object",
+  "required": ["action", "branch", "current_branch"],
+  "properties": {
+    "action": { "type": "string" },
+    "branch": { "type": "string" },
+    "current_branch": { "type": "string" }
+  },
+  "additionalProperties": false
+}

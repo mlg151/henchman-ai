@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import types
 from dataclasses import asdict, fields
-from typing import Any, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import Any, TypeVar, Union, cast, get_args, get_origin, get_type_hints
 
 T = TypeVar("T", bound="SerializableDataclass")
 
@@ -39,7 +39,10 @@ class SerializableDataclass(AsDictMixin):
         """
         type_hints = get_type_hints(cls)
         kwargs = {}
-        for f in fields(cls):
+        # ``SerializableDataclass`` is a mixin, so the type checker cannot know
+        # that every concrete subclass passed here is decorated with
+        # ``@dataclass``. Runtime construction enforces that invariant.
+        for f in fields(cast(Any, cls)):
             if f.name not in data:
                 continue
 

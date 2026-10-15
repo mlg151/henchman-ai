@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import subprocess
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -149,10 +150,12 @@ class TestRagLockMissingLines:
             try:
                 # Second lock tries context manager with very short timeout
                 lock2 = RagLock(lock_path)
-                with patch.object(lock2, "acquire", return_value=False):
-                    with pytest.raises(LockTimeoutError):
-                        with lock2:
-                            pass
+                with (
+                    patch.object(lock2, "acquire", return_value=False),
+                    pytest.raises(LockTimeoutError),
+                    lock2,
+                ):
+                    pass
             finally:
                 lock1.release()
 
@@ -299,7 +302,7 @@ class TestRepoIdMissingLines:
 
             # Mock shutil.copy2 to fail
             with patch("shutil.copy2", side_effect=OSError("permission denied")):
-                result = migrate_old_index(git_root, new_index_dir)
+                migrate_old_index(git_root, new_index_dir)
                 # Migration of directory still might succeed, manifest fails silently
                 # Just check it doesn't raise
 
@@ -396,6 +399,7 @@ class TestIndexerMissingLines:
             indexer.chunker.chunk_file.return_value = []
 
             mock_console = MagicMock()
+            mock_console.is_jupyter = False
             # _index_files with a console should use Rich Progress
             indexer._index_files(
                 [(test_file, "test.py")],
@@ -428,43 +432,38 @@ class TestRagSystemMissingLines:
         """Lines 180-182: index in read_only mode with console prints message."""
         from henchman.rag.system import RagSystem
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            git_root = Path(tmpdir)
-            settings = self._make_settings()
-
-            with (
-                patch("henchman.rag.embedder.FastEmbedProvider.__init__", return_value=None),
-                patch("henchman.rag.embedder.FastEmbedProvider.model_name", new_callable=lambda: property(lambda self: "test")),
-                patch("henchman.rag.store.VectorStore.__init__", return_value=None),
-                patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
-                patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
-                patch.object(RagLock, "acquire", return_value=True),
-                patch.object(RagLock, "release"),
-            ):
-                rag = RagSystem.__new__(RagSystem)
-                rag.read_only = True
-                rag._lock = MagicMock()
-                rag.is_indexing = False
-                mock_console = MagicMock()
-                result = rag.index(console=mock_console)
-                assert result is None
-                mock_console.print.assert_called_once()
+        with (
+            patch("henchman.rag.embedder.FastEmbedProvider.__init__", return_value=None),
+            patch("henchman.rag.embedder.FastEmbedProvider.model_name", new_callable=lambda: property(lambda _self: "test")),
+            patch("henchman.rag.store.VectorStore.__init__", return_value=None),
+            patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
+            patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
+            patch.object(RagLock, "acquire", return_value=True),
+            patch.object(RagLock, "release"),
+        ):
+            rag = RagSystem.__new__(RagSystem)
+            rag.read_only = True
+            rag._lock = MagicMock()
+            rag.is_indexing = False
+            mock_console = MagicMock()
+            result = rag.index(console=mock_console)
+            assert result is None
+            mock_console.print.assert_called_once()
 
     def test_index_lock_failure_skip(self) -> None:
         """Lines 186-195: index skips when lock cannot be acquired."""
         from henchman.rag.system import RagSystem
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            rag = RagSystem.__new__(RagSystem)
-            rag.read_only = False
-            rag._lock = MagicMock()
-            rag._lock.acquire.return_value = False
-            rag.is_indexing = False
-            mock_console = MagicMock()
+        rag = RagSystem.__new__(RagSystem)
+        rag.read_only = False
+        rag._lock = MagicMock()
+        rag._lock.acquire.return_value = False
+        rag.is_indexing = False
+        mock_console = MagicMock()
 
-            result = rag.index(console=mock_console, skip_if_locked=True)
-            assert result is None
-            mock_console.print.assert_called_once()
+        result = rag.index(console=mock_console, skip_if_locked=True)
+        assert result is None
+        mock_console.print.assert_called_once()
 
     def test_index_lock_failure_no_skip_raises(self) -> None:
         """Lines 194-195: index raises when skip_if_locked=False."""
@@ -497,6 +496,7 @@ class TestRagSystemMissingLines:
         with patch.object(rag, "index", return_value=mock_stats) as mock_index:
             result = await rag.index_async()
             mock_index.assert_called_once()
+            assert result is mock_stats
 
     def test_get_stats(self) -> None:
         """Line 236: get_stats delegates to indexer."""
@@ -561,6 +561,7 @@ class TestRagSystemMissingLines:
             mock_console = MagicMock()
             result = initialize_rag(settings, console=mock_console, index=False)
             mock_console.print.assert_called()
+            assert result is mock_rag
 
     def test_initialize_rag_returns_system(self) -> None:
         """Line 305: initialize_rag returns RagSystem on success."""
@@ -624,11 +625,14 @@ class TestVectorStoreMissingLines2:
             embedder = self._create_mock_embedder()
 
             hnsw_error = Exception("hnsw compactor error")
-            with patch("chromadb.PersistentClient", side_effect=hnsw_error):
-                with patch("time.sleep"):  # Speed up the test
-                    with pytest.raises(Exception, match="hnsw compactor error"):
-                        from henchman.rag.store import VectorStore
-                        VectorStore(persist_path=tmpdir, embedder=embedder, max_retries=2)
+            with (
+                patch("chromadb.PersistentClient", side_effect=hnsw_error),
+                patch("time.sleep"),  # Speed up the test
+                pytest.raises(Exception, match="hnsw compactor error"),
+            ):
+                from henchman.rag.store import VectorStore
+
+                VectorStore(persist_path=tmpdir, embedder=embedder, max_retries=2)
 
     def test_get_all_file_paths_empty_metadatas(self) -> None:
         """Line 247->251: get_all_file_paths with empty metadatas."""
@@ -740,10 +744,8 @@ class TestAbstractEmbedderMethods:
         provider = ConcreteProvider()
         # Call through the direct abstract base class
         # This is valid Python: abstract methods can have bodies
-        try:
+        with suppress(AttributeError, TypeError):
             EmbeddingProvider.dimensions.fget(provider)  # executes `...` on line 31
-        except (AttributeError, TypeError):
-            pass
 
     def test_abstract_model_name_body_via_super(self) -> None:
         """Line 41: abstract model_name body executes."""
@@ -766,10 +768,8 @@ class TestAbstractEmbedderMethods:
                 return [[0.0] for _ in texts]
 
         provider = ConcreteProvider()
-        try:
+        with suppress(AttributeError, TypeError):
             EmbeddingProvider.model_name.fget(provider)  # executes `...` on line 41
-        except (AttributeError, TypeError):
-            pass
 
     def test_abstract_embed_body_via_super(self) -> None:
         """Line 53: abstract embed body executes via direct call."""
@@ -792,10 +792,8 @@ class TestAbstractEmbedderMethods:
                 return [[0.0] for _ in texts]
 
         provider = ConcreteProvider()
-        try:
+        with suppress(AttributeError, TypeError):
             EmbeddingProvider.embed(provider, ["test"])  # executes `...` on line 53
-        except (AttributeError, TypeError):
-            pass
 
 
 class TestIndexerProgressCallback:
@@ -838,6 +836,7 @@ class TestIndexerProgressCallback:
                 callback_calls.append((rel_path, idx, total))
 
             mock_console = MagicMock()
+            mock_console.is_jupyter = False
             indexer._index_files(
                 [(test_file, "test.py")],
                 console=mock_console,
@@ -858,28 +857,28 @@ class TestRagSystemInit:
         mock_lock = MagicMock()
         mock_lock.acquire.return_value = False  # Lock fails
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with (
-                patch("henchman.rag.system.RagLock", return_value=mock_lock),
-                patch("henchman.rag.embedder.FastEmbedProvider.__init__", return_value=None),
-                patch(
-                    "henchman.rag.embedder.FastEmbedProvider.model_name",
-                    new_callable=lambda: property(lambda self: "test"),
-                ),
-                patch("henchman.rag.store.VectorStore.__init__", return_value=None),
-                patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
-                patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
-                patch("henchman.rag.system.get_repository_index_dir", return_value=Path(tmpdir)),
-                patch("henchman.rag.system.get_repository_manifest_path", return_value=Path(tmpdir) / "manifest.json"),
-            ):
-                settings = MagicMock()
-                settings.embedding_model = "test"
-                settings.chunk_size = 512
-                settings.chunk_overlap = 50
-                settings.file_extensions = [".py"]
-                settings.top_k = 5
-                settings.cache_dir = None
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch("henchman.rag.system.RagLock", return_value=mock_lock),
+            patch("henchman.rag.embedder.FastEmbedProvider.__init__", return_value=None),
+            patch(
+                "henchman.rag.embedder.FastEmbedProvider.model_name",
+                new_callable=lambda: property(lambda _self: "test"),
+            ),
+            patch("henchman.rag.store.VectorStore.__init__", return_value=None),
+            patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
+            patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
+            patch("henchman.rag.system.get_repository_index_dir", return_value=Path(tmpdir)),
+            patch("henchman.rag.system.get_repository_manifest_path", return_value=Path(tmpdir) / "manifest.json"),
+        ):
+            settings = MagicMock()
+            settings.embedding_model = "test"
+            settings.chunk_size = 512
+            settings.chunk_overlap = 50
+            settings.file_extensions = [".py"]
+            settings.top_k = 5
+            settings.cache_dir = None
 
-                rag = RagSystem(git_root=Path(tmpdir), settings=settings, read_only=False)
-                # Lock failed → should have switched to read_only=True (line 103)
-                assert rag.read_only is True
+            rag = RagSystem(git_root=Path(tmpdir), settings=settings, read_only=False)
+            # Lock failed → should have switched to read_only=True (line 103)
+            assert rag.read_only is True

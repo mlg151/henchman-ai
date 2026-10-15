@@ -6,6 +6,7 @@ Covers auth, state, health, chat endpoints, and server configuration.
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -15,8 +16,11 @@ from fastapi.testclient import TestClient
 from henchman.api.auth import verify_api_key
 from henchman.api.endpoints.health import HealthResponse, MetricsResponse, UsageResponse
 from henchman.api.state import State
+from henchman.config.schema import ApiConfig, Settings
 from henchman.core.events import AgentEvent, EventType
+from henchman.ops.rate_limits import RateLimiter
 from henchman.providers.base import Message
+from henchman.version import VERSION
 
 # ---------------------------------------------------------------------------
 # Helpers / Fixtures
@@ -65,6 +69,7 @@ def _make_settings(require_auth: bool = False) -> Any:
     settings = MagicMock()
     settings.api.require_auth = require_auth
     settings.providers.default = "deepseek"
+    settings.providers.deepseek = {"api_key": "test-key", "model": "deepseek-chat"}
     return settings
 
 
@@ -214,13 +219,15 @@ class TestHealthEndpoints:
         """Health endpoint returns ok status."""
         from henchman.api.server import app
 
-        with TestClient(app, raise_server_exceptions=True) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/health")
+        with (
+            TestClient(app, raise_server_exceptions=True) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert data["version"] == "0.3.11"
+        assert data["version"] == VERSION
 
     def test_health_no_settings(self, patch_state: Any) -> None:
         """Health endpoint when settings is None."""
@@ -229,21 +236,62 @@ class TestHealthEndpoints:
 
         from henchman.api.server import app
 
-        with TestClient(app) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/health")
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/health")
         assert response.status_code == 200
         data = response.json()
+        assert data["status"] == "degraded"
         assert data["provider"] is None
         assert data["agent_ready"] is False
+
+    def test_readiness_returns_503_without_agent(self, patch_state: Any) -> None:
+        """Readiness must fail while no model agent can serve requests."""
+
+        patch_state.agent = None
+
+        from henchman.api.server import app
+
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/ready")
+
+        assert response.status_code == 503
+        assert response.json() == {
+            "status": "degraded",
+            "version": VERSION,
+            "provider": "deepseek",
+            "agent_ready": False,
+        }
+
+    def test_readiness_returns_200_with_agent(self, patch_state: Any) -> None:
+        """Readiness must succeed when the configured agent exists."""
+
+        from henchman.api.server import app
+
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/ready")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert response.json()["agent_ready"] is True
 
     def test_metrics_with_data(self, patch_state: Any) -> None:
         """Metrics endpoint returns actual metrics from state."""
         from henchman.api.server import app
 
-        with TestClient(app) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/metrics")
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/metrics")
         assert response.status_code == 200
         data = response.json()
         assert data["requests"]["total"] == 10
@@ -258,9 +306,11 @@ class TestHealthEndpoints:
 
         from henchman.api.server import app
 
-        with TestClient(app) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/metrics")
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/metrics")
         assert response.status_code == 200
         data = response.json()
         assert data["requests"]["total"] == 0
@@ -269,9 +319,11 @@ class TestHealthEndpoints:
         """Usage endpoint calculates cost from token metrics."""
         from henchman.api.server import app
 
-        with TestClient(app) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/usage")
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/usage")
         assert response.status_code == 200
         data = response.json()
         assert data["total_tokens"] == 1500
@@ -284,9 +336,11 @@ class TestHealthEndpoints:
 
         from henchman.api.server import app
 
-        with TestClient(app) as client:
-            with patch("henchman.api.endpoints.health.state", patch_state):
-                response = client.get("/v1/usage")
+        with (
+            TestClient(app) as client,
+            patch("henchman.api.endpoints.health.state", patch_state),
+        ):
+            response = client.get("/v1/usage")
         assert response.status_code == 200
         data = response.json()
         assert data["total_tokens"] == 0
@@ -296,8 +350,8 @@ class TestHealthEndpoints:
     def test_health_response_model(self) -> None:
         """HealthResponse model has expected defaults."""
         h = HealthResponse()
-        assert h.status == "ok"
-        assert h.version == "0.3.11"
+        assert h.status == "degraded"
+        assert h.version == VERSION
         assert h.provider is None
         assert h.agent_ready is False
 
@@ -395,9 +449,7 @@ class TestChatHelpers:
         event = AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tc_data, source_agent="agent")
         content_parts: list[str] = []
         tool_calls: list[dict] = []
-        finish_reason, usage = _process_agent_event(
-            event, content_parts, tool_calls, {"stop"}
-        )
+        finish_reason, usage = _process_agent_event(event, content_parts, tool_calls, {"stop"})
         assert finish_reason is None
         assert tool_calls == [tc_data]
 
@@ -408,9 +460,7 @@ class TestChatHelpers:
         event = AgentEvent(type=EventType.FINISHED, data="stop", source_agent="agent")
         content_parts: list[str] = []
         tool_calls: list[dict] = []
-        finish_reason, usage = _process_agent_event(
-            event, content_parts, tool_calls, {"stop"}
-        )
+        finish_reason, usage = _process_agent_event(event, content_parts, tool_calls, {"stop"})
         assert finish_reason == "stop"
         assert usage is None
 
@@ -426,9 +476,7 @@ class TestChatHelpers:
         )
         content_parts: list[str] = []
         tool_calls: list[dict] = []
-        finish_reason, usage = _process_agent_event(
-            event, content_parts, tool_calls, {"stop"}
-        )
+        finish_reason, usage = _process_agent_event(event, content_parts, tool_calls, {"stop"})
         assert finish_reason == "stop"
         assert usage == usage_data
 
@@ -439,9 +487,7 @@ class TestChatHelpers:
         event = AgentEvent(type=EventType.FINISHED, data="invalid", source_agent="agent")
         content_parts: list[str] = []
         tool_calls: list[dict] = []
-        finish_reason, usage = _process_agent_event(
-            event, content_parts, tool_calls, {"stop"}
-        )
+        finish_reason, usage = _process_agent_event(event, content_parts, tool_calls, {"stop"})
         assert finish_reason is None
 
     def test_process_agent_event_finished_dict_invalid_reason(self) -> None:
@@ -455,9 +501,7 @@ class TestChatHelpers:
         )
         content_parts: list[str] = []
         tool_calls: list[dict] = []
-        finish_reason, usage = _process_agent_event(
-            event, content_parts, tool_calls, {"stop"}
-        )
+        finish_reason, usage = _process_agent_event(event, content_parts, tool_calls, {"stop"})
         assert finish_reason is None
 
     def test_update_metrics_no_state_metrics(self) -> None:
@@ -823,7 +867,10 @@ class TestChatCompletion:
             yield AgentEvent(type=EventType.CONTENT, data="Hi", source_agent="agent")
             yield AgentEvent(
                 type=EventType.FINISHED,
-                data={"finish_reason": "stop", "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}},
+                data={
+                    "finish_reason": "stop",
+                    "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
+                },
                 source_agent="agent",
             )
 
@@ -976,7 +1023,7 @@ class TestChatStream:
                     json={"messages": [{"role": "user", "content": "hi"}]},
                 )
 
-        lines = [l for l in response.text.split("\n") if l.startswith("data: ")]
+        lines = [line for line in response.text.split("\n") if line.startswith("data: ")]
         assert len(lines) >= 2  # at least content + done
 
     def test_stream_with_system_prompt(self) -> None:
@@ -1280,8 +1327,112 @@ class TestServer:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["version"] == "0.3.11"
+        assert data["version"] == VERSION
         assert "docs" in data
+
+    def test_fastapi_metadata_uses_package_version(self) -> None:
+        """Generated API metadata must match the installed package version."""
+
+        from henchman.api.server import app
+
+        assert app.version == VERSION
+
+    @pytest.mark.parametrize("probe_path", ["/v1/health", "/v1/ready"])
+    def test_operational_probe_routes_are_not_rate_limited(self, probe_path: str) -> None:
+        """Operational probes must remain deterministic when rate limiting is enabled."""
+        from henchman.api.server import app
+
+        probe_state = State()
+        probe_state.settings = SimpleNamespace(
+            api=SimpleNamespace(rate_limits={"default": "1/hour"}),
+            providers=SimpleNamespace(default="deepseek"),
+        )
+        probe_state.agent = MagicMock()
+        probe_state.rate_limiter = RateLimiter()  # type: ignore[attr-defined]
+        probe_state._rate_limits = {"default": "1/hour"}  # type: ignore[attr-defined]
+
+        with (
+            patch("henchman.api.server.state", probe_state),
+            patch("henchman.api.endpoints.health.state", probe_state),
+        ):
+            client = TestClient(app)
+            try:
+                responses = [client.get(probe_path) for _ in range(3)]
+            finally:
+                client.close()
+
+        assert [response.status_code for response in responses] == [200, 200, 200]
+
+    def test_lifespan_enforces_rate_limits_and_preserves_ready_probes(self) -> None:
+        """The production lifespan should enable limits without limiting probes."""
+        from henchman.api.server import app
+
+        lifecycle_state = State()
+        settings = Settings(api=ApiConfig(rate_limits={"default": "1/hour"}))
+        settings.providers.deepseek["api_key"] = "test-key"
+        registry = MagicMock()
+        registry.create.return_value = object()
+
+        with (
+            patch("henchman.api.server.state", lifecycle_state),
+            patch("henchman.api.endpoints.health.state", lifecycle_state),
+            patch("henchman.api.server.load_settings", return_value=settings),
+            patch("henchman.api.server.get_default_registry", return_value=registry),
+            patch("henchman.api.server.Agent", return_value=object()),
+            TestClient(app) as client,
+        ):
+            normal_statuses = [client.get("/").status_code for _ in range(2)]
+            health_response = client.get("/v1/health")
+            ready_response = client.get("/v1/ready")
+
+        assert normal_statuses == [200, 429]
+        assert health_response.status_code == 200
+        assert health_response.json()["status"] == "ok"
+        assert ready_response.status_code == 200
+        assert ready_response.json()["status"] == "ok"
+
+    def test_lifespan_replaces_limits_and_degrades_after_provider_failure(self) -> None:
+        """A new lifespan must replace old buckets even when provider setup fails."""
+        from henchman.api.server import app
+
+        lifecycle_state = State()
+        first_settings = Settings(api=ApiConfig(rate_limits={"default": "1/hour"}))
+        second_settings = Settings(api=ApiConfig(rate_limits={"default": "2/hour"}))
+        first_settings.providers.deepseek["api_key"] = "test-key"
+        second_settings.providers.deepseek["api_key"] = "test-key"
+        registry = MagicMock()
+        registry.create.side_effect = [object(), RuntimeError("provider authentication failed")]
+
+        with (
+            patch("henchman.api.server.state", lifecycle_state),
+            patch("henchman.api.endpoints.health.state", lifecycle_state),
+            patch(
+                "henchman.api.server.load_settings",
+                side_effect=[first_settings, second_settings],
+            ),
+            patch("henchman.api.server.get_default_registry", return_value=registry),
+            patch("henchman.api.server.Agent", return_value=object()),
+        ):
+            with TestClient(app) as first_client:
+                first_limiter = getattr(lifecycle_state, "rate_limiter", None)
+                assert [first_client.get("/").status_code for _ in range(2)] == [200, 429]
+
+            with TestClient(app) as second_client:
+                second_limiter = getattr(lifecycle_state, "rate_limiter", None)
+                normal_statuses = [second_client.get("/").status_code for _ in range(3)]
+                health_response = second_client.get("/v1/health")
+                ready_response = second_client.get("/v1/ready")
+
+        assert first_limiter is not None
+        assert second_limiter is not None
+        assert second_limiter is not first_limiter
+        assert normal_statuses == [200, 200, 429]
+        assert health_response.status_code == 200
+        assert health_response.json()["status"] == "degraded"
+        assert ready_response.status_code == 503
+        assert ready_response.json()["status"] == "degraded"
+        assert getattr(lifecycle_state, "rate_limiter", None) is None
+        assert getattr(lifecycle_state, "_rate_limits", {}) == {}
 
     def test_http_exception_handler(self) -> None:
         """HTTP exception handler returns JSON error response."""
@@ -1371,7 +1522,7 @@ class TestServer:
         with (
             patch("henchman.api.server.load_settings", return_value=mock_settings),
             patch("henchman.api.server.get_default_registry", return_value=mock_registry),
-            patch("henchman.api.server.Agent") as mock_agent_cls,
+            patch("henchman.api.server.Agent"),
             patch("henchman.api.server.state") as mock_state,
         ):
             mock_state.settings = None

@@ -1,0 +1,51 @@
+{
+  "$id": "henchman/contracts/runtime/delegation-task-state/v1",
+  "title": "DelegationTaskState",
+  "description": "Stable public-state projection for a DelegationTask instance.",
+  "type": "object",
+  "required": [
+    "id",
+    "target_role",
+    "task",
+    "tool_call_id",
+    "depth",
+    "completed",
+    "error",
+    "output_buffer",
+    "start_time"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "target_role": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "tool_call_id": {
+      "type": "string"
+    },
+    "depth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "error": {
+      "type": ["string", "null"]
+    },
+    "output_buffer": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "start_time": {
+      "type": "number"
+    }
+  },
+  "additionalProperties": false
+}

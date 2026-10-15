@@ -1,12 +1,41 @@
 """Tests for core component initialization."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from henchman.cli.core_init import CoreContext, create_core_context, initialize_mcp
-from henchman.config.schema import ProviderSettings, Settings, ToolSettings, UISettings
+from henchman.config.schema import (
+    McpServerConfig,
+    ProviderSettings,
+    Settings,
+    ToolSettings,
+    UISettings,
+)
+from henchman.mcp.manager import McpManager
+
+
+class _FakeMcpManager:
+    """Complete MCP status boundary used by the real registered tool."""
+
+    def __init__(self) -> None:
+        self.configs = {
+            "local": McpServerConfig(command="echo", trusted=True),
+        }
+        self.clients: dict[str, object] = {}
+
+    def list_servers(self) -> list[dict[str, object]]:
+        """Return one configured, disconnected server."""
+
+        return [
+            {
+                "name": "local",
+                "connected": False,
+                "trusted": True,
+            },
+        ]
 
 
 class TestCoreContext:
@@ -294,6 +323,38 @@ class TestCreateCoreContext:
         # Verify tool manager was not auto-approved
         mock_tool_manager.set_auto_approve.assert_called_once_with(auto_approve=False)
 
+    @pytest.mark.anyio
+    async def test_create_core_context_binds_runtime_before_tool_registration(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_provider: MagicMock,
+    ) -> None:
+        """Core tools must receive project, session, and MCP runtime objects."""
+
+        monkeypatch.chdir(tmp_path)
+        fake_mcp = _FakeMcpManager()
+        settings = Settings(
+            mcp_servers={
+                "local": McpServerConfig(command="echo", trusted=True),
+            },
+        )
+
+        with (
+            patch.object(McpManager, "create_from_settings", return_value=fake_mcp),
+            patch("henchman.cli.core_init.PluginManager"),
+        ):
+            context = create_core_context(mock_provider, settings=settings)
+
+        mcp_status = await context.tool_registry.execute("mcp", {"action": "status"})
+        plan_mode = await context.tool_registry.execute("enter_plan_mode", {})
+
+        assert mcp_status.success is True
+        assert "local" in mcp_status.content
+        assert "MCP manager unavailable" not in mcp_status.content
+        assert plan_mode.success is True
+        assert context.mcp_manager is fake_mcp
+
 
 class TestInitializeMcp:
     """Tests for initialize_mcp function."""
@@ -319,9 +380,7 @@ class TestInitializeMcp:
 
         # Verify it's a coroutine
         assert asyncio.iscoroutine(coro)
-
-        # We could run the coroutine to test it, but for now just verify
-        # the structure is correct
+        coro.close()
 
     def test_initialize_mcp_no_mcp_manager(self):
         """Test initialize_mcp when there's no MCP manager."""

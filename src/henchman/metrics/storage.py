@@ -5,16 +5,14 @@ Provides persistent storage for metrics with configurable retention.
 
 from __future__ import annotations
 
+import importlib
 import json
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast
 
 from henchman.metrics.models import (
     BaseMetric,
@@ -25,6 +23,15 @@ from henchman.metrics.models import (
     ToolMetric,
     UsageMetric,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
+class _AppDirsModule(Protocol):
+    """Typed boundary for the untyped ``appdirs`` dependency."""
+
+    def user_data_dir(self, appname: str) -> str: ...
 
 
 @dataclass
@@ -547,7 +554,7 @@ class MetricsStorage:
         """
         if db_path is None:
             # Default to user data directory
-            import appdirs
+            appdirs = cast(_AppDirsModule, importlib.import_module("appdirs"))
 
             data_dir = Path(appdirs.user_data_dir("henchman"))
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -640,7 +647,7 @@ class MetricsStorage:
         return base_dict
 
     # Class constant for field mappings
-    _FIELD_MAPPINGS: ClassVar[dict] = {
+    _FIELD_MAPPINGS: ClassVar[dict[type[BaseMetric], dict[str, str]]] = {
         TokenMetric: {
             "model": "model",
             "provider": "provider",
@@ -745,7 +752,7 @@ class MetricsStorage:
         if self.retention_days is None:
             return
 
-        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(
+        cutoff_date = datetime.now(tz=UTC) - timedelta(
             days=self.retention_days,
         )
         cutoff_str = cutoff_date.isoformat()

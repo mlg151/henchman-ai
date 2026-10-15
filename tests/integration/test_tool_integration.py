@@ -82,16 +82,16 @@ class TestReplToolIntegration:
 
         repl = Repl(provider=provider, console=console, config=config)
 
-        # Count initial tools
-        _ = len(repl.tool_registry._tools)
-        initial_agent_tool_count = len(repl.agent.tools)
+        allowed = set(repl.orchestrator.pool.configs["tech_lead"].tools)
+        available = set(repl.tool_registry.list_tools())
+        assert set(repl.agent.tool_registry.list_tools()) == allowed & available
+        assert "shell" in allowed
 
-        # Note: Can't register new tool since all built-ins are already registered
-        # This test verifies the connection exists
-        assert initial_agent_tool_count > 0
-        # Agent (Tech Lead) has base tools plus delegate_task
-        base_tool_count = len(repl.tool_registry.get_declarations())
-        assert len(repl.agent.tools) >= base_tool_count
+        repl.tool_registry.unregister("shell")
+        assert repl.agent.tool_registry.get("shell") is None
+        replacement = ShellTool()
+        repl.tool_registry.register(replacement)
+        assert repl.agent.tool_registry.get("shell") is replacement
 
     def test_agent_with_tools_can_act_as_chatbot(self):
         """Test that agent with tools can still act as a simple chatbot."""

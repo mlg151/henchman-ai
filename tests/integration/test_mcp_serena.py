@@ -89,7 +89,7 @@ class TestSerenaMcpIntegration:
 
             await manager.disconnect_all()
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.skip("Serena server connection timed out - server may not be starting properly")
         except Exception as e:
             pytest.skip(f"Failed to connect to Serena: {e}")
@@ -299,8 +299,9 @@ class TestSerenaMcpIntegration:
         }
 
         def create_mock_client(
-            *, name: str, config: McpServerConfig, verbose: bool = False
-        ) -> McpClient:  # noqa: ARG001
+            name: str, config: McpServerConfig, verbose: bool = False
+        ) -> McpClient:
+            del config, verbose
             return mock_clients[name]
 
         with patch("henchman.mcp.manager.McpClient", side_effect=create_mock_client):

@@ -6,11 +6,14 @@ older messages, with optional summarization of dropped content.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     # For type checking only
@@ -524,6 +527,8 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
 class _ContextCompactorHelpersMixin:
     """Mixin providing helper methods for ContextCompactor."""
 
+    sequence_grouper: MessageSequenceGrouper
+
     def _extract_system_messages(
         self: _ContextCompactorHelpersMixin,
         unprotected_msgs: list[Message],
@@ -553,7 +558,7 @@ class _ContextCompactorHelpersMixin:
             List of message sequences.
         """
         non_system_unprotected = [msg for msg in unprotected_msgs if msg.role != "system"]
-        return self.sequence_grouper.group_into_sequences(non_system_unprotected)  # type: ignore[attr-defined]
+        return self.sequence_grouper.group_into_sequences(non_system_unprotected)
 
     def _select_sequences_to_keep(
         self: _ContextCompactorHelpersMixin,
@@ -846,8 +851,8 @@ async def _generate_summary_with_provider(
         if summary:
             return summary
     except Exception:
-        # Summarization failed, return None to fall back to simple dropping
-        pass
+        # Summarization failed, log warning and return None to fall back to simple dropping
+        logger.warning("Summarization with provider failed: %s", exc_info=True)
 
     return None
 
@@ -1084,6 +1089,6 @@ async def _attempt_summarization(
             result.summary = summary
     except Exception:
         # Summarization failed, continue with simple dropping
-        pass
+        logger.warning("Failed to summarize dropped messages during compaction: %s", exc_info=True)
 
     return result

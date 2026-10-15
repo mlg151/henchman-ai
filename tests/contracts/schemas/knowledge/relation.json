@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/knowledge/relation/v1",
+  "type": "object",
+  "required": ["source", "target", "relation_type", "description"],
+  "properties": {
+    "source": { "type": "string" },
+    "target": { "type": "string" },
+    "relation_type": { "type": "string" },
+    "description": { "type": "string" }
+  },
+  "additionalProperties": false
+}

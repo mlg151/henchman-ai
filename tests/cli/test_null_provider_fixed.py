@@ -1,17 +1,18 @@
 """Test that the null provider bug is fixed."""
 
 import ast
+
 import pytest
 
 
 def test_no_unreachable_yield_without_conditional():
     """Test that yield is not directly after raise without conditional."""
-    with open('src/henchman/cli/textual_mixins.py', 'r') as f:
+    with open('src/henchman/cli/textual_mixins.py') as f:
         content = f.read()
-    
+
     # Parse AST
     tree = ast.parse(content)
-    
+
     # Find the method
     method_node = None
     for node in ast.walk(tree):
@@ -25,7 +26,7 @@ def test_no_unreachable_yield_without_conditional():
                     break
             if method_node:
                 break
-    
+
     if not method_node:
         # Try simpler approach - check source directly
         lines = content.split('\n')
@@ -44,7 +45,7 @@ def test_no_unreachable_yield_without_conditional():
                                 break
                         break
                 break
-    
+
     print("Test passed: No unreachable yield without conditional")
     # If we get here, either no bug or properly fixed with if False:
 
@@ -55,16 +56,16 @@ def test_method_still_raises():
     try:
         from henchman.cli.textual_mixins import _NullProvider
         provider = _NullProvider()
-        
+
         # Should raise
         import asyncio
-        
+
         async def test():
             with pytest.raises(RuntimeError, match="No model provider available"):
                 stream = await provider.chat_completion_stream([])
                 async for _ in stream:
                     pass
-        
+
         asyncio.run(test())
         print("Method still raises as expected")
     except ImportError:

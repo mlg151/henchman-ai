@@ -1,13 +1,13 @@
 """Additional tests for ledger refactoring to ensure edge cases are covered."""
 
 import pytest
+
 from henchman.agents.ledger import (
-    ChecklistItem,
     DelegationRecord,
     DelegationStatus,
-    TaskLedger,
     LedgerRenderer,
     ProgressCounts,
+    TaskLedger,
 )
 
 
@@ -88,7 +88,7 @@ class TestLedgerEdgeCases:
         for i in range(5):
             rec = ledger.add_delegation("coder", f"Task {i}")
             ledger.complete_delegation(rec, f"Done {i}")
-        
+
         text = ledger.render(max_entries=0)
         assert "5 earlier delegations omitted" in text
 
@@ -98,7 +98,7 @@ class TestLedgerEdgeCases:
         for i in range(3):
             rec = ledger.add_delegation("coder", f"Task {i}")
             ledger.complete_delegation(rec, f"Done {i}")
-        
+
         text = ledger.render(max_entries=-1)
         assert "3 earlier delegations omitted" in text
 
@@ -170,14 +170,14 @@ class TestLedgerRendererEdgeCases:
         ledger = TaskLedger(goal="Test Goal")
         ledger.add_checklist_item("Check 1")
         ledger.add_delegation("coder", "Write code")
-        
+
         result = LedgerRenderer.render_static(ledger, 10)
         assert "Test Goal" in result
         assert "Checklist:" in result
     def test_get_delegation_counts_static(self) -> None:
         """Test _get_delegation_counts_util function."""
         from henchman.agents.ledger import _get_delegation_counts_util
-        
+
         delegations = [
             DelegationRecord(agent="coder", task="Task 1", status=DelegationStatus.COMPLETED),
             DelegationRecord(agent="tester", task="Task 2", status=DelegationStatus.PENDING),
@@ -192,7 +192,7 @@ class TestLedgerRendererEdgeCases:
     def test_count_delegations_by_status_static(self) -> None:
         """Test _count_delegations_by_status_util function."""
         from henchman.agents.ledger import _count_delegations_by_status_util
-        
+
         delegations = [
             DelegationRecord(agent="coder", task="Task 1", status=DelegationStatus.COMPLETED),
             DelegationRecord(agent="tester", task="Task 2", status=DelegationStatus.PENDING),
@@ -205,7 +205,7 @@ class TestLedgerRendererEdgeCases:
         assert completed_count == 2
         assert pending_count == 1
         assert failed_count == 1
-        
+
         assert completed_count == 2
         assert pending_count == 1
         assert failed_count == 1
@@ -267,7 +267,7 @@ class TestDelegationRecordEdgeCases:
         rec_pending = DelegationRecord(
             agent="coder", task="task", status=DelegationStatus.PENDING
         )
-        
+
         assert rec_completed._get_icon() == "✅"
         assert rec_failed._get_icon() == "❌"
         assert rec_pending._get_icon() == "⏳"

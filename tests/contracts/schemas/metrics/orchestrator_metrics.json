@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/orchestrator_metrics/v1",
+  "title": "OrchestratorMetrics",
+  "description": "Shape contract for the serialized OrchestratorMetrics (agents/metrics). This is a cross-subsystem contract consumed by metrics_reporter.py, delegation.py, and cli/output_handler.py.",
+  "type": "object",
+  "required": [
+    "thinking_pattern_usage",
+    "delegation_count",
+    "delegation_by_type",
+    "thinking_quality_score",
+    "performance",
+    "quality",
+    "tools"
+  ],
+  "properties": {
+    "thinking_pattern_usage": {
+      "type": "integer",
+      "description": "Count of thinking pattern usage"
+    },
+    "delegation_count": {
+      "type": "integer",
+      "description": "Total number of delegations"
+    },
+    "delegation_by_type": {
+      "type": "object",
+      "description": "Map of delegation type to count",
+      "required": ["planner", "explorer", "engineer"],
+      "properties": {
+        "planner": { "type": "integer" },
+        "explorer": { "type": "integer" },
+        "engineer": { "type": "integer" }
+      },
+      "additionalProperties": { "type": "integer" }
+    },
+    "thinking_quality_score": {
+      "type": "integer",
+      "description": "Quality score for thinking patterns (0-100)",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "performance": {
+      "type": "object",
+      "description": "PerformanceMetrics sub-component",
+      "required": [
+        "task_start_time",
+        "task_end_time",
+        "task_duration_minutes",
+        "files_accessed",
+        "tool_usage_by_type",
+        "delegation_rate",
+        "file_re_reads",
+        "error_rate",
+        "context_window_usage"
+      ],
+      "properties": {
+        "task_start_time": { "type": "number" },
+        "task_end_time": { "type": "number" },
+        "task_duration_minutes": { "type": "number" },
+        "files_accessed": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "tool_usage_by_type": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "delegation_rate": { "type": "number" },
+        "file_re_reads": { "type": "integer" },
+        "error_rate": { "type": "number" },
+        "context_window_usage": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "quality": {
+      "type": "object",
+      "description": "QualityMetrics sub-component",
+      "required": ["test_results", "code_coverage", "linting_status", "documentation_coverage"],
+      "properties": {
+        "test_results": {
+          "type": "object",
+          "required": ["passing", "total", "percentage"],
+          "properties": {
+            "passing": { "type": "integer" },
+            "total": { "type": "integer" },
+            "percentage": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "code_coverage": { "type": "number" },
+        "linting_status": {
+          "type": "object",
+          "required": ["errors", "warnings"],
+          "properties": {
+            "errors": { "type": "integer" },
+            "warnings": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "documentation_coverage": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "tools": {
+      "type": "object",
+      "description": "ToolMetrics sub-component",
+      "required": [
+        "total_tool_calls", "successful_tool_calls", "failed_tool_calls",
+        "read_file_calls", "write_file_calls", "edit_file_calls",
+        "shell_calls", "git_ops_calls", "other_tool_calls"
+      ],
+      "properties": {
+        "total_tool_calls": { "type": "integer" },
+        "successful_tool_calls": { "type": "integer" },
+        "failed_tool_calls": { "type": "integer" },
+        "read_file_calls": { "type": "integer" },
+        "write_file_calls": { "type": "integer" },
+        "edit_file_calls": { "type": "integer" },
+        "shell_calls": { "type": "integer" },
+        "git_ops_calls": { "type": "integer" },
+        "other_tool_calls": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

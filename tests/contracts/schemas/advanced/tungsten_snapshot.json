@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TungstenSnapshotRecord",
+  "description": "Immutable workspace snapshot record.",
+  "type": "object",
+  "properties": {
+    "snapshot_id": { "type": "string" },
+    "name": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "required": ["path", "sha256"]
+      }
+    }
+  },
+  "required": ["snapshot_id", "name", "created_at", "files"]
+}

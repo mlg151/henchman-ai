@@ -1,0 +1,1146 @@
+plan_id: tier1-20260410-232950
+objective: >-
+  Implement Tier 1 from FEATURE_TODO.md with TDD, foundations first, limited to:
+  init, config, help, version, doctor, upgrade, project-local .hENCHMAN settings,
+  local import/export sync helpers, output style persistence, keybinding/theme wiring,
+  and the missing Tier 1 tools (ToolSearchTool, SkillTool, SleepTool) while treating
+  WebSearchTool as existing functionality to normalize rather than rebuild.
+created_at: "2026-04-10T23:29:50Z"
+created_by: gem-team:gem-planner
+status: pending_approval
+research_confidence: medium
+
+plan_metrics:
+  wave_1_task_count: 4
+  total_dependencies: 24
+  risk_score: high
+
+tldr: |
+  Variant B maximizes safe parallelism by splitting Tier 1 into four independent
+  foundation tracks first: package/version entrypoints, config loading, tool/security
+  imports, and command abstractions. Once those contracts are stable, the execution
+  loop can run settings storage, system introspection, and Tier 1 tool additions in
+  parallel, then fan out the user-facing commands as isolated TDD slices, and finish
+  with one app.py integration pass plus a security review. Scope stays strictly inside
+  Tier 1 and honors the clarifications: foundations first, no remote sync backend,
+  upgrade is guided pip/uv/pipx detection, and config is key-based with import/export.
+
+open_questions: []
+
+pre_mortem:
+  overall_risk_level: high
+  critical_failure_modes:
+    - scenario: >-
+        The new .hENCHMAN project-local layer diverges from existing ~/.henchman
+        assumptions and silently breaks plugin, history, or settings resolution.
+      likelihood: medium
+      impact: critical
+      mitigation: >-
+        Keep home-directory behavior backward-compatible, add explicit path-resolution
+        tests, and isolate Tier 1 local settings under a dedicated resolver instead of
+        ad hoc path joins across commands.
+    - scenario: >-
+        CLI-oriented tests still fail during collection because eager imports in app,
+        tool registration, or slash-command modules pull in missing non-Tier-1 code.
+      likelihood: high
+      impact: critical
+      mitigation: >-
+        Restore import surfaces first, switch builtins/tool registration to lazy or
+        capability-based loading, and gate command integration behind targeted Tier 1
+        smoke tests before broad CLI execution.
+    - scenario: >-
+        Upgrade detection chooses the wrong package manager or executes an unsafe
+        self-update command for the current install method.
+      likelihood: medium
+      impact: critical
+      mitigation: >-
+        Detect pip/uv/pipx from interpreter and installation metadata, default to a
+        dry-run/explain mode, require explicit opt-in for execution, and funnel command
+        text through the shared security sanitization layer.
+    - scenario: >-
+        Config import/export or doctor output leaks secrets or writes invalid settings
+        that corrupt future CLI startup.
+      likelihood: medium
+      impact: high
+      mitigation: >-
+        Validate all imported content against the schema, redact secret-like keys in
+        human-readable output, and use atomic write/backup behavior for config writes.
+  assumptions:
+    - Existing click-based root CLI in src/henchman/cli/app.py remains the Tier 1 command surface.
+    - Existing theme and keybinding fields in schema are reusable rather than replaced.
+    - WebSearchTool already exists semantically and only needs registry/import normalization.
+    - Tier 1 acceptance can rely on targeted CLI/Tier 1 suites before unrelated agent-module gaps are addressed.
+    - Settings sync is satisfied by local export/import workflows only; no backend or network sync is in scope.
+
+implementation_specification:
+  code_structure: >-
+    Keep Tier 1 split into reusable service modules plus thin click command adapters.
+    Put package/config/tool foundations behind import-stable modules, add dedicated
+    Tier 1 command modules under henchman.cli.commands, centralize settings read/write
+    and project-local .hENCHMAN resolution in config services, centralize package-manager
+    and update detection in CLI support modules, and perform root CLI registration only
+    in the final integration pass to minimize merge conflicts.
+  affected_areas:
+    - src/henchman/__init__.py and version/entrypoint package surface
+    - src/henchman/config/ for settings loading, project-local overlays, import/export, and environment/context helpers
+    - src/henchman/tools/ and src/henchman/tools/builtins/ for security helpers and Tier 1 tool registration
+    - src/henchman/cli/commands/ and src/henchman/cli/app.py for click commands and final wiring
+    - tests/cli/, tests/config/, tests/tools/, and tests/test_main.py for Tier 1 TDD coverage
+  component_details:
+    - component: Package surface
+      responsibility: >-
+        Provide import-stable VERSION/__version__/python -m entrypoints required by the
+        click app and Tier 1 smoke tests.
+      interfaces:
+        - henchman.__version__
+        - henchman.version.VERSION
+        - python -m henchman -> henchman.cli.app.main
+    - component: Config surface
+      responsibility: >-
+        Load merged settings from global and project-local locations, expose
+        ContextLoader/environment helpers expected by the CLI, and support schema validation.
+      interfaces:
+        - "load_settings(project_root: Path | None = None) -> Settings"
+        - "ContextLoader.load() -> str"
+        - "gather_environment() / format_environment_block(...)"
+    - component: Settings repository
+      responsibility: >-
+        Perform key-path get/set/list plus import/export over validated settings,
+        including .hENCHMAN project-local persistence and output-style/theme/keybinding fields.
+      interfaces:
+        - "SettingsRepository.get(key_path: str, scope: str) -> object"
+        - "SettingsRepository.set(key_path: str, value: object, scope: str) -> None"
+        - "SettingsRepository.export_settings(...) / import_settings(...)"
+    - component: Tool foundation
+      responsibility: >-
+        Sanitize shell/update command text, make builtin tool registration resilient to
+        partial implementations, and register Tier 1 tools without eager-import failures.
+      interfaces:
+        - "sanitize_command(command: str) -> str"
+        - "sanitize_error_message(message: str) -> str"
+        - "ToolManager.register_builtin_tools()"
+    - component: System introspection
+      responsibility: >-
+        Detect current install method, package manager, installed version, and environment
+        health signals reused by version/doctor/upgrade.
+      interfaces:
+        - "detect_install_method() -> InstallMethod"
+        - "build_update_guidance(run: bool) -> UpdatePlan"
+        - "collect_doctor_checks() -> list[DoctorCheck]"
+    - component: Tier 1 commands
+      responsibility: >-
+        Implement init/config/help/version/doctor/upgrade as command modules that run
+        red-green-refactor inside each slice and return structured results for text/json output.
+      interfaces:
+        - click command factories or register_* helpers for each Tier 1 command
+        - shared command metadata for help search
+    - component: Tier 1 tools
+      responsibility: >-
+        Add ToolSearchTool, SkillTool, and SleepTool and normalize the existing WebSearchTool
+        so help/doctor/tool listings can discover the full Tier 1 tool surface.
+      interfaces:
+        - tool_search
+        - skill
+        - sleep
+        - web_search
+  dependencies:
+    - component: Package surface
+      relationship: Supplies stable imports to app.py, tests, and version command logic.
+    - component: Config surface
+      relationship: Supplies validated settings and environment/context data to all Tier 1 commands.
+    - component: Settings repository
+      relationship: Consumes Config surface and is consumed by init/config/doctor/CLI integration.
+    - component: Tool foundation
+      relationship: Supplies safe command handling and registry behavior to tool additions and upgrade.
+    - component: System introspection
+      relationship: Supplies install/update/environment facts to version, doctor, and upgrade commands.
+    - component: Tier 1 tools
+      relationship: Supplies searchable tool metadata and runtime behavior to help and doctor flows.
+    - component: Tier 1 commands
+      relationship: Consume repositories/services and are wired into the click root during final integration.
+  integration_points:
+    - Existing click CLI group in src/henchman/cli/app.py
+    - Existing slash-command/builtin command support in src/henchman/cli/commands/builtins.py
+    - Existing schema defaults for theme and keybindings in src/henchman/config/schema.py
+    - Existing tool registry and shell tool sanitization call sites in src/henchman/tools/registry.py and src/henchman/tools/builtins/shell.py
+    - Existing tests that import henchman.config, henchman.version, and henchman.tools.builtins
+
+contracts:
+  - from_task: t1-package-surface
+    to_task: t1-system-introspection
+    interface: Stable package version metadata and python -m entrypoint
+    format: VERSION constant plus __version__ string and callable main()
+  - from_task: t1-config-surface
+    to_task: t1-settings-repository
+    interface: Validated settings loader with project-root aware resolution
+    format: load_settings(project_root?) -> Settings
+  - from_task: t1-config-surface
+    to_task: t1-system-introspection
+    interface: Environment/context helper imports expected by app/textual code
+    format: ContextLoader plus gather_environment/format_environment_block callables
+  - from_task: t1-tool-surface
+    to_task: t1-tool-additions
+    interface: Safe builtin tool export and shared sanitization helpers
+    format: importable tool classes plus sanitize_command/sanitize_error_message
+  - from_task: t1-command-surface
+    to_task: t1-init-command
+    interface: Shared command metadata, parsing, and registry abstractions
+    format: Command / CommandContext / CommandRegistry / parse_command
+  - from_task: t1-command-surface
+    to_task: t1-config-command
+    interface: Shared command metadata, parsing, and registry abstractions
+    format: Command / CommandContext / CommandRegistry / parse_command
+  - from_task: t1-settings-repository
+    to_task: t1-init-command
+    interface: Project-local and global settings CRUD plus bootstrap helpers
+    format: repository methods for create/get/set/export/import
+  - from_task: t1-settings-repository
+    to_task: t1-config-command
+    interface: Key-based settings operations and import/export routines
+    format: key-path CRUD plus validated serialization formats
+  - from_task: t1-tool-additions
+    to_task: t1-help-command
+    interface: Searchable Tier 1 tool metadata
+    format: registry entries with name, description, and invocation contract
+  - from_task: t1-system-introspection
+    to_task: t1-version-command
+    interface: Installed-version and update-availability facts
+    format: structured version/install/update snapshot
+  - from_task: t1-system-introspection
+    to_task: t1-doctor-command
+    interface: Environment/package-manager/config health checks
+    format: list of named checks with status, detail, and remediation
+  - from_task: t1-system-introspection
+    to_task: t1-upgrade-command
+    interface: Guided upgrade plan for pip, uv, or pipx
+    format: package-manager detection plus command/explain payload
+  - from_task: t1-init-command
+    to_task: t1-cli-integration
+    interface: Click-compatible init command module
+    format: register_init_command(cli) or click.Command object
+  - from_task: t1-config-command
+    to_task: t1-cli-integration
+    interface: Click-compatible config command module
+    format: register_config_command(cli) or click.Command object
+  - from_task: t1-help-command
+    to_task: t1-cli-integration
+    interface: Click-compatible enhanced help command module
+    format: register_help_command(cli) or click.Command object
+  - from_task: t1-version-command
+    to_task: t1-cli-integration
+    interface: Click-compatible version command module
+    format: register_version_command(cli) or click.Command object
+  - from_task: t1-doctor-command
+    to_task: t1-cli-integration
+    interface: Click-compatible doctor command module
+    format: register_doctor_command(cli) or click.Command object
+  - from_task: t1-upgrade-command
+    to_task: t1-cli-integration
+    interface: Click-compatible upgrade command module
+    format: register_upgrade_command(cli) or click.Command object
+
+tasks:
+  - id: t1-package-surface
+    title: Restore importable package entrypoints for Tier 1
+    description: |
+      Use TDD to create the minimal package-level surface that Tier 1 CLI work needs:
+      henchman.__version__, henchman.version.VERSION, and python -m henchman routing to
+      the click app. Keep this limited to entrypoints/version plumbing, not broader agent
+      repairs. This task exists because app.py and smoke tests currently import missing
+      package files before any Tier 1 feature code can run.
+    task_definition: Establish an import-stable package/version surface for Tier 1.
+    details:
+      - Start by adding or updating tests that import henchman.version and henchman.__main__.
+      - Implement only the package entrypoint/version files needed for Tier 1 startup and smoke tests.
+      - Preserve the current package version source of truth in code rather than duplicating logic per command.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/__init__.py
+      - src/henchman/__main__.py
+      - src/henchman/version.py
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Existing click entrypoint imports VERSION.
+      - path: tests/test_main.py
+        reason: Existing smoke coverage expects python -m henchman support.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: package entrypoints
+    security_sensitive: false
+    verification:
+      - pytest tests/test_main.py tests/cli/test_app.py -q
+      - python -m henchman --version returns zero exit status in a smoke test
+    acceptance_checks:
+      - Importing henchman.version no longer raises ModuleNotFoundError.
+      - Importing henchman.__main__ exposes main().
+      - The package exposes a single authoritative version string for Tier 1 commands.
+    acceptance_criteria:
+      - henchman.__version__ and henchman.version.VERSION resolve consistently.
+      - python -m henchman delegates to the click app without bespoke branching.
+      - No unrelated agent modules are pulled in just to resolve package metadata.
+    failure_modes:
+      - scenario: Version values drift between package and click surfaces.
+        likelihood: medium
+        impact: medium
+        mitigation: Derive all exposed version values from one module and add a parity test.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Target package smoke tests for import/version execution paths.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-config-surface
+    title: Rebuild the Tier 1 config import surface
+    description: |
+      Use TDD to supply the imports that app.py, API, and textual code already expect:
+      load_settings, ContextLoader, and environment formatting helpers. This is the first
+      real foundation for Tier 1 because init/config/doctor cannot ship until settings can
+      be loaded from user and project contexts without import errors.
+    task_definition: Provide a project-aware config package API for Tier 1.
+    details:
+      - Add failing tests for henchman.config.load_settings and henchman.config.ContextLoader imports.
+      - Implement user-global plus project-local resolution with .hENCHMAN awareness, but do not add remote sync.
+      - Expose environment/context helper modules expected by CLI startup code.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - t1-settings-repository
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/config/__init__.py
+      - src/henchman/config/context.py
+      - src/henchman/config/environment.py
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Lazy imports expect these symbols during runtime setup.
+      - path: src/henchman/cli/textual_mixins.py
+        reason: Textual startup also expects config submodules.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 360
+    focus_area: settings loading
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_app.py tests/cli/test_textual_app.py -q
+      - pytest tests/config/test_schema.py -q
+    acceptance_checks:
+      - henchman.config exposes load_settings and ContextLoader.
+      - load_settings can merge user and project-local settings without network dependencies.
+      - Environment/context helpers format startup context deterministically for tests.
+    acceptance_criteria:
+      - The config package is importable by app.py, api/server.py, and chat_serve.py.
+      - Project-local .hENCHMAN handling is additive and does not replace ~/.henchman defaults.
+      - Invalid settings still fail schema validation instead of silently coercing unsafe data.
+    failure_modes:
+      - scenario: Project-local resolution shadows global settings in unexpected order.
+        likelihood: medium
+        impact: high
+        mitigation: Lock overlay precedence in tests for global defaults, project overrides, and explicit scope selection.
+    tech_stack:
+      - Python 3.12
+      - pydantic v2
+      - PyYAML
+      - pytest
+    test_coverage: Config/API/textual import and settings-loading tests.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: t1-tool-surface
+    title: Stabilize tool imports and shell security primitives
+    description: |
+      Use TDD to add the missing henchman.tools.security module and make builtin tool
+      exports resilient enough that CLI-focused suites can collect without importing
+      every missing non-Tier-1 tool implementation. Preserve the existing WebSearchTool
+      alias contract and keep the shell/update path guarded by shared sanitization logic.
+    task_definition: Restore tool security/import foundations needed by Tier 1.
+    details:
+      - Add failing tests for sanitize_command/sanitize_error_message and builtin registration behavior.
+      - Implement lazy or capability-based builtin exports so partial Tier 1 work can proceed safely.
+      - Keep WebSearchTool present; do not re-implement remote search behavior here.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - t1-tool-additions
+      - t1-upgrade-command
+    file_targets:
+      - src/henchman/tools/security.py
+      - src/henchman/tools/builtins/__init__.py
+      - src/henchman/cli/tool_manager.py
+    context_files:
+      - path: src/henchman/tools/registry.py
+        reason: Already imports sanitize_error_message.
+      - path: src/henchman/tools/builtins/shell.py
+        reason: Already imports sanitize_command and related exceptions.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: tool registry safety
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_repl.py tests/tools/test_registry.py -q
+      - Import tool manager and shell tool without ModuleNotFoundError
+    acceptance_checks:
+      - henchman.tools.security exists and is consumed by existing callers.
+      - Builtin tool registration no longer hard-fails when non-Tier-1 tools are absent.
+      - WebSearchTool remains discoverable to the registry.
+    acceptance_criteria:
+      - Sanitization helpers reject or neutralize unsafe shell/update command patterns.
+      - Tool registration can enumerate an implemented subset without breaking CLI startup.
+      - The foundation leaves clear extension points for ToolSearchTool, SkillTool, and SleepTool.
+    failure_modes:
+      - scenario: Lazy tool export hides a genuinely required Tier 1 tool from registration.
+        likelihood: medium
+        impact: high
+        mitigation: Add registry assertions for the Tier 1 required tool set and explicit warnings for skipped tools.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Tool registry, REPL registration, and shell security unit coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: t1-command-surface
+    title: Recreate reusable command abstractions for TDD slices
+    description: |
+      Use TDD to supply the missing command-layer abstractions imported by builtins and
+      command processor tests: Command, CommandContext, CommandRegistry, and parse_command.
+      This gives every Tier 1 command a consistent metadata/search surface without forcing
+      app.py integration before the feature logic is ready.
+    task_definition: Create the shared command framework used by Tier 1 command modules.
+    details:
+      - Start from failing tests in tests/cli/test_commands.py and tests/cli/test_command_processor.py.
+      - Keep the abstraction layer minimal and compatible with the existing builtins module.
+      - Avoid registering new click commands here; only provide reusable command infrastructure.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - t1-help-command
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/__init__.py
+      - tests/cli/test_commands.py
+      - tests/cli/test_command_processor.py
+    context_files:
+      - path: src/henchman/cli/commands/builtins.py
+        reason: Existing builtin slash commands already depend on these abstractions.
+      - path: src/henchman/cli/command_processor.py
+        reason: Processor wiring expects registry/context behavior.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: command abstractions
+    security_sensitive: false
+    verification:
+      - pytest tests/cli/test_commands.py tests/cli/test_command_processor.py tests/cli/test_builtins.py -q
+    acceptance_checks:
+      - Builtins and command processor imports resolve from henchman.cli.commands.
+      - parse_command handles slash-prefixed commands and argument splitting compatibly with tests.
+      - CommandRegistry supports registration, lookup, and async execution expected by current tests.
+    acceptance_criteria:
+      - The command layer is import-stable and reusable by later Tier 1 feature commands.
+      - Existing builtin slash commands continue to work against the new abstractions.
+      - No click-specific behavior leaks into the registry/parser primitives.
+    failure_modes:
+      - scenario: Compatibility tweaks for existing builtins make the abstraction too ad hoc for new Tier 1 commands.
+        likelihood: medium
+        impact: medium
+        mitigation: Keep tests for both current builtins and new command metadata/search use cases.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Existing command and command-processor suites plus new parser edge cases.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-settings-repository
+    title: Add validated key-based settings storage and local sync helpers
+    description: |
+      Use TDD to build the reusable repository behind Tier 1 settings work: key-path
+      get/set/list, import/export helpers, project-local .hENCHMAN storage, and persisted
+      output_style/theme/keybindings values. This is the implementation of the clarified
+      "local sync only" requirement and the main dependency for init/config/doctor.
+    task_definition: Implement validated settings CRUD plus import/export for Tier 1.
+    details:
+      - Extend schema only where Tier 1 needs persisted settings fields (for example output_style).
+      - Support explicit scope selection for global versus project-local writes.
+      - Ensure import/export round-trips are schema-validated and backup/atomic by design.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-config-surface
+    parallelizable: true
+    conflicts_with:
+      - t1-init-command
+      - t1-config-command
+      - t1-doctor-command
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/config/repository.py
+      - src/henchman/config/schema.py
+      - tests/config/test_settings_repository.py
+    context_files:
+      - path: src/henchman/config/__init__.py
+        reason: Repository should compose with the shared loader/export surface.
+      - path: FEATURE_TODO.md
+        reason: Tier 1 settings scope is limited to local settings, styles, keybindings, and theme.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: settings persistence
+    security_sensitive: true
+    verification:
+      - pytest tests/config/test_schema.py tests/config/test_settings_repository.py -q
+    acceptance_checks:
+      - Key-path reads and writes work for nested settings values.
+      - Import/export supports local file-based sync only and round-trips validated settings.
+      - Output style, keybindings, and theme values persist at the chosen scope.
+    acceptance_criteria:
+      - The repository can list, get, set, export, and import settings for global and project scopes.
+      - Invalid import payloads fail loudly before any persisted write occurs.
+      - .hENCHMAN project-local files are created only when requested by Tier 1 flows.
+    failure_modes:
+      - scenario: Import/export writes partial or corrupted config after validation failure.
+        likelihood: medium
+        impact: high
+        mitigation: Write through temp-in-memory objects first, then commit atomically only after schema validation passes.
+    tech_stack:
+      - Python 3.12
+      - pydantic v2
+      - PyYAML
+      - pytest
+    test_coverage: Repository CRUD, import/export, and schema extension coverage.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: t1-system-introspection
+    title: Build shared install and environment detection for Tier 1
+    description: |
+      Use TDD to add a reusable introspection layer that can answer: current version,
+      install method, detected package manager (pip/uv/pipx), and environment health
+      signals required by doctor/version/upgrade. This creates a single source of truth
+      so those commands do not each invent their own detection heuristics.
+    task_definition: Implement shared install/update/environment discovery services.
+    details:
+      - Add fixtures for pip, uv, and pipx install scenarios and exercise dry-run guidance.
+      - Keep detection explainable and structured so version and doctor can render it in text or json styles.
+      - Avoid executing upgrades in this task; only detect and describe.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-package-surface
+      - t1-config-surface
+    parallelizable: true
+    conflicts_with:
+      - t1-version-command
+      - t1-doctor-command
+      - t1-upgrade-command
+    file_targets:
+      - src/henchman/cli/system_info.py
+      - src/henchman/cli/update_check.py
+      - tests/cli/test_system_info.py
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Version/help/update output must match existing click app conventions.
+      - path: pyproject.toml
+        reason: Package metadata and script names inform upgrade/version messaging.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 360
+    focus_area: install detection
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_system_info.py -q
+    acceptance_checks:
+      - Detection distinguishes pip, uv, and pipx using deterministic test fixtures.
+      - Shared helpers expose current version, install context, and update guidance without mutating the environment.
+      - Doctor/version/upgrade can consume one structured payload instead of duplicating logic.
+    acceptance_criteria:
+      - The module returns a guided upgrade plan that can be printed or executed later.
+      - No package manager command is run during pure detection flows.
+      - Output is structured enough to support compact, verbose, and json rendering.
+    failure_modes:
+      - scenario: Package manager heuristics report a false positive because editable installs or wrappers look similar.
+        likelihood: medium
+        impact: high
+        mitigation: Add ordered detection rules with fallback "unknown/manual" handling and explicit tests for ambiguous installs.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Install-method, update-plan, and environment-check detection coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: t1-tool-additions
+    title: Add the missing Tier 1 tools and normalize registry discovery
+    description: |
+      Use TDD to implement ToolSearchTool, SkillTool, and SleepTool, and to normalize how
+      the registry discovers the already-present WebSearchTool. Keep the feature scoped to
+      Tier 1 discovery and invocation primitives; do not expand into later-tier agents or
+      marketplace/plugin work.
+    task_definition: Deliver the missing Tier 1 tools on top of the stabilized tool surface.
+    details:
+      - Add focused tests for tool search by name/description, bounded sleep behavior, and skill invocation dispatch.
+      - Reuse the stabilized builtin export path rather than adding another registry mechanism.
+      - Keep skill invocation framework minimal and local to bundled/known skills only.
+    wave: 2
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - t1-tool-surface
+    parallelizable: true
+    conflicts_with:
+      - t1-help-command
+      - t1-doctor-command
+    file_targets:
+      - src/henchman/tools/builtins/tier1_tools.py
+      - src/henchman/tools/builtins/__init__.py
+      - tests/tools/test_tier1_tools.py
+    context_files:
+      - path: src/henchman/cli/tool_manager.py
+        reason: Registry wiring must surface the new tools.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: WebSearchTool normalization lives here.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 340
+    focus_area: Tier 1 tools
+    security_sensitive: false
+    verification:
+      - pytest tests/tools/test_tier1_tools.py tests/cli/test_repl.py -q
+    acceptance_checks:
+      - ToolSearchTool can find tools by name and description.
+      - SkillTool invokes the local skill framework without introducing marketplace scope.
+      - SleepTool pauses within validated bounds and reports deterministically in tests.
+      - WebSearchTool remains registered and discoverable beside the new tools.
+    acceptance_criteria:
+      - All Tier 1 tools appear in the tool registry after registration.
+      - Tool search/help discovery can consume metadata from these tools.
+      - Sleep duration validation prevents pathological or unbounded waits.
+    failure_modes:
+      - scenario: New tool exports reintroduce eager-import failures in builtins __init__.
+        likelihood: medium
+        impact: high
+        mitigation: Keep tests that import henchman.tools.builtins in isolation and assert graceful subset loading.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Dedicated Tier 1 tools tests plus REPL registration smoke coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-init-command
+    title: Add a guided init command for project bootstrap
+    description: |
+      Use TDD to implement henchman init as an interactive bootstrap that creates the
+      project-local .hENCHMAN directory and seeds initial Tier 1 settings. Keep the flow
+      focused on foundations first: workspace settings, output style, theme, keybindings,
+      and any command-discovery defaults needed by the rest of Tier 1.
+    task_definition: Implement the init bootstrap flow on top of the settings repository.
+    details:
+      - Drive development with command tests that simulate interactive answers.
+      - Seed project-local config only; do not build remote onboarding or account setup.
+      - Reuse repository helpers instead of writing files directly from the click handler.
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - t1-command-surface
+      - t1-settings-repository
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/init_command.py
+      - tests/cli/test_init_command.py
+    context_files:
+      - path: FEATURE_TODO.md
+        reason: init is a Tier 1 CLI command and should bootstrap local settings only.
+      - path: src/henchman/config/repository.py
+        reason: init must route through the shared settings abstraction.
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 260
+    focus_area: project bootstrap
+    security_sensitive: false
+    verification:
+      - pytest tests/cli/test_init_command.py -q
+    acceptance_checks:
+      - Running init can create .hENCHMAN and seed initial settings through the repository.
+      - Interactive prompts map deterministically to persisted settings in tests.
+      - Re-running init handles already-initialized projects predictably.
+    acceptance_criteria:
+      - init does not require network access or non-Tier-1 services.
+      - init respects project-local scope by default.
+      - init can seed output style, theme, and keybindings without duplicating repository logic.
+    failure_modes:
+      - scenario: Re-running init overwrites user changes unexpectedly.
+        likelihood: medium
+        impact: medium
+        mitigation: Add explicit overwrite/merge prompts and idempotency tests.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Focused init command tests covering fresh, existing, and partial project states.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-config-command
+    title: Add key-based config CLI with import and export helpers
+    description: |
+      Use TDD to implement henchman config as the read/write Tier 1 interface over the
+      settings repository. Support key-based get/set/list plus import/export helpers that
+      satisfy the clarified local sync requirement. Keep the command deterministic enough
+      to support compact, verbose, and json rendering later in integration.
+    task_definition: Implement the Tier 1 config command around repository operations.
+    details:
+      - Add command tests for get, set, unset/list if needed, and import/export flows.
+      - Support explicit scope selection so local project config does not silently leak into global config.
+      - Redact or suppress sensitive values in human-readable output where appropriate.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-command-surface
+      - t1-settings-repository
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/config_command.py
+      - tests/cli/test_config_command.py
+    context_files:
+      - path: src/henchman/config/repository.py
+        reason: Config command should remain a thin wrapper over key-based repository methods.
+      - path: FEATURE_TODO.md
+        reason: Clarification limits sync to local import/export helpers.
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 320
+    focus_area: configuration CLI
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_config_command.py tests/config/test_settings_repository.py -q
+    acceptance_checks:
+      - Config get/set/list/import/export flows work via key paths.
+      - Import/export stays local-file based and validates schema before write.
+      - Human-readable output redacts secret-like values while json output stays machine-usable.
+    acceptance_criteria:
+      - The command supports both global and project-local scopes explicitly.
+      - Import/export is implemented as helpers on top of the shared repository.
+      - The command never depends on remote sync or background services.
+    failure_modes:
+      - scenario: Key-path updates accidentally coerce types incorrectly, especially for bool/int/list values.
+        likelihood: medium
+        impact: high
+        mitigation: Add typed set/get tests and route all writes back through pydantic validation before persistence.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Config command CRUD/import/export path coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: t1-help-command
+    title: Add searchable help for commands and tools
+    description: |
+      Use TDD to implement a dedicated help command that goes beyond click's generic
+      --help output by supporting targeted search across Tier 1 commands and registered
+      tools. Reuse command metadata and tool registry information rather than introducing
+      a second documentation source.
+    task_definition: Implement enhanced help/search for Tier 1 surfaces.
+    details:
+      - Add tests for full help listing, filtered search results, and unknown-query responses.
+      - Include Tier 1 tools in the search index when they are registered.
+      - Keep click --help intact; this task adds a richer explicit command.
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - t1-command-surface
+      - t1-tool-additions
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/help_command.py
+      - tests/cli/test_help_command.py
+    context_files:
+      - path: src/henchman/cli/commands/builtins.py
+        reason: Existing slash help behavior should stay conceptually aligned.
+      - path: src/henchman/tools/builtins/tier1_tools.py
+        reason: Tool metadata should be searchable through the help command.
+    estimated_effort: small
+    estimated_files: 2
+    estimated_lines: 220
+    focus_area: discoverability
+    security_sensitive: false
+    verification:
+      - pytest tests/cli/test_help_command.py -q
+    acceptance_checks:
+      - help can list Tier 1 commands and search by query.
+      - help can surface tool matches from the registry, including new Tier 1 tools.
+      - Search misses return actionable guidance instead of generic failures.
+    acceptance_criteria:
+      - The explicit help command complements, rather than breaks, click's built-in help.
+      - Search uses shared metadata instead of hand-maintained duplicate text.
+      - Tier 1 output styles can later format the same structured help result.
+    failure_modes:
+      - scenario: Searchable help drifts from actual command registration because metadata is duplicated.
+        likelihood: medium
+        impact: medium
+        mitigation: Source listings from live command/tool registries and add integration assertions after wiring.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Help listing and search-focused command tests.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-version-command
+    title: Add a version command with update awareness
+    description: |
+      Use TDD to implement henchman version as an explicit command that reports the
+      current version, install method, and update availability using the shared
+      introspection services. Preserve the existing --version flag while adding the
+      richer Tier 1 command surface.
+    task_definition: Implement the explicit version command on shared introspection data.
+    details:
+      - Add tests for installed version reporting, update available/not-available cases, and unknown install methods.
+      - Reuse package/version surface from wave 1 and detection payloads from system introspection.
+      - Ensure compact/text/json output can be rendered from a structured result.
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - t1-command-surface
+      - t1-system-introspection
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/version_command.py
+      - tests/cli/test_version_command.py
+    context_files:
+      - path: src/henchman/version.py
+        reason: Explicit version command should reuse the canonical version source.
+      - path: src/henchman/cli/update_check.py
+        reason: Update availability should be reported, not re-implemented here.
+    estimated_effort: small
+    estimated_files: 2
+    estimated_lines: 180
+    focus_area: version reporting
+    security_sensitive: false
+    verification:
+      - pytest tests/cli/test_version_command.py tests/cli/test_app.py -q
+    acceptance_checks:
+      - The explicit version command reports the same version as --version.
+      - Update status is derived from shared introspection/update helpers.
+      - Unknown install contexts degrade gracefully with manual guidance.
+    acceptance_criteria:
+      - version is an explicit Tier 1 command in addition to the click option.
+      - No package manager command is run from version.
+      - Output includes enough structured detail for text and json modes.
+    failure_modes:
+      - scenario: version command blocks on network/update lookup when offline.
+        likelihood: medium
+        impact: medium
+        mitigation: Separate installed-version reporting from optional/non-blocking update checks and stub them in tests.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Version/update-awareness command tests.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: t1-doctor-command
+    title: Add doctor diagnostics for environment, dependencies, and config
+    description: |
+      Use TDD to implement henchman doctor as a structured diagnostic command that checks
+      Tier 1 environment prerequisites, detected install state, dependency availability,
+      and configuration validity. Keep it scoped to actionable Tier 1 diagnostics instead
+      of broad later-tier infrastructure auditing.
+    task_definition: Implement Tier 1 diagnostic checks and remediation output.
+    details:
+      - Build tests around structured checks and deterministic remediation messages.
+      - Reuse the settings repository for config validation and system introspection for install health.
+      - Include tool-registry visibility checks for required Tier 1 tools where useful.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-settings-repository
+      - t1-system-introspection
+      - t1-tool-surface
+    parallelizable: true
+    conflicts_with:
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/doctor_command.py
+      - tests/cli/test_doctor_command.py
+      - src/henchman/cli/system_info.py
+    context_files:
+      - path: src/henchman/config/repository.py
+        reason: Doctor should validate persisted settings through the same code path users rely on.
+      - path: src/henchman/cli/update_check.py
+        reason: Install/update facts belong to the shared diagnostic model.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: diagnostics
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_doctor_command.py tests/cli/test_system_info.py -q
+    acceptance_checks:
+      - doctor reports pass/warn/fail style checks for config, install method, and required runtime dependencies.
+      - doctor can surface Tier 1 config validation issues without mutating settings.
+      - doctor output includes remediation guidance suitable for text and json rendering.
+    acceptance_criteria:
+      - doctor remains read-only.
+      - doctor checks are deterministic under test fixtures.
+      - doctor stays scoped to Tier 1 foundations and does not expand into unrelated agent health.
+    failure_modes:
+      - scenario: doctor performs expensive or stateful checks that make the command flaky.
+        likelihood: medium
+        impact: medium
+        mitigation: Keep checks local/read-only and isolate external calls behind deterministic adapters.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Doctor diagnostics and remediation path coverage.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: t1-upgrade-command
+    title: Add guided self-upgrade for pip, uv, and pipx installs
+    description: |
+      Use TDD to implement henchman upgrade as the clarified guided flow: detect whether
+      the current install came from pip, uv, or pipx, then print or run the appropriate
+      command with explicit user intent. Keep this security-sensitive path conservative by
+      default and route command strings through the shared sanitization layer.
+    task_definition: Implement the guided Tier 1 upgrade command.
+    details:
+      - Add tests for explain-only mode, execute mode, unsupported installs, and command confirmation behavior.
+      - Reuse shared detection helpers instead of re-parsing environment state inside the click handler.
+      - Default to printing/explaining the recommended command unless execution is explicitly requested.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-command-surface
+      - t1-system-introspection
+    parallelizable: true
+    conflicts_with:
+      - t1-tool-surface
+      - t1-cli-integration
+    file_targets:
+      - src/henchman/cli/commands/upgrade_command.py
+      - tests/cli/test_upgrade_command.py
+      - src/henchman/cli/update_check.py
+    context_files:
+      - path: src/henchman/tools/security.py
+        reason: Upgrade execution must reuse the shared sanitization policy.
+      - path: FEATURE_TODO.md
+        reason: Clarified scope is guided pip/uv/pipx upgrade only.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 280
+    focus_area: guided upgrades
+    security_sensitive: true
+    verification:
+      - pytest tests/cli/test_upgrade_command.py tests/cli/test_system_info.py -q
+    acceptance_checks:
+      - upgrade detects pip, uv, and pipx install methods in tests.
+      - Explain-only mode prints the exact recommended command without executing it.
+      - Execute mode runs only after explicit intent and through sanitized command handling.
+      - Unsupported or ambiguous installs fall back to manual guidance instead of guessing.
+    acceptance_criteria:
+      - upgrade is limited to package-manager-based self-update guidance/execution.
+      - The command never attempts remote account/device sync.
+      - Upgrade command text is shared with version/update awareness where possible.
+    failure_modes:
+      - scenario: Execution mode updates the wrong package name or interpreter environment.
+        likelihood: medium
+        impact: critical
+        mitigation: Bind the generated command to the detected executable/install metadata and require confirmation before running.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Upgrade detection, guidance, and guarded execution coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: t1-cli-integration
+    title: Wire all Tier 1 commands into the root CLI and output styles
+    description: |
+      After the isolated feature slices are green, perform a single integration pass that
+      registers the new Tier 1 click commands, preserves existing chat/serve behavior,
+      and applies persisted output style defaults across the new commands. This task is
+      intentionally deferred to minimize app.py conflicts and maximize parallel feature work.
+    task_definition: Integrate Tier 1 command modules into the root click application.
+    details:
+      - Register init/config/help/version/doctor/upgrade in one place.
+      - Preserve existing --version, --help, chat, serve, and discordbot surfaces.
+      - Add focused CLI smoke coverage for compact/verbose/json style behavior across the new commands.
+    wave: 4
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-init-command
+      - t1-config-command
+      - t1-help-command
+      - t1-version-command
+      - t1-doctor-command
+      - t1-upgrade-command
+    parallelizable: false
+    conflicts_with:
+      - t1-package-surface
+      - t1-config-surface
+      - t1-command-surface
+    file_targets:
+      - src/henchman/cli/app.py
+      - tests/cli/test_app.py
+      - tests/test_main.py
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Root click group registration and output-style defaults live here.
+      - path: src/henchman/config/repository.py
+        reason: Integration should read persisted output-style defaults via shared config services.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 340
+    focus_area: click integration
+    security_sensitive: false
+    verification:
+      - pytest tests/cli/test_app.py tests/test_main.py tests/cli/test_*command.py -q
+    acceptance_checks:
+      - All Tier 1 commands are reachable from the root click CLI.
+      - Existing chat/serve behavior and --version remain intact.
+      - Persisted output-style defaults are honored unless overridden by explicit CLI flags.
+    acceptance_criteria:
+      - app.py is the only place that performs final Tier 1 click registration.
+      - Integration coverage exercises help/version/init/config/doctor/upgrade entrypoints from the real CLI surface.
+      - Output style behavior stays limited to Tier 1 commands and current renderer capabilities.
+    failure_modes:
+      - scenario: Final wiring introduces import cycles between app.py and new command modules.
+        likelihood: medium
+        impact: high
+        mitigation: Register commands via lightweight module-level factories and keep app.py dependent only on explicit command exports.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Root CLI smoke coverage for all Tier 1 command entrypoints.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: t1-tier1-review
+    title: Review Tier 1 security and orchestration readiness
+    description: |
+      Perform a final reviewer pass focused on the risky Tier 1 edges: config import/export,
+      shell/update command execution, project-local path handling, and root CLI registration.
+      This task should not broaden scope; it validates that the completed Tier 1 graph is
+      safe to land and ready for downstream orchestration.
+    task_definition: Run a focused security/reliability review over completed Tier 1 work.
+    details:
+      - Inspect upgrade/config/doctor paths for unsafe command execution, secret leakage, and path traversal regressions.
+      - Confirm final CLI integration did not reintroduce eager-import blockers.
+      - Produce actionable findings only; no stylistic churn.
+    wave: 5
+    agent: gem-reviewer
+    priority: high
+    status: pending
+    dependencies:
+      - t1-cli-integration
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/upgrade_command.py
+      - src/henchman/tools/security.py
+    context_files:
+      - path: src/henchman/cli/commands/config_command.py
+        reason: Import/export is a security-sensitive Tier 1 surface.
+      - path: src/henchman/cli/commands/doctor_command.py
+        reason: Diagnostic output must not leak secrets or mutate config.
+    estimated_effort: small
+    estimated_files: 0
+    estimated_lines: 0
+    focus_area: security review
+    security_sensitive: true
+    verification:
+      - Review completed diffs for upgrade/config/security/path-handling issues
+      - Re-run targeted Tier 1 CLI smoke suite after fixes if any issues are found
+    acceptance_checks:
+      - Guided upgrade remains opt-in and sanitized.
+      - Config import/export and doctor output do not leak secret values.
+      - Root CLI integration is free of the identified Tier 1 import blockers.
+    acceptance_criteria:
+      - Reviewer findings are limited to substantive Tier 1 security/reliability concerns.
+      - Security-sensitive Tier 1 tasks have no open high-severity issues before handoff.
+    failure_modes:
+      - scenario: Review occurs too late to catch shared foundation regressions cheaply.
+        likelihood: low
+        impact: high
+        mitigation: Require earlier tasks to flag requires_review=true so the execution loop can escalate before final signoff if needed.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Reviewer validates targeted Tier 1 suites rather than adding new functional scope.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true

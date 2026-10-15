@@ -1,0 +1,27 @@
+{
+  "$id": "henchman/contracts/runtime/delegation-record/v1",
+  "title": "DelegationRecord",
+  "description": "Shape contract for the serialised DelegationRecord dataclass.",
+  "type": "object",
+  "required": ["agent", "task", "status", "summary"],
+  "properties": {
+    "agent": {
+      "type": "string",
+      "description": "Role of the delegated agent (e.g. 'coder')"
+    },
+    "task": {
+      "type": "string",
+      "description": "Short description of the delegated task"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "completed", "failed"],
+      "description": "Current status of the delegation"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Result summary returned by the agent"
+    }
+  },
+  "additionalProperties": false
+}

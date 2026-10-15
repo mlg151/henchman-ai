@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,10 +16,22 @@ from henchman.agents.delegation_manager import (
 )
 
 
+@pytest.fixture
+def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
+    """Provide an explicit current loop for Python 3.14 sync tests."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        asyncio.set_event_loop(None)
+        loop.close()
+
+
 class TestDelegationTask:
     """Tests for DelegationTask dataclass."""
 
-    def test_delegation_task_creation(self) -> None:
+    def test_delegation_task_creation(self, event_loop: asyncio.AbstractEventLoop) -> None:
         """Test DelegationTask can be created with required fields."""
         mock_agent = MagicMock()
         mock_future: asyncio.Future[tuple[str, bool]] = asyncio.Future()
@@ -41,7 +54,10 @@ class TestDelegationTask:
         assert task.error is None
         assert len(task.output_buffer) == 0
 
-    def test_delegation_task_output_buffer_bounded(self) -> None:
+    def test_delegation_task_output_buffer_bounded(
+        self,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test output_buffer has maxlen=100."""
         mock_agent = MagicMock()
         mock_future: asyncio.Future[tuple[str, bool]] = asyncio.Future()
@@ -98,7 +114,11 @@ class TestDelegationManager:
         result = manager.get_ongoing_delegations()
         assert result == []
 
-    def test_completed_tasks_bounded(self, manager: DelegationManager) -> None:
+    def test_completed_tasks_bounded(
+        self,
+        manager: DelegationManager,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test completed_tasks respects MAX_COMPLETED_TASKS limit."""
         mock_agent = MagicMock()
 
@@ -129,7 +149,11 @@ class TestDelegationManager:
             assert "task_0" not in manager.completed_tasks
             assert "task_10" in manager.completed_tasks  # Within last 100
 
-    def test_add_completed_task_eviction_logging(self, manager: DelegationManager) -> None:
+    def test_add_completed_task_eviction_logging(
+        self,
+        manager: DelegationManager,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test that eviction is logged."""
         mock_agent = MagicMock()
         mock_logger = MagicMock()
@@ -205,7 +229,11 @@ class TestDelegationManagerSync:
         result = manager.cancel_delegation("nonexistent")
         assert result is False
 
-    def test_cancel_delegation_success(self, manager: DelegationManager) -> None:
+    def test_cancel_delegation_success(
+        self,
+        manager: DelegationManager,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test cancel_delegation marks task as completed."""
         mock_agent = MagicMock()
         task_id = "cancel_test"
@@ -231,7 +259,11 @@ class TestDelegationManagerSync:
         result = manager.tail_delegation_output("nonexistent")
         assert "not found" in result
 
-    def test_tail_delegation_output(self, manager: DelegationManager) -> None:
+    def test_tail_delegation_output(
+        self,
+        manager: DelegationManager,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test tail_delegation_output returns last N lines."""
         mock_agent = MagicMock()
         task_id = "tail_test"
@@ -265,7 +297,11 @@ class TestDelegationManagerSync:
         result = manager.submit_delegation_result("nonexistent")
         assert result is False
 
-    def test_submit_delegation_result_incomplete(self, manager: DelegationManager) -> None:
+    def test_submit_delegation_result_incomplete(
+        self,
+        manager: DelegationManager,
+        event_loop: asyncio.AbstractEventLoop,
+    ) -> None:
         """Test submit_delegation_result returns False for incomplete task."""
         mock_agent = MagicMock()
         task_id = "incomplete_test"

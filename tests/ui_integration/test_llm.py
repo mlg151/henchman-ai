@@ -12,7 +12,8 @@ Note: Mock external packages only, use real implementations of internal componen
 """
 
 import json
-from unittest.mock import AsyncMock, Mock, patch
+from functools import partial
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console
@@ -24,13 +25,22 @@ from henchman.providers.deepseek import DeepSeekProvider
 from henchman.providers.ollama import OllamaProvider
 
 
+def create_mock_provider() -> Mock:
+    """Keep real request-budget behavior while mocking model responses."""
+    provider = Mock(spec=ModelProvider)
+    provider.required_tool_names.side_effect = partial(ModelProvider.required_tool_names, provider)
+    provider.estimate_input_tokens.side_effect = partial(ModelProvider.estimate_input_tokens, provider)
+    provider.prepare_output_budget.side_effect = partial(ModelProvider.prepare_output_budget, provider)
+    return provider
+
+
 class TestLLMCommunicationBasic:
     """Basic tests for LLM communication through the UI."""
 
     @pytest.fixture
     def mock_provider(self):
         """Mock provider that streams text responses."""
-        provider = Mock(spec=ModelProvider)
+        provider = create_mock_provider()
         return provider
 
     @pytest.fixture
@@ -58,7 +68,7 @@ class TestLLMCommunicationBasic:
             yield StreamChunk(content="Test response", finish_reason=FinishReason.STOP)
 
         # Create a mock that returns the async generator
-        mock_stream = AsyncMock(return_value=mock_stream_generator())
+        mock_stream = Mock(return_value=mock_stream_generator())
         mock_provider.chat_completion_stream = mock_stream
 
         # Run agent with test input
@@ -79,7 +89,7 @@ class TestLLMCommunicationBasic:
         async def mock_stream_generator():
             yield StreamChunk(content="Test response from LLM", finish_reason=FinishReason.STOP)
 
-        mock_provider.chat_completion_stream = AsyncMock(return_value=mock_stream_generator())
+        mock_provider.chat_completion_stream = Mock(return_value=mock_stream_generator())
 
         # Run agent
         await repl._run_agent("Test prompt")
@@ -98,7 +108,7 @@ class TestLLMCommunicationBasic:
             yield StreamChunk(content="World", finish_reason=None)
             yield StreamChunk(content="!", finish_reason=FinishReason.STOP)
 
-        mock_provider.chat_completion_stream = AsyncMock(return_value=mock_stream_generator())
+        mock_provider.chat_completion_stream = Mock(return_value=mock_stream_generator())
 
         # Run agent
         await repl._run_agent("Say hello")
@@ -164,7 +174,7 @@ class TestToolCallExecutionFlow:
     @pytest.fixture
     def mock_provider_with_tool_flow(self):
         """Mock provider that simulates tool call flow."""
-        provider = Mock(spec=ModelProvider)
+        provider = create_mock_provider()
 
         # Use side_effect to return different async generators
         call_counts = [0]
@@ -189,7 +199,7 @@ class TestToolCallExecutionFlow:
             else:
                 return second_stream()
 
-        provider.chat_completion_stream = AsyncMock(side_effect=stream_side_effect)
+        provider.chat_completion_stream = Mock(side_effect=stream_side_effect)
         return provider
 
     @pytest.fixture
@@ -263,12 +273,13 @@ class TestLLMErrorHandling:
     @pytest.fixture
     def mock_provider_with_error(self):
         """Mock provider that raises an error."""
-        provider = Mock(spec=ModelProvider)
+        provider = create_mock_provider()
 
         async def error_stream():
             raise Exception("LLM API error: Connection failed")
+            yield  # pragma: no cover - keep this an async generator
 
-        provider.chat_completion_stream = AsyncMock(return_value=error_stream())
+        provider.chat_completion_stream = Mock(return_value=error_stream())
         return provider
 
     @pytest.fixture
@@ -323,12 +334,12 @@ class TestEndToEndLLMIntegration:
         # This test verifies the overall integration
         # We'll create a simple mock provider and test the flow
 
-        mock_provider = Mock(spec=ModelProvider)
+        mock_provider = create_mock_provider()
 
         async def simple_stream():
             yield StreamChunk(content="Mock LLM response.", finish_reason=FinishReason.STOP)
 
-        mock_provider.chat_completion_stream = AsyncMock(return_value=simple_stream())
+        mock_provider.chat_completion_stream = Mock(return_value=simple_stream())
 
         console = Console(record=True)
         config = ReplConfig()

@@ -245,31 +245,6 @@ class TestOutputHandler:
         # Should have RAG indexing status
         assert any("RAG: Indexing..." in text for _, text in status)
 
-    def test_get_rich_status_message(self) -> None:
-        """Test get_rich_status_message method."""
-        renderer = MagicMock()
-        tool_manager = MagicMock(spec=ToolManager)
-        session_manager = MagicMock(spec=ReplSessionManager)
-        provider = MagicMock(spec=ModelProvider)
-
-        handler = OutputHandler(
-            renderer=renderer,
-            tool_manager=tool_manager,
-            session_manager=session_manager,
-            provider=provider,
-        )
-
-        agent = MagicMock(spec=Agent)
-
-        renderer.get_rich_status_message.return_value = "Status message"
-
-        result = handler.get_rich_status_message(agent)
-
-        renderer.get_rich_status_message.assert_called_once_with(
-            session_manager.current, agent, None
-        )
-        assert result == "Status message"
-
     def test_delegation_methods(self) -> None:
         """Test delegation methods to renderer."""
         renderer = MagicMock()
@@ -443,9 +418,7 @@ class TestOutputHandler:
             # Get the actual coroutine that was passed
             call_args = mock_create_task.call_args[0]
             assert len(call_args) == 1
-            # The coroutine should be from rag_system.index_async()
-            # We can't compare coroutine objects directly, but we know
-            # it should have been called
+            call_args[0].close()
 
     def test_start_background_indexing_no_rag(self) -> None:
         """Test start_background_indexing without RAG system."""

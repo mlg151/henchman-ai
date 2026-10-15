@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/mcp-tool-definition/v1",
+  "type": "object",
+  "required": ["name", "description", "input_schema"],
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "input_schema": { "type": "object" }
+  },
+  "additionalProperties": false
+}

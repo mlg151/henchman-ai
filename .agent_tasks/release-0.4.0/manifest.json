@@ -1,0 +1,16 @@
+[
+  {
+    "filename": "henchman_ai-0.4.0-py3-none-any.whl",
+    "bytes": 815005,
+    "sha256": "38abab172334c114612c30e259a91ff7a09580098629e45255256f98eb4e3bc8",
+    "members": 335,
+    "version": "0.4.0"
+  },
+  {
+    "filename": "henchman_ai-0.4.0.tar.gz",
+    "bytes": 2246645,
+    "sha256": "87edd1d989a7da13fee218945ebd9d2850cd2f432ece4a4ab1d67ba7016f688d",
+    "members": 1202,
+    "version": "0.4.0"
+  }
+]

@@ -11,7 +11,7 @@ import re
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -20,14 +20,13 @@ if TYPE_CHECKING:
 # Module-level constants
 # ---------------------------------------------------------------------------
 _DANGEROUS_COMMAND_PATTERNS: list[str] = [
-    r";\s*$",  # Command separator at end
-    r"&\s*$",  # Background execution at end
-    r"\|\s*$",  # Pipe at end
+    r"\\n",  # Embedded newline
     r"`.*`",  # Command substitution
     r"\$\(.*\)",  # Command substitution
+    r"\$\{[^}]*@[A-Z]}",  # Parameter transformation (e.g. @P)
+    r"\$\{![^}]*}",  # Indirect expansion (!var)
     r"\$\{.*\}",  # Variable expansion with command execution
-    r">\s*/(?:dev|proc|sys|etc|bin|sbin|usr/bin|usr/sbin)\b",  # Redirect to system dirs
-    r">>\s*/(?:dev|proc|sys|etc|bin|sbin|usr/bin|usr/sbin)\b",  # Append to system dirs
+    r"\|$",  # Trailing pipe (pipe without following command)
 ]
 
 _LOCALHOST_PATTERNS: frozenset[str] = frozenset(
@@ -50,12 +49,27 @@ _SUSPICIOUS_URL_PATTERNS: list[str] = [
     r"\?.*\?",  # Multiple ? query strings
 ]
 
+# Ampersands belonging to redirects (>&, <&, &>, &>>) are not separators.
+_COMMAND_SEPARATOR_PATTERN = re.compile(r"[;|]|(?<![<>])&(?!>)")
+
 _TIMEOUT_KEYWORDS: tuple[str, ...] = ("timeout", "timed out")
 _NETWORK_KEYWORDS: tuple[str, ...] = ("network", "connection")
 
 _PATH_PATTERN: re.Pattern[str] = re.compile(r"/[^\s]+")
 _HOME_PATH_PATTERN: re.Pattern[str] = re.compile(r"~/[^\s]+")
 _ENV_VAR_PATTERN: re.Pattern[str] = re.compile(r"=[^\s]+")
+
+# Map from pattern to human-readable description for error messages.
+# Order matters: more specific patterns must come before general ones.
+_DANGEROUS_PATTERN_DESCRIPTIONS: dict[str, str] = {
+    r"\\n": "embedded newline",
+    r"`.*`": "command substitution",
+    r"\$\(.*\)": "command substitution",
+    r"\$\{[^}]*@[A-Z]}": "parameter transformation (@P)",
+    r"\$\{![^}]*}": "indirect expansion (!var)",
+    r"\$\{.*\}": "variable expansion",
+    r"\|$": "trailing pipe",
+}
 
 
 def _find_first_matching_pattern(text: str, patterns: list[str]) -> str | None:
@@ -147,13 +161,14 @@ def _check_for_dangerous_patterns(command: str) -> None:
     """Raise CommandInjectionError if command matches any dangerous pattern."""
     for pattern in _DANGEROUS_COMMAND_PATTERNS:
         if re.search(pattern, command):
-            msg = f"Dangerous pattern detected: {pattern}"
+            description = _DANGEROUS_PATTERN_DESCRIPTIONS.get(pattern, pattern)
+            msg = f"Dangerous pattern detected: {description}"
             raise CommandInjectionError(msg)
 
 
 def _validate_sub_commands(command: str, allowed_commands: Iterable[str] | None) -> None:
     """Recursively validate each sub-command split by ; & | operators."""
-    for raw_part in re.split(r"[;&|]", command):
+    for raw_part in _COMMAND_SEPARATOR_PATTERN.split(command):
         stripped = raw_part.strip()
         if stripped:
             sanitize_command(stripped, allowed_commands)
@@ -179,9 +194,19 @@ def sanitize_command(command: str, allowed_commands: Iterable[str] | None = None
         raise ValueError(msg)
 
     command = command.strip()
+
+    # Check for control characters (newlines, tabs, null bytes, etc.)
+    for i, char in enumerate(command):
+        if 0 < ord(char) < 32 or ord(char) == 127:
+            msg = f"control characters detected at position {i}"
+            raise CommandInjectionError(msg)
+
     _check_for_dangerous_patterns(command)
 
-    if ";" in command or "&" in command or "|" in command:
+    # Subcommands only need a separate pass for an explicit prefix policy.
+    # Whole-command checks cover the default path; splitting there would break
+    # quoted payloads such as python -c "x = 1; print(x)" before execution.
+    if allowed_commands and _COMMAND_SEPARATOR_PATTERN.search(command):
         _validate_sub_commands(command, allowed_commands)
 
     if allowed_commands and not any(command.startswith(cmd) for cmd in allowed_commands):
@@ -201,26 +226,26 @@ def sanitize_command(command: str, allowed_commands: Iterable[str] | None = None
 # ---------------------------------------------------------------------------
 # URL validation helpers
 # ---------------------------------------------------------------------------
-def _check_url_scheme(parsed: object, allowed_schemes: Iterable[str]) -> None:
+def _check_url_scheme(parsed: ParseResult, allowed_schemes: Iterable[str]) -> None:
     """Raise SSRFError if URL scheme is missing or not in allowed_schemes."""
-    if not parsed.scheme:  # type: ignore[union-attr]
+    if not parsed.scheme:
         msg = "URL must have a scheme"
         raise SSRFError(msg)
-    if parsed.scheme not in allowed_schemes:  # type: ignore[union-attr]
-        msg = f"Scheme {parsed.scheme} not allowed. Must be one of: {allowed_schemes}"  # type: ignore[union-attr]
+    if parsed.scheme not in allowed_schemes:
+        msg = f"Scheme {parsed.scheme} not allowed. Must be one of: {allowed_schemes}"
         raise SSRFError(msg)
 
 
-def _check_localhost_url(parsed: object) -> None:
+def _check_localhost_url(parsed: ParseResult) -> None:
     """Raise SSRFError if URL points to a localhost address."""
-    if parsed.hostname in _LOCALHOST_PATTERNS:  # type: ignore[union-attr]
+    if parsed.hostname in _LOCALHOST_PATTERNS:
         msg = "Localhost URLs are not allowed"
         raise SSRFError(msg)
 
 
-def _check_private_ip_address(parsed: object) -> None:
+def _check_private_ip_address(parsed: ParseResult) -> None:
     """Raise SSRFError if URL points to a private IP address."""
-    hostname = parsed.hostname  # type: ignore[union-attr]
+    hostname = parsed.hostname
     if not hostname:
         return
     for pattern in _PRIVATE_IP_PATTERNS:
@@ -229,9 +254,12 @@ def _check_private_ip_address(parsed: object) -> None:
             raise SSRFError(msg)
 
 
-def _check_domain_whitelist(parsed: object, allowed_domains: Iterable[str] | None) -> None:
+def _check_domain_whitelist(
+    parsed: ParseResult,
+    allowed_domains: Iterable[str] | None,
+) -> None:
     """Raise SSRFError if URL domain is not in the allowed list."""
-    hostname = parsed.hostname  # type: ignore[union-attr]
+    hostname = parsed.hostname
     if allowed_domains and hostname and hostname not in allowed_domains:
         msg = f"Domain {hostname} not in allowed list"
         raise SSRFError(msg)
@@ -306,8 +334,13 @@ def sanitize_error_message(error: Exception | str) -> str:
         A sanitized error message safe for user display.
     """
     error_msg = str(error)
-    error_msg = _PATH_PATTERN.sub("[PATH]", error_msg)
+
+    # Normalize control characters to spaces
+    error_msg = re.sub(r"[\x00-\x1f\x7f]", " ", error_msg)
+    error_msg = re.sub(r"  +", " ", error_msg)
+
     error_msg = _HOME_PATH_PATTERN.sub("[HOME_PATH]", error_msg)
+    error_msg = _PATH_PATTERN.sub("[PATH]", error_msg)
     error_msg = _ENV_VAR_PATTERN.sub("=[REDACTED]", error_msg)
 
     if "Permission denied" in error_msg:
@@ -321,7 +354,7 @@ def sanitize_error_message(error: Exception | str) -> str:
     if _message_matches_any_keyword(error_msg, _NETWORK_KEYWORDS):
         return _PATH_PATTERN.sub("[PATH]", error_msg)
 
-    return "An error occurred"
+    return error_msg
 
 
 # ---------------------------------------------------------------------------

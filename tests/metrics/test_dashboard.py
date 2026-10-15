@@ -1,5 +1,7 @@
 """Tests for henchman.metrics.dashboard."""
 
+from datetime import UTC
+from io import StringIO
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -52,7 +54,7 @@ def dashboard(mock_storage: MagicMock) -> Dashboard:
     """Create a Dashboard with a mock storage and null console."""
     from rich.console import Console
 
-    console = Console(file=open("/dev/null", "w"), force_terminal=False)
+    console = Console(file=StringIO(), force_terminal=False)
     return Dashboard(metrics_storage=mock_storage, refresh_interval=1, console=console)
 
 
@@ -182,9 +184,9 @@ class TestCollectStats:
 
     def test_returns_empty_when_no_records(self, tmp_storage: MetricsStorage) -> None:
         """Test returns empty dict when no records exist."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
-        end = datetime.now(tz=timezone.utc)
+        end = datetime.now(tz=UTC)
         start = end - timedelta(days=7)
         result = _collect_stats(
             tmp_storage, MetricType.TOKEN_USAGE, _aggregate_token_stats, start, end
@@ -195,7 +197,7 @@ class TestCollectStats:
         self, tmp_storage: MetricsStorage
     ) -> None:
         """Test returns aggregated data when records exist."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from henchman.metrics.models import TokenMetric
 
@@ -209,7 +211,7 @@ class TestCollectStats:
             )
         )
 
-        end = datetime.now(tz=timezone.utc)
+        end = datetime.now(tz=UTC)
         start = end - timedelta(days=7)
         result = _collect_stats(
             tmp_storage, MetricType.TOKEN_USAGE, _aggregate_token_stats, start, end

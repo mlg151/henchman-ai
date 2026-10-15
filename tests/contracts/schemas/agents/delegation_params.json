@@ -1,0 +1,42 @@
+{
+  "$id": "henchman/contracts/agents/delegation-params/v1",
+  "title": "DelegationParams",
+  "description": "Shape contract for DelegationParams used in task delegation.",
+  "type": "object",
+  "required": ["target_role", "task", "depth", "msg_start"],
+  "properties": {
+    "target_role": {
+      "type": "string",
+      "description": "Role identifier of the target specialist agent"
+    },
+    "task": {
+      "type": "string",
+      "description": "The task description to delegate"
+    },
+    "brief": {
+      "type": ["object", "null"],
+      "description": "Optional context brief with task metadata",
+      "additionalProperties": true
+    },
+    "depth": {
+      "type": "integer",
+      "description": "Current delegation depth",
+      "minimum": 0
+    },
+    "target_agent": {
+      "description": "Target agent reference or identifier",
+      "type": ["string", "null"]
+    },
+    "full_task": {
+      "type": "string",
+      "description": "Full task description including context",
+      "default": ""
+    },
+    "msg_start": {
+      "type": "integer",
+      "description": "Message start index for context injection",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false
+}

@@ -49,7 +49,7 @@ class TestRunTextualApp:
 
         with (
             patch("henchman.cli.textual_app._check_utf8_encoding"),
-            patch("henchman.cli.textual_app.HenchmanTextualApp", return_value=mock_app) as mock_app_cls,
+            patch("henchman.cli.textual_app.HenchmanTextualApp", return_value=mock_app),
         ):
             run_textual_app(
                 provider=mock_provider,
@@ -117,7 +117,7 @@ class TestRunTextualApp:
 
         printed_args = []
 
-        def capture_print(*args, **kwargs):
+        def capture_print(*args, **_kwargs):
             printed_args.extend(args)
 
         with (

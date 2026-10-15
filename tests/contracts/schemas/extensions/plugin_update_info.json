@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/plugin-update-info/v1",
+  "title": "PluginUpdateInfo",
+  "description": "Version-difference information for one plugin update.",
+  "type": "object",
+  "properties": {
+    "plugin_name": { "type": "string" },
+    "current_version": { "type": "string" },
+    "latest_version": { "type": "string" }
+  },
+  "required": ["plugin_name", "current_version", "latest_version"]
+}

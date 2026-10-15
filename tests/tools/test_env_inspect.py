@@ -41,9 +41,9 @@ class TestEnvInspectTool:
     async def test_package_versions(self) -> None:
         """Check specific package versions."""
         tool = EnvInspectTool()
-        result = await tool.execute(packages=["pip", "nonexistent_pkg_xyz"])
+        result = await tool.execute(packages=["henchman-ai", "nonexistent_pkg_xyz"])
         assert result.success is True
-        assert "pip:" in result.content
+        assert "henchman-ai:" in result.content
         assert "not installed" in result.content
 
     async def test_show_path(self) -> None:
@@ -103,7 +103,7 @@ class TestEnvInspectTool:
     def test_get_package_version(self) -> None:
         """Test _get_package_version helper."""
         tool = EnvInspectTool()
-        assert tool._get_package_version("pip") != "not installed"
+        assert tool._get_package_version("henchman-ai") != "not installed"
         assert tool._get_package_version("nonexistent_pkg_xyz") == "not installed"
 
     async def test_with_virtualenv(self) -> None:

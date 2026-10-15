@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -401,11 +402,11 @@ class TestPrintHelpers:
         ctx.agent.compactor = MagicMock()
         ctx.agent.compactor.get_statistics.side_effect = Exception("stat error")
         # Patch the isinstance check to return True
-        with patch("henchman.cli.commands.context.isinstance", return_value=True):
-            try:
-                _print_stats_info(ctx.console, ctx.agent)
-            except Exception:
-                pass
+        with (
+            patch("henchman.cli.commands.context.isinstance", return_value=True),
+            suppress(Exception),
+        ):
+            _print_stats_info(ctx.console, ctx.agent)
         ctx.console.print.assert_called()
 
 
@@ -509,10 +510,8 @@ class TestContextCommandStrategyCoverage:
         cmd = ContextCommand()
         ctx = self._make_ctx(["strategy", "set", "adaptive", "maybe"])
         # The ValueError from invalid value is caught internally or propagated
-        try:
+        with suppress(ValueError):
             await cmd.execute(ctx)
-        except ValueError:
-            pass  # ValueError for invalid "maybe" value is expected
         # Either error was raised or printed - both are valid
         assert True
 

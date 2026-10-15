@@ -50,7 +50,7 @@ def test_run_interactive_plan_mode():
         assert "PLAN" in mock_repl_instance.agent.system_prompt
 
 
-def test_run_headless_json():
+def test_run_headless_dispatches_json():
     """Test headless mode with JSON output."""
     mock_repl_instance = MagicMock()
 
@@ -65,14 +65,14 @@ def test_run_headless_json():
         patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
         patch("henchman.cli.app.anyio.run") as mock_run,
     ):
-        _run_headless("prompt", "json")
+        _run_headless(RunConfig(prompt="prompt", output_format="json"))
         mock_run.assert_called_once()
         # Get the internal function passed to anyio.run
         run_func = mock_run.call_args[0][0]
         assert "_run_headless_json_format" in run_func.__name__
 
 
-def test_run_headless_stream_json():
+def test_run_headless_dispatches_stream_json():
     """Test headless mode with stream-json output."""
     mock_repl_instance = MagicMock()
 
@@ -87,7 +87,7 @@ def test_run_headless_stream_json():
         patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
         patch("henchman.cli.app.anyio.run") as mock_run,
     ):
-        _run_headless("prompt", "stream-json")
+        _run_headless(RunConfig(prompt="prompt", output_format="stream-json"))
         mock_run.assert_called_once()
         run_func = mock_run.call_args[0][0]
         assert "_run_headless_json_format" in run_func.__name__
@@ -109,7 +109,7 @@ async def test_run_headless_json():
     # Mock the async generator
     async def mock_run_gen(_p):
         yield AgentEvent(type=EventType.CONTENT, data="Result")
-        yield AgentEvent(type=EventType.FINISHED)
+        yield AgentEvent(type=EventType.FINISHED, data="stop")
 
     mock_repl_instance.agent.run = mock_run_gen
 
@@ -137,6 +137,7 @@ async def test_run_headless_stream_json():
 
     async def mock_run_gen(_p):
         yield AgentEvent(type=EventType.CONTENT, data="Result")
+        yield AgentEvent(type=EventType.FINISHED, data="stop")
 
     mock_repl_instance.agent.run = mock_run_gen
 

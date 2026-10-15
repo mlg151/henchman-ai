@@ -119,8 +119,8 @@ context:
   # Enable intelligent context management (default: false)
   intelligent_context: false
   
-  # Maximum tokens before compaction (default: 128000)
-  max_tokens: 128000
+  # Maximum tokens before compaction (default: 8000)
+  max_tokens: 8000
   
   # Start compaction at this percentage of max_tokens (default: 0.75)
   compaction_threshold: 0.75
@@ -135,6 +135,54 @@ context:
   adaptive_compression: true
 ```
 
+The team leader and specialists use `max(1, int(max_tokens *
+compaction_threshold))` as their effective conversation budget. The defaults
+therefore give each agent a 6000-token budget. Cached agents retain that configured
+budget when their provider changes. Standalone agent pools without a configured
+budget continue to derive their limit from the selected model.
+
+To change this session's capacity during a model switch, use
+`/model set <provider> [model] --context-length <tokens>`. It updates the live
+leader, cached specialists and future specialists using the same compaction
+threshold. `/model` reports both the selected capacity and effective budget.
+Omitting the option retains the current policy; invalid or nonpositive values
+leave the model and context settings unchanged. This does not save settings to
+disk. Use the `config set context.max_tokens` command for a persistent startup
+value.
+
+The selected capacity also enables request accounting: before each model call,
+the agent estimates serialized messages (including reasoning), tool declarations,
+and supported structured-response schemas, then reserves the provider's output
+cap. OpenAI-compatible providers preserve an explicitly configured `max_tokens`
+or `max_completion_tokens`, including `extra_body` precedence; ambiguous or
+invalid caps are rejected. When neither cap is configured, they request
+`min(4096, max(1, context_window // 4))` output tokens. Native Anthropic retains
+its configured output cap.
+
+The agent removes complete older conversation turns until the request estimate
+fits. When a full tool catalog still cannot fit and bound `tool_search` is
+available, it exposes discovery and core coding schemas within the same limit.
+Search by an exact tool name to prioritize its real schema on the next request;
+the latest search prioritizes up to five matching registered tools from its page.
+Search results default to five entries; use `offset` for subsequent pages or set
+`limit` from 1 to 100. A new user turn resets priorities. `/tools` and paginated
+discovery retain access to the full inventory,
+and execution retains the same agent allowlists and approval policies.
+
+System instructions and the entire current turn remain intact, even when they
+exceed the softer conversation target. If these required inputs, discovery,
+explicitly searched or provider-required schemas and output cannot fit, the call fails locally with
+counts and guidance. Custom scopes without discovery retain the explicit overflow
+error. History remains available for persistence. This path uses deterministic
+history pruning rather than the legacy summarizer or content truncation.
+Standalone agents with `context_window=None` retain legacy compaction behavior.
+
+Tokenizers and server chat templates differ, so these are estimates, not an exact
+server guarantee; opaque provider extensions are not fully accounted for. Even
+with a smaller tool catalog, large prompts, results or output caps may require a
+larger model-supported capacity. This setting does not resize a local server's
+context window or establish a whole-application RAM bound.
+
 For detailed information on intelligent context management, see the [Intelligent Context Management](intelligent-context-management.md) documentation.
 
 ## Context Files (HENCHMAN.md)
@@ -145,7 +193,9 @@ Place `HENCHMAN.md` files in your project to provide context:
 - **Project**: `./HENCHMAN.md` (in project root)
 - **Subdirectories**: Optional, for specific context
 
-These files are automatically loaded and included in the system prompt.
+Inside a Git repository, context files are discovered from the repository root down to the current directory. Optional immediate-subdirectory discovery is available only when a Git root establishes the project boundary. Outside Git, Henchman reads project context only from the current working directory: it does not walk into subdirectories or inherit instruction files from parent directories. This boundary prevents unrelated parent context from being pulled into a non-repository session.
+
+The global file `~/.henchman/HENCHMAN.md` is handled separately and may still be loaded for either kind of session.
 
 ## MCP Server Configuration
 

@@ -1,0 +1,24 @@
+{
+  "$id": "henchman/contracts/config/tool-settings/v1",
+  "title": "ToolSettings",
+  "description": "Shape contract for the serialised ToolSettings model.",
+  "type": "object",
+  "required": ["auto_approve_read", "shell_timeout", "sandbox"],
+  "properties": {
+    "auto_approve_read": {
+      "type": "boolean",
+      "description": "Whether to auto-approve read-only tools"
+    },
+    "shell_timeout": {
+      "type": "integer",
+      "description": "Default timeout for shell commands in seconds",
+      "minimum": 0
+    },
+    "sandbox": {
+      "type": "string",
+      "enum": ["none", "docker"],
+      "description": "Execution sandbox mode"
+    }
+  },
+  "additionalProperties": false
+}

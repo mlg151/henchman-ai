@@ -43,21 +43,17 @@ def test_visualization():
             if last_arg.title == "Team":
                 print("✅ Table title correct")
             else:
-                print(f"❌ Table title mismatch: {last_arg.title}")
-                return False
+                raise AssertionError(f"Table title mismatch: {last_arg.title}")
 
             # Check columns (might need internal access or check row count)
             if len(last_arg.columns) == 2:
                 print("✅ Table columns correct")
             else:
-                print(f"❌ Table columns mismatch: {len(last_arg.columns)}")
-                return False
+                raise AssertionError(f"Table columns mismatch: {len(last_arg.columns)}")
         else:
-            print(f"❌ Expected Table, got {type(last_arg)}")
-            return False
+            raise AssertionError(f"Expected Table, got {type(last_arg)}")
     else:
-        print("❌ console.print not called for table")
-        return False
+        raise AssertionError("console.print not called for table")
 
     # 2. Test Tree Rendering
     print("\nTesting tree rendering...")
@@ -75,14 +71,11 @@ def test_visualization():
             if "Project" in str(last_arg.label):
                 print("✅ Tree root label correct")
             else:
-                print(f"❌ Tree root label mismatch: {last_arg.label}")
-                return False
+                raise AssertionError(f"Tree root label mismatch: {last_arg.label}")
         else:
-            print(f"❌ Expected Tree, got {type(last_arg)}")
-            return False
+            raise AssertionError(f"Expected Tree, got {type(last_arg)}")
     else:
-        print("❌ console.print not called for tree")
-        return False
+        raise AssertionError("console.print not called for tree")
 
     # 3. Test Diff Rendering
     print("\nTesting diff rendering...")
@@ -97,22 +90,17 @@ def test_visualization():
             if last_arg.lexer.name.lower() == "diff":
                 print("✅ Diff lexer correct")
             else:
-                print(f"❌ Diff lexer mismatch: {last_arg.lexer.name}")
-                return False
+                raise AssertionError(f"Diff lexer mismatch: {last_arg.lexer.name}")
         else:
-            print(f"❌ Expected Syntax, got {type(last_arg)}")
-            return False
+            raise AssertionError(f"Expected Syntax, got {type(last_arg)}")
     else:
-        print("❌ console.print not called for diff")
-        return False
-
-    return True
+        raise AssertionError("console.print not called for diff")
 
 
 if __name__ == "__main__":
     try:
-        success = test_visualization()
-        sys.exit(0 if success else 1)
+        test_visualization()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

@@ -1,6 +1,5 @@
 """Edge case tests for ContentExtractor to address code smells."""
 
-import pytest
 from henchman.utils.intelligent_context import ContentExtractor
 
 
@@ -8,7 +7,7 @@ def test_extract_sections_empty_content():
     """Test extract_sections with empty content."""
     result = ContentExtractor.extract_error_sections("")
     assert result == []
-    
+
     result = ContentExtractor.extract_tool_sections("")
     assert result == []
 
@@ -64,12 +63,12 @@ def test_create_extractor_methods_creates_methods():
     # The method should have been called when the module was imported
     assert hasattr(ContentExtractor, "extract_error_sections")
     assert hasattr(ContentExtractor, "extract_tool_sections")
-    
+
     # Test that the created methods work
     content = "Error: test error\nTool call: test tool"
     error_sections = ContentExtractor.extract_error_sections(content)
     tool_sections = ContentExtractor.extract_tool_sections(content)
-    
+
     assert len(error_sections) == 1
     assert len(tool_sections) == 1
     assert "Error: test error" in error_sections[0]

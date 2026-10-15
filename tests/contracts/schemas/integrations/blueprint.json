@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/integrations/blueprint/v1",
+  "type": "object",
+  "required": ["slug", "surface", "name", "description", "files"],
+  "properties": {
+    "slug": { "type": "string" },
+    "surface": {
+      "type": "string",
+      "enum": ["ide", "desktop", "mobile", "chrome", "communication"]
+    },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["relative_path", "content"],
+        "properties": {
+          "relative_path": { "type": "string" },
+          "content": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

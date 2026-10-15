@@ -17,18 +17,31 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import importlib
 import json
 import logging
 import math
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast
 
-try:
-    import requests as _requests
-except ImportError:  # pragma: no cover
-    _requests = None  # type: ignore[assignment]
+
+class _HttpResponse(Protocol):
+    def raise_for_status(self) -> None: ...
+
+
+class _RequestsExceptions(Protocol):
+    RequestException: type[Exception]
+
+
+class _RequestsModule(Protocol):
+    exceptions: _RequestsExceptions
+
+    def post(self, url: str, **kwargs: object) -> _HttpResponse: ...
+
+
+_requests = cast(_RequestsModule, importlib.import_module("requests"))
 
 if TYPE_CHECKING:
     from henchman.metrics.storage import MetricsStorage
@@ -206,7 +219,7 @@ class SummaryCalculator:
             "total_metrics": len(metrics),
             "metric_types": {},
             "time_range": {"start": None, "end": None},
-            "exported_at": datetime.now(tz=timezone.utc).isoformat(),
+            "exported_at": datetime.now(tz=UTC).isoformat(),
             "filters": filters,
         }
 
@@ -310,7 +323,7 @@ class MetricsExporter:
                 {
                     "metrics": metrics,
                     "count": len(metrics),
-                    "exported_at": datetime.now(tz=timezone.utc).isoformat(),
+                    "exported_at": datetime.now(tz=UTC).isoformat(),
                     "filters": filters,
                 },
                 f,

@@ -1,0 +1,7 @@
+{
+  "$id": "henchman/contracts/agents/completion-status/v1",
+  "title": "CompletionStatus",
+  "description": "Shape contract for CompletionStatus enum values.",
+  "type": "string",
+  "enum": ["completed", "responded", "no_work_done", "stalled", "timed_out", "failed"]
+}
