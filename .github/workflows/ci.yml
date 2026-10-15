@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,47 +14,32 @@ concurrency:
 jobs:
   lint:
     name: Lint & Style
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homeserver]
+    if: github.actor == github.repository_owner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff
-
       - name: Run Ruff Lint
-        run: ruff check src/ tests/
+        run: |
+          uv run ruff check src/ tests/
 
   type-check:
     name: Type Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homeserver]
+    if: github.actor == github.repository_owner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
       - name: Run Mypy
-        run: mypy src/
+        run: |
+          uv run mypy src/
 
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homeserver]
+    if: github.actor == github.repository_owner
     strategy:
       fail-fast: false
       matrix:
@@ -62,39 +48,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
       - name: Run test suite
-        run: pytest tests/ --no-cov
+        run: |
+          uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ --no-cov
 
   build-check:
     name: Build & Package Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homeserver]
+    if: github.actor == github.repository_owner
     needs: [lint, type-check]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install build tooling
+      - name: Build distributions
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-
-      - name: Build sdist and wheel
-        run: python -m build
+          rm -rf dist/
+          uv build
 
       - name: Validate distribution packages
-        run: twine check dist/*
+        run: |
+          uv run --with twine twine check dist/*
