@@ -24,6 +24,15 @@ Latest staging (merged standards PR #5 at `8d9327b`) is also integrated as
 `1af662e`. Its docs-only changes merged cleanly while retaining standards, CI and
 snippet changelog entries; 42 final snippet/documentation/package checks passed.
 
+Integration follow-up: reproduced the stale package scenario's failure at
+`wheel_matches_source`: Python execution now intentionally leaves generated
+sources unchanged, so the combined mutation/build no longer creates a stale
+wheel. Switched only `build_before_format` to a foreground shell invocation,
+whose real workspace formatting occurs after its build. Kept `late_edit` on
+Python execution and added an assertion that the engineer's shell succeeded.
+The repaired single scenario passed, then all nine real package-scenario tests
+passed on the final test code. Focused Ruff, Mypy and whitespace checks passed.
+
 ## Findings and implementation
 
 - Foreground calls previously entered shared workspace snapshots before running;

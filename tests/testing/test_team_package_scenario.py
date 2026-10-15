@@ -132,20 +132,26 @@ def script(defect: str | None = None) -> MockProvider:
             "from pathlib import Path\np = Path('src/release_labels/__init__.py')\n"
             "p.write_text(p.read_text() + '\\nFINAL_CHANGE = True\\n')\n"
         )
-        responses.extend(
-            [
-                tool(
-                    "delegate_task", agent="engineer", task="Update the final source and rebuild."
-                ),
-                tool(
-                    "python_exec",
-                    code=mutate + (BUILD if defect == "build_before_format" else ""),
-                    timeout=90,
-                    background=False,
-                ),
-            ]
+        responses.append(
+            tool("delegate_task", agent="engineer", task="Update the final source and rebuild.")
         )
-        if defect != "build_before_format":
+        if defect == "build_before_format":
+            # Foreground shell formats changed workspace sources after the wheel
+            # build. python_exec intentionally formats only its input snippet.
+            # Shell validation requires a single line without newline escapes.
+            code = (
+                "from pathlib import Path; import shutil, subprocess; "
+                "p = Path('src/release_labels/__init__.py'); "
+                "p.write_text(p.read_text() + chr(10) + 'FINAL_CHANGE = True' + chr(10)); "
+                "subprocess.run([shutil.which('uv'), '--no-config', '--offline', "
+                "'--no-python-downloads', 'build', '--wheel', '--out-dir', 'dist'], "
+                "check=True, timeout=60)"
+            )
+            argv = [sys.executable, "-c", code]
+            command = subprocess.list2cmdline(argv) if os.name == "nt" else shlex.join(argv)
+            responses.append(tool("shell", command=command, timeout=90, background=False))
+        else:
+            responses.append(tool("python_exec", code=mutate, timeout=90, background=False))
             responses.append(tool("python_exec", code=BUILD, timeout=90, background=False))
         responses.append("STATUS: success\nSUMMARY: Updated final source and rebuilt the wheel.")
     responses.append("The required implementation and wheel are ready.")
@@ -203,6 +209,10 @@ async def test_omitted_dependency_inspection_cannot_pass_with_correct_artifacts(
 
 async def test_wheel_built_before_automatic_formatting_requires_rebuild() -> None:
     report = await run(script("build_before_format"))
+    assert any(
+        item["tool_name"] == "shell" and item["source_agent"] == "engineer" and item["success"]
+        for item in report["tool_observations"]
+    ), report
     assert not report["success"]
     check = report["package"]["checks"]["wheel_matches_source"]
     assert not check["success"]
