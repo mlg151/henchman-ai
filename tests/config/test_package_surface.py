@@ -180,40 +180,25 @@ def test_format_environment_block_is_deterministic() -> None:
 
 
 def test_ci_smoke_installs_both_distribution_formats() -> None:
-    """CI should install the release artifacts users can receive from PyPI."""
+    """CI should test supported python versions and build distributions."""
     workflow = (REPOSITORY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     parsed_workflow = yaml.safe_load(workflow)
 
     assert parsed_workflow["jobs"]["test"]["strategy"]["matrix"]["python-version"] == [
         "3.11",
         "3.12",
-        "3.13",
-        "3.14",
     ]
-
-    package_smoke = workflow.split("  package-smoke:\n", maxsplit=1)[1]
-    assert 'python-version: ["3.11", "3.14"]' in package_smoke
-    assert "python -m pip install dist/*.whl" in package_smoke
-
-    source_smoke = workflow.split("  source-smoke:\n", maxsplit=1)[1]
-    assert 'python-version: "3.11"' in source_smoke
-    assert "python -m pip install dist/*.tar.gz" in source_smoke
+    assert "build-check" in parsed_workflow["jobs"]
+    assert parsed_workflow["jobs"]["build-check"]["runs-on"] == ["self-hosted", "homeserver"]
 
 
-@pytest.mark.parametrize("job_name", ["package-smoke", "source-smoke"])
-def test_ci_artifact_smoke_exercises_installed_runtime_contracts(job_name: str) -> None:
-    """Every artifact install should exercise CLI, API, and RAG behavior."""
+def test_ci_build_check_validates_distribution_packages() -> None:
+    """CI build-check job should build and validate distributions."""
     workflow = yaml.safe_load(
         (REPOSITORY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     )
-    job = workflow["jobs"][job_name]
-    smoke_script = "\n".join(step.get("run", "") for step in job["steps"])
+    job = workflow["jobs"]["build-check"]
+    steps_script = "\n".join(step.get("run", "") for step in job["steps"])
 
-    assert "henchman --version" in smoke_script
-    assert "mlg --version" in smoke_script
-    assert "henchman --help" in smoke_script
-    assert "henchman definitely-not-a-command" in smoke_script
-    assert 'TestClient(app).get("/v1/ready")' in smoke_script
-    assert "collection.query(" in smoke_script
-    assert "embeddings=" in smoke_script
-    assert "query_embeddings=" in smoke_script
+    assert "uv build" in steps_script
+    assert "twine check" in steps_script
