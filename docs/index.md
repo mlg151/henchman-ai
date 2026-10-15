@@ -95,6 +95,7 @@ The shared capability matrix is the source of truth for help, doctor, and tool d
 - [Providers](providers.md) - LLM provider setup
 - [Tools](tools.md) - Built-in and custom tools
 - [MCP Integration](mcp.md) - External tool servers
+- [Standards Adoption RFC](standards.md) - Researched MCP, A2A, telemetry, and schema roadmap; adoption remains proposed
 - [Extensions](extensions.md) - Creating plugins
 - [API Reference](api.md) - Programmatic interfaces
 - [Contributing](CONTRIBUTING.md) - How to contribute
