@@ -1,4 +1,5 @@
 """Test configuration and fixtures for pytest."""
+import os
 import sys
 from pathlib import Path
 
@@ -13,3 +14,9 @@ if src_dir_str in sys.path:
 
 # Insert at the beginning to ensure it's found first
 sys.path.insert(0, src_dir_str)
+
+# Ensure default dummy credentials for tests requiring provider configuration
+os.environ.setdefault("DEEPSEEK_API_KEY", "dummy-test-key")
+os.environ.setdefault("OPENAI_API_KEY", "dummy-test-key")
+
+
