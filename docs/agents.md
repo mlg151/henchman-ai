@@ -69,7 +69,11 @@ Delegated tools must be a subset of the caller's current scope. `tools: []`
 grants no tools. Nested spawning requires explicitly delegating `invoke_subagent`
 and remains subject to the child's own scope. There is no fixed roster/count
 limit; provider request limits, available memory, and per-agent execution budgets
-still apply. Subagents inherit execution authorization and plan-mode restrictions.
+still apply. Notification-driven resumptions share the parent run's tool-round
+and tool-call budgets; a new explicit follow-up starts a fresh run budget.
+Subagents inherit execution authorization and plan-mode restrictions.
+Runtime coordination remains responsive while a child executes a foreground
+mutation, including cancellation of that child.
 
 Subagent workers belong to the application process. Exit, interrupted execution,
 history reset, and session-resume commands cancel and join unfinished work before

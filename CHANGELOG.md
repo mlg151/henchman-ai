@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Dynamic background subagents** — The default primary coding agent uses the full live workspace tool suite and can launch custom, scoped conversations with `invoke_subagent`, exchange messages, and inspect or cancel work with `manage_subagents`. Results and assistance requests resume the parent through event queues. CLI exit and conversation resets cancel and join owned workers; named-role delegation remains available. See [agent lifecycle](docs/agents.md#dynamic-background-subagents).
+- **Dynamic background subagents** — The default primary coding agent uses the full live workspace tool suite and can launch custom, scoped conversations with `invoke_subagent`, exchange messages, and inspect or cancel work with `manage_subagents`. Results and assistance requests resume the parent through event queues. CLI exit and conversation resets cancel and join owned workers; named-role delegation remains available. See [agent lifecycle](https://github.com/mlg151/henchman-ai/blob/main/docs/agents.md#dynamic-background-subagents).
+
+### Fixed
+
+- Background-subagent launch, messaging and cancellation remain responsive while a child holds the source-formatting mutation lock. Reactive result notifications preserve cumulative tool-round and tool-call limits.
 
 ## [0.4.0] - 2026-10-14
 

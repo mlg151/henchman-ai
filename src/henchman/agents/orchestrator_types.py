@@ -33,6 +33,8 @@ class AgentLoopParams:
     msg_start_index: int = 0
     brief: dict[str, Any] | None = None
     completion_requirement: CompletionRequirement = CompletionRequirement.ACTIONS
+    prior_tool_rounds: int = 0
+    prior_tool_calls: int = 0
 
 
 @dataclass

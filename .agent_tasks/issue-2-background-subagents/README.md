@@ -20,3 +20,15 @@ The manager provides independent conversation IDs/history, custom roles/prompts,
 The original baseline reproduced three CI-workflow/package-surface failures (7 passed, 3 failed) and three API-lifespan/readiness failures without a DeepSeek key (9 passed, 3 failed). During development, independently merged CI PR #4 aligned the CI contract tests and supplied default fake test credentials. The branch now includes that current main base, and its full relevant suite passes without exclusions. No feature change weakened CI/API assertions to conceal a regression, and the new runtime tests make no live provider calls.
 
 Reference the durable [agent guide](../../docs/agents.md) and [tool guide](../../docs/tools.md) for usage and policy boundaries.
+
+
+## PR review (2026-10-15)
+
+Reviewed PR #7 against staging before merge. Fixed two substantive runtime issues:
+
+- **Runtime-control starvation/deadlock:** `manage_subagents(cancel)`, `invoke_subagent`, and dynamic `send_message` previously waited behind the child's source-mutation formatting lock. A child stuck inside a foreground mutation could therefore prevent its own cancellation. Runtime-only coordination now skips mutation formatting/serialization after normal authorization; actual child mutations retain their shared formatter and policies.
+- **Budget reset on reactive resumption:** each notification restarted the execution loop with fresh tool counters, allowing notification chains to bypass per-run tool-round and dynamic tool-call limits. Reactive resumptions now carry prior counts into enforcement; explicit new runs retain fresh budgets.
+
+TDD reproduced **4 failures / 5 passes** before production fixes (three blocked control operations and one extra tool execution). Final focused runtime/agent/budget/formatter suite: **73 passed**. Added nested dynamic `max_delegation_turns` coverage and fresh independent-run budget coverage. Ruff passed all six touched Python files; Mypy passed all five touched production modules. Updated the durable agent guide and changelog, including a canonical lifecycle link that also works when the changelog is rendered under `docs/`.
+
+No live provider calls were made. Broader combined staging verification is owned by the parent integration review.

@@ -185,6 +185,8 @@ async def run_with_notifications(
                     source_agent=notification.conversation_id,
                 )
             params.input_text = notification_text(notifications)
+            params.prior_tool_rounds = aggregate.tool_round_count
+            params.prior_tool_calls = aggregate.tool_call_count
     finally:
         params.agent.current_turn_messages = transcript
         if observed_state:
