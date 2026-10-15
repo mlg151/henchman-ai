@@ -10,6 +10,7 @@ from henchman.agents.prompts import (
     LEADER_INSTRUCTIONS,
     LINT_ON_WRITE_RULE,
     PLANNER_INSTRUCTIONS,
+    PRIMARY_INSTRUCTIONS,
     SPECIALIST_THINKING,
     THINKING_PROTOCOL,
     VERIFICATION_LOCK,
@@ -28,14 +29,19 @@ def test_base_policies_compose_into_cli_and_team_defaults(role: str | None) -> N
     assert prompt.count(BASE_CONSTRAINTS) == 1
 
 
-def test_thinking_protocol_in_leader_prompt() -> None:
-    """The leader contains one canonical planning fragment."""
-    assert LEADER_INSTRUCTIONS.count(THINKING_PROTOCOL) == 1
+def test_thinking_protocol_in_primary_prompt() -> None:
+    """The actual default primary contains one canonical planning fragment."""
+    assert PRIMARY_INSTRUCTIONS.count(THINKING_PROTOCOL) == 1
+    assert get_agent_prompt("tech_lead").count(THINKING_PROTOCOL) == 1
 
 
-def test_leader_receives_one_canonical_delegation_checklist() -> None:
-    """Check composition only; model adherence needs behavioral evaluation."""
-    assert get_agent_prompt("tech_lead").count(DELEGATION_CHECKLIST) == 1
+def test_primary_receives_dynamic_delegation_guidance_instead_of_static_checklist() -> None:
+    """Check prompt composition; model adherence needs behavioral evaluation."""
+    prompt = get_agent_prompt("tech_lead")
+    assert "invoke_subagent" in prompt
+    assert "tool subset for each conversation" in prompt
+    assert "complete acceptance criteria" in prompt
+    assert DELEGATION_CHECKLIST not in prompt
 
 
 @pytest.mark.parametrize("role", ["engineer", "data_engineer"])

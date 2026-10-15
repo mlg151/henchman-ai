@@ -75,7 +75,7 @@ def effective_scope_tools(parent: ToolRegistry, allowed_tools: list[str]) -> lis
 
 def create_scoped_registry(
     parent: ToolRegistry,
-    allowed_tools: list[str],
+    allowed_tools: list[str] | None,
     extra_tools: list["Tool"] | None = None,
     auto_approve: list[str] | None = None,
     *,
@@ -94,7 +94,7 @@ def create_scoped_registry(
         A new ToolRegistry instance.
     """
     new_registry = ScopedToolRegistry(
-        parent, effective_scope_tools(parent, allowed_tools),
+        parent, effective_scope_tools(parent, allowed_tools) if allowed_tools is not None else None,
         inherit_auto_approve=inherit_auto_approve
     )
 
@@ -404,7 +404,7 @@ class AgentPool:
         provider = self._resolve_provider(config)
         scoped_registry = create_scoped_registry(
             parent=self.parent_tool_registry,
-            allowed_tools=config.tools,
+            allowed_tools=None if "*" in config.tools else config.tools,
             auto_approve=config.auto_approve,
             inherit_auto_approve=role == "tech_lead",
         )
@@ -446,7 +446,7 @@ class AgentPool:
                 available = candidate.tool_registry.get(name) is not None
             else:
                 available = (
-                    name in effective_scope_tools(self.parent_tool_registry, config.tools)
+                    ("*" in config.tools or name in effective_scope_tools(self.parent_tool_registry, config.tools))
                     and self.parent_tool_registry.get(name) is not None
                 )
             if available:

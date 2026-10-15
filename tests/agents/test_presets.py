@@ -16,21 +16,9 @@ def test_get_default_team():
 def test_tech_lead_tools():
     team = get_default_team()
     lead = team["tech_lead"]
-    assert "read_file" in lead.tools
-    assert "ls" in lead.tools
-    assert "glob" in lead.tools
-    assert "grep" in lead.tools
-    assert "shell" in lead.tools
-    assert "web_fetch" in lead.tools
-    assert "web_search" in lead.tools
-    assert "rag_search" in lead.tools
-    assert "kg_query" in lead.tools
-    assert "kg_update" in lead.tools
-    assert "delegate_task" in lead.tools
-    assert "ask_user" in lead.tools
-    # Leader must NOT have write/edit tools
-    assert "write_file" not in lead.tools
-    assert "edit_file" not in lead.tools
+    # A replaceable list, rather than a separate authority flag, follows all tools.
+    assert lead.tools == ["*"]
+    assert lead.name == "Primary"
 
 
 def test_planner_tools():
@@ -165,11 +153,29 @@ async def test_custom_role_allowlist_remains_restricted_with_discovery_tools_reg
 
 
 def test_execution_presets_can_track_multiple_background_jobs():
-    for preset in get_default_team().values():
-        if {"shell", "python_exec"}.intersection(preset.tools):
-            assert {"task_get", "task_list", "task_output", "task_stop"} <= set(preset.tools)
+    pool = _default_pool()
+    for role in pool.configs:
+        registry = pool.get_agent(role).tool_registry
+        if any(registry.get(name) is not None for name in ("shell", "python_exec")):
+            for name in ("task_get", "task_list", "task_output", "task_stop"):
+                assert registry.get(name) is not None
 
 
 def test_default_agents_can_complete_explicit_goals():
-    for preset in get_default_team().values():
-        assert "goal_status" in preset.tools
+    pool = _default_pool()
+    for role in pool.configs:
+        assert pool.get_agent(role).tool_registry.get("goal_status") is not None
+
+
+def _default_pool():
+    """Resolve wildcard and explicit preset lists against the actual tool catalog."""
+    from unittest.mock import MagicMock
+
+    from henchman.agents.pool import AgentPool
+    from henchman.cli.tool_manager import ToolManager
+    from henchman.core.eventbus import EventBus
+    from henchman.providers.base import ModelProvider
+
+    manager = ToolManager()
+    manager.register_builtin_tools()
+    return AgentPool(get_default_team(), MagicMock(spec=ModelProvider), None, manager.registry, EventBus())

@@ -44,6 +44,20 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="background subagents",
+        classification="runtime-dependent",
+        summary="The primary coding agent can launch dynamic background conversations.",
+        detail=(
+            "invoke_subagent creates independent conversations with custom roles, prompts, and "
+            "delegated tool subsets. manage_subagents inspects or cancels them; send_message "
+            "queues conversation messages. A bound orchestrator delivers results and input "
+            "requests reactively at turn boundaries and joins unfinished work on shutdown. "
+            "Standalone tool registration does not bind a runtime."
+        ),
+        aliases=("invoke_subagent", "manage_subagents", "send_message", "dynamic agents"),
+        runtime_tool_names=("invoke_subagent", "manage_subagents", "send_message"),
+    ),
+    _CapabilitySpec(
         name="background shell",
         classification="runtime-wired",
         summary="Shell commands return tracked background task IDs by default; redirects are supported.",
@@ -208,6 +222,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
 )
 
 _TOOL_NAME_TO_CAPABILITY_NAME: Final[dict[str, str]] = {
+    "invoke_subagent": "background subagents",
+    "manage_subagents": "background subagents",
+    "send_message": "background subagents",
     "ask_user": "ask_user",
     "goal_status": "goal",
     "shell": "background shell",

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dynamic background subagents** — The default primary coding agent uses the full live workspace tool suite and can launch custom, scoped conversations with `invoke_subagent`, exchange messages, and inspect or cancel work with `manage_subagents`. Results and assistance requests resume the parent through event queues. CLI exit and conversation resets cancel and join owned workers; named-role delegation remains available. See [agent lifecycle](docs/agents.md#dynamic-background-subagents).
+
 ## [0.4.0] - 2026-10-14
 
 ### Added
