@@ -36,6 +36,7 @@ from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.builtins.rag_search import RagSearchTool
 from henchman.tools.builtins.research_notes import ResearchNotesTool
 from henchman.tools.builtins.shell import ShellTool
+from henchman.tools.builtins.subagents import InvokeSubagentTool, ManageSubagentsTool
 from henchman.tools.builtins.symbol_trace import SymbolTraceTool
 from henchman.tools.builtins.test_gen import TestGenTool
 from henchman.tools.builtins.tier1_tools import SkillTool, SleepTool, ToolSearchTool
@@ -176,11 +177,13 @@ __all__ = [
     "GoalStatusTool",
     "GrepTool",
     "ImportGraphTool",
+    "InvokeSubagentTool",
     "KgQueryTool",
     "KgUpdateTool",
     "LSPTool",
     "LintCheckTool",
     "LsTool",
+    "ManageSubagentsTool",
     "MCPTool",
     "McpAuthTool",
     "PatchApplyTool",
