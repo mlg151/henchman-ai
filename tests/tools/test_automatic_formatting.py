@@ -18,6 +18,14 @@ from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.registry import ToolRegistry
 
 
+class _WorkspacePythonCommand(PythonExecTool):
+    """Exercise default workspace tracking for a generic execute tool."""
+
+    @property
+    def name(self) -> str:
+        return "workspace_python_command"
+
+
 async def test_write_formats_only_explicit_source_even_outside_cwd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -60,7 +68,7 @@ async def test_command_created_sources_are_formatted_but_caches_and_venvs_are_no
     (tmp_path / "dirty.py").write_text("untouched=  1\n")
     (tmp_path / "custom-env").mkdir()
     (tmp_path / "custom-env" / "pyvenv.cfg").write_text("home = example\n")
-    tool = PythonExecTool()
+    tool = _WorkspacePythonCommand()
     code = (
         "from pathlib import Path\n"
         "Path('created.py').write_text('answer=  42\\n')\n"
@@ -204,7 +212,7 @@ async def test_unchanged_oversized_source_does_not_block_command(tmp_path: Path)
     large = tmp_path / "large.py"
     original = "#" + "a" * (2 * 1024 * 1024)
     large.write_text(original)
-    tool = PythonExecTool()
+    tool = _WorkspacePythonCommand()
     result = await PythonAutoFormatter().run(
         tool,
         {"background": False, "cwd": str(tmp_path)},
@@ -226,7 +234,7 @@ async def test_command_workspace_alias_resolves_before_source_tracking(tmp_path:
         alias.symlink_to(project, target_is_directory=True)
     except OSError:
         pytest.skip("Symlinks unavailable")
-    tool = PythonExecTool()
+    tool = _WorkspacePythonCommand()
     result = await PythonAutoFormatter().run(
         tool,
         {"background": False, "cwd": str(alias)},
@@ -296,7 +304,7 @@ async def test_tracking_overflow_prevents_tool_execution(
     monkeypatch.setattr(formatting, "MAX_FILES", 1)
     (tmp_path / "one.py").write_text("one=1\n")
     (tmp_path / "two.py").write_text("two=2\n")
-    tool = PythonExecTool()
+    tool = _WorkspacePythonCommand()
     result = await PythonAutoFormatter().run(
         tool,
         {"background": False, "cwd": str(tmp_path)},

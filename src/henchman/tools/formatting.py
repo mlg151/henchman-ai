@@ -85,6 +85,10 @@ async def _close_invocation(frame: _Invocation, *, cancel: bool = False) -> None
 
 
 def _scope(tool: Tool, params: dict[str, object]) -> _Scope | None:
+    # Snippets own their in-memory formatting; their generated files are never
+    # workspace-tracked. Foreground calls still share transaction serialization.
+    if tool.name == "python_exec":
+        return None
     if tool.name == "lint_check":
         path = params.get("path")
         if isinstance(path, str) and path:
@@ -299,7 +303,7 @@ class PythonAutoFormatter:
         )
         if background:
             result = await execute()
-            if result.success:
+            if result.success and tool.name != "python_exec":
                 return replace(
                     result,
                     content=f"{result.content}\nAutomatic Black formatting skipped for a "

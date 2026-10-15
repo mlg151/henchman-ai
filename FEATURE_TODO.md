@@ -66,6 +66,7 @@ are starting points. Their presence alone does not prove these outcomes.
 - [x] Provide runtime-discoverable Python structure plus bounded syntax-clone, long-method, and deep-nesting candidates through `python_ast`, with file/qualified-symbol locations and explicit coverage/limitations. Semantic duplication and broader code-quality outcomes remain open.
 - [ ] Verify that implementation and refactoring preserve behavior and pass the project's formatting, lint, type, and test gates; report unavailable or failed checks truthfully.
 - [x] Automatically apply Black after authorized Python edits and observed command mutations, before tool results/verification; preserve untouched files, project configuration, explicit failures and execution policy. Manual formatting shares the backend. End-to-end live task quality remains separate.
+- [x] Isolate `python_exec` formatting to its in-memory snippet with a short deadline and warning-only fallback; execute in large workspaces without source tracking in either mode. Generated files require explicit formatting. See [snippet execution](docs/tools.md#python_exec).
 - [x] Classify lint-fix invocations as writes for authorization, Plan Mode and automatic Black formatting, including explicit file/directory targets outside the working directory; keep check-only lint read-only.
 - [ ] Verify Python DevOps workflows from environment/package management through CI, build artifacts, and release preparation, with safe execution and explicit deployment boundaries.
 - [x] Add an offline package artifact evaluation with protected src-layout fixtures, pinned local dependency, independent rebuild/submitted-wheel installation, installed reuse/resource/CLI checks and ordered returned review evidence. Scripted providers validate the evaluator; agent-performed installation/testing, live DevOps competence and hosted CI remain unverified. See [package evaluation](evals/README.md#offline-package-lifecycle-evaluation).
@@ -339,6 +340,24 @@ Completed: workspace tab with agent/memory/task/skill/team/settings/context surf
 - [x] Theme picker
 
 ---
+
+## Standards adoption research and roadmap
+
+The [standards adoption RFC](docs/standards.md) is the canonical research for
+[issue #3](https://github.com/mlg151/henchman-ai/issues/3). Research completion
+does not mean these protocols or schema guarantees have been adopted.
+
+- [x] Record sourced protocol/version research, baseline interface gaps, and phased acceptance criteria for MCP, A2A, OpenTelemetry/evaluation, and tool schemas.
+- [ ] P0: Establish tested protocol/SDK compatibility and dependency bounds.
+- [ ] P1: Validate canonical schemas and preserve MCP client data fidelity.
+- [ ] P2: Migrate modern MCP transport, authentication, resources, and prompts.
+- [ ] P3: Add opt-in telemetry and versioned local evaluation artifacts.
+- [ ] P4: Pilot outbound A2A with independently verified interoperability.
+- [ ] P5: Add controlled inbound serving after the client boundaries are verified.
+
+See the [RFC implementation roadmap](docs/standards.md#phased-implementation-roadmap)
+for each phase's scope and exit criteria. Foundations-first ordering and existing
+runtime authorization remain prerequisites.
 
 ## Implementation Notes
 

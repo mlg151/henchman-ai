@@ -32,3 +32,5 @@ Reviewed PR #7 against staging before merge. Fixed two substantive runtime issue
 TDD reproduced **4 failures / 5 passes** before production fixes (three blocked control operations and one extra tool execution). Final focused runtime/agent/budget/formatter suite: **73 passed**. Added nested dynamic `max_delegation_turns` coverage and fresh independent-run budget coverage. Ruff passed all six touched Python files; Mypy passed all five touched production modules. Updated the durable agent guide and changelog, including a canonical lifecycle link that also works when the changelog is rendered under `docs/`.
 
 No live provider calls were made. Broader combined staging verification is owned by the parent integration review.
+
+Integrated current staging (`0ec2537`, including PR #5 standards and PR #6 snippet formatting) before push; retained all changelog and roadmap entries. Post-integration focused verification pending.

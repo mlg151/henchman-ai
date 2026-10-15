@@ -12,10 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Dynamic background subagents** — The default primary coding agent uses the full live workspace tool suite and can launch custom, scoped conversations with `invoke_subagent`, exchange messages, and inspect or cancel work with `manage_subagents`. Results and assistance requests resume the parent through event queues. CLI exit and conversation resets cancel and join owned workers; named-role delegation remains available. See [agent lifecycle](https://github.com/mlg151/henchman-ai/blob/main/docs/agents.md#dynamic-background-subagents).
+- **Standards adoption research** — Added the [issue #3 RFC](https://github.com/mlg151/henchman-ai/blob/main/docs/standards.md) with sourced MCP/A2A/OpenTelemetry/schema research, baseline interface gaps, and a phased implementation roadmap. Protocol adoption and interoperability guarantees remain proposed work.
 
 ### Fixed
 
 - Background-subagent launch, messaging and cancellation remain responsive while a child holds the source-formatting mutation lock. Reactive result notifications preserve cumulative tool-round and tool-call limits.
+- `python_exec` formats only its in-memory snippet, avoiding workspace traversal and failures above 5,000 sources. Formatting errors and short-deadline timeouts log warnings and preserve original execution in foreground and background modes. Generated Python files require explicit `code_format`.
+- Keep oversized Black snippet expansion from causing Python execution failures by
+  falling back to the original source when formatted output exceeds 12 KiB.
+- Run the normal CI checks for pushes and pull requests targeting the `0.4.1` staging branch before release integration.
 
 ## [0.4.0] - 2026-10-14
 
