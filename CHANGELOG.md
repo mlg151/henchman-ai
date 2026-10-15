@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clarify configured named-role lifecycle companions and exact dynamic-child tool scopes; refresh integration checks for the full default primary catalog and restricted live registration.
 - Background-subagent launch, messaging and cancellation remain responsive while a child holds the source-formatting mutation lock. Reactive result notifications preserve cumulative tool-round and tool-call limits.
 - `python_exec` formats only its in-memory snippet, avoiding workspace traversal and failures above 5,000 sources. Formatting errors and short-deadline timeouts log warnings and preserve original execution in foreground and background modes. Generated Python files require explicit `code_format`.
 - Keep oversized Black snippet expansion from causing Python execution failures by

@@ -116,7 +116,8 @@ hosted CI execution remain unverified.
 The default primary preset uses `tools: ["*"]` to follow the live catalog,
 including tools registered later. Setting an explicit list such as
 `tools: ["read_file", "grep"]` replaces that wildcard and narrows the primary
-scope. Dynamic `invoke_subagent` calls require actual tool names in an explicit
+scope, with the named-role lifecycle companions described under
+[tool scopes](#tool-scopes-and-late-registration). Dynamic `invoke_subagent` calls require actual tool names in an explicit
 subset; they cannot use the configuration wildcard to expand their authority.
 
 ### Planner
@@ -422,9 +423,14 @@ within a task.
 
 The default primary follows the full live registered tool catalog, including
 later registrations. An explicit `agents.agents.tech_lead.tools` list replaces
-that default with a restricted scope. Named specialists use their configured
-allowlists; dynamic children use their explicit delegated subsets for provider
-declarations, discovery, and execution. Registration alone cannot broaden a
+that default with a restricted scope. Configured named roles, including the
+primary, retain registered `goal_status` access; roles allowing a registered
+`shell` or `python_exec` also receive registered `task_get`, `task_list`,
+`task_output`, and `task_stop` companions to follow existing background jobs.
+These companions grant no additional process-launch tools and remain subject to
+execution authorization and plan-mode rules. Dynamic children use exactly their
+explicit delegated subsets, without implicit lifecycle companions, for provider
+declarations, discovery, and execution. Other registrations cannot broaden a
 restricted scope. This applies to normal orchestration and fallback CLI execution.
 
 Allowed tools registered later, including MCP tools, become available to existing
