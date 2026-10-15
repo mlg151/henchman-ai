@@ -22,7 +22,7 @@ jobs:
 
       - name: Run Ruff Lint
         run: |
-          uv run ruff check src/ tests/
+          uv run --extra dev ruff check src/ tests/
 
   type-check:
     name: Type Check
@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Mypy
         run: |
-          uv run mypy src/
+          uv run --extra dev mypy src/
 
   test:
     name: Test (Python ${{ matrix.python-version }})
