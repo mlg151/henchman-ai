@@ -46,12 +46,14 @@ async def format_python_snippet(code: str) -> str:
                 [*_BLACK_SNIPPET_COMMAND, code],
                 cwd=Path(sys.executable).parent,
                 timeout=SNIPPET_FORMAT_TIMEOUT,
-                max_output_bytes=65536,
+                max_output_bytes=MAX_SNIPPET_BYTES,
             )
         if result.returncode != 0:
             diagnostic = result.stderr.decode("utf-8", errors="replace")[-1000:]
             raise ValueError(f"Black exited {result.returncode}: {diagnostic}")
-        if result.stdout_truncated or not result.stdout:
+        if result.stdout_truncated or len(result.stdout) > MAX_SNIPPET_BYTES:
+            raise ValueError(f"formatted snippet exceeds {MAX_SNIPPET_BYTES}-byte formatting limit")
+        if not result.stdout:
             raise ValueError("Black returned incomplete snippet output")
         return result.stdout.decode("utf-8")
     except TimeoutError:

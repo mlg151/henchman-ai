@@ -6,6 +6,15 @@ source tracking. Worktree: `codex/issue-1-snippet-formatting`.
 
 Status: PR #6 targets `0.4.1`. The branch includes current main's independently merged CI PR #4; refreshed checks passed 140 tests (Python execution/snippet/workspace/manual formatting and prompt coverage). Shared prompt guidance explicitly describes generated-file formatting.
 
+Review (2026-10-15): focused review passed 140 tests, Ruff and
+Mypy. Found that Black can expand a 229-byte nested-list expression to 44,039
+bytes, exceeding Windows' process command-line limit. Added failing regressions
+for both execution modes, then capped captured/formatted output at 12 KiB with
+warning fallback to original source. All 19 snippet tests now pass; durable tool
+docs and changelog describe the limit. Native Windows verification remains CI's
+responsibility; local coverage checks the actual Black expansion and both argv
+dispatch paths.
+
 ## Findings and implementation
 
 - Foreground calls previously entered shared workspace snapshots before running;

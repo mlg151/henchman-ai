@@ -211,3 +211,40 @@ async def test_formatter_cancellation_prevents_snippet_execution(
     with pytest.raises(asyncio.CancelledError):
         await PythonExecTool().execute(code="print('never')", background=False)
     run.assert_not_awaited()
+
+
+@pytest.mark.parametrize("background", [False, True])
+async def test_expanded_snippet_uses_original_before_exceeding_process_argument_limits(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+    background: bool,
+) -> None:
+    """Black expansion must not turn a small executable argv into an oversized one."""
+    import black
+
+    from henchman.tools import snippet_formatting
+    from henchman.tools.subprocess_utils import BoundedProcessResult
+
+    original = "values = " + "[" * 100 + "0," * 10 + "]" * 100
+    expanded = black.format_str(original, mode=black.Mode()).encode("utf-8")
+    assert len(expanded) > 32767
+    backend = AsyncMock(return_value=BoundedProcessResult(expanded, b"", 0, False, False))
+    monkeypatch.setattr(snippet_formatting, "run_bounded_subprocess", backend)
+    tool = PythonExecTool()
+    tool.bind_runtime(project_root=tmp_path)
+    if background:
+        start = AsyncMock()
+        start.return_value.task_id, start.return_value.status = "task-test", "running"
+        monkeypatch.setattr(TaskService, "start_task", start)
+    else:
+        run = AsyncMock()
+        monkeypatch.setattr(python_exec, "_run_python_subprocess", run)
+
+    with caplog.at_level(logging.WARNING):
+        await tool.execute(code=original, background=background)
+    if background:
+        assert start.call_args.kwargs["argv"][-1] == original
+    else:
+        assert run.call_args.args[0].code == original
+    assert "formatting limit" in caplog.text
