@@ -33,4 +33,4 @@ TDD reproduced **4 failures / 5 passes** before production fixes (three blocked 
 
 No live provider calls were made. Broader combined staging verification is owned by the parent integration review.
 
-Integrated current staging (`0ec2537`, including PR #5 standards and PR #6 snippet formatting) before push; retained all changelog and roadmap entries. Post-integration focused verification pending.
+Integrated current staging (`0ec2537`, including PR #5 standards and PR #6 snippet formatting) before push; retained all changelog and roadmap entries. Post-integration verification passed: **93 tests**, Ruff for agent sources plus formatter/snippet modules and new regressions, and Mypy for all five modified production modules. Local test output is retained under `validation/review-focused.log`.
