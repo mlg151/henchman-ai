@@ -85,7 +85,8 @@ checkpoints, and background agents do not survive application exit. See the
 
 All default roles include the existing read-only `file_overview`, `symbol_trace`,
 and `pattern_search` tools when registered in the runtime. Custom tool allowlists
-remain explicit; they are not broadened automatically.
+retain the named-role lifecycle companions described under
+[tool scopes](#tool-scopes-and-late-registration).
 
 Generated role prompts ask agents to search for existing implementations and tests
 before introducing new functionality, inspect candidates and callers, and carry
