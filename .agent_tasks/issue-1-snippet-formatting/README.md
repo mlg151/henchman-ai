@@ -4,6 +4,8 @@ Scope: isolate `python_exec` Black formatting to the submitted string; retain
 execution when formatting fails or exceeds its short deadline, with no workspace
 source tracking. Worktree: `codex/issue-1-snippet-formatting`.
 
+Status: PR #6 targets `0.4.1`. The branch includes current main's independently merged CI PR #4; refreshed checks passed 140 tests (Python execution/snippet/workspace/manual formatting and prompt coverage). Shared prompt guidance explicitly describes generated-file formatting.
+
 ## Findings and implementation
 
 - Foreground calls previously entered shared workspace snapshots before running;
