@@ -1,77 +1,136 @@
 name: Release & Publish to PyPI
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
-    inputs:
-      publish_to_pypi:
-        description: 'Publish to PyPI'
-        required: true
-        type: boolean
-        default: true
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-release
+  cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build distributions
+  release:
+    name: Publish tested milestone release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.actor.login == github.repository_owner
     runs-on: [self-hosted, homeserver]
-    if: github.actor == github.repository_owner
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build sdist and wheel
-        run: |
-          rm -rf dist/
-          uv build
-
-      - name: Validate package metadata
-        run: |
-          uv run --with twine twine check dist/*
-
-      - name: Store distribution packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: [self-hosted, homeserver]
-    needs: [build]
-    if: (github.event_name == 'release' || inputs.publish_to_pypi == true) && github.actor == github.repository_owner
     environment:
       name: pypi
       url: https://pypi.org/p/henchman-ai
     permissions:
-      id-token: write  # Mandatory for PyPI Trusted Publishing (OIDC)
-      contents: write  # For attaching assets to GitHub Release if needed
+      contents: write
+      pull-requests: read
     steps:
-      - name: Download distribution packages
-        uses: actions/download-artifact@v4
+      - name: Checkout the tested main commit
+        uses: actions/checkout@v4
         with:
-          name: python-package-distributions
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Resolve merged release PR milestone
+        id: milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const prs = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+              ...context.repo, commit_sha: sha, per_page: 100,
+            });
+            const merged = prs.filter(pr => pr.merged_at && pr.base.ref === 'main' && pr.merge_commit_sha === sha);
+            if (merged.length !== 1 || !merged[0].milestone) {
+              throw new Error('A release requires one merged PR into main with a version milestone.');
+            }
+            core.setOutput('title', merged[0].milestone.title);
+            core.setOutput('pr', merged[0].number);
+
+      - name: Validate milestone and committed versions
+        id: version
+        env:
+          RELEASE_MILESTONE: ${{ steps.milestone.outputs.title }}
+        run: uv run --no-project python src/henchman/ops/release.py check
+
+      - name: Reject conflicting tags
+        id: existing
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const sha = context.payload.workflow_run.head_sha;
+            let ref;
+            try {
+              ref = (await github.rest.git.getRef({...context.repo, ref: 'tags/' + tag})).data;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            if (ref && ref.object.sha !== sha) throw new Error('Release tag already belongs to another commit.');
+
+      - name: Build and validate distributions
+        run: |
+          rm -rf dist/
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          uv build --no-sources
+          uv run --with twine twine check --strict dist/*
+
+      - name: Retain exact release distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.version.outputs.version }}-${{ github.event.workflow_run.head_sha }}-attempt-${{ github.run_attempt }}
           path: dist/
+          if-no-files-found: error
 
-      - name: Publish to PyPI (Trusted Publishing)
-        if: env.PYPI_API_TOKEN == ''
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
+      - name: Publish distributions using the PYPI configuration secret
         env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PYPI: ${{ secrets.PYPI }}
+          RELEASE_MILESTONE: ${{ steps.milestone.outputs.title }}
+        run: uv run --no-project python src/henchman/ops/release.py publish
 
-      - name: Publish to PyPI (API Token)
-        if: env.PYPI_API_TOKEN != ''
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Tag and publish the GitHub release
+        uses: actions/github-script@v7
         env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-
-      - name: Attach artifacts to GitHub Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_PR: ${{ steps.milestone.outputs.pr }}
         with:
-          files: dist/*
+          script: |
+            const fs = require('fs');
+            const tag = process.env.RELEASE_TAG;
+            const sha = context.payload.workflow_run.head_sha;
+            try {
+              const ref = (await github.rest.git.getRef({...context.repo, ref: 'tags/' + tag})).data;
+              if (ref.object.sha !== sha) throw new Error('Release tag belongs to another commit.');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.git.createRef({...context.repo, ref: 'refs/tags/' + tag, sha});
+            }
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              ...context.repo, per_page: 100,
+            });
+            let release = releases.find(item => item.tag_name === tag);
+            if (!release) {
+              release = (await github.rest.repos.createRelease({
+                ...context.repo, tag_name: tag, target_commitish: sha, name: tag, draft: true,
+                body: `Released from PR #${process.env.RELEASE_PR}, commit ${sha}. See CHANGELOG.md for release notes.`,
+              })).data;
+            }
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              ...context.repo, release_id: release.id, per_page: 100,
+            });
+            for (const name of fs.readdirSync('dist')) {
+              if (assets.some(asset => asset.name === name)) continue;
+              const data = fs.readFileSync('dist/' + name);
+              await github.rest.repos.uploadReleaseAsset({
+                ...context.repo, release_id: release.id, name, data,
+                headers: {'content-type': 'application/octet-stream', 'content-length': data.length},
+              });
+            }
+            await github.rest.repos.updateRelease({...context.repo, release_id: release.id, target_commitish: sha, draft: false});

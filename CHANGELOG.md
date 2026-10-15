@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-15
+
 ### Added
+
+- **Milestone releases** — Successful CI for release PRs merged into `main` builds and publishes the matching version using the repository `PYPI` secret, then tags the tested commit and attaches distributions to its GitHub release.
 
 - **Dynamic background subagents** — The default primary coding agent uses the full live workspace tool suite and can launch custom, scoped conversations with `invoke_subagent`, exchange messages, and inspect or cancel work with `manage_subagents`. Results and assistance requests resume the parent through event queues. CLI exit and conversation resets cancel and join owned workers; named-role delegation remains available. See [agent lifecycle](https://github.com/mlg151/henchman-ai/blob/main/docs/agents.md#dynamic-background-subagents).
 - **Standards adoption research** — Added the [issue #3 RFC](https://github.com/mlg151/henchman-ai/blob/main/docs/standards.md) with sourced MCP/A2A/OpenTelemetry/schema research, baseline interface gaps, and a phased implementation roadmap. Protocol adoption and interoperability guarantees remain proposed work.
@@ -911,7 +915,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/mlg151/henchman-ai/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mlg151/henchman-ai/compare/v0.3.17...v0.4.0
 [0.3.13]: https://github.com/mlg151/henchman-ai/compare/v0.3.11...v0.3.13
 [0.3.11]: https://github.com/mlg151/henchman-ai/compare/v0.3.10...v0.3.11
