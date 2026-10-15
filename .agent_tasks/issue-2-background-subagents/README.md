@@ -34,3 +34,8 @@ TDD reproduced **4 failures / 5 passes** before production fixes (three blocked 
 No live provider calls were made. Broader combined staging verification is owned by the parent integration review.
 
 Integrated current staging (`0ec2537`, including PR #5 standards and PR #6 snippet formatting) before push; retained all changelog and roadmap entries. Post-integration verification passed: **93 tests**, Ruff for agent sources plus formatter/snippet modules and new regressions, and Mypy for all five modified production modules. Local test output is retained under `validation/review-focused.log`.
+
+
+## Combined-suite E2E fixture repair (2026-10-15)
+
+The full staging suite exposed two older E2E scenarios relying on the former default primary restrictions: denying a direct edit and discovering a required verification tool available only to specialists. Reproduced both failures with Ollama's offline transport before edits. These scenarios now configure explicit restricted primary allowlists; the ordinary headless scenario still uses the unrestricted default. All negative denial, local-discovery, schema-isolation, specialist-routing and observed-result assertions remain unchanged. Production defaults are unchanged. All **30 provider/output/pass-fail combinations pass**, and Ruff passes for both files. Mypy of these legacy E2E test files reports **30 existing errors in 3 test modules**; the original staging contents reproduced the same count with `--shadow-file` baseline checks. No new Mypy diagnostics originate from the fixture additions. Red/green test logs and baseline type diagnostics are retained under `validation/`.

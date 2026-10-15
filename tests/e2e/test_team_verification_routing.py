@@ -8,7 +8,7 @@ import pytest
 from tests.e2e.test_coding_loop import anthropic_response, compatible_response
 
 from henchman.agents.orchestrator import Orchestrator
-from henchman.config.schema import ProviderSettings, Settings
+from henchman.config.schema import AgentConfig, ProviderSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.factory import create_configured_provider
 from henchman.tools.builtins.pytest_run import PytestRunTool
@@ -105,6 +105,13 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     registry.add_auto_approve_policy("pytest_run")
     settings = Settings(providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
+    # Team discovery is needed when a user explicitly excludes the required local tool.
+    settings.agents.agents["tech_lead"] = AgentConfig(
+        name="Restricted primary",
+        role="tech_lead",
+        description="Discover and delegate verification outside its own scope",
+        tools=["tool_search", "delegate_task"],
+    )
     orch = Orchestrator(default_provider=provider, tool_registry=registry, settings=settings)
     try:
         events = [event async for event in orch.run("Use pytest_run to verify test_total.py.")]
