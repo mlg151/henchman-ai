@@ -44,6 +44,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
+    env:
+      DEEPSEEK_API_KEY: "dummy-test-key"
+      OPENAI_API_KEY: "dummy-test-key"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
