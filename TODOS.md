@@ -35,6 +35,7 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- Standards research for [issue #3](https://github.com/mlg151/henchman-ai/issues/3) is documented in the [standards adoption RFC](docs/standards.md), including sourced versions, baseline gaps, and acceptance criteria. The [P0–P5 adoption phases](FEATURE_TODO.md#standards-adoption-research-and-roadmap) remain unchecked implementation work; no new protocol support is claimed.
 - An explicit production-team eval now measures attributed inspection, implementation, post-edit tests and specialist review against independent Python reuse/CLI/quality checks. The first bounded MiMo/OpenRouter sample produced passing artifacts but timed out before completing tests and review; investigate coordination and latency before claiming team effectiveness. See [team evaluations](evals/README.md#production-team-evaluation).
 - Leader startup now uses the same configured, cached agent as direct execution. Partial builtin-role settings inherit preset metadata; provider/model/prompt overrides and model/context switching have offline coverage. See [team configuration](docs/agents.md#configuration).
 - Default workspace policy now returns short discovery findings inline and creates supporting artifacts for explicit requirements or useful durable work. A bounded live Explorer check completed without artifacts; overall team efficiency remains under evaluation. See [workspace conventions](docs/agents.md#agent-workspace-conventions).
