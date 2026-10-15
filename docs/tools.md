@@ -261,29 +261,31 @@ Search file contents with regular expressions.
 
 #### Automatic Python formatting
 
-The harness runs Black after authorized file edits and foreground commands, before returning
+The harness runs Black after authorized file edits and foreground workspace commands, before returning
 their tool results. Verification therefore sees the formatted files without a
 separate model formatting call. Black uses the project's `pyproject.toml` settings;
 the normal Black defaults apply when none are configured. It is included as a
 runtime dependency.
 
-Background `shell` and `python_exec` launches return before source writes finish,
-so they skip automatic formatting and explicitly report that in the receipt.
-Run `code_format` after those jobs complete and before dependent checks, or use
-`background: false`. See [background execution](#background-execution).
+`python_exec` formats only its supplied snippet, before foreground execution or
+background launch. It never scans or formats workspace files, including files
+created by the snippet. Its formatting is best effort; see [python_exec](#python_exec).
+Background `shell` launches also skip workspace formatting and report that in
+the receipt. Run `code_format` on generated Python files before dependent checks.
+See [background execution](#background-execution).
 
 For a command that both edits source and runs checks or builds artifacts, Black
 runs after that command completes. Run verification or the build in a subsequent
 call so it uses the formatted sources.
 
 Direct `write_file` and `edit_file` calls track their Python target. Other write
-and execute tools track changed `.py` and `.pyi` files in their working directory.
+and execute tools, except `python_exec`, track changed `.py` and `.pyi` files in their working directory.
 Unchanged files retain their existing formatting. Command tracking prunes child
 symlinks, virtual environments, dependency/cache directories and build outputs.
 Background writes or command writes outside that working directory are not
 attested by these snapshots. Explicit file edits can target other directories.
 
-Tracking is bounded to 5,000 source files and 20,000 directory entries. Black runs
+Workspace tracking is bounded to 5,000 source files and 20,000 directory entries. Black runs
 with one worker and a combined 30-second deadline; each changed source is limited
 to 2 MiB. Tracking, parsing, configuration and formatter failures are reported as
 unsuccessful tool results. A failed command remains failed even if its partial
@@ -610,6 +612,19 @@ The `command` argument and shell syntax are not translated into Python. Missing
 or blank code returns guidance and performs no execution; use `shell` only when
 it is allowed in the current tool scope.
 
+Before either execution mode, an isolated worker applies Black's in-memory
+string API with default settings to the snippet. It does not inspect the working
+directory or load project Black configuration. Formatting has a 300 ms deadline,
+with time reserved for worker cleanup within a half-second overhead budget;
+snippets larger than 12 KiB skip formatting. Formatting errors, unavailable Black,
+incomplete output, and timeouts log a warning and execute the original source.
+Python syntax/runtime errors and execution timeouts still report execution failures.
+Cancellation stops formatting and prevents execution.
+
+Workspace files are never tracked or automatically formatted by `python_exec`,
+even for foreground calls or repositories with more than 5,000 sources. Use
+`code_format` explicitly for generated Python files before dependent verification.
+
 ```json
 {
   "name": "python_exec",
@@ -708,10 +723,11 @@ an earlier one. A launch receipt means the process started, not that it passed.
 
 Use the ID from each launch when checking results. Python output is unbuffered
 and UTF-8. Both tools retain `cwd` and timeout behavior (`0` means unlimited).
-Automatic formatting is skipped at background launch because the process may
+Workspace formatting is skipped at background launch because the process may
 still be writing files. After completion, run `code_format` on changed Python
-files before dependent verification, or use `background: false` for the existing
-automatic-formatting transaction. Launch receipts explain this distinction.
+files before dependent verification. Foreground `shell` calls use the automatic
+workspace-formatting transaction; `python_exec` only formats its input snippet
+in either mode. Launch receipts explain when generated files need explicit formatting.
 Keep commands in the foreground of their own subprocess (omit trailing `&`) so
 the task ID represents their lifetime. On POSIX, child processes in the owned
 process group are terminated when the parent exits or the task is stopped.
