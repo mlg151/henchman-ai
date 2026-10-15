@@ -15,6 +15,12 @@ docs and changelog describe the limit. Native Windows verification remains CI's
 responsibility; local coverage checks the actual Black expansion and both argv
 dispatch paths.
 
+Final review verification after merging staging CI commit `ac05eab`: 166 tests
+passed across snippet/execution/recovery, automatic/manual/registry formatting,
+background execution, prompts and package surface. Ruff passed touched Python
+files; Mypy passed all four changed production modules. Whitespace checks passed.
+Review fix: `414a333`; staging merge: `d32e15a`.
+
 ## Findings and implementation
 
 - Foreground calls previously entered shared workspace snapshots before running;
@@ -38,4 +44,5 @@ dispatch paths.
   including Python-based verification waiting for an in-flight file edit.
 - Ruff passed all touched Python modules/tests; Mypy passed the three touched
   production modules. `git diff --check` passed.
-- No production API calls, GitHub mutations, or source-repository edits.
+- No production API calls. Review fixes are committed and pushed only to the
+  authorized PR branch; merge is handled by the parent release task.
