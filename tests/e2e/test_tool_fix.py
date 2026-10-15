@@ -225,15 +225,12 @@ def test_all_builtin_tools_registered():
     for tool in expected_tools:
         assert tool in registered_tools, f"Tool {tool} not registered"
 
-    # Tech Lead delegates file edits to the engineer while retaining other tools.
+    # The default primary has the full live catalog; specialists retain their scopes.
     agent_tools = repl.agent.tools.list_tools()
     engineer_tools = repl.orchestrator.pool.get_agent("engineer").tools.list_tools()
-    for tool in expected_tools:
-        if tool in {"edit_file", "write_file"}:
-            assert tool not in agent_tools, f"Tool {tool} must be delegated"
-            assert tool in engineer_tools, f"Tool {tool} not in engineer tools"
-        else:
-            assert tool in agent_tools, f"Tool {tool} not in agent tools"
+    assert repl.orchestrator.pool.configs["tech_lead"].tools == ["*"]
+    assert set(agent_tools) == set(registered_tools)
+    assert {"edit_file", "write_file"} <= set(engineer_tools)
     assert "delegate_task" in agent_tools, "delegate_task not in agent tools"
 
 
