@@ -9746,7 +9746,11 @@ tests/tools/test_shell_advanced.py ....                                  [ 86%]
 tests/tools/test_shell_interactive.py ..[2026-02-26T02:15:03Z] Starting auto-improve run...
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  5.03it/s]Fetching 5 files:  40%|████      | 2/5 [00:16<00:29,  9.78s/it]Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.34s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  5.03it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:16<00:29,  9.78s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.34s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by checking what was done in the last improvement to avoid repeating it.
 [tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
@@ -10066,7 +10070,11 @@ Now let me run the tests to make sure nothing breaks:
 [2026-02-26T03:00:01Z] Starting auto-improve run...
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  6.59it/s]Fetching 5 files:  40%|████      | 2/5 [00:19<00:34, 11.35s/it]Fetching 5 files: 100%|██████████| 5/5 [00:19<00:00,  3.87s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  6.59it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:19<00:34, 11.35s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:19<00:00,  3.87s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by checking what was changed last time to avoid repeating the same improvement.
 [tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
@@ -17893,8 +17901,11 @@ But wait, I need to check the function-based tests too:The doc❌ Provider Error
 string[2026-02-26T12:15:02Z] Starting auto-improve run...
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  40%|████      | 2/5 [00:14<00:21,  7.29s/it]Fetching 5 files: 100%|██████████| 5/5 [00:14<00:00,  2.92s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Fetching 5 files:  40%|████      | 2/5 [00:14<00:21,  7.29s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:14<00:00,  2.92s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by checking what was changed last time to avoid repeating the same improvement.
 [tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
@@ -257372,8 +257383,12 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T17:30:04Z] Targeting lowest-graded file: cli/console.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.87it/s]Fetching 5 files:  40%|████      | 2/5 [00:23<00:41, 13.88s/it]Fetching 5 files: 100%|██████████| 5/5 [00:23<00:00,  4.73s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.87it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:23<00:41, 13.88s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:23<00:00,  4.73s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/cli/console.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and then systematically refactor it.
 [tool] read_file({'path': 'src/henchman/cli/console.py'})
@@ -258517,8 +258532,12 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T19:00:04Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  7.19it/s]Fetching 5 files:  40%|████      | 2/5 [00:23<00:41, 13.95s/it]Fetching 5 files: 100%|██████████| 5/5 [00:23<00:00,  4.75s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  7.19it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:23<00:41, 13.95s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:23<00:00,  4.75s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by examining the target file to understand its structure and the specific smells that need to be addressed.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -258746,8 +258765,12 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T19:30:02Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.68it/s]Fetching 5 files:  40%|████      | 2/5 [00:13<00:24,  8.09s/it]Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.77s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.68it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:13<00:24,  8.09s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.77s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/metrics/storage.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and the specific smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -258927,7 +258950,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T20:00:03Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.47it/s]Fetching 5 files:  40%|████      | 2/5 [00:17<00:31, 10.37s/it]Fetching 5 files: 100%|██████████| 5/5 [00:17<00:00,  3.54s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.47it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:17<00:31, 10.37s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:17<00:00,  3.54s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/metrics/storage.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify the specific smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -259176,8 +259203,12 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T20:30:02Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.87it/s]Fetching 5 files:  40%|████      | 2/5 [00:13<00:22,  7.62s/it]Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.60s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.87it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:13<00:22,  7.62s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.60s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/metrics/storage.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and issues.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -260062,7 +260093,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T21:00:03Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  5.70it/s]Fetching 5 files:  40%|████      | 2/5 [00:16<00:29,  9.79s/it]Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.34s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  5.70it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:16<00:29,  9.79s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.34s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by examining the target file to understand its structure and identify the specific smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -260217,7 +260252,10 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-02T21:30:04Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  40%|████      | 2/5 [00:16<00:24,  8.10s/it]Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.24s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:16<00:24,  8.10s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.24s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/metrics/storage.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify all the smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -260348,7 +260386,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-03T00:00:02Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  6.65it/s]Fetching 5 files:  40%|████      | 2/5 [00:12<00:21,  7.04s/it]Fetching 5 files: 100%|██████████| 5/5 [00:12<00:00,  2.40s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  6.65it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:12<00:21,  7.04s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:12<00:00,  2.40s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll analyze the target file `src/henchman/metrics/storage.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify all the smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -260762,7 +260804,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-03T00:30:03Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.32it/s]Fetching 5 files:  40%|████      | 2/5 [00:13<00:23,  7.95s/it]Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.72s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  4.32it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:13<00:23,  7.95s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:13<00:00,  2.72s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll refactor the `src/henchman/metrics/storage.py` file to address all the code smells listed in the report. Let me first read the file to understand its structure and then systematically address each smell.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -262155,7 +262201,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-03T01:15:03Z] Targeting lowest-graded file: metrics/storage.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.11it/s]Fetching 5 files:  40%|████      | 2/5 [00:15<00:26,  8.93s/it]Fetching 5 files: 100%|██████████| 5/5 [00:15<00:00,  3.06s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:01,  3.11it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:15<00:26,  8.93s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:15<00:00,  3.06s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by examining the target file `src/henchman/metrics/storage.py` to understand its structure and identify all the smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/metrics/storage.py'})
@@ -689444,7 +689494,11 @@ Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.m
 [2026-03-14T15:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  7.31it/s]Fetching 5 files:  40%|████      | 2/5 [00:16<00:28,  9.53s/it]Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.25s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  7.31it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:16<00:28,  9.53s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:16<00:00,  3.25s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
 I'll start by reading the smell report to understand the context, then examine the target file and its tests.
 [tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})

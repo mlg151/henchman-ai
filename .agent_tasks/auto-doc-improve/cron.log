@@ -51928,7 +51928,11 @@ Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  8.38it/s]Fetching 5 files:  40%|████      | 2/5 [00:18<00:32, 10.97s/it]Fetching 5 files: 100%|██████████| 5/5 [00:18<00:00,  3.74s/it]
+
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  8.38it/s]
+Fetching 5 files:  40%|████      | 2/5 [00:18<00:32, 10.97s/it]
+Fetching 5 files: 100%|██████████| 5/5 [00:18<00:00,  3.74s/it]
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
 I'll start by examining the current state of the documentation improvement task and check what was last changed.
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
