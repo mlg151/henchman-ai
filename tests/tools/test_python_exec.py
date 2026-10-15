@@ -182,6 +182,7 @@ print(greet("World"))
         mock_process.wait = AsyncMock()
 
         with (
+            patch("henchman.tools.builtins.python_exec.format_python_snippet", AsyncMock(return_value='print("hello")')),
             patch("asyncio.create_subprocess_exec", return_value=mock_process),
             pytest.raises(asyncio.CancelledError),
         ):

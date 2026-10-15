@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `python_exec` formats only its in-memory snippet, avoiding workspace traversal and failures above 5,000 sources. Formatting errors and short-deadline timeouts log warnings and preserve original execution in foreground and background modes. Generated Python files require explicit `code_format`.
+
 ## [0.4.0] - 2026-10-14
 
 ### Added
