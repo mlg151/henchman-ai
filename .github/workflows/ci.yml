@@ -50,7 +50,8 @@ jobs:
 
       - name: Run test suite
         run: |
-          uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ --no-cov
+          echo "::remove-matcher owner=checkout-git::"
+          uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ -q --no-cov
 
   build-check:
     name: Build & Package Validation
