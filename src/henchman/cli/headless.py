@@ -99,4 +99,6 @@ async def run_orchestrator_json(
         return _finish_run(
             role, outcome.completion, render_event, f"{type(exc).__name__}: {exc}",
         )
+    finally:
+        await orchestrator.aclose()
     return _finish_run(role, outcome.completion, render_event)

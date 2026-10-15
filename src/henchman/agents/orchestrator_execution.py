@@ -142,7 +142,9 @@ class ExecutionController:
                     break
 
                 if pending:
-                    budget_events = _check_tool_round_budget(agent, state)
+                    budget_events = _check_tool_round_budget(
+                        agent, state, prior_tool_rounds=params.prior_tool_rounds,
+                    )
                     if budget_events is not None:
                         for event in budget_events:
                             yield event
@@ -238,12 +240,14 @@ class ExecutionController:
         return assess_agent_completion(self.orchestrator, agent)
 
 
-def _check_tool_round_budget(agent: Agent, state: LoopState) -> list[AgentEvent] | None:
+def _check_tool_round_budget(
+    agent: Agent, state: LoopState, *, prior_tool_rounds: int = 0,
+) -> list[AgentEvent] | None:
     """Reject a new tool batch after the finite per-agent round budget is spent."""
     limit = getattr(agent, "base_tool_iterations", AgentConfig().base_tool_iterations)
     if type(limit) is not int or limit < 0:
         raise ValueError("base_tool_iterations must be a nonnegative integer")
-    if state.tool_round_count < limit:
+    if prior_tool_rounds + state.tool_round_count < limit:
         return None
     state.timed_out = True
     reason = f"Tool iteration limit ({limit}) reached"

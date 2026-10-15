@@ -291,6 +291,12 @@ class PythonAutoFormatter:
         execute: Callable[[], Awaitable[ToolResult]],
     ) -> ToolResult:
         """Execute once, format observed source mutations, and preserve tool failures."""
+        # Runtime coordination must remain available while a child holds the
+        # mutation lock, especially when the parent needs to cancel that child.
+        if tool.name in {"invoke_subagent", "manage_subagents"} or (
+            tool.name == "send_message" and "conversation_id" in params
+        ):
+            return await execute()
         background = tool.name == "task_create" or (
             tool.name in {"shell", "shell_secure", "python_exec"}
             and bool(params.get("background", True))

@@ -1,17 +1,24 @@
-# Multi-Agent Dev Team
+# Primary Agent and Background Subagents
 
-Henchman-AI coordinates specialist agents for planning, discovery, implementation,
-and verification. Per-role tool scopes and runtime policies govern execution;
-completion metadata records observed outcomes.
+Henchman-AI starts with one primary coding agent that can inspect, edit, execute,
+and verify work directly using the available workspace tools. It can launch
+focused background subagents with custom instructions and explicit tool subsets.
+Configured scopes and runtime policies still govern execution; completion
+metadata records observed outcomes.
 
 ## Architecture
 
-At the core of the system is the **Orchestrator**, which manages a team of specialist agents.
+The **Orchestrator** owns the primary conversation and the background subagent
+lifecycle. Existing named-role delegation remains available for compatibility.
 
 ```mermaid
 graph TD
-    User([User]) --> TL[Tech Lead]
-    TL -- delegate_task --> Specialists[Specialist Agents]
+    User([User]) --> TL[Primary Coding Agent]
+    TL -- direct tools --> Workspace[Workspace]
+    TL -- invoke_subagent --> Dynamic[Background Conversations]
+    Dynamic -- notifications --> TL
+    TL -- send_message --> Dynamic
+    TL -- delegate_task --> Specialists[Optional Named Specialists]
     Specialists -- results --> TL
     TL -- final response --> User
     
@@ -22,20 +29,59 @@ graph TD
         DataEngineer[Data Engineer (data_engineer)]
     end
     
-    subgraph "Communication"
-        EB[EventBus]
-        Agents -- delegate_task --> EB
-        EB -- events --> Agents
-    end
 ```
 
 ### Key Components
 
-- **Orchestrator**: The brain of the team. It receives user input, delegates to specialists, and synthesizes results.
+- **Orchestrator**: Runs the primary agent, owns background conversations, and delivers their updates at safe turn boundaries.
+- **BackgroundSubagentManager**: Tracks distinct conversation IDs, scoped tools, message queues, results, and cancellation.
 - **EventBus**: A pub/sub system that allows agents to communicate with each other asynchronously.
 - **AgentPool**: Manages the lifecycle and instantiation of agents, providing scoped tool access and role-specific prompts.
 
-## Agent Roster
+## Dynamic Background Subagents
+
+The primary uses `invoke_subagent` with a task, descriptive role, custom system
+prompt, and explicit list of tools. It receives a `conversation_id` immediately
+and continues working while the child runs. Roles are descriptive labels rather
+than entries in a fixed roster; multiple conversations can use the same role.
+Each conversation has its own history, while all agents share the workspace.
+Coordinate file ownership to avoid conflicting edits.
+
+`send_message(conversation_id=..., message=...)` queues guidance or follow-up work.
+A follow-up to a finished child reopens its existing conversation and retains its
+history. Children can message their parent using `conversation_id="parent"`.
+They cannot inspect or control unrelated sibling conversations.
+
+`manage_subagents` lists owned conversations, gets one result, or cancels one
+conversation and its descendants. Records expose `running`, `idle`,
+`waiting_for_input`, `errored`, or `done`, along with output, error, and cancellation
+fields. `done` records may have `cancelled: true`; inspect the actual outcome.
+Stored result text and recent diagnostic events are bounded; `output_truncated`
+indicates when text was shortened.
+
+Results, failures, and requests for assistance wake the parent through an event
+queue after the active model turn finishes. The runtime waits for updates without
+repeated status polling. A child's `ask_user` request goes to its parent; the
+parent can reply with `send_message` or ask the actual user through its existing
+interactive channel. Headless operation does not create a terminal input channel.
+
+Delegated tools must be a subset of the caller's current scope. `tools: []`
+grants no tools. Nested spawning requires explicitly delegating `invoke_subagent`
+and remains subject to the child's own scope. There is no fixed roster/count
+limit; provider request limits, available memory, and per-agent execution budgets
+still apply. Notification-driven resumptions share the parent run's tool-round
+and tool-call budgets; a new explicit follow-up starts a fresh run budget.
+Subagents inherit execution authorization and plan-mode restrictions.
+Runtime coordination remains responsive while a child executes a foreground
+mutation, including cancellation of that child.
+
+Subagent workers belong to the application process. Exit, interrupted execution,
+history reset, and session-resume commands cancel and join unfinished work before
+releasing its runtime resources. Completed child histories are not durable session
+checkpoints, and background agents do not survive application exit. See the
+[tool reference](tools.md#background-subagent-tools) for call shapes.
+
+## Optional Named Roles
 
 All default roles include the existing read-only `file_overview`, `symbol_trace`,
 and `pattern_search` tools when registered in the runtime. Custom tool allowlists
@@ -62,10 +108,16 @@ returned specialist review of final source. Its independent offline build,
 installation and CLI checks are evaluator evidence; agent-side installation and
 hosted CI execution remain unverified.
 
-### Tech Lead (Leader)
-- **Role**: Team lead and strategist.
-- **Responsibilities**: Decomposes user requirements, delegates to specialists, and ensures final quality.
-- **Tools**: File reading and discovery, web, knowledge, git and shell tools, plus `delegate_task`, `ask_user` and `verify_plan_execution`. File edits are delegated by default. Shell, git, knowledge and verification tools can execute commands or change state and follow normal approval policies.
+### Primary (`tech_lead` compatibility role)
+- **Role**: Primary coding agent; the existing `tech_lead` configuration key is retained.
+- **Responsibilities**: Owns inspection, implementation, verification, and final reporting; creates focused subagents when useful.
+- **Tools**: The full live registered workspace tool suite by default, including file edits, shell, analysis, diagnostics, verification, and dynamic subagent tools. Explicit user tool restrictions and normal execution approvals remain binding.
+
+The default primary preset uses `tools: ["*"]` to follow the live catalog,
+including tools registered later. Setting an explicit list such as
+`tools: ["read_file", "grep"]` replaces that wildcard and narrows the primary
+scope. Dynamic `invoke_subagent` calls require actual tool names in an explicit
+subset; they cannot use the configuration wildcard to expand their authority.
 
 ### Planner
 - **Role**: Architecture and task decomposition specialist.
@@ -90,7 +142,8 @@ hosted CI execution remain unverified.
 ## Usage
 
 ### Interactive Mode
-By default, you talk to the **Tech Lead**. They will automatically delegate tasks to specialists as needed.
+By default, you talk to the **Primary** coding agent. It can work directly and
+create background subagents when independent work benefits from delegation.
 
 ```bash
 henchman
@@ -265,7 +318,7 @@ limits apply separately. A completed round records only that agent's tool calls.
 Task correctness still requires suitable artifact and test evidence; runtime
 completion retains `task_verified: false`.
 
-Each specialist receives its current execution limits with the delegation input.
+Each named specialist receives its current execution limits with the delegation input.
 It also receives the full original user request as mission context, including
 requirements beyond the status board's 500-character goal preview. The delegated
 task and its completion criteria define that specialist's assignment; the mission
@@ -354,7 +407,7 @@ REPL and Textual provider/model labels describe the acting agent, which may diff
 from the team default. The REPL token percentage uses its explicit context
 capacity when configured.
 
-Delegation reserves the target agent before resetting its previous task history.
+Legacy named-role delegation reserves the target agent before resetting its previous task history.
 An already running or reserved instance cannot receive another delegation,
 including self-delegation and delegation back to a waiting ancestor. The caller
 receives a failed tool result and can choose another specialist. Reservations
@@ -367,15 +420,17 @@ within a task.
 
 ### Tool scopes and late registration
 
-The leader and specialists each use their configured `tools` allowlist for
-provider declarations, scoped discovery and execution. Custom lists are explicit:
-including a tool in the runtime catalog grants no access to an agent that omits
-it. This applies to normal orchestration and fallback CLI execution.
+The default primary follows the full live registered tool catalog, including
+later registrations. An explicit `agents.agents.tech_lead.tools` list replaces
+that default with a restricted scope. Named specialists use their configured
+allowlists; dynamic children use their explicit delegated subsets for provider
+declarations, discovery, and execution. Registration alone cannot broaden a
+restricted scope. This applies to normal orchestration and fallback CLI execution.
 
 Allowed tools registered later, including MCP tools, become available to existing
 agents. Subsequent lookups and calls reflect parent removal or replacement.
-An MCP tool must be named in the role's allowlist; registering a new server does
-not expand custom lists. `/tools` shows the registered runtime catalog, while an
+An MCP tool must be named in a restricted role's allowlist; registering a new server does
+not expand custom lists or a child's delegated subset. `/tools` shows the registered runtime catalog, while an
 agent's `tool_search` searches its current scope.
 
 An agent whose scope includes `delegate_task` can explicitly search enabled team

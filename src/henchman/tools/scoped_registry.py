@@ -12,13 +12,13 @@ class ScopedToolRegistry(ToolRegistry):
     def __init__(
         self,
         parent: ToolRegistry,
-        allowed_tools: list[str],
+        allowed_tools: list[str] | None,
         *,
         inherit_auto_approve: bool = False,
     ) -> None:
         super().__init__(retry_config=parent._retry_config)
         self._parent = parent
-        self._allowed_tools = tuple(dict.fromkeys(allowed_tools))
+        self._allowed_tools = tuple(dict.fromkeys(allowed_tools)) if allowed_tools is not None else None
         self._excluded_tools: set[str] = set()
         self._inherit_auto_approve = inherit_auto_approve
         self._search_source: Tool | None = None
@@ -43,14 +43,15 @@ class ScopedToolRegistry(ToolRegistry):
         if (
             tool is None
             and name not in self._excluded_tools
-            and name in self._allowed_tools
+            and (self._allowed_tools is None or name in self._allowed_tools)
         ):
             tool = self._parent.get(name)
         return self._search_for_scope(tool) if name == "tool_search" else tool
 
     def list_tools(self) -> list[str]:
         """List current allowed and local names once, in stable scope order."""
-        names = dict.fromkeys((*self._allowed_tools, *self._tools))
+        inherited = self._parent.list_tools() if self._allowed_tools is None else self._allowed_tools
+        names = dict.fromkeys((*inherited, *self._tools))
         return [name for name in names if self.get(name) is not None]
 
     @property

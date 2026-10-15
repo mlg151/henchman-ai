@@ -9,7 +9,7 @@ actual widget rendering, composition, and interaction flows.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from textual.widgets import (
@@ -95,10 +95,14 @@ def _patch_core_init():
     """
     mock_core_context = MagicMock()
     mock_core_context.orchestrator = MagicMock()
+    mock_core_context.orchestrator.aclose = AsyncMock()
     mock_core_context.tool_manager = MagicMock()
     mock_core_context.session_manager = MagicMock()
+    mock_core_context.session_manager.current = None
     mock_core_context.plugin_manager = MagicMock()
     mock_core_context.mcp_manager = MagicMock()
+    mock_core_context.mcp_manager.disconnect_all = AsyncMock()
+    mock_core_context.background_tasks = set()
     mock_core_context.agent = MagicMock()
     mock_core_context.tool_registry = MagicMock()
 

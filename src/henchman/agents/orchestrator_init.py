@@ -133,6 +133,9 @@ def _init_agents(
         run_agent_loop=orch.execution_controller.run_agent_loop,
         assess_completion=orch.execution_controller.assess_completion,
     )
+    from henchman.agents.subagent_runtime import initialize_subagents
+
+    initialize_subagents(orch)
 
 
 def _create_pool(

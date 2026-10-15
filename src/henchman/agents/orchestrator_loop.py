@@ -183,7 +183,7 @@ def check_turn_limits(
     enforcement = TurnEnforcementParams(
         agent=agent,
         max_turns=params.max_turns,
-        tool_call_count=state.tool_call_count,
+        tool_call_count=params.prior_tool_calls + state.tool_call_count,
         msg_start_index=params.msg_start_index,
         wrapup_warned=state.wrapup_warned,
     )

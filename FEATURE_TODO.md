@@ -31,6 +31,9 @@ primary integration while preserving independent provider adapters.
 
 ### Python development and team leadership
 
+- [x] Default to a primary coding agent with the full live tool suite; preserve explicit user scopes and named-role compatibility. Add custom background conversations, asynchronous messaging, lifecycle status, reactive parent notifications, and cancellation/join on CLI exit and history/session changes. See [dynamic subagents](docs/agents.md#dynamic-background-subagents).
+- [ ] Measure live-model dynamic delegation effectiveness, provider concurrency behavior, and whole-process memory under representative workloads; offline lifecycle checks do not establish these results.
+
 - [x] Construct one cached leader through the shared provider/model/prompt configuration path, accept partial builtin-role overrides, and preserve identity, history and scope through normal/direct execution and model/context changes. SDK-scripted request coverage does not establish live model competence.
 - [x] Share one default workspace-policy fragment across roles and make supporting artifacts proportional to requested or durable work, preserving explicit project rules and artifact placement. One bounded live Explorer handoff completed without artifact writes; full-team outcomes and latency remain separate evidence.
 - [x] Share default planning and handoff fragments, align base/Planner rules with proportional reports and durable tracking, and preserve evidence and review requirements. Full task outcomes and efficiency require live measurement.
