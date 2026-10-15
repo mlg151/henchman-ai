@@ -6,6 +6,7 @@ import pytest
 from rich.console import Console
 
 from henchman.cli.repl import Repl, ReplConfig
+from henchman.config.schema import AgentConfig, Settings
 from henchman.core.agent import Agent
 from henchman.core.events import EventType
 from henchman.providers.base import (
@@ -74,24 +75,39 @@ class TestReplToolIntegration:
         # REPL now connects tools from registry to agent automatically
         assert len(repl.agent.tools) > 0
 
-    def test_tool_registration_affects_agent(self):
-        """Test that registering tools gives them to agent (REPL connects them)."""
+    @pytest.mark.parametrize("allowed_tools", [None, ["shell"]], ids=["default", "restricted"])
+    def test_tool_registration_affects_agent(self, allowed_tools: list[str] | None) -> None:
+        """Live registration follows the default catalog or an explicit allowlist."""
         console = Console()
         provider = MockProviderWithToolSupport()
         config = ReplConfig()
 
-        repl = Repl(provider=provider, console=console, config=config)
+        settings = Settings()
+        if allowed_tools is not None:
+            settings.agents.agents["tech_lead"] = AgentConfig(
+                name="Restricted primary", role="tech_lead",
+                description="Test primary with explicit tool restrictions", tools=allowed_tools,
+            )
+        repl = Repl(provider=provider, console=console, config=config, settings=settings)
 
-        allowed = set(repl.orchestrator.pool.configs["tech_lead"].tools)
         available = set(repl.tool_registry.list_tools())
-        assert set(repl.agent.tool_registry.list_tools()) == allowed & available
-        assert "shell" in allowed
+        companions = {"goal_status", "task_get", "task_list", "task_output", "task_stop"}
+        expected = available if allowed_tools is None else (set(allowed_tools) | companions) & available
+        assert set(repl.agent.tool_registry.list_tools()) == expected
+        if allowed_tools is not None:
+            assert repl.tool_registry.get("write_file") is not None
+            assert repl.agent.tool_registry.get("write_file") is None
+            assert repl.agent.tool_registry.get("edit_file") is None
+            assert repl.agent.tool_registry.get("python_exec") is None
+            assert repl.agent.tool_registry.get("task_create") is None
 
         repl.tool_registry.unregister("shell")
         assert repl.agent.tool_registry.get("shell") is None
+        assert set(repl.agent.tool_registry.list_tools()) == expected - {"shell"}
         replacement = ShellTool()
         repl.tool_registry.register(replacement)
         assert repl.agent.tool_registry.get("shell") is replacement
+        assert set(repl.agent.tool_registry.list_tools()) == expected
 
     def test_agent_with_tools_can_act_as_chatbot(self):
         """Test that agent with tools can still act as a simple chatbot."""
@@ -225,7 +241,7 @@ if __name__ == "__main__":
     integration.test_repl_agent_initialized_with_tools()
     print("✓ test_repl_agent_initialized_with_tools")
 
-    integration.test_tool_registration_affects_agent()
+    integration.test_tool_registration_affects_agent(None)
     print("✓ test_tool_registration_affects_agent")
 
     integration.test_agent_with_tools_can_act_as_chatbot()
