@@ -18,7 +18,7 @@ from henchman.advanced.plans import PlanExecutionService
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli import app
 from henchman.cli.json_output import event_to_dict
-from henchman.config.schema import ProviderSettings, Settings
+from henchman.config.schema import AgentConfig, ProviderSettings, Settings
 from henchman.providers.factory import create_configured_provider
 from henchman.tools.builtins.file_edit import EditFileTool
 from henchman.tools.builtins.file_read import ReadFileTool
@@ -111,6 +111,14 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
     # Exercise a declared 16K request window rather than relying on input-only accounting.
     settings = Settings(providers=providers, context={"max_tokens": 16384})
     settings.agents.max_delegation_retries = 0
+    if attempt_unlisted_write:
+        # The primary is unrestricted by default; this scenario tests an explicit user scope.
+        settings.agents.agents["tech_lead"] = AgentConfig(
+            name="Restricted primary",
+            role="tech_lead",
+            description="Delegate edits and retain final acceptance checks",
+            tools=["read_file", "delegate_task", "verify_plan_execution"],
+        )
     orch = Orchestrator(default_provider=provider, tool_registry=registry, settings=settings)
     repl = SimpleNamespace(orchestrator=orch, agent=orch.tech_lead, tool_registry=registry,
                            initialize_mcp=AsyncMock(), rag_system=None)

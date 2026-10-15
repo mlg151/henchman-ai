@@ -85,6 +85,10 @@ async def _close_invocation(frame: _Invocation, *, cancel: bool = False) -> None
 
 
 def _scope(tool: Tool, params: dict[str, object]) -> _Scope | None:
+    # Snippets own their in-memory formatting; their generated files are never
+    # workspace-tracked. Foreground calls still share transaction serialization.
+    if tool.name == "python_exec":
+        return None
     if tool.name == "lint_check":
         path = params.get("path")
         if isinstance(path, str) and path:
@@ -287,13 +291,19 @@ class PythonAutoFormatter:
         execute: Callable[[], Awaitable[ToolResult]],
     ) -> ToolResult:
         """Execute once, format observed source mutations, and preserve tool failures."""
+        # Runtime coordination must remain available while a child holds the
+        # mutation lock, especially when the parent needs to cancel that child.
+        if tool.name in {"invoke_subagent", "manage_subagents"} or (
+            tool.name == "send_message" and "conversation_id" in params
+        ):
+            return await execute()
         background = tool.name == "task_create" or (
             tool.name in {"shell", "shell_secure", "python_exec"}
             and bool(params.get("background", True))
         )
         if background:
             result = await execute()
-            if result.success:
+            if result.success and tool.name != "python_exec":
                 return replace(
                     result,
                     content=f"{result.content}\nAutomatic Black formatting skipped for a "

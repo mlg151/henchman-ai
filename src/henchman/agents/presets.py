@@ -104,26 +104,12 @@ def _create_agent_config(
 
 
 def _create_tech_lead_config() -> AgentConfig:
-    """Create configuration for the Tech Lead agent.
-
-    The Tech Lead handles orchestration, delegation, and quality gating.
-    Delegates file edits while retaining shell, knowledge and verification tools.
-    """
-    return _create_agent_config(
-        name="Leader",
+    """Create the primary coding agent with full live workspace tooling."""
+    return AgentConfig(
+        name="Primary",
         role="tech_lead",
-        description="Orchestrator, delegator, and quality gate — delegates file edits to specialists",
-        tool_categories=ToolCategoryConfig(
-            basic_file_tools=True,
-            code_discovery_tools=True,
-            file_edit_tools=False,  # Delegate file edits to specialists
-            git_tools=True,
-            web_tools=True,
-            knowledge_tools=True,
-            shell_tools=True,
-            python_dev_tools=False,
-        ),
-        special_tools=["delegate_task", "ask_user", "verify_plan_execution"],
+        description="Primary coding agent with direct tools and dynamic background subagents",
+        tools=["*"],
     )
 
 

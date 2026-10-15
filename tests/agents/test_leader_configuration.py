@@ -124,7 +124,8 @@ def test_leader_prompt_precedence_and_identity(
         assert prompt == expected
     else:
         assert "UNIQUE ENVIRONMENT CONTEXT" in prompt
-        assert "engineer" in prompt
+        assert "Primary Coding Agent" in prompt
+        assert "invoke_subagent" in prompt
     assert orch.tech_lead is orch.pool.get_agent("tech_lead")
     assert orch.tech_lead.identity is not None
     assert orch.tech_lead.identity.name == "Configured leader"

@@ -58,6 +58,7 @@ nav:
   - Providers: providers.md
   - Tools: tools.md
   - MCP Integration: mcp.md
+  - Standards Adoption RFC: standards.md
   - Extensions: extensions.md
   - API Reference: api.md
   - Behavioral Evaluations: evals/README.md

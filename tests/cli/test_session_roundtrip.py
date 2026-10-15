@@ -113,7 +113,10 @@ class SessionApp(_InitMixin, _InputHandlerMixin):
     """Use production turn routing without a terminal driver or widget worker."""
 
     def __init__(self, manager, orchestrator, *, role=None):
-        self.core_context = SimpleNamespace(session_manager=manager, orchestrator=orchestrator)
+        self.core_context = SimpleNamespace(
+            session_manager=manager, orchestrator=orchestrator,
+            background_tasks=[], mcp_manager=None,
+        )
         self.config = TextualConfig(agent_role=role)
         self.posted = []
 
@@ -193,14 +196,14 @@ def test_tui_resume_restores_selected_agent_and_reasoning(tmp_path, role):
         assert all(message.role == "system" for message in orchestrator.tech_lead.messages)
 
 
-def test_tui_shutdown_saves_existing_session(tmp_path):
+async def test_tui_shutdown_saves_existing_session(tmp_path):
     from henchman.cli.textual_app import HenchmanTextualApp
 
     manager = make_manager(tmp_path)
     manager.record_user_message("persist at shutdown")
-    app = SessionApp(manager, None)
+    app = SessionApp(manager, Orchestrator(TwoRoundProvider()))
     app._cleanup_confirm_futures = lambda: None
-    HenchmanTextualApp.on_unmount(app)
+    await HenchmanTextualApp.on_unmount(app)
     assert manager.load(manager.current.id).messages[0].content == "persist at shutdown"
 
 

@@ -20,7 +20,7 @@ from henchman.agents.prompts import (
 
 def test_get_agent_prompt_leader():
     prompt = get_agent_prompt("tech_lead")
-    assert "The Leader" in prompt
+    assert "Primary Coding Agent" in prompt
     assert "Henchman" in prompt
 
 
@@ -53,19 +53,21 @@ def test_get_agent_prompt_engineer():
     assert "Implementation" in prompt
 
 
-def test_leader_prompt_references_specialists():
-    """Leader prompt references Planner, Explorer, Engineer, and Data Engineer."""
+def test_primary_prompt_uses_dynamic_conversations_without_required_roster():
+    """The default workflow chooses subagent roles rather than requiring a team."""
     prompt = get_agent_prompt("tech_lead")
-    assert "Planner" in prompt
-    assert "Explorer" in prompt
-    assert "Engineer" in prompt
-    assert "Data Engineer" in prompt
+    assert "invoke_subagent" in prompt
+    assert "manage_subagents" in prompt
+    assert "send_message" in prompt
+    assert "no fixed team size or required roster" in prompt
+    assert "DELEGATION DECISION MATRIX" not in prompt
 
 
-def test_leader_prompt_has_recon_first():
-    """Leader prompt includes mandatory reconnaissance."""
+def test_primary_prompt_retains_inspection_and_verification_ownership():
+    """Direct coding still starts with inspection and ends with evidence."""
     prompt = get_agent_prompt("tech_lead")
-    assert "Mandatory Reconnaissance" in prompt
+    assert "inspection through implementation and verification" in prompt
+    assert "inspect reusable code" in prompt
 
 
 def test_leader_prompt_has_scope_sentinel():
@@ -74,11 +76,12 @@ def test_leader_prompt_has_scope_sentinel():
     assert "Scope Sentinel" in prompt
 
 
-def test_leader_prompt_has_no_write_tools():
-    """Leader prompt states it cannot write or edit files."""
+def test_primary_prompt_allows_direct_edits_with_configured_restrictions():
+    """The primary can implement directly while keeping explicit scope binding."""
     prompt = get_agent_prompt("tech_lead")
-    assert "CANNOT WRITE OR EDIT FILES" in prompt
-    assert "delegate_task" in prompt
+    assert "workspace tool suite directly" in prompt
+    assert "tool restrictions and normal execution approvals remain binding" in prompt
+    assert "CANNOT WRITE OR EDIT FILES" not in prompt
 
 
 def test_leader_prompt_has_verification_lock():
@@ -87,10 +90,11 @@ def test_leader_prompt_has_verification_lock():
     assert "Verification Tool-Lock" in prompt
 
 
-def test_leader_prompt_has_cleanup_habit():
-    """Leader prompt includes clean-up habit."""
+def test_primary_prompt_retains_workspace_policy_without_ceremonial_cleanup():
+    """The same artifact policy remains active for direct and delegated work."""
     prompt = get_agent_prompt("tech_lead")
-    assert "Clean-Up Habit" in prompt
+    assert prompt.count(AGENT_WORKSPACE) == 1
+    assert "avoid conflicting writes" in prompt
 
 
 def test_leader_prompt_has_agent_workspace():
@@ -111,11 +115,11 @@ def test_explorer_prompt_has_agent_workspace():
     assert ".agent_tasks/" in prompt
 
 
-def test_leader_prompt_has_knowledge_graph():
-    """Leader prompt mentions knowledge graph."""
+def test_primary_prompt_uses_available_workspace_tools_without_mandatory_kg_step():
+    """Inspection tooling follows the task and actual available scope."""
     prompt = get_agent_prompt("tech_lead")
-    assert "kg_query" in prompt
-    assert "Knowledge Graph" in prompt
+    assert "full available workspace tool suite" in prompt
+    assert "independent work benefits" in prompt
 
 
 def test_explorer_prompt_has_knowledge_graph():
@@ -258,24 +262,28 @@ def test_new_prompt_fragments_are_nonempty():
     assert len(CONVENTION_AWARENESS) > 20
 
 
-def test_delegation_checklist_in_leader():
-    """Leader prompt includes delegation brief self-check (#1)."""
+def test_primary_delegation_guidance_requires_explicit_context_and_tool_subset():
+    """Dynamic delegation still needs a concrete task and scoped permissions."""
     prompt = get_agent_prompt("tech_lead")
-    assert "Delegation Brief Self-Check" in prompt
-    assert "files" in prompt.lower()
+    assert "custom system prompt, task, and delegated" in prompt
+    assert "tool subset for each conversation" in prompt
+    assert "complete acceptance criteria" in prompt
 
 
-def test_delegation_examples_in_leader():
-    """Leader prompt includes bad-vs-good delegation examples (#2)."""
+def test_primary_delegation_guidance_retains_coherent_ownership_and_notifications():
+    """Dynamic conversations communicate reactively without busy polling."""
     prompt = get_agent_prompt("tech_lead")
-    assert "BAD vs GOOD" in prompt
-    assert "GOOD" in prompt
+    assert "coherent ownership" in prompt
+    assert "arrive reactively at safe turn boundaries" in prompt
+    assert "do not busy-poll" in prompt
 
 
-def test_re_delegation_rule_in_leader():
-    """Leader prompt includes re-delegation after failure rule (#4)."""
+def test_primary_reviews_failure_and_verification_evidence_before_completion():
+    """A completed background turn is not itself proof of task correctness."""
     prompt = get_agent_prompt("tech_lead")
-    assert "Re-Delegation After Failure" in prompt
+    assert "Review actual" in prompt
+    assert "results and verification evidence" in prompt
+    assert "successful delegation status is not proof" in prompt
 
 
 def test_delegation_summary_has_blockers_field():
