@@ -202,3 +202,14 @@ def test_ci_build_check_validates_distribution_packages() -> None:
 
     assert "uv build" in steps_script
     assert "twine check" in steps_script
+
+
+def test_ci_validates_release_staging_changes() -> None:
+    """Release integration and PR updates must receive the normal CI checks."""
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    )
+    # PyYAML's YAML 1.1 loader treats the unquoted GitHub Actions `on` key as True.
+    events = workflow[True]
+    for event in ("push", "pull_request"):
+        assert {"main", "0.4.1"} <= set(events[event]["branches"])

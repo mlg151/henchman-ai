@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Run the normal CI checks for pushes and pull requests targeting the `0.4.1` staging branch before release integration.
+
 ## [0.4.0] - 2026-10-14
 
 ### Added
