@@ -45,14 +45,10 @@ def _build_prompt(
     """Build the Tech Lead prompt from agent configurations."""
     from henchman.agents.prompts import get_agent_prompt
 
-    enabled = _get_enabled_configs(agent_configs)
-    members, descriptions, delegatable = _extract_team_info(enabled)
+    del agent_configs  # Legacy role presets remain opt-in compatibility commands.
     return get_agent_prompt(
         role="tech_lead",
-        team_members=members,
-        delegatable_agents=delegatable,
         environment_context=environment_context,
-        team_descriptions=descriptions,
     )
 
 

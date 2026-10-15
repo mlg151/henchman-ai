@@ -498,15 +498,12 @@ class Repl:
         """
         self.running = True
         self._interactive_loop_active = True
-        self.output_handler.print_welcome()
-        await self.initialize_mcp()
-
-        # Start background indexing if RAG is available
-        self.output_handler.start_background_indexing()
-
         # Render asynchronous output above the editable prompt, retaining Rich ANSI styling.
         with patch_stdout(raw=True):
             try:
+                self.output_handler.print_welcome()
+                await self.initialize_mcp()
+                self.output_handler.start_background_indexing()
                 self._ensure_turn_worker()
                 while self.running:
                     if not await self._process_one_turn():
@@ -514,12 +511,23 @@ class Repl:
             finally:
                 self.running = False
                 self._interactive_loop_active = False
-                await self._stop_turn_worker()
-                self._pause_goal()
+                try:
+                    await self.aclose()
+                finally:
+                    self._pause_goal()
+                    self._auto_save_session()
+                    self.output_handler.print_goodbye()
+
+    async def aclose(self) -> None:
+        """Join owned agent work before disconnecting its external tools."""
+        try:
+            await self._stop_turn_worker()
+        finally:
+            try:
+                await self.orchestrator.aclose()
+            finally:
                 if self.mcp_manager:
                     await self.mcp_manager.disconnect_all()
-                self._auto_save_session()
-                self.output_handler.print_goodbye()
 
     async def _process_one_turn(self: Self) -> bool:
         """Process one input turn, handling keyboard interrupts.

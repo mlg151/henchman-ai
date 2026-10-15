@@ -10,6 +10,7 @@ from pathlib import Path
 
 from henchman.advanced.tasks import TaskService
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.snippet_formatting import format_python_snippet
 from henchman.tools.utils import create_parameter_schema
 
 # Safety limits
@@ -226,6 +227,7 @@ class PythonExecTool(Tool):
                 success=False,
                 error="Empty code",
             )
+        code = await format_python_snippet(code)
         if background:
             try:
                 record = await TaskService(self._project_root).start_task(
@@ -240,7 +242,9 @@ class PythonExecTool(Tool):
             return ToolResult(
                 content=f"Started background task {record.task_id} [{record.status}]. "
                 "Use task_get for status, task_output for output, task_list for all jobs, "
-                "or task_stop to stop this task. Starting a task does not confirm success.",
+                "or task_stop to stop this task. Starting a task does not confirm success. "
+                "Workspace file formatting skipped; format generated Python files explicitly "
+                "after the task completes.",
             )
         request = ExecRequest(code=code, timeout=timeout, cwd=cwd)
         return await _run_python_subprocess(request)

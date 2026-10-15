@@ -88,10 +88,13 @@ async def test_agent_interaction_flow():
     # Mock the orchestrator
     mock_orchestrator = MagicMock()
     mock_orchestrator.run = MagicMock(side_effect=event_generator)
+    mock_orchestrator.aclose = AsyncMock()
 
     # Mock CoreContext
     mock_core_context = MagicMock()
     mock_core_context.orchestrator = mock_orchestrator
+    mock_core_context.background_tasks = set()
+    mock_core_context.mcp_manager = None
     mock_core_context.session_manager = MagicMock()  # To prevent AttributeError in set_session
     mock_core_context.session_manager.current = None
 

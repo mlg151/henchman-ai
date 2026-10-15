@@ -49,16 +49,17 @@ def parent_with_search() -> ToolRegistry:
     return parent
 
 
-def test_default_leader_exposes_its_preset_instead_of_the_entire_catalog() -> None:
+def test_default_primary_exposes_full_live_catalog_with_local_scope() -> None:
     manager = ToolManager()
     manager.register_builtin_tools()
     orch = Orchestrator(default_provider=OllamaProvider(), tool_registry=manager.registry)
-    expected = set(get_default_team()["tech_lead"].tools) & set(manager.registry.list_tools())
+    assert get_default_team()["tech_lead"].tools == ["*"]
+    expected = set(manager.registry.list_tools())
     assert set(orch.tech_lead.tool_registry.list_tools()) == expected
     assert orch.tech_lead.tool_registry is not manager.registry
     assert orch.tech_lead.tool_registry.get("verify_plan_execution") is not None
-    assert orch.tech_lead.tool_registry.get("edit_file") is None
-    assert orch.tech_lead.tool_registry.get("python_exec") is None
+    assert orch.tech_lead.tool_registry.get("edit_file") is not None
+    assert orch.tech_lead.tool_registry.get("python_exec") is not None
     assert manager.registry.get("edit_file") is not None
     assert orch.pool.get_agent("engineer").tool_registry.get("edit_file") is not None
 

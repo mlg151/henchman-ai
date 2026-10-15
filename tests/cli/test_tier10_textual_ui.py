@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from textual.widgets import Input, Label, Select, TabbedContent
@@ -287,6 +287,8 @@ class TestTier10AppWiring:
             context = MagicMock()
             context.session_manager.current = None
             context.mcp_manager = None
+            context.background_tasks = []
+            context.orchestrator.aclose = AsyncMock()
             textual_app.core_context = context
             textual_app.input_handler = None
 
@@ -323,6 +325,8 @@ class TestTier10AppWiring:
                         TeamPanel,
                     ).render()
                 )
+
+        textual_app.core_context.orchestrator.aclose.assert_awaited_once()
 
     @pytest.mark.anyio
     async def test_bridge_action_shows_persisted_entries(
@@ -383,6 +387,8 @@ class TestTier10AppWiring:
             context = MagicMock()
             context.session_manager.current = current_session
             context.mcp_manager = None
+            context.background_tasks = []
+            context.orchestrator.aclose = AsyncMock()
             textual_app.core_context = context
             textual_app.input_handler = None
 
@@ -400,6 +406,7 @@ class TestTier10AppWiring:
                 await pilot.click("#btn-markdown")
                 await pilot.pause()
 
+        textual_app.core_context.orchestrator.aclose.assert_awaited_once()
         output = (tmp_path / "session_pilot-export.md").read_text(encoding="utf-8")
         assert "Export from the modal" in output
 

@@ -4,6 +4,12 @@ Henchman-AI supports the Model Context Protocol (MCP) for connecting to external
 
 MCP is classified as runtime-wired only when both the `mcp` and `mcp_auth` tools are registered. A configuration entry or installed MCP dependency alone does not make the surface live; use help or doctor to inspect the current runtime classification. Auth status reporting indicates whether credentials are present without printing their values.
 
+The [standards adoption RFC](standards.md#mcp-adoption-details) compares this
+existing client with MCP revision 2026-07-28 and proposes an SDK migration,
+modern transports, richer results, resources, and prompts. Those additions
+remain roadmap work; the current stdio client is not evidence of conformance
+to that revision.
+
 ## What is MCP?
 
 MCP (Model Context Protocol) is a standard for connecting AI assistants to external tools and data sources. MCP servers provide tools that can be discovered and invoked by the AI agent.

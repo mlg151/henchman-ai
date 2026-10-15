@@ -80,6 +80,16 @@ class CommandProcessor:
         if cmd_name == "quit":
             return False
 
+        subcommand = args[0].lower() if args else ""
+        if cmd_name == "clear" or (
+            cmd_name == "team" and subcommand == "reset"
+        ) or (cmd_name == "chat" and subcommand == "resume" and len(args) >= 2):
+            from henchman.agents.orchestrator import Orchestrator
+
+            orchestrator = getattr(repl, "orchestrator", None)
+            if isinstance(orchestrator, Orchestrator) and issubclass(type(orchestrator), Orchestrator):
+                await orchestrator.cancel_subagents()
+
         # Special handling for /clear - clear agent history
         if cmd_name == "clear":
             agent.clear_history()

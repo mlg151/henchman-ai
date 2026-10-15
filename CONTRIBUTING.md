@@ -253,12 +253,45 @@ We follow [Semantic Versioning](https://semver.org/):
 - **PATCH**: Bug fixes (backward compatible)
 
 ### Release Checklist
-1. Update version in `pyproject.toml`
-2. Update `CHANGELOG.md`
-3. Run full test suite
-4. Update documentation
-5. Create release tag
-6. Build and publish to PyPI
+1. Assign the release PR into `main` a version milestone, for example `v0.4.1`.
+2. Set matching versions in `pyproject.toml` and `src/henchman/version.py`, refresh
+   `uv.lock`, and update `CHANGELOG.md` and the release notes.
+3. Run relevant checks and let the full PR CI pass before merging.
+4. Merge the release PR. Successful **push CI on main** triggers the release
+   workflow for that exact commit; PR checks never publish packages.
+5. Confirm the wheel and source distribution on PyPI and the matching GitHub tag
+   and release. Publication precedes tagging; failed uploads do not create a
+   completed GitHub release.
+
+The repository Actions secret **`PYPI`** contains this multiline INI fragment:
+
+```ini
+[pypi]
+username = __token__
+password = pypi-...
+```
+
+The owner has already configured this secret. The publisher also accepts the
+reported `username = **token**` transcription and uses PyPI token authentication.
+It extracts the password in memory, masks it, and passes it only to the upload
+process. No credentials are written to disk. `PYPI_API_TOKEN` is not used.
+
+Release attempts are serialized. The workflow validates both committed versions
+against the merged PR milestone and rejects a tag pointing at another commit.
+It retains the exact distributions as an Actions artifact before upload.
+PR CI also retains its validated distribution pair for review. Release archives
+include `henchman/_release.json` (under `src/` in the source distribution),
+recording the tested commit, milestone, and release PR. Both archives' metadata,
+runtime version, and embedded commit must match before credentials are used.
+`uv publish` checks existing file hashes, so matching uploads can be retried and
+different contents cannot replace an existing version. Builds use the commit
+timestamp as `SOURCE_DATE_EPOCH` for reproducibility. Embedded commit provenance
+makes archives from different commits distinct even before a release tag exists.
+
+To retry, rerun the failed release workflow in Actions. If needed, rerun the
+successful main push CI to trigger it again. Existing uploads for the same
+commit are checked for identical content before resuming the GitHub release. A new change requires a new milestone version; never move a
+published tag or reuse its version.
 
 ## ❓ Getting Help
 

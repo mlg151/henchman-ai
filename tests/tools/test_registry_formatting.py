@@ -46,7 +46,7 @@ async def test_edit_is_black_formatted_before_success_is_returned(registry, tmp_
     assert source.read_text() == "value = 2\n"
 
 
-async def test_command_created_python_is_formatted_without_model_formatter_call(registry, tmp_path):
+async def test_python_exec_does_not_format_generated_files(registry, tmp_path):
     result = await registry.execute(
         "python_exec",
         {
@@ -56,7 +56,7 @@ async def test_command_created_python_is_formatted_without_model_formatter_call(
         },
     )
     assert result.success, result
-    assert (tmp_path / "generated.py").read_text() == "value = 1\n"
+    assert (tmp_path / "generated.py").read_text() == "value=1\n"
 
 
 async def test_formatter_failure_cannot_be_reported_as_success(registry, tmp_path):
@@ -66,7 +66,7 @@ async def test_formatter_failure_cannot_be_reported_as_success(registry, tmp_pat
     assert (tmp_path / "broken.py").read_text() == "def broken(\n"
 
 
-async def test_partial_write_is_formatted_without_hiding_command_failure(registry, tmp_path):
+async def test_python_exec_preserves_partial_write_and_command_failure(registry, tmp_path):
     result = await registry.execute(
         "python_exec",
         {
@@ -76,7 +76,7 @@ async def test_partial_write_is_formatted_without_hiding_command_failure(registr
         },
     )
     assert not result.success
-    assert (tmp_path / "partial.py").read_text() == "value = 1\n"
+    assert (tmp_path / "partial.py").read_text() == "value=1\n"
 
 
 async def test_denied_write_does_not_format_existing_source(registry, tmp_path):
@@ -97,7 +97,10 @@ async def test_read_does_not_reformat_existing_source(registry, tmp_path):
     assert source.read_text() == "old=1\n"
 
 
-async def test_scoped_registries_wait_for_formatting_before_verification(tmp_path, monkeypatch):
+@pytest.mark.parametrize("verify_with_python", [False, True])
+async def test_scoped_registries_wait_for_formatting_before_verification(
+    tmp_path, monkeypatch, verify_with_python,
+):
     monkeypatch.chdir(tmp_path)
     started, release, checked = asyncio.Event(), asyncio.Event(), asyncio.Event()
     source = tmp_path / "module.py"
@@ -122,15 +125,23 @@ async def test_scoped_registries_wait_for_formatting_before_verification(tmp_pat
     parent, child = ToolRegistry(), ToolRegistry()
     child.inherit_policies_from(parent)
     parent.register(Writer())
-    child.register(Verify())
+    child.register(PythonExecTool() if verify_with_python else Verify())
     write = asyncio.create_task(parent.execute("write_file", {"path": str(source)}))
     await asyncio.wait_for(started.wait(), timeout=5)
-    verify = asyncio.create_task(child.execute("verify_source", {}))
+    verify_name = "python_exec" if verify_with_python else "verify_source"
+    verify_params = {
+        "code": "from pathlib import Path; print(Path('module.py').read_text())",
+        "background": False,
+    } if verify_with_python else {}
+    verify = asyncio.create_task(child.execute(verify_name, verify_params))
     try:
         await asyncio.sleep(0)
         assert not checked.is_set()
+        assert not verify.done()
     finally:
         release.set()
         written, verified = await asyncio.wait_for(asyncio.gather(write, verify), timeout=15)
     assert written.success, written
     assert verified.success, verified
+    if verify_with_python:
+        assert verified.content.strip() == "value = 1"

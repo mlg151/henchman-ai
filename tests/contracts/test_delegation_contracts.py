@@ -90,6 +90,8 @@ class TestAgentLoopParamsContract:
             input_text="Write a parser for CSV files",
             depth=1,
             max_turns=50,
+            prior_tool_rounds=2,
+            prior_tool_calls=7,
             msg_start_index=0,
             brief={"task": "Write parser", "files": ["/src/parser.py"]},
         )

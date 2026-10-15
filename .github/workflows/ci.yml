@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "0.4.1"]
   pull_request:
-    branches: [main]
+    branches: [main, "0.4.1"]
   workflow_dispatch:
 
 concurrency:
@@ -73,3 +73,18 @@ jobs:
       - name: Validate distribution packages
         run: |
           uv run --with twine twine check dist/*
+
+      - name: Retain validated PR distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-distributions-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Set up Node for release workflow regression tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify release workflow behavior without publication
+        run: uv run --extra dev python -m pytest --no-cov tests/ops/test_release_workflow.py -q

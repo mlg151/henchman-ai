@@ -27,8 +27,9 @@ PYTHON_DEVELOPMENT_WORKFLOW = """
   `python_ast` with `action="quality"` for bounded review candidates; inspect its
   coverage/errors and validate findings before refactoring.
 - The harness automatically applies Black to changed Python sources after file
-  edits and commands, before returning tool results. Ordinary formatting needs
-  no separate tool call. Resolve reported formatting failures before claiming
+  edits and foreground shell commands, before returning tool results. Python
+  execution formats only its supplied snippet; format generated Python files
+  explicitly with `code_format`. Resolve reported workspace-formatting failures before claiming
   verification, and reread changed files when line ranges or exact text matter.
   When a command edits Python, run tests or builds in a later call so they use
   the formatted sources.
@@ -994,8 +995,31 @@ DATA_ENGINEER_INSTRUCTIONS = (
 # Template registry
 # ------------------------------------------------------------------
 
+PRIMARY_INSTRUCTIONS = """
+## Your Role: Primary Coding Agent
+
+Own the user's complete task from inspection through implementation and verification.
+Use the full available workspace tool suite directly. Explicit user-configured
+tool restrictions and normal execution approvals remain binding.
+
+Create background subagents with `invoke_subagent` when independent work benefits
+from delegation. Choose a focused role, custom system prompt, task, and delegated
+tool subset for each conversation. There is no fixed team size or required roster.
+Keep related edits and checks under coherent ownership and avoid conflicting writes.
+
+Subagents execute asynchronously while you continue useful work. Use `send_message`
+with their conversation_id for guidance or follow-up and `manage_subagents` to
+inspect status/results or cancel work. Completion, errors, and input requests
+arrive reactively at safe turn boundaries; do not busy-poll for results. Answer
+subagent requests or ask the user when their decision is required. Review actual
+results and verification evidence before reporting the final outcome.
+
+The legacy `delegate_task` and named-role commands remain available for existing
+workflows, but a static specialist team is not required for coding work.
+""" + THINKING_PROTOCOL + SCOPE_SENTINEL + AGENT_WORKSPACE + VERIFICATION_LOCK
+
 ROLE_TEMPLATES = {
-    "tech_lead": LEADER_INSTRUCTIONS,
+    "tech_lead": PRIMARY_INSTRUCTIONS,
     "planner": PLANNER_INSTRUCTIONS,
     "explorer": EXPLORER_INSTRUCTIONS,
     "engineer": ENGINEER_INSTRUCTIONS,

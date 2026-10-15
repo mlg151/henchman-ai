@@ -1123,7 +1123,6 @@ class _InputHandlerMixin:
         """
         if text.strip().lower() == "/clear":
             chat.clear_messages()
-            return
         processor = self.command_processor  # type: ignore[attr-defined]
         if not processor:
             return
