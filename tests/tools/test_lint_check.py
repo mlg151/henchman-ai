@@ -132,7 +132,6 @@ class TestLintCheckTool:
 
     async def test_ruff_timeout(self) -> None:
         """Handle ruff timeout."""
-        import asyncio
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from henchman.tools.builtins.lint_check import LintCheckTool
@@ -143,11 +142,10 @@ class TestLintCheckTool:
             f = pathlib.Path(tmpdir) / "test.py"
             f.write_text("x = 1\n")
             mock_process = MagicMock()
-            mock_process.communicate = AsyncMock()
+            mock_process.communicate = AsyncMock(side_effect=TimeoutError())
             with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-                with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
-                    result = await tool.execute(path=str(f), linter="ruff")
-                    assert "Timed out" in result.content
+                result = await tool.execute(path=str(f), linter="ruff")
+                assert "Timed out" in result.content
 
     async def test_ruff_success_no_output(self) -> None:
         """Ruff success with no output reports no issues."""
@@ -168,8 +166,8 @@ class TestLintCheckTool:
                 assert result.success is True
                 assert "No issues" in result.content
 
-    async def test_mypy_only(self) -> None:
-        """Run mypy only."""
+    async def test_mypy_only_from_plain_module(self) -> None:
+        """Run mypy only on a plain module."""
         import tempfile
         from pathlib import Path
 

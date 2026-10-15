@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/chat-response/v1",
+  "type": "object",
+  "required": ["message", "usage", "finish_reason"],
+  "properties": {
+    "message": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": { "type": "string", "enum": ["assistant"] },
+        "content": { "type": "string" },
+        "tool_calls": {
+          "type": ["array", "null"],
+          "items": { "type": "object" }
+        },
+        "tool_call_id": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": ["object", "null"]
+    },
+    "finish_reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["stop", "tool_calls", "length", "content_filter"]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

@@ -3,11 +3,9 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 from henchman.providers.utils import (
-    get_env_var_for_provider,
     get_api_key_for_provider,
+    get_env_var_for_provider,
 )
 
 
@@ -42,17 +40,17 @@ class TestGetEnvVarForProvider:
     def test_together(self) -> None:
         """Test environment variable mapping for Together AI."""
         result = get_env_var_for_provider("together")
-        assert result == "HENCHMAN_API_KEY"
+        assert result == "TOGETHER_API_KEY"
 
     def test_groq(self) -> None:
         """Test environment variable mapping for Groq."""
         result = get_env_var_for_provider("groq")
-        assert result == "HENCHMAN_API_KEY"
+        assert result == "GROQ_API_KEY"
 
     def test_fireworks(self) -> None:
         """Test environment variable mapping for Fireworks AI."""
         result = get_env_var_for_provider("fireworks")
-        assert result == "HENCHMAN_API_KEY"
+        assert result == "FIREWORKS_API_KEY"
 
     def test_ollama(self) -> None:
         """Test environment variable mapping for Ollama (no API key)."""

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import coerce_int
 
 _DEFAULT_MAX_COUNT = 20
 """Default maximum log entries to return."""
@@ -124,7 +125,7 @@ async def _run_git(args: list[str], cwd: str | None = None) -> tuple[bool, str]:
         combined = (out + "\n" + err).strip()
     except FileNotFoundError:
         return False, "Error: git is not installed"
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         return False, f"Error: git command timed out after {_GIT_TIMEOUT_SECONDS}s"
     else:
         return process.returncode == 0, combined
@@ -159,10 +160,9 @@ async def _git_show(params: GitParams) -> tuple[bool, str]:
     if params.stat:
         args.append("--stat")
     target = params.ref or "HEAD"
+    args.append(target)
     if params.path:
-        args.append(f"{target} -- {params.path}")
-    else:
-        args.append(target)
+        args.extend(["--", params.path])
     return await _run_git(args, cwd=params.cwd)
 
 
@@ -205,9 +205,17 @@ def _build_git_params_from_kwargs(kwargs: dict[str, object]) -> GitParams:
         path=str(kwargs["path"]) if kwargs.get("path") is not None else None,
         ref=str(kwargs["ref"]) if kwargs.get("ref") is not None else None,
         ref2=str(kwargs["ref2"]) if kwargs.get("ref2") is not None else None,
-        max_count=int(raw_max) if raw_max is not None else _DEFAULT_MAX_COUNT,
-        start_line=(int(kwargs["start_line"]) if kwargs.get("start_line") is not None else None),
-        end_line=(int(kwargs["end_line"]) if kwargs.get("end_line") is not None else None),
+        max_count=coerce_int(raw_max) if raw_max is not None else _DEFAULT_MAX_COUNT,
+        start_line=(
+            coerce_int(kwargs["start_line"])
+            if kwargs.get("start_line") is not None
+            else None
+        ),
+        end_line=(
+            coerce_int(kwargs["end_line"])
+            if kwargs.get("end_line") is not None
+            else None
+        ),
         stat=bool(kwargs.get("stat", False)),
         cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
     )
@@ -296,7 +304,7 @@ class GitOpsTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: GitOpsTool,
         **kwargs: object,
     ) -> ToolResult:

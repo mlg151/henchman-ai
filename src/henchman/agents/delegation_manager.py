@@ -41,6 +41,7 @@ class DelegationTask:
     completed: bool = False
     error: str | None = None
     start_time: float = field(default_factory=time.monotonic)
+    asyncio_task: asyncio.Task[None] | None = None
 
 
 class DelegationManager:
@@ -98,8 +99,9 @@ class DelegationManager:
         # Store task
         self.ongoing_tasks[task_id] = delegation_task
 
-        # Start delegation in background
-        asyncio.create_task(self._run_delegation(delegation_task, tool_call))
+        # Start delegation in background and store reference for cancellation
+        task = asyncio.create_task(self._run_delegation(delegation_task, tool_call))
+        delegation_task.asyncio_task = task
 
         logger.info("Started asynchronous delegation %s: %s -> %s",
                    task_id, source_agent, target_role)
@@ -275,6 +277,12 @@ class DelegationManager:
 
         if not task.task_future.done():
             task.task_future.cancel()
+
+        # Also cancel the asyncio task so _run_delegation stops running
+        if task.asyncio_task is not None and not task.asyncio_task.done():
+            task.asyncio_task.cancel()
+
+        if not task.completed:
             task.error = "Cancelled by user"
             task.completed = True
 

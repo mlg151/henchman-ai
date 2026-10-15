@@ -12,7 +12,7 @@ from henchman.providers.base import Message
 @pytest.mark.asyncio
 async def test_infinite_loop_on_generator_exhaustion():
     """Test that the loop breaks when generator is exhausted with no pending tool calls.
-    
+
     This test verifies the fix for the infinite loop bug where collect_events
     would catch StopAsyncIteration silently, leaving an empty pending list,
     and _process_no_pending could return should_break=False, causing infinite loop.
@@ -31,7 +31,7 @@ async def test_infinite_loop_on_generator_exhaustion():
     agent.messages = []
 
     # Mock agent.run to return an immediately exhausted generator
-    async def exhausted_generator(input_text=None):
+    async def exhausted_generator(_input_text=None):
         # Generator is immediately exhausted (no yield, just StopAsyncIteration)
         if False:
             yield
@@ -66,7 +66,7 @@ async def test_infinite_loop_on_generator_exhaustion():
 @pytest.mark.asyncio
 async def test_generator_exhaustion_with_colon_stall():
     """Test generator exhaustion with colon stall detection.
-    
+
     When generator is exhausted and there's a colon stall, a new generator
     should be created via continue_with_tool_results().
     """
@@ -88,7 +88,7 @@ async def test_generator_exhaustion_with_colon_stall():
     # Track generator calls
     generator_call_count = 0
 
-    async def mock_generator(input_text=None):
+    async def mock_generator(_input_text=None):
         nonlocal generator_call_count
         generator_call_count += 1
         if generator_call_count == 1:
@@ -135,7 +135,7 @@ async def test_generator_exhaustion_with_colon_stall():
 @pytest.mark.asyncio
 async def test_missing_validator_attribute():
     """Test that missing validator attribute doesn't cause infinite loop.
-    
+
     The fix should handle AttributeError gracefully when validator is missing.
     """
     # Create mock orchestrator WITHOUT validator
@@ -149,7 +149,7 @@ async def test_missing_validator_attribute():
     agent = MagicMock()
     agent.messages = []
 
-    async def mock_generator(input_text=None):
+    async def mock_generator(_input_text=None):
         # Yield some content then exhaust
         yield AgentEvent(type=EventType.CONTENT, data="Test content")
         # Generator exhausted
@@ -183,7 +183,7 @@ async def test_missing_validator_attribute():
 @pytest.mark.asyncio
 async def test_normal_generator_completion():
     """Test normal generator completion (not immediately exhausted).
-    
+
     Generator yields events, completes normally, loop should break.
     """
     # Create mock orchestrator with validator
@@ -199,7 +199,7 @@ async def test_normal_generator_completion():
     agent = MagicMock()
     agent.messages = []
 
-    async def mock_generator(input_text=None):
+    async def mock_generator(_input_text=None):
         # Yield some events
         yield AgentEvent(type=EventType.CONTENT, data="First event")
         yield AgentEvent(type=EventType.CONTENT, data="Second event")
@@ -231,7 +231,7 @@ async def test_normal_generator_completion():
 @pytest.mark.asyncio
 async def test_generator_with_tool_calls():
     """Test generator that yields tool calls (not exhausted).
-    
+
     When generator yields tool calls, they should be processed.
     """
     from henchman.providers.base import ToolCall
@@ -255,7 +255,7 @@ async def test_generator_with_tool_calls():
     # Create a tool call
     tool_call = ToolCall(id="test", name="read_file", arguments={"path": "test.py"})
 
-    async def mock_generator(input_text=None):
+    async def mock_generator(_input_text=None):
         # Yield a tool call
         yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
         # Generator exhausted

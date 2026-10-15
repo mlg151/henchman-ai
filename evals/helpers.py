@@ -6,26 +6,36 @@ decorator for controlling test execution based on policy.
 
 Behavioral evals use REAL LLM providers to test actual agent behavior.
 Configure the provider via environment variables:
-    EVAL_PROVIDER=deepseek|anthropic|ollama (default: deepseek)
+    EVAL_PROVIDER=registered-provider-name (default: deepseek)
     EVAL_MODEL=model-name (optional, uses provider default)
+    EVAL_BASE_URL=http://localhost:8080/v1 (for openai_compat)
     DEEPSEEK_API_KEY=your-key (or ANTHROPIC_API_KEY, etc.)
 """
 
 from __future__ import annotations
 
-import json
+import asyncio
+import hashlib
+import math
 import os
 import shutil
+import sys
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from dataclasses import dataclass, field
-from datetime import datetime
+from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
-from typing import Any, Literal
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 
+from evals.models import EvalResult as EvalResult
+from evals.models import EventObserver
+from evals.models import ToolLog as ToolLog
+from henchman.config.schema import ProviderSettings, Settings
 from henchman.core.agent import Agent
+from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import (
     FinishReason,
@@ -35,18 +45,60 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.providers.factory import create_configured_provider
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
+
+if TYPE_CHECKING:
+    from evals.team_runtime import TeamEvalRuntime
+    from henchman.agents.orchestrator import Orchestrator
 
 # Eval policy types
 EvalPolicy = Literal["ALWAYS_PASSES", "USUALLY_PASSES"]
+
+_ENGINEER_EVAL_CONTEXT = (
+    "This is a standalone evaluation of the engineer role in a temporary project. "
+    "No leader, teammates, delegation, or shared team state is active. Complete the "
+    "user's task directly using the available tools."
+)
+
+
+async def verify_python(workspace: Path, code: str, *, timeout: float = 5.0) -> None:
+    """Run independent assertions with bounded diagnostics and an execution receipt.
+
+    Ignore inherited Python options, including optimization that disables asserts.
+    This executes project code in a child process; it is not an OS sandbox.
+    """
+    from henchman.tools.subprocess_utils import run_bounded_subprocess
+
+    bootstrap = (
+        "import pathlib, sys\n"
+        "receipt = pathlib.Path(sys.argv[2])\n"
+        "exec(compile(sys.argv[1], '<evaluation-check>', 'exec'), {'__name__': '__main__'})\n"
+        "receipt.write_text('completed', encoding='utf-8')\n"
+    )
+    with tempfile.TemporaryDirectory(prefix="henchman-eval-check-") as directory:
+        receipt = Path(directory) / "completed"
+        completed = await run_bounded_subprocess(
+            [sys.executable, "-E", "-X", "utf8", "-c", bootstrap, code, str(receipt)],
+            cwd=workspace, timeout=timeout, max_output_bytes=8192,
+        )
+        if completed.returncode != 0:
+            diagnostics = (completed.stdout + completed.stderr).decode("utf-8", errors="replace")
+            truncation = " [diagnostics truncated]" if (
+                completed.stdout_truncated or completed.stderr_truncated
+            ) else ""
+            raise AssertionError(f"Independent Python verification exit {completed.returncode}{truncation}:\n{diagnostics}")
+        assert receipt.is_file() and receipt.read_text(encoding="utf-8") == "completed", (
+            "Independent Python verification exited without completing its assertions"
+        )
 
 
 def get_eval_provider() -> ModelProvider:
     """Get the provider to use for evals based on environment.
 
     Uses EVAL_PROVIDER env var (default: deepseek).
-    Falls back through providers if API keys aren't set.
+    Explicit selection is authoritative; unrelated credentials never select a provider.
 
     Returns:
         A configured ModelProvider instance.
@@ -57,83 +109,16 @@ def get_eval_provider() -> ModelProvider:
     provider_name = os.environ.get("EVAL_PROVIDER", "deepseek").lower()
     model = os.environ.get("EVAL_MODEL")
 
-    # Try the requested provider first
-    if provider_name == "deepseek":
-        api_key = os.environ.get("DEEPSEEK_API_KEY")
-        if api_key:
-            from henchman.providers.deepseek import DeepSeekProvider
-
-            return DeepSeekProvider(api_key=api_key, model=model or "deepseek-chat")
-
-    if provider_name == "anthropic":
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if api_key:
-            from henchman.providers.anthropic import AnthropicProvider
-
-            return AnthropicProvider(api_key=api_key, model=model or "claude-sonnet-4-20250514")
-
-    if provider_name == "ollama":
-        from henchman.providers.ollama import OllamaProvider
-
-        return OllamaProvider(model=model or "llama3.2")
-
-    # Fallback: try any available provider
-    if os.environ.get("DEEPSEEK_API_KEY"):
-        from henchman.providers.deepseek import DeepSeekProvider
-
-        return DeepSeekProvider(
-            api_key=os.environ["DEEPSEEK_API_KEY"],
-            model=model or "deepseek-chat",
-        )
-
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        from henchman.providers.anthropic import AnthropicProvider
-
-        return AnthropicProvider(
-            api_key=os.environ["ANTHROPIC_API_KEY"],
-            model=model or "claude-sonnet-4-20250514",
-        )
-
-    # Last resort: try Ollama (no API key needed)
+    settings = ProviderSettings(default=provider_name)
+    base_url = os.environ.get("EVAL_BASE_URL")
+    if base_url is not None:
+        if provider_name != "openai_compat":
+            raise RuntimeError("EVAL_BASE_URL requires EVAL_PROVIDER=openai_compat")
+        settings.openai_compat["base_url"] = base_url
     try:
-        from henchman.providers.ollama import OllamaProvider
-
-        return OllamaProvider(model=model or "llama3.2")
-    except Exception:
-        pass
-
-    raise RuntimeError(
-        "No provider configured for evals. Set one of:\n"
-        "  DEEPSEEK_API_KEY=your-key\n"
-        "  ANTHROPIC_API_KEY=your-key\n"
-        "  EVAL_PROVIDER=ollama (for local models)"
-    )
-
-
-@dataclass
-class ToolLog:
-    """Log entry for a tool call during an eval."""
-
-    tool_name: str
-    arguments: dict[str, Any]
-    result: str
-    success: bool
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class EvalResult:
-    """Result of running an eval."""
-
-    prompt: str
-    final_response: str
-    tool_logs: list[ToolLog]
-    events: list[AgentEvent]
-    duration_ms: float
-    tokens_in: int
-    tokens_out: int
-    success: bool
-    error: str | None = None
+        return create_configured_provider(settings, provider_name=provider_name, model=model)
+    except ValueError as exc:
+        raise RuntimeError(f"Cannot configure eval provider '{provider_name}': {exc}") from exc
 
 
 class MockProvider(ModelProvider):
@@ -190,7 +175,7 @@ class MockProvider(ModelProvider):
         tool_call = ToolCall(
             id=f"call_{len(self._responses)}",
             name=tool_name,
-            arguments=json.dumps(arguments),
+            arguments=deepcopy(arguments),
         )
         self._responses.append([tool_call])
         self._responses.append(follow_up)
@@ -201,6 +186,7 @@ class MockProvider(ModelProvider):
         tools: list[ToolDeclaration] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        **kwargs: Any,
     ) -> AsyncGenerator[StreamChunk, None]:
         """Stream a mock response."""
         self.calls.append(
@@ -231,7 +217,7 @@ class MockProvider(ModelProvider):
 class EvalTestRig:
     """Test rig for running behavioral evaluations.
 
-    Provides a sandboxed environment for testing agent behavior, including:
+    Provides a temporary workspace for testing agent behavior, including:
     - Temporary directory for file operations
     - Tool call logging
     - Real LLM provider for actual behavior testing
@@ -250,20 +236,55 @@ class EvalTestRig:
         self,
         provider: ModelProvider | None = None,
         system_prompt: str | None = None,
+        config: AgentConfig | None = None,
+        *,
+        profile: str | None = None,
+        settings: Settings | None = None,
     ) -> None:
         """Initialize the test rig.
 
         Args:
             provider: Provider to use. If None, uses get_eval_provider().
             system_prompt: System prompt for the agent.
+            config: Optional core-agent configuration, copied for each setup.
+            profile: basic, engineer or team; None uses EVAL_PROFILE, default basic.
+            settings: Copied production settings, supported only by the team profile.
         """
+        self._profile = profile if profile is not None else os.environ.get("EVAL_PROFILE", "basic")
+        if self._profile not in ("basic", "engineer", "team"):
+            raise ValueError(f"Unknown evaluation profile: {self._profile}")
+        if settings is not None and self._profile != "team":
+            raise ValueError("Evaluation settings require the team profile")
+        if self._profile == "team" and (config is not None or system_prompt is not None):
+            raise ValueError("The team profile rejects custom core config or system prompt")
+        self._settings = (
+            settings.model_copy(deep=True) if settings is not None else Settings()
+        ) if self._profile == "team" else None
+        self._config = replace(config) if config is not None else AgentConfig()
+        if self._profile == "team":
+            self._system_prompt = ""
+        elif self._profile == "engineer":
+            if system_prompt is not None or self._config.system_prompt:
+                raise ValueError("The engineer profile requires its canonical system prompt")
+            from henchman.agents.prompts import get_agent_prompt
+
+            self._system_prompt = get_agent_prompt(
+                "engineer", environment_context=_ENGINEER_EVAL_CONTEXT,
+            )
+        else:
+            self._system_prompt = (
+                system_prompt if system_prompt is not None
+                else self._config.system_prompt or self._get_eval_system_prompt()
+            )
         self._provider = provider or get_eval_provider()
-        self._system_prompt = system_prompt or self._get_eval_system_prompt()
+        self._providers = [self._provider]
         self._temp_dir: Path | None = None
         self._tool_logs: list[ToolLog] = []
         self._events: list[AgentEvent] = []
         self._agent: Agent | None = None
+        self._team_runtime: TeamEvalRuntime | None = None
         self._original_cwd: Path | None = None
+        self._run_outcomes: list[tuple[bool, str | None]] = []
 
     def _get_eval_system_prompt(self) -> str:
         """Get the system prompt for behavioral evals."""
@@ -289,6 +310,41 @@ The current working directory contains test files for this evaluation."""
         """Get the provider."""
         return self._provider
 
+    @property
+    def providers(self) -> list[ModelProvider]:
+        """Snapshot caller-owned providers, retained even after failed setup cleanup."""
+        current = self._team_runtime.providers if self._team_runtime is not None else []
+        for provider in current:
+            if not any(existing is provider for existing in self._providers):
+                self._providers.append(provider)
+        return list(self._providers)
+
+    @property
+    def orchestrator(self) -> Orchestrator:
+        """Return the initialized production team; other profiles have no team."""
+        if self._profile != "team":
+            raise RuntimeError("The orchestrator is available only for the team profile")
+        if self._team_runtime is None:
+            raise RuntimeError("Test rig not set up. Call setup() first.")
+        return self._team_runtime.orchestrator
+
+    @property
+    def profile_metadata(self) -> dict[str, Any]:
+        """Describe the initialized profile without prompts or provider credentials."""
+        if self._agent is None:
+            raise RuntimeError("Test rig not set up. Call setup() first.")
+        if self._team_runtime is not None:
+            return self._team_runtime.metadata
+        return {
+            "profile": self._profile,
+            "scope": "single_agent",
+            "tool_names": sorted(self._agent.tool_registry.list_tools()),
+            "prompt_sha256": hashlib.sha256(self._system_prompt.encode("utf-8")).hexdigest(),
+            "prompt_chars": len(self._system_prompt),
+            "max_tokens": self._agent.max_tokens,
+            "context_window": self._agent.context_window,
+        }
+
     def setup(self, test_name: str = "eval") -> None:
         """Set up the test environment.
 
@@ -303,17 +359,37 @@ The current working directory contains test files for this evaluation."""
         # Reset state
         self._tool_logs = []
         self._events = []
+        self._run_outcomes = []
 
-        # Create agent with wrapped registry
-        registry = self._create_wrapped_registry()
-        self._agent = Agent(
-            provider=self._provider,
-            tool_registry=registry,
-            system_prompt=self._system_prompt,
-        )
+        try:
+            if self._profile == "team":
+                from evals.team_runtime import TeamEvalRuntime
+
+                assert self._settings is not None
+                self._team_runtime = TeamEvalRuntime(
+                    self._provider, self._settings, self.test_dir,
+                    self._events, self._tool_logs,
+                )
+                self._team_runtime.initialize_roles()
+                self._providers = self.providers
+                self._agent = self._team_runtime.orchestrator.tech_lead
+                return
+            registry = self._create_wrapped_registry()
+            # AgentPool does not accept the full core AgentConfig. Reuse its
+            # canonical prompt/preset/scope composition, preserving every knob.
+            self._agent = Agent(
+                provider=self._provider,
+                tool_registry=registry,
+                config=replace(self._config, system_prompt=self._system_prompt),
+            )
+        except BaseException:
+            self.cleanup()
+            raise
 
     def _create_wrapped_registry(self) -> ToolRegistry:
-        """Create a tool registry with logging wrappers."""
+        """Create the profile's production tools without changing their policies."""
+        if self._profile == "engineer":
+            return self._create_engineer_registry()
         from henchman.tools.builtins import (
             AskUserTool,
             EditFileTool,
@@ -328,7 +404,7 @@ The current working directory contains test files for this evaluation."""
 
         registry = ToolRegistry()
 
-        # Create and register built-in tools with logging wrappers
+        # Use production tools; authoritative outcomes come from runtime events.
         builtin_tools = [
             ReadFileTool(),
             WriteFileTool(),
@@ -341,19 +417,34 @@ The current working directory contains test files for this evaluation."""
             AskUserTool(),
         ]
 
-        # Register built-in tools with logging wrappers
         for tool in builtin_tools:
-            wrapped = LoggingToolWrapper(tool, self._tool_logs)
-            registry.register(wrapped)
+            registry.register(tool)
 
         # Auto-approve all tools for evals
-        for tool in registry._tools:
-            registry.add_auto_approve_policy(tool)
+        for tool_name in registry._tools:
+            registry.add_auto_approve_policy(tool_name)
 
+        return registry
+
+    def _create_engineer_registry(self) -> ToolRegistry:
+        """Use production tool assembly and role filtering without a team runtime."""
+        from evals.team_runtime import create_eval_registry
+        from henchman.agents.pool import create_scoped_registry
+        from henchman.agents.presets import get_default_team
+
+        parent = create_eval_registry(self.test_dir)
+        role = get_default_team()["engineer"]
+        registry = create_scoped_registry(parent, role.tools)
+        for name in registry.list_tools():
+            registry.add_auto_approve_policy(name)
         return registry
 
     def cleanup(self) -> None:
         """Clean up the test environment."""
+        if self._team_runtime is not None:
+            self._providers = self.providers
+            self._team_runtime.orchestrator.pool.shutdown()
+            self._team_runtime = None
         if self._original_cwd:
             os.chdir(self._original_cwd)
         if self._temp_dir and self._temp_dir.exists():
@@ -402,7 +493,9 @@ The current working directory contains test files for this evaluation."""
         self,
         prompt: str,
         max_iterations: int = 10,
-        timeout: float = 60.0,
+        timeout: float | None = None,
+        *,
+        observe_event: Callable[[AgentEvent], None] | None = None,
     ) -> EvalResult:
         """Run the agent with the given prompt.
 
@@ -411,66 +504,83 @@ The current working directory contains test files for this evaluation."""
         Args:
             prompt: User prompt to send.
             max_iterations: Maximum tool call iterations.
-            timeout: Timeout in seconds.
+            timeout: Whole-turn timeout in seconds; defaults to EVAL_TIMEOUT or 60.
+            observe_event: Called after each event is retained. Observer errors propagate.
 
         Returns:
             EvalResult with full details.
         """
         import time
 
+        from evals.team_runtime import ToolObservations
+        from henchman.cli.app import _run_headless_json_mode
+
         if self._agent is None:
             raise RuntimeError("Test rig not set up. Call setup() first.")
+        if type(max_iterations) is not int or max_iterations < 0:
+            raise ValueError("max_iterations must be a nonnegative integer")
+        effective_timeout = float(os.environ.get("EVAL_TIMEOUT", "60")) if timeout is None else timeout
+        if isinstance(effective_timeout, bool) or not math.isfinite(effective_timeout) or effective_timeout <= 0:
+            raise ValueError("timeout must be a finite positive number")
 
+        outcome_index = len(self._run_outcomes)
+        self._run_outcomes.append((False, "Evaluation did not complete"))
+        if self._team_runtime is not None:
+            result = await self._team_runtime.run(
+                prompt, max_iterations, effective_timeout, observe_event=observe_event,
+            )
+            self._run_outcomes[outcome_index] = (result.success, result.error)
+            return result
         start_time = time.perf_counter()
         final_response = ""
         tokens_in = 0
         tokens_out = 0
         error: str | None = None
-        iteration = 0
+        self._events.clear()
+        self._tool_logs.clear()
+        observations = ToolObservations(self._events, self._tool_logs)
+        observer = EventObserver(observe_event)
 
+        def record(event: AgentEvent) -> None:
+            observations.record(event)
+            observer(event)
+
+        old_limit = self._agent.base_tool_iterations
+        self._agent.base_tool_iterations = max_iterations
+        runtime = SimpleNamespace(agent=self._agent, tool_registry=self._agent.tool_registry)
+        success = False
         try:
-            # Initial run
-            pending_tool_calls: list[ToolCall] = []
-
-            async for event in self._agent.run(prompt):
-                self._events.append(event)
-
-                if event.type == EventType.CONTENT:
-                    final_response += event.data or ""
-                elif event.type == EventType.TOOL_CALL_REQUEST:
-                    pending_tool_calls.append(event.data)
-                elif event.type == EventType.FINISHED:
-                    break
-
-            # Tool execution loop
-            while pending_tool_calls and iteration < max_iterations:
-                iteration += 1
-
-                # Execute all pending tool calls
-                for tool_call in pending_tool_calls:
-                    result = await self._execute_tool(tool_call)
-                    self._agent.submit_tool_result(tool_call.id, result)
-
-                # Clear pending calls
-                pending_tool_calls = []
-
-                # Continue with tool results
-                async for event in self._agent.continue_with_tool_results():
-                    self._events.append(event)
-
-                    if event.type == EventType.CONTENT:
-                        final_response += event.data or ""
-                    elif event.type == EventType.TOOL_CALL_REQUEST:
-                        pending_tool_calls.append(event.data)
-                    elif event.type == EventType.FINISHED:
-                        break
-
+            async with asyncio.timeout(effective_timeout):
+                success = await _run_headless_json_mode(runtime, prompt, record)
+        except TimeoutError:
+            if observer.failed:
+                raise
+            error = f"Evaluation timed out after {effective_timeout:g}s"
+            record(AgentEvent(EventType.ERROR, error))
+            record(AgentEvent(EventType.FINISHED, {"finish_reason": "error"}))
         except Exception as e:
+            if observer.failed:
+                raise
             error = str(e)
+            record(AgentEvent(EventType.ERROR, error))
+        finally:
+            self._agent.base_tool_iterations = old_limit
+
+        for event in self._events:
+            if event.type == EventType.CONTENT:
+                final_response += event.data or ""
+            elif event.type == EventType.ERROR and error is None:
+                error = str(event.data)
+            elif event.type == EventType.FINISHED and isinstance(event.data, dict):
+                usage = event.data.get("usage") or {}
+                tokens_in = usage.get("prompt_tokens", 0)
+                tokens_out = usage.get("completion_tokens", 0)
+        if not success and error is None:
+            error = "Evaluation ended without successful completion"
 
         duration_ms = (time.perf_counter() - start_time) * 1000
 
-        return EvalResult(
+        result = EvalResult(
             prompt=prompt,
             final_response=final_response,
             tool_logs=list(self._tool_logs),
@@ -478,30 +588,22 @@ The current working directory contains test files for this evaluation."""
             duration_ms=duration_ms,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
-            success=error is None,
+            success=success and error is None,
             error=error,
+            diagnostics=list(observations.diagnostics),
         )
+        self._run_outcomes[outcome_index] = (result.success, result.error)
+        return result
 
-    async def _execute_tool(self, tool_call: ToolCall) -> str:
-        """Execute a tool call and return the result.
-
-        Args:
-            tool_call: The tool call to execute.
-
-        Returns:
-            The tool result as a string.
-        """
-        if self._agent is None:
-            return "Error: Agent not initialized"
-
-        try:
-            result = await self._agent.tool_registry.execute(
-                tool_call.name,
-                tool_call.arguments,
-            )
-            return result.content or ""
-        except Exception as e:
-            return f"Error executing {tool_call.name}: {e}"
+    def assert_successful_runs(self) -> None:
+        """Reject missing, failed or interrupted turns, even if their result was ignored."""
+        assert self._run_outcomes, "Evaluation did not run an agent turn"
+        failures = [
+            f"Turn {index}: {error or 'Evaluation failed'}"
+            for index, (success, error) in enumerate(self._run_outcomes, start=1)
+            if not success
+        ]
+        assert not failures, "\n".join(failures)
 
     def tool_was_called(self, tool_name: str) -> bool:
         """Check if a tool was called during the eval.
@@ -570,7 +672,7 @@ The current working directory contains test files for this evaluation."""
 
 
 class LoggingToolWrapper(Tool):
-    """Wrapper that logs tool calls for evaluation tracking."""
+    """Legacy direct-call logger; runtime evals observe final registry events."""
 
     def __init__(self, tool: Tool, log_list: list[ToolLog]) -> None:
         """Initialize wrapper.
@@ -601,6 +703,14 @@ class LoggingToolWrapper(Tool):
     def kind(self) -> ToolKind:
         """Get tool kind."""
         return self._tool.kind
+
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Preserve the wrapped tool's invocation-specific policy."""
+        return self._tool.execution_kind(params)
+
+    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
+        """Preserve the wrapped tool's confirmation contract."""
+        return self._tool.needs_confirmation(params)
 
     async def execute(self, **kwargs: object) -> ToolResult:
         """Execute the tool and log the call."""
@@ -645,6 +755,7 @@ def eval_test(policy: EvalPolicy) -> Callable[..., Callable[..., Awaitable[None]
             try:
                 rig.setup(func.__name__)
                 await func(rig)
+                rig.assert_successful_runs()
             finally:
                 rig.cleanup()
 

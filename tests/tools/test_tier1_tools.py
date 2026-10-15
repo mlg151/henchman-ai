@@ -75,6 +75,22 @@ class _ScheduleCronTool(Tool):
         return ToolResult(content="schedule")
 
 
+class _DynamicKnowledgeTool(Tool):
+    """Tool registered after builtin construction to model RAG/plugins."""
+
+    @property
+    def name(self) -> str:
+        return "dynamic_knowledge"
+
+    @property
+    def description(self) -> str:
+        return "Search dynamic knowledge registered at runtime."
+
+    async def execute(self, **params: object) -> ToolResult:
+        del params
+        return ToolResult(content="dynamic")
+
+
 class TestToolSearchTool:
     """Tests for Tier 1 tool search behavior."""
 
@@ -114,11 +130,17 @@ class TestToolSearchTool:
             tool_class_resolver=lambda: (_WebSearchTool, _ScheduleCronTool),
         )
 
-        result = await tool.execute()
+        result = await tool.execute(limit=100)
 
         assert result.success is True
-        assert "- web_search [runtime-wired]: Search the web for current information." in result.content
-        assert "- schedule_cron [metadata-only]: Persist cron schedule metadata only." in result.content
+        assert (
+            "- web_search [runtime-wired]: Search the web for current information."
+            in result.content
+        )
+        assert (
+            "- schedule_cron [metadata-only]: Persist cron schedule metadata only."
+            in result.content
+        )
         assert "Capability truth:" in result.content
         assert "- GitHub webhook-helper [docs-only]:" in result.content
         assert "- Tier 10 dialogs [undiscoverable]:" in result.content
@@ -133,8 +155,49 @@ class TestToolSearchTool:
         result = await tool.execute(query="dialog")
 
         assert result.success is True
-        assert '- Tier 10 dialogs [undiscoverable]:' in result.content
-        assert '- alpha_search:' not in result.content
+        assert "- Tier 10 dialogs [undiscoverable]:" in result.content
+        assert "- alpha_search:" not in result.content
+
+    @pytest.mark.anyio
+    async def test_tool_search_finds_tools_registered_after_runtime_binding(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Runtime discovery must include tools added after builtins."""
+
+        manager = ToolManager()
+        manager.bind_runtime(project_root=tmp_path)
+        manager.register_builtin_tools()
+        manager.registry.register(_DynamicKnowledgeTool())
+
+        result = await manager.registry.execute(
+            "tool_search",
+            {"query": "dynamic knowledge"},
+        )
+
+        assert result.success is True
+        assert (
+            "- dynamic_knowledge: Search dynamic knowledge registered at runtime." in result.content
+        )
+
+    @pytest.mark.anyio
+    async def test_tool_search_does_not_advertise_absent_dynamic_tools(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A different runtime must not inherit dynamic registrations."""
+
+        manager = ToolManager()
+        manager.bind_runtime(project_root=tmp_path)
+        manager.register_builtin_tools()
+
+        result = await manager.registry.execute(
+            "tool_search",
+            {"query": "dynamic knowledge"},
+        )
+
+        assert result.success is False
+        assert "dynamic_knowledge" not in result.content
 
 
 class TestSkillTool:
@@ -191,7 +254,9 @@ Use the repository lint commands.
             encoding="utf-8",
         )
 
-        tool = SkillTool(skill_catalog=SkillCatalog(project_root=tmp_path, home_dir=tmp_path / "home"))
+        tool = SkillTool(
+            skill_catalog=SkillCatalog(project_root=tmp_path, home_dir=tmp_path / "home")
+        )
 
         result = await tool.execute(skill="linting")
 
@@ -251,7 +316,10 @@ class TestWebSearchTool:
 
         assert result.success is False
         assert "aiohttp and beautifulsoup4 are required for web_search" in result.content
-        assert result.error == "Dependencies not installed. Please run: pip install aiohttp beautifulsoup4"
+        assert (
+            result.error
+            == "Dependencies not installed. Please run: pip install aiohttp beautifulsoup4"
+        )
 
     @pytest.mark.anyio
     async def test_tool_manager_executes_concrete_web_search_tool(
@@ -327,12 +395,17 @@ steps:
         """Builtin iteration keeps WebSearchTool aligned with the new Tier 1 exports."""
         import henchman.tools.builtins as builtins_mod
 
+        def _instantiate(tool_class: object) -> object:
+            if tool_class is builtins_mod.ShellTool:
+                return builtins_mod.ShellTool(default_timeout=60)
+            if tool_class is builtins_mod.RagSearchTool:
+                from unittest.mock import MagicMock
+
+                return builtins_mod.RagSearchTool(store=MagicMock())
+            return tool_class()
+
         names = {
-            (
-                tool_class()
-                if tool_class is not builtins_mod.ShellTool
-                else builtins_mod.ShellTool(default_timeout=60)
-            ).name
+            _instantiate(tool_class).name
             for tool_class in builtins_mod.iter_available_builtin_tool_classes()
         }
 

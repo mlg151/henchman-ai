@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/security-report/v1",
+  "title": "SecurityReport",
+  "description": "Security scan result for one plugin installation.",
+  "type": "object",
+  "properties": {
+    "plugin_name": { "type": "string" },
+    "passed": { "type": "boolean" },
+    "risk_level": { "type": "string" },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "permissions_used": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "scan_timestamp": { "type": "string" }
+  },
+  "required": ["plugin_name", "passed", "risk_level", "warnings"]
+}

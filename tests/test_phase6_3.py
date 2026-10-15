@@ -45,22 +45,17 @@ def test_layout_settings():
             if last_arg.box == box.MINIMAL:
                 print("✅ Compact table setting applied (box.MINIMAL used)")
             else:
-                print(f"❌ Compact table setting failed. Box used: {last_arg.box}")
-                return False
+                raise AssertionError(f"Compact table setting failed. Box used: {last_arg.box}")
         else:
-            print("❌ print called but not with Table")
-            return False
+            raise AssertionError("print called but not with Table")
     else:
-        print("❌ console.print not called")
-        return False
-
-    return True
+        raise AssertionError("console.print not called")
 
 
 if __name__ == "__main__":
     try:
-        success = test_layout_settings()
-        sys.exit(0 if success else 1)
+        test_layout_settings()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

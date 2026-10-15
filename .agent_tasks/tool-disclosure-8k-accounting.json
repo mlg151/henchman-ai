@@ -1,0 +1,35 @@
+{
+  "context_window": 8000,
+  "prompt_tokens_estimate": 4465,
+  "full_catalog_initial_input_estimate": 13850,
+  "catalog_size": 58,
+  "broad_search_result_chars": 1082,
+  "initial": {
+    "input_estimate": 5977,
+    "reserved_output": 2000,
+    "tool_names": [
+      "tool_search",
+      "delegate_task",
+      "ask_user",
+      "read_file",
+      "ls",
+      "glob",
+      "shell"
+    ]
+  },
+  "after_broad_search": {
+    "input_estimate": 5949,
+    "reserved_output": 2000,
+    "tool_names": [
+      "tool_search",
+      "ask_user",
+      "code_format",
+      "coverage_map",
+      "dead_code",
+      "deep_research",
+      "read_file"
+    ]
+  },
+  "model_calls": 0,
+  "counts": "Estimates, not server-exact token counts."
+}

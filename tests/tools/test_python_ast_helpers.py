@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ast
 
+import pytest
+
 from henchman.tools.builtins.python_ast_helpers import (
     add_assignments_section,
     add_functions_and_classes_sections,
@@ -210,6 +212,58 @@ class TestGenerateSymbolTable:
 
 class TestFormatFunctionNode:
     """Tests for format_function_node."""
+
+    @pytest.mark.parametrize(
+        ("definition", "expected_signature"),
+        [
+            (
+                "def convert(value: int, /, offset: int = 2) -> int:",
+                "def convert(value: int, /, offset: int=2) -> int",
+            ),
+            (
+                "def select(*, required: str, limit: int = 10) -> str:",
+                "def select(*, required: str, limit: int=10) -> str",
+            ),
+            (
+                "async def fetch(url: str, /, timeout: float = 3.5, "
+                "*paths: str, verify: bool = True, **headers: str) -> bytes:",
+                "async def fetch(url: str, /, timeout: float=3.5, "
+                "*paths: str, verify: bool=True, **headers: str) -> bytes",
+            ),
+            (
+                "def collect(*items: int, **options: bool):",
+                "def collect(*items: int, **options: bool)",
+            ),
+            (
+                "def make(factory: type = dict, options: tuple = (1, 2)):",
+                "def make(factory: type=dict, options: tuple=(1, 2))",
+            ),
+        ],
+    )
+    def test_complete_signature_preserves_call_contract(
+        self, definition: str, expected_signature: str
+    ) -> None:
+        tree = ast.parse(definition + "\n    pass\n")
+        function = tree.body[0]
+        assert isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef))
+
+        assert format_function_node(function) == [
+            f"{expected_signature}  [L1-2]"
+        ]
+
+    def test_ordinary_signature_keeps_existing_format(self) -> None:
+        tree = ast.parse(
+            '@staticmethod\ndef convert(value: int) -> str:\n'
+            '    """Convert the input."""\n'
+            '    return str(value)\n'
+        )
+        function = tree.body[0]
+        assert isinstance(function, ast.FunctionDef)
+        assert format_function_node(function, indent=1, is_method=True) == [
+            "  @staticmethod",
+            "  def convert(value: int) -> str  [L2-4]  [staticmethod]",
+            '    """Convert the input."""',
+        ]
 
     def test_basic_function(self) -> None:
         """Formats a basic function definition."""

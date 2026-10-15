@@ -337,7 +337,8 @@ class TestSerenaCliIntegration:
 
         def create_mock_client(
             name: str, config: McpServerConfig | None = None, verbose: bool = False
-        ) -> McpClient:  # noqa: ARG001
+        ) -> McpClient:
+            del config, verbose
             clients = {
                 "serena": mock_serena_client,
                 "filesystem": mock_fs_client,

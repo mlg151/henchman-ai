@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from henchman.agents.config import AgentConfig
 
 # Common tool sets to eliminate duplication
-_BASIC_FILE_TOOLS = ["read_file", "ls", "glob", "grep"]
+_BASIC_FILE_TOOLS = ["read_file", "ls", "glob", "grep", "tool_search"]
+_CODE_DISCOVERY_TOOLS = ["file_overview", "symbol_trace", "pattern_search"]
 _FILE_EDIT_TOOLS = ["write_file", "edit_file"]
 _GIT_TOOLS = ["git_ops"]
 _WEB_TOOLS = ["web_fetch", "web_search"]
@@ -44,6 +45,7 @@ class ToolCategoryConfig:
     knowledge_tools: bool = False
     shell_tools: bool = False
     python_dev_tools: bool = False
+    code_discovery_tools: bool = False
 
 
 def _create_agent_config(
@@ -70,10 +72,12 @@ def _create_agent_config(
     if tool_categories is None:
         tool_categories = ToolCategoryConfig()
 
-    tools: list[str] = []
+    tools: list[str] = ["goal_status"]
 
     if tool_categories.basic_file_tools:
         tools.extend(_BASIC_FILE_TOOLS)
+    if tool_categories.code_discovery_tools:
+        tools.extend(_CODE_DISCOVERY_TOOLS)
     if tool_categories.file_edit_tools:
         tools.extend(_FILE_EDIT_TOOLS)
     if tool_categories.git_tools:
@@ -86,6 +90,8 @@ def _create_agent_config(
         tools.extend(_SHELL_TOOLS)
     if tool_categories.python_dev_tools:
         tools.extend(_PYTHON_DEV_TOOLS)
+    if tool_categories.shell_tools or tool_categories.python_dev_tools:
+        tools.extend(["task_get", "task_list", "task_output", "task_stop"])
     if special_tools:
         tools.extend(special_tools)
 
@@ -101,22 +107,23 @@ def _create_tech_lead_config() -> AgentConfig:
     """Create configuration for the Tech Lead agent.
 
     The Tech Lead handles orchestration, delegation, and quality gating.
-    Read-only, delegates all writes.
+    Delegates file edits while retaining shell, knowledge and verification tools.
     """
     return _create_agent_config(
         name="Leader",
         role="tech_lead",
-        description="Orchestrator, delegator, and quality gate — read-only, delegates all writes",
+        description="Orchestrator, delegator, and quality gate — delegates file edits to specialists",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
-            file_edit_tools=False,  # Read-only, delegates writes
+            code_discovery_tools=True,
+            file_edit_tools=False,  # Delegate file edits to specialists
             git_tools=True,
             web_tools=True,
             knowledge_tools=True,
             shell_tools=True,
             python_dev_tools=False,
         ),
-        special_tools=["delegate_task", "ask_user"],
+        special_tools=["delegate_task", "ask_user", "verify_plan_execution"],
     )
 
 
@@ -132,6 +139,7 @@ def _create_planner_config() -> AgentConfig:
         description="Architecture, task decomposition, and design docs in .agent_tasks/",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
+            code_discovery_tools=True,
             file_edit_tools=True,  # Can write design docs
             git_tools=True,
             web_tools=True,
@@ -154,6 +162,7 @@ def _create_explorer_config() -> AgentConfig:
         description="Research, analysis, and documentation in .agent_tasks/",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
+            code_discovery_tools=True,
             file_edit_tools=True,  # Can write documentation
             git_tools=True,
             web_tools=True,
@@ -175,6 +184,7 @@ def _create_engineer_config() -> AgentConfig:
         description="Code implementation, testing, and debugging",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
+            code_discovery_tools=True,
             file_edit_tools=True,  # Can write code
             git_tools=True,
             web_tools=False,
@@ -197,6 +207,7 @@ def _create_data_engineer_config() -> AgentConfig:
         description="Data pipeline development, PySpark/Pandas transformations, AWS infrastructure, and Airflow orchestration",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
+            code_discovery_tools=True,
             file_edit_tools=True,  # Can write code and configs
             git_tools=True,
             web_tools=True,  # For AWS/cloud research

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from henchman.core.agent_streaming import record_message
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import Message
 
@@ -60,26 +61,6 @@ def handle_valid_thinking(metrics: Any, content: str) -> None:
         )
 
 
-def handle_missing_thinking(agent: Any) -> AgentEvent:
-    """Handle missing thinking pattern by adding reminder.
-
-    Args:
-        agent: The agent missing the thinking pattern.
-
-    Returns:
-        AgentEvent: An event indicating thinking pattern is required.
-    """
-    reminder = (
-        "\n[Thinking Required] Your response must start with THINKING: "
-        "followed by your reasoning process. Please revise."
-    )
-    agent.messages.append(Message(role="user", content=reminder))
-    return AgentEvent(
-        type=EventType.THINKING_REQUIRED,
-        data="Thinking pattern missing in Tech Lead response",
-        source_agent="orchestrator",
-    )
-
 
 # ---------------------------------------------------------------------------
 # Stall detection
@@ -105,5 +86,8 @@ def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent | None:
         f"STALL FAILURE: {role_label} announced intent but never used "
         f"tools after {nudges} nudges. The task was NOT completed."
     )
-    agent.messages.append(Message(role="assistant", content=fail_msg))
+    record_message(
+        agent.messages, Message(role="assistant", content=fail_msg),
+        getattr(agent, "current_turn_messages", None),
+    )
     return AgentEvent(type=EventType.ERROR, data=fail_msg, source_agent=role_label)

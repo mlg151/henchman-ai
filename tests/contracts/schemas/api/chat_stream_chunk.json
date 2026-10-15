@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/chat-stream-chunk/v1",
+  "type": "object",
+  "required": ["type", "data", "index"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["content", "tool_call", "finished", "done", "error"]
+    },
+    "data": {
+      "type": "object"
+    },
+    "index": {
+      "type": "integer"
+    }
+  },
+  "additionalProperties": false
+}

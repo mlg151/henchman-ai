@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from henchman.cli.commands import CommandContext
-from henchman.cli.commands.plan import PLAN_MODE_PROMPT, PlanCommand
+from henchman.cli.commands.plan import PLAN_MODE_PROMPT, PlanCommand, apply_plan_mode
 from henchman.core.agent import Agent
 from henchman.core.session import Session
 
@@ -20,6 +20,14 @@ def ctx():
     return CommandContext(
         console=console, session=session, agent=agent, tool_registry=tool_registry
     )
+
+
+def test_apply_plan_mode_updates_bound_agent_prompt(ctx):
+    apply_plan_mode(enabled=True, agent=ctx.agent)
+    assert ctx.agent.system_prompt == "Base prompt" + PLAN_MODE_PROMPT
+
+    apply_plan_mode(enabled=False, agent=ctx.agent)
+    assert ctx.agent.system_prompt == "Base prompt"
 
 
 @pytest.mark.asyncio

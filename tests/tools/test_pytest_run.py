@@ -178,12 +178,11 @@ class TestPytestRunTool:
 
     async def test_timeout_kills_process(self) -> None:
         """TimeoutError kills process and returns timed-out ToolResult."""
-        import asyncio
         from unittest.mock import AsyncMock, MagicMock, patch
 
         tool = PytestRunTool()
         mock_process = MagicMock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_process.communicate = AsyncMock(side_effect=TimeoutError())
         mock_process.kill = MagicMock()
         mock_process.wait = AsyncMock()
         with patch("asyncio.create_subprocess_exec", return_value=mock_process):
@@ -224,7 +223,7 @@ class TestPytestRunCoverageGaps:
         mock_process.returncode = 0
         captured_cmd: list[list[str]] = []
 
-        async def capture_cmd(*args: str, **kwargs: object) -> MagicMock:
+        async def capture_cmd(*args: str, **_kwargs: object) -> MagicMock:
             """Capture command args."""
             captured_cmd.append(list(args))
             return mock_process
@@ -249,9 +248,13 @@ class TestPytestRunCoverageGaps:
         mock_process.k1ll = MagicMock()  # avoid shell interception
         mock_process.kill = mock_process.k1ll
         mock_process.wait = AsyncMock()
+        mock_process.returncode = None
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with pytest.raises(asyncio.CancelledError):
-                await _run_pytest_subprocess(["pytest", "--version"], timeout=30)
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_process),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await _run_pytest_subprocess(["pytest", "--version"], timeout=30)
 
-        mock_process.k1ll.assert_called_once()
+        mock_process.terminate.assert_called_once()
+        mock_process.wait.assert_awaited_once()

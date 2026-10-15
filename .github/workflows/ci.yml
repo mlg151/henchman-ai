@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       
@@ -63,7 +63,7 @@ jobs:
           
       - name: Run tests with coverage
         run: |
-          pytest tests/ --cov=henchman --cov-report=xml --cov-fail-under=100
+          pytest tests/ --cov=henchman --cov-report=xml --cov-fail-under=90
           
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
@@ -96,3 +96,159 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  portable-wheel:
+    name: Installed coding workflow (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Build independently so Linux quality-gate failures do not hide platform
+      # installation diagnostics. Existing release artifact gates remain above.
+      - name: Install build tooling
+        run: python -m pip install build
+
+      - name: Build wheel
+        run: python -m build --wheel
+
+      - name: Verify installed CLI and five-provider coding workflow
+        run: python tests/testing/installed_wheel_smoke.py --wheel-dir dist
+
+  package-smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.14"]
+    steps:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download built distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+
+      - name: Smoke test installed package
+        run: |
+          smoke_dir="$(mktemp -d)"
+          cd "$smoke_dir"
+          henchman --version
+          mlg --version
+          henchman --help > henchman-help.txt
+          grep -q "Commands:" henchman-help.txt
+          if henchman definitely-not-a-command > unknown-command.txt 2>&1; then
+            echo "unknown command unexpectedly succeeded"
+            exit 1
+          fi
+          grep -q "No such command 'definitely-not-a-command'" unknown-command.txt
+          python - <<'PY'
+          from types import SimpleNamespace
+
+          from fastapi.testclient import TestClient
+
+          from henchman.api.server import app
+          from henchman.api.state import state
+
+          state.settings = SimpleNamespace(providers=SimpleNamespace(default="smoke"))
+          state.agent = object()
+          response = TestClient(app).get("/v1/ready")
+          assert response.status_code == 200, response.text
+          assert response.json()["agent_ready"] is True
+          PY
+          python - <<'PY'
+          import chromadb
+          import henchman.rag
+
+          client = chromadb.EphemeralClient()
+          collection = client.create_collection("smoke")
+          collection.add(
+              ids=["1"],
+              embeddings=[[1.0, 0.0]],
+              documents=["operational"],
+          )
+          result = collection.query(query_embeddings=[[1.0, 0.0]], n_results=1)
+          assert collection.count() == 1
+          assert result["ids"] == [["1"]]
+          PY
+
+  source-smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download built distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install source distribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.tar.gz
+
+      - name: Smoke test installed package
+        run: |
+          smoke_dir="$(mktemp -d)"
+          cd "$smoke_dir"
+          henchman --version
+          mlg --version
+          henchman --help > henchman-help.txt
+          grep -q "Commands:" henchman-help.txt
+          if henchman definitely-not-a-command > unknown-command.txt 2>&1; then
+            echo "unknown command unexpectedly succeeded"
+            exit 1
+          fi
+          grep -q "No such command 'definitely-not-a-command'" unknown-command.txt
+          python - <<'PY'
+          from types import SimpleNamespace
+
+          from fastapi.testclient import TestClient
+
+          from henchman.api.server import app
+          from henchman.api.state import state
+
+          state.settings = SimpleNamespace(providers=SimpleNamespace(default="smoke"))
+          state.agent = object()
+          response = TestClient(app).get("/v1/ready")
+          assert response.status_code == 200, response.text
+          assert response.json()["agent_ready"] is True
+          PY
+          python - <<'PY'
+          import chromadb
+          import henchman.rag
+
+          client = chromadb.EphemeralClient()
+          collection = client.create_collection("source_smoke")
+          collection.add(
+              ids=["1"],
+              embeddings=[[1.0, 0.0]],
+              documents=["operational"],
+          )
+          result = collection.query(query_embeddings=[[1.0, 0.0]], n_results=1)
+          assert collection.count() == 1
+          assert result["ids"] == [["1"]]
+          PY

@@ -9,16 +9,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import errno
-import fcntl
 import os
-import pty
 import select
 import sys
-import termios
-import tty
 from dataclasses import dataclass
 from pathlib import Path
 
+from henchman.advanced.tasks import TaskService
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.security import (
     CommandInjectionError,
@@ -58,7 +55,10 @@ _SHELL_PARAMETERS: dict[str, object] = {
     "properties": {
         "command": {
             "type": "string",
-            "description": "Shell command to execute",
+            "description": (
+                "Shell command to execute on a single line; literal and escaped newlines "
+                "are rejected."
+            ),
         },
         "timeout": {
             "type": "integer",
@@ -80,6 +80,11 @@ _SHELL_PARAMETERS: dict[str, object] = {
                 "Only works when running in TUI mode with a terminal."
             ),
             "default": False,
+        },
+        "background": {
+            "type": "boolean",
+            "default": True,
+            "description": "Run as a tracked background task (default). Set false to await output.",
         },
     },
     "required": ["command"],
@@ -259,12 +264,17 @@ def _is_process_dead(pid: int) -> bool:
         pid: The process ID to check.
 
     Returns:
-        ``True`` when the process can be considered finished.
+        ``True`` when Linux procfs proves the process has finished. Other
+        platforms rely on the subprocess transport's return code.
     """
+    if sys.platform != "linux" or not Path("/proc").is_dir():
+        return False
     proc_stat_path = Path(f"/proc/{pid}/stat")
     try:
         with open(proc_stat_path) as fh:
-            return fh.read().split()[2] == "Z"
+            # The parenthesized process name can contain spaces and brackets.
+            fields = fh.read().rpartition(")")[2].split()
+            return bool(fields and fields[0] == "Z")
     except (FileNotFoundError, ProcessLookupError):
         return True
     except OSError:
@@ -285,7 +295,7 @@ async def _drain_readers(*tasks: asyncio.Task[None]) -> bool:
             asyncio.gather(*tasks, return_exceptions=True),
             timeout=_DRAIN_TIMEOUT,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return False
     return not any(isinstance(result, BaseException) for result in results)
 
@@ -314,7 +324,7 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
     """
     try:
         await asyncio.wait_for(process.wait(), timeout=_REAP_TIMEOUT)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         with contextlib.suppress(ProcessLookupError):
             process.kill()
 
@@ -352,7 +362,7 @@ async def _create_process(
     command = params.command
     env = params.env
 
-    if is_sudo and not sys.stdin.isatty():
+    if is_sudo and sys.platform != "win32" and not sys.stdin.isatty():
         env = {**env, "SUDO_ASKPASS": "/bin/false"}
         command = f"sudo -A {command[_SUDO_PREFIX_LEN:]}"
 
@@ -499,6 +509,8 @@ async def _create_pty_process(
 
 def _configure_pty_master(master_fd: int) -> None:
     """Switch the PTY master into non-blocking mode."""
+    import fcntl
+
     flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
     fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
@@ -567,6 +579,10 @@ async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
         ToolResult with command output or error.
     """
     try:
+        import pty
+        import termios
+        import tty
+
         master_fd, slave_fd = pty.openpty()
         os.setsid()
         process = await _create_pty_process(params, slave_fd)
@@ -621,6 +637,12 @@ class ShellTool(Tool):
                 Defaults to 3600 (1 hour).
         """
         self._default_timeout = default_timeout
+        self._project_root = Path.cwd()
+
+    def bind_runtime(self, *, project_root: Path | None = None, **_: object) -> None:
+        """Bind background jobs to the project's shared task registry."""
+        if project_root is not None:
+            self._project_root = project_root.resolve()
 
     # -- public helpers exposed for tests ------------------------------------
     def _is_sudo_command(self: ShellTool, command: str) -> bool:
@@ -677,9 +699,9 @@ class ShellTool(Tool):
     def description(self: ShellTool) -> str:
         """Tool description."""
         return (
-            "Execute a shell command and return its output. "
-            "Long-running commands (builds, tests, data jobs) are fully "
-            "supported — the tool will wait until the command completes."
+            "Execute a shell command as a background task by default and return its task ID. "
+            "Use task_get, task_list, task_output and task_stop to track multiple long-running jobs. "
+            "Set background=false to wait for completion and return output."
         )
 
     parameters = _SHELL_PARAMETERS
@@ -695,6 +717,7 @@ class ShellTool(Tool):
         command: str = "",
         timeout: int | None = None,
         cwd: str | None = None,
+        background: bool = True,
         **kwargs: object,
     ) -> ToolResult:
         """Execute shell command.
@@ -704,6 +727,7 @@ class ShellTool(Tool):
             timeout: Command timeout in seconds. None uses the default.
                 0 means no timeout (wait indefinitely).
             cwd: Working directory for the command.
+            background: Return a tracked task immediately instead of awaiting completion.
             **kwargs: Additional arguments (ignored).
 
         Returns:
@@ -713,8 +737,14 @@ class ShellTool(Tool):
         try:
             sanitized_command = sanitize_command(command)
         except (CommandInjectionError, ValueError) as e:
+            content = f"Security validation failed: {e}"
+            if "control characters" in str(e) or "embedded newline" in str(e):
+                content += (
+                    " Commands must use a single line; literal and escaped newlines are rejected. "
+                    "For multiline Python, use python_exec if allowed."
+                )
             return ToolResult(
-                content=f"Security validation failed: {e}",
+                content=content,
                 success=False,
                 error="Command validation failed",
             )
@@ -727,6 +757,25 @@ class ShellTool(Tool):
         )
 
         try:
+            if background:
+                if kwargs.get("interactive", False):
+                    return ToolResult(
+                        content="Interactive terminal input requires background=false.",
+                        success=False,
+                        error="Interactive background execution is unsupported",
+                    )
+                command = params.command
+                if sys.platform != "win32" and _is_sudo_command(command):
+                    command = f"sudo -A {command[_SUDO_PREFIX_LEN:]}"
+                record = await TaskService(self._project_root).start_task(
+                    argv=[command], shell=True, cwd=params.cwd, env=params.env,
+                    timeout=params.timeout, title="shell", metadata={"tool": "shell"},
+                )
+                return ToolResult(
+                    content=f"Started background task {record.task_id} [{record.status}]. "
+                    "Use task_get for status, task_output for output, task_list for all jobs, "
+                    "or task_stop to stop this task. Starting a task does not confirm success.",
+                )
             return await self._execute_params(
                 params,
                 interactive=kwargs.get("interactive", False),
@@ -742,4 +791,4 @@ class ShellTool(Tool):
 
 def _should_use_interactive_mode(interactive: object, *, is_sudo: bool) -> bool:
     """Return whether command execution should use the PTY path."""
-    return bool(interactive or is_sudo) and sys.stdin.isatty()
+    return sys.platform != "win32" and bool(interactive or is_sudo) and sys.stdin.isatty()

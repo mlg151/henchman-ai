@@ -8,9 +8,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from henchman.core.agent_streaming import record_message
 from henchman.providers.base import Message
 
-from .orchestrator_types import ROLE_ANCHOR_INTERVAL, CompletionStatus
+from .orchestrator_types import (
+    ROLE_ANCHOR_INTERVAL,
+    CompletionRequirement,
+    CompletionStatus,
+    LoopState,
+)
 
 if TYPE_CHECKING:
     from henchman.core.agent import Agent
@@ -47,7 +53,10 @@ def inject_role_anchor(
         f"Stay focused on your assigned responsibilities. "
         f"Do not overstep your role boundaries.{mission_note}"
     )
-    agent.messages.append(Message(role="user", content=anchor_msg))
+    record_message(
+        agent.messages, Message(role="user", content=anchor_msg),
+        getattr(agent, "current_turn_messages", None),
+    )
 
 
 def _parse_tool_call_count(raw_value: Any) -> int:
@@ -82,13 +91,19 @@ def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus
 
     Returns:
         CompletionStatus: The completion status of the agent
-            (STALLED, NO_WORK_DONE, TIMED_OUT, or COMPLETED).
+            (FAILED, STALLED, NO_WORK_DONE, TIMED_OUT, RESPONDED, or COMPLETED).
     """
-    raw_tool_calls = getattr(orchestrator, "_last_loop_tool_call_count", 0)
-    _tool_calls = _parse_tool_call_count(raw_tool_calls)
-    raw_success = getattr(orchestrator, "_last_loop_success_count", 0)
-    success_calls = _parse_tool_call_count(raw_success)
-    timed_out = getattr(orchestrator, "_last_loop_timed_out", False)
+    state = getattr(agent, "_orchestrator_loop_state", None)
+    if isinstance(state, LoopState):
+        success_calls = state.successful_tool_call_count
+        timed_out = state.timed_out
+        failed = state.failed
+    else:
+        # Compatibility for callers that assess legacy agents outside the loop.
+        _parse_tool_call_count(getattr(orchestrator, "_last_loop_tool_call_count", 0))
+        success_calls = _parse_tool_call_count(getattr(orchestrator, "_last_loop_success_count", 0))
+        timed_out = getattr(orchestrator, "_last_loop_timed_out", False)
+        failed = getattr(orchestrator, "_last_loop_failed", False) is True
 
     stalled = False
 
@@ -99,13 +114,36 @@ def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus
     if not stalled and _is_truthy_failure(getattr(agent, "_stall_failure", None)):
         stalled = True
 
+    if failed:
+        return CompletionStatus.FAILED
     if stalled:
         return CompletionStatus.STALLED
     if timed_out:
         return CompletionStatus.TIMED_OUT
+    if (
+        isinstance(state, LoopState)
+        and state.completion_requirement == CompletionRequirement.RESPONSE
+        and state.tool_call_count == 0
+        and state.response_complete
+    ):
+        return CompletionStatus.RESPONDED
     if success_calls == 0:
         return CompletionStatus.NO_WORK_DONE
     return CompletionStatus.COMPLETED
+
+
+def completion_evidence(agent: Agent) -> dict[str, Any]:
+    """Describe observed execution separately from unestablished task verification."""
+    state = getattr(agent, "_orchestrator_loop_state", None)
+    evidence = None
+    if isinstance(state, LoopState):
+        evidence = {
+            "tool_calls": state.tool_call_count,
+            "successful_tool_calls": state.successful_tool_call_count,
+            "response_complete": state.response_complete,
+            "completion_requirement": state.completion_requirement.value,
+        }
+    return {"task_verified": False, "evidence": evidence}
 
 
 def _is_truthy_failure(value: Any) -> bool:
@@ -131,6 +169,8 @@ _FAILURE_STATUS_TOKENS: frozenset[str] = frozenset(
 )
 """Lowercase status tokens that indicate the specialist did not succeed."""
 
+_NO_BLOCKER_MARKERS = frozenset({"", "none", "n/a", "no blockers", "not applicable", "-"})
+
 
 def _enrich_completion_from_report(
     base_status: CompletionStatus,
@@ -142,7 +182,7 @@ def _enrich_completion_from_report(
     fields such as ``STATUS`` and ``BLOCKERS``.  This function downgrades
     a ``COMPLETED`` base status when those fields signal failure, and
     passes through definitive failure statuses (``STALLED``,
-    ``NO_WORK_DONE``, ``TIMED_OUT``) unchanged.
+    ``NO_WORK_DONE``, ``TIMED_OUT``, ``FAILED``) unchanged.
 
     Args:
         base_status: The coarse status derived from tool-call counts / stall
@@ -157,13 +197,14 @@ def _enrich_completion_from_report(
         CompletionStatus.STALLED,
         CompletionStatus.NO_WORK_DONE,
         CompletionStatus.TIMED_OUT,
+        CompletionStatus.FAILED,
     ):
         return base_status
 
     structured_status = parsed.get("status", "").strip().lower()
-    blockers = parsed.get("blockers", "").strip()
+    blockers = parsed.get("blockers", "").strip().casefold().removesuffix(".")
 
-    if structured_status in _FAILURE_STATUS_TOKENS or blockers:
+    if structured_status in _FAILURE_STATUS_TOKENS or blockers not in _NO_BLOCKER_MARKERS:
         return CompletionStatus.NO_WORK_DONE
 
     return base_status

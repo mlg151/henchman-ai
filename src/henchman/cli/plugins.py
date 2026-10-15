@@ -9,18 +9,12 @@ from __future__ import annotations
 import importlib.util
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from henchman.cli.repl import Repl
-
-
-try:
-    from typing import Self
-except ImportError:  # pragma: no cover
-    from typing_extensions import Self
 
 
 class UIPlugin(ABC):
@@ -59,6 +53,7 @@ class UIPlugin(ABC):
         Returns:
             None
         """
+        return None
 
 
 class PluginManager:

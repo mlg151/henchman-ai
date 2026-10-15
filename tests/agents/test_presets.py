@@ -1,3 +1,5 @@
+import pytest
+
 from henchman.agents.presets import get_default_team
 
 
@@ -107,3 +109,67 @@ def test_data_engineer_tools():
     # Data engineer doesn't have KG tools
     assert "kg_query" not in data_eng.tools
     assert "kg_update" not in data_eng.tools
+
+
+@pytest.mark.parametrize("role", ["tech_lead", "planner", "explorer", "engineer", "data_engineer"])
+async def test_default_roles_execute_registered_reuse_discovery_tools(role, tmp_path):
+    """Scoped agents can inspect existing implementations before adding new code."""
+    from unittest.mock import MagicMock
+
+    from henchman.agents.pool import AgentPool
+    from henchman.cli.tool_manager import ToolManager
+    from henchman.core.eventbus import EventBus
+    from henchman.providers.base import ModelProvider
+    from henchman.tools.base import ToolKind
+
+    source = tmp_path / "helpers.py"
+    source.write_text("class ExistingHelper:\n    pass\n", encoding="utf-8")
+    manager = ToolManager()
+    manager.register_builtin_tools()
+    pool = AgentPool(get_default_team(), MagicMock(spec=ModelProvider), None, manager.registry, EventBus())
+    registry = pool.get_agent(role).tool_registry
+    requests = {
+        "file_overview": {"path": str(source)},
+        "symbol_trace": {"symbol": "ExistingHelper", "path": str(tmp_path)},
+        "pattern_search": {"description": "ExistingHelper", "path": str(tmp_path)},
+    }
+    for name, arguments in requests.items():
+        result = await registry.execute(name, arguments)
+        assert result.success, result.content
+        assert "ExistingHelper" in result.content
+        assert registry.get(name).kind == ToolKind.READ
+
+
+async def test_custom_role_allowlist_remains_restricted_with_discovery_tools_registered(tmp_path):
+    from unittest.mock import MagicMock
+
+    from henchman.agents.pool import AgentPool
+    from henchman.cli.tool_manager import ToolManager
+    from henchman.core.eventbus import EventBus
+    from henchman.providers.base import ModelProvider
+
+    source = tmp_path / "helpers.py"
+    source.write_text("class ExistingHelper:\n    pass\n", encoding="utf-8")
+    manager = ToolManager()
+    manager.register_builtin_tools()
+    team = get_default_team()
+    team["engineer"].tools = ["file_overview"]
+    pool = AgentPool(team, MagicMock(spec=ModelProvider), None, manager.registry, EventBus())
+    registry = pool.get_agent("engineer").tool_registry
+    allowed = await registry.execute("file_overview", {"path": str(source)})
+    assert allowed.success
+    for name in ("symbol_trace", "pattern_search"):
+        result = await registry.execute(name, {"path": str(source)})
+        assert not result.success
+        assert registry.get(name) is None
+
+
+def test_execution_presets_can_track_multiple_background_jobs():
+    for preset in get_default_team().values():
+        if {"shell", "python_exec"}.intersection(preset.tools):
+            assert {"task_get", "task_list", "task_output", "task_stop"} <= set(preset.tools)
+
+
+def test_default_agents_can_complete_explicit_goals():
+    for preset in get_default_team().values():
+        assert "goal_status" in preset.tools

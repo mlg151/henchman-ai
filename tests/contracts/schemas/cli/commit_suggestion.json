@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/commit-suggestion/v1",
+  "type": "object",
+  "required": ["message", "commit_type", "scope", "summary", "files"],
+  "properties": {
+    "message": { "type": "string" },
+    "commit_type": { "type": "string" },
+    "scope": { "type": ["string", "null"] },
+    "summary": { "type": "string" },
+    "files": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

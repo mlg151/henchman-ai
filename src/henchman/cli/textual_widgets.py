@@ -358,7 +358,7 @@ def _call_private_member(owner: object, member_name: str, *args: Any) -> Any:
 
 
 def _perform_pane_operation(
-    operation: Callable[[], None],
+    operation: Callable[..., object],
     pane: ChatPane,
     fallback_name: str,
     *fallback_args: Any,
@@ -401,43 +401,6 @@ class HenchmanTextArea(TextArea):
             show=False,
         ),
     ]
-
-    async def on_key(self: Self, event: events.Key) -> None:
-        """Handle key events for submit and newline.
-
-        Args:
-            event: Incoming key event.
-
-        Returns:
-            None
-        """
-        if event.key == "enter":
-            self._handle_enter_key(event)
-        elif event.key == "shift+enter":
-            self._handle_shift_enter_key(event)
-
-    def _handle_enter_key(self: Self, event: events.Key) -> None:
-        """Handle the Enter key press.
-
-        Args:
-            event: Key event.
-        """
-        event.stop()
-        event.prevent_default()
-        # Cast app to HenchmanTextualApp to access its methods
-
-        app = cast("HenchmanTextualApp", self.app)
-        app.action_submit_message()
-
-    def _handle_shift_enter_key(self: Self, event: events.Key) -> None:
-        """Handle the Shift+Enter key press.
-
-        Args:
-            event: Key event.
-        """
-        event.stop()
-        event.prevent_default()
-        self.insert("\n")
 
     def action_newline(self: Self) -> None:
         """Insert a newline character.
@@ -544,10 +507,7 @@ class ChatMessage(_BaseMessageWidget):
 
     def _render_plain_text(self: Self) -> None:
         """Render content as plain text with optional highlighting."""
-        if self._trusted:
-            content = self._content_text
-        else:
-            content = _safe_markup(self._content_text)
+        content = self._content_text if self._trusted else _safe_markup(self._content_text)
         if self._highlight_term:
             content = _highlight_text(content, self._highlight_term)
         text = f"{self._prefix} {content}"
@@ -971,15 +931,6 @@ class ChatPane(VerticalScroll):
         self._active: dict[str, ChatMessage] = {}
         self._active_thinking: dict[str, ThinkingMessage] = {}
 
-    def on_mount(self: Self) -> None:
-        """Re-initialize the active message maps on mount.
-
-        Returns:
-            None
-        """
-        self._active = {}
-        self._active_thinking = {}
-
     def _scroll_to_bottom(self: Self) -> None:
         """Scroll to the latest message."""
         self.scroll_end(animate=False)
@@ -1020,15 +971,18 @@ class ChatPane(VerticalScroll):
             The created ChatMessage widget.
         """
         return self._add_message_widget(
-            ChatMessage, prefix, text, trusted=trusted,
+            ChatMessage,
+            prefix,
+            text,
+            trusted=trusted,
         )
 
     def add_user_message(self: Self, text: str) -> ChatMessage:
         """Add a user message (untrusted content, markup escaped).
-        
+
         Args:
             text: Message content to display. Markup is escaped for security.
-            
+
         Returns:
             The created ChatMessage widget.
         """
@@ -1036,10 +990,10 @@ class ChatPane(VerticalScroll):
 
     def add_system_message(self: Self, text: str) -> ChatMessage:
         """Add a system message (trusted content, markup rendered).
-        
+
         Args:
             text: Message content to display. Markup is rendered for rich formatting.
-            
+
         Returns:
             The created ChatMessage widget.
         """
@@ -1047,10 +1001,10 @@ class ChatPane(VerticalScroll):
 
     def add_error_message(self: Self, text: str) -> ChatMessage:
         """Add an error message (untrusted content, markup escaped).
-        
+
         Args:
             text: Error message content to display. Markup is escaped for security.
-            
+
         Returns:
             The created ChatMessage widget.
         """
@@ -1086,13 +1040,10 @@ class ChatPane(VerticalScroll):
         Returns:
             None
         """
-        newly_created = agent_name not in self._active
-        if newly_created:
+        if agent_name not in self._active:
             self.begin_agent_stream(agent_name)
         self._active[agent_name].append(chunk)
-        # Only scroll if we didn't just create a new stream (begin_agent_stream already scrolls)
-        if not newly_created:
-            self._scroll_to_bottom()
+        self._scroll_to_bottom()
 
     def finish_agent_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's streaming message as complete.
@@ -1110,6 +1061,19 @@ class ChatPane(VerticalScroll):
             _LOGGER.debug("Attempted to finish non-existent agent stream: %s", agent_name)
             return
         widget.finalize_as_markdown()
+
+    def finish_thinking_stream(self: Self, agent_name: str) -> None:
+        """Mark an agent's thinking stream as complete.
+
+        Removes the thinking stream entry from the active tracking dict.
+
+        Args:
+            agent_name: Agent whose thinking stream ended.
+
+        Returns:
+            None
+        """
+        self._active_thinking.pop(agent_name, None)
 
     def _add_message_widget(
         self: Self,
@@ -1133,7 +1097,6 @@ class ChatPane(VerticalScroll):
         """
         widget = widget_class(*args, **kwargs)
         self._mount_widget(widget)
-        self._try_scroll()
 
         if tracking_dict is not None and tracking_key is not None:
             tracking_dict[tracking_key] = widget
@@ -1380,3 +1343,313 @@ class ProgressIndicator(Static):
             return ""
         icon = _TOOL_PROGRESS_ICON if self._kind == "tool" else _PROGRESS_ICON
         return f"[dim]{icon} {self._message}[/]"
+
+
+# ------------------------------------------------------------------ #
+# Agent summary panel                                                  #
+# ------------------------------------------------------------------ #
+
+
+class AgentSummaryPanel(Static):
+    """Panel displaying a summary of the agent's current state."""
+
+    DEFAULT_CSS = """
+    AgentSummaryPanel {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the agent summary panel.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._provider_name: str = ""
+        self._model_name: str = ""
+        self._mode: str = ""
+        self._active_agent: str = ""
+        self._tools: int = 0
+
+    def update_summary(
+        self: Self,
+        provider_name: str = "",
+        model_name: str = "",
+        mode: str = "",
+        active_agent: str = "",
+        tools: int = 0,
+    ) -> None:
+        """Update the summary information.
+
+        Args:
+            provider_name: The provider name.
+            model_name: The model name.
+            mode: The current mode (Chat/Plan).
+            active_agent: The active agent name.
+            tools: The number of tools.
+        """
+        self._provider_name = provider_name
+        self._model_name = model_name
+        self._mode = mode
+        self._active_agent = active_agent
+        self._tools = tools
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the summary panel.
+
+        Returns:
+            Formatted summary string.
+        """
+        return (
+            f"{self._provider_name}:{self._model_name} | "
+            f"Mode: {self._mode} | Agent: {self._active_agent} | "
+            f"Tools: {self._tools}"
+        )
+
+
+# ------------------------------------------------------------------ #
+# Memory indicator                                                     #
+# ------------------------------------------------------------------ #
+
+
+class MemoryIndicator(Static):
+    """Widget displaying memory usage and context size."""
+
+    DEFAULT_CSS = """
+    MemoryIndicator {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the memory indicator.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._session_messages: int = 0
+        self._history_entries: int = 0
+        self._context_loaded: bool = False
+
+    def update_counts(
+        self: Self,
+        session_messages: int = 0,
+        history_entries: int = 0,
+        context_loaded: bool = False,
+    ) -> None:
+        """Update memory usage counts.
+
+        Args:
+            session_messages: Number of messages in session.
+            history_entries: Number of history entries.
+            context_loaded: Whether context is loaded.
+        """
+        self._session_messages = session_messages
+        self._history_entries = history_entries
+        self._context_loaded = context_loaded
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the memory indicator.
+
+        Returns:
+            Formatted string with memory stats.
+        """
+        ctx = "loaded" if self._context_loaded else "not loaded"
+        return (
+            f"Session: {self._session_messages} msgs | "
+            f"History: {self._history_entries} entries | "
+            f"Context: {ctx}"
+        )
+
+
+# ------------------------------------------------------------------ #
+# Settings panel                                                       #
+# ------------------------------------------------------------------ #
+
+
+class SettingsPanel(Static):
+    """Panel displaying current settings."""
+
+    DEFAULT_CSS = """
+    SettingsPanel {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the settings panel.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._theme: str = ""
+        self._auto_mode: bool = False
+        self._provider: str = ""
+        self._mcp_servers: int = 0
+
+    def update_settings(
+        self: Self,
+        theme: str = "",
+        auto_mode: bool = False,
+        provider: str = "",
+        mcp_servers: int = 0,
+    ) -> None:
+        """Update the settings display.
+
+        Args:
+            theme: UI theme name.
+            auto_mode: Whether auto mode is enabled.
+            provider: Active provider name.
+            mcp_servers: Number of MCP servers.
+        """
+        self._theme = theme
+        self._auto_mode = auto_mode
+        self._provider = provider
+        self._mcp_servers = mcp_servers
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the settings panel.
+
+        Returns:
+            Formatted settings string.
+        """
+        auto = "enabled" if self._auto_mode else "disabled"
+        return (
+            f"Theme: {self._theme} | Auto: {auto} | "
+            f"Provider: {self._provider} | MCP: {self._mcp_servers}"
+        )
+
+
+# ------------------------------------------------------------------ #
+# Skill panel                                                          #
+# ------------------------------------------------------------------ #
+
+
+class SkillPanel(Static):
+    """Panel displaying available skills."""
+
+    DEFAULT_CSS = """
+    SkillPanel {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the skill panel.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._skills: list[str] = []
+
+    def set_skills(self: Self, skills: list[str]) -> None:
+        """Set the skill list.
+
+        Args:
+            skills: List of skill names.
+        """
+        self._skills = list(skills)
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the skill panel.
+
+        Returns:
+            Formatted skills string.
+        """
+        return "\n".join(f"  - {s}" for s in self._skills) if self._skills else "No skills"
+
+
+# ------------------------------------------------------------------ #
+# Task list widget                                                     #
+# ------------------------------------------------------------------ #
+
+
+class TaskListWidget(Static):
+    """Widget displaying the current task list."""
+
+    DEFAULT_CSS = """
+    TaskListWidget {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the task list widget.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._tasks: list[str] = []
+
+    def set_tasks(self: Self, tasks: list[str]) -> None:
+        """Set the task list.
+
+        Args:
+            tasks: List of task descriptions.
+        """
+        self._tasks = list(tasks)
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the task list widget.
+
+        Returns:
+            Formatted task list string.
+        """
+        return "\n".join(f"  - {t}" for t in self._tasks) if self._tasks else "No tasks"
+
+
+# ------------------------------------------------------------------ #
+# Team panel                                                           #
+# ------------------------------------------------------------------ #
+
+
+class TeamPanel(Static):
+    """Panel displaying team member information."""
+
+    DEFAULT_CSS = """
+    TeamPanel {
+        height: auto;
+        padding: 1;
+    }
+    """
+
+    def __init__(self: Self, **kwargs: Any) -> None:
+        """Initialize the team panel.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._workspaces: list[str] = []
+
+    def set_workspaces(self: Self, workspaces: list[str]) -> None:
+        """Set the workspace list.
+
+        Args:
+            workspaces: List of workspace descriptions.
+        """
+        self._workspaces = list(workspaces)
+        self.update(self.render())
+
+    def render(self: Self) -> str:
+        """Render the team panel.
+
+        Returns:
+            Formatted team workspace string.
+        """
+        return "\n".join(f"  - {w}" for w in self._workspaces) if self._workspaces else "No teams"

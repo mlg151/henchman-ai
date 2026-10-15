@@ -23,7 +23,7 @@ class TestProviderSettings:
         assert settings.deepseek == {"model": "deepseek-chat"}
         assert settings.openai == {}
         assert settings.anthropic == {}
-        assert settings.ollama == {"base_url": "http://localhost:11434"}
+        assert settings.ollama == {}  # Let the adapter honor OLLAMA_HOST or its /v1 default.
 
     def test_custom_values(self) -> None:
         """Test custom provider settings."""

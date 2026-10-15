@@ -4,7 +4,6 @@ This test file focuses on edge cases and behavior that should be preserved
 when refactoring to fix code smells.
 """
 
-import pytest
 from henchman.agents.ledger import (
     ChecklistItem,
     DelegationRecord,
@@ -60,13 +59,13 @@ class TestDuplicateCodeFixes:
     def test_add_checklist_item_vs_add_delegation_pattern(self) -> None:
         """Test that add_checklist_item and add_delegation use same pattern."""
         ledger = TaskLedger(goal="Test")
-        
+
         # Both should use _add_item_factory internally
         checklist_item = ledger.add_checklist_item("Test item")
         assert isinstance(checklist_item, ChecklistItem)
         assert checklist_item.description == "Test item"
         assert len(ledger.checklist) == 1
-        
+
         delegation = ledger.add_delegation("test_agent", "Test task")
         assert isinstance(delegation, DelegationRecord)
         assert delegation.agent == "test_agent"
@@ -77,7 +76,7 @@ class TestDuplicateCodeFixes:
         """Test that complete_delegation truncates summary properly."""
         ledger = TaskLedger(goal="Test")
         record = ledger.add_delegation("agent", "task")
-        
+
         # Test truncation to SUMMARY_MAX_LENGTH (500)
         long_summary = "x" * 1000
         ledger.complete_delegation(record, long_summary)
@@ -89,7 +88,7 @@ class TestDuplicateCodeFixes:
         """Test that fail_delegation truncates reason properly."""
         ledger = TaskLedger(goal="Test")
         record = ledger.add_delegation("agent", "task")
-        
+
         long_reason = "y" * 1000
         ledger.fail_delegation(record, long_reason)
         assert len(record.summary) == 500
@@ -100,7 +99,7 @@ class TestDuplicateCodeFixes:
         """Test the internal _update_delegation helper."""
         ledger = TaskLedger(goal="Test")
         record = DelegationRecord(agent="a", task="t")
-        
+
         # Test that _update_delegation handles truncation
         ledger._update_delegation(record, DelegationStatus.COMPLETED, "x" * 1000)
         assert len(record.summary) == 500
@@ -151,12 +150,12 @@ class TestRendererEdgeCases:
         recap = ledger.mission_recap()
         assert "0 delegations done" in recap
         assert "unverified" in recap
-        
+
         # Verified ledger
         ledger.mark_verified()
         recap = ledger.mission_recap()
         assert "verified" in recap
-        
+
         # With checklist items
         ledger = TaskLedger(goal="Test")
         ledger.add_checklist_item("Item 1")
@@ -173,7 +172,7 @@ class TestTypeHintsAndDocstrings:
         """Check that all public methods have proper type hints."""
         # This is a meta-test - we'll check key methods
         import inspect
-        
+
         # Check TaskLedger methods
         ledger_methods = [
             TaskLedger.add_checklist_item,
@@ -183,7 +182,7 @@ class TestTypeHintsAndDocstrings:
             TaskLedger.mission_recap,
             TaskLedger.render,
         ]
-        
+
         for method in ledger_methods:
             sig = inspect.signature(method)
             # Check that all parameters have type hints
@@ -191,7 +190,7 @@ class TestTypeHintsAndDocstrings:
                 if param_name != "self":
                     assert param.annotation != inspect.Parameter.empty, \
                         f"Parameter {param_name} in {method.__name__} missing type hint"
-            
+
             # Check return type hint
             assert sig.return_annotation != inspect.Signature.empty, \
                 f"Method {method.__name__} missing return type hint"
@@ -205,7 +204,7 @@ class TestTypeHintsAndDocstrings:
             (TaskLedger, "mission_recap"),
             (LedgerRenderer, "get_visible_delegations"),
         ]
-        
+
         for cls, method_name in methods_to_check:
             method = getattr(cls, method_name)
             assert method.__doc__ is not None, f"{cls.__name__}.{method_name} missing docstring"

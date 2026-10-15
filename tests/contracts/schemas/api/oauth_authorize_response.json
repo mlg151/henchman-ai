@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/oauth-authorize-response/v1",
+  "type": "object",
+  "required": ["state", "authorization_url", "scopes"],
+  "properties": {
+    "state": { "type": "string" },
+    "authorization_url": { "type": "string" },
+    "scopes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

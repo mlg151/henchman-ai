@@ -86,8 +86,9 @@ class TestMcpEndToEnd:
         def create_mock_client(
             name: str,
             config: McpServerConfig | None = None,
-            verbose: bool = False,  # noqa: ARG001
+            verbose: bool = False,
         ) -> McpClient:
+            del config, verbose
             if name == "serena":
                 return mock_client1
             else:
@@ -273,7 +274,8 @@ class TestMcpEndToEnd:
 
         def create_mock_client(
             name: str, config: McpServerConfig | None = None, verbose: bool = False
-        ) -> McpClient:  # noqa: ARG001
+        ) -> McpClient:
+            del config, verbose
             if name == "serena":
                 return mock_serena_client
             else:
@@ -350,7 +352,8 @@ class TestMcpEndToEnd:
 
         def create_mock_client(
             name: str, config: McpServerConfig | None = None, verbose: bool = False
-        ) -> McpClient:  # noqa: ARG001
+        ) -> McpClient:
+            del config, verbose
             if name == "trusted_server":
                 return mock_trusted_client
             else:

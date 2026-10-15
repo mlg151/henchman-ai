@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkflowRunRecord",
+  "description": "Persisted execution of a workflow definition.",
+  "type": "object",
+  "properties": {
+    "run_id": { "type": "string" },
+    "workspace_id": { "type": "string" },
+    "workflow_name": { "type": "string" },
+    "status": { "type": "string" },
+    "requested_by": { "type": "string" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "executed_steps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "trigger_name": { "type": ["string", "null"] },
+    "bridge_session_id": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["run_id", "workspace_id", "workflow_name", "status", "requested_by", "inputs", "executed_steps", "created_at"]
+}

@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import (
     BarColumn,
     Progress,
@@ -26,48 +27,6 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from rich.status import Status
-
-    from henchman.core.session import Session
-
-
-def _build_status_message(
-    session: Session | None,
-    agent: Any | None,
-    rag_system: Any | None = None,
-) -> str:
-    """Build a rich status message string for persistent display.
-
-    Extracted as a module-level function to avoid Feature Envy — the logic
-    operates entirely on the passed-in arguments rather than instance state.
-
-    Args:
-        session: Current session object.
-        agent: Current agent object.
-        rag_system: RAG system object for indexing status.
-
-    Returns:
-        Formatted status message string.
-
-    """
-    from henchman.utils.tokens import TokenCounter
-
-    parts: list[str] = []
-
-    plan_mode = session.plan_mode if session else False
-    parts.append("[yellow]PLAN[/]" if plan_mode else "[blue]CHAT[/]")
-
-    if agent and hasattr(agent, "get_messages_for_api"):
-        try:
-            msgs = agent.get_messages_for_api()
-            tokens = TokenCounter.count_messages(msgs)
-            parts.append(f"Tokens: ~[cyan]{tokens}[/]")
-        except Exception:
-            pass
-
-    if rag_system and getattr(rag_system, "is_indexing", False):
-        parts.append("[cyan]RAG: Indexing...[/]")
-
-    return " | ".join(parts)
 
 
 class ProgressManager:
@@ -231,6 +190,10 @@ class UIRenderer:
         msg = f"'{type(self).__name__}' object has no attribute '{name}'"
         raise AttributeError(msg)
 
+    async def confirm_tool_execution(self: UIRenderer, message: str) -> bool:
+        """Forward tool confirmation to the underlying output renderer."""
+        return await self.renderer.confirm_tool_execution(message)
+
     def print_welcome(self: UIRenderer) -> None:
         """Print welcome message.
 
@@ -250,25 +213,6 @@ class UIRenderer:
 
         """
         self.console.print("[dim]Goodbye![/]")
-
-    def get_rich_status_message(
-        self: UIRenderer,
-        session: Session | None,
-        agent: Any | None,
-        rag_system: Any | None = None,
-    ) -> str:
-        """Get rich status message for persistent display.
-
-        Args:
-            session: Current session object.
-            agent: Current agent object (could be orchestrator.tech_lead).
-            rag_system: RAG system object for indexing status.
-
-        Returns:
-            Formatted status message string.
-
-        """
-        return _build_status_message(session, agent, rag_system)
 
     def create_status(self: UIRenderer, message: str, spinner: str = "dots") -> Status:
         """Create a rich status context manager.
@@ -301,9 +245,9 @@ class UIRenderer:
         if self._is_thinking:
             self.stop_thinking()
 
-        thinking_msg = "[dim]Thinking...[/]"
+        thinking_msg = "[dim]Thinking…[/]"
         if message:
-            thinking_msg += f" {message}"
+            thinking_msg += f" {escape(message)}"
 
         self._thinking_status = self.console.status(thinking_msg, spinner=spinner)
         try:

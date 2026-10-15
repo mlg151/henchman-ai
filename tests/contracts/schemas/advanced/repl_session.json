@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReplSessionRecord",
+  "description": "Persisted REPL session metadata.",
+  "type": "object",
+  "properties": {
+    "session_id": { "type": "string" },
+    "name": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "closed_at": { "type": ["string", "null"], "format": "date-time" },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "output": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        },
+        "required": ["code", "output", "created_at"]
+      }
+    }
+  },
+  "required": ["session_id", "name", "created_at", "updated_at", "closed_at", "history"]
+}

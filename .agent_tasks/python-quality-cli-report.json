@@ -1,0 +1,423 @@
+{
+  "complete": true,
+  "truncated": false,
+  "files_examined": 67,
+  "files_analyzed": 67,
+  "bytes_read": 730306,
+  "entries_seen": 77,
+  "skipped_symlinks": 0,
+  "findings": [
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/app.py",
+      "line": 534,
+      "end_line": 602,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function '_run_headless_json_mode' has 53 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_run_headless_json_mode"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/app.py",
+      "line": 744,
+      "end_line": 783,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_execute_chat_command' has 30 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_execute_chat_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/app.py",
+      "line": 560,
+      "end_line": 562,
+      "smell_type": "Deep Nesting",
+      "severity": "medium",
+      "message": "Nesting depth 5 in '_run_headless_json_mode' (threshold: 4)",
+      "suggested_refactoring": "Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return.",
+      "symbol_name": "_run_headless_json_mode"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/chat_serve.py",
+      "line": 32,
+      "end_line": 118,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'discordbot_command' has 61 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "discordbot_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/command_processor.py",
+      "line": 62,
+      "end_line": 122,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'CommandProcessor.handle_command' has 50 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "CommandProcessor.handle_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/core_init.py",
+      "line": 63,
+      "end_line": 140,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'create_core_context' has 52 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_core_context"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/repl.py",
+      "line": 95,
+      "end_line": 140,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_run_monitored_task' has 34 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_run_monitored_task"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/repl.py",
+      "line": 561,
+      "end_line": 615,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'Repl._run_agent_with_monitor' has 40 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "Repl._run_agent_with_monitor"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/serve.py",
+      "line": 39,
+      "end_line": 106,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'serve_command' has 39 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "serve_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/stream_event_handlers.py",
+      "line": 316,
+      "end_line": 385,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'handle_post_stream_processing' has 51 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "handle_post_stream_processing"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/system_info.py",
+      "line": 93,
+      "end_line": 156,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'detect_install_context' has 53 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "detect_install_context"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/textual_app.py",
+      "line": 279,
+      "end_line": 314,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'HenchmanTextualApp.compose' has 30 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "HenchmanTextualApp.compose"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py",
+      "line": 1911,
+      "end_line": 1994,
+      "smell_type": "Long Method",
+      "severity": "high",
+      "message": "Function '_WorkspaceMixin._refresh_workspace_widgets' has 82 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_WorkspaceMixin._refresh_workspace_widgets"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py",
+      "line": 2015,
+      "end_line": 2050,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_WorkspaceMixin._handle_export_result' has 30 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_WorkspaceMixin._handle_export_result"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/tool_executor.py",
+      "line": 175,
+      "end_line": 236,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'ToolExecutor.process_agent_stream' has 41 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "ToolExecutor.process_agent_stream"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/tool_executor.py",
+      "line": 261,
+      "end_line": 335,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'ToolExecutor.execute_tool_calls' has 54 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "ToolExecutor.execute_tool_calls"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/tool_executor.py",
+      "line": 226,
+      "end_line": 227,
+      "smell_type": "Deep Nesting",
+      "severity": "low",
+      "message": "Nesting depth 4 in 'ToolExecutor.process_agent_stream' (threshold: 4)",
+      "suggested_refactoring": "Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return.",
+      "symbol_name": "ToolExecutor.process_agent_stream"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/tool_executor.py",
+      "line": 308,
+      "end_line": 314,
+      "smell_type": "Deep Nesting",
+      "severity": "low",
+      "message": "Nesting depth 4 in 'ToolExecutor.execute_tool_calls' (threshold: 4)",
+      "suggested_refactoring": "Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return.",
+      "symbol_name": "ToolExecutor.execute_tool_calls"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/tool_manager.py",
+      "line": 93,
+      "end_line": 226,
+      "smell_type": "Long Method",
+      "severity": "critical",
+      "message": "Function 'ToolManager._create_builtin_tools' has 121 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "ToolManager._create_builtin_tools"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/update_check.py",
+      "line": 67,
+      "end_line": 139,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'build_update_plan' has 63 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "build_update_plan"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/agents_platform_command.py",
+      "line": 33,
+      "end_line": 186,
+      "smell_type": "Long Method",
+      "severity": "critical",
+      "message": "Function 'create_agents_platform_command' has 145 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_agents_platform_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/git_command.py",
+      "line": 109,
+      "end_line": 183,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'create_branch_command' has 68 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_branch_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/git_command.py",
+      "line": 186,
+      "end_line": 233,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'create_commit_push_pr_command' has 41 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_commit_push_pr_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/init_command.py",
+      "line": 81,
+      "end_line": 127,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_prompt_for_answers' has 45 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_prompt_for_answers"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/integration_commands.py",
+      "line": 42,
+      "end_line": 124,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function '_create_surface_command' has 69 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_create_surface_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/plugin_command.py",
+      "line": 19,
+      "end_line": 148,
+      "smell_type": "Long Method",
+      "severity": "critical",
+      "message": "Function 'create_plugin_command' has 127 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_plugin_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/pull_request_command.py",
+      "line": 120,
+      "end_line": 182,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'create_pr_comments_command' has 56 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_pr_comments_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/pull_request_command.py",
+      "line": 222,
+      "end_line": 271,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'create_install_github_app_command' has 43 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_install_github_app_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/session_command.py",
+      "line": 26,
+      "end_line": 128,
+      "smell_type": "Long Method",
+      "severity": "high",
+      "message": "Function 'create_session_command' has 94 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_session_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/session_context_command.py",
+      "line": 127,
+      "end_line": 189,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'create_context_command' has 46 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_context_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/session_context_command.py",
+      "line": 254,
+      "end_line": 378,
+      "smell_type": "Long Method",
+      "severity": "critical",
+      "message": "Function 'create_memory_command' has 122 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_memory_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/session_context_command.py",
+      "line": 17,
+      "end_line": 26,
+      "smell_type": "Duplicate Code",
+      "severity": "high",
+      "message": "Function '_resolve_project_root' is a syntax clone candidate of '_resolve_project_root' at /home/matthew/mlg-cli/src/henchman/cli/commands/session_command.py:14 (semantic equivalence is not established)",
+      "suggested_refactoring": "Review scope and behavior, then reuse the existing implementation or extract shared logic where appropriate.",
+      "symbol_name": "_resolve_project_root"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/skill_command.py",
+      "line": 26,
+      "end_line": 91,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'create_skill_command' has 53 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_skill_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/skill_command.py",
+      "line": 14,
+      "end_line": 23,
+      "smell_type": "Duplicate Code",
+      "severity": "high",
+      "message": "Function '_resolve_project_root' is a syntax clone candidate of '_resolve_project_root' at /home/matthew/mlg-cli/src/henchman/cli/commands/session_command.py:14 (semantic equivalence is not established)",
+      "suggested_refactoring": "Review scope and behavior, then reuse the existing implementation or extract shared logic where appropriate.",
+      "symbol_name": "_resolve_project_root"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/upgrade_command.py",
+      "line": 48,
+      "end_line": 90,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'upgrade_command' has 40 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "upgrade_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/version_command.py",
+      "line": 87,
+      "end_line": 156,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'build_version_report' has 55 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "build_version_report"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/voice_command.py",
+      "line": 31,
+      "end_line": 96,
+      "smell_type": "Long Method",
+      "severity": "medium",
+      "message": "Function 'create_voice_command' has 57 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method \u2014 break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "create_voice_command"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/cli/commands/voice_command.py",
+      "line": 19,
+      "end_line": 28,
+      "smell_type": "Duplicate Code",
+      "severity": "high",
+      "message": "Function '_resolve_project_root' is a syntax clone candidate of '_resolve_project_root' at /home/matthew/mlg-cli/src/henchman/cli/commands/session_command.py:14 (semantic equivalence is not established)",
+      "suggested_refactoring": "Review scope and behavior, then reuse the existing implementation or extract shared logic where appropriate.",
+      "symbol_name": "_resolve_project_root"
+    }
+  ],
+  "errors": [],
+  "limits": {
+    "max_files": 500,
+    "max_findings": 500,
+    "max_file_bytes": 1048576,
+    "max_total_bytes": 10485760,
+    "max_entries": 20000
+  },
+  "excluded_directories": [
+    ".agent_tasks",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv"
+  ],
+  "limitations": [
+    "Findings are review candidates, not proof of incorrect code or semantic equivalence.",
+    "Duplicate fingerprints preserve identifiers, literals and call targets; renamed or partial clones may be missed.",
+    "Long-method size measures physical body lines, including comments, blank lines and nested definitions.",
+    "Only Python source is analyzed; no code is imported or executed. No lint, type or test gate is run.",
+    "Dependency/cache directories and child symlinks are excluded; .gitignore is not interpreted."
+  ]
+}

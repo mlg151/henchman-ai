@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/plugin-search-result/v1",
+  "title": "PluginSearchResult",
+  "description": "Search result payload returned by the marketplace.",
+  "type": "object",
+  "properties": {
+    "plugins": {
+      "type": "array",
+      "items": { "$ref": "henchman/contracts/extensions/plugin-metadata/v1" }
+    },
+    "total": { "type": "integer", "minimum": 0 },
+    "page": { "type": "integer", "minimum": 1 },
+    "page_size": { "type": "integer", "minimum": 1 },
+    "query": { "type": ["string", "null"] }
+  },
+  "required": ["plugins", "total", "page", "page_size"]
+}

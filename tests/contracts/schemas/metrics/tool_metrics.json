@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/tool_metrics/v1",
+  "title": "ToolMetrics",
+  "description": "Shape contract for the serialized ToolMetrics instance (agents/metrics).",
+  "type": "object",
+  "required": [
+    "total_tool_calls",
+    "successful_tool_calls",
+    "failed_tool_calls",
+    "read_file_calls",
+    "write_file_calls",
+    "edit_file_calls",
+    "shell_calls",
+    "git_ops_calls",
+    "other_tool_calls"
+  ],
+  "properties": {
+    "total_tool_calls": {
+      "type": "integer",
+      "description": "Total number of tool calls made"
+    },
+    "successful_tool_calls": {
+      "type": "integer",
+      "description": "Number of successful tool calls"
+    },
+    "failed_tool_calls": {
+      "type": "integer",
+      "description": "Number of failed tool calls"
+    },
+    "read_file_calls": {
+      "type": "integer",
+      "description": "Number of read_file tool calls"
+    },
+    "write_file_calls": {
+      "type": "integer",
+      "description": "Number of write_file tool calls"
+    },
+    "edit_file_calls": {
+      "type": "integer",
+      "description": "Number of edit_file tool calls"
+    },
+    "shell_calls": {
+      "type": "integer",
+      "description": "Number of shell tool calls"
+    },
+    "git_ops_calls": {
+      "type": "integer",
+      "description": "Number of git_ops tool calls"
+    },
+    "other_tool_calls": {
+      "type": "integer",
+      "description": "Number of other/uncategorized tool calls"
+    }
+  },
+  "additionalProperties": false
+}

@@ -2,6 +2,31 @@
 
 This page provides API reference for the main Henchman-AI modules.
 
+## HTTP service health
+
+The FastAPI service exposes two operational endpoints under `/v1`:
+
+- `GET /v1/health` is a liveness check. It always returns HTTP 200 when the
+  service can answer requests. Its `status` is `ok` only after an agent has
+  been configured; otherwise it is `degraded`.
+- `GET /v1/ready` is a readiness check for traffic routing. It returns HTTP
+  200 with `status: ok` when an agent is configured, or HTTP 503 with
+  `status: degraded` while the service is not ready.
+- Both operational probe routes bypass configured request rate limits, so
+  monitoring traffic cannot make liveness or readiness return HTTP 429.
+
+Both responses use the same payload shape and report the installed Henchman
+version:
+
+```json
+{
+  "status": "ok",
+  "version": "<installed version>",
+  "provider": "deepseek",
+  "agent_ready": true
+}
+```
+
 ## Core
 
 ### Agent
@@ -429,6 +454,10 @@ class Tool(ABC):
     @abstractmethod
     def kind(self) -> ToolKind:
         """Tool kind (READ, WRITE, EXECUTE, NETWORK)."""
+
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Invocation classification; defaults to the static catalog kind."""
+        return self.kind
     
     @abstractmethod
     async def execute(self, **params: object) -> ToolResult:
@@ -541,8 +570,11 @@ class Settings:
 class ContextLoader:
     def __init__(
         self,
-        filename: str = "HENCHMAN.md",
-        include_subdirs: bool = False
+        filename: str | None = None,
+        filenames: Sequence[str] | None = None,
+        *,
+        include_subdirs: bool = False,
+        start_dir: Path | None = None,
     ) -> None:
         """Initialize context loader."""
     
@@ -552,6 +584,8 @@ class ContextLoader:
     def load(self) -> str:
         """Load and concatenate context files."""
 ```
+
+Context discovery is repository-bounded. When `start_dir` is inside Git, ancestor discovery stops at the Git root; outside Git, it stops at `start_dir` itself and subdirectory discovery is disabled. Global context under `~/.henchman/` is collected separately.
 
 ### McpServerConfig
 
@@ -723,6 +757,7 @@ from henchman.agents import (
     AgentIdentity,
     AgentPool,
     Orchestrator,
+    CompletionRequirement,
     CompletionStatus,
     TaskLedger,
     DelegationRecord,
@@ -743,10 +778,16 @@ class Orchestrator:
     ) -> None:
         """Initialize the orchestrator."""
     
-    async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
+    async def run(
+        self, user_input: str, *,
+        completion_requirement: CompletionRequirement = CompletionRequirement.RESPONSE,
+    ) -> AsyncIterator[AgentEvent]:
         """Run the orchestrator with user input."""
     
-    async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
+    async def run_direct(
+        self, role: str, user_input: str, *,
+        completion_requirement: CompletionRequirement = CompletionRequirement.RESPONSE,
+    ) -> AsyncIterator[AgentEvent]:
         """Run a specific agent role directly."""
     
     def get_metrics_report(self) -> dict[str, Any]:
@@ -758,6 +799,15 @@ class Orchestrator:
     def get_event_bus(self) -> EventBus:
         """Get the event bus."""
 ```
+
+`CompletionRequirement.RESPONSE` accepts a normal nonempty response with no tool
+attempts as `responded`. Select `CompletionRequirement.ACTIONS` when the caller
+requires successful tool activity; unsupported promises then remain `no_work_done`.
+Delegations default to `actions`, with an explicit `completion_requirement`
+argument on `delegate_task` for response-only advice. Both modes preserve failure,
+stall, and timeout outcomes. They establish execution evidence, not correctness:
+completion events include `task_verified: false` and runtime activity in `evidence`.
+See [completion semantics](architecture.md#overview).
 
 ### AgentPool
 
@@ -866,21 +916,29 @@ class ExtensionManager:
 
 ### PluginManager
 
+The following marketplace-facing methods are integration seams, not evidence of a deployed registry. Remote search/install/update is unavailable in this variant unless a real backend supplies registry metadata; local extension loading and plugin list/remove flows remain supported.
+
 ```python
 class PluginManager:
-    async def search(self, query: str) -> list[PluginSearchResult]:
+    async def search_plugins(self, query: str | None = None) -> PluginSearchResult:
         """Search for plugins."""
     
-    async def install(self, plugin_id: str) -> PluginInstallation:
+    async def install_plugin(
+        self,
+        plugin_name: str,
+        version: str | None = None,
+        *,
+        confirm_permissions: bool = True,
+    ) -> PluginInstallation:
         """Install a plugin."""
     
-    async def uninstall(self, plugin_id: str) -> bool:
+    async def uninstall_plugin(self, plugin_name: str) -> None:
         """Uninstall a plugin."""
     
-    async def update(self, plugin_id: str) -> PluginUpdateInfo:
+    async def update_plugin(self, plugin_name: str) -> PluginInstallation | None:
         """Update a plugin."""
     
-    async def check_security(self, plugin_id: str) -> SecurityReport:
+    async def scan_security(self, plugin_name: str) -> SecurityReport:
         """Check plugin security."""
 ```
 

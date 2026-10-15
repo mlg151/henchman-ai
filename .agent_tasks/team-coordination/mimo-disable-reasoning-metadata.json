@@ -1,0 +1,26 @@
+{
+  "source": "https://openrouter.ai/api/v1/models",
+  "id": "xiaomi/mimo-v2.6-pro",
+  "reasoning": {
+    "mandatory": false
+  },
+  "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_p"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$id": "henchman/contracts/runtime/action-entry/v1",
+  "title": "ActionEntry",
+  "description": "Shape contract for the serialised ActionEntry dataclass.",
+  "type": "object",
+  "required": ["action", "priority", "estimated_effort"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Description of the planned action"
+    },
+    "priority": {
+      "type": "string",
+      "description": "Priority level (e.g. 'high', 'medium', 'low', 'critical')"
+    },
+    "estimated_effort": {
+      "type": "string",
+      "description": "Estimated effort for the action (e.g. '2h', '3d')"
+    }
+  },
+  "additionalProperties": false
+}

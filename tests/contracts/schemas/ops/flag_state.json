@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["name", "enabled", "source", "updated_at"],
+  "properties": {
+    "name": {"type": "string"},
+    "enabled": {"type": "boolean"},
+    "source": {"type": "string"},
+    "updated_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

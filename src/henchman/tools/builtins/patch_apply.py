@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import coerce_int
 
 # Constants
 DEFAULT_FUZZ_LINES = 2
@@ -242,7 +243,7 @@ def _build_patch_params_from_kwargs(kwargs: dict[str, object]) -> PatchApplyPara
         patch=str(kwargs.get("patch", "")),
         path=str(kwargs["path"]) if kwargs.get("path") is not None else None,
         dry_run=bool(kwargs.get("dry_run", False)),
-        fuzz=int(kwargs.get("fuzz", DEFAULT_FUZZ_LINES)),
+        fuzz=coerce_int(kwargs.get("fuzz", DEFAULT_FUZZ_LINES)),
     )
 
 
@@ -431,7 +432,7 @@ class PatchApplyTool(Tool):
         """Tool kind - WRITE because it modifies files."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: PatchApplyTool,
         **kwargs: object,
     ) -> ToolResult:

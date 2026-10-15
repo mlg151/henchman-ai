@@ -43,8 +43,7 @@ def test_plugin_system():
     if "test-plugin" in manager.plugins:
         print("✅ Plugin registered successfully")
     else:
-        print("❌ Plugin registration failed")
-        return False
+        raise AssertionError("Plugin registration failed")
 
     # Verify register hook called
     repl_mock.renderer.success.assert_called_with("Test Plugin Registered")
@@ -82,13 +81,10 @@ class FilePlugin(UIPlugin):
             # or if path issues occur.
             pass
 
-    return True
-
-
 if __name__ == "__main__":
     try:
-        success = test_plugin_system()
-        sys.exit(0 if success else 1)
+        test_plugin_system()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

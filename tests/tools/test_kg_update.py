@@ -303,8 +303,13 @@ async def test_lazy_init_with_real_git_root(tmp_path: Path) -> None:
     tool = KgUpdateTool(store=None)
     tool._initialised = False
 
-    with mock.patch("henchman.tools.builtins.kg_update._find_git_root", return_value=repo):
-        with mock.patch.object(KnowledgeStore, "load", return_value=None):
-            store = tool._ensure_initialised()
-            assert store is not None
-            assert tool._initialised is True
+    with (
+        mock.patch(
+            "henchman.tools.builtins.kg_update._find_git_root",
+            return_value=repo,
+        ),
+        mock.patch.object(KnowledgeStore, "load", return_value=None),
+    ):
+        store = tool._ensure_initialised()
+        assert store is not None
+        assert tool._initialised is True

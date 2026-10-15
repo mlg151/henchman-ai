@@ -1,0 +1,50 @@
+{
+  "status": "preflight complete; source/wheel gates running; no paired sample started",
+  "time_utc": "2026-10-14T21:56:05.296736+00:00",
+  "order": [
+    [
+      "baseline",
+      1
+    ],
+    [
+      "candidate",
+      1
+    ],
+    [
+      "candidate",
+      2
+    ],
+    [
+      "baseline",
+      2
+    ],
+    [
+      "baseline",
+      3
+    ],
+    [
+      "candidate",
+      3
+    ]
+  ],
+  "model": "qwen/qwen3-coder-next",
+  "scenario_version": 3,
+  "spec_digest": "13b4027cffe18e60ffe9e73ba05e9358135df214c722a508fe72876a8d481073",
+  "bounds": {
+    "context_window": 262144,
+    "global_sdk_requests": 24,
+    "agent_timeout_seconds": 480,
+    "individual_call_threshold": 12,
+    "tool_rounds": 12,
+    "output_tokens": 8192,
+    "estimated_input_guard": 65536,
+    "sdk_retries": 0,
+    "delegation_retries": 0,
+    "sample_process_timeout": 720
+  },
+  "frozen_prompt_sha256": {
+    "baseline": "06f61c66036f357e37cbeab7e507c0dda5dc7c56ccb4da61f6b6a0888b8c01e7",
+    "candidate": "8245c0c817bc4ff5264456890d382e843b81c4dba42346aa4792b97a3ad439b7"
+  },
+  "interpretation": "All original task criteria remain required. Every sample counted. No retry after infrastructure/HTTP failure. Three samples per variant on one small task/model, provider-default sampling and provider-selected route; cost estimates not invoices. No industry comparator."
+}

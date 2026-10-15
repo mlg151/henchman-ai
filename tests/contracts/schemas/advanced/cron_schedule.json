@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CronScheduleRecord",
+  "description": "Persisted cron schedule metadata.",
+  "type": "object",
+  "properties": {
+    "schedule_id": { "type": "string" },
+    "title": { "type": "string" },
+    "cron": { "type": "string" },
+    "argv": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "enabled": { "type": "boolean" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["schedule_id", "title", "cron", "argv", "enabled", "created_at", "updated_at"]
+}

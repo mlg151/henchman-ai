@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -14,6 +15,7 @@ from henchman.tools.security import (
     sanitize_error_message,
     validate_path,
 )
+from henchman.tools.utils import coerce_int
 
 _STR_PREVIEW_LEN = 50
 """Number of characters to show when previewing a not-found string."""
@@ -27,19 +29,31 @@ _FILE_EDIT_PARAMETERS: dict[str, object] = {
         },
         "old_str": {
             "type": "string",
-            "description": "The exact string to find and replace (string mode)",
+            "description": (
+                "Exact unique text to replace, including surrounding context if needed. "
+                "Do not combine with start_line or end_line."
+            ),
         },
         "new_str": {
             "type": "string",
-            "description": "The replacement string",
+            "description": (
+                "Replacement text; in line mode this replaces the entire inclusive range, "
+                "so include all text that must remain within that range."
+            ),
         },
         "start_line": {
             "type": "integer",
-            "description": "Start line number (1-based) for line-range mode",
+            "description": (
+                "Current start line number (1-based); read the file first. "
+                "Requires end_line and must not be combined with old_str."
+            ),
         },
         "end_line": {
             "type": "integer",
-            "description": "End line number (1-based, inclusive) for line-range mode",
+            "description": (
+                "Current end line number (1-based, inclusive). Requires start_line; "
+                "the entire range is replaced. Do not combine with old_str."
+            ),
         },
         "dry_run": {
             "type": "boolean",
@@ -89,8 +103,16 @@ def _build_edit_params_from_kwargs(kwargs: dict[str, object]) -> EditParams:
         path=str(kwargs.get("path", "")),
         new_str=str(kwargs.get("new_str", "")),
         old_str=str(kwargs["old_str"]) if kwargs.get("old_str") is not None else None,
-        start_line=(int(kwargs["start_line"]) if kwargs.get("start_line") is not None else None),
-        end_line=(int(kwargs["end_line"]) if kwargs.get("end_line") is not None else None),
+        start_line=(
+            coerce_int(kwargs["start_line"])
+            if kwargs.get("start_line") is not None
+            else None
+        ),
+        end_line=(
+            coerce_int(kwargs["end_line"])
+            if kwargs.get("end_line") is not None
+            else None
+        ),
         dry_run=bool(kwargs.get("dry_run", False)),
     )
 
@@ -109,6 +131,16 @@ def _validate_edit_params(params: EditParams) -> ToolResult | None:
             content=f"Error: File not found: {params.path}",
             success=False,
             error=f"File not found: {params.path}",
+        )
+
+    if (params.start_line is None) != (params.end_line is None):
+        return ToolResult(
+            content=(
+                "Error: Incomplete line range. Provide either old_str alone or both "
+                "start_line and end_line, together with new_str. Do not mix modes."
+            ),
+            success=False,
+            error="Incomplete line range: start_line and end_line are both required",
         )
 
     if params.has_line_range and params.has_old_str:
@@ -197,7 +229,10 @@ class EditFileTool(Tool):
         """Tool description."""
         return (
             "Edit a file by replacing old_str with new_str (must match exactly once), "
-            "or by replacing a line range (start_line/end_line) with new_str."
+            "or by replacing the entire inclusive line range (start_line/end_line) "
+            "with new_str. Use exactly one mode. Read the file for current line numbers "
+            "before line edits; earlier edits may shift them. For repeated text, reread "
+            "and include unique surrounding context in old_str; do not guess line ranges."
         )
 
     parameters = _FILE_EDIT_PARAMETERS
@@ -207,7 +242,7 @@ class EditFileTool(Tool):
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: EditFileTool,
         **kwargs: object,
     ) -> ToolResult:
@@ -319,7 +354,12 @@ def _edit_string(
 
     if count > 1:
         return ToolResult(
-            content=f"Error: String matches {count} times. Must be unique.",
+            content=(
+                f"Error: String matches {count} times. Must be unique. "
+                "Reread the current file with read_file and include unique surrounding "
+                "context in old_str before retrying. Do not guess line ranges or combine "
+                "old_str with start_line/end_line. The file was not changed."
+            ),
             success=False,
             error=f"Multiple matches ({count}). String must be unique.",
         )
@@ -348,7 +388,11 @@ def _edit_line_range(
     Returns:
         ToolResult with success status.
     """
-    lines = content.splitlines(keepends=True)
+    # atomic_read normalizes CR/CRLF. Match read_file's physical newline
+    # iteration; splitlines also treats valid in-line characters such as \f
+    # as boundaries and would shift the displayed edit coordinates.
+    with StringIO(content) as stream:
+        lines = stream.readlines()
     total = len(lines)
 
     range_error = _validate_line_range(params, total)

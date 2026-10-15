@@ -1,0 +1,41 @@
+{
+  "$id": "henchman/contracts/config/ui-settings/v1",
+  "title": "UISettings",
+  "description": "Shape contract for the serialised UISettings model.",
+  "type": "object",
+  "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides"],
+  "properties": {
+    "output_style": {
+      "type": "string",
+      "enum": ["compact", "verbose", "json"],
+      "description": "Preferred output style"
+    },
+    "theme": {
+      "type": "string",
+      "description": "UI color theme name"
+    },
+    "show_line_numbers": {
+      "type": "boolean",
+      "description": "Whether to show line numbers in file output"
+    },
+    "mcp_logging": {
+      "type": "boolean",
+      "description": "Whether to show MCP connection/logging messages"
+    },
+    "accessible_mode": {
+      "type": "boolean",
+      "description": "Whether accessible mode is enabled"
+    },
+    "keybindings": {
+      "type": "object",
+      "description": "Mapping of key chords to action names",
+      "additionalProperties": { "type": "string" }
+    },
+    "style_overrides": {
+      "type": "object",
+      "description": "Mapping of style tokens to override values",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

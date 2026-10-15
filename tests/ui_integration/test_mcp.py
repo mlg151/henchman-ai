@@ -15,12 +15,12 @@ from rich.console import Console
 
 from henchman.cli.commands import CommandRegistry
 from henchman.cli.repl import Repl, ReplConfig
-from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.mcp.config import McpServerConfig
 from henchman.mcp.manager import McpManager
 from henchman.mcp.tool import McpTool
 from henchman.providers.base import ToolCall
+from henchman.tools.base import ToolResult
 from henchman.tools.registry import ToolRegistry
 
 
@@ -82,10 +82,6 @@ class TestMCPUIIntegration:
 
         # Store mock_command on repl for assertions
         repl._mock_command = mock_command
-
-        # Mock agent
-        repl.agent = Mock(spec=Agent)
-        repl.agent.clear_history = Mock()
 
         # Mock renderer
         repl.renderer = Mock()
@@ -161,18 +157,23 @@ class TestMCPUIIntegration:
             # Yield a tool call request for an MCP tool
             yield AgentEvent(
                 type=EventType.TOOL_CALL_REQUEST,
-                data=ToolCall(tool_name="read_file", arguments={"path": "/tmp/test.txt"}),
+                data=ToolCall(id="read-test", name="read_file", arguments={"path": "/tmp/test.txt"}),
             )
             yield AgentEvent(type=EventType.FINISHED, data=None)
 
-        repl_with_mcp.orchestrator.run = AsyncMock(side_effect=mock_agent_run)
+        repl_with_mcp.orchestrator.run = Mock(side_effect=mock_agent_run)
 
         # Mock tool registry to handle MCP tool
         mock_tool_registry = Mock(spec=ToolRegistry)
-        mock_tool = Mock()
-        mock_tool.execute = AsyncMock(return_value="File content: Hello World")
-        mock_tool_registry.execute = AsyncMock(return_value=mock_tool.execute())
+        mock_tool_registry.execute = AsyncMock(
+            return_value=ToolResult("File content: Hello World"),
+        )
         repl_with_mcp.agent.tool_registry = mock_tool_registry
+
+        async def finish_stream():
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
+
+        repl_with_mcp.agent.continue_with_tool_results = Mock(side_effect=finish_stream)
 
         with patch("henchman.cli.input_handler.expand_at_references", side_effect=lambda x: x):
             # Process input that triggers agent with MCP tool
@@ -181,6 +182,8 @@ class TestMCPUIIntegration:
         # Verify agent was run
         assert result is True
         repl_with_mcp.orchestrator.run.assert_called_once()
+        mock_tool_registry.execute.assert_awaited_once_with("read_file", {"path": "/tmp/test.txt"})
+        repl_with_mcp.renderer.error.assert_not_called()
 
     async def test_mcp_unknown_subcommand(self, repl_with_mcp):
         """Test /mcp with unknown subcommand shows help."""
@@ -207,26 +210,31 @@ class TestMCPUIIntegration:
             )
         }
 
-        manager = McpManager(configs)
+        # Create mock client factory instead of patching McpClient at module level
+        mock_client = Mock()
+        mock_client.connect = AsyncMock()
+        mock_client.disconnect = AsyncMock()
+        mock_client.get_tools = Mock(return_value=[])
+        mock_client.is_connected = True
 
-        # Mock the McpClient to avoid spawning real processes
-        with patch("henchman.mcp.manager.McpClient") as MockClient:
-            mock_client = Mock()
-            mock_client.connect = AsyncMock()
-            mock_client.disconnect = AsyncMock()
-            mock_client.get_tools = Mock(return_value=[])
-            mock_client.is_connected = True
-            MockClient.return_value = mock_client
+        def mock_factory(
+            _name: str,
+            _config: McpServerConfig,
+            _verbose: bool = False,
+        ) -> object:
+            return mock_client
 
-            # Connect to test server
-            await manager.connect_all()
+        manager = McpManager(configs, client_factory=mock_factory)
 
-            # Verify manager is properly initialized
-            assert "test_server" in manager.get_server_names()
-            assert manager.is_trusted("test_server")
-            assert len(manager.clients) == 1
+        # Connect to test server
+        await manager.connect_all()
 
-            await manager.disconnect_all()
+        # Verify manager is properly initialized
+        assert "test_server" in manager.get_server_names()
+        assert manager.is_trusted("test_server")
+        assert len(manager.clients) == 1
+
+        await manager.disconnect_all()
 
     async def test_mcp_tool_integration(self):
         """Test MCP tool integration."""
@@ -320,21 +328,25 @@ class TestMCPErrorHandling:
             )
         }
 
-        manager = McpManager(configs)
+        # Create mock client factory that returns a client with connect failure
+        mock_client = Mock()
+        mock_client.connect = AsyncMock(side_effect=ConnectionError("Failed to connect"))
+        mock_client.get_tools = Mock(return_value=[])
 
-        # Mock McpClient to raise connection error
-        with patch("henchman.mcp.manager.McpClient") as MockClient:
-            mock_client = Mock()
-            mock_client.connect = AsyncMock(side_effect=ConnectionError("Failed to connect"))
-            mock_client.get_tools = Mock(return_value=[])
-            MockClient.return_value = mock_client
+        def mock_factory(
+            _name: str,
+            _config: McpServerConfig,
+            _verbose: bool = False,
+        ) -> object:
+            return mock_client
 
-            # Connect should handle the error gracefully
-            await manager.connect_all()
+        manager = McpManager(configs, client_factory=mock_factory)
 
-            # Verify client was created but connection failed
-            MockClient.assert_called_once()
-            mock_client.connect.assert_called_once()
+        # Connect should handle the error gracefully (logged, not raised)
+        await manager.connect_all()
+
+        # Verify client was created but connection failed
+        mock_client.connect.assert_called_once()
 
     async def test_mcp_tool_execution_error(self):
         """Test MCP tool execution error handling."""

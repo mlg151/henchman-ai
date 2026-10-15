@@ -1,0 +1,36 @@
+{
+  "$id": "henchman/contracts/agents/agent-installation/v1",
+  "title": "AgentInstallation",
+  "description": "Shape contract for the serialised AgentInstallation (installation_to_payload).",
+  "type": "object",
+  "required": ["definition", "installed_version", "installation_path", "enabled"],
+  "properties": {
+    "definition": {
+      "type": "object",
+      "description": "The installed agent definition",
+      "required": ["name", "role", "description", "tools", "enabled", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "description": { "type": "string" },
+        "system_prompt": { "type": "string" },
+        "tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "auto_approve": { "type": "array", "items": { "type": "string" } },
+        "can_delegate_to": { "type": "array", "items": { "type": "string" } },
+        "enabled": { "type": "boolean" },
+        "version": { "type": "string" },
+        "author": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "source_kind": { "type": "string" },
+        "source_path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "installed_version": { "type": "string", "description": "The installed version" },
+    "installation_path": { "type": "string", "description": "Where the agent is installed" },
+    "enabled": { "type": "boolean", "description": "Whether the installation is active" }
+  },
+  "additionalProperties": false
+}

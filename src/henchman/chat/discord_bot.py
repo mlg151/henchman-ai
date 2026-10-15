@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from henchman.chat.base import ChatBot, ChatMessage, ChatPlatform
@@ -65,6 +65,7 @@ class DiscordBot(ChatBot):
         self._allowed_user_id = allowed_user_id
         self._message_handler: Callable[[ChatMessage], Coroutine[Any, Any, None]] | None = None
         self._is_connected = False
+        self._user_cache: dict[str, Any] = {}
 
         # Configure intents
         intents = discord.Intents.default()
@@ -83,6 +84,7 @@ class DiscordBot(ChatBot):
         async def on_ready() -> None:
             """Handle bot ready event."""
             self._is_connected = True
+            self._user_cache.clear()
             logger.info(
                 "Discord bot connected as %s (ID: %s)",
                 client.user,
@@ -106,7 +108,7 @@ class DiscordBot(ChatBot):
             # Check if it's a DM or a mention in a server channel
             is_dm = isinstance(message.channel, discord.DMChannel)
             is_mentioned = client.user in message.mentions if not is_dm else False
-            
+
             # Only process DMs or messages that mention the bot
             if not is_dm and not is_mentioned:
                 return
@@ -127,14 +129,14 @@ class DiscordBot(ChatBot):
                     if mention == client.user:
                         content = content.replace(f'<@{mention.id}>', '').strip()
                         content = content.replace(f'<@!{mention.id}>', '').strip()
-            
+
             # Convert to ChatMessage
             chat_message = ChatMessage(
                 id=str(message.id),
                 user_id=str(message.author.id),
                 username=message.author.display_name,
                 content=content,
-                timestamp=message.created_at or datetime.now(timezone.utc),
+                timestamp=message.created_at or datetime.now(UTC),
                 platform=ChatPlatform.DISCORD,
                 attachments=[{"filename": a.filename, "url": a.url} for a in message.attachments],
                 is_dm=is_dm,
@@ -197,13 +199,29 @@ class DiscordBot(ChatBot):
         await self._client.close()
         self._is_connected = False
 
+    async def _get_user(self, user_id: str) -> Any | None:
+        """Get a cached or freshly-fetched Discord user object.
+
+        Args:
+            user_id: Discord user ID (snowflake).
+
+        Returns:
+            Discord user object, or None if not found.
+        """
+        if user_id in self._user_cache:
+            return self._user_cache[user_id]
+        user = await self._client.fetch_user(int(user_id))
+        if user:
+            self._user_cache[user_id] = user
+        return user
+
     async def send_message(
         self,
         user_id: str,
         content: str,
         *,
         split_long: bool = True,
-    ) -> None:
+    ) -> bool:
         """Send a message to a user via Discord DM.
 
         Args:
@@ -212,26 +230,28 @@ class DiscordBot(ChatBot):
             split_long: Whether to split messages exceeding 2000 characters.
 
         Returns:
-            None
+            True if the message was sent successfully, False otherwise.
         """
         try:
-            # Get user object
-            user = await self._client.fetch_user(int(user_id))
+            # Get user object (cached or fresh)
+            user = await self._get_user(user_id)
             if not user:
                 logger.error("Could not find user with ID %s", user_id)
-                return
+                return False
 
             if not split_long or len(content) <= DISCORD_MESSAGE_LIMIT:
                 await user.send(content)
-                return
+                return True
 
             # Split long messages intelligently
             chunks = self._split_message(content, DISCORD_MESSAGE_LIMIT)
             for chunk in chunks:
                 await user.send(chunk)
+            return True
 
         except Exception:
             logger.exception("Failed to send Discord message")
+            return False
 
     async def send_typing(self, user_id: str) -> None:
         """Send a typing indicator to a user's DM channel.
@@ -243,7 +263,7 @@ class DiscordBot(ChatBot):
             None
         """
         try:
-            user = await self._client.fetch_user(int(user_id))
+            user = await self._get_user(user_id)
             if user:
                 async with user.typing():
                     pass  # Just trigger the indicator
@@ -275,13 +295,13 @@ class DiscordBot(ChatBot):
         code_block_lang: str | None = None
 
         lines = content.split('\n')
-        
-        for i, line in enumerate(lines):
+
+        for line in lines:
             # Check for code block markers
             stripped = line.strip()
             # Check if line toggles code block
             is_code_block_toggle = stripped.startswith("```")
-            
+
             # Determine state change
             next_lang = code_block_lang
             if is_code_block_toggle:
@@ -289,23 +309,15 @@ class DiscordBot(ChatBot):
                     if stripped == "```":
                         next_lang = None
                 else:
-                    if len(stripped) > 3:
-                        next_lang = stripped[3:].strip()
-                    else:
-                        next_lang = ""
+                    next_lang = stripped[3:].strip() if len(stripped) > 3 else ""
 
             # Calculate overhead
             # We need to close the current block if we split: "\n```"
             close_overhead = 4 if code_block_lang is not None else 0
-            
-            # We need to open the next block if we split: "```{lang}\n"
-            open_overhead = 0
-            if code_block_lang is not None:
-                open_overhead = len(f"```{code_block_lang}\n")
 
             # Check if line fits
             prefix = "\n" if current_chunk else ""
-            
+
             # If we add this line, we must ensure we still have room to close the block if needed
             # So the check is: current + prefix + line + close_overhead <= limit
             if len(current_chunk) + len(prefix) + len(line) + close_overhead > limit:
@@ -313,37 +325,40 @@ class DiscordBot(ChatBot):
                 if code_block_lang is not None:
                     # Close current block
                     current_chunk += "\n```"
-                
+
                 if current_chunk:
                     chunks.append(current_chunk)
-                
-                # Start new chunk
-                if code_block_lang is not None:
-                    current_chunk = f"```{code_block_lang}\n{line}"
-                else:
-                    current_chunk = line
-                
+
+                # Start new chunk — use next_lang (state AFTER the current line)
+                # to avoid re-opening a code block when the current line is a closing fence.
+                current_chunk = (
+                    f"```{next_lang}\n{line}" if next_lang is not None else line
+                )
+
                 # Handle case where line itself is too long for the new chunk
                 # Recalculate reserve for the *end* of this new line (needs closing)
-                while len(current_chunk) + close_overhead > limit:
+                # Use next_lang for the hard-split close/open so that a closing fence
+                # does not get incorrectly re-opened with the previous language.
+                hs_close_overhead = 4 if next_lang is not None else 0
+                while len(current_chunk) + hs_close_overhead > limit:
                     # We need to hard-split the line
                     # Max allowed content in this chunk
-                    allowed_len = limit - close_overhead
-                    
+                    allowed_len = limit - hs_close_overhead
+
                     if len(current_chunk) > allowed_len:
                         # Take what fits
                         part = current_chunk[:allowed_len]
                         remainder = current_chunk[allowed_len:]
-                        
+
                         # Close this part
-                        if code_block_lang is not None:
+                        if next_lang is not None:
                             part += "\n```"
-                        
+
                         chunks.append(part)
-                        
+
                         # Start next part
-                        if code_block_lang is not None:
-                            current_chunk = f"```{code_block_lang}\n{remainder}"
+                        if next_lang is not None:
+                            current_chunk = f"```{next_lang}\n{remainder}"
                         else:
                             current_chunk = remainder
                     else:

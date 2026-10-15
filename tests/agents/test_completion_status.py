@@ -4,11 +4,12 @@ Verifies that agents which end without performing any tool calls are
 correctly reported as NO_WORK_DONE instead of COMPLETED.
 """
 
+from functools import partial
 from unittest.mock import MagicMock
 
 import pytest
 
-from henchman.agents.orchestrator import CompletionStatus, Orchestrator
+from henchman.agents.orchestrator import CompletionRequirement, CompletionStatus, Orchestrator
 from henchman.cli.stream_event_handlers import _handle_agent_completed
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
@@ -17,7 +18,10 @@ from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, To
 @pytest.fixture
 def mock_provider():
     """Create a mock model provider."""
-    return MagicMock(spec=ModelProvider)
+    provider = MagicMock(spec=ModelProvider)
+    provider.estimate_input_tokens.side_effect = partial(ModelProvider.estimate_input_tokens, provider)
+    provider.prepare_output_budget.side_effect = partial(ModelProvider.prepare_output_budget, provider)
+    return provider
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +46,7 @@ class TestCompletionStatusEnum:
 
     def test_all_members(self):
         members = {m.name for m in CompletionStatus}
-        assert members == {"COMPLETED", "NO_WORK_DONE", "STALLED", "TIMED_OUT"}
+        assert members == {"COMPLETED", "RESPONDED", "NO_WORK_DONE", "STALLED", "TIMED_OUT", "FAILED"}
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +156,9 @@ class TestRunCompletionStatus:
         orchestrator = Orchestrator(default_provider=mock_provider)
 
         events = []
-        async for event in orchestrator.run("Improve something"):
+        async for event in orchestrator.run(
+            "Improve something", completion_requirement=CompletionRequirement.ACTIONS,
+        ):
             events.append(event)
 
         # Should have an ERROR event about no actions
@@ -253,7 +259,9 @@ class TestRunDirectCompletionStatus:
         orchestrator = Orchestrator(default_provider=mock_provider)
 
         events = []
-        async for event in orchestrator.run_direct("explorer", "Find files"):
+        async for event in orchestrator.run_direct(
+            "explorer", "Find files", completion_requirement=CompletionRequirement.ACTIONS,
+        ):
             events.append(event)
 
         # Should have an ERROR event
@@ -367,7 +375,7 @@ class TestAgentCompletionRendering:
         )
         _handle_agent_completed(output_handler, event)
         output_handler.muted.assert_called_once()
-        assert "completed work" in output_handler.muted.call_args[0][0]
+        assert "finished execution" in output_handler.muted.call_args[0][0]
 
     def test_no_work_done_renders_warning(self):
         """Status 'no_work_done' renders a warning message."""
@@ -402,27 +410,29 @@ class TestAgentCompletionRendering:
         output_handler.warning.assert_called_once()
         assert "turn limit" in output_handler.warning.call_args[0][0]
 
-    def test_missing_status_defaults_to_completed(self):
-        """Events without a status field render as completed (backward compat)."""
+    def test_missing_status_is_unknown(self):
+        """Events without a status field cannot establish successful completion."""
         output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead"},
         )
         _handle_agent_completed(output_handler, event)
-        output_handler.muted.assert_called_once()
-        assert "completed work" in output_handler.muted.call_args[0][0]
+        output_handler.warning.assert_called_once()
+        output_handler.muted.assert_not_called()
+        assert "outcome unknown" in output_handler.warning.call_args[0][0]
 
-    def test_unknown_status_defaults_to_completed(self):
-        """Unknown status values fall through to the completed message."""
+    def test_unknown_status_is_unknown(self):
+        """Unknown status values cannot establish successful completion."""
         output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead", "status": "some_future_value"},
         )
         _handle_agent_completed(output_handler, event)
-        output_handler.muted.assert_called_once()
-        assert "completed work" in output_handler.muted.call_args[0][0]
+        output_handler.warning.assert_called_once()
+        output_handler.muted.assert_not_called()
+        assert "outcome unknown" in output_handler.warning.call_args[0][0]
 
 
 # ---------------------------------------------------------------------------

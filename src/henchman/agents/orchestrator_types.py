@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import TYPE_CHECKING, Any
+
+from .ledger import MAX_GOAL_PREVIEW_LENGTH
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from henchman.core.events import AgentEvent
+
+
+class CompletionRequirement(StrEnum):
+    """Evidence needed to accept execution; neither option verifies task correctness."""
+
+    RESPONSE = "response"
+    ACTIONS = "actions"
 
 
 @dataclass
@@ -23,6 +32,7 @@ class AgentLoopParams:
     max_turns: int = 0
     msg_start_index: int = 0
     brief: dict[str, Any] | None = None
+    completion_requirement: CompletionRequirement = CompletionRequirement.ACTIONS
 
 
 @dataclass
@@ -59,11 +69,15 @@ class LoopState:
     """Internal state for the agent execution loop."""
 
     tool_call_count: int = 0
+    tool_round_count: int = 0
     successful_tool_call_count: int = 0
     tool_errors: list[str] = field(default_factory=list)
     wrapup_warned: bool = False
     colon_stall_retries: int = 0
     timed_out: bool = False
+    failed: bool = False
+    response_complete: bool = False
+    completion_requirement: CompletionRequirement = CompletionRequirement.ACTIONS
 
 
 @dataclass
@@ -83,10 +97,13 @@ class CompletionStatus(Enum):
     """
 
     COMPLETED = "completed"
-    """Agent performed meaningful tool calls and finished normally."""
+    """Execution included successful tools; task correctness remains unverified."""
+
+    RESPONDED = "responded"
+    """Agent delivered a normal response without tools; no task verification is implied."""
 
     NO_WORK_DONE = "no_work_done"
-    """Agent stopped without making any tool calls."""
+    """Agent did not supply the required response or successful action evidence."""
 
     STALLED = "stalled"
     """Agent announced intent repeatedly but never acted."""
@@ -94,13 +111,16 @@ class CompletionStatus(Enum):
     TIMED_OUT = "timed_out"
     """Agent hit the turn limit before finishing."""
 
+    FAILED = "failed"
+    """Agent execution failed or the provider ended with a non-success reason."""
+
 
 # ---------------------------------------------------------------------------
 # Public configuration constants
 # ---------------------------------------------------------------------------
 
-MAX_USER_INPUT_LENGTH = 500
-"""Maximum length for user input truncation."""
+MAX_USER_INPUT_LENGTH = MAX_GOAL_PREVIEW_LENGTH
+"""Compatibility alias for ledger goal previews; canonical user input is retained."""
 
 MAX_ERROR_MESSAGE_LENGTH = 200
 """Maximum length for error message truncation."""

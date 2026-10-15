@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import aiohttp
+from bs4 import BeautifulSoup
+
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import coerce_int
 
 _HTTP_ERROR_THRESHOLD = 400
 _DEFAULT_TIMEOUT = 10
@@ -12,22 +16,14 @@ _DDG_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 )
-
-try:
-    import aiohttp
-    from bs4 import BeautifulSoup
-
-    _DEPS_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    _DEPS_AVAILABLE = False
-
+_DEPS_AVAILABLE = True
 
 def _build_ddg_request_headers() -> dict[str, str]:
     """Return HTTP request headers for DuckDuckGo searches."""
     return {"User-Agent": _DDG_USER_AGENT}
 
 
-def _parse_ddg_results(soup: object, max_results: int) -> list[str]:
+def _parse_ddg_results(soup: BeautifulSoup, max_results: int) -> list[str]:
     """Extract formatted search results from a parsed DuckDuckGo page.
 
     Args:
@@ -38,7 +34,7 @@ def _parse_ddg_results(soup: object, max_results: int) -> list[str]:
         List of formatted result strings (title, URL, snippet).
     """
     results: list[str] = []
-    for i, result in enumerate(soup.find_all("div", class_="result")):  # type: ignore[union-attr]
+    for i, result in enumerate(soup.find_all("div", class_="result")):
         if i >= max_results:
             break
         title_elem = result.find("a", class_="result__a")
@@ -59,10 +55,10 @@ def _build_search_url(query: str) -> str:
 async def _search_duckduckgo_results(query: str, max_results: int) -> ToolResult:
     """Run a DuckDuckGo search and return formatted results."""
     async with (
-        aiohttp.ClientSession(headers=_build_ddg_request_headers()) as session,  # type: ignore[possibly-undefined]
+        aiohttp.ClientSession(headers=_build_ddg_request_headers()) as session,
         session.get(
             _build_search_url(query),
-            timeout=aiohttp.ClientTimeout(total=_DEFAULT_TIMEOUT),  # type: ignore[possibly-undefined]
+            timeout=aiohttp.ClientTimeout(total=_DEFAULT_TIMEOUT),
         ) as response,
     ):
         if response.status >= _HTTP_ERROR_THRESHOLD:
@@ -73,7 +69,7 @@ async def _search_duckduckgo_results(query: str, max_results: int) -> ToolResult
             )
 
         html = await response.text()
-        soup = BeautifulSoup(html, "html.parser")  # type: ignore[possibly-undefined]
+        soup = BeautifulSoup(html, "html.parser")
         results = _parse_ddg_results(soup, max_results)
         if not results:
             return ToolResult(content="No results found.", success=True)
@@ -120,32 +116,29 @@ class DuckDuckGoSearchTool(Tool):
         """Tool kind - NETWORK requires confirmation."""
         return ToolKind.NETWORK
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: DuckDuckGoSearchTool,
-        query: str = "",
-        max_results: int = _DEFAULT_MAX_RESULTS,
         **kwargs: object,
     ) -> ToolResult:
         """Execute web search.
 
         Args:
-            query: Search query.
-            max_results: Maximum results to return.
-            **kwargs: Additional arguments (ignored).
+            **kwargs: Search query and maximum result count.
 
         Returns:
             ToolResult with search results.
         """
+        query = str(kwargs.get("query", ""))
+        max_results = coerce_int(kwargs.get("max_results", _DEFAULT_MAX_RESULTS))
         if not _DEPS_AVAILABLE:  # pragma: no cover
             return ToolResult(
                 content="Error: aiohttp and beautifulsoup4 are required for web_search",
                 success=False,
                 error="Dependencies not installed. Please run: pip install aiohttp beautifulsoup4",
             )
-
         try:  # pragma: no cover
             return await _search_duckduckgo_results(query, max_results)
-        except (aiohttp.ClientError, OSError, RuntimeError, TimeoutError, ValueError) as e:  # type: ignore[possibly-undefined]  # pragma: no cover
+        except (aiohttp.ClientError, OSError, RuntimeError, TimeoutError, ValueError) as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error performing search: {e}",
                 success=False,

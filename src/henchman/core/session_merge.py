@@ -10,8 +10,8 @@ import hashlib
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .session_data import Session, SessionMessage
-    from .session_models import TurnSummaryRecord
+    from .session_data import Session
+    from .session_models import SessionMessage, TurnSummaryRecord
 
 # Minimum number of sessions required for a merge operation.
 _MIN_SESSIONS_FOR_MERGE = 2
@@ -27,7 +27,7 @@ _VALID_STRATEGIES = ("union", "intersection", "smart")
 def _message_hash(msg: SessionMessage) -> str:
     """Compute a content hash for deduplication."""
     raw = f"{msg.role}:{msg.content}:{msg.tool_calls!s}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
 
 def _merge_union(sessions: list[Session]) -> list[SessionMessage]:

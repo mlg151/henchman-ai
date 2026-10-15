@@ -6,6 +6,7 @@ This module handles tool calls, confirmations, and results.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 from rich.markup import escape as _escape
@@ -17,6 +18,7 @@ from henchman.cli.stream_event_handlers import (
     dispatch_event,
     handle_post_stream_processing,
 )
+from henchman.core.events import EventType
 from henchman.providers.base import ToolCall
 
 if TYPE_CHECKING:
@@ -31,6 +33,9 @@ if TYPE_CHECKING:
     from henchman.core.events import AgentEvent
     from henchman.providers.base import ModelProvider
     from henchman.tools.base import ConfirmationRequest
+    from henchman.tools.registry import ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_ITERATIONS = 25
 DEFAULT_MAX_TOOL_CALLS_PER_TURN = 100
@@ -115,7 +120,7 @@ class ToolExecutor:
             self.output_handler.muted(
                 f"\n\\[tool] {_escape(tc_name)}({_escape(str(tc_args))})",
             )
-        result = await self.tool_manager.registry.execute(tc_name, tc_args)
+        result = await agent.tool_registry.execute(tc_name, tc_args)
         responded_ids.add(tc_id)
         agent.turn.record_tool_call(
             tool_call_id=tc_id,
@@ -135,15 +140,16 @@ class ToolExecutor:
     def _split_tools_by_confirmation_requirement(
         self: ToolExecutor,
         tool_calls: list[ToolCall],
+        registry: ToolRegistry,
     ) -> tuple[list[ToolCall], list[ToolCall]]:
         """Split *tool_calls* into (parallel, sequential) based on confirmation needs."""
         to_parallel: list[ToolCall] = []
         to_sequential: list[ToolCall] = []
         for tc in tool_calls:
             tc_name, tc_args = tc.name, tc.arguments
-            tool = self.tool_manager.registry.get(tc_name)
+            tool = registry.get(tc_name)
             if tool and (
-                tc_name in self.tool_manager.registry._auto_approve_policies
+                registry.is_auto_approved(tc_name)
                 or tool.needs_confirmation(tc_args) is None
             ):
                 to_parallel.append(tc)
@@ -193,14 +199,35 @@ class ToolExecutor:
             return
 
         state = StreamState()
-        async for event in event_stream:
-            dispatch_event(
-                self.output_handler,
-                event,
-                state,
-                agent,
-                content_collector,
+        primary_error: BaseException | None = None
+        try:
+            async for event in event_stream:
+                dispatch_event(
+                    self.output_handler,
+                    event,
+                    state,
+                    agent,
+                    content_collector,
+                )
+                if event.type == EventType.ERROR and state.is_own_event:
+                    state.interrupted = True
+                    break
+        except BaseException as exc:
+            primary_error = exc
+            state.interrupted = True
+            await handle_post_stream_processing(
+                self.output_handler, state, agent, content_collector, self.execute_tool_calls,
             )
+            raise
+        finally:
+            close = getattr(event_stream, "aclose", None)
+            if close is not None:
+                try:
+                    await close()
+                except Exception:
+                    if primary_error is None and not state.interrupted:
+                        raise
+                    logger.warning("Agent stream cleanup failed after interruption", exc_info=True)
 
         await handle_post_stream_processing(
             self.output_handler,
@@ -262,11 +289,11 @@ class ToolExecutor:
         agent.turn.increment_iteration()
         responded_ids: set[str] = set()
         to_parallel, to_sequential = self._split_tools_by_confirmation_requirement(
-            valid_tool_calls,
+            valid_tool_calls, agent.tool_registry,
         )
         try:
             if to_parallel:
-                await asyncio.gather(
+                results = await asyncio.gather(
                     *[
                         self._execute_and_record_tool_call(
                             tc,
@@ -276,7 +303,17 @@ class ToolExecutor:
                         )
                         for tc in to_parallel
                     ],
+                    return_exceptions=True,
                 )
+                # Log any exceptions from individual parallel tool calls
+                for tc, result in zip(to_parallel, results, strict=True):
+                    if isinstance(result, BaseException):
+                        logger.warning(
+                            "Parallel tool call %s (%s) failed: %s",
+                            tc.id,
+                            tc.name,
+                            result,
+                        )
             if to_sequential:
                 await self._run_sequential_tool_calls(
                     to_sequential,

@@ -354,18 +354,16 @@ class TestDiffViewTool:
 
     async def test_git_timeout(self) -> None:
         """Handle git command timeout."""
-        import asyncio
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from henchman.tools.builtins.diff_view import DiffViewTool
         tool = DiffViewTool()
         mock_process = MagicMock()
-        mock_process.communicate = AsyncMock()
+        mock_process.communicate = AsyncMock(side_effect=TimeoutError())
         with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
-                result = await tool.execute()
-                assert result.success is False
-                assert "timed out" in result.content
+            result = await tool.execute()
+            assert result.success is False
+            assert "timed out" in result.content
 
     async def test_run_git_method(self) -> None:
         """DiffViewTool._run_git delegates to _run_git_command."""

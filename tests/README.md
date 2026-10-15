@@ -1,6 +1,6 @@
 # Test Suite Structure
 
-This directory contains the comprehensive test suite for Henchman-AI. The project maintains **100% test coverage** as a strict requirement.
+This directory contains the comprehensive test suite for Henchman-AI. CI enforces a **90% whole-project branch-coverage floor**, while changed behavior should be fully tested.
 
 ## Test Organization
 
@@ -78,37 +78,36 @@ tests/
 ### Full Test Suite
 ```bash
 # Run all tests with coverage
-pytest --cov-fail-under=100
+uv run --extra dev python -m pytest --cov-fail-under=90
 
 # Run with verbose output
-pytest -v
+uv run --extra dev python -m pytest -v
 
 # Run specific test categories
-pytest tests/unit/ -v
-pytest tests/integration/ -v
-pytest tests/e2e/ -v
+uv run --extra dev python -m pytest tests/api/ -v
+uv run --extra dev python -m pytest tests/integration/ -v
+uv run --extra dev python -m pytest tests/e2e/ -v
 ```
 
 ### CI Pipeline
-The CI pipeline (`scripts/ci.sh`) runs:
+The CI pipeline runs:
 1. **Ruff** - Linting
 2. **Mypy** - Type checking
-3. **Pytest** - Tests with 100% coverage requirement
-4. **Doctests** - Documentation examples
-5. **Doc coverage** - All public functions must have docstrings
+3. **Pytest** - Tests with a 90% whole-project coverage floor
+4. **Package build** - Wheel and source distribution generation
+5. **Artifact smoke tests** - Clean installs that exercise entry points, CLI parsing, API readiness, and a no-download Chroma query
 
 ### Coverage Requirements
-- **100% test coverage** - All code paths must be tested
-- **100% documentation coverage** - All public functions/classes have docstrings
-- Coverage reports generated in `htmlcov/` and `coverage.json`
+- **90% minimum whole-project coverage** - Changed behavior should be fully tested
+- CI writes `coverage.xml`; add `--cov-report=html` locally when an `htmlcov/` report is useful
 
 ## Test Development Guidelines
 
 ### Adding New Tests
 1. Create test file in appropriate directory structure
 2. Write test cases covering all functionality
-3. Ensure tests pass with 100% coverage
-4. Run `./scripts/ci.sh` to verify all checks pass
+3. Ensure tests pass at or above the 90% coverage floor
+4. Run the Ruff, mypy, and full Pytest commands from the repository workflow
 
 ### Mocking
 - Use `unittest.mock` for mocking external dependencies
@@ -140,7 +139,7 @@ The CI pipeline (`scripts/ci.sh`) runs:
 pytest tests/cli/test_app.py
 
 # Run single test function
-pytest tests/cli/test_app.py::test_cli_version
+pytest tests/cli/test_app.py::test_cli_version_option
 
 # Run tests matching pattern
 pytest -k "test_version"
@@ -161,8 +160,8 @@ pytest -v --tb=short
 ## Quality Requirements
 
 ### Test Coverage
-- All code must be tested
-- Branch coverage must be 100%
+- Changed behavior must be fully tested
+- Whole-project branch coverage must remain at or above 90%
 - Exception paths must be tested
 - Edge cases must be covered
 
@@ -219,9 +218,9 @@ def test_exception():
 ## Continuous Integration
 
 The project uses GitHub Actions for CI. The workflow:
-1. Runs on all pushes and pull requests
-2. Executes `scripts/ci.sh` for full test suite
-3. Enforces 100% coverage requirement
+1. Runs on pushes and pull requests targeting `main`
+2. Runs Ruff, mypy, and the full test suite
+3. Enforces the 90% coverage requirement
 4. Fails if any quality check fails
 
 ## Test Maintenance

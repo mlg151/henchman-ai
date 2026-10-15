@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/plugin-metadata/v1",
+  "title": "PluginMetadata",
+  "description": "Metadata describing one plugin in the marketplace.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "author_email": { "type": ["string", "null"] },
+    "maintainers": { "type": "array", "items": { "type": "string" } },
+    "entry_points": {
+      "type": "object",
+      "properties": {
+        "henchman_extensions": { "type": "string" },
+        "console_scripts": { "type": ["array", "null"], "items": { "type": "string" } }
+      },
+      "required": ["henchman_extensions"]
+    },
+    "license": { "type": ["string", "null"] },
+    "repository": { "type": ["string", "null"] },
+    "homepage": { "type": ["string", "null"] },
+    "documentation": { "type": ["string", "null"] },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "categories": { "type": "array", "items": { "type": "string" } },
+    "dependencies": { "type": "array", "items": { "type": "string" } },
+    "compatibility": { "type": "object" },
+    "security": { "type": "object" },
+    "source": { "type": "string" },
+    "source_url": { "type": ["string", "null"] },
+    "checksum": { "type": ["string", "null"] },
+    "stats": { "type": "object" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" }
+  },
+  "required": ["name", "version", "description", "author", "entry_points"]
+}

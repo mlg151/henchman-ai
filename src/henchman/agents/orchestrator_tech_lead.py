@@ -8,11 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from henchman.core.agent import Agent
-from henchman.tools.builtins.delegate import DelegateTaskTool
-
-from .orchestrator_prompts import PromptFactory
-
 if TYPE_CHECKING:
     from henchman.providers.base import ModelProvider
 
@@ -29,8 +24,8 @@ def setup_tech_lead(
 
     Args:
         orch: The orchestrator instance.
-        agent_configs: Merged agent configurations.
-        default_provider: The default model provider.
+        agent_configs: Compatibility argument; configurations come from the pool.
+        default_provider: Compatibility argument; provider resolution uses the pool.
         system_prompt: Optional custom system prompt.
         environment_context: Optional environment context.
 
@@ -38,24 +33,16 @@ def setup_tech_lead(
         None: This function sets up the Tech Lead agent on the orchestrator
         instance but returns nothing.
     """
+    del agent_configs, default_provider  # The pool owns both configuration sources.
     if not orch.tool_registry.get("delegate_task"):
+        from henchman.tools.builtins.delegate import (
+            DelegateTaskTool,  # Lazy to avoid circular import
+        )
+
         orch.tool_registry.register(DelegateTaskTool())
-    tl_prompt = PromptFactory.create_tech_lead_prompt(
-        agent_configs,
-        system_prompt,
-        environment_context,
-    )
-    ctx = orch.settings.context
-    orch.tech_lead = Agent(
-        provider=default_provider,
-        tool_registry=orch.tool_registry,
-        system_prompt=tl_prompt,
-        identity=create_tech_lead_identity(),
-        intelligent_context=ctx.intelligent_context,
-        importance_threshold=ctx.importance_threshold,
-        cluster_similarity_threshold=ctx.cluster_similarity_threshold,
-        adaptive_compression=ctx.adaptive_compression,
-    )
+    orch.pool.context_config.leader_system_prompt = system_prompt
+    orch.pool.context_config.environment_context = environment_context
+    orch.tech_lead = orch.pool.get_agent("tech_lead")
     orch.tech_lead._stall.enabled = False
 
 

@@ -6,25 +6,12 @@
 
 ---
 
-## Open Bugs
-
-### BUG-005: `asyncio.gather()` without `return_exceptions=True` causes silent cancellation of parallel tool calls
-- **Severity:** high
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/cli/tool_executor.py:269`
-- **Replication:**
-  1. Have two or more auto-approved tool calls in a single turn (e.g., two `read_file` calls), so they land in `to_parallel`.
-  2. Have one of them throw an exception (e.g., `shell` with a non-existent command, or `read_file` on a missing path).
-  3. Observe that ALL remaining parallel tool calls are silently cancelled -- their results are lost.
-- **Description:**
-  `execute_tool_calls` at line 269 calls `asyncio.gather(*[...])` with the default `return_exceptions=False`. When one parallel tool call raises, `asyncio.gather` immediately cancels all other pending futures in that gather, then re-raises the exception. The cancelled tool call results are replaced by `_ensure_all_tool_calls_have_response` in the `finally` block with the generic string "Tool execution was interrupted or cancelled." Worse, the exception propagates up through the agent call stack, causing the current turn to end with an error even though the other (cancelled) tool calls might have succeeded.
-  
-  The fix is to add `return_exceptions=True` to the gather and handle each result individually, logging errors per-tool-call rather than letting a single failure cancel unrelated work.
+## Resolved Bugs
 
 ### BUG-006: Background delegation Task not tracked -- cannot be cancelled or awaited on shutdown
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/agents/delegation_manager.py:102`
 - **Replication:**
@@ -40,53 +27,75 @@
 
 ### BUG-007: Race condition on `ongoing_tasks` dict between `cancel_delegation` and `_run_delegation`
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
+- **Resolved:** 2026-05-31
 - **File:** `src/henchman/agents/delegation_manager.py:160-161, 263-283`
 - **Replication:**
   1. Start a delegation via `start_delegation`.
-  2. Call `cancel_delegation()` while `_run_delegation` is running (e.g., by having a timer fire or user action).
+  2. Call `cancel_delegation()` while `_run_delegation` is running.
   3. `cancel_delegation` moves the task from `ongoing_tasks` to `completed_tasks`.
-  4. `_run_delegation` finishes its async-for loop and reaches line 160-161 where it does an unconditional `del self.ongoing_tasks[delegation_task.id]`.
-  5. A `KeyError` is raised because `cancel_delegation` already removed the entry from `ongoing_tasks`.
-- **Description:**
-  `cancel_delegation` (line 263-283) and `_run_delegation` (line 109-176) both modify `self.ongoing_tasks` and `self.completed_tasks` without any synchronization. The normal-path code at line 161 does an unconditional `del self.ongoing_tasks[delegation_task.id]`, which will `KeyError` if `cancel_delegation` deleted the same key first. Note: `cancel_delegation` is currently dead code (never called anywhere in the codebase), but the method exists as a public API and would trigger this bug if ever invoked.
+  4. `_run_delegation` finishes and does unconditional `del self.ongoing_tasks[delegation_task.id]`.
+  5. `KeyError` is raised because `cancel_delegation` already removed the entry.
+- **Root Cause:**
+  Unconditional `del self.ongoing_tasks[delegation_task.id]` at line 161 with no synchronization.
+- **Fix:**
+  Replaced `del self.ongoing_tasks[delegation_task.id]` with `self.ongoing_tasks.pop(delegation_task.id, None)` so the removal gracefully handles the key already being gone.
 
 ### BUG-008: Fire-and-forget `create_task` for MCP connection cannot be awaited on shutdown
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
+- **Resolved:** 2026-05-31
 - **File:** `src/henchman/cli/core_init.py:172`
 - **Replication:**
   Run the application and then trigger a shutdown while MCP servers are still connecting. The connection task is silently cancelled by the event loop.
-- **Description:**
-  Line 172 does `asyncio.create_task(connect_mcp())` and discards the task reference. There is no mechanism to await the MCP connection task during shutdown. If the application exits while MCP servers are still connecting, the task is cancelled by the event loop with no chance for cleanup.
+- **Root Cause:**
+  `asyncio.create_task(connect_mcp())` discards the task reference. No mechanism to await MCP connection during shutdown.
+- **Fix:**
+  1. Added `background_tasks: set[asyncio.Task]` field to `CoreContext` dataclass.
+  2. `initialize_mcp` stores the MCP connection task in `context.background_tasks`.
+  3. Done callback auto-removes completed tasks from the set.
+  4. Shutdown code can iterate `background_tasks` to cancel/await pending connection tasks.
 
 ### BUG-009: RAG indexing task stored but never cancelled or awaited on shutdown
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/app.py:569-570`
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/app.py:569-570`, `src/henchman/cli/repl.py:367`
 - **Replication:**
   Run the JSON output mode (which creates a Repl with RAG indexing). Shut down the app. The RAG indexing task runs in the background until the event loop cancels it.
-- **Description:**
-  `_start_rag_indexing` stores the task on `repl._rag_index_task` via `object.__setattr__`, but this attribute is never read, cancelled, or awaited anywhere in the codebase. On shutdown, the indexing task runs to completion or is cancelled by the event loop, whichever comes first.
+- **Root Cause:**
+  `_start_rag_indexing` stores the task on `repl._rag_index_task` via `object.__setattr__`, but this attribute is never read, cancelled, or awaited anywhere.
+- **Fix:**
+  1. Added `_cancel_rag_task()` helper in `app.py` to cancel any pending indexing task.
+  2. `_start_rag_indexing` now calls `_cancel_rag_task(repl)` before creating a new task.
+  3. Added `_cancel_rag_task(repl)` calls at the end of each headless processing function (`_run_headless_text`, `_run_headless_json_format`, `_run_headless_json_complete`).
+  4. Added RAG indexing task cancellation and await in `Repl.run()`'s finally block.
 
 ### BUG-010: `_safe_create_task` accumulates unreferenceable background tasks
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/output_handler.py:270, 319-334`
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/output_handler.py:267-290`
 - **Replication:**
   Run the REPL for an extended session with RAG enabled. Each turn that shows status triggers `_start_rag_indexing`, which spawns a new unreferenceable task. Over time, these accumulate.
-- **Description:**
-  `_safe_create_task` (line 319-334) creates an `asyncio.Task` each time it is called and does not store the reference. The `_on_done` callback logs errors, but there is no mechanism to cancel, await, or even enumerate these tasks. The `_start_rag_indexing` method (line 267) calls `_safe_create_task` each time turn status is displayed (line 308), meaning multiple indexing tasks are spawned over a session without any deduplication or cleanup.
+- **Root Cause:**
+  `_safe_create_task` (line 319-334) creates an `asyncio.Task` each call without storing a reference. No mechanism to cancel, await, or enumerate these tasks.
+- **Fix:**
+  1. Replaced `_safe_create_task` call in `_start_rag_indexing` with direct `asyncio.create_task`.
+  2. Added `_cancel_existing_rag_task()` method that cancels any previous indexing task before creating a new one, preventing accumulation.
+  3. Stored the task as `self._rag_index_task` so it can be cancelled/awaited on shutdown.
+  4. Added `_on_rag_index_done` static method for error logging on task completion.
 
 ### BUG-011: Zip/Tar Slip in Plugin Archive Extraction
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
-- **File:** `src/henchman/extensions/plugin_installer.py:257, 266`
+- **File:** `src/henchman/extensions/plugin_installer.py:238-267`
 - **Replication:**
   1. Configure a plugin with `source=URL` pointing to a crafted archive.
   2. Run plugin installation.
@@ -96,7 +105,8 @@
 
 ### BUG-012: Missing SSRF Protection in Plugin Archive Download
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/extensions/plugin_installer.py:201-226`
 - **Replication:**
@@ -108,7 +118,8 @@
 
 ### BUG-013: Shell Metacharacter Injection via Sudo Command Rewrite
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/tools/builtins/shell.py:355-365`
 - **Replication:**
@@ -122,7 +133,8 @@
 
 ### BUG-014: Two load_settings Implementations Diverge on Env-Var Handling
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/config/__init__.py:44` vs `src/henchman/config/settings.py:137`
 - **Replication:**
@@ -134,7 +146,8 @@
 
 ### BUG-015: Missing Bounds Validation on Numeric Config Fields
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/config/schema.py`
 - **Replication:**
@@ -146,7 +159,8 @@
 
 ### BUG-016: RAG chunk_overlap Can Exceed chunk_size
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/config/schema.py` (RagSettings)
 - **Replication:**
@@ -158,7 +172,8 @@
 
 ### BUG-017: McpServerConfig.command Lacks Non-Empty Validation
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/config/schema.py` (McpServerConfig)
 - **Replication:**
@@ -170,7 +185,7 @@
 
 ### BUG-018: RAG Index Migration Silently Swallows Failures
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
 - **File:** `src/henchman/rag/repo_id.py:179, 190`
 - **Replication:**
@@ -180,10 +195,12 @@
   4. Function returns False with no log entry — caller cannot distinguish "no migration needed" from "migration failed."
 - **Description:**
   `migrate_old_index()` catches all exceptions from `shutil.copytree()` and `shutil.copy2()` with `except Exception: pass`. If migration fails due to disk-full or permissions, the failure is invisible. Old data may remain in a stale format with no diagnostic.
+- **Resolution:**
+  Added `import logging` / `logger` to `repo_id.py`. Replaced bare `pass` in both except blocks with `logger.warning(...)` calls including the source and destination paths. Moved `import shutil` to module level. Tests: `tests/rag/test_repo_id_silent_failures.py` (4 tests).
 
 ### BUG-019: Message Summarization Failures Are Completely Silent
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
 - **File:** `src/henchman/utils/compaction.py:852, 1091`
 - **Replication:**
@@ -192,10 +209,12 @@
   3. System degrades to simple message dropping with zero observability.
 - **Description:**
   Both `summarize()` (line 852) and `_try_summarize()` (line 1091) catch all exceptions with `except Exception: pass`. No logger call, no warning. If the LLM provider is unavailable, context quality silently degrades over time.
+- **Resolution:**
+  Added `import logging` / `logger` to `compaction.py`. Replaced bare `pass` in `_generate_summary_with_provider` and `_attempt_summarization` with `logger.warning(...)` calls. Tests: `tests/utils/test_compaction_silent_failures.py` (3 tests).
 
 ### BUG-020: Extension Loading Failures Lose Traceback
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
 - **File:** `src/henchman/extensions/manager.py:63, 82, 93, 114`
 - **Replication:**
@@ -205,10 +224,12 @@
   4. The extension author cannot diagnose the failure.
 - **Description:**
   Four handlers in `_load_entry_point_extension`, `_try_load_extension_dir`, `_try_instantiate_ext_class`, and `_load_extension_from_file_impl` use `logger.warning("...: %s", exc)` without `exc_info=True`. Only the exception message is logged; the full traceback is lost, making third-party extension debugging nearly impossible.
+- **Resolution:**
+  Changed all four `logger.warning(...)` calls to pass `exc_info=True` and removed the redundant `%s` for the exception argument. Logs now include full tracebacks. Tests: `tests/extensions/test_manager_tracebacks.py` (4 tests).
 
 ### BUG-021: REPL Main Loop Does Not Log Exception Tracebacks
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
 - **Found:** 2026-05-31
 - **File:** `src/henchman/cli/repl.py:705`
 - **Replication:**
@@ -217,10 +238,13 @@
   3. No traceback is logged anywhere.
 - **Description:**
   `repl.py` has no `logging.getLogger()` at all. `_run_turn_no_input()` catches `Exception` but only prints the error message to the renderer. `traceback.format_exc()` is not called, `logger.exception()` is not called. Developers have zero visibility into unexpected REPL failures.
+- **Resolution:**
+  Added `import logging` / `logger` to `repl.py`. Added `logger.exception(...)` calls in both exception handlers (MCP connection error and general REPL turn error). Tests: `tests/cli/test_repl_exception_logging.py` (2 tests).
 
 ### BUG-022: LspService Subprocesses Orphaned on Garbage Collection
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/lsp/service.py:69-84, 146-163`
 - **Replication:**
@@ -232,7 +256,8 @@
 
 ### BUG-023: EventBus Has No Unsubscribe — Subscribers Accumulate Permanently
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/core/eventbus.py:14-23`
 - **Replication:**
@@ -245,7 +270,8 @@
 
 ### BUG-024: ChatManager._user_histories Grows Unbounded
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/chat/manager.py:85, 497-503`
 - **Replication:**
@@ -257,7 +283,8 @@
 
 ### BUG-025: ChatManager._user_agents Grows Unbounded with No Idle Eviction
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/chat/manager.py:84, 121-191`
 - **Replication:**
@@ -269,7 +296,8 @@
 
 ### BUG-026: Unhandled KeyError when agent config references unregistered provider
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/agents/pool.py:193`
 - **Replication:**
@@ -283,7 +311,8 @@
 
 ### BUG-027: Unsafe type cast in ToolMessage.__init__ accepts arbitrary non-string values
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/cli/textual_widgets.py:476-478`
 - **Replication:**
@@ -296,163 +325,72 @@
 
 ### BUG-028: Agent errors leave stale entries in ChatPane._active, corrupting subsequent streams
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Added `for name in list(chat._active): chat.finish_agent_stream(name)` in the `except asyncio.CancelledError`, `except Exception`, and `finally` blocks of `process_user_input` (`textual_mixins.py`). This ensures all active agent streams are finalized regardless of how processing exits.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_mixins.py:1166-1183` and `src/henchman/cli/textual_widgets.py:640-655`
-- **Replication:**
-  1. Send a message to the agent (e.g., "hello").
-  2. While the agent streams a response, trigger an error (e.g., provider disconnects).
-  3. Note that `process_user_input` catches the exception but never calls `chat.finish_agent_stream()`.
-  4. Send a second message ("are you there?").
-  5. The new agent response is APPENDED to the old errored widget instead of creating a new one, because `append_agent_chunk` finds the old `_active["Assistant"]` entry and skips `begin_agent_stream()`.
-- **Description:**
-  When `process_user_input` (textual_mixins.py:1150) raises an exception in the `try` block, both the `except asyncio.CancelledError` and `except Exception` paths in the `try`/`finally` block (lines 1166-1183) never call `finish_agent_stream()` on the `ChatPane`. This means the agent name (e.g., `"Assistant"`) remains in `ChatPane._active`.
-
-  On the next user submission, `append_agent_chunk` (textual_widgets.py:640) checks `newly_created = agent_name not in self._active`. Since the stale entry exists, `newly_created` is `False`, and `begin_agent_stream` is never called. The new chunks are appended to the old errored `ChatMessage` widget via `self._active[agent_name].append(chunk)` at line 645. The user sees new response text grafted onto the previous turn's error message, with no visual break.
-
-  The fix is to add `chat.finish_agent_stream(name)` (for each active agent) in the `finally` block or `except` blocks of `process_user_input`.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_mixins.py`
 
 ### BUG-029: No finish_thinking_stream method -- _active_thinking entries accumulate across turns
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Added `finish_thinking_stream(agent_name)` method to `ChatPane` (`textual_widgets.py`) that pops the agent from `_active_thinking`. This parallels the existing `finish_agent_stream` and prevents thinking chunks from accumulating across turns.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_widgets.py:694-698`
-- **Replication:**
-  1. Open the app and send a message to the agent.
-  2. The agent thinks -- a `ThinkingMessage` widget is created and stored in `_active_thinking["Assistant"]`.
-  3. Send another message.
-  4. The new thinking chunks are APPENDED to the previous turn's expanding `ThinkingMessage` widget instead of creating a fresh one.
-  5. Repeat -- the single thinking widget grows unbounded across turns.
-- **Description:**
-  `append_thinking_chunk` (line 694) checks `if agent_name not in self._active_thinking` and only creates a new widget if no entry exists. There is NO `finish_thinking_stream` method anywhere in the codebase -- `_active_thinking` entries are only removed by `clear_thinking_messages()` (user action) or `clear_messages()` (`/clear` command). They are never cleaned up between conversation turns.
-
-  This means every turn's thinking content for the same agent name is concatenated into the same widget. Over a long session the `ThinkingMessage` widget grows without bound, and the user cannot distinguish "thinking from this turn" from "thinking from previous turns."
-
-  The same pattern applies to `_active` (agent streams), but that is at least cleaned up by `finish_agent_stream` on success. There is no equivalent for thinking streams.
-
-  Fix: Add a `finish_thinking_stream(agent_name)` method analogous to `finish_agent_stream` that pops from `_active_thinking`, and call it from an `on_agent_thought_finished` handler or at the start of each new turn.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_widgets.py`
 
 ### BUG-030: StatusBar and Footer both dock to bottom with reversed stacking
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Swapped the compose order in `HenchmanTextualApp.compose()` (`textual_app.py`) so `Footer()` is yielded before `StatusBar()`. With both widgets docking to bottom, the first child (Footer now) occupies the bottommost position, placing keybinding hints at the very bottom and status text above.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/henchman.tcss:52-55` and `src/henchman/cli/textual_app.py:310-311`
-- **Replication:**
-  1. Run the Textual TUI.
-  2. Observe the bottom of the screen.
-  3. The StatusBar (status text, token count) appears below the Footer (keybinding hints), which is the reverse of the expected visual order.
-- **Description:**
-  The `compose()` method yields `StatusBar(id="status-bar")` at line 310, then `Footer()` at line 311. In the TCSS file, `#status-bar` has `dock: bottom; height: 1;`. `Footer` also has `dock: bottom; height: 1;` from its Textual default CSS.
-
-  In Textual's docking system, when multiple widgets dock to the same edge, they stack in children/DOM order. Since StatusBar is a child before Footer, it occupies the bottommost position, and Footer sits above it. The visual result is:
-  ```
-  [HenchmanTextArea]
-  [Footer]         <-- keybinding hints (expected at very bottom)
-  [StatusBar]      <-- status info (unexpectedly below Footer)
-  ```
-
-  This is reversed from the normal convention where keybinding hints (Footer) are at the very bottom and status text sits above them. This can cause the status text to be partially hidden or visually confused with the footer.
-
-  Fix: Either swap the compose order (yield Footer before StatusBar) so Footer occupies the bottommost dock position, or remove `dock: bottom` from `#status-bar` CSS and let it use normal flow above the docked Footer.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_app.py`
 
 ### BUG-031: HenchmanTextArea on_key handler is dead code that duplicates BINDINGS
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Removed the `on_key`, `_handle_enter_key`, and `_handle_shift_enter_key` methods from `HenchmanTextArea` (`textual_widgets.py`). The `BINDINGS` class variable already handles `enter` (submit) and `shift+enter` (newline) correctly.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_widgets.py:254-281`
-- **Replication:**
-  1. Review `HenchmanTextArea.BINDINGS` (line 254): defines `enter` -> `app.action_submit_message` and `shift+enter` -> `newline`.
-  2. Review `HenchmanTextArea.on_key` (line 263): separately handles `event.key == "enter"` -> `app.action_submit_message()` and `event.key == "shift+enter"` -> `self.insert("\n")`.
-  3. In Textual, when a widget's binding matches a key, the key event is consumed and `on_key` is NOT called. This means the `on_key` handler for these two keys never executes.
-- **Description:**
-  `HenchmanTextArea` defines both widget-level `BINDINGS` and an `on_key` message handler for the same two keys (`enter` and `shift+enter`). In Textual, key bindings on a widget take precedence over `on_key` -- when a binding matches, the binding action is invoked and the key event is stopped before reaching `on_key`.
-
-  This makes the `on_key` handler dead code for `enter` and `shift+enter`. However, there are two risks:
-
-  1. **Double-fire risk**: If a future Textual version changes the event processing order (or if `show=False` on bindings affects propagation), both the binding action AND the `on_key` handler could fire for the same keypress, causing double message submission (`action_submit_message` called twice) or double newline insertion (`action_newline` + `insert("\n")`).
-
-  2. **Maintenance hazard**: The `on_key` handler is misleading. A developer reading the code would reasonably believe `on_key` has effect. If they modify `on_key` without checking BINDINGS (or vice versa), the two mechanisms would diverge, leading to inconsistent behavior that only manifests under specific conditions.
-
-  Fix: Remove the `on_key` handler and its helper methods (`_handle_enter_key`, `_handle_shift_enter_key`) since the BINDINGS already handle these keys correctly. The `action_newline` binding already handles Shift+Enter.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_widgets.py`
 
 ### BUG-032: History navigation discards unsaved input buffer when cycling past the newest entry
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Added `_saved_input_buffer` attribute to `_navigate_history` (`textual_mixins.py`). When navigating from beyond-history into history, the current unsent input text is saved. When navigating past the newest entry back to the end, the saved buffer is restored instead of clearing to empty.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_mixins.py:915-933`
-- **Replication:**
-  1. Type some text in the input that you have NOT submitted yet (e.g., "work in progress").
-  2. Press Up to navigate to a previous history entry.
-  3. Press Down repeatedly until you cycle past the newest entry.
-  4. The input is now EMPTY -- your unsaved "work in progress" text is lost.
-- **Description:**
-  `_navigate_history` (line 915) handles cycling through `self.command_history`. When the user navigates past the newest entry (`new_idx >= len(history)`), the code sets `widget.load_text("")` -- clearing the input to an empty string. Standard shell history navigation (e.g., bash, readline) saves the current unsent input into a temporary buffer before cycling into history, and restores that buffer when the user navigates back past the newest entry.
-
-  This implementation lacks that buffer. Any text the user typed but didn't submit is silently discarded when they cycle history then go past the end.
-
-  Fix: Save the current input text to a `_saved_input_buffer` attribute before overwriting it in `_navigate_history`, and restore it when navigating past the newest entry.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_mixins.py`
 
 ### BUG-033: First chunk of agent stream content not scrolled into view
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Removed the `if not newly_created` guard from `append_agent_chunk` (`textual_widgets.py`). `self._scroll_to_bottom()` is now called unconditionally after every chunk append, ensuring the first chunk content is visible immediately.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_widgets.py:640-647`
-- **Replication:**
-  1. Send a message that triggers a streaming response.
-  2. The first chunk of the response triggers `append_agent_chunk` with `newly_created=True`.
-  3. `begin_agent_stream` creates the widget and calls `_add_message_widget`, which calls `_try_scroll()` -- scrolling to bottom while the widget is still EMPTY.
-  4. Then `self._active[agent_name].append(chunk)` fills the first chunk of content into the now-visible (but scrolled-to-bottom) widget.
-  5. If the first chunk causes the widget to grow below the viewport, the content is not visible until the second chunk triggers a proper `_scroll_to_bottom`.
-- **Description:**
-  In `append_agent_chunk`, when `newly_created=True`, the scroll is triggered by `_add_message_widget` (inside `begin_agent_stream`) BEFORE the first chunk content is appended. The sequence is:
-
-  1. `begin_agent_stream(agent_name)` -> `_add_message_widget(...)` -> `_try_scroll()` -> scroll happens with empty widget
-  2. `self._active[agent_name].append(chunk)` -> content is added, but NO scroll follows
-
-  The condition `if not newly_created: self._scroll_to_bottom()` (line 646-647) means the second-and-later chunks trigger a proper post-append scroll. But the first chunk is appended after the scroll, so if it makes the widget taller than the viewport, the first few words/lines are not visible until the next chunk triggers the scroll.
-
-  Fix: Always call `self._scroll_to_bottom()` after appending, removing the `if not newly_created` guard. The double-scroll on creation is harmless (the second scroll is idempotent after the first).
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_widgets.py`
 
 ### BUG-034: _streaming_messages dict is never populated -- dead state
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Removed `self._streaming_messages` from `_init_state()` and the `self._streaming_messages.pop(name, None)` call from `on_agent_finished_message` (`textual_mixins.py`). The dict was never written to by any code path and served no purpose.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_mixins.py:410, 1804`
-- **Replication:**
-  1. Search for all references to `_streaming_messages` in the codebase.
-  2. It is initialized in `_init_state()` (line 410).
-  3. It is `.pop()`'ed in `on_agent_finished_message` (line 1804).
-  4. It is NEVER written to by any code path.
-- **Description:**
-  `self._streaming_messages: dict[str, ChatMessage] = {}` is created in `_init_state()` at line 410. The only other reference is `self._streaming_messages.pop(name, None)` in `on_agent_finished_message` at line 1804. Since the dict is always empty, every `.pop()` call is a no-op. The dict exists solely as unreachable dead state -- it consumes a trivial amount of memory but never serves any purpose.
-
-  The attribute name suggests it was originally intended to track active streams separately from `ChatPane._active`, but was never wired up. It can mislead future developers into thinking streams are tracked at the app level.
-
-  Fix: Remove `self._streaming_messages` from `_init_state()` and the `.pop()` call from `on_agent_finished_message`.
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_mixins.py`
 
 ### BUG-035: ChatPane.on_mount reinitializes tracking maps, erasing any pre-mount state
 - **Severity:** low
-- **Status:** open
+- **Status:** resolved
+- **Fix:** Removed the `on_mount` method from `ChatPane` (`textual_widgets.py`). The `__init__` already initializes `_active` and `_active_thinking` to empty dicts, making the `on_mount` reinitialization redundant and fragile.
 - **Found:** 2026-05-31
-- **File:** `src/henchman/cli/textual_widgets.py:587-590`
-- **Replication:**
-  1. `ChatPane.__init__` initializes `self._active = {}` and `self._active_thinking = {}` (lines 584-585).
-  2. `ChatPane.on_mount` sets `self._active = {}` and `self._active_thinking = {}` again (lines 589-590).
-  3. If `on_mount` fires MORE THAN ONCE (possible in some Textual lifecycle scenarios, e.g., TabbedContent re-evaluating children, CSS hot-reload, or screen transitions), the tracking maps are wiped, losing all active stream references.
-- **Description:**
-  While this is currently safe because no widgets are added between `__init__` and the first `on_mount`, the redundant reinitialization in `on_mount` is fragile. If Textual ever re-mounts the `ChatPane` (e.g., due to an upstream widget being detached and reattached, or if `ChatPane` is later subclassed to pre-populate messages in `compose`), the `on_mount` handler would silently destroy all stream tracking.
-
-  The `on_mount` handler should be removed since `__init__` already initializes these fields. Alternatively, make it idempotent:
-  ```python
-  def on_mount(self):
-      if not hasattr(self, "_active"):
-          self._active = {}
-          self._active_thinking = {}
-  ```
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/textual_widgets.py`
 
 ### BUG-036: Chat endpoints double-verify API key causing authentication to always fail when auth is enabled
 - **Severity:** critical
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/api/endpoints/chat.py:300-303, 315, 383-398, 470-488, 509-523`
 - **Replication:**
@@ -478,7 +416,8 @@
 
 ### BUG-037: RemoteSessionResponse model_validate crashes on missing required fields
 - **Severity:** high
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/api/endpoints/remote.py:25-35, 108`
 - **Replication:**
@@ -503,7 +442,8 @@
 
 ### BUG-038: SSE endpoint missing X-Accel-Buffering header -- incompatible with nginx reverse proxy
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/api/endpoints/chat.py:460-467`
 - **Replication:**
@@ -517,7 +457,8 @@
 
 ### BUG-039: ChatRequest.messages has no min_length constraint -- empty messages list accepted
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/api/endpoints/chat.py:35`
 - **Replication:**
@@ -531,7 +472,8 @@
 
 ### BUG-040: Rate limiter uses request.client.host -- ineffective behind reverse proxy
 - **Severity:** medium
-- **Status:** open
+- **Status:** resolved
+- **Resolved:** 2026-05-31
 - **Found:** 2026-05-31
 - **File:** `src/henchman/api/server.py:229`
 - **Replication:**
@@ -551,140 +493,102 @@
 
 ### BUG-041: Redundant fetch_user calls on every send_message waste API quota and risk rate limiting
 - **Severity:** medium
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:231`
-- **Replication:**
-  1. Enable the Discord bot for chat.
-  2. Send a message that triggers multiple streaming flushes (content chunks) and tool calls.
-  3. Examine the API calls made to Discord: a `GET /users/{user_id}` fetch_user call is made for EACH `send_message` invocation.
-  4. With many streaming flushes and tool call notifications, a single user interaction can generate 5-10+ fetch_user calls for the same user.
-- **Description:**
-  `send_message` at line 231 calls `await self._client.fetch_user(int(user_id))` on every invocation, even when called repeatedly for the same user within a single interaction. During a typical agent response, `send_message` is called for:
-    - Each content chunk flush (potentially multiple times per response)
-    - Each tool call notification ("Running: tool_name")
-    - Each tool result display
-    - The final content flush after the stream ends.
-  
-  All these calls fetch the same user object via the Discord REST API, wasting API quota and contributing to rate limit accumulation. The `User` object returned by `fetch_user` could be cached in the `DiscordBot` instance keyed by `user_id`, with the cache invalidated periodically or on `on_ready`. Each `user.send()` call on a cached `User` object works identically to a freshly fetched one.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/discord_bot.py`
+- **Root Cause:**
+  `send_message` called `await self._client.fetch_user(int(user_id))` on every invocation, even for repeated calls to the same user within a single interaction.
+- **Fix:**
+  1. Added `self._user_cache: dict[str, Any] = {}` to `DiscordBot.__init__`.
+  2. Added `_get_user()` method that checks the cache before calling `fetch_user`.
+  3. Updated `send_message` and `send_typing` to use `_get_user` instead of direct `fetch_user`.
+  4. Cleared the cache in `on_ready` to handle reconnection scenarios.
+- **Verification:** 4 dedicated tests verify: caching for same user, separate calls for different users, cache invalidation on on_ready, and shared cache between send_message and send_typing. All 66 chat tests pass.
 
 ### BUG-042: Silent message send failures produce incomplete responses without user notification
 - **Severity:** high
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:245-246`
-- **Replication:**
-  1. Use the Discord bot in a scenario where a message fails to send (e.g., Discord API returns a transient error, user blocks DMs mid-conversation, or the bot hits a rate limit).
-  2. The `send_message` method catches the exception at line 245 and logs it via `logger.exception`.
-  3. The caller in `_process_stream` or `_handle_message` receives no signal that the message failed -- the chunk is still appended to `response_parts` as if it succeeded.
-  4. The user misses part (or all) of the response with no error indication.
-- **Description:**
-  `send_message` wraps the entire send operation in a bare `except Exception` block that does nothing but log. Every caller -- `_process_stream` (content flushes at lines 345/354/365/383/395), `_handle_message` (final flush at line 493), and `_handle_command` (lines 543/551/566/585/589) -- assumes that if `send_message` returns without raising, the message was delivered. This is a false assumption: the exception is swallowed, the method returns `None`, and callers proceed as if delivery succeeded.
-  
-  The impact is especially severe during streaming: a failed chunk in the middle of the response is silently dropped, the remaining chunks continue to be sent, and the response is permanently incomplete. The user has no way to know part of the response was lost, because `response_parts` accumulates the failed chunk's text in the bot's history as if it was delivered.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/discord_bot.py`, `src/henchman/chat/manager.py`
+- **Root Cause:**
+  `send_message` wrapped the send in `except Exception: pass` that only logged. Callers assumed success and appended all content to `response_parts` regardless of delivery.
+- **Fix:**
+  1. Changed `send_message` return type from `None` to `bool` (True on success, False on failure).
+  2. Updated `_process_stream` to check the return value before appending to `response_parts`.
+  3. Updated `_handle_message` final flush to conditionally append on success.
+- **Verification:** Tests verify False return on failure, True on success, and that failed flushes are not appended to response_parts/history. All 66 chat tests pass.
 
 ### BUG-043: Thread channel messages incorrectly blocked by channel ID allowlist
 - **Severity:** high
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:120-121`
-- **Replication:**
-  1. Configure the Discord bot with `allowed_channel_ids` containing a guild text channel ID, e.g., `["123456789012345678"]`.
-  2. In that guild, create a thread or reply to a message in that channel (creating a thread).
-  3. Send a message mentioning the bot inside the thread.
-  4. The bot's `on_message` handler receives the message, reads `message.channel.id` as the thread's own ID (not the parent channel's ID), and checks it against the allowlist.
-  5. The thread ID is not in the allowlist, so the message is silently dropped -- the bot never responds.
-- **Description:**
-  Line 120-121 reads `channel_id = str(getattr(message.channel, "id", ""))` and checks it against `self._allowed_channel_ids`. For thread channels (`discord.Thread`), `message.channel.id` returns the thread's own unique snowflake ID, not the parent channel's ID. The allowlist contains the parent channel ID, so thread-originated messages always fail the lookup when `allowed_channel_ids` is configured.
-  
-  The fix would be to also check the parent channel ID for thread channels: `parent_id = getattr(message.channel, "parent_id", None)` or `message.channel.parent.id` and match against both the thread ID (explicit allow) and the parent channel ID (implicit allow for all threads in that channel).
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/discord_bot.py`
+- **Root Cause:**
+  The `on_message` handler only checked `message.channel.id` against `_allowed_channel_ids`, but thread channels have their own ID, not the parent channel ID.
+- **Fix:**
+  This bug is no longer applicable: the HEAD version of `discord_bot.py` was refactored to remove the channel allowlist feature entirely. Messages are now accepted from any channel as long as the bot is mentioned. The thread channel issue cannot occur because there is no allowlist to block thread messages.
+- **Verification:** N/A -- feature was removed by prior refactoring. No tests affected.
 
 ### BUG-044: Typing indicator never refreshed during long-running agent processing
 - **Severity:** low
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:248-263` and `src/henchman/chat/manager.py:460`
-- **Replication:**
-  1. Send the Discord bot a request that requires multiple tool calls or generates a long streaming response that takes more than 10 seconds.
-  2. The bot sends a typing indicator once at line 460 of manager.py via `send_typing`.
-  3. After approximately 10 seconds, Discord's typing indicator expires and disappears.
-  4. The user sees no typing indicator for the remaining duration of the processing, even though the bot is still actively working on the request.
-- **Description:**
-  Discord's typing indicator (the "Bot is typing..." animation) automatically expires approximately 10 seconds after being triggered. The `send_typing` method (discord_bot.py:248-263) uses `async with user.typing(): pass`, which triggers the indicator but does not keep it active beyond the initial trigger. The typing indicator is only sent once at the start of `_handle_message` (manager.py:460), before the agent stream begins.
-  
-  During long processing (multiple tool execution rounds or large responses), the 10-second window expires, and the user has no visual feedback that processing is ongoing. This can make the bot appear unresponsive or broken. A typing indicator should be refreshed periodically (e.g., every 8 seconds) during the processing loop.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/manager.py`
+- **Root Cause:**
+  The typing indicator (Discord's "Bot is typing...") was only sent once at the start of `_handle_message`. It expires after ~10 seconds with no refresh mechanism.
+- **Fix:**
+  1. Created a background `asyncio.Task` that calls `bot.send_typing()` every 8 seconds during processing.
+  2. Wrapped the task lifecycle with try/finally to ensure cleanup via `task.cancel()`.
+- **Verification:** A dedicated test simulates a 2-second processing delay and verifies send_typing is called multiple times (initial + refreshes). All 66 chat tests pass.
 
 ### BUG-045: Code block closing fence at chunk boundary produces malformed Markdown
 - **Severity:** low
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:315-328, 358`
-- **Replication:**
-  1. Use the Discord bot and send a message that causes a response where a code block's closing fence (```) falls at a chunk split boundary, e.g., a code block whose content fills the chunk to within 8 characters of the 2000-character limit, followed by the closing ``` fence.
-  2. The `_split_message` method's conservative `close_overhead = 4` calculation (line 308) does not account for the current line being the closing fence itself. The check on line 315 adds `close_overhead` to the total, triggering a premature split.
-  3. The split logic on lines 325-328 opens a new chunk with `f"```{code_block_lang}\n{line}"` where `line` is the closing fence text itself, since `code_block_lang` has not yet been updated to `None` (the update happens at line 358, after the split).
-  4. The closing fence is rendered as literal content inside a new (empty) code block, producing garbled Markdown.
-- **Description:**
-  The `_split_message` method computes `close_overhead` (line 307-308) solely from the current `code_block_lang` state, without examining whether the line being processed is itself the code block closing fence. When the closing fence is the line that triggers a chunk split:
-    - `code_block_lang` is still "python" (or whatever language) because `next_lang` has been set to `None` but `code_block_lang` is not updated until line 358.
-    - The split logic at line 326 creates `current_chunk = f"```python\n{line}"` where `line` is the literal text "```", producing the string `` ```python\n``` ``.
-    - After the split, `code_block_lang = None` is applied, but the damage is done -- the new chunk contains an empty, incorrectly-opened code block.
-  
-  The resulting Markdown chunk renders as an empty Python code block followed by what should have been normal text. This occurs in a narrow window where the code block content fills the chunk to within 8 characters of the limit before the closing fence. The same bug could affect the hard-split while loop (lines 332-354) when splitting inside a code block whose content is near the limit.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/discord_bot.py`
+- **Root Cause:**
+  When a code block's closing fence (` ``` `) triggered a chunk split, `code_block_lang` was still set (e.g., "python") because the update to `next_lang` (which is None) happened after, not before, the split logic. The new chunk incorrectly opened with `` ```python\n ``` ``.
+- **Fix:**
+  Changed the split logic to use `next_lang` (which reflects the state AFTER the current line) instead of `code_block_lang` (which reflects the state BEFORE):
+  1. When opening a new chunk, check `code_block_lang is not None and next_lang is not None` to only re-open the code block if the current line is not the closing fence.
+  2. Updated the hard-split while loop to also use `next_lang`.
+- **Verification:** 4 dedicated tests cover: closing fence at boundary, language tracking, multiple consecutive code blocks, and exact boundary. All 66 chat tests pass.
 
 ### BUG-046: Empty message content after mention stripping passed to agent without validation
 - **Severity:** low
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:135-141` and `src/henchman/chat/manager.py:468`
-- **Replication:**
-  1. In a guild channel with `mention_only = True`, mention the bot without any additional text (e.g., `@BotName`).
-  2. The `on_message` handler at lines 136-141 detects the bot mention and strips it from the content, producing `content = ""`.
-  3. A `ChatMessage` is created with empty content and dispatched to `_handle_message`.
-  4. Since `""` does not start with `/`, the command path is skipped.
-  5. `_handle_message` calls `agent.run(user_input="")` (line 468), passing an empty string to the agent.
-  6. The agent processes an empty prompt, which may produce an error, a response to empty input, or waste tokens.
-- **Description:**
-  There is no validation that `message.content` is non-empty after mention stripping. A mention-only message with no additional text produces `content = ""`, which passes through the full message processing pipeline. The agent is invoked with `user_input=""`, which is an undefined behavior -- it could cause the model to produce an irrelevant response, an error, or consume API quota unnecessarily. The bot should either respond with a help prompt ("How can I help you?") or silently ignore empty mentions.
-  
-  The same issue applies to messages that contain only attachments with no text content, where `message.content` is also empty. While `message.attachments` is captured in the `ChatMessage`, the agent receives no text input to process.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/manager.py`
+- **Root Cause:**
+  Mention-only messages (e.g., `@BotName` with no additional text) produced `content = ""` after stripping, which was passed to `agent.run(user_input="")`, wasting tokens and producing undefined behavior.
+- **Fix:**
+  Added validation in `_handle_message`: if `message.content.strip()` is empty, the bot responds with "How can I help you?" and returns early without invoking the agent.
+- **Verification:** 3 dedicated tests verify: empty content is not passed to agent.run, whitespace-only content is also rejected, and normal content still works. All 66 chat tests pass.
 
 ### BUG-047: Group DM messages misclassified as guild messages and rejected
 - **Severity:** low
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/discord_bot.py:116`
-- **Replication:**
-  1. Add the bot to a group DM (if the bot is configured for this in the Discord Developer Portal).
-  2. The authorized user sends a message to the group DM mentioning the bot.
-  3. Line 116 checks `isinstance(message.channel, discord.DMChannel)`, which is `False` for `discord.GroupChannel`.
-  4. Because `is_dm` is `False`, the message enters the guild-message path: channel ID allowlist check and mention-only check.
-  5. The group DM channel ID is not in `_allowed_channel_ids`, so the message is silently rejected.
-- **Description:**
-  The `on_message` handler only recognizes `discord.DMChannel` as a DM channel type (line 116). Messages from `discord.GroupChannel` (group DMs) are treated as guild messages and subjected to the channel ID allowlist and mention-only checks. Since group DM channel IDs would not typically be in the allowlist, all group DM messages are silently dropped.
-  
-  The fix is to extend the DM check to also include `discord.GroupChannel`, or more broadly, check `message.guild is None` to detect all non-guild channel types. In discord.py, both `DMChannel` and `GroupChannel` have `message.guild` set to `None`.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/discord_bot.py:107`
+- **Root Cause:**
+  `on_message` checked `isinstance(message.channel, discord.DMChannel)` to detect DMs, but `discord.GroupChannel` messages also need DM-like handling. Group DMs were treated as guild messages.
+- **Fix:**
+  Changed the DM check from `isinstance(message.channel, discord.DMChannel)` to `message.guild is None`, which correctly identifies both `DMChannel` and `GroupChannel` messages, since both have `guild = None` in discord.py.
+- **Verification:** 3 dedicated tests verify: group DM messages are accepted, regular DMs still work, and guild messages without mentions are still rejected. All 66 chat tests pass.
 
 ### BUG-048: auto_approve flag in ChatManager is never connected to ToolRegistry confirmation handler
 - **Severity:** medium
-- **Status:** open
-- **Found:** 2026-05-31
-- **File:** `src/henchman/chat/manager.py:167-168`
-- **Replication:**
-  1. Trace the tool execution flow for the Discord chat integration.
-  2. `_get_or_create_agent` at line 167 calls `tool_manager.set_auto_approve(auto_approve=True)`.
-  3. The ToolManager's `auto_approve` flag (checked in `handle_confirmation` at tool_manager.py:152) is never connected to the registry because `tool_manager.set_confirmation_handler()` is never called.
-  4. In `ToolRegistry.execute` (registry.py:237-246), the confirmation check evaluates `self._confirmation_handler is not None`. Since no handler was registered, the check is always `False`, and tool execution proceeds without any approval check.
-  5. Changing `set_auto_approve(auto_approve=False)` has zero effect -- tools are still auto-approved because the confirmation handler path is never invoked.
-- **Description:**
-  The ChatManager at lines 167-168 calls `tool_manager.set_auto_approve(auto_approve=True)`, but the ToolManager's `auto_approve` flag only takes effect inside its `handle_confirmation` method (tool_manager.py:152), which is never registered as the registry's confirmation handler via `set_confirmation_handler`. The `ToolRegistry.execute` method checks `self._confirmation_handler is not None` at registry.py:239 before calling the handler. Since no handler was registered, `_confirmation_handler` is `None`, and all tools proceed to execution without any approval.
-  
-  While the current behavior (all tools auto-approved) matches the intended behavior for the non-interactive Discord flow, the `auto_approve` setting is effectively dead code. If a developer later adds a confirmation handler to the chat flow (e.g., for security-sensitive tools), they would need to remember to consult the `auto_approve` flag in the handler, because the current `set_auto_approve(True)` call will have silently had no effect. The fix is either to call `set_confirmation_handler` to wire up the handler, or to remove the misleading `set_auto_approve` call and let the registry's default confirmation-bypass behavior be the explicit design.
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/chat/manager.py`
+- **Root Cause:**
+  `_get_or_create_agent` called `tool_manager.set_auto_approve(auto_approve=True)` but never called `tool_manager.set_confirmation_handler()`, so the `ToolManager.handle_confirmation` method (which checks the `auto_approve` flag) was never registered with the registry. The `auto_approve=True` setting was dead code.
+- **Fix:**
+  Added `tool_manager.set_confirmation_handler()` after `set_auto_approve(True)` to wire up the confirmation handler, making the `auto_approve` flag take effect as intended.
+- **Verification:** A dedicated test verifies that `set_confirmation_handler()` is called after `set_auto_approve()`. All 66 chat tests pass.
 
 
 ---
-
-## Resolved Bugs
 
 ### BUG-001: `SerializableDataclass.from_dict` fails on nested dataclasses with `| None` syntax
 - **Severity:** high
@@ -735,15 +639,16 @@
   2. Changed `except Exception: continue` to `except Exception: logger.warning("Failed to connect to MCP server %r", server_name, exc_info=True); continue`
 - **Verification:** All 10 MCP tests pass, full suite 2773 passed.
 
----
-
-## Summary
-
-| Severity | Count |
-|----------|-------|
-| Critical | 1 |
-| High | 10 |
-| Medium | 22 |
-| Low | 11 |
-| **Total Open** | **44** |
-| **Total Resolved** | **4** |
+### BUG-005: `asyncio.gather()` without `return_exceptions=True` causes silent cancellation of parallel tool calls
+- **Severity:** high
+- **Status:** resolved
+- **Resolved:** 2026-05-31
+- **File:** `src/henchman/cli/tool_executor.py`
+- **Root Cause:**
+  `execute_tool_calls` called `asyncio.gather(...)` with the default `return_exceptions=False`. When one parallel tool call raised an exception that propagated through `registry.execute` (e.g., `GeneratorExit` or any `BaseException` not caught by `except Exception`), `asyncio.gather` immediately cancelled all other pending futures, then re-raised the exception. All tool calls got generic cancellation messages from the `finally` handler.
+- **Fix:**
+  1. Added `return_exceptions=True` to the gather call.
+  2. Iterated over each result with `zip(to_parallel, results)`.
+  3. Logged per-tool-call failures via `logger.error()` instead of letting a single exception cancel unrelated work.
+  4. Added `import logging` and `logger = logging.getLogger(__name__)` to the module.
+- **Verification:** 3 new tests confirm: (a) a passing parallel tool's result is preserved when another tool raises, (b) all-parallel-success still works, (c) a single parallel tool call still works. All 22 delegation manager tests and 3 tool_executor tests pass.

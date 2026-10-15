@@ -1,19 +1,20 @@
 """Test to find a bug in intelligent_context.py."""
 
 import pytest
+
 from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_code_block_with_backtick_in_comment():
     """Test code block with backtick in comment.
-    
+
     Backticks in comments should not be treated as fence markers.
     """
     content = '''```python
 # This is a comment with a backtick: `
 print("hello")
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -23,7 +24,7 @@ print("hello")
 
 def test_code_block_with_triple_backtick_in_comment():
     """Test code block with triple backtick in comment.
-    
+
     ``` inside a comment should not end the code block.
     """
     content = '''```python
@@ -33,7 +34,7 @@ def test_code_block_with_triple_backtick_in_comment():
 # ```
 print("real")
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -44,7 +45,7 @@ print("real")
 
 def test_code_block_with_string_containing_backtick_and_newline():
     """Test code block with string containing backtick and newline.
-    
+
     This tests string handling across multiple lines.
     """
     content = '''```python
@@ -52,7 +53,7 @@ message = "Line 1`
 Line 2"
 print(message)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -63,7 +64,7 @@ print(message)
 
 def test_raw_string_with_odd_backslashes_before_quote():
     """Test raw string with odd number of backslashes before quote.
-    
+
     In raw strings, an odd number of backslashes before a quote escapes it.
     """
     content = '''```python
@@ -73,7 +74,7 @@ def test_raw_string_with_odd_backslashes_before_quote():
 # Let me think...
 pass
 ```'''
-    
+
     # Actually, this is getting complex. Let me test a simpler case.
     content = '''```python
 # In raw strings, backslash doesn't escape except for quotes
@@ -81,7 +82,7 @@ pass
 # r"\\\"" is backslash, backslash, backslash, quote, quote - string with \\\" then extra quote
 pass
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     # Should extract the code block
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
@@ -89,7 +90,7 @@ pass
 
 def test_comment_inside_string():
     """Test that # inside a string doesn't start a comment.
-    
+
     This is a potential bug: if we see # inside a string, we shouldn't
     start treating it as a comment.
     """
@@ -97,7 +98,7 @@ def test_comment_inside_string():
 message = "This is not a # comment"
 print(message)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -107,7 +108,7 @@ print(message)
 
 def test_escape_sequence_in_raw_string():
     """Test escape sequences in raw strings.
-    
+
     In raw strings, most escape sequences are not processed.
     But a backslash before a quote escapes it if there's an odd number.
     """
@@ -120,7 +121,7 @@ s1 = r"\\n"  # Two backslashes, n
 s2 = r"\\\""  # Two backslashes, escaped quote
 print(s1, s2)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     # Just check it extracts something

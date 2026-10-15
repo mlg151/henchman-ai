@@ -134,33 +134,3 @@ class TestUIRendererDelegation:
         ui = _make_renderer()
         status = ui.create_status("Working...", spinner="dots")
         assert status is not None
-
-
-class TestUIRendererStatusMessage:
-    """Tests for get_rich_status_message edge cases."""
-
-    def test_status_message_exception_in_token_count(self) -> None:
-        """Test that token counting exception is silently ignored."""
-        ui = _make_renderer()
-        mock_session = MagicMock()
-        mock_session.plan_mode = False
-        mock_agent = MagicMock()
-        mock_agent.get_messages_for_api = MagicMock(side_effect=RuntimeError("oops"))
-
-        # Should not raise
-        msg = ui.get_rich_status_message(mock_session, mock_agent)
-        assert isinstance(msg, str)
-        # Tokens part should be missing due to exception
-        assert "Tokens" not in msg
-
-    def test_status_message_rag_indexing(self) -> None:
-        """Test that RAG indexing status is included."""
-        ui = _make_renderer()
-        mock_session = MagicMock()
-        mock_session.plan_mode = False
-        mock_rag = MagicMock()
-        mock_rag.is_indexing = True
-
-        msg = ui.get_rich_status_message(mock_session, None, rag_system=mock_rag)
-        assert "RAG" in msg
-        assert "Indexing" in msg

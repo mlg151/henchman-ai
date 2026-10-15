@@ -7,6 +7,7 @@ _run_interactive, _run_textual_tui, and _run_headless.
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -53,17 +54,19 @@ def _make_mock_repl() -> MagicMock:
     repl.process_input = AsyncMock()
     repl._run_agent_direct = AsyncMock()
     repl.agent = MagicMock()
+    repl.agent.base_tool_iterations = 25
     repl.agent.run = MagicMock()
     repl.agent.continue_with_tool_results = MagicMock()
     repl.tool_registry = MagicMock()
     repl.tool_registry.execute = AsyncMock()
+    repl.agent.tool_registry = repl.tool_registry
     repl.orchestrator = MagicMock()
     return repl
 
 
 async def _empty_stream():
     """Async generator yielding nothing (FINISHED event only)."""
-    yield AgentEvent(type=EventType.FINISHED, data=None)
+    yield AgentEvent(type=EventType.FINISHED, data="stop")
 
 
 async def _tool_call_stream():
@@ -73,7 +76,7 @@ async def _tool_call_stream():
     tool_call.name = "read_file"
     tool_call.arguments = {"path": "/tmp/test.txt"}
     yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
-    yield AgentEvent(type=EventType.FINISHED, data=None)
+    yield AgentEvent(type=EventType.FINISHED, data="stop")
 
 
 # ---------------------------------------------------------------------------
@@ -121,39 +124,21 @@ class TestRunInteractiveStartReplInnerFunction:
 
         with (
             patch("henchman.cli.app._prepare_runtime_context", return_value=mock_ctx),
-            patch("henchman.cli.app._get_theme_and_renderer", return_value=(MagicMock(), MagicMock())),
+            patch(
+                "henchman.cli.app._get_theme_and_renderer", return_value=(MagicMock(), MagicMock())
+            ),
             patch("henchman.cli.repl.Repl", return_value=mock_repl),
             patch("henchman.rag.initialize_rag", return_value=None),
             patch("henchman.cli.app.anyio") as mock_anyio,
         ):
-            # Use a new event loop to execute the coroutine without affecting global state
-            def real_run(fn):
-                # Preserve the current event loop policy
-                policy = asyncio.get_event_loop_policy()
-                old_loop = None
-                try:
-                    old_loop = policy.get_event_loop()
-                except RuntimeError:
-                    pass
 
-                new_loop = asyncio.new_event_loop()
-                try:
-                    new_loop.run_until_complete(fn())
-                finally:
-                    new_loop.close()
-                    # Restore previous event loop
-                    if old_loop is not None:
-                        try:
-                            policy.set_event_loop(old_loop)
-                        except Exception:  # noqa: BLE001
-                            pass
+            def real_run(fn):
+                asyncio.run(fn())
 
             mock_anyio.run.side_effect = real_run
 
-            try:
+            with suppress(Exception):
                 _run_interactive(config)
-            except Exception:
-                pass  # Errors from mock repl internals are OK
 
         # start_repl should have been defined and called via anyio.run
         assert mock_anyio.run.called
@@ -195,7 +180,10 @@ class TestRunHeadlessOutputFormats:
         mock_repl = _make_mock_repl()
 
         with (
-            patch("henchman.cli.app._create_headless_repl", return_value=(mock_repl, MagicMock(), "sys")),
+            patch(
+                "henchman.cli.app._create_headless_repl",
+                return_value=(mock_repl, MagicMock(), "sys"),
+            ),
             patch("henchman.cli.app.anyio") as mock_anyio,
             patch("henchman.cli.app._check_completion_status"),
         ):
@@ -212,7 +200,10 @@ class TestRunHeadlessOutputFormats:
         mock_repl = _make_mock_repl()
 
         with (
-            patch("henchman.cli.app._create_headless_repl", return_value=(mock_repl, MagicMock(), "sys")),
+            patch(
+                "henchman.cli.app._create_headless_repl",
+                return_value=(mock_repl, MagicMock(), "sys"),
+            ),
             patch("henchman.cli.app.anyio") as mock_anyio,
             patch("henchman.cli.app._check_completion_status"),
         ):
@@ -228,7 +219,10 @@ class TestRunHeadlessOutputFormats:
         mock_repl = _make_mock_repl()
 
         with (
-            patch("henchman.cli.app._create_headless_repl", return_value=(mock_repl, MagicMock(), "sys")),
+            patch(
+                "henchman.cli.app._create_headless_repl",
+                return_value=(mock_repl, MagicMock(), "sys"),
+            ),
             patch("henchman.cli.app.anyio") as mock_anyio,
             patch("henchman.cli.app._check_completion_status"),
         ):
@@ -258,19 +252,22 @@ class TestRunHeadlessText:
         repl._run_agent_direct.assert_called_once_with("explorer", "do something")
 
     @pytest.mark.anyio
-    async def test_run_headless_text_with_rag_system(self) -> None:
-        """Line 428: asyncio task created when rag_system is set."""
+    async def test_run_headless_text_awaits_rag_indexing_before_prompt(self) -> None:
+        """One-shot text mode should finish indexing before processing its prompt."""
         from henchman.cli.app import _run_headless_text
 
         repl = _make_mock_repl()
-        mock_rag = MagicMock()
-        mock_rag.index_async = AsyncMock()
-        repl.rag_system = mock_rag
+        events: list[str] = []
+        repl.rag_system = MagicMock()
+        repl.initialize_mcp = AsyncMock(side_effect=lambda: events.append("mcp"))
+        repl.rag_system.index_async = AsyncMock(side_effect=lambda: events.append("index"))
+        repl.process_input = AsyncMock(side_effect=lambda _prompt: events.append("prompt"))
 
-        with patch("asyncio.create_task") as mock_create_task:
+        with patch("asyncio.create_task") as create_task:
             await _run_headless_text(repl, "do something")
-        # Should have created a task for rag indexing
-        assert mock_create_task.called
+
+        create_task.assert_not_called()
+        assert events == ["mcp", "index", "prompt"]
 
     @pytest.mark.anyio
     async def test_run_headless_text_without_agent_role(self) -> None:
@@ -293,19 +290,21 @@ class TestInitializeJsonProcessing:
     """Tests for _initialize_json_processing function."""
 
     @pytest.mark.anyio
-    async def test_initialize_json_processing_with_rag_system(self) -> None:
-        """Line 449: asyncio task created when rag_system is set."""
+    async def test_initialize_json_processing_awaits_rag_indexing(self) -> None:
+        """One-shot JSON mode should finish indexing before returning its renderer."""
         from henchman.cli.app import _initialize_json_processing
 
         repl = _make_mock_repl()
-        mock_rag = MagicMock()
-        mock_rag.index_async = AsyncMock()
-        repl.rag_system = mock_rag
+        events: list[str] = []
+        repl.rag_system = MagicMock()
+        repl.initialize_mcp = AsyncMock(side_effect=lambda: events.append("mcp"))
+        repl.rag_system.index_async = AsyncMock(side_effect=lambda: events.append("index"))
 
-        with patch("asyncio.create_task") as mock_create_task:
+        with patch("asyncio.create_task") as create_task:
             result = await _initialize_json_processing(repl)
 
-        assert mock_create_task.called
+        create_task.assert_not_called()
+        assert events == ["mcp", "index"]
         assert result is not None
 
     @pytest.mark.anyio
@@ -342,7 +341,9 @@ class TestProcessToolCalls:
         tool_call.arguments = {"path": "/tmp/test"}
 
         render_calls = []
-        render_func = lambda event: render_calls.append(event)
+
+        def render_func(event: AgentEvent) -> None:
+            render_calls.append(event)
 
         await _process_tool_calls(repl, [tool_call], render_func)
 
@@ -402,11 +403,11 @@ class TestRunHeadlessJson:
 
         async def first_stream():
             yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         async def continue_stream():
             yield AgentEvent(type=EventType.CONTENT, data="answer")
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         repl.agent.run.return_value = first_stream()
         repl.agent.continue_with_tool_results.return_value = continue_stream()
@@ -446,11 +447,11 @@ class TestRunHeadlessStreamJson:
 
         async def first_stream():
             yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         async def continue_stream():
             yield AgentEvent(type=EventType.CONTENT, data="answer")
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         repl.agent.run.return_value = first_stream()
         repl.agent.continue_with_tool_results.return_value = continue_stream()
@@ -489,11 +490,11 @@ class TestRunHeadlessJsonComplete:
 
         async def first_stream():
             yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tool_call)
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         async def continue_stream():
             yield AgentEvent(type=EventType.CONTENT, data="answer")
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         repl.agent.run.return_value = first_stream()
         repl.agent.continue_with_tool_results.return_value = continue_stream()
@@ -516,7 +517,7 @@ class TestRunHeadlessJsonComplete:
 
         async def simple_stream():
             yield AgentEvent(type=EventType.CONTENT, data="hello")
-            yield AgentEvent(type=EventType.FINISHED, data=None)
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
         repl.agent.run.return_value = simple_stream()
 
@@ -567,9 +568,6 @@ class TestExecuteChatCommand:
             # Now builtins.print is the _filtered_print function
             # Call it with a DEBUG-prefixed string - should silently return (line 728)
             filter_print = builtins.print
-            call_count_before = 0
-            # Capture calls to the underlying _orig_print
-            calls = []
             # The filter captures _orig_print. We can test by calling with non-DEBUG
             # message and verifying it passes through
             filter_print("DEBUG: this should be filtered")  # line 728 return

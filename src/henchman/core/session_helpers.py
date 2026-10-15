@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from .session_data import Session, session_from_json
@@ -35,7 +35,7 @@ _PROJECT_HASH_LENGTH = 16
 
 def _now_iso() -> str:
     """Get current UTC time as ISO-8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _generate_id() -> str:

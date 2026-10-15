@@ -5,23 +5,18 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.file_overview import (
     FileOverviewTool,
     _collect_imports,
     _execute_file_overview,
     _format_annotation,
-    _format_class,
-    _format_function_sig,
     _summarize_generic,
     _summarize_json,
     _summarize_markdown,
     _summarize_python,
     _summarize_yaml,
 )
-
 
 # ---------------------------------------------------------------------------
 # Unit tests for helper functions

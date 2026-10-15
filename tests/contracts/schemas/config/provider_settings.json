@@ -1,0 +1,59 @@
+{
+  "$id": "henchman/contracts/config/provider-settings/v1",
+  "title": "ProviderSettings",
+  "description": "Shape contract for the serialised ProviderSettings model.",
+  "type": "object",
+  "required": ["default", "deepseek", "openai", "anthropic", "ollama", "openrouter", "openai_compat", "together", "groq", "fireworks"],
+  "properties": {
+    "default": {
+      "type": "string",
+      "description": "The default provider name"
+    },
+    "deepseek": {
+      "type": "object",
+      "description": "DeepSeek provider configuration",
+      "additionalProperties": true
+    },
+    "openai": {
+      "type": "object",
+      "description": "OpenAI provider configuration",
+      "additionalProperties": true
+    },
+    "anthropic": {
+      "type": "object",
+      "description": "Anthropic provider configuration",
+      "additionalProperties": true
+    },
+    "ollama": {
+      "type": "object",
+      "description": "Ollama provider configuration",
+      "additionalProperties": true
+    },
+    "openrouter": {
+      "type": "object",
+      "description": "OpenRouter provider configuration",
+      "additionalProperties": true
+    },
+    "openai_compat": {
+      "type": "object",
+      "description": "OpenAI-compatible provider configuration",
+      "additionalProperties": true
+    },
+    "together": {
+      "type": "object",
+      "description": "Together AI provider configuration",
+      "additionalProperties": true
+    },
+    "groq": {
+      "type": "object",
+      "description": "Groq provider configuration",
+      "additionalProperties": true
+    },
+    "fireworks": {
+      "type": "object",
+      "description": "Fireworks AI provider configuration",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

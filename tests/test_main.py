@@ -5,6 +5,7 @@ import sys
 
 from henchman import __main__  # Test that module can be imported
 from henchman.cli.app import main
+from henchman.version import VERSION
 
 
 def test_main_module_imports() -> None:
@@ -12,20 +13,17 @@ def test_main_module_imports() -> None:
     assert hasattr(__main__, "main")
     assert __main__.main is main
 
-    def test_python_m_henchman_version() -> None:
-        """Test that python -m henchman --version works."""
-        result = subprocess.run(
-            [sys.executable, "-m", "henchman", "--version"],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0
-        assert "0.1.7" in result.stdout
+def test_python_m_henchman_version() -> None:
+    """Test that python -m henchman --version works."""
+    result = subprocess.run(
+        [sys.executable, "-m", "henchman", "--version"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert VERSION in result.stdout
 
 
-import pytest
-
-@pytest.mark.skip(reason="Temporarily skipping due to test pollution issues - test passes when run alone")
 def test_python_m_henchman_help() -> None:
     """Test that python -m henchman --help works."""
     result = subprocess.run(

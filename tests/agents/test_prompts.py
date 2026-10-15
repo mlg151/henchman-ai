@@ -13,8 +13,6 @@ from henchman.agents.prompts import (
     RE_DELEGATION_RULE,
     RECON_FIRST_RULE,
     SCOPE_SENTINEL,
-    SPECIALIST_THINKING,
-    THINKING_PROTOCOL,
     VERIFICATION_LOCK,
     get_agent_prompt,
 )
@@ -280,12 +278,6 @@ def test_re_delegation_rule_in_leader():
     assert "Re-Delegation After Failure" in prompt
 
 
-def test_task_granularity_check_in_thinking_protocol():
-    """Thinking protocol includes task granularity check (#5)."""
-    assert "TASK GRANULARITY CHECK" in THINKING_PROTOCOL
-    assert "30 tool calls" in THINKING_PROTOCOL
-
-
 def test_delegation_summary_has_blockers_field():
     """Delegation summary schema includes BLOCKERS field (#11)."""
     assert "BLOCKERS:" in DELEGATION_SUMMARY_SCHEMA
@@ -313,12 +305,6 @@ def test_delegation_summary_has_output_audience():
     """Delegation summary schema includes output audience note (#9)."""
     assert "Output Audience" in DELEGATION_SUMMARY_SCHEMA
     assert "Tech Lead" in DELEGATION_SUMMARY_SCHEMA
-
-
-def test_checkpoint_discipline_in_specialist_thinking():
-    """Specialist thinking includes checkpoint discipline (#13)."""
-    assert "CHECKPOINT DISCIPLINE" in SPECIALIST_THINKING
-    assert "progress note" in SPECIALIST_THINKING
 
 
 def test_blocker_protocol_in_all_specialists():

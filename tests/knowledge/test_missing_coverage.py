@@ -271,7 +271,7 @@ class TestFindImportTargetOptimized:
             "utils": "eid-utils-root",
             "utils.helper": "eid-utils-helper",
         }
-        eid_to_module = {v: k for k, v in module_to_eid.items()}
+        {v: k for k, v in module_to_eid.items()}
 
         result = _find_import_target_optimized(
             mod="utils",

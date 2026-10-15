@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from henchman.cli.session_manager import ReplSessionManager
@@ -21,7 +21,20 @@ if TYPE_CHECKING:
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
+
+
+def resolve_active_agent(runtime: Any) -> Any:
+    """Resolve the configured direct role or current leader in either CLI UI."""
+    ctx = getattr(runtime, "core_context", None)
+    role = getattr(getattr(runtime, "config", None), "agent_role", None)
+    orchestrator = getattr(ctx, "orchestrator", None)
+    if orchestrator is None:
+        orchestrator = getattr(runtime, "orchestrator", None)
+    if isinstance(role, str) and role and orchestrator is not None:
+        return orchestrator.pool.get_agent(role)
+    agent = getattr(ctx, "agent", None)
+    return agent if agent is not None else getattr(runtime, "agent", None)
 
 
 class OutputHandler:
@@ -101,7 +114,7 @@ class OutputHandler:
         status: list[tuple[str, str]] = []
 
         self._add_plan_mode_status(status)
-        self._add_provider_status(status)
+        self._add_provider_status(status, agent)
         self._add_token_status(status, agent)
         self._add_tool_status(status)
         self._add_mcp_status(status)
@@ -122,18 +135,28 @@ class OutputHandler:
         else:
             status.append(("bg:blue fg:white bold", " CHAT "))
 
-    def _add_provider_status(self: Self, status: list[tuple[str, str]]) -> None:
+    def _add_provider_status(
+        self: Self, status: list[tuple[str, str]], agent: Agent | None = None,
+    ) -> None:
         """Add provider and model status to the status list.
 
         Args:
             status: The status list to append to.
         """
         try:
-            provider_name = self.provider.__class__.__name__.replace("Provider", "")
-            model_name = getattr(self.provider, "default_model", "unknown")
+            provider = self._provider_for_agent(agent)
+            provider_name = provider.__class__.__name__.replace("Provider", "")
+            model_name = getattr(provider, "default_model", None) or getattr(provider, "model", "unknown")
             status.append(("", f" {provider_name}:{model_name} "))
         except Exception:
             pass
+
+    def _provider_for_agent(self, agent: Agent | None) -> ModelProvider:
+        """Use an initialized actor provider or the handler's startup fallback."""
+        provider = getattr(agent, "provider", None)
+        if isinstance(getattr(provider, "name", None), str):
+            return cast("ModelProvider", provider)
+        return self.provider
 
     def _add_token_status(
         self: Self,
@@ -155,7 +178,7 @@ class OutputHandler:
             msgs = agent.get_messages_for_api()
             tokens = TokenCounter.count_messages(msgs)
 
-            max_tokens = self._get_max_tokens()
+            max_tokens = self._get_max_tokens(agent)
             if max_tokens > 0:
                 self._add_token_percentage_status(status, tokens, max_tokens)
             else:
@@ -163,19 +186,23 @@ class OutputHandler:
         except Exception:
             pass
 
-    def _get_max_tokens(self: Self) -> int:
-        """Get the model's context window limit.
+    def _get_max_tokens(self: Self, agent: Agent | None = None) -> int:
+        """Get the active capacity, then its model limit or configured fallback.
 
-        Returns the model's actual context window size from the token utilities,
-        falling back to the settings compaction limit if the model is unknown.
+        Prefer an explicitly selected positive context window. Without one,
+        use the active provider's model metadata or the settings fallback.
 
         Returns:
             Maximum token limit, or 0 if not available.
         """
         from henchman.utils.tokens import get_model_limit
 
-        model = getattr(self.provider, "default_model", None)
-        if model:
+        capacity = getattr(agent, "context_window", None)
+        if type(capacity) is int and capacity > 0:
+            return capacity
+        provider = self._provider_for_agent(agent)
+        model = getattr(provider, "default_model", None) or getattr(provider, "model", None)
+        if isinstance(model, str) and model:
             return get_model_limit(model)
 
         context = getattr(self.settings, "context", None)
@@ -265,24 +292,21 @@ class OutputHandler:
             status.append(("bg:cyan fg:black", " RAG: Indexing... "))
 
     def _start_rag_indexing(self: Self) -> None:
-        """Start RAG indexing when the configured system supports it."""
-        if self.rag_system and hasattr(self.rag_system, "index_async"):
-            self._safe_create_task(self.rag_system.index_async())
+        """Start RAG indexing when the configured system supports it.
 
-    def get_rich_status_message(self: Self, agent: Agent) -> str:
-        """Get rich status message for persistent display.
-
-        Args:
-            agent: The agent to get status for.
-
-        Returns:
-            Status message string.
+        Cancels any previously running indexing task before creating a new one
+        to prevent duplicate indexing. Stores the task reference so it can be
+        awaited during shutdown.
         """
-        return self.renderer.get_rich_status_message(
-            self.session_manager.current,
-            agent,
-            self.rag_system,
-        )
+        if not self.rag_system or not hasattr(self.rag_system, "index_async"):
+            return
+
+        # Cancel any previous indexing task that is still running
+        existing: asyncio.Task[Any] | None = getattr(self, "_rag_index_task", None)
+        if existing is not None and not existing.done():
+            existing.cancel()
+
+        self._rag_index_task = self._safe_create_task(self.rag_system.index_async())
 
     def show_turn_status(self: Self, agent: Agent, base_iterations: int) -> None:
         """Display current turn status.
@@ -316,11 +340,14 @@ class OutputHandler:
         self._start_rag_indexing()
 
     @staticmethod
-    def _safe_create_task(coro: Any) -> None:
+    def _safe_create_task(coro: Any) -> asyncio.Task[Any]:
         """Create an asyncio task with error logging on failure.
 
         Args:
             coro: Coroutine to schedule.
+
+        Returns:
+            The created asyncio Task.
         """
         task = asyncio.create_task(coro)
 
@@ -332,3 +359,4 @@ class OutputHandler:
                 )
 
         task.add_done_callback(_on_done)
+        return task

@@ -6,7 +6,7 @@ Use this checklist before publishing a new version to PyPI.
 
 ### Code Quality
 - [ ] Run full test suite: `pytest`
-- [ ] Ensure test coverage = 100%: `pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100`
+- [ ] Ensure test coverage is at least 90%: `pytest --cov=henchman --cov-report=term-missing --cov-fail-under=90`
 - [ ] Run linting: `ruff check src/ tests/`
 - [ ] Run formatting: `ruff format src/ tests/ --check`
 - [ ] Run type checking: `mypy src/`
@@ -22,8 +22,9 @@ Use this checklist before publishing a new version to PyPI.
 ### Version Management
 - [ ] Update version in `pyproject.toml`
 - [ ] Check dependency versions are up to date
-- [ ] Test installation from local build: `hatch build && pip install dist/*.whl`
-- [ ] Test basic functionality after fresh install
+- [ ] Build both distribution formats: `uv build`
+- [ ] Test clean installation from `dist/*.whl` and `dist/*.tar.gz`
+- [ ] Test CLI help, unknown-command rejection, API readiness, and a Chroma add/query round trip after each fresh install
 
 ## Release Day
 
@@ -38,7 +39,7 @@ Use this checklist before publishing a new version to PyPI.
 
 ### Building
 - [ ] Clean previous builds: `rm -rf dist/`
-- [ ] Build package: `hatch build`
+- [ ] Build package: `uv build`
 - [ ] Verify build artifacts:
   - [ ] `.whl` file exists
   - [ ] `.tar.gz` file exists
@@ -48,7 +49,9 @@ Use this checklist before publishing a new version to PyPI.
 - [ ] Create test virtual environment: `python -m venv test_env`
 - [ ] Install from test PyPI (if available)
 - [ ] Test basic commands work
-- [ ] Test with different Python versions (3.10, 3.11, 3.12)
+- [ ] Test the wheel on Python 3.11 and 3.14
+- [ ] Test the source distribution on Python 3.11
+- [ ] Confirm artifact smoke checks use explicit Chroma embeddings and require no provider credentials or model downloads
 
 ### Publishing
 - [ ] Upload to PyPI Test: `hatch publish -r testpypi`

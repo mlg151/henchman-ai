@@ -33,6 +33,16 @@ _DELEGATE_PARAMETERS: dict[str, object] = {
                 "'file exists at src/foo.py with class Bar')."
             ),
         },
+        "completion_requirement": {
+            "type": "string",
+            "enum": ["actions", "response"],
+            "default": "actions",
+            "description": (
+                "Use actions for tasks requiring tool execution (the default). "
+                "Use response only for advice or explanations that may be "
+                "answered without tools. Neither mode verifies task correctness."
+            ),
+        },
         "context": {
             "type": "string",
             "description": (
@@ -149,22 +159,26 @@ class DelegateTaskTool(Tool):
 
     @property
     def kind(self: DelegateTaskTool) -> ToolKind:
-        """Tool kind - READ is auto-approved."""
-        return ToolKind.READ
+        """Delegation can execute specialist actions and requires execution policy."""
+        return ToolKind.EXECUTE
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: DelegateTaskTool,
         **kwargs: object,
     ) -> ToolResult:
-        """Stub execution - should be intercepted by Orchestrator.
+        """Report missing orchestration when execution was not intercepted.
 
         Args:
             **kwargs: Delegation parameters (agent, task, done_when,
                 context, files, background, requirements, depends_on).
 
         Returns:
-            ToolResult indicating delegation was handled.
+            Failed ToolResult explaining that no delegation was performed.
         """
-        # Bundle params for callers who intercept this tool (e.g., Orchestrator).
+        # Preserve request parsing for direct callers.
         _request = _build_delegation_request(kwargs)
-        return ToolResult(content="Delegation handled by orchestrator", success=True)
+        message = (
+            "Delegation unavailable: delegate_task requires an active orchestrator. "
+            "No specialist was started."
+        )
+        return ToolResult(content=message, success=False, error=message)

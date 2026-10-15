@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from henchman.config.schema import Settings
 
 
-class ConfigError(Exception):
+class ConfigError(ValueError):
     """Error loading or parsing configuration."""
 
 
@@ -43,13 +43,17 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
     return result
 
 
-def discover_settings_files() -> list[Path]:
+def discover_settings_files(project_root: Path | None = None) -> list[Path]:
     """Discover settings files in order of precedence.
 
     Searches for settings.yaml or settings.json in:
     0. HENCHMAN_SETTINGS_PATH (if set)
     1. ~/.henchman/ (user settings)
     2. .henchman/ (workspace settings)
+
+    Args:
+        project_root: Optional project root to use for workspace settings discovery.
+            When omitted, the current working directory is used.
 
     Returns:
         List of paths to settings files, ordered by precedence (user first).
@@ -73,12 +77,24 @@ def discover_settings_files() -> list[Path]:
                 break
 
     # Workspace settings
-    workspace_dir = Path.cwd() / ".henchman"
+    base_dir = (project_root or Path.cwd()).resolve()
+    workspace_dir = base_dir / ".henchman"
     if workspace_dir.exists():
         for name in ("settings.yaml", "settings.yml", "settings.json"):
             path = workspace_dir / name
             if path.exists():
                 files.append(path)
+                break
+    else:
+        # Legacy project settings directory
+        for legacy_dirname in (".hENCHMAN",):
+            legacy_dir = base_dir / legacy_dirname
+            if legacy_dir.exists():
+                for name in ("settings.yaml", "settings.yml", "settings.json"):
+                    path = legacy_dir / name
+                    if path.exists():
+                        files.append(path)
+                        break
                 break
 
     return files
@@ -134,7 +150,7 @@ def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def load_settings() -> Settings:
+def load_settings(project_root: Path | None = None) -> Settings:
     """Load settings with hierarchical merging.
 
     Precedence (later overrides earlier):
@@ -143,6 +159,10 @@ def load_settings() -> Settings:
     3. Workspace settings (.henchman/settings.yaml)
     4. Environment variables (HENCHMAN_PROVIDER, HENCHMAN_MODEL)
 
+    Args:
+        project_root: Optional project root for workspace settings discovery.
+            When omitted, the current working directory is used.
+
     Returns:
         Merged Settings object.
 
@@ -150,12 +170,14 @@ def load_settings() -> Settings:
         ConfigError: If settings files are invalid.
     """
     merged: dict[str, Any] = {}
+    loaded_files: list[Path] = []
 
     # Load and merge files in order
-    for path in discover_settings_files():
+    for path in discover_settings_files(project_root):
         try:
             file_settings = _load_file(path)
             merged = deep_merge(merged, file_settings)
+            loaded_files.append(path)
         except ConfigError:
             raise
 
@@ -166,7 +188,13 @@ def load_settings() -> Settings:
     try:
         return Settings(**merged)
     except ValidationError as e:
-        msg = f"Invalid settings: {e}"
+        source_hint = (
+            f" in {loaded_files[-1]}" if loaded_files else ""
+        )
+        # Extract field path from the first validation error
+        field_path = e.errors()[0]["loc"] if e.errors() else ()
+        path_str = ".".join(str(p) for p in field_path) if field_path else "unknown"
+        msg = f"Invalid settings{source_hint}: {path_str}"
         raise ConfigError(msg) from e
 
 

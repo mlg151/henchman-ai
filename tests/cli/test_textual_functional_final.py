@@ -247,6 +247,7 @@ class TestTextualFunctionalFinal:
         # Mock textarea with load_text method
         mock_textarea = MagicMock()
         mock_textarea.load_text = MagicMock()
+        mock_textarea.text = ""
         mock_query_one.return_value = mock_textarea
 
         # Navigate up

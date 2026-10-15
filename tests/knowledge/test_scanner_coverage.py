@@ -132,7 +132,6 @@ class TestFindImportTargetOptimized:
     def test_exact_self_import_returns_none(self) -> None:
         """Line 279: exact self-import (file_module == mod) returns None."""
         module_to_eid = {"myapp.core": "myapp-core-py"}
-        eid_to_module = {"myapp-core-py": "myapp.core"}
         result = _find_import_target_optimized(
             mod="myapp.core",
             file_eid="myapp-core-py",
@@ -144,7 +143,6 @@ class TestFindImportTargetOptimized:
     def test_package_init_self_import_returns_none(self) -> None:
         """Lines 284->289: __init__.py importing its own package name returns None."""
         module_to_eid = {"myapp": "myapp---init--py"}
-        eid_to_module = {"myapp---init--py": "myapp.__init__"}
         result = _find_import_target_optimized(
             mod="myapp",
             file_eid="myapp---init--py",
@@ -156,7 +154,6 @@ class TestFindImportTargetOptimized:
     def test_no_candidates_returns_none(self) -> None:
         """Line 294: no prefix match in module_to_eid returns None."""
         module_to_eid = {"myapp.core": "myapp-core-py"}
-        eid_to_module = {"myapp-core-py": "myapp.core"}
         result = _find_import_target_optimized(
             mod="nonexistent",
             file_eid="other-file-py",
@@ -168,7 +165,6 @@ class TestFindImportTargetOptimized:
     def test_self_match_in_prefix_loop_returns_none(self) -> None:
         """Lines 304-308: self-match found in prefix loop returns None."""
         module_to_eid = {"myapp.utils": "myapp-utils-py"}
-        eid_to_module = {"myapp-utils-py": "myapp.utils"}
         result = _find_import_target_optimized(
             mod="myapp",
             file_eid="myapp-utils-py",  # this file is myapp.utils
@@ -184,11 +180,6 @@ class TestFindImportTargetOptimized:
             "myapp.core": "myapp-core-py",
             "myapp.utils": "myapp-utils-py",
         }
-        eid_to_module = {
-            "myapp---init--py": "myapp.__init__",
-            "myapp-core-py": "myapp.core",
-            "myapp-utils-py": "myapp.utils",
-        }
         # Looking for "myapp" - exact match should win (myapp.__init__)
         result = _find_import_target_optimized(
             mod="myapp",
@@ -201,7 +192,6 @@ class TestFindImportTargetOptimized:
     def test_exact_match_returns_target(self) -> None:
         """Exact match in module_to_eid returns target."""
         module_to_eid = {"myapp.utils": "myapp-utils-py"}
-        eid_to_module = {"myapp-utils-py": "myapp.utils"}
         result = _find_import_target_optimized(
             mod="myapp.utils",
             file_eid="myapp-core-py",
@@ -213,7 +203,6 @@ class TestFindImportTargetOptimized:
     def test_exact_match_self_returns_none(self) -> None:
         """Exact match in module_to_eid but target is self returns None."""
         module_to_eid = {"myapp.utils": "myapp-utils-py"}
-        eid_to_module = {"myapp-utils-py": "myapp.utils"}
         result = _find_import_target_optimized(
             mod="myapp.utils",
             file_eid="myapp-utils-py",  # self
@@ -250,7 +239,7 @@ class TestScanRepositoryMissingLines:
         """Line 381: incremental scan skips files with same hash."""
         store = KnowledgeStore(git_root=git_repo_complex, base_dir=tmp_path / "kg")
         # First scan
-        count1 = scan_repository(store, git_repo_complex, incremental=True)
+        scan_repository(store, git_repo_complex, incremental=True)
 
         # Second scan with same files → should skip (incremental)
         count2 = scan_repository(store, git_repo_complex, incremental=True)
@@ -316,7 +305,6 @@ class TestFindImportTargetOptimizedAdditional:
         """Line 284->289: __init__.py with package_name != mod, continues past."""
         # file_module ends with .__init__ but package_name (myapp) != mod (utils)
         module_to_eid = {"utils": "utils-py"}
-        eid_to_module = {"utils-py": "utils"}
         result = _find_import_target_optimized(
             mod="utils",
             file_eid="myapp---init--py",
@@ -333,7 +321,6 @@ class TestFindImportTargetOptimizedAdditional:
         # file_module doesn't end with .__init__
         # mod IS in module_to_eid, target == file_eid
         module_to_eid = {"myapp.core": "myapp-core-py"}
-        eid_to_module = {"myapp-core-py": "myapp.core"}
         result = _find_import_target_optimized(
             mod="myapp.core",  # in module_to_eid, target = "myapp-core-py"
             file_eid="myapp-core-py",  # same as target → self-match
@@ -351,10 +338,6 @@ class TestFindImportTargetOptimizedAdditional:
             "myapp.core": "myapp-core-py",
             "myapp.utils": "myapp-utils-py",
         }
-        eid_to_module = {
-            "myapp-core-py": "myapp.core",
-            "myapp-utils-py": "myapp.utils",
-        }
         result = _find_import_target_optimized(
             mod="myapp",
             file_eid="other-py",  # different from all targets → non-self
@@ -371,10 +354,6 @@ class TestFindImportTargetOptimizedAdditional:
         module_to_eid = {
             "myapp.utils": "myapp-utils-py",
             "myapp.__init__": "myapp---init--py",
-        }
-        eid_to_module = {
-            "myapp-utils-py": "myapp.utils",
-            "myapp---init--py": "myapp.__init__",
         }
         result = _find_import_target_optimized(
             mod="myapp",

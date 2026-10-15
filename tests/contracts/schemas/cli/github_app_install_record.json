@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/github-app-install-record/v1",
+  "type": "object",
+  "required": ["app_url", "repo_slug", "installation_id", "webhook_secret_env", "metadata_path"],
+  "properties": {
+    "app_url": { "type": "string" },
+    "repo_slug": { "type": ["string", "null"] },
+    "installation_id": { "type": ["integer", "null"] },
+    "webhook_secret_env": { "type": "string" },
+    "metadata_path": { "type": "string" }
+  },
+  "additionalProperties": false
+}

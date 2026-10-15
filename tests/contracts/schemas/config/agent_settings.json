@@ -1,0 +1,55 @@
+{
+  "$id": "henchman/contracts/config/agent-settings/v1",
+  "title": "AgentSettings",
+  "description": "Shape contract for the serialised AgentSettings model.",
+  "type": "object",
+  "required": ["team_preset", "agents", "max_delegation_depth", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
+  "properties": {
+    "team_preset": {
+      "type": "string",
+      "description": "Which preset team to use"
+    },
+    "agents": {
+      "type": "object",
+      "description": "Custom agent configurations keyed by role",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "role", "description", "tools", "enabled"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "description": { "type": "string" },
+          "system_prompt": { "type": ["string", "null"] },
+          "tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "provider": { "type": ["string", "null"] },
+          "model": { "type": ["string", "null"] },
+          "auto_approve": { "type": "array", "items": { "type": "string" } },
+          "can_delegate_to": { "type": "array", "items": { "type": "string" } },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "max_delegation_depth": {
+      "type": "integer",
+      "description": "Maximum recursive delegation depth",
+      "minimum": 0
+    },
+    "max_delegation_turns": {
+      "type": "integer",
+      "description": "Maximum tool-call turns per specialist delegation",
+      "minimum": 0
+    },
+    "shared_context_max_tokens": {
+      "type": "integer",
+      "description": "Max tokens for shared context between agents",
+      "minimum": 0
+    },
+    "max_delegation_retries": {
+      "type": "integer",
+      "description": "Number of automatic retries for a failed specialist delegation",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false
+}

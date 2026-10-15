@@ -1,139 +1,197 @@
-"""Tests for code_format tool."""
+"""Manual formatting uses the same Black backend as automatic formatting."""
 
-import tempfile
+import asyncio
 from pathlib import Path
 
-from henchman.tools.base import ToolKind
+import pytest
+
+from henchman.tools.base import ConfirmationRequest, ToolKind
+from henchman.tools.builtins import code_format
 from henchman.tools.builtins.code_format import CodeFormatTool
+from henchman.tools.formatting import FormattingError
+from henchman.tools.registry import ToolRegistry
 
 
-class TestCodeFormatTool:
-    """Tests for CodeFormatTool."""
+def test_tool_keeps_write_contract_and_describes_black() -> None:
+    tool = CodeFormatTool()
+    assert tool.name == "code_format"
+    assert tool.kind == ToolKind.WRITE
+    assert "Black" in tool.description
+    assert "ruff" not in tool.description.lower()
+    assert tool.parameters["required"] == ["path"]
 
-    def test_name(self) -> None:
-        """Tool has correct name."""
-        tool = CodeFormatTool()
-        assert tool.name == "code_format"
 
-    def test_description(self) -> None:
-        """Tool has a description."""
-        tool = CodeFormatTool()
-        assert len(tool.description) > 10
+async def test_format_uses_black_project_configuration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.black]\nskip-string-normalization = true\n",
+        encoding="utf-8",
+    )
+    source = tmp_path / "example.py"
+    source.write_text("message='hello'\n", encoding="utf-8")
 
-    def test_kind_is_write(self) -> None:
-        """Tool is WRITE kind (modifies files)."""
-        tool = CodeFormatTool()
-        assert tool.kind == ToolKind.WRITE
+    result = await CodeFormatTool().execute(path="example.py")
 
-    def test_parameters_schema(self) -> None:
-        """Tool has correct parameters schema."""
-        tool = CodeFormatTool()
-        params = tool.parameters
-        assert "path" in params["properties"]
-        assert "path" in params["required"]
+    assert result.success, result
+    assert source.read_text(encoding="utf-8") == "message = 'hello'\n"
+    assert "Black formatting completed" in result.content
 
-    async def test_format_already_clean(self) -> None:
-        """Report no changes for already formatted file."""
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "clean.py"
-            f.write_text("x = 1\n")
-            result = await tool.execute(path=str(f))
-            assert result.success is True
 
-    async def test_format_fixes_spacing(self) -> None:
-        """Format file with bad spacing."""
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "bad.py"
-            f.write_text("x=1\ny=2\nz    =     3\n")
-            result = await tool.execute(path=str(f))
-            assert result.success is True
-            # File should be modified
-            content = f.read_text()
-            assert "x = " in content or "x=" in content  # ruff format may or may not change
+@pytest.mark.parametrize("contents", ["x = 1\n", ""])
+async def test_clean_or_empty_file_does_not_claim_a_change(
+    tmp_path: Path,
+    contents: str,
+) -> None:
+    source = tmp_path / "clean.py"
+    source.write_text(contents, encoding="utf-8")
 
-    async def test_nonexistent_file(self) -> None:
-        """Handle nonexistent file."""
-        tool = CodeFormatTool()
-        result = await tool.execute(path="/nonexistent/foo.py")
-        assert result.success is False
+    result = await CodeFormatTool().execute(path=str(source))
 
-    async def test_format_reports_changes(self) -> None:
-        """Output indicates whether changes were made."""
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "report.py"
-            f.write_text("x = 1\n")
-            result = await tool.execute(path=str(f))
-            assert result.success is True
-            assert isinstance(result.content, str)
+    assert result.success, result
+    assert source.read_text(encoding="utf-8") == contents
+    assert "Black formatting completed" in result.content
+    assert "changed" not in result.content.lower()
 
-    async def test_syntax_error_file(self) -> None:
-        """Handle file with syntax errors gracefully."""
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "broken.py"
-            f.write_text("def foo(\n")
-            result = await tool.execute(path=str(f))
-            # ruff format may report error or skip - either way it shouldn't crash
-            assert isinstance(result.content, str)
 
-    async def test_empty_path(self) -> None:
-        """Empty path returns error."""
-        tool = CodeFormatTool()
-        result = await tool.execute(path="")
-        assert result.success is False
-        assert "No path" in result.content
+async def test_directory_formats_python_files_and_stubs(tmp_path: Path) -> None:
+    source = tmp_path / "example.py"
+    stub = tmp_path / "example.pyi"
+    note = tmp_path / "notes.txt"
+    source.write_text("x=1\ny    =2\n", encoding="utf-8")
+    stub.write_text("def f(x:int)->str: ...\n", encoding="utf-8")
+    note.write_text("x=1\n", encoding="utf-8")
 
-    async def test_changed_file_reports_changes(self) -> None:
-        """Reports changed files from ruff stderr output."""
-        from unittest.mock import MagicMock, patch
+    result = await CodeFormatTool().execute(path=str(tmp_path))
 
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "test.py"
-            f.write_text("x=1\n")
-            check_proc = MagicMock()
-            check_proc.returncode = 1
-            fmt_proc = MagicMock()
-            fmt_proc.returncode = 0
+    assert result.success, result
+    assert source.read_text(encoding="utf-8") == "x = 1\ny = 2\n"
+    assert stub.read_text(encoding="utf-8") == "def f(x: int) -> str: ...\n"
+    assert note.read_text(encoding="utf-8") == "x=1\n"
 
-            async def fake_wait_for(coro: object, timeout: float) -> tuple[bytes, bytes]:
-                """Return fake communicate result with changed file name."""
-                return (b"", b"test.py\n")
 
-            with patch("asyncio.create_subprocess_exec", side_effect=[check_proc, fmt_proc]):
-                with patch("asyncio.wait_for", side_effect=fake_wait_for):
-                    result = await tool.execute(path=str(f))
-                    assert result.success is True
+async def test_invalid_syntax_is_explicit_failure_without_modifying_source(tmp_path: Path) -> None:
+    source = tmp_path / "broken.py"
+    source.write_text("def broken(\n", encoding="utf-8")
 
-    async def test_ruff_not_installed(self) -> None:
-        """Handle ruff not installed."""
-        from unittest.mock import patch
+    result = await CodeFormatTool().execute(path=str(source))
 
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "test.py"
-            f.write_text("x = 1\n")
-            with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError()):
-                result = await tool.execute(path=str(f))
-                assert result.success is False
-                assert "not installed" in result.content
+    assert not result.success
+    assert result.error
+    assert "Black" in result.content
+    assert source.read_text(encoding="utf-8") == "def broken(\n"
 
-    async def test_ruff_timeout(self) -> None:
-        """Handle ruff timeout."""
-        import asyncio
-        from unittest.mock import AsyncMock, MagicMock, patch
 
-        tool = CodeFormatTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            f = Path(tmpdir) / "test.py"
-            f.write_text("x = 1\n")
-            mock_proc = MagicMock()
-            mock_proc.communicate = AsyncMock()
-            with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-                with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
-                    result = await tool.execute(path=str(f))
-                    assert result.success is False
-                    assert "timed out" in result.content
+@pytest.mark.parametrize("path", ["", "does-not-exist.py"])
+async def test_invalid_paths_fail_before_formatting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = await CodeFormatTool().execute(path=path)
+    assert not result.success
+    assert result.error
+    assert "No path" in result.content if not path else "Path not found" in result.content
+
+
+async def test_registry_requires_approval_before_formatting(tmp_path: Path) -> None:
+    source = tmp_path / "example.py"
+    source.write_text("x=1\n", encoding="utf-8")
+    registry = ToolRegistry()
+    registry.register(CodeFormatTool())
+
+    async def deny(_request: ConfirmationRequest) -> bool:
+        return False
+
+    registry.set_confirmation_handler(deny)
+    result = await registry.execute("code_format", {"path": str(source)})
+
+    assert not result.success
+    assert source.read_text(encoding="utf-8") == "x=1\n"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        RuntimeError("Black backend failed"),
+        FileNotFoundError("Black backend is unavailable"),
+        FormattingError("Black exited 1: No module named black"),
+    ],
+)
+async def test_backend_failures_are_reported_without_claiming_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+) -> None:
+    source = tmp_path / "example.py"
+    source.write_text("x=1\n", encoding="utf-8")
+
+    async def fail(_paths: list[Path], *, cwd: Path) -> None:
+        assert cwd == Path.cwd()
+        raise failure
+
+    monkeypatch.setattr(code_format, "format_python_files", fail)
+    result = await CodeFormatTool().execute(path=str(source))
+
+    assert not result.success
+    assert str(failure) in result.content
+    assert result.error
+    assert source.read_text(encoding="utf-8") == "x=1\n"
+
+
+async def test_backend_diagnostics_are_sanitized(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "example.py"
+    source.write_text("x=1\n", encoding="utf-8")
+
+    async def fail(_paths: list[Path], *, cwd: Path) -> None:
+        assert cwd == Path.cwd()
+        raise RuntimeError("Black failed: api_key=private-formatter-secret")
+
+    monkeypatch.setattr(code_format, "format_python_files", fail)
+    result = await CodeFormatTool().execute(path=str(source))
+
+    assert not result.success
+    assert "private-formatter-secret" not in result.content
+    assert "private-formatter-secret" not in (result.error or "")
+    assert "Black failed" in result.content
+
+
+async def test_backend_timeout_preserves_timeout_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "example.py"
+    source.write_text("x=1\n", encoding="utf-8")
+
+    async def fail(_paths: list[Path], *, cwd: Path) -> None:
+        assert cwd == Path.cwd()
+        raise TimeoutError("Black exceeded its time limit")
+
+    monkeypatch.setattr(code_format, "format_python_files", fail)
+    result = await CodeFormatTool().execute(path=str(source))
+
+    assert not result.success
+    assert result.error == "Timeout"
+    assert "timed out" in result.content
+
+
+async def test_backend_cancellation_propagates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "example.py"
+    source.write_text("x=1\n", encoding="utf-8")
+
+    async def cancel(_paths: list[Path], *, cwd: Path) -> None:
+        assert cwd == Path.cwd()
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(code_format, "format_python_files", cancel)
+    with pytest.raises(asyncio.CancelledError):
+        await CodeFormatTool().execute(path=str(source))

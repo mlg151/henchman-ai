@@ -1,0 +1,13 @@
+{
+  "$id": "henchman/contracts/agents/agent-update-info/v1",
+  "title": "AgentUpdateInfo",
+  "description": "Shape contract for AgentUpdateInfo.",
+  "type": "object",
+  "required": ["role", "current_version", "latest_version"],
+  "properties": {
+    "role": { "type": "string", "description": "Agent role identifier" },
+    "current_version": { "type": "string", "description": "Currently installed version" },
+    "latest_version": { "type": "string", "description": "Latest available version" }
+  },
+  "additionalProperties": false
+}

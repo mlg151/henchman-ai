@@ -5,12 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+from aiohttp import ClientResponse
+
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.security import (
     SSRFError,
     sanitize_error_message,
     validate_url,
 )
+from henchman.tools.utils import coerce_int
 
 _HTTP_ERROR_THRESHOLD = 400
 _DEFAULT_MAX_LENGTH = 10_000
@@ -27,7 +30,7 @@ class FetchParams:
     timeout: int = _DEFAULT_TIMEOUT_SECONDS
 
 
-async def _process_fetch_response(response: object, max_length: int) -> ToolResult:
+async def _process_fetch_response(response: ClientResponse, max_length: int) -> ToolResult:
     """Process an aiohttp response and return a ToolResult.
 
     Args:
@@ -37,13 +40,13 @@ async def _process_fetch_response(response: object, max_length: int) -> ToolResu
     Returns:
         ToolResult with response content or HTTP error.
     """
-    if response.status >= _HTTP_ERROR_THRESHOLD:  # type: ignore[union-attr]
+    if response.status >= _HTTP_ERROR_THRESHOLD:
         return ToolResult(
-            content=f"HTTP Error: {response.status}",  # type: ignore[union-attr]
+            content=f"HTTP Error: {response.status}",
             success=False,
-            error=f"HTTP {response.status}",  # type: ignore[union-attr]
+            error=f"HTTP {response.status}",
         )
-    content = await response.text()  # type: ignore[union-attr]
+    content = await response.text()
     if len(content) > max_length:
         content = content[:max_length] + "\n... (truncated)"
     return ToolResult(content=content, success=True)
@@ -136,24 +139,21 @@ class WebFetchTool(Tool):
         """Tool kind - NETWORK requires confirmation."""
         return ToolKind.NETWORK
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: WebFetchTool,
-        url: str = "",
-        max_length: int = _DEFAULT_MAX_LENGTH,
-        timeout: int = _DEFAULT_TIMEOUT_SECONDS,
         **kwargs: object,
     ) -> ToolResult:
         """Fetch URL content.
 
         Args:
-            url: URL to fetch.
-            max_length: Maximum content length to return.
-            timeout: Request timeout in seconds.
-            **kwargs: Additional arguments (ignored).
+            **kwargs: URL, maximum content length, and request timeout.
 
         Returns:
             ToolResult with URL content or error.
         """
+        url = str(kwargs.get("url", ""))
+        max_length = coerce_int(kwargs.get("max_length", _DEFAULT_MAX_LENGTH))
+        timeout = coerce_int(kwargs.get("timeout", _DEFAULT_TIMEOUT_SECONDS))
         try:
             validated_url = validate_url(url)
         except (SSRFError, ValueError) as e:

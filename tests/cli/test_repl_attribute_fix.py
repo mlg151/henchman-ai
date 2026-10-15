@@ -10,6 +10,7 @@ import inspect
 import subprocess
 import sys
 from io import StringIO
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -186,14 +187,20 @@ class TestCliEntrypointRuns:
         assert result.returncode == 0, f"CLI --version failed: {result.stderr}"
         assert "AttributeError" not in result.stderr, f"AttributeError in stderr: {result.stderr}"
 
-    def test_cli_with_prompt_no_attribute_error(self) -> None:
+    def test_cli_with_prompt_no_attribute_error(self, tmp_path: Path) -> None:
         """CLI with --prompt doesn't throw AttributeError."""
+        settings_path = tmp_path / "settings.yaml"
+        settings_path.write_text("rag:\n  enabled: false\n", encoding="utf-8")
         result = subprocess.run(
             [sys.executable, "-m", "henchman.cli.app", "--prompt", "test"],
             capture_output=True,
             text=True,
             timeout=10,
-            env={**__import__("os").environ, "DEEPSEEK_API_KEY": "test-key"},
+            env={
+                **__import__("os").environ,
+                "DEEPSEEK_API_KEY": "test-key",
+                "HENCHMAN_SETTINGS_PATH": str(settings_path),
+            },
         )
 
         # Even if it fails for other reasons, AttributeError should not be there

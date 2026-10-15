@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
@@ -16,9 +17,11 @@ if TYPE_CHECKING:
 
 # Type alias for confirmation handler
 ConfirmationHandler = Callable[[ConfirmationRequest], Awaitable[bool]]
+TeamToolResolver = Callable[[str], list[str] | None]
 
 # Maximum characters for tool output before truncation
 MAX_TOOL_OUTPUT = 50000
+MAX_DISCOVERED_TOOLS = 5
 
 
 @dataclass
@@ -64,10 +67,79 @@ class ToolRegistry:
                          If None, uses defaults (3 retries, 1s base delay).
         """
         self._tools: dict[str, Tool] = {}
-        self._confirmation_handler: ConfirmationHandler | None = None
+        self._local_confirmation_handler: ConfirmationHandler | None = None
+        self._policy_parent: ToolRegistry | None = None
         self._auto_approve_policies: set[str] = set()
         self._plan_mode: bool = False
         self._retry_config = retry_config or RetryConfig()
+        self._discovery_tool: Tool | None = None
+        self._discovered_tools: list[str] = []
+        self._team_tool_resolver: TeamToolResolver | None = None
+        self._formatter = PythonAutoFormatter()
+
+    @property
+    def _effective_formatter(self) -> PythonAutoFormatter:
+        """Serialize workspace mutations and formatting across scoped registries."""
+        if self._policy_parent is not None:
+            return self._policy_parent._effective_formatter
+        return self._formatter
+
+    def bind_team_tool_resolver(self, resolver: TeamToolResolver | None) -> None:
+        """Bind read-only team metadata to this registry, independent of search instances."""
+        self._team_tool_resolver = resolver
+
+    def find_team_tool_roles(self, name: str) -> list[str] | None:
+        """Return scoped role metadata, or None when team discovery is unavailable."""
+        if self._team_tool_resolver is None or self.get("delegate_task") is None:
+            return None
+        return self._team_tool_resolver(name)
+
+    def enable_tool_discovery(self, tool: Tool) -> None:
+        """Enable schema discovery when a bound search tool is registered."""
+        self._discovery_tool = tool
+
+    @property
+    def supports_tool_discovery(self) -> bool:
+        """Whether this registry currently has enabled tool-search support."""
+        tool = self.get("tool_search")
+        return self._discovery_tool is not None and tool is self._discovery_tool
+
+    def prioritize_tools(self, names: list[str]) -> None:
+        """Replace schema priorities with up to five unique registered names."""
+        priorities: list[str] = []
+        for name in names:
+            if self.get(name) is not None and name not in priorities:
+                priorities.append(name)
+                if len(priorities) == MAX_DISCOVERED_TOOLS:
+                    break
+        self._discovered_tools = priorities
+
+    @property
+    def discovered_tools(self) -> list[str]:
+        """Return current priority names without exposing mutable registry state."""
+        return [name for name in self._discovered_tools if self.get(name) is not None]
+
+    def inherit_policies_from(self, parent: ToolRegistry) -> None:
+        """Follow the parent's current confirmation and read-only restrictions.
+
+        Scope-local auto-approval remains explicit. A local read-only restriction
+        also remains effective when the parent returns to execution mode.
+        """
+        self._policy_parent = parent
+
+    @property
+    def _confirmation_handler(self) -> ConfirmationHandler | None:
+        """Resolve current confirmation policy rather than a cached handler."""
+        if self._policy_parent is not None:
+            return self._policy_parent._confirmation_handler
+        return self._local_confirmation_handler
+
+    @property
+    def _effective_plan_mode(self) -> bool:
+        """Honor read-only restrictions throughout the registry ancestry."""
+        return self._plan_mode or (
+            self._policy_parent is not None and self._policy_parent._effective_plan_mode
+        )
 
     def set_retry_config(self: ToolRegistry, config: RetryConfig) -> None:
         """Set the retry configuration for network tools.
@@ -91,7 +163,7 @@ class ToolRegistry:
         """
         self._plan_mode = enabled
 
-    def register(self: ToolRegistry, tool: Tool) -> None:  # type: ignore[override]
+    def register(self: ToolRegistry, tool: Tool) -> None:
         """Register a tool with the registry.
 
         Args:
@@ -137,7 +209,7 @@ class ToolRegistry:
         Returns:
             Number of registered tools.
         """
-        return len(self._tools)
+        return len(self.list_tools())
 
     def list_tools(self: ToolRegistry) -> list[str]:
         """List all registered tool names.
@@ -153,7 +225,11 @@ class ToolRegistry:
         Returns:
             A list of ToolDeclaration objects suitable for passing to the LLM.
         """
-        return [tool.to_declaration() for tool in self._tools.values()]
+        return [
+            tool.to_declaration()
+            for name in self.list_tools()
+            if (tool := self.get(name)) is not None
+        ]
 
     def set_confirmation_handler(self: ToolRegistry, handler: ConfirmationHandler) -> None:
         """Set the handler for tool confirmation requests.
@@ -165,7 +241,7 @@ class ToolRegistry:
         Returns:
             None
         """
-        self._confirmation_handler = handler
+        self._local_confirmation_handler = handler
 
     def add_auto_approve_policy(self: ToolRegistry, tool_name: str) -> None:
         """Add an auto-approve policy for a tool.
@@ -200,6 +276,50 @@ class ToolRegistry:
         """
         return list(self._auto_approve_policies)
 
+    def is_auto_approved(self, name: str) -> bool:
+        """Return whether this registry explicitly auto-approves a tool."""
+        return name in self._auto_approve_policies
+
+    async def authorize(self, name: str, params: dict[str, object]) -> Tool | ToolResult:
+        """Return the allowed registered tool or a denial, without executing it.
+
+        Orchestrated tools use this same check before their custom dispatch.
+        """
+        tool = self.get(name)
+        if tool is None:
+            return ToolResult(
+                content=f"Error: Tool '{name}' not found",
+                success=False,
+                error=f"Tool '{name}' not found",
+            )
+
+        # Check Plan Mode
+        if self._effective_plan_mode and tool.execution_kind(params) in (
+            ToolKind.WRITE,
+            ToolKind.EXECUTE,
+            ToolKind.NETWORK,
+        ):
+            return ToolResult(
+                content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
+                success=False,
+                error="Tool disabled in Plan Mode",
+            )
+
+        # Check if confirmation is needed
+        if not self.is_auto_approved(name):
+            confirmation_request = tool.needs_confirmation(params)
+            handler = self._confirmation_handler
+            if confirmation_request is not None and handler:
+                approved = await handler(confirmation_request)
+                if not approved:
+                    return ToolResult(
+                        content=f"Tool execution denied by user: {name}",
+                        success=False,
+                        error="Execution denied by user",
+                    )
+
+        return tool
+
     async def execute(self: ToolRegistry, name: str, params: dict[str, object]) -> ToolResult:
         """Execute a tool by name with the given parameters.
 
@@ -217,43 +337,24 @@ class ToolRegistry:
         Returns:
             A ToolResult containing the execution result or error.
         """
-        tool = self._tools.get(name)
-        if tool is None:
-            return ToolResult(
-                content=f"Error: Tool '{name}' not found",
-                success=False,
-                error=f"Tool '{name}' not found",
-            )
+        tool = await self.authorize(name, params)
+        if isinstance(tool, ToolResult):
+            return tool
 
-        # Check Plan Mode
-        if self._plan_mode and tool.kind in (ToolKind.WRITE, ToolKind.EXECUTE, ToolKind.NETWORK):
-            return ToolResult(
-                content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
-                success=False,
-                error="Tool disabled in Plan Mode",
-            )
-
-        # Check if confirmation is needed
-        if name not in self._auto_approve_policies:
-            confirmation_request = tool.needs_confirmation(params)
-            if confirmation_request is not None and self._confirmation_handler:
-                approved = await self._confirmation_handler(confirmation_request)
-                if not approved:
-                    return ToolResult(
-                        content=f"Tool execution denied by user: {name}",
-                        success=False,
-                        error="Execution denied by user",
-                    )
-
-        # Execute the tool (with retries for NETWORK tools)
-        try:
-            if tool.kind == ToolKind.NETWORK and self._retry_config.max_retries > 0:
-                result = await retry_async(
+        async def execute_authorized() -> ToolResult:
+            if (
+                tool.execution_kind(params) == ToolKind.NETWORK
+                and self._retry_config.max_retries > 0
+            ):
+                return await retry_async(
                     lambda: tool.execute(**params),
                     config=self._retry_config,
                 )
-            else:
-                result = await tool.execute(**params)
+            return await tool.execute(**params)
+
+        # Formatting completes before verification can consume the tool result.
+        try:
+            result = await self._effective_formatter.run(tool, params, execute_authorized)
         except Exception as exc:
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(

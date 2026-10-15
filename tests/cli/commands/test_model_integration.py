@@ -6,6 +6,7 @@ import pytest
 
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.repl import Repl
+from henchman.config.schema import ProviderSettings, Settings
 from henchman.core.agent import Agent
 from henchman.providers.base import ModelProvider
 
@@ -127,7 +128,7 @@ async def test_model_switch_integration():
         mock_registry.return_value = mock_reg
 
         # Mock settings
-        mock_settings = Mock()
+        mock_settings = Settings(providers=ProviderSettings(openai={"api_key": "saved-key"}))
         mock_load.return_value = mock_settings
 
         await cmd.execute(ctx)

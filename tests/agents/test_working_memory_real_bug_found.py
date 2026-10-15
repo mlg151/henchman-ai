@@ -5,39 +5,38 @@ When end=-1 and start is provided (e.g., start=10, end=-1), it means "read from 
 The code converts end=-1 to None, then enters partial range logic, which is incorrect.
 """
 
-import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
 def test_should_read_file_end_minus_one_with_start_bug():
     """Test the actual bug: end=-1 with start provided.
-    
+
     When end=-1 and start is provided (e.g., start=10, end=-1),
     it means "read from line 10 to EOF".
-    
+
     The current code converts end=-1 to None at line 538, then
     at line 580: if start is None or end is None:
     Since end is None, it enters partial range logic.
-    
+
     But this is wrong! end=-1 with start means "read from start to EOF",
     not "read from start to ?".
-    
+
     Example: File was read lines 1-50. Request: start=30, end=-1 (read lines 30-EOF).
     Since we've read lines 1-50, lines 30-50 are read, but we don't know about lines 51+.
     Should return True with reason about needing to read beyond line 50.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-50"))
-    
+
     # Test: start=30, end=-1 (read from line 30 to EOF)
     # File was read lines 1-50, so lines 30-50 are read, but we don't know about lines 51+
     # Should return True with reason about needing to read beyond line 50
     should_read, reason = memory.should_read_file("/test/file.py", start=30, end=-1)
-    
+
     # BUG: Currently converts end=-1 to None, then treats as partial range
     # Might return incorrect result
     print(f"Result: should_read={should_read}, reason={reason}")
-    
+
     # The correct behavior should be:
     # 1. Recognize this means "read from line 30 to EOF"
     # 2. Check if we've read line 30 (we have, it's in 1-50)
@@ -56,17 +55,17 @@ def test_should_read_file_end_minus_one_with_start_bug():
 
 def test_should_read_file_end_minus_one_with_start_full_read():
     """Test end=-1 with start when file was read fully.
-    
+
     If file was read fully, any range including end=-1 should return False.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
-    
+
     # File was read fully, so reading from line 10 to EOF should return False
     should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-1)
-    
+
     print(f"Result: should_read={should_read}, reason={reason}")
-    
+
     # Should return False (file was read fully)
     assert should_read is False, (
         f"File was read fully. start=10, end=-1 should return False. "
@@ -77,27 +76,27 @@ def test_should_read_file_end_minus_one_with_start_full_read():
 
 def test_should_read_file_end_minus_one_no_start():
     """Test end=-1 without start (read from beginning to EOF).
-    
+
     This is the original use case: read entire file.
     end=-1 gets converted to None, which is correct.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-50"))
-    
+
     # Test: start=None, end=-1 (read entire file)
     # File was only partially read (1-50), so should return True
     should_read, reason = memory.should_read_file("/test/file.py", end=-1)
-    
+
     print(f"Result: should_read={should_read}, reason={reason}")
-    
+
     # Should return True (file may not be fully read - we can't determine without file size)
     assert should_read is True, (
         f"File only read lines 1-50, requested entire file (end=-1). "
         f"Should return True (conservative). Got: {should_read}, reason: {reason}"
     )
     # Accept either old message ("not fully read") or new more accurate message
-    assert ("not fully read" in reason.lower() or 
-            "partial" in reason.lower() or 
+    assert ("not fully read" in reason.lower() or
+            "partial" in reason.lower() or
             "need" in reason.lower() or
             "cannot determine" in reason.lower() or
             "file size unknown" in reason.lower()), \

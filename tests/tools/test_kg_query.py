@@ -224,13 +224,16 @@ async def test_lazy_init_with_git_root(tmp_path: Path) -> None:
     tool = KgQueryTool(store=None)
     tool._initialised = False
 
-    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
-        with mock.patch.object(KnowledgeStore, "load", return_value=None):
-            with mock.patch.object(
-                KgQueryTool, "_ensure_initialised", return_value=store
-            ):
-                result = await tool.execute(action="stats")
-                assert result.success is True
+    with (
+        mock.patch(
+            "henchman.tools.builtins.kg_query._find_git_root",
+            return_value=repo,
+        ),
+        mock.patch.object(KnowledgeStore, "load", return_value=None),
+        mock.patch.object(KgQueryTool, "_ensure_initialised", return_value=store),
+    ):
+        result = await tool.execute(action="stats")
+        assert result.success is True
 
 
 async def test_lazy_init_scans_when_empty(tmp_path: Path) -> None:
@@ -247,14 +250,21 @@ async def test_lazy_init_scans_when_empty(tmp_path: Path) -> None:
     tool = KgQueryTool(store=None)
     tool._initialised = False
 
-    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
-        with mock.patch.object(KnowledgeStore, "load", return_value=None):
-            with mock.patch.object(KnowledgeStore, "entity_count", return_value=0):
-                with mock.patch("henchman.tools.builtins.kg_query.scan_repository") as mock_scan:
-                    with mock.patch.object(KnowledgeStore, "save", return_value=None):
-                        store = tool._ensure_initialised()
-                        assert store is not None
-                        mock_scan.assert_called_once()
+    with (
+        mock.patch(
+            "henchman.tools.builtins.kg_query._find_git_root",
+            return_value=repo,
+        ),
+        mock.patch.object(KnowledgeStore, "load", return_value=None),
+        mock.patch.object(KnowledgeStore, "entity_count", return_value=0),
+        mock.patch(
+            "henchman.tools.builtins.kg_query.scan_repository"
+        ) as mock_scan,
+        mock.patch.object(KnowledgeStore, "save", return_value=None),
+    ):
+        store = tool._ensure_initialised()
+        assert store is not None
+        mock_scan.assert_called_once()
 
 
 def test_kg_query_description() -> None:
@@ -279,9 +289,14 @@ async def test_lazy_init_with_real_git_root(tmp_path: Path) -> None:
     tool = KgQueryTool(store=None)
     tool._initialised = False
 
-    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
-        with mock.patch.object(KnowledgeStore, "load", return_value=None):
-            with mock.patch.object(KnowledgeStore, "entity_count", return_value=1):
-                store = tool._ensure_initialised()
-                assert store is not None
-                assert tool._initialised is True
+    with (
+        mock.patch(
+            "henchman.tools.builtins.kg_query._find_git_root",
+            return_value=repo,
+        ),
+        mock.patch.object(KnowledgeStore, "load", return_value=None),
+        mock.patch.object(KnowledgeStore, "entity_count", return_value=1),
+    ):
+        store = tool._ensure_initialised()
+        assert store is not None
+        assert tool._initialised is True

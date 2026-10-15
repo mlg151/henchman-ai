@@ -50,7 +50,7 @@ def _hash_content(content: str) -> str:
     Returns:
         An 8-character hex digest prefix.
     """
-    return hashlib.md5(content.encode()).hexdigest()[:HASH_PREFIX_LENGTH]
+    return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:HASH_PREFIX_LENGTH]
 
 
 @dataclass

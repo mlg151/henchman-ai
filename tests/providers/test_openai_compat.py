@@ -6,6 +6,7 @@ import pytest
 
 from henchman.providers.base import FinishReason, Message, ToolCall, ToolDeclaration
 from henchman.providers.openai_compat import OpenAICompatibleProvider
+from tests.providers.stream_helpers import SDKResponse
 
 
 class TestOpenAICompatibleProvider:
@@ -147,10 +148,8 @@ class TestOpenAICompatibleProvider:
         mock_tc.function.name = "read_file"
         mock_tc.function.arguments = "not valid json"
 
-        result = provider._parse_tool_calls([mock_tc])
-        assert result is not None
-        assert len(result) == 1
-        assert result[0].arguments == {}  # Defaults to empty dict
+        with pytest.raises(ValueError, match="valid JSON object"):
+            provider._parse_tool_calls([mock_tc])
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_content(self) -> None:
@@ -185,7 +184,7 @@ class TestOpenAICompatibleProvider:
                 yield chunk
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -222,7 +221,7 @@ class TestOpenAICompatibleProvider:
 
         async def mock_create(**kwargs):
             captured_kwargs.update(kwargs)
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -255,6 +254,7 @@ class TestOpenAICompatibleProvider:
 
         mock_chunk1 = MagicMock()
         mock_chunk1.choices = []  # Empty choices
+        mock_chunk1.usage = None
 
         mock_chunk2 = MagicMock()
         mock_chunk2.choices = [MagicMock()]
@@ -267,7 +267,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk2
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -331,7 +331,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk3
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -370,7 +370,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -416,19 +416,15 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk2
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
 
             messages = [Message(role="user", content="Test")]
-            chunks = []
-            async for chunk in provider.chat_completion_stream(messages):
-                chunks.append(chunk)
-
-            # Should still work, but with empty arguments
-            assert chunks[1].tool_calls is not None
-            assert chunks[1].tool_calls[0].arguments == {}
+            with pytest.raises(ValueError, match="valid JSON object"):
+                async for _ in provider.chat_completion_stream(messages):
+                    pass
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_custom_model(self) -> None:
@@ -452,7 +448,7 @@ class TestOpenAICompatibleProvider:
 
         async def mock_create(**kwargs):
             captured_kwargs.update(kwargs)
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -503,7 +499,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk2
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -545,7 +541,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk1
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -631,7 +627,7 @@ class TestOpenAICompatibleProvider:
             yield mock_chunk
 
         async def mock_create(**kwargs):  # noqa: ARG001
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
@@ -678,7 +674,7 @@ class TestOpenAICompatibleProvider:
 
         async def mock_create(**kwargs):
             captured_params.update(kwargs)
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with (
             patch.object(provider, "_client") as mock_client,
@@ -781,14 +777,9 @@ class TestOpenAICompatibleProvider:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
 
             messages = [Message(role="user", content="Test")]
-            chunks = []
-            async for chunk in provider.chat_completion_stream(messages):
-                chunks.append(chunk)
-
-            # Should yield an error StreamChunk
-            assert len(chunks) == 1
-            assert chunks[0].content.startswith("❌ Provider Error:")
-            assert chunks[0].finish_reason == FinishReason.STOP
+            with pytest.raises(ConnectionError, match="Network connection failed"):
+                async for _ in provider.chat_completion_stream(messages):
+                    pass
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_with_kwargs(self) -> None:
@@ -812,7 +803,7 @@ class TestOpenAICompatibleProvider:
 
         async def mock_create(**kwargs):
             captured_kwargs.update(kwargs)
-            return mock_stream()
+            return SDKResponse(mock_stream())
 
         with patch.object(provider, "_client") as mock_client:
             mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)

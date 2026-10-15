@@ -1,0 +1,1559 @@
+ M .github/copilot-instructions.md
+ M .github/workflows/ci.yml
+ M .serena/project.yml
+ M CHANGELOG.md
+ M CONTRIBUTING.md
+ M README.md
+ M RELEASE_CHECKLIST.md
+ M bugs.md
+ M docs/agents.md
+ M docs/api.md
+ M docs/architecture.md
+ M docs/configuration.md
+ M docs/evals/README.md
+ M docs/extensions.md
+ M docs/getting-started.md
+ M docs/index.md
+ M docs/mcp.md
+ M docs/providers.md
+ M docs/tools.md
+ M evals/README.md
+ M evals/helpers.py
+ M evals/test_coding_tasks.py
+ M evals/test_edit_precision.py
+ M pyproject.toml
+ M scripts/smell_detector/detectors/base.py
+ M scripts/smell_detector/detectors/deep_nesting.py
+ M scripts/smell_detector/detectors/duplicates.py
+ M scripts/smell_detector/detectors/long_method.py
+ M scripts/smell_detector/models.py
+ M src/henchman/agents/__init__.py
+ M src/henchman/agents/delegation.py
+ M src/henchman/agents/delegation_manager.py
+ M src/henchman/agents/file_read_decision_maker.py
+ M src/henchman/agents/ledger.py
+ M src/henchman/agents/orchestrator.py
+ M src/henchman/agents/orchestrator_anchoring.py
+ M src/henchman/agents/orchestrator_components.py
+ M src/henchman/agents/orchestrator_delegation_ctrl.py
+ M src/henchman/agents/orchestrator_events.py
+ M src/henchman/agents/orchestrator_execution.py
+ M src/henchman/agents/orchestrator_init.py
+ M src/henchman/agents/orchestrator_loop.py
+ M src/henchman/agents/orchestrator_prompts.py
+ M src/henchman/agents/orchestrator_run.py
+ M src/henchman/agents/orchestrator_tech_lead.py
+ M src/henchman/agents/orchestrator_tools.py
+ M src/henchman/agents/orchestrator_turns.py
+ M src/henchman/agents/orchestrator_types.py
+ M src/henchman/agents/orchestrator_validation.py
+ M src/henchman/agents/pool.py
+ M src/henchman/agents/presets.py
+ M src/henchman/agents/prompts.py
+ M src/henchman/agents/working_memory.py
+ M src/henchman/api/auth.py
+ M src/henchman/api/endpoints/chat.py
+ M src/henchman/api/endpoints/health.py
+ M src/henchman/api/server.py
+ M src/henchman/chat/base.py
+ M src/henchman/chat/discord_bot.py
+ M src/henchman/chat/manager.py
+ M src/henchman/cli/app.py
+ M src/henchman/cli/commands/agent.py
+ M src/henchman/cli/commands/builtins.py
+ M src/henchman/cli/commands/chat.py
+ M src/henchman/cli/commands/model.py
+ M src/henchman/cli/commands/plan.py
+ M src/henchman/cli/commands/rag.py
+ M src/henchman/cli/console.py
+ M src/henchman/cli/core_init.py
+ M src/henchman/cli/input.py
+ M src/henchman/cli/input_handler.py
+ M src/henchman/cli/json_output.py
+ M src/henchman/cli/output_handler.py
+ M src/henchman/cli/plugins.py
+ M src/henchman/cli/prompts.py
+ M src/henchman/cli/repl.py
+ M src/henchman/cli/session_manager.py
+ M src/henchman/cli/stream_event_handlers.py
+ M src/henchman/cli/textual_app.py
+ M src/henchman/cli/textual_bridge.py
+ M src/henchman/cli/textual_config.py
+ M src/henchman/cli/textual_driver.py
+ M src/henchman/cli/textual_mixins.py
+ M src/henchman/cli/textual_screens.py
+ M src/henchman/cli/textual_widgets.py
+ M src/henchman/cli/tool_executor.py
+ M src/henchman/cli/tool_manager.py
+ M src/henchman/cli/ui_renderer.py
+ M src/henchman/config/context.py
+ M src/henchman/config/schema.py
+ M src/henchman/config/settings.py
+ M src/henchman/core/agent.py
+ M src/henchman/core/agent_config.py
+ M src/henchman/core/agent_stall.py
+ M src/henchman/core/agent_streaming.py
+ M src/henchman/core/events.py
+ M src/henchman/core/session_helpers.py
+ M src/henchman/core/session_manager_base.py
+ M src/henchman/core/session_merge.py
+ M src/henchman/core/session_models.py
+ M src/henchman/extensions/manager.py
+ M src/henchman/extensions/models.py
+ M src/henchman/extensions/plugin_compatibility.py
+ M src/henchman/extensions/plugin_installer.py
+ M src/henchman/extensions/plugin_manager.py
+ M src/henchman/extensions/plugin_registry_client.py
+ M src/henchman/knowledge/models.py
+ M src/henchman/knowledge/scanner.py
+ M src/henchman/knowledge/store.py
+ M src/henchman/mcp/client.py
+ M src/henchman/mcp/manager.py
+ M src/henchman/mcp/tool.py
+ M src/henchman/metrics/collector.py
+ M src/henchman/metrics/dashboard.py
+ M src/henchman/metrics/exporter.py
+ M src/henchman/metrics/models.py
+ M src/henchman/metrics/storage.py
+ M src/henchman/providers/anthropic.py
+ M src/henchman/providers/base.py
+ M src/henchman/providers/deepseek.py
+ M src/henchman/providers/ollama.py
+ M src/henchman/providers/openai_compat.py
+ M src/henchman/providers/openrouter.py
+ M src/henchman/providers/registry.py
+ M src/henchman/providers/utils.py
+ M src/henchman/rag/concurrency.py
+ M src/henchman/rag/repo_id.py
+ M src/henchman/tools/base.py
+ M src/henchman/tools/builtins/__init__.py
+ M src/henchman/tools/builtins/ask_user.py
+ M src/henchman/tools/builtins/code_format.py
+ M src/henchman/tools/builtins/dead_code.py
+ M src/henchman/tools/builtins/delegate.py
+ M src/henchman/tools/builtins/diff_view.py
+ M src/henchman/tools/builtins/file_edit.py
+ M src/henchman/tools/builtins/file_read.py
+ M src/henchman/tools/builtins/git_ops.py
+ M src/henchman/tools/builtins/grep.py
+ M src/henchman/tools/builtins/lint_check.py
+ M src/henchman/tools/builtins/patch_apply.py
+ M src/henchman/tools/builtins/pattern_search.py
+ M src/henchman/tools/builtins/pip_inspect.py
+ M src/henchman/tools/builtins/pytest_run.py
+ M src/henchman/tools/builtins/python_ast.py
+ M src/henchman/tools/builtins/python_ast_helpers.py
+ M src/henchman/tools/builtins/python_exec.py
+ M src/henchman/tools/builtins/research_notes.py
+ M src/henchman/tools/builtins/shell.py
+ M src/henchman/tools/builtins/symbol_trace.py
+ M src/henchman/tools/builtins/web_fetch.py
+ M src/henchman/tools/builtins/web_search.py
+ M src/henchman/tools/registry.py
+ M src/henchman/tools/security.py
+ M src/henchman/tools/security/shell_secure.py
+ M src/henchman/tools/utils.py
+ M src/henchman/utils/compaction.py
+ M src/henchman/utils/compression_strategy.py
+ M src/henchman/utils/intelligent_context_config.py
+ M src/henchman/utils/registry.py
+ M src/henchman/utils/serialization.py
+ M src/henchman/utils/validation.py
+ M src/henchman/version.py
+ M tests/README.md
+ M tests/__pycache__/__init__.cpython-312.pyc
+ M tests/__pycache__/conftest.cpython-312-pytest-9.0.2.pyc
+ M tests/__pycache__/test_main.cpython-312-pytest-9.0.2.pyc
+ M tests/__pycache__/test_version.cpython-312-pytest-9.0.2.pyc
+ M tests/agents/test_agents_coverage.py
+ M tests/agents/test_completion_status.py
+ M tests/agents/test_coverage_gaps_agents.py
+ M tests/agents/test_delegation_coverage_100.py
+ M tests/agents/test_delegation_e2e.py
+ M tests/agents/test_delegation_error_handling.py
+ M tests/agents/test_delegation_manager.py
+ M tests/agents/test_infinite_loop_fix.py
+ M tests/agents/test_ledger_coverage.py
+ M tests/agents/test_ledger_edge_cases.py
+ M tests/agents/test_ledger_refactor.py
+ M tests/agents/test_ledger_refactoring.py
+ M tests/agents/test_ledger_refactoring_smells.py
+ M tests/agents/test_ledger_smell_fixes.py
+ M tests/agents/test_orchestrator.py
+ M tests/agents/test_pool.py
+ M tests/agents/test_presets.py
+ M tests/agents/test_prompts.py
+ M tests/agents/test_thinking_protocol.py
+ M tests/agents/test_working_memory.py
+ M tests/agents/test_working_memory_actual_bug.py
+ M tests/agents/test_working_memory_actual_core_bug.py
+ M tests/agents/test_working_memory_algorithm_bug.py
+ M tests/agents/test_working_memory_bool_bug.py
+ M tests/agents/test_working_memory_bug.py
+ M tests/agents/test_working_memory_bug_end_minus_one.py
+ M tests/agents/test_working_memory_bug_error_message.py
+ M tests/agents/test_working_memory_bug_find.py
+ M tests/agents/test_working_memory_bug_validation.py
+ M tests/agents/test_working_memory_bug_validation_order.py
+ M tests/agents/test_working_memory_core_bug.py
+ M tests/agents/test_working_memory_dash_inconsistency.py
+ M tests/agents/test_working_memory_deserialization_bug.py
+ M tests/agents/test_working_memory_edge_case_bug.py
+ M tests/agents/test_working_memory_edge_cases.py
+ M tests/agents/test_working_memory_empty_lines_read_bug.py
+ M tests/agents/test_working_memory_empty_lines_read_bug_fix.py
+ M tests/agents/test_working_memory_end_minus_one_bug.py
+ M tests/agents/test_working_memory_entry_validation_bug.py
+ M tests/agents/test_working_memory_error_message.py
+ M tests/agents/test_working_memory_find_bug.py
+ M tests/agents/test_working_memory_float_bug.py
+ M tests/agents/test_working_memory_float_minus_one_bug.py
+ M tests/agents/test_working_memory_float_precision_bug.py
+ M tests/agents/test_working_memory_four_lenses_bug_fix.py
+ M tests/agents/test_working_memory_full_contains_bug.py
+ M tests/agents/test_working_memory_full_token_bug.py
+ M tests/agents/test_working_memory_full_token_bug_fix.py
+ M tests/agents/test_working_memory_invalid_lines_read_bug.py
+ M tests/agents/test_working_memory_isdigit_bug.py
+ M tests/agents/test_working_memory_isdigit_fix.py
+ M tests/agents/test_working_memory_key_insights_bug.py
+ M tests/agents/test_working_memory_line_number_validation_bug.py
+ M tests/agents/test_working_memory_logic_bug.py
+ M tests/agents/test_working_memory_merge_bug.py
+ M tests/agents/test_working_memory_misleading_message_bug.py
+ M tests/agents/test_working_memory_missing_return.py
+ M tests/agents/test_working_memory_none_bug.py
+ M tests/agents/test_working_memory_none_vs_empty_bug.py
+ M tests/agents/test_working_memory_parse_bug.py
+ M tests/agents/test_working_memory_real_bug.py
+ M tests/agents/test_working_memory_real_bug_found.py
+ M tests/agents/test_working_memory_real_failing_bug.py
+ M tests/agents/test_working_memory_type_safety_bug.py
+ M tests/agents/test_working_memory_unicode_dash_bug.py
+ M tests/agents/test_working_memory_unicode_dash_bug2.py
+ M tests/agents/test_working_memory_unicode_digit_bug.py
+ M tests/agents/test_working_memory_validation_bug.py
+ M tests/agents/test_working_memory_validation_bug_fix.py
+ M tests/agents/test_working_memory_validation_order_bug.py
+ M tests/agents/test_working_memory_whitespace_bug.py
+ M tests/api/test_api.py
+ M tests/chat/test_chat.py
+ M tests/chat/test_chat_integration.py
+ M tests/cli/__pycache__/__init__.cpython-312.pyc
+ M tests/cli/__pycache__/test_app.cpython-312-pytest-9.0.2.pyc
+ M tests/cli/commands/test_model.py
+ M tests/cli/commands/test_model_integration.py
+ M tests/cli/commands/test_plan.py
+ M tests/cli/test_app_coverage_100.py
+ M tests/cli/test_app_extended.py
+ M tests/cli/test_commands.py
+ M tests/cli/test_console_coverage.py
+ M tests/cli/test_context_strategy_coverage.py
+ M tests/cli/test_core_init.py
+ M tests/cli/test_coverage_gaps_cli.py
+ M tests/cli/test_json_output.py
+ M tests/cli/test_misc_commands_coverage.py
+ M tests/cli/test_null_provider_fixed.py
+ M tests/cli/test_null_provider_unreachable_yield_final.py
+ M tests/cli/test_output_handler.py
+ M tests/cli/test_output_stream_coverage.py
+ M tests/cli/test_repl.py
+ M tests/cli/test_repl_attribute_fix.py
+ M tests/cli/test_repl_session_manager.py
+ M tests/cli/test_simple_null_provider_bug.py
+ M tests/cli/test_textual_app.py
+ M tests/cli/test_textual_app_coverage_100.py
+ M tests/cli/test_textual_coverage.py
+ M tests/cli/test_textual_functional_final.py
+ M tests/cli/test_textual_integration.py
+ M tests/cli/test_textual_mixins.py
+ M tests/cli/test_textual_widgets_bugs.py
+ M tests/cli/test_textual_widgets_markup_bug.py
+ M tests/cli/test_textual_widgets_refactoring.py
+ M tests/cli/test_thinking_indicator.py
+ M tests/cli/test_thinking_tool_display.py
+ M tests/cli/test_ui_renderer_methods.py
+ M tests/config/test_context.py
+ M tests/config/test_missing_coverage.py
+ M tests/config/test_schema.py
+ M tests/core/test_agent_coverage_100.py
+ M tests/core/test_coverage_boost.py
+ M tests/e2e/test_agent_interaction.py
+ M tests/e2e/test_context_safety.py
+ M tests/e2e/test_mcp_integration.py
+ M tests/e2e/test_serena_cli_integration.py
+ M tests/empty_message_validation/test_empty_messages.py
+ M tests/extensions/test_plugin_coverage.py
+ M tests/extensions/test_plugin_manager.py
+ M tests/extensions/test_plugin_manager_refactor.py
+ M tests/extensions/test_plugin_manager_refactoring.py
+ M tests/extensions/test_plugin_manager_type_hints.py
+ M tests/extensions/test_plugin_models.py
+ M tests/integration/test_mcp_serena.py
+ M tests/knowledge/test_missing_coverage.py
+ M tests/knowledge/test_scanner.py
+ M tests/knowledge/test_scanner_coverage.py
+ M tests/mcp/test_manager.py
+ M tests/metrics/test_dashboard.py
+ M tests/metrics/test_exporter.py
+ M tests/metrics/test_storage.py
+ M tests/providers/__pycache__/__init__.cpython-312.pyc
+ M tests/providers/__pycache__/test_base.cpython-312-pytest-9.0.2.pyc
+ M tests/providers/__pycache__/test_deepseek.cpython-312-pytest-9.0.2.pyc
+ M tests/providers/__pycache__/test_openai_compat.cpython-312-pytest-9.0.2.pyc
+ M tests/providers/__pycache__/test_registry.cpython-312-pytest-9.0.2.pyc
+ M tests/providers/test_anthropic.py
+ M tests/providers/test_anthropic_validation.py
+ M tests/providers/test_openai_compat.py
+ M tests/providers/test_openrouter.py
+ M tests/providers/test_utils.py
+ M tests/rag/test_coverage_boost.py
+ M tests/rag/test_rag_concurrency_integration.py
+ M tests/test_branch_coverage.py
+ M tests/test_interactive.py
+ M tests/test_main.py
+ M tests/test_phase5.py
+ M tests/test_phase6_1.py
+ M tests/test_phase6_2.py
+ M tests/test_phase6_3.py
+ M tests/test_progress.py
+ M tests/test_settings_persistence.py
+ M tests/test_visualization.py
+ M tests/tools/test_ask_user_comprehensive.py
+ M tests/tools/test_ask_user_tool.py
+ M tests/tools/test_code_format.py
+ M tests/tools/test_deep_research.py
+ M tests/tools/test_delegate.py
+ M tests/tools/test_delegate_enhanced.py
+ M tests/tools/test_diff_view.py
+ M tests/tools/test_env_inspect.py
+ M tests/tools/test_file_overview.py
+ M tests/tools/test_file_tools.py
+ M tests/tools/test_git_ops.py
+ M tests/tools/test_kg_query.py
+ M tests/tools/test_kg_update.py
+ M tests/tools/test_lint_check.py
+ M tests/tools/test_pattern_search.py
+ M tests/tools/test_pip_inspect.py
+ M tests/tools/test_pytest_run.py
+ M tests/tools/test_python_ast_helpers.py
+ M tests/tools/test_python_exec.py
+ M tests/tools/test_registry.py
+ M tests/tools/test_research_notes.py
+ M tests/tools/test_security_extended.py
+ M tests/tools/test_shell_advanced.py
+ M tests/tools/test_shell_coverage_extra.py
+ M tests/tools/test_shell_interactive.py
+ M tests/tools/test_shell_secure.py
+ M tests/tools/test_shell_sudo_logic.py
+ M tests/tools/test_shell_tool.py
+ M tests/tools/test_symbol_trace.py
+ M tests/tools/test_tier1_tools.py
+ M tests/ui_integration/test_llm.py
+ M tests/ui_integration/test_mcp.py
+ M tests/ui_integration/test_repl_e2e.py
+ M tests/ui_integration/test_session.py
+ M tests/utils/test_backslash_in_comment_bug.py
+ M tests/utils/test_compaction_edge_cases.py
+ M tests/utils/test_compaction_validation.py
+ M tests/utils/test_comprehensive_bug.py
+ M tests/utils/test_content_extractor.py
+ M tests/utils/test_content_extractor_edge_cases.py
+ M tests/utils/test_coverage_boost.py
+ M tests/utils/test_double_quote_apostrophe_bug_final.py
+ M tests/utils/test_failing_bug.py
+ M tests/utils/test_has_language_bug.py
+ M tests/utils/test_intelligent_context.py
+ M tests/utils/test_intelligent_context_apostrophe_bug.py
+ M tests/utils/test_intelligent_context_apostrophe_bug_failing.py
+ M tests/utils/test_intelligent_context_apostrophe_bug_final.py
+ M tests/utils/test_intelligent_context_ar_bug.py
+ M tests/utils/test_intelligent_context_bug.py
+ M tests/utils/test_intelligent_context_bug_find.py
+ M tests/utils/test_intelligent_context_bug_fix_verification.py
+ M tests/utils/test_intelligent_context_bug_yve.py
+ M tests/utils/test_intelligent_context_contraction_bug.py
+ M tests/utils/test_intelligent_context_contraction_bug_fixed.py
+ M tests/utils/test_intelligent_context_four_lenses_bug.py
+ M tests/utils/test_intelligent_context_four_lenses_bug_final.py
+ M tests/utils/test_intelligent_context_four_lenses_real_bug.py
+ M tests/utils/test_intelligent_context_index_error_bug.py
+ M tests/utils/test_intelligent_context_index_error_bug_final.py
+ M tests/utils/test_intelligent_context_mayve_bug.py
+ M tests/utils/test_intelligent_context_mismatched_fence_bug.py
+ M tests/utils/test_intelligent_context_raw_string_backslash_bug.py
+ M tests/utils/test_intelligent_context_real_bug.py
+ M tests/utils/test_intelligent_context_real_bug_final.py
+ M tests/utils/test_intelligent_context_reasoning_bug.py
+ M tests/utils/test_intelligent_context_triple_quote_bug.py
+ M tests/utils/test_intelligent_context_ur_bug.py
+ M tests/utils/test_intelligent_context_ur_ru_bug.py
+ M tests/utils/test_intelligent_context_yve_bug_final.py
+ M tests/utils/test_intelligent_truncation_refactoring.py
+ M tests/utils/test_lazy_import.py
+ M tests/utils/test_raw_string_backslash_bug.py
+ M tests/utils/test_summarization.py
+ M tests/utils/test_truncation_refactor.py
+ M uv.lock
+?? .agent_tasks/2026-10-14-acceptance-checks.md
+?? .agent_tasks/2026-10-14-coding-loop.md
+?? .agent_tasks/2026-10-14-completion-integrity.md
+?? .agent_tasks/2026-10-14-context-sized-tool-discovery.md
+?? .agent_tasks/2026-10-14-context-switch-and-engineer-profile.md
+?? .agent_tasks/2026-10-14-context-tool-discovery-plan.md
+?? .agent_tasks/2026-10-14-edit-recovery-map.md
+?? .agent_tasks/2026-10-14-edit-recovery.md
+?? .agent_tasks/2026-10-14-headless-team.md
+?? .agent_tasks/2026-10-14-interactive-questions.md
+?? .agent_tasks/2026-10-14-leader-configuration-plan.md
+?? .agent_tasks/2026-10-14-leader-configuration.md
+?? .agent_tasks/2026-10-14-live-evaluation.md
+?? .agent_tasks/2026-10-14-live-team-tool-scopes-plan.md
+?? .agent_tasks/2026-10-14-live-team-tool-scopes.md
+?? .agent_tasks/2026-10-14-local-default-model.md
+?? .agent_tasks/2026-10-14-local-eval-next-gate.md
+?? .agent_tasks/2026-10-14-local-model-16gb.md
+?? .agent_tasks/2026-10-14-local-runtime-seams.md
+?? .agent_tasks/2026-10-14-platform-portability.md
+?? .agent_tasks/2026-10-14-provider-construction.md
+?? .agent_tasks/2026-10-14-provider-reliability.md
+?? .agent_tasks/2026-10-14-python-development.md
+?? .agent_tasks/2026-10-14-python-eval-contracts.md
+?? .agent_tasks/2026-10-14-python-quality.md
+?? .agent_tasks/2026-10-14-quoted-python-verification.md
+?? .agent_tasks/2026-10-14-request-context-budget.md
+?? .agent_tasks/2026-10-14-response-completion.md
+?? .agent_tasks/2026-10-14-team-context-budget.md
+?? .agent_tasks/2026-10-14-team-python-evaluation-plan.md
+?? .agent_tasks/2026-10-14-team-python-evaluation.md
+?? .agent_tasks/2026-10-14-team-streaming.md
+?? .agent_tasks/2026-10-14-usage-evidence.md
+?? .agent_tasks/20260531-failures/README.md
+?? .agent_tasks/acceptance-source-final.log
+?? .agent_tasks/acceptance-source.log
+?? .agent_tasks/acceptance-wheel-linux.log
+?? .agent_tasks/background-goals/README.md
+?? .agent_tasks/bounded-reader-red.log
+?? .agent_tasks/bounded-subprocess-green.log
+?? .agent_tasks/bounded-subprocess-red.log
+?? .agent_tasks/completion-dispatch-red.log
+?? .agent_tasks/completion-exception-status-red.log
+?? .agent_tasks/completion-integrity-expanded.log
+?? .agent_tasks/completion-integrity-final.log
+?? .agent_tasks/completion-integrity-focused.log
+?? .agent_tasks/completion-integrity-green.log
+?? .agent_tasks/completion-integrity-red.log
+?? .agent_tasks/completion-integrity-wheel-build.log
+?? .agent_tasks/completion-integrity-wheel-linux-final.log
+?? .agent_tasks/completion-integrity-wheel-linux.log
+?? .agent_tasks/completion-integrity-wheel-reinstall.log
+?? .agent_tasks/completion-rendering-green.log
+?? .agent_tasks/completion-rendering-red.log
+?? .agent_tasks/context-switch-profile-source-final.log
+?? .agent_tasks/context-switch-profile-source.log
+?? .agent_tasks/context-switch-profile-wheel-build.log
+?? .agent_tasks/context-switch-profile-wheel-install.log
+?? .agent_tasks/context-switch-profile-wheel-linux.log
+?? .agent_tasks/contract-enforcement/README.md
+?? .agent_tasks/delegation-policy-regressions.log
+?? .agent_tasks/edit-recovery-source-final.log
+?? .agent_tasks/edit-recovery-source.log
+?? .agent_tasks/edit-recovery-wheel-build-final.log
+?? .agent_tasks/edit-recovery-wheel-build.log
+?? .agent_tasks/edit-recovery-wheel-install-final.log
+?? .agent_tasks/edit-recovery-wheel-install.log
+?? .agent_tasks/edit-recovery-wheel-linux-final.log
+?? .agent_tasks/edit-recovery-wheel-linux.log
+?? .agent_tasks/eval-harness-green.log
+?? .agent_tasks/eval-harness-red.log
+?? .agent_tasks/headless-team-integration.log
+?? .agent_tasks/headless-team-red.log
+?? .agent_tasks/headless-team-source-final.log
+?? .agent_tasks/headless-team-wheel-linux.log
+?? .agent_tasks/implement_plan_acceptance.py
+?? .agent_tasks/integrate_acceptance_tool.py
+?? .agent_tasks/interactive-question-regressions.log
+?? .agent_tasks/keyless-sdk-red.log
+?? .agent_tasks/leader-configuration-core.log
+?? .agent_tasks/leader-configuration-display.log
+?? .agent_tasks/leader-configuration-final-source.log
+?? .agent_tasks/leader-configuration-source.log
+?? .agent_tasks/leader-configuration-switch-red.log
+?? .agent_tasks/leader-configuration-wheel-linux.log
+?? .agent_tasks/legacy-smell-compatibility.json
+?? .agent_tasks/live-team-scopes-initial.log
+?? .agent_tasks/live-team-scopes-leader-red.log
+?? .agent_tasks/live-team-scopes-source.log
+?? .agent_tasks/live-team-scopes-wheel-build.log
+?? .agent_tasks/live-team-scopes-wheel-install.log
+?? .agent_tasks/live-team-scopes-wheel-linux.log
+?? .agent_tasks/live-team-scopes-workflow-red.log
+?? .agent_tasks/local-model-16gb-probe/artifacts.json
+?? .agent_tasks/local-model-16gb-probe/download.log
+?? .agent_tasks/local-model-16gb-probe/llama-b11617-bin-ubuntu-vulkan-x64.tar.gz
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-cpu-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-cpu-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-cpu.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-edit-recovery-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-edit-recovery-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-edit-recovery-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-16k-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-16k-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-16k-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-profile-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-16k-vulkan-run.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-16k-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-16k-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-8k-vulkan-run.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-8k-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-request-budget-8k-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-shell-fix-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-shell-fix-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-engineer-shell-fix-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-instruct-2507-q8_0.gguf
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-python-quality-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-python-quality-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-python-quality-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-vulkan-probe.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-vulkan-server.log
+?? .agent_tasks/local-model-16gb-probe/qwen3-4b-vulkan.json
+?? .agent_tasks/local-model-16gb-probe/range-probe.bin
+?? .agent_tasks/local-model-16gb-probe/run_probe.py
+?? .agent_tasks/local-model-16gb-probe/vulkan-devices.log
+?? .agent_tasks/local-model-16gb-probe/vulkan-download.log
+?? .agent_tasks/local-model-16gb-probe/vulkan-help.txt
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/LICENSE
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/ggml-rpc-server
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libggml-base.so.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libggml-base.so.0.26.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libggml.so.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libggml.so.0.26.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libllama-common.so.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libllama-common.so.0.6.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libllama.so.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libllama.so.0.6.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libmtmd.so.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/libmtmd.so.0.6.0
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-batched-bench
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-bench
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-completion
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-fit-params
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-gemma3-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-gguf-split
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-imatrix
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-llava-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-minicpmv-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-mtmd-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-mtmd-debug
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-perplexity
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-quantize
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-qwen2vl-cli
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-results
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-server
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-tokenize
+?? .agent_tasks/local-model-16gb-probe/vulkan-runtime/llama-b11617/llama-tts
+?? .agent_tasks/local-model-probe/.gitignore
+?? .agent_tasks/local-model-probe/artifacts.json
+?? .agent_tasks/local-model-probe/download_qwen3_17b.py
+?? .agent_tasks/local-model-probe/probe.log
+?? .agent_tasks/local-model-probe/qwen3-17b-probe.log
+?? .agent_tasks/local-model-probe/qwen3-17b-results-server.log
+?? .agent_tasks/local-model-probe/qwen3-17b-results.json
+?? .agent_tasks/local-model-probe/qwen3-after-input-fix-server.log
+?? .agent_tasks/local-model-probe/qwen3-after-input-fix.json
+?? .agent_tasks/local-model-probe/qwen3-after-input-fix.log
+?? .agent_tasks/local-model-probe/qwen3-probe.log
+?? .agent_tasks/local-model-probe/qwen3-results-server.log
+?? .agent_tasks/local-model-probe/qwen3-results.json
+?? .agent_tasks/local-model-probe/results.json
+?? .agent_tasks/local-model-probe/run_probe.py
+?? .agent_tasks/local-model-probe/server.log
+?? .agent_tasks/missing-contract-tests/01-agent-metrics-dataclasses.md
+?? .agent_tasks/missing-contract-tests/02-task-ledger-records.md
+?? .agent_tasks/missing-contract-tests/03-ops-observability-payloads.md
+?? .agent_tasks/missing-contract-tests/04-ops-flags-and-state-payloads.md
+?? .agent_tasks/missing-contract-tests/05-config-context-loader.md
+?? .agent_tasks/missing-contract-tests/06-git-clients-payloads.md
+?? .agent_tasks/missing-contract-tests/07-tool-security-boundary.md
+?? .agent_tasks/missing-contract-tests/08-extension-manager-protocol-contract.md
+?? .agent_tasks/missing-contract-tests/09-agent-catalog-platform-manager.md
+?? .agent_tasks/missing-contract-tests/10-utils-compaction-message-payloads.md
+?? .agent_tasks/missing-contract-tests/11-api-server-endpoint-contracts.md
+?? .agent_tasks/missing-contract-tests/12-provider-registry-and-factory-contract.md
+?? .agent_tasks/missing-contract-tests/13-ops-rate-limiter-and-migration-contracts.md
+?? .agent_tasks/missing-contract-tests/14-agent-pool-created-scoped-registry.md
+?? .agent_tasks/missing-contract-tests/15-mcp-manager-and-auth-contracts.md
+?? .agent_tasks/missing-contract-tests/16-utils-serialization-dataclass-contract.md
+?? .agent_tasks/missing-contract-tests/17-cross-subsystem-protocol-contracts.md
+?? .agent_tasks/missing-contract-tests/README.md
+?? .agent_tasks/missing-contract-tests/SUMMARY.md
+?? .agent_tasks/model-context-command-red.log
+?? .agent_tasks/numbered-read-coordinate-red.log
+?? .agent_tasks/numbered-read-red.log
+?? .agent_tasks/portable-wheel-linux-diagnostic.log
+?? .agent_tasks/portable-wheel-linux-final.log
+?? .agent_tasks/portable-wheel-linux.log
+?? .agent_tasks/portable-wheel-reinstall.log
+?? .agent_tasks/python-analysis-baseline.log
+?? .agent_tasks/python-eval-contracts-source-final.log
+?? .agent_tasks/python-eval-contracts-source.log
+?? .agent_tasks/python-eval-contracts-wheel-before-keyless-fix.log
+?? .agent_tasks/python-eval-contracts-wheel-build.log
+?? .agent_tasks/python-eval-contracts-wheel-linux.log
+?? .agent_tasks/python-quality-cli-report.json
+?? .agent_tasks/python-quality-final-tests.log
+?? .agent_tasks/python-quality-red.log
+?? .agent_tasks/python-quality-wheel-build.log
+?? .agent_tasks/python-quality-wheel-linux-final.log
+?? .agent_tasks/python-quality-wheel-reinstall.log
+?? .agent_tasks/question-final-runtime.log
+?? .agent_tasks/question-headless-regressions.log
+?? .agent_tasks/question-orchestrator-final.log
+?? .agent_tasks/question-wheel-build.log
+?? .agent_tasks/question-wheel-linux-final.log
+?? .agent_tasks/question-wheel-reinstall.log
+?? .agent_tasks/release-0.4.0/bandit.json
+?? .agent_tasks/release-0.4.0/bandit.log
+?? .agent_tasks/release-0.4.0/cli-focused.log
+?? .agent_tasks/release-0.4.0/docs.log
+?? .agent_tasks/release-0.4.0/format.log
+?? .agent_tasks/release-0.4.0/initial-status.txt
+?? .agent_tasks/release-0.4.0/mypy.log
+?? .agent_tasks/release-0.4.0/pytest.log
+?? .agent_tasks/release-0.4.0/ruff.log
+?? .agent_tasks/release-0.4.0/runtime-tests.log
+?? .agent_tasks/request-budget-source.log
+?? .agent_tasks/request-budget-team-debug.log
+?? .agent_tasks/request-budget-wheel-build.log
+?? .agent_tasks/request-budget-wheel-install.log
+?? .agent_tasks/request-budget-wheel-linux.log
+?? .agent_tasks/responded-rendering-green.log
+?? .agent_tasks/responded-rendering-red.log
+?? .agent_tasks/response-completion-expanded.log
+?? .agent_tasks/response-completion-final.log
+?? .agent_tasks/response-completion-focused.log
+?? .agent_tasks/response-completion-green.log
+?? .agent_tasks/response-completion-red.log
+?? .agent_tasks/response-completion-wheel-build.log
+?? .agent_tasks/response-completion-wheel-linux.log
+?? .agent_tasks/response-completion-wheel-reinstall.log
+?? .agent_tasks/response-stall-retry-red.log
+?? .agent_tasks/run_team_openrouter_probe.py
+?? .agent_tasks/shell-quoted-python-red.log
+?? .agent_tasks/shell-quoted-python-source.log
+?? .agent_tasks/shell-quoted-python-wheel-build.log
+?? .agent_tasks/shell-quoted-python-wheel-install.log
+?? .agent_tasks/shell-quoted-python-wheel-linux.log
+?? .agent_tasks/stall-lifecycle-green.log
+?? .agent_tasks/stall-lifecycle-red.log
+?? .agent_tasks/team-context-source-final.log
+?? .agent_tasks/team-context-wheel-build.log
+?? .agent_tasks/team-context-wheel-linux.log
+?? .agent_tasks/team-coordination/README.md
+?? .agent_tasks/team-coordination/automatic-black-final-mypy.log
+?? .agent_tasks/team-coordination/automatic-black-final-wheel-build.log
+?? .agent_tasks/team-coordination/automatic-black-final-wheel-install.log
+?? .agent_tasks/team-coordination/automatic-black-format-check.log
+?? .agent_tasks/team-coordination/automatic-black-installed-wheel-verified.log
+?? .agent_tasks/team-coordination/automatic-black-mypy.log
+?? .agent_tasks/team-coordination/automatic-black-package-final.log
+?? .agent_tasks/team-coordination/automatic-black-scoped-mypy.log
+?? .agent_tasks/team-coordination/automatic-black-source-final.log
+?? .agent_tasks/team-coordination/automatic-black-source-integration.log
+?? .agent_tasks/team-coordination/automatic-black-source-verified.log
+?? .agent_tasks/team-coordination/automatic-black-wheel-build.log
+?? .agent_tasks/team-coordination/automatic-black-wheel-dependency-install.log
+?? .agent_tasks/team-coordination/black-harness-qwen-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/black-harness-qwen-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/black-harness-qwen-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/black-harness-qwen-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/black-harness-qwen-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/black-harness-qwen-live-report.json
+?? .agent_tasks/team-coordination/black-harness-qwen-live.log
+?? .agent_tasks/team-coordination/black-oracle-red.log
+?? .agent_tasks/team-coordination/blocker-report-final.log
+?? .agent_tasks/team-coordination/blocker-report-green.log
+?? .agent_tasks/team-coordination/blocker-report-notes-red.log
+?? .agent_tasks/team-coordination/blocker-report-red.log
+?? .agent_tasks/team-coordination/budget-verification-final-source.log
+?? .agent_tasks/team-coordination/budget-verification-final-wheel-build.log
+?? .agent_tasks/team-coordination/budget-verification-final-wheel-linux.log
+?? .agent_tasks/team-coordination/budget-verification-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/budget-verification-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/budget-verification-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/budget-verification-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/budget-verification-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/budget-verification-live-report.json
+?? .agent_tasks/team-coordination/budget-verification-live.log
+?? .agent_tasks/team-coordination/budget-verification-plan.md
+?? .agent_tasks/team-coordination/budget-verification-prompt-gate.log
+?? .agent_tasks/team-coordination/budget-verification-wheel-build.log
+?? .agent_tasks/team-coordination/budget-verification-wheel-linux.log
+?? .agent_tasks/team-coordination/coherent-workflow-final-source-verified.log
+?? .agent_tasks/team-coordination/coherent-workflow-installed-wheel-verified.log
+?? .agent_tasks/team-coordination/coherent-workflow-source-verified.log
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/environment-parity-qwen-live-report.json
+?? .agent_tasks/team-coordination/environment-parity-qwen-live.log
+?? .agent_tasks/team-coordination/eval-environment-green.log
+?? .agent_tasks/team-coordination/eval-environment-red.log
+?? .agent_tasks/team-coordination/eval-runtime-parity-installed-wheel-verified.log
+?? .agent_tasks/team-coordination/eval-runtime-parity-mypy.log
+?? .agent_tasks/team-coordination/eval-runtime-parity-source-verified.log
+?? .agent_tasks/team-coordination/full-mission-installed-wheel-verified.log
+?? .agent_tasks/team-coordination/full-mission-mypy.log
+?? .agent_tasks/team-coordination/full-mission-qwen-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/full-mission-qwen-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/full-mission-qwen-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/full-mission-qwen-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/full-mission-qwen-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/full-mission-qwen-live-report.json
+?? .agent_tasks/team-coordination/full-mission-qwen-live.log
+?? .agent_tasks/team-coordination/full-mission-sdk-green.log
+?? .agent_tasks/team-coordination/full-mission-sdk-red.log
+?? .agent_tasks/team-coordination/full-mission-source-verified.log
+?? .agent_tasks/team-coordination/full-mission-wheel-build.log
+?? .agent_tasks/team-coordination/full-mission-wheel-install.log
+?? .agent_tasks/team-coordination/invocation-kind-base-verified.log
+?? .agent_tasks/team-coordination/lint-fix-policy-green.log
+?? .agent_tasks/team-coordination/lint-fix-policy-red.log
+?? .agent_tasks/team-coordination/mimo-disable-reasoning-metadata.json
+?? .agent_tasks/team-coordination/mimo-reasoning-metadata-2026-10-14.json
+?? .agent_tasks/team-coordination/openrouter-coder-model-metadata.json
+?? .agent_tasks/team-coordination/package-artifact-source-final.log
+?? .agent_tasks/team-coordination/package-artifact-wheel-final-linux.log
+?? .agent_tasks/team-coordination/package-artifact-wheel-linux.log
+?? .agent_tasks/team-coordination/package-scenario-source-final.log
+?? .agent_tasks/team-coordination/package-scenario-wheel-final-linux.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-report.json
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-1-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-report.json
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-2-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-report.json
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-baseline-3-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-batch.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-report.json
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-1-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-report.json
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-2-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-artifacts/label_index.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-artifacts/normalization.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-report.json
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-stderr.log
+?? .agent_tasks/team-coordination/paired-workflow-candidate-3-stdout.log
+?? .agent_tasks/team-coordination/paired-workflow-manifest.json
+?? .agent_tasks/team-coordination/paired-workflow-predeclared.json
+?? .agent_tasks/team-coordination/preflight_paired_workflow.py
+?? .agent_tasks/team-coordination/proportional-handoff-final-aligned-source.log
+?? .agent_tasks/team-coordination/proportional-handoff-final-source.log
+?? .agent_tasks/team-coordination/proportional-handoff-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/proportional-handoff-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/proportional-handoff-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/proportional-handoff-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/proportional-handoff-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/proportional-handoff-live-report.json
+?? .agent_tasks/team-coordination/proportional-handoff-live.log
+?? .agent_tasks/team-coordination/proportional-handoff-source.log
+?? .agent_tasks/team-coordination/proportional-handoff-wheel-build.log
+?? .agent_tasks/team-coordination/proportional-handoff-wheel-linux.log
+?? .agent_tasks/team-coordination/proportional-workflow-final-source.log
+?? .agent_tasks/team-coordination/proportional-workflow-final-wheel-build.log
+?? .agent_tasks/team-coordination/proportional-workflow-final-wheel-linux.log
+?? .agent_tasks/team-coordination/qwen-coder-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/qwen-coder-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/qwen-coder-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/qwen-coder-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/qwen-coder-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/qwen-coder-live-report.json
+?? .agent_tasks/team-coordination/qwen-coder-live.log
+?? .agent_tasks/team-coordination/qwen-coder-next-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/qwen-coder-next-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/qwen-coder-next-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/qwen-coder-next-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/qwen-coder-next-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/qwen-coder-next-live-report.json
+?? .agent_tasks/team-coordination/qwen-coder-next-live.log
+?? .agent_tasks/team-coordination/reasoning-continuity-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/reasoning-continuity-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/reasoning-continuity-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/reasoning-continuity-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/reasoning-continuity-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/reasoning-continuity-live-report.json
+?? .agent_tasks/team-coordination/reasoning-continuity-live.log
+?? .agent_tasks/team-coordination/reasoning-disabled-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/reasoning-disabled-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/reasoning-disabled-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/reasoning-disabled-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/reasoning-disabled-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/reasoning-disabled-live-report.json
+?? .agent_tasks/team-coordination/reasoning-disabled-live.log
+?? .agent_tasks/team-coordination/reasoning-green.log
+?? .agent_tasks/team-coordination/reasoning-red.log
+?? .agent_tasks/team-coordination/registry-black-red.log
+?? .agent_tasks/team-coordination/registry-black-scope-red.log
+?? .agent_tasks/team-coordination/retry-lint-installed-wheel-verified.log
+?? .agent_tasks/team-coordination/retry-lint-mypy.log
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/retry-lint-qwen-live-report.json
+?? .agent_tasks/team-coordination/retry-lint-qwen-live.log
+?? .agent_tasks/team-coordination/retry-lint-source-verified.log
+?? .agent_tasks/team-coordination/retry-lint-wheel-build.log
+?? .agent_tasks/team-coordination/retry-lint-wheel-install.log
+?? .agent_tasks/team-coordination/run_automatic_black_wheel_gate.py
+?? .agent_tasks/team-coordination/run_black_harness_qwen_probe.py
+?? .agent_tasks/team-coordination/run_budget_verification_probe.py
+?? .agent_tasks/team-coordination/run_budget_wheel_gate.py
+?? .agent_tasks/team-coordination/run_coherent_workflow_wheel_gate.py
+?? .agent_tasks/team-coordination/run_environment_parity_qwen_probe.py
+?? .agent_tasks/team-coordination/run_eval_runtime_parity_wheel_gate.py
+?? .agent_tasks/team-coordination/run_final_budget_wheel_gate.py
+?? .agent_tasks/team-coordination/run_final_team_discovery_wheel_gate.py
+?? .agent_tasks/team-coordination/run_full_mission_qwen_probe.py
+?? .agent_tasks/team-coordination/run_full_mission_wheel_gate.py
+?? .agent_tasks/team-coordination/run_package_artifact_wheel_gate.py
+?? .agent_tasks/team-coordination/run_paired_workflow_batch.py
+?? .agent_tasks/team-coordination/run_paired_workflow_sample.py
+?? .agent_tasks/team-coordination/run_proportional_handoff_probe.py
+?? .agent_tasks/team-coordination/run_proportional_handoff_wheel_gate.py
+?? .agent_tasks/team-coordination/run_proportional_workflow_final_wheel_gate.py
+?? .agent_tasks/team-coordination/run_qwen_coder_next_probe.py
+?? .agent_tasks/team-coordination/run_qwen_coder_probe.py
+?? .agent_tasks/team-coordination/run_reasoning_disabled_probe.py
+?? .agent_tasks/team-coordination/run_reasoning_probe.py
+?? .agent_tasks/team-coordination/run_retry_lint_qwen_probe.py
+?? .agent_tasks/team-coordination/run_retry_lint_wheel_gate.py
+?? .agent_tasks/team-coordination/run_shell_recovery_wheel_gate.py
+?? .agent_tasks/team-coordination/run_team_discovery_probe.py
+?? .agent_tasks/team-coordination/run_team_discovery_wheel_gate.py
+?? .agent_tasks/team-coordination/run_workspace_policy_probe.py
+?? .agent_tasks/team-coordination/run_workspace_team_probe.py
+?? .agent_tasks/team-coordination/shell-recovery-wheel-build.log
+?? .agent_tasks/team-coordination/shell-recovery-wheel-install.log
+?? .agent_tasks/team-coordination/shell-recovery-wheel-linux.log
+?? .agent_tasks/team-coordination/source.log
+?? .agent_tasks/team-coordination/team-discovery-e2e-green.log
+?? .agent_tasks/team-coordination/team-discovery-e2e-red.log
+?? .agent_tasks/team-coordination/team-discovery-final-source.log
+?? .agent_tasks/team-coordination/team-discovery-final-wheel-build.log
+?? .agent_tasks/team-coordination/team-discovery-final-wheel-linux.log
+?? .agent_tasks/team-coordination/team-discovery-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/team-discovery-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/team-discovery-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/team-discovery-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/team-discovery-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/team-discovery-live-report.json
+?? .agent_tasks/team-coordination/team-discovery-live.log
+?? .agent_tasks/team-coordination/team-discovery-red-control.log
+?? .agent_tasks/team-coordination/team-discovery-session-source.log
+?? .agent_tasks/team-coordination/team-discovery-wheel-build.log
+?? .agent_tasks/team-coordination/team-discovery-wheel-linux.log
+?? .agent_tasks/team-coordination/wheel-build.log
+?? .agent_tasks/team-coordination/wheel-install.log
+?? .agent_tasks/team-coordination/wheel-linux.log
+?? .agent_tasks/team-coordination/workflow-discovery-final-green.log
+?? .agent_tasks/team-coordination/workflow-discovery-green.log
+?? .agent_tasks/team-coordination/workflow-discovery-red.log
+?? .agent_tasks/team-coordination/workflow-prompts-baseline.json
+?? .agent_tasks/team-coordination/workflow-prompts-candidate.json
+?? .agent_tasks/team-coordination/workflow-prompts-pre-review.json
+?? .agent_tasks/team-coordination/workspace-completion-final-wheel-build.log
+?? .agent_tasks/team-coordination/workspace-completion-final-wheel-install.log
+?? .agent_tasks/team-coordination/workspace-completion-final-wheel-linux.log
+?? .agent_tasks/team-coordination/workspace-completion-source-final.log
+?? .agent_tasks/team-coordination/workspace-completion-wheel-build.log
+?? .agent_tasks/team-coordination/workspace-completion-wheel-install.log
+?? .agent_tasks/team-coordination/workspace-completion-wheel-linux.log
+?? .agent_tasks/team-coordination/workspace-policy-after.json
+?? .agent_tasks/team-coordination/workspace-policy-after.log
+?? .agent_tasks/team-coordination/workspace-policy-before.json
+?? .agent_tasks/team-coordination/workspace-policy-before.log
+?? .agent_tasks/team-coordination/workspace-policy-setup-error.json
+?? .agent_tasks/team-coordination/workspace-policy-source.log
+?? .agent_tasks/team-coordination/workspace-policy-wheel-build.log
+?? .agent_tasks/team-coordination/workspace-policy-wheel-install.log
+?? .agent_tasks/team-coordination/workspace-policy-wheel-linux.log
+?? .agent_tasks/team-coordination/workspace-team-live-artifacts/label_cli.py
+?? .agent_tasks/team-coordination/workspace-team-live-artifacts/label_index.py
+?? .agent_tasks/team-coordination/workspace-team-live-artifacts/normalization.py
+?? .agent_tasks/team-coordination/workspace-team-live-artifacts/pyproject.toml
+?? .agent_tasks/team-coordination/workspace-team-live-artifacts/test_labels.py
+?? .agent_tasks/team-coordination/workspace-team-live-report.json
+?? .agent_tasks/team-coordination/workspace-team-live.log
+?? .agent_tasks/team-eval-runner-red.log
+?? .agent_tasks/team-evaluation-final-oracle-v2.log
+?? .agent_tasks/team-evaluation-final-oracle.log
+?? .agent_tasks/team-evaluation-final-runtime.log
+?? .agent_tasks/team-evaluation-final-source.log
+?? .agent_tasks/team-evaluation-new-runtime.log
+?? .agent_tasks/team-evaluation-runtime-source.log
+?? .agent_tasks/team-evaluation-wheel-linux-v2.log
+?? .agent_tasks/team-evaluation-wheel-linux.log
+?? .agent_tasks/team-python-live-mimo-artifacts/label_cli.py
+?? .agent_tasks/team-python-live-mimo-artifacts/label_index.py
+?? .agent_tasks/team-python-live-mimo-artifacts/normalization.py
+?? .agent_tasks/team-python-live-mimo-artifacts/pyproject.toml
+?? .agent_tasks/team-python-live-mimo-artifacts/test_labels.py
+?? .agent_tasks/team-python-live-mimo-report.json
+?? .agent_tasks/team-python-live-mimo.log
+?? .agent_tasks/team-streaming-ledger-red.log
+?? .agent_tasks/team-streaming-red.log
+?? .agent_tasks/team-streaming-source-final.log
+?? .agent_tasks/team-streaming-source.log
+?? .agent_tasks/team-streaming-wheel-linux.log
+?? .agent_tasks/tool-disclosure-8k-accounting.json
+?? .agent_tasks/tool-disclosure-broad-search.log
+?? .agent_tasks/tool-disclosure-core.log
+?? .agent_tasks/tool-disclosure-e2e.log
+?? .agent_tasks/tool-disclosure-final-wheel-build.log
+?? .agent_tasks/tool-disclosure-final-wheel-install.log
+?? .agent_tasks/tool-disclosure-final-wheel-linux.log
+?? .agent_tasks/tool-disclosure-forced-choice-red.log
+?? .agent_tasks/tool-disclosure-input-overrides-red.log
+?? .agent_tasks/tool-disclosure-red.log
+?? .agent_tasks/tool-disclosure-source.log
+?? .agent_tasks/tool-disclosure-wheel-build.log
+?? .agent_tasks/tool-disclosure-wheel-install.log
+?? .agent_tasks/tool-disclosure-wheel-linux.log
+?? .agent_tasks/tool-disclosure-workflow.log
+?? .claude/scheduled_tasks.lock
+?? .coverage.matthew-Z170X-Gaming-5.pid3311520.XQvdKXYx.H1ZZXFqvLEuh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311520.XeOUPR3x.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311546.XCzplPEx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311546.XaVu9P3x.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311565.XUFgxMax.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311565.XVcgF2Nx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311567.XG1Grcix.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311567.Xrlc877x.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311569.XJAWdoqx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311569.Xo2qfNnx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311570.XMEsLnxx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311571.XgbsQSpx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311571.Xp9bpThx.H820fYH7WxSh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311585.X5ToCESx.HgiJOssQlZ1h
+?? .coverage.matthew-Z170X-Gaming-5.pid3311585.XRW6jnHx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311605.X2sqdJ8x.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311605.XxkL1k1x.HdqETAB6xJ6h
+?? .coverage.matthew-Z170X-Gaming-5.pid3311606.X4l1vhIx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311606.XNxRNYGx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311607.XR7YjDSx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311607.XlhWr84x.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311610.X4BBx8fx.H820fYH7WxSh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311610.XNGcwzEx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311634.XAgK3EJx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3311634.XeLjamOx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312111.XBZAa6Ox.HNQHHCdzNVhh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312111.XYjcWRbx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312190.XEhRgpIx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312190.XrkOHHex.HNQHHCdzNVhh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312290.XEo1dMCx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312290.XObgw30x.HtMln1xGc7yh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312658.X8v1pcFx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312658.XCNVJmrx.Hq0l9hzJRVTh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312751.XEDg4dnx.Hq0l9hzJRVTh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312751.XXCaNUyx.HNQIp837rWOh
+?? .coverage.matthew-Z170X-Gaming-5.pid3312810.XBZ5aEVx.HNQIp837rWOh
+?? .henchman/agents/agents.json
+?? .henchman/lsp/servers.json
+?? .henchman/mcp/auth.json
+?? .henchman/ops.db
+?? .henchman/plans/verification.json
+?? .henchman/plans/verification.lock
+?? .henchman/repl/index.json
+?? .henchman/schedules/index.json
+?? .henchman/tasks/index.json
+?? .henchman/tasks/task-00836ea9854d.log
+?? .henchman/tasks/task-08e95628b801.log
+?? .henchman/tasks/task-1144c50ebb2e.log
+?? .henchman/tasks/task-11f262064812.log
+?? .henchman/tasks/task-369b28c38a16.log
+?? .henchman/tasks/task-41c6602ae8a6.log
+?? .henchman/tasks/task-4ce868d7d147.log
+?? .henchman/tasks/task-75e7bffd4813.log
+?? .henchman/tasks/task-8267a676aa0d.log
+?? .henchman/tasks/task-8d688fc9c760.log
+?? .henchman/tasks/task-a16a4bed3a19.log
+?? .henchman/tasks/task-a901ed2860dd.log
+?? .henchman/tasks/task-b015a32ac68a.log
+?? .henchman/tasks/task-c73b37149626.log
+?? .henchman/tasks/task-d2fff122f7f1.log
+?? .henchman/tasks/task-d8a8d6dffa90.log
+?? .henchman/tasks/task-d9017b23d36a.log
+?? .henchman/tasks/task-e0ce85e12012.log
+?? .henchman/tasks/task-edcaccff86ac.log
+?? .henchman/tasks/task-f46320376a04.log
+?? .henchman/tasks/task-f50d79b1cd2b.log
+?? .henchman/team/workspaces/platform-ops/bridges.json
+?? .henchman/team/workspaces/platform-ops/notifications.jsonl
+?? .henchman/team/workspaces/platform-ops/workflow_runs/release-checklist.jsonl
+?? .henchman/team/workspaces/platform-ops/workflows/release-checklist.json
+?? .henchman/team/workspaces/platform-ops/workspace.json
+?? .henchman/team/workspaces/release-squad/channels/general.jsonl
+?? .henchman/team/workspaces/release-squad/notifications.jsonl
+?? .henchman/team/workspaces/release-squad/shared/00a3ed1d-dfb7-4573-a112-f46c56d32f4d__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/04f50000-684c-4f5a-beb8-c71a45ba917b__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/1d3c13a9-8f7f-4a40-80c5-d8154e8fa6d8__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/37c8a7f1-7415-46b1-a5c6-9c728cb28b44__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/57f7cca3-ce24-4087-9b0e-434c57ab2411__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/5916208e-1c25-44cc-adb7-919cfe3395b9__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/5f07a758-d3be-408f-83e5-845ddae090d3__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/9967953d-5624-4bd4-950b-b6d75fbbca78__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/d3178e47-17cf-4b53-8f8f-2671d20a4481__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/d71d8633-f8d8-4a4f-a548-ab766062a614__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/eae7342a-36cc-484f-b938-f1b83406e475__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/ec2a675c-65a8-49b0-840c-574be97a50d7__brief.txt
+?? .henchman/team/workspaces/release-squad/shared/files.json
+?? .henchman/team/workspaces/release-squad/workspace.json
+?? .henchman/tungsten/snapshots.json
+?? .serena/project.local.yml
+?? AGENTS.md
+?? FEATURE_TODO.md
+?? HENCHMAN.md
+?? TODOS.md
+?? docs/guides/agent-workflows.md
+?? docs/plan/feature-todo-integration-20260413-171548/plan.yaml
+?? docs/plan/feature-todo-integration-20260413-171548/plan_a.yaml
+?? docs/plan/feature-todo-integration-20260413-171548/plan_b.yaml
+?? docs/plan/feature-todo-integration-20260413-171548/plan_c.yaml
+?? docs/plan/tier1-20260410-232950/plan.yaml
+?? docs/plan/tier1-20260410-232950/plan_a.yaml
+?? docs/plan/tier1-20260410-232950/plan_b.yaml
+?? docs/plan/tier1-20260410-232950/plan_c.yaml
+?? docs/plan/tier1-20260410-232950/plan_fast.yaml
+?? docs/prd.yaml
+?? docs/superpowers/plans/2026-09-03-henchman-operational-recovery.md
+?? docs/superpowers/specs/2026-09-03-operational-recovery-design.md
+?? docs/tutorials/first-session.md
+?? evals/artifact_observation.py
+?? evals/models.py
+?? evals/package_oracle.py
+?? evals/run_team.py
+?? evals/team_runtime.py
+?? evals/test_python_reuse.py
+?? evals/test_team_python_package.py
+?? evals/test_team_python_workflow.py
+?? src/henchman/advanced/__init__.py
+?? src/henchman/advanced/acceptance_checks.py
+?? src/henchman/advanced/insights.py
+?? src/henchman/advanced/plans.py
+?? src/henchman/advanced/repl.py
+?? src/henchman/advanced/schedule.py
+?? src/henchman/advanced/tasks.py
+?? src/henchman/advanced/tungsten.py
+?? src/henchman/agents/catalog.py
+?? src/henchman/agents/models.py
+?? src/henchman/agents/platform_manager.py
+?? src/henchman/analysis/__init__.py
+?? src/henchman/analysis/smells/__init__.py
+?? src/henchman/analysis/smells/base.py
+?? src/henchman/analysis/smells/deep_nesting.py
+?? src/henchman/analysis/smells/duplicates.py
+?? src/henchman/analysis/smells/long_method.py
+?? src/henchman/analysis/smells/models.py
+?? src/henchman/analysis/smells/scanner.py
+?? src/henchman/analysis/smells/symbols.py
+?? src/henchman/api/endpoints/remote.py
+?? src/henchman/api/oauth.py
+?? src/henchman/api/proxy.py
+?? src/henchman/api/remote_sessions.py
+?? src/henchman/cli/commands/agents_platform_command.py
+?? src/henchman/cli/commands/config_command.py
+?? src/henchman/cli/commands/config_redaction.py
+?? src/henchman/cli/commands/config_view_command.py
+?? src/henchman/cli/commands/config_write_command.py
+?? src/henchman/cli/commands/discovery_capabilities.py
+?? src/henchman/cli/commands/doctor_command.py
+?? src/henchman/cli/commands/doctor_core_command.py
+?? src/henchman/cli/commands/doctor_tool_command.py
+?? src/henchman/cli/commands/git_command.py
+?? src/henchman/cli/commands/goal.py
+?? src/henchman/cli/commands/help_command.py
+?? src/henchman/cli/commands/init_command.py
+?? src/henchman/cli/commands/integration_commands.py
+?? src/henchman/cli/commands/plugin_command.py
+?? src/henchman/cli/commands/pull_request_command.py
+?? src/henchman/cli/commands/session_command.py
+?? src/henchman/cli/commands/session_context_command.py
+?? src/henchman/cli/commands/skill_command.py
+?? src/henchman/cli/commands/upgrade_command.py
+?? src/henchman/cli/commands/version_command.py
+?? src/henchman/cli/commands/voice_command.py
+?? src/henchman/cli/headless.py
+?? src/henchman/cli/provider_switch.py
+?? src/henchman/cli/system_info.py
+?? src/henchman/cli/textual_questions.py
+?? src/henchman/cli/update_check.py
+?? src/henchman/config/paths.py
+?? src/henchman/config/repository.py
+?? src/henchman/core/agent_interface.py
+?? src/henchman/core/event_payloads.py
+?? src/henchman/core/goals.py
+?? src/henchman/core/request_budget.py
+?? src/henchman/core/session_context.py
+?? src/henchman/core/session_memory.py
+?? src/henchman/core/session_vcr.py
+?? src/henchman/core/tool_selection.py
+?? src/henchman/extensions/sandbox.py
+?? src/henchman/git/__init__.py
+?? src/henchman/git/clients.py
+?? src/henchman/git/github_app.py
+?? src/henchman/git/review.py
+?? src/henchman/git/workflow.py
+?? src/henchman/integrations/__init__.py
+?? src/henchman/integrations/blueprints.py
+?? src/henchman/integrations/voice.py
+?? src/henchman/lsp/__init__.py
+?? src/henchman/lsp/service.py
+?? src/henchman/mcp/auth.py
+?? src/henchman/ops/__init__.py
+?? src/henchman/ops/flags.py
+?? src/henchman/ops/migrations.py
+?? src/henchman/ops/native.py
+?? src/henchman/ops/observability.py
+?? src/henchman/ops/rate_limits.py
+?? src/henchman/ops/state.py
+?? src/henchman/ops/store.py
+?? src/henchman/ops/sync.py
+?? src/henchman/ops/updater.py
+?? src/henchman/providers/factory.py
+?? src/henchman/providers/request_budget.py
+?? src/henchman/py.typed
+?? src/henchman/skills/__init__.py
+?? src/henchman/skills/catalog.py
+?? src/henchman/team/__init__.py
+?? src/henchman/team/collaboration.py
+?? src/henchman/testing/__init__.py
+?? src/henchman/testing/contract.py
+?? src/henchman/testing/pytest_reporter.py
+?? src/henchman/testing/vcr.py
+?? src/henchman/tools/builtins/goal_status.py
+?? src/henchman/tools/builtins/tier1_tools.py
+?? src/henchman/tools/builtins/tier2_tools.py
+?? src/henchman/tools/builtins/tier5_tools.py
+?? src/henchman/tools/builtins/tier6_tools.py
+?? src/henchman/tools/formatting.py
+?? src/henchman/tools/scoped_registry.py
+?? src/henchman/tools/security/__init__.pyi
+?? src/henchman/tools/subprocess_utils.py
+?? src/henchman/utils/file_lock.py
+?? src/henchman/utils/source_files.py
+?? test_output.log
+?? tests/advanced/test_acceptance_checks.py
+?? tests/advanced/test_plan_acceptance.py
+?? tests/agents/test_active_agent_delegation.py
+?? tests/agents/test_agent_catalog.py
+?? tests/agents/test_completion_integrity.py
+?? tests/agents/test_delegation_budget_disclosure.py
+?? tests/agents/test_delegation_completion_requirements.py
+?? tests/agents/test_delegation_error_isolation.py
+?? tests/agents/test_delegation_manager_bug007_race.py
+?? tests/agents/test_delegation_manager_task_tracking.py
+?? tests/agents/test_delegation_mission_context.py
+?? tests/agents/test_delegation_policies.py
+?? tests/agents/test_delegation_result_reporting.py
+?? tests/agents/test_leader_configuration.py
+?? tests/agents/test_leader_tool_scope.py
+?? tests/agents/test_orchestrator_interruption.py
+?? tests/agents/test_orchestrator_round_budget.py
+?? tests/agents/test_orchestrator_streaming.py
+?? tests/agents/test_orchestrator_turn_transcript.py
+?? tests/agents/test_platform_manager.py
+?? tests/agents/test_pool_context_settings.py
+?? tests/agents/test_pool_provider_settings.py
+?? tests/agents/test_request_capacity.py
+?? tests/agents/test_response_completion.py
+?? tests/agents/test_run_completion_scope.py
+?? tests/agents/test_scoped_tool_discovery.py
+?? tests/agents/test_team_tool_discovery.py
+?? tests/analysis/test_quality_scan_limits.py
+?? tests/analysis/test_smell_detectors.py
+?? tests/api/test_bug036_auth.py
+?? tests/api/test_bug037_remote_session.py
+?? tests/api/test_bug038_sse_header.py
+?? tests/api/test_bug039_messages_constraint.py
+?? tests/api/test_bug040_rate_limiter.py
+?? tests/api/test_configured_provider.py
+?? tests/api/test_tier8_remote_api.py
+?? tests/chat/test_chat_bug042_silent_failures.py
+?? tests/chat/test_chat_bug044_typing_refresh.py
+?? tests/chat/test_chat_bug046_empty_content.py
+?? tests/chat/test_chat_bug048_auto_approve_wiring.py
+?? tests/chat/test_configured_provider.py
+?? tests/chat/test_discord_bot_bug041_fetch_user_cache.py
+?? tests/chat/test_discord_bot_bug045_code_block_split.py
+?? tests/chat/test_discord_bot_bug047_group_dm.py
+?? tests/cli/commands/test_goal.py
+?? tests/cli/commands/test_model_context.py
+?? tests/cli/commands/test_model_large_context.py
+?? tests/cli/test_active_provider_display.py
+?? tests/cli/test_actor_tool_scope.py
+?? tests/cli/test_agents_platform_command.py
+?? tests/cli/test_background_discovery.py
+?? tests/cli/test_chat_session_reasoning.py
+?? tests/cli/test_completion_rendering.py
+?? tests/cli/test_config_command.py
+?? tests/cli/test_config_view_command.py
+?? tests/cli/test_config_write_command.py
+?? tests/cli/test_console_entrypoint.py
+?? tests/cli/test_core_init_bug008_mcp_task.py
+?? tests/cli/test_doctor_command.py
+?? tests/cli/test_doctor_core_command.py
+?? tests/cli/test_doctor_tool_command.py
+?? tests/cli/test_headless_loop.py
+?? tests/cli/test_headless_orchestration.py
+?? tests/cli/test_headless_team_streaming.py
+?? tests/cli/test_help_command.py
+?? tests/cli/test_init_command.py
+?? tests/cli/test_integration_commands.py
+?? tests/cli/test_key_monitor_input.py
+?? tests/cli/test_leader_provider_switch.py
+?? tests/cli/test_output_handler_bug010_bg_tasks.py
+?? tests/cli/test_plugin_command.py
+?? tests/cli/test_provider_selection.py
+?? tests/cli/test_provider_switch.py
+?? tests/cli/test_question_monitor.py
+?? tests/cli/test_repl_background_goals.py
+?? tests/cli/test_repl_chat_ui.py
+?? tests/cli/test_repl_exception_logging.py
+?? tests/cli/test_repl_questions.py
+?? tests/cli/test_repl_turn_persistence.py
+?? tests/cli/test_serve_command.py
+?? tests/cli/test_session_command.py
+?? tests/cli/test_session_context_command.py
+?? tests/cli/test_session_roundtrip.py
+?? tests/cli/test_skill_command.py
+?? tests/cli/test_stream_interruption.py
+?? tests/cli/test_switch_context_limit.py
+?? tests/cli/test_system_info.py
+?? tests/cli/test_textual_background_goals.py
+?? tests/cli/test_textual_question_channel.py
+?? tests/cli/test_tier10_textual_ui.py
+?? tests/cli/test_tier4_commands.py
+?? tests/cli/test_tool_executor_asyncio_gather.py
+?? tests/cli/test_tool_manager_tier1.py
+?? tests/cli/test_tui_bugs_028_035.py
+?? tests/cli/test_upgrade_command.py
+?? tests/cli/test_user_input_discovery.py
+?? tests/cli/test_version_command.py
+?? tests/cli/test_workflow_discovery.py
+?? tests/config/test_agent_overrides.py
+?? tests/config/test_bug014_env_var_handling.py
+?? tests/config/test_bug015_numeric_bounds.py
+?? tests/config/test_bug016_rag_overlap.py
+?? tests/config/test_bug017_mcp_command_empty.py
+?? tests/config/test_integration_settings.py
+?? tests/config/test_package_surface.py
+?? tests/config/test_paths.py
+?? tests/config/test_settings_repository_core.py
+?? tests/config/test_settings_repository_sync.py
+?? tests/contracts/__init__.py
+?? tests/contracts/conftest.py
+?? tests/contracts/helpers.py
+?? tests/contracts/schemas/advanced/cron_schedule.json
+?? tests/contracts/schemas/advanced/plan_record.json
+?? tests/contracts/schemas/advanced/repl_session.json
+?? tests/contracts/schemas/advanced/task_record.json
+?? tests/contracts/schemas/advanced/tungsten_snapshot.json
+?? tests/contracts/schemas/agents/agent_definition.json
+?? tests/contracts/schemas/agents/agent_installation.json
+?? tests/contracts/schemas/agents/agent_loop_params.json
+?? tests/contracts/schemas/agents/agent_publication.json
+?? tests/contracts/schemas/agents/agent_search_params.json
+?? tests/contracts/schemas/agents/agent_search_result.json
+?? tests/contracts/schemas/agents/agent_update_info.json
+?? tests/contracts/schemas/agents/completion_status.json
+?? tests/contracts/schemas/agents/delegation_execution_params.json
+?? tests/contracts/schemas/agents/delegation_params.json
+?? tests/contracts/schemas/api/chat_request.json
+?? tests/contracts/schemas/api/chat_response.json
+?? tests/contracts/schemas/api/chat_stream_chunk.json
+?? tests/contracts/schemas/api/error_response.json
+?? tests/contracts/schemas/api/health_response.json
+?? tests/contracts/schemas/api/metrics_response.json
+?? tests/contracts/schemas/api/oauth_authorize_response.json
+?? tests/contracts/schemas/api/oauth_token_response.json
+?? tests/contracts/schemas/api/remote_session_response.json
+?? tests/contracts/schemas/api/usage_response.json
+?? tests/contracts/schemas/chat/chat_message.json
+?? tests/contracts/schemas/cli/autofix_report.json
+?? tests/contracts/schemas/cli/branch_info.json
+?? tests/contracts/schemas/cli/branch_operation.json
+?? tests/contracts/schemas/cli/command_result.json
+?? tests/contracts/schemas/cli/comment_draft.json
+?? tests/contracts/schemas/cli/comment_reply_result.json
+?? tests/contracts/schemas/cli/commit_suggestion.json
+?? tests/contracts/schemas/cli/github_app_install_record.json
+?? tests/contracts/schemas/cli/pull_request_comment.json
+?? tests/contracts/schemas/cli/pull_request_workflow_result.json
+?? tests/contracts/schemas/cli/review_report.json
+?? tests/contracts/schemas/config/agent_config.json
+?? tests/contracts/schemas/config/agent_settings.json
+?? tests/contracts/schemas/config/api_config.json
+?? tests/contracts/schemas/config/context_settings.json
+?? tests/contracts/schemas/config/discord_settings.json
+?? tests/contracts/schemas/config/mcp_server_config.json
+?? tests/contracts/schemas/config/provider_settings.json
+?? tests/contracts/schemas/config/rag_settings.json
+?? tests/contracts/schemas/config/settings.json
+?? tests/contracts/schemas/config/slack_settings.json
+?? tests/contracts/schemas/config/tool_settings.json
+?? tests/contracts/schemas/config/ui_settings.json
+?? tests/contracts/schemas/config/voice_settings.json
+?? tests/contracts/schemas/context/compaction_result.json
+?? tests/contracts/schemas/extensions/plugin_database_record.json
+?? tests/contracts/schemas/extensions/plugin_installation.json
+?? tests/contracts/schemas/extensions/plugin_metadata.json
+?? tests/contracts/schemas/extensions/plugin_search_params.json
+?? tests/contracts/schemas/extensions/plugin_search_result.json
+?? tests/contracts/schemas/extensions/plugin_update_info.json
+?? tests/contracts/schemas/extensions/security_report.json
+?? tests/contracts/schemas/integrations/blueprint.json
+?? tests/contracts/schemas/integrations/voice_runtime.json
+?? tests/contracts/schemas/knowledge/entity.json
+?? tests/contracts/schemas/knowledge/important_entity_rank.json
+?? tests/contracts/schemas/knowledge/observation.json
+?? tests/contracts/schemas/knowledge/relation.json
+?? tests/contracts/schemas/mcp/tool_definition.json
+?? tests/contracts/schemas/mcp/tool_result.json
+?? tests/contracts/schemas/metrics/orchestrator_metrics.json
+?? tests/contracts/schemas/metrics/performance_metric.json
+?? tests/contracts/schemas/metrics/performance_metrics.json
+?? tests/contracts/schemas/metrics/quality_metrics.json
+?? tests/contracts/schemas/metrics/token_metric.json
+?? tests/contracts/schemas/metrics/tool_metrics.json
+?? tests/contracts/schemas/ops/analytics_event.json
+?? tests/contracts/schemas/ops/app_state.json
+?? tests/contracts/schemas/ops/cost_summary.json
+?? tests/contracts/schemas/ops/diagnostic_event.json
+?? tests/contracts/schemas/ops/flag_state.json
+?? tests/contracts/schemas/ops/ops_event.json
+?? tests/contracts/schemas/ops/remote_event.json
+?? tests/contracts/schemas/ops/remote_session.json
+?? tests/contracts/schemas/ops/telemetry_event.json
+?? tests/contracts/schemas/providers.py
+?? tests/contracts/schemas/providers/message.json
+?? tests/contracts/schemas/providers/stream_chunk.json
+?? tests/contracts/schemas/providers/tool_call.json
+?? tests/contracts/schemas/providers/tool_declaration.json
+?? tests/contracts/schemas/rag/chunk.json
+?? tests/contracts/schemas/rag/index_manifest.json
+?? tests/contracts/schemas/rag/index_stats.json
+?? tests/contracts/schemas/rag/search_result.json
+?? tests/contracts/schemas/runtime/action_entry.json
+?? tests/contracts/schemas/runtime/agent_event.json
+?? tests/contracts/schemas/runtime/checklist_item.json
+?? tests/contracts/schemas/runtime/decision_entry.json
+?? tests/contracts/schemas/runtime/delegation_record.json
+?? tests/contracts/schemas/runtime/delegation_task_state.json
+?? tests/contracts/schemas/runtime/mcp_tool_definition.json
+?? tests/contracts/schemas/runtime/mcp_tool_result.json
+?? tests/contracts/schemas/runtime/message.json
+?? tests/contracts/schemas/runtime/problem_entry.json
+?? tests/contracts/schemas/runtime/progress_counts.json
+?? tests/contracts/schemas/runtime/session.json
+?? tests/contracts/schemas/runtime/session_message.json
+?? tests/contracts/schemas/runtime/session_metadata.json
+?? tests/contracts/schemas/runtime/stream_chunk.json
+?? tests/contracts/schemas/runtime/task_ledger.json
+?? tests/contracts/schemas/runtime/tool_call.json
+?? tests/contracts/schemas/runtime/tool_declaration.json
+?? tests/contracts/schemas/runtime/tool_result.json
+?? tests/contracts/schemas/runtime/turn_summary_record.json
+?? tests/contracts/schemas/runtime/working_memory.json
+?? tests/contracts/schemas/runtime/working_memory_entry.json
+?? tests/contracts/schemas/skills/native_yaml.json
+?? tests/contracts/schemas/skills/skill_definition.json
+?? tests/contracts/schemas/team/shared_file_record.json
+?? tests/contracts/schemas/team/team_message_record.json
+?? tests/contracts/schemas/team/team_workspace_record.json
+?? tests/contracts/schemas/team/workflow_definition_record.json
+?? tests/contracts/schemas/team/workflow_run_record.json
+?? tests/contracts/schemas/vcr/cassette.json
+?? tests/contracts/test_advanced_contracts.py
+?? tests/contracts/test_advanced_provider_verification.py
+?? tests/contracts/test_advanced_service_contracts.py
+?? tests/contracts/test_agent_contracts.py
+?? tests/contracts/test_agent_event_contract.py
+?? tests/contracts/test_agent_pool_contracts.py
+?? tests/contracts/test_all_tool_contracts.py
+?? tests/contracts/test_anthropic_provider_contract.py
+?? tests/contracts/test_api_contracts.py
+?? tests/contracts/test_catalog_contracts.py
+?? tests/contracts/test_chat_contracts.py
+?? tests/contracts/test_chat_manager_contracts.py
+?? tests/contracts/test_cli_boundary_contracts.py
+?? tests/contracts/test_config_context_contracts.py
+?? tests/contracts/test_config_contracts.py
+?? tests/contracts/test_content_rendering_contract.py
+?? tests/contracts/test_context_contracts.py
+?? tests/contracts/test_contract_suite.py
+?? tests/contracts/test_deepseek_provider_contract.py
+?? tests/contracts/test_delegation_contracts.py
+?? tests/contracts/test_delegation_manager_contracts.py
+?? tests/contracts/test_eventbus_contracts.py
+?? tests/contracts/test_extension_contracts.py
+?? tests/contracts/test_git_contracts.py
+?? tests/contracts/test_integration_contracts.py
+?? tests/contracts/test_knowledge_contracts.py
+?? tests/contracts/test_knowledge_store_contracts.py
+?? tests/contracts/test_ledger_contracts.py
+?? tests/contracts/test_lsp_contracts.py
+?? tests/contracts/test_mcp_contracts.py
+?? tests/contracts/test_metrics_contracts.py
+?? tests/contracts/test_ollama_provider_contract.py
+?? tests/contracts/test_openai_provider_contract.py
+?? tests/contracts/test_openrouter_provider_contract.py
+?? tests/contracts/test_ops_contracts.py
+?? tests/contracts/test_protocol_contracts.py
+?? tests/contracts/test_provider_contracts.py
+?? tests/contracts/test_provider_registry_contracts.py
+?? tests/contracts/test_rag_contracts.py
+?? tests/contracts/test_runtime_contracts.py
+?? tests/contracts/test_security_contracts.py
+?? tests/contracts/test_serialization_contract.py
+?? tests/contracts/test_session_contracts.py
+?? tests/contracts/test_skill_catalog_contracts.py
+?? tests/contracts/test_skill_contracts.py
+?? tests/contracts/test_team_contracts.py
+?? tests/contracts/test_tool_contracts.py
+?? tests/contracts/test_tool_executor_contracts.py
+?? tests/contracts/test_utils_contracts.py
+?? tests/contracts/test_vcr_contracts.py
+?? tests/contracts/test_working_memory_contracts.py
+?? tests/contracts/verify_provider.py
+?? tests/core/test_agent_interface_contract.py
+?? tests/core/test_agent_stall_lifecycle.py
+?? tests/core/test_agent_streaming.py
+?? tests/core/test_eventbus_unsubscribe.py
+?? tests/core/test_goals.py
+?? tests/core/test_request_budget.py
+?? tests/core/test_session_tier2_services.py
+?? tests/core/test_stream_cancellation.py
+?? tests/core/test_tool_call_validation.py
+?? tests/core/test_tool_disclosure.py
+?? tests/core/test_turn_transcript.py
+?? tests/e2e/test_coding_loop.py
+?? tests/e2e/test_context_tool_discovery.py
+?? tests/e2e/test_headless_team.py
+?? tests/e2e/test_leader_requests.py
+?? tests/e2e/test_team_mission_context.py
+?? tests/e2e/test_team_verification_routing.py
+?? tests/extensions/test_manager_tracebacks.py
+?? tests/extensions/test_plugin_installer_bug011_zip_tar_slip.py
+?? tests/extensions/test_plugin_installer_bug012_ssrf.py
+?? tests/extensions/test_plugin_sandbox.py
+?? tests/extensions/test_runtime_plugin_manager.py
+?? tests/git/test_tier4_services.py
+?? tests/integrations/test_blueprints.py
+?? tests/lsp/test_lsp_subprocess_cleanup.py
+?? tests/ops/test_tier8_services.py
+?? tests/providers/stream_helpers.py
+?? tests/providers/test_anthropic_stream_safety.py
+?? tests/providers/test_factory.py
+?? tests/providers/test_keyless_compatibility.py
+?? tests/providers/test_request_budget.py
+?? tests/providers/test_required_tool_schemas.py
+?? tests/providers/test_stream_lifecycle.py
+?? tests/providers/test_stream_safety.py
+?? tests/rag/test_concurrency_platforms.py
+?? tests/rag/test_repo_id_silent_failures.py
+?? tests/skills/test_catalog.py
+?? tests/team/test_collaboration_services.py
+?? tests/team/test_workflow_execution_truth.py
+?? tests/testing/installed_wheel_smoke.py
+?? tests/testing/test_artifact_observation.py
+?? tests/testing/test_counter_eval_contract.py
+?? tests/testing/test_edit_eval_contract.py
+?? tests/testing/test_eval_helpers.py
+?? tests/testing/test_eval_profiles.py
+?? tests/testing/test_eval_tool_observations.py
+?? tests/testing/test_installed_wheel_smoke.py
+?? tests/testing/test_package_oracle.py
+?? tests/testing/test_pytest_reporter.py
+?? tests/testing/test_smoke_entry_points.py
+?? tests/testing/test_team_environment_context.py
+?? tests/testing/test_team_eval_profile.py
+?? tests/testing/test_team_eval_runner.py
+?? tests/testing/test_team_package_scenario.py
+?? tests/testing/test_team_workflow_oracle.py
+?? tests/testing/test_tier10_documentation.py
+?? tests/testing/test_tier8_quality.py
+?? tests/testing/test_tier9_documentation.py
+?? tests/tools/test_automatic_formatting.py
+?? tests/tools/test_background_execution.py
+?? tests/tools/test_bounded_subprocess.py
+?? tests/tools/test_edit_recovery.py
+?? tests/tools/test_lint_fix_policy.py
+?? tests/tools/test_live_tool_scopes.py
+?? tests/tools/test_numbered_file_read.py
+?? tests/tools/test_python_exec_recovery.py
+?? tests/tools/test_python_quality.py
+?? tests/tools/test_python_verification_integrity.py
+?? tests/tools/test_registry_formatting.py
+?? tests/tools/test_schema_discovery.py
+?? tests/tools/test_security.py
+?? tests/tools/test_security_bug013_shell_injection.py
+?? tests/tools/test_shell_portability.py
+?? tests/tools/test_shell_quoted_python.py
+?? tests/tools/test_shell_recovery_guidance.py
+?? tests/tools/test_tier2_tools.py
+?? tests/tools/test_tier5_tools.py
+?? tests/tools/test_tier6_lsp_schedule_tools.py
+?? tests/tools/test_tier6_mcp_tools.py
+?? tests/tools/test_tier6_repl_plan_tools.py
+?? tests/tools/test_tier6_task_tools.py
+?? tests/tools/test_tier6_tungsten_services.py
+?? tests/utils/test_compaction_silent_failures.py
+?? tests/utils/test_file_lock.py
+?? tests/utils/test_source_files.py
+?? tmp-wave-check/settings-export.json
+?? tmp-wave-check/workspace/.henchman/settings.yaml
+?? tmp-wave-secrets/review-check/.henchman/settings.yaml
+?? tmp-wave-secrets/review-check2/.henchman/settings.yaml
+?? tmp-wave-secrets/review-check3/.henchman/settings.yaml
+?? tmp-wave-secrets/review-check4/bad.yaml
+?? tmp-wave-secrets/settings-import.yaml

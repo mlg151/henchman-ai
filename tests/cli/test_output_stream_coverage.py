@@ -206,7 +206,7 @@ class TestStreamEventHandlers:
         oh = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
-            data={"agent": "engineer", "summary": "done"},
+            data={"agent": "engineer", "status": "completed", "summary": "done"},
         )
         _handle_agent_completed(oh, event)
         oh.muted.assert_called()
@@ -427,6 +427,7 @@ class TestOutputHandlerCoverage:
             with patch.object(oh, "_safe_create_task") as mock_task:
                 oh.start_background_indexing()
                 mock_task.assert_called_once()
+                mock_task.call_args.args[0].close()
 
         asyncio.run(_run())
 
@@ -569,10 +570,10 @@ class TestToolExecutorCoverage:
             "read_file": read_tool,
             "shell": shell_tool,
         }.get(name)
-        executor.tool_manager.registry._auto_approve_policies = {"read_file"}
+        executor.tool_manager.registry.is_auto_approved.side_effect = lambda name: name == "read_file"
 
         to_parallel, to_sequential = executor._split_tools_by_confirmation_requirement(
-            [tc_auto, tc_confirm]
+            [tc_auto, tc_confirm], executor.tool_manager.registry,
         )
         assert tc_auto in to_parallel
         assert tc_confirm in to_sequential
@@ -586,6 +587,7 @@ class TestToolExecutorCoverage:
         result.success = True
         result.error = None
         executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry = executor.tool_manager.registry
         tc = ToolCall(id="tc-1", name="read_file", arguments={"path": "/tmp/f.txt"})
         responded_ids: set[str] = set()
         await executor._execute_and_record_tool_call(tc, agent, responded_ids)
@@ -600,6 +602,7 @@ class TestToolExecutorCoverage:
         result.success = False
         result.error = "Permission denied"
         executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry = executor.tool_manager.registry
         tc = ToolCall(id="tc-1", name="write_file", arguments={})
         responded_ids: set[str] = set()
         await executor._execute_and_record_tool_call(tc, agent, responded_ids)
@@ -629,6 +632,7 @@ class TestToolExecutorCoverage:
         result.success = True
         result.error = None
         executor.tool_manager.registry.execute = AsyncMock(return_value=result)
+        agent.tool_registry = executor.tool_manager.registry
 
         async def _continue_stream():
             if False:

@@ -1,0 +1,39 @@
+{
+  "$id": "henchman/contracts/config/api-config/v1",
+  "title": "ApiConfig",
+  "description": "Shape contract for the serialised ApiConfig model.",
+  "type": "object",
+  "required": ["require_auth", "api_keys", "rate_limits", "cors"],
+  "properties": {
+    "require_auth": {
+      "type": "boolean",
+      "description": "Whether API authentication is required"
+    },
+    "api_keys": {
+      "type": "array",
+      "description": "List of valid API keys",
+      "items": { "type": "string" }
+    },
+    "rate_limits": {
+      "type": "object",
+      "description": "Rate limit configuration",
+      "additionalProperties": { "type": "string" }
+    },
+    "cors": {
+      "type": "object",
+      "description": "CORS configuration",
+      "additionalProperties": true
+    },
+    "proxy": {
+      "type": "object",
+      "description": "Optional upstream proxy configuration",
+      "additionalProperties": true
+    },
+    "oauth": {
+      "type": "object",
+      "description": "OAuth metadata for remote integrations",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

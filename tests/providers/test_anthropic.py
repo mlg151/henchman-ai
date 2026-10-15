@@ -364,15 +364,13 @@ class TestAnthropicStreaming:
 
         with patch.object(provider._client.messages, "stream", return_value=mock_stream):
             chunks = []
-            async for chunk in provider.chat_completion_stream(
-                [Message(role="user", content="Call broken tool")]
-            ):
-                chunks.append(chunk)
+            with pytest.raises(ValueError):
+                async for chunk in provider.chat_completion_stream(
+                    [Message(role="user", content="Call broken tool")]
+                ):
+                    chunks.append(chunk)
 
-        # Should still work, with empty arguments
-        finish_chunks = [c for c in chunks if c.tool_calls]
-        assert len(finish_chunks) == 1
-        assert finish_chunks[0].tool_calls[0].arguments == {}
+        assert not any(chunk.tool_calls for chunk in chunks)
 
     @pytest.mark.anyio
     async def test_chat_completion_with_system_message(self) -> None:

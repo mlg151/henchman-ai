@@ -37,6 +37,7 @@ class TestToolCallHandling:
 
         # Mock agent with all required attributes
         repl.agent = Mock(spec=Agent)
+        repl.agent.tool_registry = repl.tool_registry
 
         # Mock turn attribute (TurnState object)
         turn_mock = Mock()
@@ -134,6 +135,7 @@ class TestToolDisplayFormatting:
                 yield
 
         repl_with_mock_display.agent = Mock(spec=Agent)
+        repl_with_mock_display.agent.tool_registry = repl_with_mock_display.tool_registry
 
         # Mock turn attribute
         turn_mock = Mock()

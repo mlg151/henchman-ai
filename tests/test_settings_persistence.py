@@ -26,8 +26,7 @@ def test_settings_persistence():
 
         # Verify file exists
         if not test_path.exists():
-            print("❌ File was not created")
-            return False
+            raise AssertionError("File was not created")
 
         # Verify content
         print("Reading back settings...")
@@ -35,21 +34,21 @@ def test_settings_persistence():
             data = yaml.safe_load(f)
 
         if data.get("ui", {}).get("theme") != "dracula":
-            print(f"❌ Theme mismatch. Expected 'dracula', got {data.get('ui', {}).get('theme')}")
-            return False
+            raise AssertionError(
+                f"Theme mismatch. Expected 'dracula', got {data.get('ui', {}).get('theme')}"
+            )
 
         if data.get("ui", {}).get("show_line_numbers") is not False:
-            print(
-                f"❌ show_line_numbers mismatch. Expected False, got {data.get('ui', {}).get('show_line_numbers')}"
+            raise AssertionError(
+                "show_line_numbers mismatch. Expected False, got "
+                f"{data.get('ui', {}).get('show_line_numbers')}"
             )
-            return False
 
         print("✅ Settings persisted correctly")
-        return True
 
     except Exception as e:
         print(f"❌ Exception: {e}")
-        return False
+        raise
     finally:
         # Cleanup
         if test_path.exists():
@@ -57,5 +56,5 @@ def test_settings_persistence():
 
 
 if __name__ == "__main__":
-    success = test_settings_persistence()
-    sys.exit(0 if success else 1)
+    test_settings_persistence()
+    sys.exit(0)

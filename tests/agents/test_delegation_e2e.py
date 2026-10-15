@@ -316,6 +316,9 @@ class TestDelegateTaskEndToEnd:
             settings=settings,
         )
 
+        # Grant nested delegation explicitly so this exercises the depth guard.
+        orchestrator.pool.configs["explorer"].tools.append("delegate_task")
+
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Build a feature"):
             events.append(event)
@@ -689,11 +692,11 @@ class TestDelegateTaskEndToEnd:
         assert orchestrator.ledger.goal == "Fix the auth bug and test it"
         assert len(orchestrator.ledger.delegations) == 2
 
-        # Both should be completed
+        # Neither specialist used tools; unsupported claims must remain failed.
         from henchman.agents.ledger import DelegationStatus
 
-        assert orchestrator.ledger.delegations[0].status == DelegationStatus.COMPLETED
-        assert orchestrator.ledger.delegations[1].status == DelegationStatus.COMPLETED
+        assert orchestrator.ledger.delegations[0].status == DelegationStatus.FAILED
+        assert orchestrator.ledger.delegations[1].status == DelegationStatus.FAILED
 
         # Tech Lead's messages should contain the ledger text.
         # The 3rd provider call (index 2) is Tech Lead after first delegation.
@@ -701,12 +704,12 @@ class TestDelegateTaskEndToEnd:
         tl_messages_after_first = provider.call_log[2]
         tool_msgs = [m for m in tl_messages_after_first if m.role == "tool"]
         assert any("TASK LEDGER" in (m.content or "") for m in tool_msgs)
-        # First ledger should show 1 done
+        # First ledger should show the failed delegation.
         first_tool = next(m for m in tool_msgs if "TASK LEDGER" in (m.content or ""))
-        assert "1 done" in first_tool.content
+        assert "1 failed" in first_tool.content
 
         # After second delegation (call_log[4] = Tech Lead final turn),
-        # ledger should show 2 done. Use the LAST tool msg with a ledger.
+        # ledger should show 2 failed. Use the LAST tool msg with a ledger.
         tl_messages_after_second = provider.call_log[4]
         tool_msgs_2 = [
             m
@@ -714,7 +717,7 @@ class TestDelegateTaskEndToEnd:
             if m.role == "tool" and "TASK LEDGER" in (m.content or "")
         ]
         assert len(tool_msgs_2) >= 2
-        assert "2 done" in tool_msgs_2[-1].content
+        assert "2 failed" in tool_msgs_2[-1].content
 
     async def test_ledger_tracks_failed_delegation(
         self,

@@ -1,0 +1,35 @@
+{
+  "$id": "henchman/contracts/config/discord-settings/v1",
+  "title": "DiscordSettings",
+  "description": "Shape contract for the serialised DiscordSettings model.",
+  "type": "object",
+  "required": ["enabled", "token", "allowed_user_id", "allowed_channel_ids", "mention_only", "system_prompt"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether the Discord bot is enabled"
+    },
+    "token": {
+      "type": ["string", "null"],
+      "description": "Discord bot token (or env var reference)"
+    },
+    "allowed_user_id": {
+      "type": ["string", "null"],
+      "description": "Discord user ID authorized to use the bot"
+    },
+    "allowed_channel_ids": {
+      "type": "array",
+      "description": "Optional allowlist of Discord channel IDs",
+      "items": { "type": "string" }
+    },
+    "mention_only": {
+      "type": "boolean",
+      "description": "Whether guild messages must mention the bot"
+    },
+    "system_prompt": {
+      "type": ["string", "null"],
+      "description": "Custom system prompt for Discord conversations"
+    }
+  },
+  "additionalProperties": false
+}

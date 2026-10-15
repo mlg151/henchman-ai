@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -71,8 +72,6 @@ class TestSaveSettingsJson:
 
 def patch_env(key: str, value: str):
     """Context manager to temporarily set an env variable."""
-    import contextlib
-
     @contextlib.contextmanager
     def _ctx():
         old = os.environ.get(key)
@@ -96,7 +95,5 @@ class TestSaveSettingsDefaultPath:
         settings = Settings()
         # Call save_settings with no path; it will write to ~/.henchman/settings.yaml.
         # We just need line 181 to execute; no assertion on file contents needed.
-        try:
+        with contextlib.suppress(Exception):
             save_settings(settings, path=None)
-        except Exception:  # noqa: BLE001
-            pass  # We only care that line 181 was reached

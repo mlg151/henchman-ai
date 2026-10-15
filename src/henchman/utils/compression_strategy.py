@@ -93,7 +93,7 @@ def _collect_code_block_messages(
         for idx in cluster
         if idx < len(messages)
         and messages[idx].content
-        and any(marker in messages[idx].content for marker in code_markers)
+        and any(marker in (messages[idx].content or "") for marker in code_markers)
     ]
 
 

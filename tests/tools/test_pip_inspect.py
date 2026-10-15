@@ -33,15 +33,14 @@ class TestPipInspectTool:
         tool = PipInspectTool()
         result = await tool.execute()
         assert result.success is True
-        # pip itself should be present
-        assert "pip" in result.content.lower()
+        assert "henchman-ai" in result.content.lower()
 
     async def test_inspect_specific_package(self) -> None:
         """Inspect a specific installed package."""
         tool = PipInspectTool()
-        result = await tool.execute(package="pip")
+        result = await tool.execute(package="henchman-ai")
         assert result.success is True
-        assert "pip" in result.content.lower()
+        assert "henchman-ai" in result.content.lower()
         # Should include version info
         assert "version" in result.content.lower() or "." in result.content
 
@@ -98,3 +97,21 @@ class TestPipInspectTool:
             result = await tool.execute()
             assert result.success is True
             assert "No packages" in result.content
+
+    async def test_falls_back_to_metadata_without_pip(self) -> None:
+        """A seedless virtual environment remains inspectable."""
+        from unittest.mock import AsyncMock, patch
+
+        with patch(
+            "henchman.tools.builtins.pip_inspect._run_pip_command",
+            new=AsyncMock(return_value=(b"", b"No module named pip", 1)),
+        ):
+            listed = await PipInspectTool().execute()
+            inspected = await PipInspectTool().execute(package="henchman-ai")
+            missing = await PipInspectTool().execute(package="nonexistent_fake_package_xyz")
+
+        assert listed.success is True
+        assert "henchman-ai" in listed.content.lower()
+        assert inspected.success is True
+        assert "Version:" in inspected.content
+        assert missing.success is False

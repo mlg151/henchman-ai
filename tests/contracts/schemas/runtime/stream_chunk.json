@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/stream-chunk/v1",
+  "type": "object",
+  "required": ["content", "tool_calls", "finish_reason", "thinking", "usage"],
+  "properties": {
+    "content": { "type": ["string", "null"] },
+    "tool_calls": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "arguments"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "arguments": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "finish_reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["stop", "tool_calls", "length", "content_filter"]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "thinking": { "type": ["string", "null"] },
+    "usage": { "type": ["object", "null"] }
+  },
+  "additionalProperties": false
+}

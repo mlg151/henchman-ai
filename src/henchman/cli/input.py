@@ -24,11 +24,13 @@ if TYPE_CHECKING:
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 # Timing constants for key monitoring loops
 _KEY_POLL_INTERVAL_SECS: float = 0.01
 _SUSPEND_WAIT_SECS: float = 0.1
+# Match prompt_toolkit.Application.ttimeoutlen for ambiguous VT escape prefixes.
+_ESCAPE_SEQUENCE_TIMEOUT_SECS: float = 0.5
 
 
 def is_slash_command(text: str) -> bool:
@@ -380,18 +382,27 @@ class KeyMonitor:
         try:
             with self.input.raw_mode():
                 self._in_raw_mode = True
-                with self.input.attach(lambda: None):
-                    await self._active_monitoring_loop()
+                input_ready = asyncio.Event()
+                with self.input.attach(input_ready.set):
+                    await self._active_monitoring_loop(input_ready)
         finally:
             self._in_raw_mode = False
             if not self._suspended.is_set():
                 await asyncio.sleep(_SUSPEND_WAIT_SECS)
 
-    async def _active_monitoring_loop(self: Self) -> None:
-        """Active monitoring loop that reads and processes keys."""
+    async def _active_monitoring_loop(self: Self, input_ready: asyncio.Event) -> None:
+        """Read keys and flush incomplete escape sequences after input goes idle."""
+        loop = asyncio.get_running_loop()
+        flush_at: float | None = None
         while self._should_continue_monitoring():
-            keys = self.input.read_keys()
-            self._process_keys(keys)
+            if input_ready.is_set():
+                input_ready.clear()
+                self._process_keys(self.input.read_keys())
+                # Reset on raw input, even if a partial sequence yields no keys.
+                flush_at = loop.time() + _ESCAPE_SEQUENCE_TIMEOUT_SECS
+            elif flush_at is not None and loop.time() >= flush_at:
+                self._process_keys(self.input.flush_keys())
+                flush_at = None
             await asyncio.sleep(_KEY_POLL_INTERVAL_SECS)
 
     def _should_continue_monitoring(self: Self) -> bool:

@@ -79,12 +79,12 @@ def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]
     """
     definitions: dict[str, tuple[str, int]] = {}
     for node in ast.iter_child_nodes(tree):
-        node_name = node.name if hasattr(node, "name") else ""  # type: ignore[union-attr]
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            node_name = node.name
             if not node_name.startswith(_PRIVATE_PREFIX):
                 definitions[node_name] = ("function", node.lineno)
-        elif isinstance(node, ast.ClassDef) and not node_name.startswith(_PRIVATE_PREFIX):
-            definitions[node_name] = ("class", node.lineno)
+        elif isinstance(node, ast.ClassDef) and not node.name.startswith(_PRIVATE_PREFIX):
+            definitions[node.name] = ("class", node.lineno)
     return definitions
 
 
@@ -469,7 +469,7 @@ class DeadCodeTool(Tool):
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: DeadCodeTool,
         **params: object,
     ) -> ToolResult:
@@ -643,4 +643,3 @@ class DeadCodeTool(Tool):
             content=header + "\n\n".join(all_findings),
             success=True,
         )
-

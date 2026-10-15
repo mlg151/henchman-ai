@@ -8,6 +8,7 @@ test_shell_sudo_logic.py files.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import errno as errno_module
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -128,7 +129,9 @@ class TestForceClosePipes:
         mock_process = MagicMock()
         mock_process._transport = MagicMock(side_effect=Exception("fail"))
         # _transport itself raises when accessed
-        type(mock_process)._transport = property(lambda self: (_ for _ in ()).throw(Exception("fail")))  # noqa: E731
+        type(mock_process)._transport = property(
+            lambda _self: (_ for _ in ()).throw(Exception("fail"))  # noqa: E731
+        )
         _force_close_pipes(mock_process)  # Should not raise
 
 
@@ -196,10 +199,8 @@ class TestDrainReaders:
             result = await _drain_readers(task)
         assert result is False
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
 
 # ---------------------------------------------------------------------------
@@ -476,7 +477,7 @@ class TestRunSudoWithPty:
 
         long_output = "x" * (MAX_OUTPUT_CHARS + 500)
 
-        def fake_drain_pty(fd: int, accumulator: list[str]) -> None:
+        def fake_drain_pty(_fd: int, accumulator: list[str]) -> None:
             accumulator.append(long_output)
 
         with (
@@ -545,7 +546,7 @@ class TestShellToolExecuteValidation:
         """CommandInjectionError in sanitize_command returns error result."""
         tool = ShellTool()
         # Backtick substitution triggers CommandInjectionError
-        result = await tool.execute(command="echo `id`")
+        result = await tool.execute(background=False, command="echo `id`")
         assert result.success is False
         assert "Security validation failed" in result.content
 
@@ -553,7 +554,7 @@ class TestShellToolExecuteValidation:
     async def test_empty_command_returns_error(self) -> None:
         """Empty command triggers ValueError and returns error result."""
         tool = ShellTool()
-        result = await tool.execute(command="")
+        result = await tool.execute(background=False, command="")
         assert result.success is False
         assert "Security validation failed" in result.content
 
@@ -567,7 +568,7 @@ class TestShellToolExecuteValidation:
             patch.object(tool, "_execute_interactive_sudo", return_value=mock_result) as mock_exec,
         ):
             mock_stdin.isatty.return_value = True
-            result = await tool.execute(command="sudo echo test")
+            result = await tool.execute(background=False, command="sudo echo test")
         mock_exec.assert_called_once()
         assert result.success is True
         assert result.content == "sudo output"
@@ -582,7 +583,7 @@ class TestShellToolExecuteValidation:
             patch.object(tool, "_execute_interactive_sudo", return_value=mock_result) as mock_exec,
         ):
             mock_stdin.isatty.return_value = True
-            result = await tool.execute(command="echo test", interactive=True)
+            result = await tool.execute(background=False, command="echo test", interactive=True)
         mock_exec.assert_called_once()
         assert result is mock_result
 
@@ -612,7 +613,7 @@ class TestRunSudoWithPtyLoopIteration:
         # Return None on first access, then 0 — simulates process finishing
         rc_values = [None, 0]
 
-        def get_rc(self: object) -> int | None:
+        def get_rc(_self: object) -> int | None:
             if rc_values:
                 return rc_values.pop(0)
             return 0

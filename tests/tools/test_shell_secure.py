@@ -406,11 +406,11 @@ class TestApplyStrictSecurity:
         _apply_strict_security(cfg)
         assert cfg.allow_pipes is False
 
-    def test_strict_disables_redirects(self) -> None:
-        """Strict mode disables redirects."""
+    def test_strict_allows_redirects(self) -> None:
+        """Strict mode accepts ordinary shell redirection."""
         cfg = ShellSecurityConfig()
         _apply_strict_security(cfg)
-        assert cfg.allow_redirects is False
+        assert ShellSecurityValidator(cfg).validate_command("echo test > /dev/null") == []
 
     def test_strict_disables_sudo(self) -> None:
         """Strict mode disables sudo."""
@@ -907,3 +907,20 @@ class TestSecureShellToolExecute:
             await tool.execute(command="echo hello", security_level="strict", interactive=False)
             mock_exec.assert_called_once()
             assert "interactive" in mock_exec.call_args[1]
+
+
+@pytest.mark.parametrize("level", ["strict", "moderate", "permissive"])
+@pytest.mark.parametrize("command", [
+    "echo test > /dev/null",
+    "echo test >> /etc/example",
+    "echo test > /proc/example",
+    "echo test > /sys/example",
+    "echo test > /dev/tcp/example/1234",
+    "cat < input.txt > output.txt",
+    "echo test 2> errors.txt",
+    "echo test > output.txt 2>&1",
+])
+def test_security_presets_allow_redirects(level: str, command: str) -> None:
+    """Built-in presets permit redirects independent of their destination."""
+    config = _apply_security_level(ShellSecurityConfig(), level)  # type: ignore[arg-type]
+    assert ShellSecurityValidator(config).validate_command(command) == []

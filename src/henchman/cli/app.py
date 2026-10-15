@@ -2,33 +2,49 @@
 
 from __future__ import annotations
 
-import asyncio
 import builtins
 import logging
-import os
 import sys
+from contextlib import aclosing
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import anyio
 import click
 from rich.console import Console
 
-from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.chat_serve import discordbot_command
+from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.serve import serve_command
 from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
+    from collections.abc import Callable, Collection
 
     from henchman.providers.base import ModelProvider
 
 
 _MAX_TEAM_TOOLS_DISPLAY = 5
+_ROOT_OPTIONS = frozenset({"-h", "--help", "--version"})
+_ATTACHED_LEGACY_CHAT_OPTIONS = frozenset({"-a", "-p"})
+_LEGACY_CHAT_OPTIONS = frozenset(
+    {
+        "-p",
+        "--prompt",
+        "-a",
+        "--agent",
+        "--team",
+        "--output-format",
+        "--plan",
+        "--debug",
+        "-y",
+        "--yes",
+        "--tui",
+    },
+)
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -48,7 +64,7 @@ def _import_attrs(module_path: str, *attr_names: str) -> tuple[Any, ...]:
 
 def _get_plan_mode_prompt() -> str:
     """Load the plan-mode prompt lazily to avoid optional import overhead."""
-    return _import_attr("henchman.cli.commands.plan", "PLAN_MODE_PROMPT")
+    return cast(str, _import_attr("henchman.cli.commands.plan", "PLAN_MODE_PROMPT"))
 
 
 @dataclass
@@ -84,60 +100,13 @@ def _get_provider() -> ModelProvider:
     Raises:
         click.ClickException: If no provider is configured.
     """
-    # Try to get provider from environment first
-    provider_from_env = _get_provider_from_environment()
-    if provider_from_env:
-        return provider_from_env
-
-    # Try to get provider from settings
-    provider_from_settings = _get_provider_from_settings()
-    if provider_from_settings:
-        return provider_from_settings
-
-    msg = "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.henchman/settings.yaml"
-    raise click.ClickException(  # pragma: no cover
-        msg,
-    )
-
-
-def _get_provider_from_environment() -> ModelProvider | None:
-    """Get provider from environment variables.
-
-    Returns:
-        ModelProvider instance if environment provides configuration, None otherwise.
-    """
-    deep_seek_provider = _import_attr("henchman.providers", "DeepSeekProvider")
-    api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("HENCHMAN_API_KEY")
-    if api_key:
-        return deep_seek_provider(api_key=api_key)
-    return None
-
-
-def _get_provider_from_settings() -> ModelProvider | None:
-    """Get provider from settings configuration.
-
-    Returns:
-        ModelProvider instance if settings provide configuration, None otherwise.
-    """
     try:
-        get_default_registry = _import_attr("henchman.providers", "get_default_registry")
         load_settings = _import_attr("henchman.config", "load_settings")
+        create_provider = _import_attr("henchman.providers.factory", "create_configured_provider")
         settings = load_settings()
-        registry = get_default_registry()
-
-        provider_name = settings.providers.default or "deepseek"
-        provider_settings = getattr(settings.providers, provider_name, {})
-
-        if not isinstance(provider_settings, dict):
-            return None
-
-        kwargs = provider_settings.copy()
-        _ensure_api_key_in_kwargs(provider_name, kwargs)
-
-        return registry.create(provider_name, **kwargs)
-    except Exception:  # pragma: no cover  # noqa: BLE001
-        logger.debug("Failed to load provider from settings", exc_info=True)
-        return None
+        return cast("ModelProvider", create_provider(settings.providers))
+    except Exception as exc:
+        raise click.ClickException(f"Unable to configure provider: {exc}") from exc
 
 
 def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> None:
@@ -272,6 +241,7 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
     repl_config = repl_config_class(
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
+        interactive=config.prompt is None,
     )
     return repl_class(
         provider=ctx.provider,
@@ -286,10 +256,23 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
 def _setup_repl_session(repl: Any) -> None:
     """Initialize session management for the REPL.
 
+    Checks for a persisted current session for the project first.
+    If one exists, resumes it; otherwise creates a new session.
+
     Args:
         repl: The REPL instance.
     """
     project_hash = repl.session_manager.compute_project_hash(Path.cwd())
+    # Access the underlying SessionManager for persistence operations
+    core_manager = getattr(repl.session_manager, "session_manager", repl.session_manager)
+    current_session_id = getattr(core_manager, "get_project_current", lambda _: None)(project_hash)
+    if current_session_id:
+        try:
+            session = core_manager.load(current_session_id)
+            repl.set_session(session)
+            return
+        except (FileNotFoundError, ValueError):
+            pass
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
 
@@ -438,15 +421,17 @@ def _dispatch_headless_format(repl: Any, config: RunConfig) -> None:
         config: Run configuration.
     """
     prompt = config.prompt
+    if prompt is None:
+        return
     if config.output_format == "text":
         anyio.run(_run_headless_text, repl, prompt, config.agent_role)
         return
     if config.output_format == "json":
-        anyio.run(_run_headless_json_format, repl, prompt, "json")
+        anyio.run(_run_headless_json_format, repl, prompt, "json", config.agent_role)
     elif config.output_format == "stream-json":
-        anyio.run(_run_headless_json_format, repl, prompt, "stream-json")
+        anyio.run(_run_headless_json_format, repl, prompt, "stream-json", config.agent_role)
     elif config.output_format == "json-complete":  # pragma: no branch
-        anyio.run(_run_headless_json_complete, repl, prompt)
+        anyio.run(_run_headless_json_complete, repl, prompt, config.agent_role)
 
 
 def _run_headless(config: RunConfig) -> None:
@@ -477,8 +462,8 @@ async def _run_headless_text(
     """
     # Initialize MCP servers
     await repl.initialize_mcp()
-
-    _start_rag_indexing(repl)
+    if repl.rag_system:
+        await repl.rag_system.index_async()
 
     if agent_role:
         run_agent_direct = object.__getattribute__(repl, "_run_agent_direct")
@@ -498,21 +483,10 @@ async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
     """
     # Initialize MCP servers
     await repl.initialize_mcp()
-
-    _start_rag_indexing(repl)
+    if repl.rag_system:
+        await repl.rag_system.index_async()
 
     return JsonOutputRenderer(console)
-
-
-def _start_rag_indexing(repl: Any) -> None:
-    """Start asynchronous RAG indexing while retaining the created task."""
-    rag_system = getattr(repl, "rag_system", None)
-    if rag_system:
-        object.__setattr__(
-            repl,
-            "_rag_index_task",
-            asyncio.create_task(rag_system.index_async()),
-        )
 
 
 async def _process_tool_calls(
@@ -525,56 +499,131 @@ async def _process_tool_calls(
 
     Args:
         repl: The REPL instance.
-        pending_tool_calls: List of tool call requests.
+        pending_tool_calls: Queue of requests, consumed as results are submitted.
         render_func: Function to render events.
         collect_events: Optional list to collect events (for json-complete mode).
     """
-    for tool_call in pending_tool_calls:
-        result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
+    while pending_tool_calls:
+        tool_call = pending_tool_calls[0]
+        result = await repl.agent.tool_registry.execute(tool_call.name, tool_call.arguments)
         repl.agent.submit_tool_result(tool_call.id, result.content)
+        pending_tool_calls.pop(0)
+        turn = getattr(repl.agent, "turn", None)
+        if turn is not None:
+            turn.record_tool_call(tool_call.id, tool_call.name, tool_call.arguments, result)
+        event = AgentEvent(type=EventType.TOOL_CALL_RESULT, data={
+            "tool_call_id": tool_call.id, "tool_name": tool_call.name,
+            "result": result.content, "success": result.success,
+        })
+        (collect_events.append if collect_events is not None else render_func)(event)
 
-        if collect_events is not None:
-            collect_events.append(
-                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result),
-            )
-        else:
-            render_func(
-                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result),
-            )
+
+def _cancel_pending_tools(
+    repl: Any, pending: list[Any], render_event: Callable[[AgentEvent], None], reason: str,
+) -> None:
+    """Balance queued requests without executing them after an interrupted turn."""
+    while pending:
+        call = pending.pop(0)
+        repl.agent.submit_tool_result(call.id, reason)
+        render_event(AgentEvent(type=EventType.TOOL_CALL_RESULT, data={
+            "tool_call_id": call.id, "tool_name": call.name,
+            "result": reason, "success": False,
+        }))
 
 
 async def _run_headless_json_mode(
     repl: Any,
     prompt: str,
     render_event: Callable[[AgentEvent], None],
-) -> None:
-    """Process an agent stream using the provided render function.
+    agent_role: str | None = None,
+) -> bool:
+    """Use the configured team runtime, retaining standalone evaluation support."""
+    from henchman.agents.orchestrator import Orchestrator
+    from henchman.cli.headless import run_orchestrator_json
+
+    orchestrator = getattr(repl, "orchestrator", None)
+    # Mock objects can spoof isinstance through __class__; require the real type.
+    if isinstance(orchestrator, Orchestrator) and issubclass(type(orchestrator), Orchestrator):
+        return await run_orchestrator_json(orchestrator, prompt, render_event, agent_role)
+    return await _run_standalone_json_mode(repl, prompt, render_event)
+
+
+async def _run_standalone_json_mode(
+    repl: Any,
+    prompt: str,
+    render_event: Callable[[AgentEvent], None],
+) -> bool:
+    """Execute bounded tool rounds and render one authoritative completion.
 
     Args:
         repl: The REPL instance.
         prompt: The prompt to process.
         render_event: Function used to render each AgentEvent.
+
+    Returns:
+        True only when the final response stops normally without pending work.
     """
 
-    async def run_and_render(stream: AsyncIterator[AgentEvent]) -> None:
-        """Run the agent stream and render events."""
-        pending_tool_calls: list[Any] = []
-        async for event in stream:
-            render_event(event)
-            if event.type == EventType.TOOL_CALL_REQUEST:
-                pending_tool_calls.append(event.data)
-
-        if pending_tool_calls:
-            await _process_tool_calls(repl, pending_tool_calls, render_event)
-            await run_and_render(repl.agent.continue_with_tool_results())
-
-    await run_and_render(repl.agent.run(prompt))
+    pending: list[Any] = []
+    stream = repl.agent.run(prompt)
+    rounds = 0
+    limit = getattr(repl.agent, "base_tool_iterations", 25)
+    try:
+        while True:
+            finished = None
+            failed = False
+            async with aclosing(stream):
+                async for event in stream:
+                    if event.type == EventType.FINISHED:
+                        finished = event
+                        continue
+                    render_event(event)
+                    if event.type == EventType.TOOL_CALL_REQUEST:
+                        pending.append(event.data)
+                    if event.type == EventType.ERROR:
+                        failed = True
+                        break
+            if failed:
+                _cancel_pending_tools(repl, pending, render_event, "Skipped after agent error")
+                render_event(AgentEvent(EventType.FINISHED, {"finish_reason": "error"}))
+                return False
+            if not pending:
+                reason = finished.data if finished is not None else None
+                if isinstance(reason, dict):
+                    reason = reason.get("finish_reason")
+                if reason != "stop":
+                    message = (
+                        "Agent stream ended without completion"
+                        if reason is None else f"Agent did not complete successfully: {reason}"
+                    )
+                    render_event(AgentEvent(EventType.ERROR, message))
+                    render_event(AgentEvent(EventType.FINISHED, {"finish_reason": "error"}))
+                    return False
+                assert finished is not None
+                render_event(finished)
+                return True
+            if rounds >= limit:
+                reason = f"Tool iteration limit ({limit}) reached"
+                render_event(AgentEvent(EventType.ERROR, reason))
+                _cancel_pending_tools(repl, pending, render_event, reason)
+                render_event(AgentEvent(EventType.FINISHED, {"finish_reason": "error"}))
+                return False
+            await _process_tool_calls(repl, pending, render_event)
+            rounds += 1
+            turn = getattr(repl.agent, "turn", None)
+            if turn is not None:
+                turn.increment_iteration()
+            stream = repl.agent.continue_with_tool_results()
+    except BaseException:
+        _cancel_pending_tools(repl, pending, render_event, "Tool execution interrupted")
+        raise
 
 
 async def _run_headless_json_format(
     repl: Any,
     prompt: str,
     render_mode: str,
+    agent_role: str | None = None,
 ) -> None:
     """Process a single prompt and exit with JSON output.
 
@@ -585,16 +634,16 @@ async def _run_headless_json_format(
     """
     json_renderer = await _initialize_json_processing(repl)
     render_fn = (
-        json_renderer.render_stream_json
-        if render_mode == "stream-json"
-        else json_renderer.render
+        json_renderer.render_stream_json if render_mode == "stream-json" else json_renderer.render
     )
-    await _run_headless_json_mode(repl, prompt, render_fn)
+    if not await _run_headless_json_mode(repl, prompt, render_fn, agent_role):
+        raise click.ClickException("Agent execution failed; see JSON error event")
 
 
 async def _run_headless_json_complete(
     repl: Any,
     prompt: str,
+    agent_role: str | None = None,
 ) -> None:
     """Process a single prompt and exit with complete JSON output.
 
@@ -606,33 +655,14 @@ async def _run_headless_json_complete(
     json_renderer = await _initialize_json_processing(repl)
     all_events: list[AgentEvent] = []
 
-    async def run_and_collect(stream: AsyncIterator[AgentEvent]) -> None:
-        """Run the agent stream and collect all events.
-
-        Args:
-            stream: The stream of agent events.
-        """
-        pending_tool_calls = []
-        async for event in stream:
-            all_events.append(event)
-            if event.type == EventType.TOOL_CALL_REQUEST:
-                pending_tool_calls.append(event.data)
-
-        if pending_tool_calls:
-            await _process_tool_calls(
-                repl,
-                pending_tool_calls,
-                lambda _: None,  # No rendering during collection
-                collect_events=all_events,
-            )
-            await run_and_collect(repl.agent.continue_with_tool_results())
-
-    await run_and_collect(repl.agent.run(prompt))
+    success = await _run_headless_json_mode(repl, prompt, all_events.append, agent_role)
     json_renderer.render_final_json(all_events)
+    if not success:
+        raise click.ClickException("Agent execution failed; see JSON error event")
 
 
 def _check_completion_status(repl: Any) -> None:
-    """Check if agent completed without work and exit with appropriate code.
+    """Exit nonzero for unsuccessful orchestrator outcomes.
 
     Args:
         repl: The REPL instance.
@@ -646,9 +676,17 @@ def _check_completion_status(repl: Any) -> None:
         and repl.orchestrator.last_completion_status == completion_status.NO_WORK_DONE
     ):
         sys.exit(2)
+    if hasattr(repl, "orchestrator") and repl.orchestrator.last_completion_status in (
+        completion_status.FAILED, completion_status.STALLED, completion_status.TIMED_OUT,
+    ):
+        sys.exit(1)
 
 
-@click.group(name="henchman", invoke_without_command=True)
+@click.group(
+    name="henchman",
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.version_option(version=VERSION, prog_name="henchman")
 @click.pass_context
 def cli(ctx: click.Context) -> None:
@@ -666,12 +704,6 @@ def cli(ctx: click.Context) -> None:
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-
-@cli.command(name="xyztest")
-def xyztest_command() -> None:
-    """Local test command."""
-    import sys
-    print("XYZTEST INVOKED", file=sys.stderr)
 
 @cli.command(name="chat")
 @click.option("-p", "--prompt", help="Run with a single prompt and exit")
@@ -778,6 +810,80 @@ def _execute_chat_command(config: RunConfig) -> None:
 cli.add_command(discordbot_command)
 cli.add_command(serve_command)
 
+# Register Tier 1, Tier 4, and misc CLI commands
+from henchman.cli.commands.agents_platform_command import (  # noqa: E402
+    register_agents_platform_command,
+)
+from henchman.cli.commands.config_command import register_config_command  # noqa: E402
+from henchman.cli.commands.doctor_command import register_doctor_command  # noqa: E402
+from henchman.cli.commands.git_command import register_git_commands  # noqa: E402
+from henchman.cli.commands.help_command import register_help_command  # noqa: E402
+from henchman.cli.commands.init_command import register_init_command  # noqa: E402
+from henchman.cli.commands.integration_commands import (  # noqa: E402
+    register_integration_commands,
+)
+from henchman.cli.commands.plugin_command import register_plugin_command  # noqa: E402
+from henchman.cli.commands.pull_request_command import (  # noqa: E402
+    register_pull_request_commands,
+)
+from henchman.cli.commands.session_command import (  # noqa: E402
+    register_resume_command,
+    register_session_command,
+)
+from henchman.cli.commands.session_context_command import (  # noqa: E402
+    register_session_context_commands,
+)
+from henchman.cli.commands.skill_command import register_skill_command  # noqa: E402
+from henchman.cli.commands.version_command import register_version_command  # noqa: E402
+from henchman.cli.commands.voice_command import register_voice_command  # noqa: E402
+
+register_agents_platform_command(cli)
+register_config_command(cli)
+register_doctor_command(cli)
+register_git_commands(cli)
+register_help_command(cli)
+register_integration_commands(cli)
+register_init_command(cli)
+register_plugin_command(cli)
+register_pull_request_commands(cli)
+register_session_command(cli)
+register_resume_command(cli)
+register_session_context_commands(cli)
+register_skill_command(cli)
+register_version_command(cli)
+register_voice_command(cli)
+
+
+def _normalize_cli_argv(
+    argv: list[str],
+    *,
+    known_commands: Collection[str],
+) -> list[str]:
+    """Return argv with legacy root chat options routed to ``chat``.
+
+    Args:
+        argv: Raw process arguments, including the executable name.
+        known_commands: Commands registered on the root Click group.
+
+    Returns:
+        A normalized argument list ready for Click parsing.
+    """
+    normalized = list(argv)
+    if len(normalized) == 1:
+        normalized.append("chat")
+        return normalized
+
+    first_argument = normalized[1]
+    option_name = first_argument.partition("=")[0]
+    if first_argument in known_commands or option_name in _ROOT_OPTIONS:
+        return normalized
+    is_attached_short_option = (
+        len(first_argument) > 2 and first_argument[:2] in _ATTACHED_LEGACY_CHAT_OPTIONS
+    )
+    if option_name in _LEGACY_CHAT_OPTIONS or is_attached_short_option:
+        normalized.insert(1, "chat")
+    return normalized
+
 
 def main() -> None:  # pragma: no cover
     """Main entry point for the CLI.
@@ -793,18 +899,10 @@ def main() -> None:  # pragma: no cover
         app_class().run()
         return
 
-    # For backward compatibility, if no subcommand is specified,
-    # assume the user wants to run chat with the old-style arguments
-    known_commands = list(cli.commands.keys())
-    if len(sys.argv) == 1 or (
-        len(sys.argv) > 1
-        and not sys.argv[1].startswith("-")
-        and sys.argv[1] not in known_commands
-    ):
-        # Insert "chat" as the subcommand
-        sys.argv.insert(1, "chat")
-        return
-
+    sys.argv[:] = _normalize_cli_argv(
+        sys.argv,
+        known_commands=cli.commands,
+    )
     cli()
 
 

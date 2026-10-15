@@ -33,7 +33,7 @@ SyncMethod = Callable[P, R]
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 # Safety limit: truncate content before Rich parses it to prevent
 # excessive memory / CPU usage on pathologically large payloads.
@@ -112,17 +112,17 @@ class StatusType(Enum):
     @property
     def style(self: Self) -> str:
         """Get the style for this status type."""
-        return self.value.style  # type: ignore[no-any-return]
+        return self.value.style
 
     @property
     def icon(self: Self) -> str:
         """Get the icon for this status type."""
-        return self.value.icon  # type: ignore[no-any-return]
+        return self.value.icon
 
     @property
     def accessible_icon(self: Self) -> str:
         """Get the accessible icon for this status type."""
-        return self.value.accessible_icon  # type: ignore[no-any-return]
+        return self.value.accessible_icon
 
 
 @dataclass

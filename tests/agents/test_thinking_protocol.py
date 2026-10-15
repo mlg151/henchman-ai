@@ -1,26 +1,53 @@
-"""Tests for thinking protocol in prompts."""
+"""Shared planning guidance reaches default leader and specialist prompts."""
 
-import os
-import sys
+import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-
-from src.henchman.agents.prompts import (
+from henchman.agents.prompts import (
+    DATA_ENGINEER_INSTRUCTIONS,
+    DELEGATION_CHECKLIST,
     ENGINEER_INSTRUCTIONS,
     EXPLORER_INSTRUCTIONS,
     LEADER_INSTRUCTIONS,
+    LINT_ON_WRITE_RULE,
     PLANNER_INSTRUCTIONS,
     SPECIALIST_THINKING,
     THINKING_PROTOCOL,
+    VERIFICATION_LOCK,
+    get_agent_prompt,
 )
+from henchman.cli.prompts import BASE_CONSTRAINTS, BASE_RULES, DEFAULT_SYSTEM_PROMPT
+
+
+@pytest.mark.parametrize(
+    "role", [None, "tech_lead", "planner", "explorer", "engineer", "data_engineer"]
+)
+def test_base_policies_compose_into_cli_and_team_defaults(role: str | None) -> None:
+    """Check shared wiring; policy effectiveness requires a behavioral evaluation."""
+    prompt = DEFAULT_SYSTEM_PROMPT if role is None else get_agent_prompt(role)
+    assert prompt.count(BASE_RULES) == 1
+    assert prompt.count(BASE_CONSTRAINTS) == 1
 
 
 def test_thinking_protocol_in_leader_prompt() -> None:
-    """Test that thinking protocol is included in leader prompt."""
-    assert THINKING_PROTOCOL in LEADER_INSTRUCTIONS
-    assert "THINKING PROTOCOL" in LEADER_INSTRUCTIONS
-    assert "Start EVERY response with:" in LEADER_INSTRUCTIONS
-    assert "THINKING PROTOCOL:" in LEADER_INSTRUCTIONS
+    """The leader contains one canonical planning fragment."""
+    assert LEADER_INSTRUCTIONS.count(THINKING_PROTOCOL) == 1
+
+
+def test_leader_receives_one_canonical_delegation_checklist() -> None:
+    """Check composition only; model adherence needs behavioral evaluation."""
+    assert get_agent_prompt("tech_lead").count(DELEGATION_CHECKLIST) == 1
+
+
+@pytest.mark.parametrize("role", ["engineer", "data_engineer"])
+def test_editing_roles_receive_one_canonical_lint_policy(role: str) -> None:
+    """Changing the shared policy must reach both default editing roles."""
+    assert get_agent_prompt(role).count(LINT_ON_WRITE_RULE) == 1
+
+
+@pytest.mark.parametrize("role", ["tech_lead", "engineer", "data_engineer"])
+def test_verifying_roles_receive_one_canonical_evidence_policy(role: str) -> None:
+    """Composition retains one shared verification policy per verifying role."""
+    assert get_agent_prompt(role).count(VERIFICATION_LOCK) == 1
 
 
 def test_delegation_matrix_in_leader_prompt() -> None:
@@ -34,40 +61,18 @@ def test_delegation_matrix_in_leader_prompt() -> None:
     assert "Engineer" in LEADER_INSTRUCTIONS
 
 
-def test_specialist_thinking_in_planner_prompt() -> None:
-    """Test that specialist thinking is included in planner prompt."""
-    assert SPECIALIST_THINKING in PLANNER_INSTRUCTIONS
-    assert "SPECIALIST THINKING" in PLANNER_INSTRUCTIONS
-    assert "THINKING (Specialist):" in PLANNER_INSTRUCTIONS
-
-
-def test_specialist_thinking_in_explorer_prompt() -> None:
-    """Test that specialist thinking is included in explorer prompt."""
-    assert SPECIALIST_THINKING in EXPLORER_INSTRUCTIONS
-    assert "SPECIALIST THINKING" in EXPLORER_INSTRUCTIONS
-    assert "THINKING (Specialist):" in EXPLORER_INSTRUCTIONS
-
-
-def test_specialist_thinking_in_engineer_prompt() -> None:
-    """Test that specialist thinking is included in engineer prompt."""
-    assert SPECIALIST_THINKING in ENGINEER_INSTRUCTIONS
-    assert "SPECIALIST THINKING" in ENGINEER_INSTRUCTIONS
-    assert "THINKING (Specialist):" in ENGINEER_INSTRUCTIONS
-
-
-def test_thinking_format_requirements() -> None:
-    """Test that thinking format includes required sections."""
-    # Check leader thinking format - updated to match current THINKING_PROTOCOL
-    assert "## Phase 1: Problem Analysis" in THINKING_PROTOCOL
-    assert "## Phase 2: Context Gathering" in THINKING_PROTOCOL
-    assert "## Phase 3: Solution Design" in THINKING_PROTOCOL
-    assert "## Phase 4: Execution Planning" in THINKING_PROTOCOL
-    assert "1. What exactly needs to be solved?" in THINKING_PROTOCOL
-    assert "12. How will we verify success?" in THINKING_PROTOCOL
-
-    # Check specialist thinking format
-    assert "SPECIALIST THINKING" in SPECIALIST_THINKING
-    assert "THINKING (Specialist):" in SPECIALIST_THINKING
+@pytest.mark.parametrize(
+    "instructions",
+    [
+        PLANNER_INSTRUCTIONS,
+        EXPLORER_INSTRUCTIONS,
+        ENGINEER_INSTRUCTIONS,
+        DATA_ENGINEER_INSTRUCTIONS,
+    ],
+)
+def test_specialists_receive_one_canonical_planning_fragment(instructions: str) -> None:
+    """Role composition keeps shared planning policy consistent."""
+    assert instructions.count(SPECIALIST_THINKING) == 1
 
 
 def test_delegation_priority_rules() -> None:

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
+from henchman.advanced.tasks import TaskService
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.utils import create_parameter_schema
 
@@ -41,6 +44,7 @@ async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=request.cwd,
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
         )
         return await _collect_process_output(process, effective_timeout, request.timeout)
     except Exception as exc:  # pragma: no cover
@@ -74,7 +78,7 @@ async def _collect_process_output(
             )
         else:
             stdout, stderr = await process.communicate()
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         process.terminate()
         await process.wait()
         return ToolResult(
@@ -134,6 +138,15 @@ class PythonExecTool(Tool):
     ``shell`` + ``python -c "..."`` commands manually.
     """
 
+    def __init__(self) -> None:
+        """Initialize project binding without creating persistent task files."""
+        self._project_root = Path.cwd()
+
+    def bind_runtime(self, *, project_root: Path | None = None, **_: object) -> None:
+        """Bind background jobs to the project's shared task registry."""
+        if project_root is not None:
+            self._project_root = project_root.resolve()
+
     @property
     def name(self: PythonExecTool) -> str:
         """Tool name."""
@@ -144,8 +157,9 @@ class PythonExecTool(Tool):
         """Tool description."""
         return (
             "Execute a Python code snippet in a subprocess using the current "
-            "interpreter. Returns stdout/stderr. Useful for testing "
-            "transformations, validating schemas, and quick REPL-style checks."
+            "interpreter as a background task by default. Returns a task ID; use "
+            "task_get, task_list, task_output and task_stop to track multiple jobs. "
+            "Set background=false to wait for completion and return stdout/stderr."
         )
 
     @property
@@ -156,7 +170,7 @@ class PythonExecTool(Tool):
             optional_params={
                 "code": {
                     "type": "string",
-                    "description": "Python code to execute",
+                    "description": "Python source to execute, not a shell command",
                 },
                 "timeout": {
                     "type": "integer",
@@ -168,6 +182,11 @@ class PythonExecTool(Tool):
                 "cwd": {
                     "type": "string",
                     "description": "Working directory for execution",
+                },
+                "background": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Return a tracked background task; false waits for output.",
                 },
             },
         )
@@ -182,6 +201,7 @@ class PythonExecTool(Tool):
         code: str = "",
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
         cwd: str | None = None,
+        background: bool = True,
         **kwargs: object,
     ) -> ToolResult:
         """Execute Python code in a subprocess.
@@ -190,6 +210,7 @@ class PythonExecTool(Tool):
             code: Python code to execute.
             timeout: Execution timeout in seconds.
             cwd: Working directory for execution.
+            background: Return a tracked task immediately instead of awaiting completion.
             **kwargs: Additional arguments (ignored).
 
         Returns:
@@ -197,9 +218,29 @@ class PythonExecTool(Tool):
         """
         if not code.strip():
             return ToolResult(
-                content="Error: No code provided",
+                content=(
+                    "Error: No code provided. Supply Python source in the required code "
+                    "argument, not shell syntax or a command argument. Set cwd separately "
+                    "for the working directory. Use shell for shell commands only if allowed."
+                ),
                 success=False,
                 error="Empty code",
+            )
+        if background:
+            try:
+                record = await TaskService(self._project_root).start_task(
+                    argv=[sys.executable, "-u", "-c", code], cwd=cwd,
+                    env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                    timeout=float(timeout) if timeout else None,
+                    title="python_exec", metadata={"tool": "python_exec"},
+                )
+            except (OSError, ValueError) as exc:
+                return ToolResult(content=f"Error executing Python code: {exc}",
+                                  success=False, error=str(exc))
+            return ToolResult(
+                content=f"Started background task {record.task_id} [{record.status}]. "
+                "Use task_get for status, task_output for output, task_list for all jobs, "
+                "or task_stop to stop this task. Starting a task does not confirm success.",
             )
         request = ExecRequest(code=code, timeout=timeout, cwd=cwd)
         return await _run_python_subprocess(request)

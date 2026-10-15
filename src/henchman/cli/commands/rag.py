@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, ClassVar
 from henchman.cli.commands import BaseCommand, CommandContext
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from henchman.rag.system import RagSystem
 
 # ---------------------------------------------------------------------------
@@ -110,7 +112,7 @@ async def _clear_rag_index(ctx: CommandContext) -> None:
     ctx.console.print("[green]Current project's RAG index cleared[/]")
 
 
-def _confirm_clear_all(console: object) -> bool:
+def _confirm_clear_all(console: Console) -> bool:
     """Prompt user to confirm clearing all RAG indices.
 
     Args:
@@ -119,8 +121,8 @@ def _confirm_clear_all(console: object) -> bool:
     Returns:
         True if user confirmed, False otherwise.
     """
-    console.print("[yellow]Warning: This will delete ALL RAG indices![/]")  # type: ignore[union-attr]
-    console.print("Type 'yes' to confirm: ", end="")  # type: ignore[union-attr]
+    console.print("[yellow]Warning: This will delete ALL RAG indices![/]")
+    console.print("Type 'yes' to confirm: ", end="")
     try:
         confirm = input()
     except (EOFError, KeyboardInterrupt):
@@ -153,7 +155,7 @@ async def _clear_all_rag_indices(ctx: CommandContext) -> None:
         console.print("[dim]Operation cancelled[/]")
 
 
-def _remove_old_rag_path(console: object, path: Path) -> str | None:
+def _remove_old_rag_path(console: Console, path: Path) -> str | None:
     """Remove a single old RAG path (file or directory).
 
     Args:
@@ -171,7 +173,7 @@ def _remove_old_rag_path(console: object, path: Path) -> str | None:
             path.unlink()
         return f"{label}: {path}"
     except Exception as e:
-        console.print(f"[yellow]Error removing {path}: {e}[/]")  # type: ignore[union-attr]
+        console.print(f"[yellow]Error removing {path}: {e}[/]")
         return None
 
 

@@ -24,13 +24,18 @@ class PromptFactory:
 
         Args:
             agent_configs: Dictionary of agent configurations.
-            system_prompt: Optional override for Tech Lead system prompt.
+            system_prompt: Nonempty runtime override; empty means no override.
             environment_context: Pre-formatted environment block for agents.
 
         Returns:
             The Tech Lead system prompt string.
         """
-        return system_prompt or _build_prompt(agent_configs, environment_context)
+        if system_prompt:
+            return system_prompt
+        leader = agent_configs.get("tech_lead")
+        if leader is not None and leader.system_prompt is not None:
+            return leader.system_prompt
+        return _build_prompt(agent_configs, environment_context)
 
 
 def _build_prompt(

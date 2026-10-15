@@ -1,5 +1,6 @@
 """Tests for the model command."""
 
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from henchman.cli.commands.model import (
     _get_env_vars,
     _get_example_config,
 )
+from henchman.config.schema import ProviderSettings, Settings
 from henchman.core.agent import Agent
 from henchman.core.session import Session
 from henchman.providers.base import ModelProvider
@@ -44,15 +46,13 @@ def ctx():
 
     session = Session(id="test", project_hash="abc", started="now", last_updated="now")
 
-    agent = Mock(spec=Agent)
-    agent.provider = MockProvider("deepseek", "deepseek-chat")
+    agent = Agent(MockProvider("deepseek", "deepseek-chat"))
     agent.system_prompt = "Base prompt"
 
     tool_registry = Mock()
 
     # Create a mock REPL
-    repl = Mock()
-    repl.provider = agent.provider
+    repl = SimpleNamespace(provider=agent.provider, settings=None)
 
     return CommandContext(
         console=console, session=session, agent=agent, tool_registry=tool_registry, repl=repl
@@ -66,7 +66,7 @@ async def test_model_command_basics():
 
     assert cmd.name == "model"
     assert "model" in cmd.description.lower()
-    assert cmd.usage == "/model [list|set <provider> [<model>]]"
+    assert cmd.usage == "/model [list|set <provider> [<model>] [--context-length <tokens>]]"
 
 
 @pytest.mark.asyncio
@@ -159,7 +159,7 @@ async def test_set_provider_success(ctx):
         mock_registry.return_value = mock_reg
 
         # Mock settings
-        mock_settings = Mock()
+        mock_settings = Settings(providers=ProviderSettings(openai={"api_key": "saved-key"}))
         mock_load.return_value = mock_settings
 
         # Call with set argument
@@ -215,23 +215,16 @@ async def test_set_provider_with_model(ctx):
 
         mock_registry.return_value = mock_reg
 
-        # Mock settings with empty api_key attribute
-        mock_provider_settings = Mock()
-        mock_provider_settings.api_key = (
-            None  # This will make _get_api_key_for_provider return None
+        mock_load.return_value = Settings(
+            providers=ProviderSettings(openai={"api_key": "saved-key"}),
         )
-
-        mock_settings = Mock()
-        mock_settings.providers.openai = mock_provider_settings
-        mock_load.return_value = mock_settings
 
         # Call with provider and model
         ctx.args = ["set", "openai", "gpt-4-turbo"]
         await cmd.execute(ctx)
 
         # Should create provider with model argument
-        # Note: api_key will be empty string because _get_api_key_for_provider returns None
-        mock_reg.create.assert_called_with("openai", api_key="", model="gpt-4-turbo")
+        mock_reg.create.assert_called_with("openai", api_key="saved-key", model="gpt-4-turbo")
 
 
 @pytest.mark.asyncio
@@ -264,7 +257,7 @@ async def test_invalid_usage(ctx):
     ctx.args = ["invalid", "args"]
     await cmd.execute(ctx)
 
-    ctx.console.print.assert_called_with("[yellow]Usage: /model [list|set <provider> [<model>]][/]")
+    ctx.console.print.assert_called_with(f"[yellow]Usage: {cmd.usage}[/]")
 
 
 @pytest.mark.asyncio

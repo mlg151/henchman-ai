@@ -99,15 +99,12 @@ def format_function_node(
     prefix = "  " * indent
     kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
 
-    args = []
-    for arg in node.args.args:
-        annotation = f": {ast.unparse(arg.annotation)}" if arg.annotation else ""
-        args.append(f"{arg.arg}{annotation}")
+    args = ast.unparse(node.args)
 
     returns = f" -> {ast.unparse(node.returns)}" if node.returns else ""
     decos = [f"{prefix}@{format_decorator(d)}" for d in node.decorator_list]
     end_line = node.end_lineno or node.lineno
-    sig = f"{prefix}{kind} {node.name}({', '.join(args)}){returns}"
+    sig = f"{prefix}{kind} {node.name}({args}){returns}"
 
     tag = ""
     if is_method:

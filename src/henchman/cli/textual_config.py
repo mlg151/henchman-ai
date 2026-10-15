@@ -32,7 +32,7 @@ _DEFAULT_THEME_NAME = "dark"
 try:
     from typing import Self
 except ImportError:  # pragma: no cover
-    from typing_extensions import Self
+    from typing import Self
 
 
 @dataclass
@@ -159,6 +159,7 @@ class ComponentInitializer:
             environment_context=self.config.environment_context,
             settings=self.config.settings,
             auto_approve_tools=(self.config.config.auto_approve_tools),
+            question_handler=self.config.app._textual_question,
         )
         # Store app reference in plugin manager if it has ui_instance attribute
         # This allows plugins to access the Textual UI if needed

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "McpToolResult",
+  "description": "Result of calling a tool on an MCP server.",
+  "type": "object",
+  "properties": {
+    "content": { "type": "string" },
+    "is_error": { "type": "boolean" },
+    "metadata": { "type": ["object", "null"] }
+  },
+  "required": ["content", "is_error"]
+}

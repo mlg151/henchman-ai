@@ -7,6 +7,7 @@ re-exported here for backward compatibility.
 
 from __future__ import annotations
 
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.delegation import DelegationRunner
@@ -16,12 +17,13 @@ from henchman.core.events import AgentEvent, EventType
 # Re-export symbols that external code imports from this module
 from .orchestrator_execution import _last_assistant_content
 from .orchestrator_init import OrchestratorConfig, init_orchestrator
-from .orchestrator_run import finalize_run, prepare_run
+from .orchestrator_run import claim_public_run, finalize_run, prepare_run
 from .orchestrator_timeout import TimeoutSummaryBuilder
 from .orchestrator_types import (
     COLON_STALL_NUDGE,
     MAX_COLON_STALL_RETRIES,
     AgentLoopParams,
+    CompletionRequirement,
     CompletionStatus,
     DelegationParams,
 )
@@ -29,10 +31,18 @@ from .orchestrator_types import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from henchman.agents.ledger import TaskLedger
+    from henchman.agents.metrics_reporter import MetricsReporter
+    from henchman.agents.orchestrator_components import AgentValidator
+    from henchman.agents.orchestrator_execution import ExecutionController
+    from henchman.agents.orchestrator_tools import ToolController
     from henchman.agents.pool import AgentPool
+    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.eventbus import EventBus
     from henchman.providers.base import ModelProvider
+    from henchman.providers.registry import ProviderRegistry
+    from henchman.tools.registry import ToolRegistry
 
 # Backward-compat aliases used by tests
 _COLON_STALL_NUDGE = COLON_STALL_NUDGE
@@ -42,6 +52,7 @@ __all__ = [
     "_COLON_STALL_NUDGE",
     "_MAX_COLON_STALL_RETRIES",
     "AgentLoopParams",
+    "CompletionRequirement",
     "CompletionStatus",
     "DelegationParams",
     "Orchestrator",
@@ -53,6 +64,27 @@ __all__ = [
 
 class Orchestrator:
     """Orchestrates a team of agents to solve complex tasks."""
+
+    default_provider: ModelProvider
+    provider_registry: ProviderRegistry | None
+    tool_registry: ToolRegistry
+    event_bus: EventBus
+    settings: Settings
+    environment_context: str | None
+    metrics: OrchestratorMetrics
+    _reporter: MetricsReporter
+    _last_loop_tool_call_count: int
+    _last_loop_success_count: int
+    _last_loop_timed_out: bool
+    last_completion_status: CompletionStatus
+    validator: AgentValidator
+    tool_controller: ToolController
+    execution_controller: ExecutionController
+    pool: AgentPool
+    shared_context: list[dict[str, Any]]
+    ledger: TaskLedger | None
+    tech_lead: Agent
+    delegation_runner: DelegationRunner
 
     def __init__(
         self: Orchestrator,
@@ -67,6 +99,7 @@ class Orchestrator:
             config: Optional grouped configuration.
             **kwargs: Legacy keyword arguments (forwarded to OrchestratorConfig).
         """
+        self._public_run_active = False
         init_orchestrator(self, default_provider, config, **kwargs)
 
     # ------------------------------------------------------------------
@@ -76,56 +109,77 @@ class Orchestrator:
     async def run(
         self: Orchestrator,
         user_input: str,
+        *,
+        completion_requirement: CompletionRequirement = CompletionRequirement.RESPONSE,
     ) -> AsyncIterator[AgentEvent]:
         """Run the orchestrator with user input.
 
         Args:
             user_input: The user's input or task description.
+            completion_requirement: Accept a response or require successful actions.
 
         Yields:
             AgentEvent: Stream of agent events including content, tool calls,
                 and completion status.
         """
-        prepare_run(self, user_input)
-        yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": "tech_lead"},
-            source_agent="orchestrator",
-        )
-        async for event in self.execution_controller.run_agent_loop(
-            AgentLoopParams(agent=self.tech_lead, input_text=user_input),
-        ):
-            yield event
-        for event in finalize_run(self, self.tech_lead, "tech_lead"):
-            yield event
+        with claim_public_run(self):
+            params = AgentLoopParams(
+                agent=self.tech_lead, input_text=user_input,
+                completion_requirement=CompletionRequirement(completion_requirement),
+            )
+            with self.pool.claim_agent(self.tech_lead, owner=params):
+                prepare_run(self, user_input)
+                yield AgentEvent(
+                    type=EventType.AGENT_STARTED,
+                    data={"agent": "tech_lead"},
+                    source_agent="orchestrator",
+                )
+                async with aclosing(
+                    self.execution_controller.run_agent_loop(params)
+                ) as stream:
+                    async for event in stream:
+                        yield event
+                for event in finalize_run(self, self.tech_lead, "tech_lead"):
+                    yield event
 
     async def run_direct(
         self: Orchestrator,
         role: str,
         user_input: str,
+        *,
+        completion_requirement: CompletionRequirement = CompletionRequirement.RESPONSE,
     ) -> AsyncIterator[AgentEvent]:
         """Run a specific agent directly, bypassing the Tech Lead.
 
         Args:
             role: The role of the agent to run (e.g., "coder", "architect").
             user_input: The user's input or task description.
+            completion_requirement: Accept a response or require successful actions.
 
         Yields:
             AgentEvent: Stream of agent events including content, tool calls,
                 and completion status.
         """
-        agent = self.pool.get_agent(role)
-        yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": role},
-            source_agent="orchestrator",
-        )
-        async for event in self.execution_controller.run_agent_loop(
-            AgentLoopParams(agent=agent, input_text=user_input),
-        ):
-            yield event
-        for event in finalize_run(self, agent, role):
-            yield event
+        with claim_public_run(self):
+            requirement = CompletionRequirement(completion_requirement)
+            agent = self.pool.get_agent(role)
+            params = AgentLoopParams(
+                agent=agent, input_text=user_input, completion_requirement=requirement,
+            )
+            with self.pool.claim_agent(agent, owner=params):
+                prepare_run(self, user_input)
+                yield AgentEvent(
+                    type=EventType.AGENT_STARTED,
+                    data={"agent": role},
+                    source_agent="orchestrator",
+                )
+                async with aclosing(
+                    self.execution_controller.run_agent_loop(params)
+                ) as stream:
+                    async for event in stream:
+                        yield event
+                for event in finalize_run(self, agent, role):
+                    yield event
 
     # ------------------------------------------------------------------
     # Public accessors

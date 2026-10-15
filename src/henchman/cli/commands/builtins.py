@@ -11,6 +11,7 @@ from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.agent import AgentCommand
 from henchman.cli.commands.chat import ChatCommand
 from henchman.cli.commands.context import ContextCommand
+from henchman.cli.commands.goal import GoalCommand
 from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
@@ -361,6 +362,7 @@ def get_builtin_commands() -> list[Command]:
         SessionCommand(),
         McpCommand(),
         ModelCommand(),
+        GoalCommand(),
         PlanCommand(),
         RagCommand(),
         ThemeCommand(),

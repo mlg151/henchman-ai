@@ -1,0 +1,92 @@
+prd_id: builtin-tui-tool-availability-20260413
+version: 1.0.0
+status: final
+user_stories:
+  - As a TUI/REPL user, I want builtin tools like ask_user, git_ops, and ls to be registered from their real implementations so those tools are actually available at runtime.
+  - As a maintainer, I want builtin export discovery to distinguish real tool classes from fallback placeholders so availability reporting is truthful.
+  - As a contributor, I want regression tests around the builtin export surface so future refactors do not silently drop wired tools from the shared registry.
+scope:
+  in_scope:
+    - Restore concrete builtin registration for ask_user, git_ops, and ls in TUI/REPL tool creation.
+    - Preserve the broader builtin export surface by instantiating concrete classes for wired exports such as read_file, edit_file, web_fetch, web_search, write_file, and shell.
+    - Exclude placeholder-backed exports from availability/discovery and report them explicitly as unavailable.
+    - Cover the regression with tests for builtin exports, registry creation, and REPL-visible tool availability.
+  out_of_scope:
+    - Redesigning builtin tool behavior or adding new product capabilities beyond restoring registration/discovery parity.
+    - Converting placeholder tool implementations into fully featured runtime integrations when no concrete implementation exists.
+    - Broad CLI or TUI UX redesign unrelated to builtin availability reporting.
+acceptance_criteria:
+  - criterion: ToolManager registers ask_user, git_ops, and ls from their concrete builtin classes.
+    verification: Tier 1 registration tests assert the instantiated tools are the exported AskUserTool, GitOpsTool, and LsTool classes.
+  - criterion: Placeholder-backed builtin exports are not treated as available tools.
+    verification: Builtin discovery skips placeholder classes and unavailable_builtin_exports reports those exports.
+  - criterion: The broader builtin export surface remains available for wired tools.
+    verification: Builtin module and REPL tests confirm expected tools including read_file, shell, web_fetch, web_search, and write_file remain registered.
+  - criterion: Runtime discovery surfaces stay truthful after registration.
+    verification: Doctor/help-facing builtin collection uses the live registered tool list rather than assuming every export is usable.
+needs_clarification: []
+features:
+  - name: Explicit builtin wiring
+    overview: Shared builtin exports load concrete classes from explicit import paths and register only the classes that resolve successfully.
+    status: completed
+  - name: Truthful availability reporting
+    overview: Placeholder-backed exports are retained for compatibility but are excluded from runtime discovery and surfaced as unavailable.
+    status: completed
+  - name: Restored TUI/REPL builtin availability
+    overview: TUI/REPL registration again exposes ask_user, git_ops, ls, and the rest of the wired builtin surface through ToolManager and REPL startup.
+    status: completed
+  - name: Regression coverage
+    overview: Tests lock the builtin export contract, placeholder filtering behavior, and required Tier 1 registration surface.
+    status: completed
+state_machines:
+  - name: builtin_export_resolution
+    current_state: completed
+    states:
+      - exported
+      - placeholder_only
+      - concrete_available
+      - registered
+    transitions:
+      - from: exported
+        event: import_path_missing_or_invalid
+        to: placeholder_only
+      - from: exported
+        event: concrete_class_loaded
+        to: concrete_available
+      - from: concrete_available
+        event: tool_manager_registers_builtin_tools
+        to: registered
+  - name: builtin_discovery_reporting
+    current_state: completed
+    states:
+      - inspecting_exports
+      - skipping_placeholder
+      - reporting_unavailable
+      - reporting_registered
+    transitions:
+      - from: inspecting_exports
+        event: placeholder_detected
+        to: skipping_placeholder
+      - from: skipping_placeholder
+        event: unavailable_list_generated
+        to: reporting_unavailable
+      - from: inspecting_exports
+        event: concrete_tool_instantiated
+        to: reporting_registered
+errors:
+  - code: HMN_BUILTIN_EXPORT_PLACEHOLDER
+    message: A builtin export resolves only to a compatibility placeholder instead of a concrete tool class.
+  - code: HMN_BUILTIN_NOT_REGISTERED
+    message: A concrete builtin exists but is missing from ToolManager or REPL registration.
+  - code: HMN_DISCOVERY_FALSE_POSITIVE
+    message: Discovery/help surfaces report a builtin as available even though only a placeholder export exists.
+decisions:
+  - decision: Implemented builtins must be explicitly wired through the shared builtin export surface.
+    rationale: TUI/REPL registration depends on concrete exported classes, so implicit or missing wiring causes real tools to disappear at runtime.
+  - decision: Placeholder-backed exports must not masquerade as available.
+    rationale: Compatibility shims can preserve imports, but discovery and registration must filter them out so runtime reporting stays truthful.
+  - decision: Fix the regression at the export-and-registration layer, not with TUI-specific special cases.
+    rationale: ToolManager, REPL, doctor, and other discovery surfaces all rely on the same builtin export contract.
+changes:
+  - version: 1.0.0
+    change: Replaced the prior unrelated PRD with a completed bug-fix PRD documenting restored builtin TUI/REPL availability for ask_user, git_ops, ls, truthful placeholder filtering, and the broader affected builtin export surface.

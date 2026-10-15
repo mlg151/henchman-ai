@@ -25,6 +25,7 @@ This module targets specific uncovered code paths in:
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -205,7 +206,7 @@ class TestReplMissingLines:
         mock_orchestrator = MagicMock()
         mock_orchestrator.pool.get_agent.return_value = mock_agent
 
-        async def empty_gen(*a, **kw):
+        async def empty_gen(*_args, **_kwargs):
             return
             yield  # type: ignore
 
@@ -293,16 +294,15 @@ class TestReplMissingLines:
     def test_repl_init_mcp_manager_with_servers(self) -> None:
         """Lines 217-218: _init_mcp_manager creates manager when mcp_servers are set."""
         from henchman.cli.repl import Repl
+        from henchman.config.schema import McpServerConfig, Settings
 
         with patch("henchman.cli.input.PromptSession"):
             provider = MagicMock()
             provider.name = "mock"
-            mock_settings = MagicMock()
-            mock_settings.mcp_servers = {"server1": MagicMock()}
-            mock_settings.ui.mcp_logging = False
+            mock_settings = Settings(mcp_servers={"server1": McpServerConfig(command="offline-server")})
 
             with patch("henchman.mcp.manager.McpManager.create_from_settings", return_value=MagicMock()) as mock_create:
-                repl = Repl(provider=provider, settings=mock_settings)
+                Repl(provider=provider, settings=mock_settings)
         mock_create.assert_called_once()
 
     @pytest.mark.anyio
@@ -473,7 +473,6 @@ class TestPluginsMissingLines:
         """Line 120: _load_plugin_from_file returns early when spec is None."""
         from henchman.cli.plugins import PluginManager
 
-        nonexistent_path = tmp_path / "does_not_exist.py"
         # spec_from_file_location returns None for non-existent files
         mock_repl = MagicMock()
         pm = PluginManager(repl=mock_repl)
@@ -776,7 +775,7 @@ class TestOutputHandlerMissingLines:
         """Lines 246-247: exception in _add_mcp_status silently caught."""
         handler = self._make_handler()
         mock_mcp = MagicMock()
-        type(mock_mcp).clients = property(lambda self: (_ for _ in ()).throw(RuntimeError()))
+        type(mock_mcp).clients = property(lambda _self: (_ for _ in ()).throw(RuntimeError()))
         handler.mcp_manager = mock_mcp
         status: list = []
         handler._add_mcp_status(status)
@@ -802,6 +801,7 @@ class TestOutputHandlerMissingLines:
         with patch.object(handler, "_safe_create_task") as create_task_fn:
             handler.show_turn_status(mock_agent, base_iterations=25)
         create_task_fn.assert_called()
+        create_task_fn.call_args.args[0].close()
 
     @pytest.mark.anyio
     async def test_safe_create_task_exception_logged(self) -> None:
@@ -813,7 +813,7 @@ class TestOutputHandlerMissingLines:
             raise ValueError("task failed")
 
         handler = self._make_handler()
-        with patch.object(logging, "error") as mock_log:
+        with patch.object(logging, "error"):
             handler._safe_create_task(fail_coro())
             await asyncio.sleep(0.05)
 
@@ -879,28 +879,30 @@ class TestModelCommandMissingLines:
         class FakeProvider:
             """A fake provider for testing."""
 
-        with patch("henchman.cli.commands.model._get_example_config", return_value=None):
-            with patch("henchman.cli.commands.model._get_env_vars", return_value=None):
-                _print_provider_entry(mock_console, "fake", FakeProvider)
+        with (
+            patch("henchman.cli.commands.model._get_example_config", return_value=None),
+            patch("henchman.cli.commands.model._get_env_vars", return_value=None),
+        ):
+            _print_provider_entry(mock_console, "fake", FakeProvider)
         mock_console.print.assert_called()
 
-    def test_test_provider_connection_no_default_model(self) -> None:
+    def test_show_provider_configuration_no_default_model(self) -> None:
         """Lines 169-172: connection test when provider lacks default_model."""
-        from henchman.cli.commands.model import _test_provider_connection
+        from henchman.cli.commands.model import _show_provider_configuration
 
         mock_console = MagicMock()
         provider = MagicMock(spec=[])  # no default_model attribute
-        _test_provider_connection(mock_console, provider, "fake", None)
+        _show_provider_configuration(mock_console, provider, "fake", None)
         mock_console.print.assert_called()
 
-    def test_test_provider_connection_with_model(self) -> None:
+    def test_show_provider_configuration_with_model(self) -> None:
         """Lines 162-163: connection test when model_name provided."""
-        from henchman.cli.commands.model import _test_provider_connection
+        from henchman.cli.commands.model import _show_provider_configuration
 
         mock_console = MagicMock()
         provider = MagicMock()
         provider.default_model = "gpt-4"
-        _test_provider_connection(mock_console, provider, "openai", "gpt-4")
+        _show_provider_configuration(mock_console, provider, "openai", "gpt-4")
         mock_console.print.assert_called()
 
     def test_update_agent_provider_no_agent(self) -> None:
@@ -937,12 +939,14 @@ class TestModelCommandMissingLines:
         from henchman.cli.commands.model import _set_provider
 
         ctx = self._make_ctx()
-        with patch("henchman.cli.commands.model._validate_provider_exists", return_value=True):
-            with patch("henchman.cli.commands.model._get_api_key_for_provider", return_value=None):
-                with patch("henchman.cli.commands.model._create_provider_instance", return_value=MagicMock()):
-                    with patch("henchman.cli.commands.model._test_provider_connection"):
-                        with patch("henchman.cli.commands.model._update_agent_provider", return_value=False):
-                            await _set_provider(ctx, "openai", None)
+        with (
+            patch("henchman.cli.commands.model._validate_provider_exists", return_value=True),
+            patch("henchman.cli.commands.model._get_api_key_for_provider", return_value=None),
+            patch("henchman.cli.commands.model._create_provider_instance", return_value=MagicMock()),
+            patch("henchman.cli.commands.model._show_provider_configuration"),
+            patch("henchman.cli.commands.model._update_agent_provider", return_value=False),
+        ):
+            await _set_provider(ctx, "openai", None)
         # _show_configuration_warnings should NOT be called since update failed
 
     @pytest.mark.anyio
@@ -951,33 +955,39 @@ class TestModelCommandMissingLines:
         from henchman.cli.commands.model import _set_provider
 
         ctx = self._make_ctx()
-        with patch("henchman.cli.commands.model._validate_provider_exists", return_value=True):
-            with patch(
+        with (
+            patch("henchman.cli.commands.model._validate_provider_exists", return_value=True),
+            patch(
                 "henchman.cli.commands.model._get_api_key_for_provider",
                 side_effect=RuntimeError("fail"),
-            ):
-                await _set_provider(ctx, "openai", None)
+            ),
+        ):
+            await _set_provider(ctx, "openai", None)
         ctx.console.print.assert_called()
 
     def test_get_api_key_no_settings_key(self) -> None:
         """Lines 83->90: _get_api_key_for_provider returns None when no settings key."""
         from henchman.cli.commands.model import _get_api_key_for_provider
 
-        with patch("henchman.providers.utils.get_api_key_for_provider", return_value=None):
-            with patch("henchman.cli.commands.model.load_settings") as mock_settings:
-                mock_settings.return_value.providers = MagicMock()
-                # provider_settings is None (getattr returns None)
-                type(mock_settings.return_value.providers).__getattr__ = lambda self, n: None
-                result = _get_api_key_for_provider("unknown_provider")
+        with (
+            patch("henchman.providers.utils.get_api_key_for_provider", return_value=None),
+            patch("henchman.cli.commands.model.load_settings") as mock_settings,
+        ):
+            mock_settings.return_value.providers = MagicMock()
+            # provider_settings is None (getattr returns None)
+            type(mock_settings.return_value.providers).__getattr__ = lambda _self, _name: None
+            result = _get_api_key_for_provider("unknown_provider")
         assert result is None
 
     def test_get_api_key_settings_exception(self) -> None:
         """Lines 87-88: _get_api_key_for_provider handles exception from load_settings."""
         from henchman.cli.commands.model import _get_api_key_for_provider
 
-        with patch("henchman.providers.utils.get_api_key_for_provider", return_value=None):
-            with patch("henchman.cli.commands.model.load_settings", side_effect=RuntimeError("fail")):
-                result = _get_api_key_for_provider("openai")
+        with (
+            patch("henchman.providers.utils.get_api_key_for_provider", return_value=None),
+            patch("henchman.cli.commands.model.load_settings", side_effect=RuntimeError("fail")),
+        ):
+            result = _get_api_key_for_provider("openai")
         assert result is None
 
     def test_print_current_configuration_no_model(self) -> None:
@@ -1002,9 +1012,11 @@ class TestModelCommandMissingLines:
 
         FakeProviderNoDoc.__doc__ = None  # Ensure no docstring
 
-        with patch("henchman.cli.commands.model._get_example_config", return_value=None):
-            with patch("henchman.cli.commands.model._get_env_vars", return_value=None):
-                _print_provider_entry(mock_console, "nodoc", FakeProviderNoDoc)
+        with (
+            patch("henchman.cli.commands.model._get_example_config", return_value=None),
+            patch("henchman.cli.commands.model._get_env_vars", return_value=None),
+        ):
+            _print_provider_entry(mock_console, "nodoc", FakeProviderNoDoc)
         mock_console.print.assert_called()
 
     def test_show_all_providers_registry_error(self) -> None:
@@ -1029,9 +1041,9 @@ class TestModelCommandMissingLines:
             await _list_providers(ctx)
         ctx.console.print.assert_called()
 
-    def test_test_provider_connection_exception(self) -> None:
-        """Lines 170-172: _test_provider_connection handles exception."""
-        from henchman.cli.commands.model import _test_provider_connection
+    def test_show_provider_configuration_exception(self) -> None:
+        """Lines 170-172: _show_provider_configuration handles exception."""
+        from henchman.cli.commands.model import _show_provider_configuration
 
         mock_console = MagicMock()
 
@@ -1041,8 +1053,8 @@ class TestModelCommandMissingLines:
                 raise RuntimeError("connection error")
 
         provider = ExceptionOnHasAttr()
-        _test_provider_connection(mock_console, provider, "fakeprov", None)
-        mock_console.print.assert_called()
+        with pytest.raises(RuntimeError, match="connection error"):
+            _show_provider_configuration(mock_console, provider, "fakeprov", None)
 
 
 # ---------------------------------------------------------------------------
@@ -1503,10 +1515,8 @@ class TestSessionCommandMissingLines:
         # Directly invoke the abstract base method body
         coro = SessionCommandExecutor.execute(executor, MagicMock())
         if coro is not None:
-            try:
+            with suppress(Exception):
                 await coro
-            except Exception:
-                pass
 
 
 # ---------------------------------------------------------------------------
@@ -1964,9 +1974,11 @@ class TestConsoleMissingLines:
         wrapper = async_renderer._create_async_diff_wrapper()
         assert callable(wrapper)
         # Call the wrapper to cover the function body
-        with patch.object(sync_renderer, "_parse_diff_args", return_value=MagicMock()):
-            with patch.object(sync_renderer, "_render_diff"):
-                await wrapper("old text", "new text", "test.py")
+        with (
+            patch.object(sync_renderer, "_parse_diff_args", return_value=MagicMock()),
+            patch.object(sync_renderer, "_render_diff"),
+        ):
+            await wrapper("old text", "new text", "test.py")
 
 
 # ---------------------------------------------------------------------------
@@ -2294,9 +2306,11 @@ class TestRagCommandMissingLines:
         cache_dir = tmp_path / "rag_cache_eof"
         cache_dir.mkdir()
 
-        with patch("henchman.rag.repo_id.get_rag_cache_dir", return_value=cache_dir):
-            with patch("builtins.input", side_effect=EOFError("EOF")):
-                await cmd._clear_all(ctx)
+        with (
+            patch("henchman.rag.repo_id.get_rag_cache_dir", return_value=cache_dir),
+            patch("builtins.input", side_effect=EOFError("EOF")),
+        ):
+            await cmd._clear_all(ctx)
         # Directory should still exist since EOFError triggers confirm=""
         assert cache_dir.exists()
 
@@ -2311,10 +2325,12 @@ class TestRagCommandMissingLines:
         cache_dir = tmp_path / "rag_cache_error"
         cache_dir.mkdir()
 
-        with patch("henchman.rag.repo_id.get_rag_cache_dir", return_value=cache_dir):
-            with patch("builtins.input", return_value="yes"):
-                with patch("shutil.rmtree", side_effect=OSError("permission denied")):
-                    await cmd._clear_all(ctx)
+        with (
+            patch("henchman.rag.repo_id.get_rag_cache_dir", return_value=cache_dir),
+            patch("builtins.input", return_value="yes"),
+            patch("shutil.rmtree", side_effect=OSError("permission denied")),
+        ):
+            await cmd._clear_all(ctx)
         # Error message should be shown
         calls = [str(c) for c in ctx.console.print.call_args_list]
         assert any("error" in c.lower() for c in calls)
@@ -2332,9 +2348,11 @@ class TestRagCommandMissingLines:
         old_index = henchman_dir / "rag_index"
         old_index.mkdir(exist_ok=True)
 
-        with patch("henchman.rag.system.find_git_root", return_value=tmp_path):
-            with patch("shutil.rmtree", side_effect=OSError("permission denied")):
-                await cmd._cleanup(ctx)
+        with (
+            patch("henchman.rag.system.find_git_root", return_value=tmp_path),
+            patch("shutil.rmtree", side_effect=OSError("permission denied")),
+        ):
+            await cmd._cleanup(ctx)
         # Error message should be shown
         calls = [str(c) for c in ctx.console.print.call_args_list]
         assert any("error" in c.lower() for c in calls)
@@ -2360,9 +2378,11 @@ class TestRagCommandMissingLines:
                 raise OSError("permission denied")
             return original_unlink(self_path, *args, **kwargs)
 
-        with patch("henchman.rag.system.find_git_root", return_value=tmp_path):
-            with patch.object(old_manifest.__class__, "unlink", patched_unlink):
-                await cmd._cleanup(ctx)
+        with (
+            patch("henchman.rag.system.find_git_root", return_value=tmp_path),
+            patch.object(old_manifest.__class__, "unlink", patched_unlink),
+        ):
+            await cmd._cleanup(ctx)
         # Should not raise even if unlink fails - error message shown
         ctx.console.print.assert_called()
 
@@ -2414,7 +2434,7 @@ class TestThemeCommandMissingLines:
         ctx.repl.settings = MagicMock()
         ctx.console = MagicMock()
 
-        with patch("henchman.config.settings.save_settings") as mock_save:
+        with patch("henchman.config.settings.save_settings"):
             _persist_theme_settings(ctx, "dark")
         ctx.console.print.assert_called()
 

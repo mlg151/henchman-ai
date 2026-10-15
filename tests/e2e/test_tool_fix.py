@@ -102,7 +102,8 @@ async def test_shell_tool_execution():
                 content="",
                 tool_calls=[
                     ToolCall(
-                        id="shell_1", name="shell", arguments={"command": "echo 'test output'"}
+                        id="shell_1", name="shell",
+                        arguments={"command": "echo 'test output'", "background": False},
                     )
                 ],
                 finish_reason=FinishReason.TOOL_CALLS,
@@ -224,10 +225,15 @@ def test_all_builtin_tools_registered():
     for tool in expected_tools:
         assert tool in registered_tools, f"Tool {tool} not registered"
 
-    # Agent (Tech Lead) has base tools plus delegate_task
+    # Tech Lead delegates file edits to the engineer while retaining other tools.
     agent_tools = repl.agent.tools.list_tools()
+    engineer_tools = repl.orchestrator.pool.get_agent("engineer").tools.list_tools()
     for tool in expected_tools:
-        assert tool in agent_tools, f"Tool {tool} not in agent tools"
+        if tool in {"edit_file", "write_file"}:
+            assert tool not in agent_tools, f"Tool {tool} must be delegated"
+            assert tool in engineer_tools, f"Tool {tool} not in engineer tools"
+        else:
+            assert tool in agent_tools, f"Tool {tool} not in agent tools"
     assert "delegate_task" in agent_tools, "delegate_task not in agent tools"
 
 

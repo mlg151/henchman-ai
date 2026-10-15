@@ -297,7 +297,7 @@ def test_build_module_lookup_edge_cases() -> None:
 
 def test_import_resolution_bug() -> None:
     """Test the import resolution bug fix.
-    
+
     The bug: When importing "foo", the scanner should prefer foo/__init__.py
     over foo/bar.py or foo/baz.py when multiple files could satisfy the import.
     """

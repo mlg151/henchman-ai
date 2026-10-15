@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.agents.delegation import DelegationRunner
 from henchman.agents.metrics import OrchestratorMetrics
 from henchman.agents.metrics_reporter import MetricsReporter
-from henchman.agents.pool import AgentPool, ContextConfig
+from henchman.agents.pool import AgentPool, ContextConfig, effective_context_budget
 from henchman.agents.presets import get_default_team
 from henchman.core.eventbus import EventBus
 
@@ -23,7 +23,6 @@ from .orchestrator_tools import ToolController
 from .orchestrator_types import CompletionStatus
 
 if TYPE_CHECKING:
-    from henchman.agents.ledger import TaskLedger
     from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
     from henchman.providers.registry import ProviderRegistry
@@ -91,7 +90,7 @@ def _init_core(
 
     orch.default_provider = default_provider
     orch.provider_registry = config.provider_registry
-    orch.tool_registry = config.tool_registry or ToolRegistry()
+    orch.tool_registry = config.tool_registry if config.tool_registry is not None else ToolRegistry()
     orch.event_bus = config.event_bus or EventBus()
     orch.settings = config.settings or Settings()
     orch.environment_context = config.environment_context
@@ -117,8 +116,8 @@ def _init_agents(
         for role, cfg in orch.settings.agents.agents.items():
             agent_configs[role] = cfg
     _create_pool(orch, agent_configs, default_provider, config)
-    orch.shared_context: list[dict[str, Any]] = []
-    orch.ledger: TaskLedger | None = None
+    orch.shared_context = []
+    orch.ledger = None
     setup_tech_lead(
         orch,
         agent_configs,
@@ -148,6 +147,7 @@ def _create_pool(
         configs=agent_configs,
         default_provider=default_provider,
         provider_registry=config.provider_registry,
+        provider_settings=orch.settings.providers,
         parent_tool_registry=orch.tool_registry,
         event_bus=orch.event_bus,
         context_config=ContextConfig(
@@ -156,5 +156,7 @@ def _create_pool(
             importance_threshold=ctx.importance_threshold,
             cluster_similarity_threshold=ctx.cluster_similarity_threshold,
             adaptive_compression=ctx.adaptive_compression,
+            max_tokens=effective_context_budget(ctx.max_tokens, ctx.compaction_threshold),
+            context_window=ctx.max_tokens,
         ),
     )

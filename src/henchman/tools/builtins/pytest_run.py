@@ -5,9 +5,13 @@ from __future__ import annotations
 import asyncio
 import sys
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
+from henchman.testing.pytest_reporter import PytestEvidence
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.subprocess_utils import run_python_subprocess
 
 MAX_OUTPUT_CHARS = 100_000
 
@@ -30,7 +34,7 @@ class PytestConfig:
     collect_only: bool = False
 
 
-def _build_pytest_args(config: PytestConfig) -> list[str]:
+def _build_pytest_args(config: PytestConfig, report_path: Path | None = None) -> list[str]:
     """Build the pytest command-line argument list from *config*.
 
     Args:
@@ -39,7 +43,9 @@ def _build_pytest_args(config: PytestConfig) -> list[str]:
     Returns:
         Argument list suitable for ``asyncio.create_subprocess_exec``.
     """
-    cmd = [sys.executable, "-m", "pytest", config.path]
+    cmd = [sys.executable, "-m", "pytest"]
+    if report_path is not None:
+        cmd.extend(["-p", "henchman.testing.pytest_reporter", "--henchman-report", str(report_path)])
 
     if not config.collect_only:
         cmd.append("-x")
@@ -57,6 +63,7 @@ def _build_pytest_args(config: PytestConfig) -> list[str]:
     if config.collect_only:
         cmd.extend(["--collect-only", "-q"])
 
+    cmd.extend(["--", config.path])
     return cmd
 
 
@@ -73,31 +80,8 @@ async def _run_pytest_subprocess(
     Returns:
         Tuple of ``(stdout_bytes, stderr_bytes, return_code)``.
     """
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-
     effective_timeout: float | None = None if timeout == 0 else timeout
-    try:
-        if effective_timeout is not None:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=effective_timeout,
-            )
-        else:
-            stdout, stderr = await process.communicate()
-    except (TimeoutError, asyncio.TimeoutError):
-        process.kill()
-        await process.wait()
-        raise
-    except asyncio.CancelledError:
-        process.kill()
-        await process.wait()
-        raise
-
-    return stdout, stderr, process.returncode
+    return await run_python_subprocess(command, timeout=effective_timeout)
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +110,7 @@ _PYTEST_RUN_SCHEMA_PROPERTIES: dict[str, object] = {
         "type": "integer",
         "description": f"Timeout in seconds (default: {_DEFAULT_TIMEOUT_SECONDS})",
         "default": _DEFAULT_TIMEOUT_SECONDS,
+        "minimum": 0,
     },
     "coverage": {
         "type": "boolean",
@@ -139,6 +124,7 @@ _PYTEST_RUN_SCHEMA_PROPERTIES: dict[str, object] = {
     "parallel": {
         "type": "integer",
         "description": "Number of parallel workers (-n, requires pytest-xdist)",
+        "minimum": 1,
     },
     "collect_only": {
         "type": "boolean",
@@ -155,15 +141,26 @@ _PYTEST_RUN_SCHEMA_PROPERTIES: dict[str, object] = {
 
 def _pytest_config_from_kwargs(path: str, kwargs: dict[str, Any]) -> PytestConfig:
     """Build a PytestConfig from an execute **kwargs dict."""
+    for name in ("verbose", "coverage", "collect_only"):
+        if name in kwargs and not isinstance(kwargs[name], bool):
+            raise ValueError(f"{name} must be a boolean")
+    for name, minimum in (("timeout", 0), ("parallel", 1)):
+        value = kwargs.get(name)
+        if value is not None and (type(value) is not int or value < minimum):
+            raise ValueError(f"{name} must be an integer >= {minimum}")
+    keyword = kwargs.get("keyword")
+    markers = kwargs.get("markers")
+    coverage_source = kwargs.get("coverage_source")
+    parallel = kwargs.get("parallel")
     return PytestConfig(
         path=path,
-        keyword=kwargs.get("keyword"),  # type: ignore[arg-type]
-        markers=kwargs.get("markers"),  # type: ignore[arg-type]
+        keyword=str(keyword) if keyword is not None else None,
+        markers=str(markers) if markers is not None else None,
         verbose=bool(kwargs.get("verbose", False)),
         timeout=int(kwargs.get("timeout", _DEFAULT_TIMEOUT_SECONDS)),
         coverage=bool(kwargs.get("coverage", False)),
-        coverage_source=kwargs.get("coverage_source"),  # type: ignore[arg-type]
-        parallel=kwargs.get("parallel"),  # type: ignore[arg-type]
+        coverage_source=str(coverage_source) if coverage_source is not None else None,
+        parallel=int(parallel) if isinstance(parallel, (str, int)) else None,
         collect_only=bool(kwargs.get("collect_only", False)),
     )
 
@@ -184,11 +181,45 @@ def _process_pytest_output(stdout: bytes, stderr: bytes) -> str:
     return _truncate_pytest_output(output)
 
 
-def _create_pytest_result(output: str, returncode: int | None) -> ToolResult:
+def _create_pytest_result(
+    output: str, returncode: int | None, *, collect_only: bool = False,
+    evidence: PytestEvidence | None = None,
+) -> ToolResult:
     """Build a ToolResult from pytest output and exit code."""
     success = returncode == 0 if returncode is not None else False
-    error = None if success else f"Tests failed (exit code {returncode})"
-    return ToolResult(content=output, success=success, error=error)
+    operation = "Test collection" if collect_only else "Test execution"
+    error = None if success else f"{operation} failed (exit code {returncode})"
+    if returncode == 5:
+        error = "No tests collected or selected (exit code 5)"
+    if success:
+        error = _verification_error(evidence, collect_only=collect_only)
+        success = error is None
+    heading = f"{operation} passed" if success else error
+    if evidence is not None:
+        heading = (
+            f"{heading} ({evidence.collected} collected, {evidence.executed} executed; "
+            f"{evidence.passed} passed, {evidence.failed} failed, {evidence.skipped} skipped)"
+        )
+    if collect_only:
+        heading = f"{heading}; no tests were executed"
+    return ToolResult(content=f"{heading}\n\n{output}", success=success, error=error)
+
+
+def _verification_error(evidence: PytestEvidence | None, *, collect_only: bool) -> str | None:
+    """Fail closed when process success does not establish the requested work."""
+    if evidence is None:
+        return "Verification evidence unavailable: pytest produced no valid completed-session report"
+    if evidence.exit_status != 0 or evidence.failed:
+        return "Verification evidence reports failures despite pytest's zero exit code"
+    if evidence.collect_only != collect_only:
+        return "Pytest configuration changed the requested mode; no tests were executed"
+    if evidence.collected == 0:
+        return "No tests collected or selected"
+    if not collect_only and evidence.executed == 0:
+        return "Verification incomplete: no tests were executed"
+    if not collect_only and evidence.passed == 0:
+        return "Verification incomplete: no test calls passed"
+    return None
 
 
 async def _run_pytest_with_config(config: PytestConfig) -> ToolResult:
@@ -202,18 +233,23 @@ async def _run_pytest_with_config(config: PytestConfig) -> ToolResult:
     Returns:
         ToolResult with test output and success flag.
     """
-    if not config.path:
+    if not isinstance(config.path, str) or not config.path.strip():
         return ToolResult(
             content="Error: No test path provided",
             success=False,
             error="Empty path",
         )
-
-    cmd = _build_pytest_args(config)
+    if config.path.startswith("-"):
+        message = "Test path must be a file, directory, or node ID, not a command-line option"
+        return ToolResult(content=message, success=False, error=message)
 
     try:
-        stdout, stderr, returncode = await _run_pytest_subprocess(cmd, config.timeout)
-    except (TimeoutError, asyncio.TimeoutError):
+        with TemporaryDirectory(prefix="henchman-pytest-") as report_dir:
+            report_path = Path(report_dir) / "session.json"
+            cmd = _build_pytest_args(config, report_path)
+            stdout, stderr, returncode = await _run_pytest_subprocess(cmd, config.timeout)
+            evidence = PytestEvidence.load(report_path)
+    except TimeoutError:
         return ToolResult(
             content=f"Tests timed out after {config.timeout}s",
             success=False,
@@ -229,7 +265,9 @@ async def _run_pytest_with_config(config: PytestConfig) -> ToolResult:
         )
 
     output = _process_pytest_output(stdout, stderr)
-    return _create_pytest_result(output, returncode)
+    return _create_pytest_result(
+        output, returncode, collect_only=config.collect_only, evidence=evidence,
+    )
 
 
 class PytestRunTool(Tool):
@@ -284,7 +322,10 @@ class PytestRunTool(Tool):
         Returns:
             ToolResult with test results.
         """
-        config = _pytest_config_from_kwargs(path, kwargs)
+        try:
+            config = _pytest_config_from_kwargs(path, kwargs)
+        except (TypeError, ValueError) as exc:
+            return ToolResult(content=f"Invalid pytest options: {exc}", success=False, error=str(exc))
         return await _run_pytest_with_config(config)
 
     async def _run_pytest(self: PytestRunTool, config: PytestConfig) -> ToolResult:

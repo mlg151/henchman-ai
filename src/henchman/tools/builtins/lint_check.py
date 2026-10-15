@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.subprocess_utils import run_python_subprocess
 
 MAX_OUTPUT_CHARS = 100_000
 
 _LINT_TIMEOUT_SECONDS = 120
 """Timeout in seconds for individual linter commands."""
-
 
 
 @dataclass
@@ -36,22 +35,17 @@ async def _run_linter_command(cmd: list[str], label: str) -> tuple[bool, str]:
         Tuple of (success, formatted output).
     """
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(),
+        stdout, stderr, returncode = await run_python_subprocess(
+            cmd,
             timeout=_LINT_TIMEOUT_SECONDS,
         )
         stdout_text = stdout.decode("utf-8", errors="replace")
         stderr_text = stderr.decode("utf-8", errors="replace")
         combined = (stdout_text + "\n" + stderr_text).strip()
-        ok = process.returncode == 0
+        ok = returncode == 0
     except FileNotFoundError:
         return False, f"=== {label} ===\n{label} is not installed"
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         return False, f"=== {label} ===\nTimed out after {_LINT_TIMEOUT_SECONDS}s"
     else:
         if ok and not combined:
@@ -75,7 +69,7 @@ async def _collect_lint_sections(params: LintParams) -> tuple[list[str], bool]:
         ruff_cmd = [sys.executable, "-m", "ruff", "check"]
         if params.fix:
             ruff_cmd.append("--fix")
-        ruff_cmd.append(params.path)
+        ruff_cmd.extend(["--", params.path])
         label = "ruff --fix" if params.fix else "ruff"
         ok, output = await _run_linter_command(ruff_cmd, label)
         sections.append(output)
@@ -84,7 +78,7 @@ async def _collect_lint_sections(params: LintParams) -> tuple[list[str], bool]:
 
     if params.linter in ("mypy", "both"):
         ok, output = await _run_linter_command(
-            [sys.executable, "-m", "mypy", params.path],
+            [sys.executable, "-m", "mypy", "--", params.path],
             "mypy",
         )
         sections.append(output)
@@ -146,6 +140,10 @@ class LintCheckTool(Tool):
         """Tool kind - READ by default, but fix mode modifies files."""
         return ToolKind.READ
 
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Treat an explicit fix request as a source mutation."""
+        return ToolKind.WRITE if params.get("fix") is True else self.kind
+
     def needs_confirmation(
         self: LintCheckTool,
         params: dict[str, object],
@@ -202,7 +200,13 @@ class LintCheckTool(Tool):
         Returns:
             ToolResult with diagnostic output.
         """
-        if not path:
+        if linter not in ("ruff", "mypy", "both"):
+            message = "Unsupported linter; choose 'ruff', 'mypy', or 'both'"
+            return ToolResult(content=message, success=False, error=message)
+        if not isinstance(fix, bool):
+            message = "fix must be a boolean"
+            return ToolResult(content=message, success=False, error=message)
+        if not isinstance(path, str) or not path.strip():
             return ToolResult(
                 content="Error: No path provided",
                 success=False,
@@ -226,4 +230,8 @@ class LintCheckTool(Tool):
                 content[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
             )
 
-        return ToolResult(content=content, success=all_ok)
+        return ToolResult(
+            content=content,
+            success=all_ok,
+            error=None if all_ok else "One or more requested lint checks failed",
+        )

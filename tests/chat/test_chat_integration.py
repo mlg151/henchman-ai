@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -31,7 +32,6 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-
 
 # ---------------------------------------------------------------------------
 # ScriptedProvider — a real ModelProvider with pre-programmed responses
@@ -185,6 +185,7 @@ class RecordingBot(ChatBot):
             None
         """
         self.sent_messages.append((user_id, content))
+        return True
 
     async def send_typing(self: RecordingBot, user_id: str) -> None:
         """Record a typing indicator.
@@ -240,7 +241,7 @@ def make_message(content: str, user_id: str = "test-user-123") -> ChatMessage:
         user_id=user_id,
         username="TestUser",
         content=content,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         platform=ChatPlatform.DISCORD,
         is_dm=True,
     )
@@ -309,11 +310,9 @@ def make_manager_with_provider(
 
     # Patch _get_or_create_agent to inject our scripted provider
     # Everything else (Agent, ToolRegistry, StallDetector) runs for real.
-    original_get_or_create = manager._get_or_create_agent
-
     async def _inject_provider(user_id: str) -> Any:
-        from henchman.core import Agent
         from henchman.cli.tool_manager import ToolManager
+        from henchman.core import Agent
 
         if user_id in manager._user_agents:
             return manager._user_agents[user_id]
@@ -468,7 +467,7 @@ class TestChatIntegration:
         )
 
     @pytest.mark.anyio
-    async def test_max_tool_iterations_stops_loop(self) -> None:
+    async def test_max_tool_iterations_stops_loop(self, tmp_path: Path) -> None:
         """The safety limits must stop runaway tool call chains.
 
         There are two limits:
@@ -478,9 +477,10 @@ class TestChatIntegration:
         With one tool call per scripted response, the outer limit fires first
         after 21 rounds, emitting '⚠️ Maximum tool rounds reached.'
         """
+        # Use an empty directory so host /tmp contents cannot trigger LLM compaction.
         # Provide 60 consecutive single-tool-call responses (more than both limits)
         tool_responses = [
-            tool_call_response("ls", {"path": "/tmp"}, tool_id=f"call-{i}")
+            tool_call_response("ls", {"path": str(tmp_path)}, tool_id=f"call-{i}")
             for i in range(60)
         ]
         provider = ScriptedProvider(tool_responses)
@@ -498,7 +498,7 @@ class TestChatIntegration:
             or "Maximum tool iterations" in all_text
         )
         assert warning_sent, (
-            f"Expected a safety-limit warning message. Sent messages:\n"
+            "Expected a safety-limit warning message. Sent messages:\n"
             + "\n".join(f"  {c}" for _, c in bot.sent_messages)
         )
         # Provider should have been called at most 22 times (21 rounds + possible final)
@@ -606,8 +606,8 @@ class TestChatIntegration:
 
         # Inject separate providers per user
         async def _inject_per_user(user_id: str) -> Any:
-            from henchman.core import Agent
             from henchman.cli.tool_manager import ToolManager
+            from henchman.core import Agent
 
             if user_id in manager._user_agents:
                 return manager._user_agents[user_id]
@@ -752,12 +752,12 @@ class TestChatIntegration:
             """Provider that always fails."""
 
             @property
-            def name(self: "FailingProvider") -> str:
+            def name(self: FailingProvider) -> str:
                 """Return provider name."""
                 return "failing"
 
             async def chat_completion_stream(
-                self: "FailingProvider",
+                self: FailingProvider,
                 messages: list[Message],
                 tools: list[ToolDeclaration] | None = None,
                 **kwargs: Any,
@@ -773,8 +773,8 @@ class TestChatIntegration:
         manager._bots[ChatPlatform.DISCORD] = bot
 
         async def _inject_failing(user_id: str) -> Any:
-            from henchman.core import Agent
             from henchman.cli.tool_manager import ToolManager
+            from henchman.core import Agent
             if user_id in manager._user_agents:
                 return manager._user_agents[user_id]
             tool_manager = ToolManager(settings)
@@ -794,7 +794,6 @@ class TestChatIntegration:
         # Must not raise even when provider fails
         await manager._handle_message(make_message("Hello"))
 
-        all_msgs = " ".join(c for _, c in bot.sent_messages)
         # Should have sent some kind of error or handled gracefully
         assert bot.sent_messages, "Expected at least one message even on provider failure"
 

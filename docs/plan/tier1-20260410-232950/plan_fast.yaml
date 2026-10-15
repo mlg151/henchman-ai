@@ -1,0 +1,583 @@
+plan_id: tier1-20260410-232950
+objective: Tier 1 foundations-first delivery for CLI settings, operational commands, and missing core tools while keeping sync local-only and upgrade guidance package-manager aware.
+created_at: "2026-04-10T23:29:50Z"
+created_by: gem-team:gem-planner
+status: pending_approval
+research_confidence: medium
+
+plan_metrics:
+  wave_1_task_count: 1
+  total_dependencies: 12
+  risk_score: high
+
+tldr: |
+  Fix the broken bootstrap surface first, then build local settings/config plumbing, Tier 1 command slices, and the missing core tools in parallel. Keep settings sync file-local, preserve partial help/version/theme/keybinding/web-search behavior, and finish with registry wiring plus targeted verification.
+
+open_questions: []
+
+pre_mortem:
+  overall_risk_level: high
+  critical_failure_modes:
+    - scenario: "Config bootstrap still misses an import path used by app, API, chat, or TUI code."
+      likelihood: medium
+      impact: high
+      mitigation: "Land a bootstrap smoke test first, then verify every public config import path before feature work starts."
+    - scenario: "Local settings precedence or import/export corrupts user config or resolves the wrong file."
+      likelihood: medium
+      impact: high
+      mitigation: "Implement round-trip tests for defaults, user config, and project-local .henchman files before wiring commands."
+    - scenario: "New CLI commands or tools are added but not registered cleanly, causing collection-time failures or missing surfaces."
+      likelihood: high
+      impact: high
+      mitigation: "Separate module creation from wiring, then add a final registry smoke pass that validates discovery and import safety."
+  assumptions:
+    - "Settings sync remains local import/export only; no backend or cloud sync is required."
+    - "Existing help/version/theme/keybinding/web-search behavior can be extended instead of replaced."
+    - "Package-manager upgrade guidance can print a command by default and optionally run it when the install method is known."
+
+implementation_specification:
+  code_structure: |
+    Keep config bootstrap in src/henchman/config/__init__.py with ContextLoader and environment helpers in sibling modules, and move settings persistence into a dedicated store module. Add Tier 1 CLI commands as focused modules under src/henchman/cli/commands/, keep tool implementations under src/henchman/tools/builtins/, and finish with thin registry wiring so imports stay lazy and safe.
+  affected_areas:
+    - src/henchman/config/
+    - src/henchman/tools/
+    - src/henchman/cli/commands/
+    - src/henchman/cli/
+    - tests/config/
+    - tests/cli/
+    - tests/tools/
+  component_details:
+    - component: config bootstrap
+      responsibility: Expose load_settings, Settings, ContextLoader, and environment helpers for app/API/TUI import sites.
+      interfaces:
+        - "load_settings()"
+        - "Settings"
+        - "ContextLoader"
+        - "gather_environment()"
+        - "format_environment_block()"
+    - component: settings store
+      responsibility: Resolve defaults, user settings, and project-local .henchman files; support local import/export round trips.
+      interfaces:
+        - "load_settings()"
+        - "save_settings()"
+        - "import_settings()"
+        - "export_settings()"
+        - "resolve_settings_paths()"
+    - component: Tier 1 command modules
+      responsibility: Implement config, init, help search, version/update, doctor, and guided upgrade behavior without redesigning the command system.
+      interfaces:
+        - "ConfigCommand"
+        - "InitCommand"
+        - "HelpCommand"
+        - "VersionCommand"
+        - "DoctorCommand"
+        - "UpgradeCommand"
+    - component: missing core tools
+      responsibility: Add ToolSearchTool, SkillTool, WebSearchTool, and SleepTool with consistent naming and registry-friendly constructors.
+      interfaces:
+        - "ToolSearchTool"
+        - "SkillTool"
+        - "WebSearchTool"
+        - "SleepTool"
+    - component: registry hardening
+      responsibility: Keep builtins imports safe, sanitize tool errors, and avoid collection-time failures from missing optional modules.
+      interfaces:
+        - "sanitize_error_message()"
+        - "ToolRegistry.execute()"
+        - "ToolRegistry.get_declarations()"
+  dependencies:
+    - component: config bootstrap
+      relationship: "Feeds settings store, CLI commands, API startup, and TUI initialization."
+    - component: settings store
+      relationship: "Backs config CLI, init flow, and all runtime settings consumers."
+    - component: registry hardening
+      relationship: "Prepares the tool namespace before Tier 1 tool modules are added."
+    - component: Tier 1 command modules
+      relationship: "Depend on settings store and become discoverable only after command wiring."
+    - component: missing core tools
+      relationship: "Depend on registry hardening and become discoverable only after tool wiring."
+  integration_points:
+    - src/henchman/cli/app.py
+    - src/henchman/api/server.py
+    - src/henchman/cli/chat_serve.py
+    - src/henchman/cli/textual_mixins.py
+    - src/henchman/cli/core_init.py
+    - src/henchman/cli/command_processor.py
+    - src/henchman/cli/tool_manager.py
+    - src/henchman/cli/console.py
+    - src/henchman/cli/repl.py
+
+contracts:
+  - from_task: baseline-import-smokes
+    to_task: config-package-bootstrap
+    interface: Failing bootstrap assertions for missing config entrypoints and import paths.
+    format: pytest regression cases
+  - from_task: config-package-bootstrap
+    to_task: settings-store-engine
+    interface: Public config package API surface for load_settings, ContextLoader, and environment helpers.
+    format: Python re-export contract
+  - from_task: settings-store-engine
+    to_task: config-command-module
+    interface: Settings I/O helpers, path resolution, and round-trip import/export behavior.
+    format: Python settings-store API
+  - from_task: tool-security-hardening
+    to_task: tier1-web-sleep-tools
+    interface: Safe tool namespace and sanitize_error_message helper.
+    format: Python utility API
+  - from_task: tool-security-hardening
+    to_task: tier1-tool-skill-search
+    interface: Safe tool namespace and sanitize_error_message helper.
+    format: Python utility API
+  - from_task: config-command-module
+    to_task: tier1-command-and-tool-wiring
+    interface: Config command class names and click command signatures.
+    format: click command classes
+  - from_task: tier1-ops-command-module
+    to_task: tier1-command-and-tool-wiring
+    interface: Init, help search, version, doctor, and upgrade command class names plus helper functions.
+    format: click command classes
+  - from_task: tier1-web-sleep-tools
+    to_task: tier1-command-and-tool-wiring
+    interface: WebSearchTool and SleepTool class exports.
+    format: Tool subclasses
+  - from_task: tier1-tool-skill-search
+    to_task: tier1-command-and-tool-wiring
+    interface: ToolSearchTool and SkillTool class exports.
+    format: Tool subclasses
+
+tasks:
+  - id: baseline-import-smokes
+    title: Add bootstrap smoke tests
+    description: |
+      Add failing regression coverage that reproduces the current bootstrap breakages: config package import/export gaps, missing security helper import, and builtins package collection failures. Keep the tests narrow so later tasks can turn them green without changing intent.
+    task_definition: "Reproduce the current import-time failures with targeted regression tests only."
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: false
+    conflicts_with: []
+    context_files:
+      - path: tests/cli/test_app.py
+        reason: Existing app tests already exercise config import paths.
+      - path: tests/cli/test_builtins.py
+        reason: Builtin command smoke coverage shows how command discovery is expected to behave.
+      - path: tests/tools/test_registry.py
+        reason: Registry discovery is part of the bootstrap failure surface.
+    file_targets:
+      - tests/cli/test_bootstrap_imports.py
+      - tests/tools/test_security_imports.py
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 180
+    focus_area: baseline
+    verification:
+      - "The new tests fail before implementation and pass after the bootstrap fixes land."
+      - "The tests only cover import/collection behavior and do not encode production logic."
+    acceptance_criteria:
+      - "Bootstrap regressions are reproduced with deterministic tests."
+      - "Test scope stays small and directly tied to the known import failures."
+    failure_modes:
+      - scenario: "Tests are too broad and fail for unrelated reasons."
+        likelihood: medium
+        impact: medium
+        mitigation: "Keep fixtures minimal and assert only import and collection outcomes."
+    tech_stack:
+      - pytest
+      - python
+    test_coverage: "Bootstrap import smoke tests for config, tool registry, and command collection."
+
+  - id: config-package-bootstrap
+    title: Create config package entrypoints
+    description: |
+      Create the public henchman.config package surface so current app, API, and TUI import sites can load settings, context, and environment helpers without crashing. Keep the first pass simple enough to unblock the baseline while the deeper settings engine lands later.
+    task_definition: "Expose load_settings, ContextLoader, and environment helpers with a minimal safe default implementation."
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - baseline-import-smokes
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Shows all current config import call sites.
+      - path: src/henchman/api/server.py
+        reason: API startup imports load_settings directly.
+      - path: src/henchman/cli/textual_mixins.py
+        reason: TUI initialization imports config.context and config.environment.
+    file_targets:
+      - src/henchman/config/__init__.py
+      - src/henchman/config/context.py
+      - src/henchman/config/environment.py
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 240
+    focus_area: config-bootstrap
+    verification:
+      - "henchman.config imports cleanly and exports the names used by app, API, and TUI code."
+      - "Default settings loading works before the deeper persistence layer lands."
+    acceptance_criteria:
+      - "All known henchman.config import sites resolve without runtime import errors."
+      - "ContextLoader and environment helpers exist with stable public names."
+    failure_modes:
+      - scenario: "The package exports exist but the public API shape does not match current callers."
+        likelihood: medium
+        impact: high
+        mitigation: "Match the names and return types expected by app, API, and TUI tests before moving on."
+    tech_stack:
+      - python
+      - pytest
+    test_coverage: "Import smoke tests for app, API, chat serve, and TUI config consumers."
+
+  - id: tool-security-hardening
+    title: Harden tool registry imports
+    description: |
+      Add the missing security helper module and make the builtins package stop importing non-existent modules at collection time. This slice should preserve existing shell behavior while making the tool namespace safe to import.
+    task_definition: "Create sanitize_error_message and remove or defer any builtins imports that currently crash test collection."
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - baseline-import-smokes
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/tools/registry.py
+        reason: Registry already expects sanitize_error_message.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Current eager exports are part of the import failure.
+      - path: src/henchman/tools/builtins/shell.py
+        reason: Shell tool is the existing built-in that already depends on security helpers.
+    file_targets:
+      - src/henchman/tools/security.py
+      - src/henchman/tools/registry.py
+      - src/henchman/tools/builtins/__init__.py
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: tool-security
+    verification:
+      - "Tool registry and builtins package import cleanly without referencing missing modules."
+      - "Tool execution still sanitizes exceptions before surfacing them."
+    acceptance_criteria:
+      - "Security helper exists and is used by the registry."
+      - "Builtins import no longer fails during CLI test collection."
+    failure_modes:
+      - scenario: "The fix removes imports but silently changes existing tool behavior."
+        likelihood: medium
+        impact: high
+        mitigation: "Keep shell and registry smoke tests passing while limiting changes to import wiring and sanitization."
+    tech_stack:
+      - python
+      - pytest
+    test_coverage: "Tool registry import and error-sanitization smoke tests."
+
+  - id: settings-store-engine
+    title: Build local settings engine
+    description: |
+      Implement deterministic settings loading, precedence, and import/export helpers with project-local .henchman support. This is the file-backed layer that later CLI commands will consume.
+    task_definition: "Implement full local settings persistence with defaults, user config, project-local overrides, and round-trip import/export."
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - config-package-bootstrap
+    parallelizable: false
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/config/schema.py
+        reason: Existing settings models define the current shape of UI and runtime settings.
+      - path: src/henchman/cli/repl.py
+        reason: Repl already reads UI settings such as keybindings and style overrides.
+      - path: src/henchman/cli/console.py
+        reason: Console theming and accessible mode should stay aligned with stored settings.
+    file_targets:
+      - src/henchman/config/__init__.py
+      - src/henchman/config/store.py
+      - tests/config/test_settings_store.py
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: settings-store
+    verification:
+      - "Defaults, user settings, and local .henchman settings resolve with deterministic precedence."
+      - "Import/export round trips preserve settings and reject invalid files cleanly."
+    acceptance_criteria:
+      - "Project-local .henchman settings are supported without introducing sync backend assumptions."
+      - "Settings load/save/import/export behavior is covered by round-trip and invalid-file tests."
+    failure_modes:
+      - scenario: "Settings precedence resolves the wrong file or mutates user config unexpectedly."
+        likelihood: medium
+        impact: critical
+        mitigation: "Use explicit path resolution helpers and add round-trip tests before wiring CLI mutations."
+    tech_stack:
+      - python
+      - pytest
+      - pyyaml
+    test_coverage: "Settings precedence, local path resolution, import/export, and invalid file handling."
+
+  - id: tier1-web-sleep-tools
+    title: Add WebSearch and Sleep tools
+    description: |
+      Add the Tier 1 WebSearchTool and SleepTool implementations without wiring them into the public registry yet. Keep the modules import-safe so they can be registered after the shared wiring task lands.
+    task_definition: "Implement WebSearchTool and SleepTool as standalone builtins with deterministic constructors and testable behavior."
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - tool-security-hardening
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/tools/builtins/shell.py
+        reason: Existing built-in tool pattern for constructor and execution style.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Exports will be wired later, so these modules must stay import-safe now.
+    file_targets:
+      - src/henchman/tools/builtins/web_search.py
+      - src/henchman/tools/builtins/sleep.py
+      - tests/tools/test_tier1_tools_part1.py
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: web-search-sleep-tools
+    verification:
+      - "WebSearchTool and SleepTool can be instantiated directly in tests."
+      - "Both tools return predictable results for happy-path and edge-case inputs."
+    acceptance_criteria:
+      - "Tier 1 web search and sleep capabilities exist as standalone tool modules."
+      - "The modules do not introduce import-time coupling to missing registry exports."
+    failure_modes:
+      - scenario: "A new tool module imports the registry or builtins package too early and reintroduces collection failures."
+        likelihood: medium
+        impact: high
+        mitigation: "Keep the modules self-contained until the wiring task adds exports."
+    tech_stack:
+      - python
+      - pytest
+      - asyncio
+    test_coverage: "Direct tool behavior tests for web search and sleep execution paths."
+
+  - id: tier1-tool-skill-search
+    title: Add tool search and skill tools
+    description: |
+      Add the Tier 1 ToolSearchTool and SkillTool implementations without wiring them into the public registry yet. Keep the API names aligned with the eventual builtins export so the final registry task stays mechanical.
+    task_definition: "Implement ToolSearchTool and SkillTool as standalone builtins with registry-friendly interfaces."
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - tool-security-hardening
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/tools/registry.py
+        reason: Registry discovery and execution rules will need to recognize the new tool names later.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Exports will be wired later, so these modules must stay import-safe now.
+    file_targets:
+      - src/henchman/tools/builtins/tool_search.py
+      - src/henchman/tools/builtins/skill.py
+      - tests/tools/test_tier1_tools_part2.py
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 280
+    focus_area: skill-and-tool-search
+    verification:
+      - "ToolSearchTool and SkillTool can be instantiated directly in tests."
+      - "The tool names and constructor signatures are stable enough for later registry wiring."
+    acceptance_criteria:
+      - "Tier 1 tool discovery and skill invocation primitives exist as standalone modules."
+      - "The modules remain decoupled from command wiring until the final integration step."
+    failure_modes:
+      - scenario: "Tool names diverge from the registry contract and the later wiring task cannot register them cleanly."
+        likelihood: medium
+        impact: high
+        mitigation: "Lock the exported class names now and keep the final wiring task purely declarative."
+    tech_stack:
+      - python
+      - pytest
+    test_coverage: "Direct tool behavior tests for tool search and skill invocation surfaces."
+
+  - id: config-command-module
+    title: Add config command module
+    description: |
+      Implement the key-based config command surface for view, get, set, unset, import, and export. Keep the command logic thin and push persistence and precedence into the settings engine.
+    task_definition: "Build the CLI config command around the new settings store helpers and deterministic key-path validation."
+    wave: 4
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - settings-store-engine
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/config/store.py
+        reason: The command should call the local settings helpers instead of duplicating file logic.
+      - path: tests/cli/test_builtins.py
+        reason: Existing command tests show the project style for click-style command assertions.
+    file_targets:
+      - src/henchman/cli/commands/config.py
+      - tests/cli/test_config_command.py
+    estimated_effort: medium
+    estimated_files: 2
+    estimated_lines: 320
+    focus_area: config-cli
+    verification:
+      - "Config command covers view/get/set/unset/import/export flows."
+      - "Nested key handling and invalid keys produce clear non-zero exits."
+    acceptance_criteria:
+      - "Config CLI supports read/write by key and local import/export helpers."
+      - "Command tests cover persisted values, output formatting, and invalid key handling."
+    failure_modes:
+      - scenario: "Config writes bypass the settings store and create inconsistent file state."
+        likelihood: medium
+        impact: high
+        mitigation: "Route all mutations through the store helpers and cover them with CLI integration tests."
+    tech_stack:
+      - python
+      - pytest
+      - click
+    test_coverage: "Config command integration tests for key-based read/write and import/export."
+
+  - id: tier1-ops-command-module
+    title: Add init and operational CLI commands
+    description: |
+      Implement the interactive init flow plus help search, version update visibility, doctor diagnostics, and guided upgrade behavior. Keep upgrade detection focused on pip, uv, and pipx with print-or-run behavior.
+    task_definition: "Build the Tier 1 operational command slice around existing CLI patterns and the new local settings engine."
+    wave: 4
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - settings-store-engine
+    parallelizable: true
+    conflicts_with: []
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Version/help/update behavior already has partial support in the app entrypoint.
+      - path: src/henchman/cli/textual_mixins.py
+        reason: Init and theme/keybinding behavior should remain consistent with the TUI configuration paths.
+      - path: src/henchman/cli/console.py
+        reason: Doctor and help output should reuse existing console styling conventions.
+    file_targets:
+      - src/henchman/cli/commands/tier1_ops.py
+      - tests/cli/test_tier1_ops.py
+    estimated_effort: large
+    estimated_files: 2
+    estimated_lines: 440
+    focus_area: operational-cli
+    verification:
+      - "Init can create or update local settings safely with prompt-driven control flow."
+      - "Help search, version update checks, doctor diagnostics, and upgrade guidance all produce useful CLI output."
+    acceptance_criteria:
+      - "The init workflow is interactive and safe for fresh and existing configs."
+      - "Help, version, doctor, and upgrade behavior is discoverable and install-method aware."
+    failure_modes:
+      - scenario: "Upgrade detection guesses the wrong install method and prints the wrong command."
+        likelihood: medium
+        impact: high
+        mitigation: "Implement explicit pip/uv/pipx detection with a manual fallback when detection is inconclusive."
+    tech_stack:
+      - python
+      - pytest
+      - click
+    test_coverage: "Init, help search, version/update, doctor, and guided upgrade command coverage."
+
+  - id: tier1-command-and-tool-wiring
+    title: Wire Tier 1 commands and tools into registries
+    description: |
+      Connect the new config and operational command modules plus the new tool modules into the command and tool registries. Keep this task mechanical so it only publishes already-tested classes and does not introduce new behavior.
+    task_definition: "Update the public builtins exports so the new Tier 1 commands and tools become discoverable without collection failures."
+    wave: 5
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - tier1-web-sleep-tools
+      - tier1-tool-skill-search
+      - config-command-module
+      - tier1-ops-command-module
+    parallelizable: false
+    conflicts_with:
+      - tool-security-hardening
+    context_files:
+      - path: src/henchman/cli/commands/builtins.py
+        reason: Built-in slash commands are published here today.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Tool discovery still flows through the builtins package export surface.
+    file_targets:
+      - src/henchman/cli/commands/builtins.py
+      - src/henchman/tools/builtins/__init__.py
+      - tests/cli/test_builtins.py
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: wiring
+    verification:
+      - "The new command classes show up in builtin command discovery."
+      - "The new tool classes show up in tool registration without import-time failures."
+    acceptance_criteria:
+      - "Command and tool registry wiring becomes a thin publication layer only."
+      - "No new import cycles or collection failures are introduced by the wiring step."
+    failure_modes:
+      - scenario: "A wiring change reintroduces an import cycle between command, tool, or config modules."
+        likelihood: medium
+        impact: high
+        mitigation: "Keep the wiring declarative and run a final import-only smoke test after every export change."
+    tech_stack:
+      - python
+      - pytest
+    test_coverage: "Builtin command and tool discovery smoke tests."
+
+  - id: tier1-final-verification
+    title: Run Tier 1 acceptance sweep
+    description: |
+      Execute the targeted Tier 1 test sweep across bootstrap, settings, commands, and tool discovery. Treat this as the gate that confirms the plan is shippable before any broader follow-up work.
+    task_definition: "Validate the end-to-end Tier 1 slice after wiring is complete."
+    wave: 6
+    agent: gem-reviewer
+    priority: high
+    status: pending
+    dependencies:
+      - tier1-command-and-tool-wiring
+    parallelizable: false
+    conflicts_with: []
+    context_files:
+      - path: tests/cli/test_app.py
+        reason: Core CLI import and runtime coverage.
+      - path: tests/cli/test_builtins.py
+        reason: Builtin command discovery coverage.
+      - path: tests/tools/test_registry.py
+        reason: Tool discovery and execution coverage.
+    file_targets:
+      - tests/cli/test_tier1_end_to_end.py
+      - tests/cli/test_builtins.py
+      - tests/tools/test_registry.py
+    estimated_effort: small
+    estimated_files: 0
+    estimated_lines: 0
+    focus_area: verification
+    verification:
+      - "Targeted pytest selection is green across bootstrap, settings, commands, and tool discovery."
+      - "The final sweep confirms the Tier 1 scope matches the PRD and FEATURE_TODO constraints."
+    acceptance_criteria:
+      - "Baseline imports, config/settings plumbing, command discovery, and tool discovery all pass in one sweep."
+      - "Any remaining failures are outside Tier 1 scope or explicitly deferred."
+    failure_modes:
+      - scenario: "A late wiring issue only appears in the combined test sweep."
+        likelihood: medium
+        impact: high
+        mitigation: "Keep the sweep narrowly targeted and re-run the failing slice immediately rather than widening scope."
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+

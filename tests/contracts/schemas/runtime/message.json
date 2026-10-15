@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/message/v1",
+  "type": "object",
+  "required": ["role", "content", "tool_calls", "tool_call_id", "reasoning_content"],
+  "properties": {
+    "role": { "type": "string" },
+    "content": { "type": ["string", "null"] },
+    "tool_calls": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "arguments"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "arguments": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "tool_call_id": { "type": ["string", "null"] },
+    "reasoning_content": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

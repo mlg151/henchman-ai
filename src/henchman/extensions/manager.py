@@ -59,7 +59,7 @@ def _load_entry_point_extension(ep: EntryPoint, manager: ExtensionManager) -> No
         else:
             logger.warning("Entry point %s is not an Extension subclass", ep.name)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to load extension %s: %s", ep.name, exc)
+        logger.warning("Failed to load extension %s: %s", ep.name, exc, exc_info=True)
 
 
 def _try_load_extension_dir(
@@ -75,7 +75,9 @@ def _try_load_extension_dir(
     try:
         load_extension(ext_file, ext_dir.name)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to load extension from %s: %s", ext_dir.name, exc)
+        logger.warning(
+            "Failed to load extension from %s: %s", ext_dir.name, exc, exc_info=True
+        )
 
 
 def _try_instantiate_ext_class(
@@ -86,7 +88,9 @@ def _try_instantiate_ext_class(
     try:
         return ext_class()
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to instantiate extension %s: %s", ext_name, exc)
+        logger.warning(
+            "Failed to instantiate extension %s: %s", ext_name, exc, exc_info=True
+        )
         return None
 
 
@@ -107,7 +111,12 @@ def _load_extension_from_file_impl(ext_file: Path, ext_name: str) -> Extension |
     try:
         spec.loader.exec_module(module)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Error executing extension module %s: %s", ext_name, exc)
+        logger.warning(
+            "Error executing extension module %s: %s",
+            ext_name,
+            exc,
+            exc_info=True,
+        )
         del sys.modules[spec.name]
         return None
 

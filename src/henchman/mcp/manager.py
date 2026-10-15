@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
-
-logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING
 
 from henchman.config.schema import McpServerConfig
 from henchman.mcp.auth import McpAuthService
 from henchman.mcp.client import McpClient, McpClientProtocol
 from henchman.mcp.tool import McpTool
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -19,6 +20,15 @@ if TYPE_CHECKING:
 
 
 ClientFactory = Callable[[str, McpServerConfig, bool], McpClientProtocol]
+
+
+def _create_mcp_client(
+    name: str,
+    config: McpServerConfig,
+    verbose: bool,
+) -> McpClient:
+    """Adapt the concrete client's keyword-only flag to ``ClientFactory``."""
+    return McpClient(name, config, verbose=verbose)
 
 
 class McpManager:
@@ -37,21 +47,44 @@ class McpManager:
         self.clients: dict[str, McpClientProtocol] = {}
         self._verbose = verbose
         self._auth_tokens: dict[str, str] = {}
-        self._client_factory = client_factory or McpClient  # type: ignore[assignment]
+        self._client_factory = client_factory or _create_mcp_client
 
     @classmethod
     def create_from_settings(
         cls,
-        settings: Settings,
+        settings: Settings | None,
         mcp_logging_enabled: bool = False,
         *,
         project_root: Path | None = None,
-    ) -> McpManager:
-        """Create a manager from application settings."""
+    ) -> McpManager | None:
+        """Create a manager from application settings.
 
-        manager = cls(settings.mcp_servers, verbose=mcp_logging_enabled)
+        Args:
+            settings: Application settings, or None.
+            mcp_logging_enabled: Whether to enable verbose MCP logging.
+            project_root: Optional project root for auth token resolution.
+
+        Returns:
+            A new McpManager instance, or None when *settings* is None
+            or has no MCP servers configured.
+        """
+        if settings is None or settings.mcp_servers is None:
+            return None
+
+        if not settings.mcp_servers:
+            return None
+
+        # Clone configs and inject logging-suppression environment variables
+        configs: dict[str, McpServerConfig] = {}
+        for server_name, config in settings.mcp_servers.items():
+            env = dict(config.env)
+            if not mcp_logging_enabled:
+                env = cls._build_logging_env(server_name, config, env)
+            configs[server_name] = config.model_copy(update={"env": env})
+
+        manager = cls(configs, verbose=mcp_logging_enabled)
         auth_service = McpAuthService(project_root)
-        for server_name in settings.mcp_servers:
+        for server_name in configs:
             token = auth_service.get_token(server_name)
             if token:
                 manager.set_auth_token(server_name, token)
@@ -113,6 +146,26 @@ class McpManager:
                 )
         return wrapped
 
+    def get_server_names(self) -> list[str]:
+        """Return names of all configured servers.
+
+        Returns:
+            List of server name strings.
+        """
+        return list(self.configs.keys())
+
+    def is_trusted(self, server_name: str) -> bool:
+        """Check whether a configured server is trusted.
+
+        Args:
+            server_name: Name of the server to check.
+
+        Returns:
+            True if the server config has trusted=True.
+        """
+        config = self.configs.get(server_name)
+        return config.trusted if config else False
+
     def list_servers(self) -> list[dict[str, object]]:
         """Return status metadata for all configured servers."""
 
@@ -125,6 +178,68 @@ class McpManager:
             }
             for server_name, config in self.configs.items()
         ]
+
+    async def call_tool(
+        self,
+        server_name: str,
+        tool_name: str,
+        arguments: dict[str, object],
+    ) -> object:
+        """Call a tool on one connected server.
+
+        Args:
+            server_name: Name of the server to call.
+            tool_name: Name of the tool to invoke.
+            arguments: Tool arguments dictionary.
+
+        Returns:
+            Tool result.
+
+        Raises:
+            KeyError: If *server_name* is not connected.
+        """
+        client = self.clients.get(server_name)
+        if client is None:
+            msg = f"Unknown MCP server: {server_name}"
+            raise KeyError(msg)
+        return await client.call_tool(tool_name, arguments)
+
+    @staticmethod
+    def _build_logging_env(
+        server_name: str,
+        config: McpServerConfig,
+        env: dict[str, str],
+    ) -> dict[str, str]:
+        """Build MCP server logging environment variables.
+
+        Args:
+            server_name: Name of the server.
+            config: Server configuration.
+            env: Existing environment variables.
+
+        Returns:
+            Enriched environment variables for logging/disabling color.
+        """
+        result = dict(env)
+        result["NO_COLOR"] = "1"
+        result["TERM"] = "dumb"
+
+        command = config.command
+        is_python = "python" in command or command in ("uvx", "uv")
+        is_node = "node" in command or command in ("npx",)
+
+        if is_python:
+            result.setdefault("PYTHONWARNINGS", "ignore")
+            result.setdefault("LOGLEVEL", "WARNING")
+            result.setdefault("PYTHON_LOG_LEVEL", "WARNING")
+            if "serena" in server_name.lower() or "serena" in " ".join(
+                getattr(config, "args", []) or [],
+            ):
+                result.setdefault("SERENA_LOG_LEVEL", "WARNING")
+        elif is_node:
+            result.setdefault("NODE_ENV", "production")
+
+        return result
 
     def discover_tools(self, server_name: str | None = None) -> list[McpToolDefinition]:
         """Return discovered tool definitions for one or all servers."""

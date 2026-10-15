@@ -166,3 +166,76 @@ class TestJsonOutputRenderer:
 
         assert result["type"] == "content"
         assert result["data"] == "123"
+
+
+@pytest.mark.parametrize("mode", ["render", "render_stream_json", "render_final_json"])
+@pytest.mark.parametrize(
+    "data",
+    [
+        None,
+        "stop",
+        {"finish_reason": "stop"},
+        {"finish_reason": "error"},
+        {"finish_reason": "stop", "task_verified": True},
+    ],
+)
+def test_finished_json_does_not_claim_task_verification(mode: str, data: object) -> None:
+    console = MagicMock()
+    renderer = JsonOutputRenderer(console=console)
+    event = AgentEvent(EventType.FINISHED, data)
+    getattr(renderer, mode)([event] if mode == "render_final_json" else event)
+    output = json.loads(console.print.call_args.args[0])
+    if mode == "render_final_json":
+        output = output[0]
+    assert output["task_verified"] is False
+    assert output["type"] == "finished"
+    assert output.get("data") == data
+    assert event.data == data
+
+
+@pytest.mark.parametrize("mode", ["render", "render_stream_json", "render_final_json"])
+def test_json_preserves_agent_identity_for_reused_tool_ids(mode: str) -> None:
+    console = MagicMock()
+    renderer = JsonOutputRenderer(console=console)
+    events = [
+        AgentEvent(
+            event_type,
+            {"id": "call-1", "name": "read_file", "path": f"{agent}.py"},
+            source_agent=agent,
+        )
+        for event_type in (EventType.TOOL_CALL_REQUEST, EventType.TOOL_CALL_RESULT)
+        for agent in ("lead/implementer", "lead/reviewer")
+    ]
+    events.append(
+        AgentEvent(
+            EventType.FINISHED,
+            {"finish_reason": "stop"},
+            source_agent="lead/reviewer",
+        )
+    )
+
+    if mode == "render_final_json":
+        renderer.render_final_json(events)
+        output = json.loads(console.print.call_args.args[0])
+    else:
+        for event in events:
+            getattr(renderer, mode)(event)
+        output = [json.loads(call.args[0]) for call in console.print.call_args_list]
+
+    assert len(output) == len(events)
+    for serialized, event in zip(output, events, strict=True):
+        assert serialized["source_agent"] == event.source_agent
+        assert serialized["type"] == event.type.name.lower()
+        assert serialized["data"] == event.data
+    assert output[-1]["task_verified"] is False
+
+
+@pytest.mark.parametrize("source_agent", [None, ""])
+def test_json_omits_only_absent_agent_identity(source_agent: str | None) -> None:
+    from henchman.cli.json_output import event_to_dict
+
+    event = AgentEvent(EventType.CONTENT, "Hello", source_agent=source_agent)
+    expected = {"type": "content", "data": "Hello"}
+    if source_agent is not None:
+        expected["source_agent"] = source_agent
+    assert event_to_dict(event) == expected

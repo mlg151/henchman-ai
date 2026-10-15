@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar
 
@@ -86,7 +86,7 @@ def _save_note(tag: str, content: str, notes_dir: Path) -> None:
     data = {
         "tag": tag,
         "content": content,
-        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "updated_at": datetime.now(tz=UTC).isoformat(),
     }
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 

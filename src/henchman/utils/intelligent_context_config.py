@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, ClassVar, TypeVar
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 V = TypeVar("V")  # Generic type variable for values
 
@@ -96,7 +96,7 @@ class IntelligentContextConfig:
     def from_params(
         cls: type[Self],
         params: IntelligentContextParams,
-        config: IntelligentContextConfig | None = None,
+        config: Self | None = None,
     ) -> Self:
         """Create configuration from params with proper default handling.
 

@@ -1,0 +1,907 @@
+plan_id: feature-todo-integration-20260413-171548
+objective: >-
+  Deliver variant B as a balanced hybrid integration-truth pass: repair the
+  tractable runtime wiring bugs that already have substantial code behind them,
+  add truthful failure and discoverability UX for partial or local-only
+  surfaces, and narrow roadmap/docs/help claims where full backends remain out
+  of scope.
+created_at: "2026-04-13T17:39:56Z"
+created_by: gem-team:gem-planner
+status: completed
+research_confidence: high
+
+plan_metrics:
+  wave_1_task_count: 5
+  completed_task_count: 9
+  remaining_task_count: 0
+  total_dependencies: 15
+  risk_score: high
+
+execution_progress:
+  completed_waves:
+    - 1
+    - 2
+    - 3
+    - 4
+  next_wave: null
+  wave_1_status: completed
+  wave_2_status: completed
+  wave_3_status: completed
+  wave_4_status: completed
+  baseline_verified: true
+  integration_review_status: passed
+
+tldr: |
+  Variant B fixes the highest-confidence integration gaps that are mostly wiring
+  problems, not missing products: real web_search export, graceful non-crashing
+  marketplace install UX for plugins and agents, and MCP auth/slash-command
+  runtime wiring. In parallel, it makes local-only and export-only surfaces
+  explicitly say what they do today, then uses that verified capability picture
+  to rewrite roadmap/help/docs claims so large missing backends are no longer
+  presented as shipped.
+
+open_questions: []
+
+prd_requirement_index:
+  AC1: The pass stays framed as an integration-truth audit and repair plan, not a promise to build every missing backend.
+  AC2: Stubbed, crashing, unwired, and edge surfaces stay explicitly classified as incomplete until proven end-to-end.
+  AC3: Documentation alignment includes roadmap, README, docs index, and help/discoverability surfaces as source-of-truth work.
+  AC4: Confirmed working foundations such as `.henchman`, Tier 1/Tier 2 wiring, and local discovery stay preserved.
+  AC5: Outcomes are verified with targeted behavior checks or explicit objective assertions, not subjective interpretation alone.
+
+pre_mortem:
+  overall_risk_level: high
+  critical_failure_modes:
+    - scenario: >-
+        The plan accidentally turns truth-alignment work into a promise to build
+        full remote registries, webhook daemons, Slack runtimes, or schedule
+        runners that the PRD explicitly keeps out of scope.
+      likelihood: medium
+      impact: critical
+      mitigation: >-
+        Keep code repairs limited to export, registration, startup reload, and
+        graceful failure paths; require docs/help text to classify unsupported
+        flows as unavailable, export-only, metadata-only, or local-only.
+    - scenario: >-
+        MCP auth reload or new help/doctor output leaks tokens or overexposes
+        sensitive runtime state while trying to improve discoverability.
+      likelihood: medium
+      impact: critical
+      mitigation: >-
+        Reload only presence/status metadata into the manager, never echo token
+        values, and review all new messaging for secret-safe wording.
+    - scenario: >-
+        Help, doctor, and tool_search still derive from different static sources,
+        so docs and CLI messaging drift again immediately after the repair.
+      likelihood: high
+      impact: high
+      mitigation: >-
+        Centralize capability wording around live registration state plus explicit
+        classification for placeholder/local/export-only surfaces, and verify all
+        three discovery paths with focused regression tests.
+    - scenario: >-
+        Narrowing roadmap/docs claims erases confirmed working behavior such as
+        canonical .henchman config, real Tier 1/Tier 2 wiring, and local
+        agent/skill/plugin discovery.
+      likelihood: medium
+      impact: high
+      mitigation: >-
+        Anchor every doc change to source-verified behavior, preserve confirmed
+        local capabilities verbatim, and require doc acceptance checks that
+        working foundations remain explicitly documented.
+  assumptions:
+    - Canonical project-local configuration remains `.henchman/`, with no contract changes.
+    - Tier 1 and most Tier 2 command wiring are already real and should be preserved.
+    - Local discovery of agents, skills, and plugins is real even when marketplace/runtime flows are partial.
+    - Full remote registries, schedule runners, webhook services, Slack runtimes, and Tier 8 remote backends remain out of scope for this pass.
+    - Truthful failure UX is an acceptable outcome when end-to-end runtime wiring is not tractable in this variant.
+
+implementation_specification:
+  code_structure: >-
+    Keep this pass as an integration-layer correction, not a subsystem rewrite.
+    Reuse existing managers, command groups, and tool classes; swap placeholder
+    exports for real implementations where code already exists; add thin runtime
+    guards and capability messaging in the existing CLI/tool modules; and update
+    docs/help from one verified capability picture rather than aspirational tier
+    checklists.
+  affected_areas:
+    - src/henchman/tools/builtins/ for Tier 1/Tier 6 runtime truth and messaging
+    - src/henchman/cli/commands/ for root CLI help, integrations, skill, plugin, agents-platform, and slash-command surfaces
+    - src/henchman/mcp/ and REPL slash-command registration for auth reload and /mcp exposure
+    - FEATURE_TODO.md, TODOS.md, README.md, docs/index.md, docs/extensions.md, and docs/mcp.md for truth-aligned claims
+    - tests/cli/, tests/tools/, and focused MCP/plugin/agent command suites for regression coverage
+  component_details:
+    - component: Web search runtime surface
+      responsibility: >-
+        Expose the real web_search tool implementation through the shared Tier 1
+        export surface and report dependency-driven unavailability truthfully
+        instead of a permanent stub message.
+      interfaces:
+        - web_search builtin registration
+        - ToolResult error content for missing web search dependencies
+    - component: Marketplace install safety layer
+      responsibility: >-
+        Keep plugin and agents-platform install flows from crashing when the
+        remote registry is unavailable, and return deterministic guidance that
+        distinguishes local discovery/publish flows from unavailable marketplace
+        flows.
+      interfaces:
+        - henchman plugin install/list/remove
+        - henchman agents-platform install/show/list/publish
+    - component: MCP bootstrap and auth persistence
+      responsibility: >-
+        Reload persisted MCP auth tokens at startup, expose /mcp in the REPL
+        slash-command registry, and keep MCP status surfaces truthful without
+        printing secrets.
+      interfaces:
+        - McpManager.create_from_settings(...)
+        - /mcp <list|status|logging>
+        - MCP auth presence/status reporting
+    - component: Capability discovery surface
+      responsibility: >-
+        Make help, doctor, and tool_search reflect live runtime registration plus
+        explicit local-only/export-only/metadata-only classifications for partial
+        surfaces such as skills, integration blueprints, and schedule_cron.
+      interfaces:
+        - henchman help
+        - henchman doctor / doctor-tool diagnostics
+        - tool_search
+    - component: Truth-aligned documentation
+      responsibility: >-
+        Rewrite roadmap and reference docs so they preserve confirmed working
+        local features while narrowing unsupported claims for Tier 3-10 surfaces
+        that are still stubbed, blueprint-only, local-only, or undiscoverable.
+      interfaces:
+        - FEATURE_TODO.md and TODOS.md roadmap state
+        - README.md feature and usage claims
+        - docs/index.md, docs/extensions.md, docs/mcp.md reference guidance
+  dependencies:
+    - component: Web search runtime surface
+      relationship: Supplies a truthful live web_search capability that discovery and docs can reference.
+    - component: Marketplace install safety layer
+      relationship: Supplies non-crashing status and wording for plugin and agent marketplace claims used by help and docs.
+    - component: MCP bootstrap and auth persistence
+      relationship: Supplies the runtime-visible /mcp and auth status surface used by REPL discovery and docs.
+    - component: Capability discovery surface
+      relationship: Consumes repaired runtime surfaces and becomes the canonical wording source for CLI/help/docs parity.
+    - component: Truth-aligned documentation
+      relationship: Consumes the verified capability picture and narrows roadmap/reference claims without changing implementation scope.
+  integration_points:
+    - Existing Tier 1 builtin export surface in src/henchman/tools/builtins/tier1_tools.py and __init__.py
+    - Existing plugin and agent marketplace managers in src/henchman/extensions/plugin_manager.py and src/henchman/agents/platform_manager.py
+    - Existing REPL slash-command registration in src/henchman/cli/commands/builtins.py and src/henchman/cli/command_processor.py
+    - Existing MCP startup flows in src/henchman/mcp/manager.py, src/henchman/cli/repl.py, and src/henchman/cli/core_init.py
+    - Existing docs/help entrypoints in FEATURE_TODO.md, TODOS.md, README.md, docs/index.md, docs/extensions.md, and docs/mcp.md
+
+contracts:
+  - from_task: fti-web-search-runtime
+    to_task: fti-discovery-truth-surface
+    interface: Truthful live web_search registration and failure semantics
+    format: Registered tool metadata plus dependency-driven ToolResult content
+  - from_task: fti-plugin-marketplace-ux
+    to_task: fti-discovery-truth-surface
+    interface: Plugin marketplace capability classification
+    format: Deterministic CLI/help/error wording for local install state vs unavailable registry flows
+  - from_task: fti-agent-marketplace-ux
+    to_task: fti-discovery-truth-surface
+    interface: Agents-platform marketplace capability classification
+    format: Deterministic CLI/help/error wording for local discovery/publish vs unavailable registry install flows
+  - from_task: fti-mcp-runtime-wiring
+    to_task: fti-discovery-truth-surface
+    interface: Runtime-visible MCP command and persisted auth status
+    format: Registered /mcp slash command plus secret-safe auth-presence status
+  - from_task: fti-local-surface-ux
+    to_task: fti-discovery-truth-surface
+    interface: Truthful local/export-only classifications for skills, integrations, and schedules
+    format: User-facing command/tool descriptions and failure text
+  - from_task: fti-discovery-truth-surface
+    to_task: fti-roadmap-readme-truth
+    interface: Canonical capability classification matrix for top-level product claims
+    format: Verified classifications per surface (runtime-wired, local-only, export-only, metadata-only, unavailable, docs-only, undiscoverable)
+  - from_task: fti-discovery-truth-surface
+    to_task: fti-reference-docs-truth
+    interface: Canonical capability classification matrix for reference docs
+    format: Verified classifications and supported user flows for docs pages, including docs-only edge surfaces
+  - from_task: fti-roadmap-readme-truth
+    to_task: fti-integration-truth-review
+    interface: Updated top-level roadmap and README claims
+    format: Edited Markdown with preserved confirmed realities and narrowed unsupported claims
+  - from_task: fti-reference-docs-truth
+    to_task: fti-integration-truth-review
+    interface: Updated docs hub and integration/MCP reference claims
+    format: Edited Markdown with explicit local/export-only/runtime-wired classifications
+
+capability_classification_matrix:
+  artifact_owner: fti-discovery-truth-surface
+  purpose: Single traceable truth source that discovery and documentation tasks must consume when classifying claimed surfaces in variant B.
+  entries:
+    - surface: web_search
+      variant_b_classification: runtime-wired
+      variant_b_note: Real runtime export should be repaired and then treated as live where registration succeeds.
+      truth_source_files:
+        - src/henchman/tools/builtins/tier1_tools.py
+        - src/henchman/tools/builtins/web_search.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+    - surface: plugin_marketplace_install
+      variant_b_classification: unavailable
+      variant_b_note: Local plugin lifecycle remains real, but remote marketplace install is guarded and must not be documented as production-ready.
+      truth_source_files:
+        - src/henchman/cli/commands/plugin_command.py
+        - src/henchman/extensions/plugin_manager.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+    - surface: agents_platform_install
+      variant_b_classification: unavailable
+      variant_b_note: Local list/show/publish remain real; remote install stays registry-unavailable and docs must say so explicitly.
+      truth_source_files:
+        - src/henchman/cli/commands/agents_platform_command.py
+        - src/henchman/agents/platform_manager.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+    - surface: mcp_auth_reload_and_slash_command
+      variant_b_classification: runtime-wired
+      variant_b_note: Persisted auth presence and `/mcp` discoverability should be restored without exposing secrets.
+      truth_source_files:
+        - src/henchman/mcp/manager.py
+        - src/henchman/cli/commands/builtins.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-reference-docs-truth
+    - surface: skills_invocation
+      variant_b_classification: local-only
+      variant_b_note: Skills stay discovery and inspection oriented in this variant; docs and help must avoid claiming a production invocation backend.
+      truth_source_files:
+        - src/henchman/cli/commands/skill_command.py
+        - src/henchman/skills/catalog.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+    - surface: integration_blueprints_and_slack
+      variant_b_classification: export-only
+      variant_b_note: Integration commands export scaffolds and blueprints, including Slack, rather than launching runtimes.
+      truth_source_files:
+        - src/henchman/cli/commands/integration_commands.py
+        - src/henchman/integrations/blueprints.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+    - surface: schedule_cron
+      variant_b_classification: metadata-only
+      variant_b_note: Schedule management persists metadata only; no background runner is added in this variant.
+      truth_source_files:
+        - src/henchman/tools/builtins/tier6_tools.py
+        - src/henchman/advanced/schedule.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+    - surface: github_webhook_helper
+      variant_b_classification: docs-only
+      variant_b_note: GitHub webhook helpers remain narrowed and out of scope for runtime wiring in variant B; roadmap/help/docs must classify them explicitly as non-runtime in this pass.
+      truth_source_files:
+        - src/henchman/git/github_app.py
+        - FEATURE_TODO.md
+        - README.md
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+    - surface: tier10_dialog_discoverability
+      variant_b_classification: undiscoverable
+      variant_b_note: Tier 10 dialogs may exist in Textual code and tests, but variant B classifies runtime discoverability as undiscoverable and requires docs/help to say they are not discoverable or shipped unless live help or command registration proves otherwise.
+      truth_source_files:
+        - src/henchman/cli/textual_screens.py
+        - src/henchman/cli/textual_mixins.py
+        - tests/cli/test_tier10_textual_ui.py
+      consumed_by:
+        - fti-discovery-truth-surface
+        - fti-roadmap-readme-truth
+        - fti-reference-docs-truth
+
+tasks:
+  - id: fti-web-search-runtime
+    title: Replace the Tier 1 web_search stub with the real runtime export
+    description: |
+      Repair the highest-confidence Tier 1 wiring bug by swapping the placeholder
+      web_search export to the real DuckDuckGo-backed implementation that already
+      exists in the codebase. Keep the behavior dependency-aware and truthful:
+      runtime execution should either perform the search or explain missing
+      optional dependencies, but it must no longer hardcode "unavailable in this
+      build" while the tool is still advertised as shipped.
+    task_definition: Restore a truthful live web_search export without broadening search scope.
+    prd_reference:
+      - AC2
+      - AC5
+    details:
+      - Re-export the real web search implementation through the shared Tier 1 builtin surface.
+      - Preserve graceful dependency/network failure handling from the concrete tool implementation.
+      - Add focused regression coverage so help/doctor/tool registry tests stop treating web_search as a permanent stub.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: completed
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - fti-discovery-truth-surface
+    file_targets:
+      - src/henchman/tools/builtins/tier1_tools.py
+      - src/henchman/tools/builtins/web_search.py
+      - tests/tools/test_tier1_tools.py
+    context_files:
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Shared builtin export surface controls what the runtime registers.
+      - path: src/henchman/cli/tool_manager.py
+        reason: Runtime registration path must pick up the repaired export.
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 140
+    focus_area: runtime tool wiring
+    security_sensitive: false
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py tests/cli/test_tool_manager_tier1.py -q
+      - uv run --extra dev python -m ruff check src/henchman/tools/builtins/tier1_tools.py src/henchman/tools/builtins/web_search.py
+    acceptance_criteria:
+      - web_search resolves to the concrete implementation rather than a permanent placeholder response.
+      - Missing optional dependencies still return explicit remediation instead of a crash.
+      - Runtime tool registration and Tier 1 tests observe the repaired web_search behavior.
+    failure_modes:
+      - scenario: The alias swap changes the public tool schema or name and breaks callers expecting web_search.
+        likelihood: medium
+        impact: high
+        mitigation: Preserve the web_search name/parameters contract and add parity tests around registration metadata.
+    tech_stack:
+      - Python 3.12
+      - aiohttp
+      - beautifulsoup4
+      - pytest
+    test_coverage: Tier 1 builtin export and tool-manager registration tests for web_search.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: false
+
+  - id: fti-plugin-marketplace-ux
+    title: Make plugin marketplace install flows fail truthfully instead of crashing
+    description: |
+      Keep the existing plugin command surface but narrow it to what is actually
+      supported today: local installation state is real, while remote marketplace
+      resolution is not. Repair the install path so registry absence or missing
+      metadata produces deterministic user guidance instead of an unhandled crash,
+      and make the command wording reflect marketplace-unavailable behavior.
+    task_definition: Convert plugin marketplace install from crashing behavior to truthful guarded UX.
+    prd_reference:
+      - AC2
+      - AC5
+    details:
+      - Catch registry-miss and placeholder-marketplace failures at the command boundary with user-safe messaging.
+      - Preserve real list/remove/local plugin lifecycle behavior.
+      - Update command help/output so marketplace install is clearly unavailable in this build unless backed by real metadata.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: completed
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - src/henchman/cli/commands/plugin_command.py
+      - src/henchman/extensions/plugin_manager.py
+      - tests/cli/test_plugin_command.py
+    context_files:
+      - path: src/henchman/extensions/plugin_registry_client.py
+        reason: Existing registry abstraction shows the remote marketplace is not truly wired.
+      - path: FEATURE_TODO.md
+        reason: Tier 3 claims currently overstate plugin marketplace completeness.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: plugin marketplace UX
+    security_sensitive: true
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_plugin_command.py -q
+      - uv run --extra dev python -m ruff check src/henchman/cli/commands/plugin_command.py src/henchman/extensions/plugin_manager.py
+    acceptance_criteria:
+      - plugin install never crashes when the registry has no backing metadata.
+      - plugin list/remove keep working for local installed state.
+      - User-facing text distinguishes local plugin management from unavailable marketplace installation.
+    failure_modes:
+      - scenario: Guarding install failures accidentally hides real local plugin errors behind a generic marketplace message.
+        likelihood: medium
+        impact: high
+        mitigation: Differentiate registry-miss, validation, and local filesystem errors in tests and output text.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Focused plugin command regression tests for install/list/remove failure semantics.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: fti-agent-marketplace-ux
+    title: Make agents-platform installs degrade safely while preserving local discovery and publish
+    description: |
+      Repair the claimed-complete agents-platform flow by separating the real
+      local capabilities from the missing registry backend. Install attempts
+      should fail gracefully with truthful guidance, while list/show/publish keep
+      exposing the working project-local agent definition features already
+      confirmed by research.
+    task_definition: Guard agents-platform marketplace install paths without regressing local agent workflows.
+    prd_reference:
+      - AC2
+      - AC5
+    details:
+      - Convert missing registry definitions into stable CLI errors instead of crashes.
+      - Preserve local list/show/publish behavior and project-local storage layout.
+      - Update wording so marketplace installation is not presented as fully operational when only local flows are real.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: completed
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - src/henchman/cli/commands/agents_platform_command.py
+      - src/henchman/agents/platform_manager.py
+      - tests/cli/test_agents_platform_command.py
+    context_files:
+      - path: src/henchman/agents/catalog.py
+        reason: Local agent discovery is confirmed real and must stay intact.
+      - path: AGENTS.md
+        reason: Canonical local agent workflow conventions should be preserved.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: agent marketplace UX
+    security_sensitive: true
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_agents_platform_command.py -q
+      - uv run --extra dev python -m ruff check src/henchman/cli/commands/agents_platform_command.py src/henchman/agents/platform_manager.py
+    acceptance_criteria:
+      - agents-platform install does not crash when no remote registry metadata exists.
+      - agents-platform list/show/publish remain functional for local definitions.
+      - User-facing copy no longer implies remote marketplace installs are production-ready.
+    failure_modes:
+      - scenario: The install guard regresses publish or local installed-agent persistence.
+        likelihood: medium
+        impact: high
+        mitigation: Keep local publish/list/show tests alongside install failure coverage and avoid changing storage schema.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+      - PyYAML
+    test_coverage: Focused agents-platform CLI regression tests for local flows and guarded install failures.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: fti-mcp-runtime-wiring
+    title: Reload persisted MCP auth and restore the /mcp slash command
+    description: |
+      Fix the MCP surfaces that already exist but are not actually wired at
+      runtime. Persisted auth tokens should be loaded back into the manager at
+      startup, the REPL slash-command registry should expose /mcp, and the
+      resulting status surfaces must remain secret-safe and aligned with actual
+      connected/configured state.
+    task_definition: Restore MCP startup wiring and slash-command discoverability.
+    prd_reference:
+      - AC2
+      - AC5
+    details:
+      - Load persisted auth-token presence into McpManager creation rather than keeping startup state memory-only.
+      - Register McpCommand in the built-in REPL slash-command set.
+      - Add focused tests covering /mcp availability and startup auth reload without token leakage.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: completed
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - src/henchman/mcp/manager.py
+      - src/henchman/cli/commands/builtins.py
+      - tests/tools/test_tier6_mcp_tools.py
+    context_files:
+      - path: src/henchman/mcp/auth.py
+        reason: Persisted MCP auth already exists and should be reused rather than replaced.
+      - path: src/henchman/cli/commands/mcp.py
+        reason: The slash command implementation already exists and needs registration only.
+      - path: src/henchman/cli/repl.py
+        reason: REPL startup flow depends on manager creation and command registry wiring.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 200
+    focus_area: MCP runtime wiring
+    security_sensitive: true
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier6_mcp_tools.py tests/e2e/test_mcp_integration.py -q
+      - uv run --extra dev python -m ruff check src/henchman/mcp/manager.py src/henchman/cli/commands/builtins.py
+    acceptance_criteria:
+      - Persisted MCP auth status is reloaded when the manager is created.
+      - /mcp is discoverable and executable in the REPL slash-command registry.
+      - MCP status/help output never prints raw token values.
+    failure_modes:
+      - scenario: Startup reload exposes stored token values through logs, help, or status output.
+        likelihood: medium
+        impact: critical
+        mitigation: Limit surfaced data to boolean auth presence and add explicit redaction assertions in tests.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: MCP startup/auth reload and slash-command registration regression coverage.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: fti-local-surface-ux
+    title: Add truthful local-only and export-only UX for skills, integrations, and schedules
+    description: |
+      Improve discoverability for the partial surfaces that should not be
+      advertised as fully runtime-wired. The CLI and tool UX should explicitly
+      say that skill commands are discovery/inspection-first, integration
+      commands export scaffolds instead of launching full runtimes, and
+      schedule_cron persists metadata without a background runner in this build.
+    task_definition: Make partial local surfaces self-describing before docs are updated.
+    prd_reference:
+      - AC2
+      - AC5
+    details:
+      - Update skill CLI messaging so list/show/local compatibility is clear and unsupported invocation claims are avoided.
+      - Update integration command help/output to emphasize blueprint export instead of setup/launch promises.
+      - Update schedule_cron descriptions/results so users are told that schedules are persisted metadata only.
+    wave: 1
+    agent: gem-implementer
+    priority: medium
+    status: completed
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - src/henchman/cli/commands/skill_command.py
+      - src/henchman/cli/commands/integration_commands.py
+      - src/henchman/tools/builtins/tier6_tools.py
+    context_files:
+      - path: src/henchman/skills/catalog.py
+        reason: Local cross-ecosystem skill discovery is real and should be preserved.
+      - path: src/henchman/integrations/blueprints.py
+        reason: The shipped integration capability is scaffold export, including Slack blueprint content.
+      - path: src/henchman/advanced/schedule.py
+        reason: Existing schedule service persists metadata but does not run jobs.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 240
+    focus_area: truthful capability messaging
+    security_sensitive: false
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_skill_command.py tests/cli/test_integration_commands.py tests/tools/test_tier6_lsp_schedule_tools.py tests/cli/test_tier10_textual_ui.py -q
+      - uv run --extra dev python -m ruff check src/henchman/cli/commands/skill_command.py src/henchman/cli/commands/integration_commands.py src/henchman/tools/builtins/tier6_tools.py
+    acceptance_criteria:
+      - skill surfaces describe current discovery/inspection capability without promising a production invocation backend.
+      - ide/desktop/mobile/chrome messaging describes scaffold export rather than full setup/launch automation.
+      - schedule_cron explicitly says it stores and manages schedule metadata, not a running scheduler daemon.
+    failure_modes:
+      - scenario: Messaging gets narrowed too aggressively and hides real local/export behavior users rely on today.
+        likelihood: medium
+        impact: medium
+        mitigation: Base each wording change on the concrete behavior already present in the corresponding command/tool tests.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Focused UX text and command behavior snapshots for skill, integration, and schedule surfaces.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: fti-discovery-truth-surface
+    title: Align help, doctor, and tool_search with live runtime capability truth
+    description: |
+      Build one truthful discovery layer on top of the repaired runtime surfaces.
+      help, doctor, and tool_search should no longer reflect only builtin export
+      metadata; they should report what is actually registered and which claimed
+      surfaces are live, local-only, export-only, metadata-only, or unavailable.
+      This task also owns the plan's capability_classification_matrix so GitHub
+      webhook-helper stays docs-only and Tier 10 runtime discoverability stays
+      undiscoverable in variant B; help/docs must say Tier 10 is not
+      discoverable or shipped unless live runtime registration proves
+      otherwise. Keep this task scope-limited to discovery truth and
+      classification only; no new backend buildout belongs here. This is the
+      bridge between code repair and roadmap/docs parity.
+    task_definition: Make the CLI discovery surfaces reflect live runtime capability rather than aspirational metadata, and publish the canonical capability classification matrix consumed by the docs tasks.
+    prd_reference:
+      - AC2
+      - AC3
+      - AC5
+    details:
+      - Feed help and doctor from live registration/runtime-aware capability data.
+      - Update tool_search so it can distinguish available tools from placeholder or narrowed surfaces.
+      - Ensure repaired web_search and MCP surfaces appear correctly once wired, while plugin/agent marketplace and other partial surfaces are clearly classified.
+      - Classify `src/henchman/git/github_app.py` webhook-helper surfaces as docs-only/out-of-scope runtime for variant B unless live registration evidence appears.
+      - Classify Tier 10 dialog surfaces from `src/henchman/cli/textual_screens.py`, `src/henchman/cli/textual_mixins.py`, and `tests/cli/test_tier10_textual_ui.py` with runtime discoverability = `undiscoverable`, and require help/docs wording to state they are not discoverable or shipped unless help or runtime registration exposes them directly.
+      - Stay within PRD scope discipline: do not add webhook servers, dialog-launch backends, or other new backend buildout in this task; only expose verified runtime discoverability and truthful classification.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: completed
+    dependencies:
+      - fti-web-search-runtime
+      - fti-plugin-marketplace-ux
+      - fti-agent-marketplace-ux
+      - fti-mcp-runtime-wiring
+      - fti-local-surface-ux
+    parallelizable: false
+    conflicts_with:
+      - fti-web-search-runtime
+    file_targets:
+      - src/henchman/cli/commands/help_command.py
+      - src/henchman/cli/commands/doctor_tool_command.py
+      - src/henchman/tools/builtins/tier1_tools.py
+    context_files:
+      - path: src/henchman/cli/app.py
+        reason: Root click registration defines the command surface help should enumerate.
+      - path: src/henchman/cli/tool_manager.py
+        reason: Live registry state comes from runtime tool registration.
+      - path: src/henchman/tools/builtins/__init__.py
+        reason: Builtin export availability still influences registry visibility.
+      - path: src/henchman/git/github_app.py
+        reason: GitHub webhook-helper code must be explicitly classified as docs-only unless runtime wiring is proven.
+      - path: src/henchman/cli/textual_screens.py
+        reason: Tier 10 dialog implementations exist in code and need explicit discoverability classification.
+      - path: tests/cli/test_tier10_textual_ui.py
+        reason: Textual tests confirm dialog code exists even if runtime discoverability remains undiscoverable in variant B and docs/help must say the dialogs are not discoverable or shipped.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 280
+    focus_area: runtime discoverability
+    security_sensitive: true
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_doctor_command.py tests/cli/test_doctor_tool_command.py tests/cli/test_tool_manager_tier1.py tests/tools/test_tier1_tools.py tests/tools/test_tier6_mcp_tools.py tests/cli/test_tier10_textual_ui.py -q
+      - uv run --extra dev python -m ruff check src/henchman/cli/commands/help_command.py src/henchman/cli/commands/doctor_tool_command.py src/henchman/tools/builtins/tier1_tools.py
+      - rg -n "(?i)(github webhook-helper|webhook helper).*(docs-only|out of scope|not shipped|non-runtime)" FEATURE_TODO.md TODOS.md README.md docs/index.md docs/extensions.md docs/mcp.md
+      - rg -n "(?i)(tier 10|textual dialog|dialog discoverability).*(undiscoverable|not discoverable|not shipped)" FEATURE_TODO.md TODOS.md README.md docs/index.md docs/extensions.md docs/mcp.md
+      - rg -n "(?i)(tier 10|textual dialog|dialog discoverability|undiscoverable|not discoverable|not shipped|webhook-helper|webhook helper)" src/henchman/cli/commands/help_command.py src/henchman/cli/commands/doctor_tool_command.py src/henchman/tools/builtins/tier1_tools.py tests/cli/test_help_command.py tests/cli/test_doctor_command.py tests/cli/test_doctor_tool_command.py tests/cli/test_tier10_textual_ui.py
+    acceptance_criteria:
+      - help, doctor, and tool_search all describe the same verified capability state, backed by explicit help-command and doctor-command regression coverage.
+      - Repaired web_search and MCP surfaces show up as live where registered.
+      - Plugin/agent marketplace, skill invocation, integration exports, and schedule metadata surfaces are classified truthfully rather than implied complete.
+      - GitHub webhook-helper remains docs-only/out-of-scope runtime, and Tier 10 runtime discoverability remains explicitly classified as undiscoverable with help/docs stating those dialogs are not discoverable or shipped in this variant unless discoverability is proven, with no backend implementation added.
+    failure_modes:
+      - scenario: Discovery surfaces still disagree because one path keeps reading static builtin metadata only.
+        likelihood: high
+        impact: high
+        mitigation: Add shared regression assertions covering all three surfaces against the same expected capability states.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Cross-surface discovery parity tests for help, doctor, tool_search, web_search, and MCP.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: fti-roadmap-readme-truth
+    title: Truth-align roadmap snapshots and README claims with verified runtime scope
+    description: |
+      Rewrite the top-level roadmap and README messaging so it matches the
+      repaired capability picture. Preserve confirmed working foundations such as
+      .henchman, Tier 1/Tier 2, and local discovery, while narrowing overstated
+      Tier 3-10 claims around marketplaces, schedule execution, Slack runtime,
+      Tier 8 backends, and undocumented or undiscoverable UI surfaces.
+    task_definition: Update top-level product and roadmap docs to match verified runtime truth.
+    prd_reference:
+      - AC2
+      - AC3
+      - AC4
+      - AC5
+    details:
+      - Reclassify Tier 3-8 claims in FEATURE_TODO.md from "complete" to truthful local/partial/out-of-scope wording where needed.
+      - Keep TODOS.md synchronized with the narrowed roadmap state instead of treating inflated tiers as done.
+      - Rewrite README feature/status language so quickstart and feature bullets stop implying unsupported backends are shipped.
+      - Consume the capability_classification_matrix as the single truth source for GitHub webhook-helper and Tier 10 dialog classifications, keeping webhook-helper docs-only and Tier 10 runtime discoverability undiscoverable with explicit "not discoverable/not shipped" wording in variant B.
+      - Stay within PRD scope discipline: do not expand roadmap or README edits into backend buildout; narrow claims instead of adding webhook, dialog, marketplace, Slack, or other new runtime systems.
+    wave: 3
+    agent: gem-documentation-writer
+    priority: high
+    status: completed
+    dependencies:
+      - fti-discovery-truth-surface
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - FEATURE_TODO.md
+      - TODOS.md
+      - README.md
+    context_files:
+      - path: docs/prd.yaml
+        reason: PRD is the scope source of truth for what must be wired versus narrowed.
+      - path: src/henchman/cli/commands/plugin_command.py
+        reason: Plugin wording must match guarded marketplace behavior.
+      - path: src/henchman/cli/commands/agents_platform_command.py
+        reason: Agents-platform wording must preserve local discovery while narrowing registry claims.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: roadmap truth alignment
+    security_sensitive: false
+    verification:
+      - rg -n "(?i)(github webhook-helper|webhook helper).*(docs-only|out of scope|not shipped|non-runtime)" FEATURE_TODO.md TODOS.md README.md
+      - rg -n "(?i)(tier 10|textual dialog|dialog discoverability).*(undiscoverable|not discoverable|not shipped)" FEATURE_TODO.md TODOS.md README.md
+      - uv run --extra dev mkdocs build --strict
+    acceptance_criteria:
+      - Top-level docs preserve confirmed .henchman, Tier 1/Tier 2, and local discovery realities.
+      - Stubbed or out-of-scope marketplace, scheduler, Slack, Tier 8, and Tier 10 claims are no longer marked complete.
+      - GitHub webhook-helper claims and Tier 10 dialog discoverability are explicitly classified in the roadmap/README truth language rather than left implicit, with webhook-helper stated as docs-only/out-of-scope runtime and Tier 10 stated as runtime-undiscoverable plus not discoverable/not shipped in docs unless runtime proof exists.
+      - README status and feature bullets no longer imply all phases/backends are production-ready.
+    failure_modes:
+      - scenario: Documentation narrows broad tiers but leaves contradictory "complete" headlines in place.
+        likelihood: medium
+        impact: high
+        mitigation: Update summary bullets, completion banners, and tier detail sections in the same task rather than only editing deep subsections.
+    tech_stack:
+      - Markdown
+      - MkDocs
+    test_coverage: Documentation parity review against verified CLI/runtime behavior.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+    task_type: update
+    audience: developers
+    coverage_matrix:
+      - FEATURE_TODO tier status matches verified runtime classifications.
+      - TODOS.md no longer treats overstated tiers as complete.
+      - README feature/status copy matches actual shipped capability.
+      - GitHub webhook-helper and Tier 10 dialog discoverability claims are explicitly traceable to docs-only and runtime-undiscoverable/not discoverable/not shipped roadmap/README wording.
+
+  - id: fti-reference-docs-truth
+    title: Truth-align docs hub and reference pages for integrations and MCP
+    description: |
+      Update the documentation hub and the nearest durable reference pages so
+      users can discover the repaired and narrowed behavior from canonical docs
+      instead of roadmap folklore. This task should make export-only
+      integrations, local-only capabilities, and MCP runtime expectations clear
+      without duplicating large blocks of README text.
+    task_definition: Update reference docs to reflect repaired runtime behavior and narrowed claims.
+    prd_reference:
+      - AC2
+      - AC3
+      - AC4
+      - AC5
+    details:
+      - Update docs/index.md so the docs hub points readers to truthful capability guidance.
+      - Update docs/extensions.md to distinguish local discovery/export support from unavailable marketplace/runtime backends.
+      - Update docs/mcp.md to describe auth persistence, startup reload expectations, and the restored /mcp surface without exposing secrets.
+      - Consume the capability_classification_matrix so any GitHub webhook-helper references stay explicitly docs-only and any Tier 10 references stay explicitly runtime-undiscoverable with docs wording "not discoverable/not shipped" in this variant.
+      - Stay within PRD scope discipline: do not turn reference-doc updates into backend implementation; document current runtime truth without adding webhook, dialog, marketplace, or Slack backend buildout.
+    wave: 3
+    agent: gem-documentation-writer
+    priority: medium
+    status: completed
+    dependencies:
+      - fti-discovery-truth-surface
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - docs/index.md
+      - docs/extensions.md
+      - docs/mcp.md
+    context_files:
+      - path: AGENTS.md
+        reason: Docs should link to canonical durable sources instead of duplicating internal guidance.
+      - path: src/henchman/cli/commands/integration_commands.py
+        reason: Integration docs must describe blueprint export behavior accurately.
+      - path: src/henchman/cli/commands/mcp.py
+        reason: MCP reference docs should match the restored slash-command surface.
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: reference docs parity
+    security_sensitive: false
+    verification:
+      - rg -n "(?i)(github webhook-helper|webhook helper).*(docs-only|out of scope|not shipped|non-runtime)" docs/index.md docs/extensions.md docs/mcp.md
+      - rg -n "(?i)(tier 10|textual dialog|dialog discoverability).*(undiscoverable|not discoverable|not shipped)" docs/index.md docs/extensions.md docs/mcp.md
+      - uv run --extra dev mkdocs build --strict
+    acceptance_criteria:
+      - The docs hub no longer funnels readers into overstated runtime claims.
+      - Extensions docs distinguish local discovery/export behavior from unavailable marketplaces and Slack runtime claims.
+      - MCP docs reflect persisted auth reload and /mcp availability without documenting nonexistent server-management backends.
+      - Any referenced GitHub webhook-helper or Tier 10 dialog surfaces are called out as docs-only/out-of-scope runtime for webhook-helper and runtime-undiscoverable plus not discoverable/not shipped for Tier 10 instead of being implied as fully runtime-wired.
+    failure_modes:
+      - scenario: Reference docs are updated but still copy outdated top-level claims from README or FEATURE_TODO.
+        likelihood: medium
+        impact: medium
+        mitigation: Reference the verified capability classifications directly and remove duplicated aspirational wording.
+    tech_stack:
+      - Markdown
+      - MkDocs
+    test_coverage: Documentation parity review for docs hub, extensions, and MCP reference pages.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+    task_type: update
+    audience: developers
+    coverage_matrix:
+      - docs/index.md links and summaries reflect current capability scope.
+      - docs/extensions.md classifies local/export-only versus unavailable marketplace/runtime surfaces.
+      - docs/mcp.md matches current auth persistence and slash-command behavior.
+      - Edge-surface wording for GitHub webhook-helper claims and Tier 10 dialog discoverability remains explicitly truth-aligned, with Tier 10 consistently described as runtime-undiscoverable and not discoverable/not shipped where referenced.
+
+  - id: fti-integration-truth-review
+    title: Review the repaired runtime surfaces and truth-aligned claims before landing
+    description: |
+      Run a final reviewer pass over the repaired integration surfaces and the
+      narrowed docs/help claims. Focus on whether the plan stayed within scope,
+      whether sensitive MCP/plugin/install messaging is safe, and whether any
+      remaining claim drift survives between runtime behavior, discovery output,
+      and durable docs.
+    task_definition: Perform final scope, security, and parity review across runtime and docs changes.
+    prd_reference:
+      - AC1
+      - AC2
+      - AC3
+      - AC5
+    details:
+      - Review web_search, marketplace guards, MCP auth reload, and discovery messaging for correctness and secret-safe behavior.
+      - Compare runtime/help/doctor outputs against updated roadmap and reference docs for residual claim drift.
+      - Surface only material issues that would make the shipped story untruthful, unsafe, or out of scope.
+    wave: 4
+    agent: gem-reviewer
+    priority: high
+    status: completed
+    dependencies:
+      - fti-web-search-runtime
+      - fti-plugin-marketplace-ux
+      - fti-agent-marketplace-ux
+      - fti-mcp-runtime-wiring
+      - fti-local-surface-ux
+      - fti-discovery-truth-surface
+      - fti-roadmap-readme-truth
+      - fti-reference-docs-truth
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - src/henchman/mcp/manager.py
+      - src/henchman/cli/commands/plugin_command.py
+      - README.md
+    context_files:
+      - path: FEATURE_TODO.md
+        reason: Reviewer must confirm roadmap claims now match runtime truth.
+      - path: docs/mcp.md
+        reason: Auth/status wording must remain secret-safe and technically correct.
+      - path: src/henchman/tools/builtins/tier1_tools.py
+        reason: Discovery and web_search truth now flow through this surface.
+    estimated_effort: small
+    estimated_files: 0
+    estimated_lines: 0
+    focus_area: scope and parity review
+    security_sensitive: true
+    verification:
+      - Review diffs for secret leakage, out-of-scope backend creep, and remaining claim drift
+      - Re-run targeted pytest/help/doctor checks for any surfaced issues before signoff
+    acceptance_criteria:
+      - No repaired surface overpromises a missing backend or crashes on the researched failure path.
+      - MCP and install-related messaging is secret-safe and operationally truthful.
+      - Runtime discovery output and durable docs tell the same story about shipped capability.
+    failure_modes:
+      - scenario: Review focuses only on code safety and misses surviving docs/help drift.
+        likelihood: low
+        impact: high
+        mitigation: Require explicit runtime-vs-doc parity checks as part of reviewer acceptance.
+    tech_stack:
+      - Python 3.12
+      - pytest
+      - Markdown
+    test_coverage: Reviewer validates targeted runtime and documentation parity checks rather than adding new feature scope.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true

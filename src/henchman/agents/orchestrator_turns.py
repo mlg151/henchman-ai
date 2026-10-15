@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from henchman.core.agent_streaming import record_message
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import Message
 
@@ -63,7 +64,10 @@ def _handle_limit_reached(
         f"{progress}\n\n"
         "The Tech Lead will decide how to proceed."
     )
-    agent.messages.append(Message(role="assistant", content=timeout_msg))
+    record_message(
+        agent.messages, Message(role="assistant", content=timeout_msg),
+        getattr(agent, "current_turn_messages", None),
+    )
 
     role_label = agent.identity.role if agent.identity else "agent"
     error_event = AgentEvent(
@@ -84,4 +88,7 @@ def _send_wrapup_warning(agent: Agent, remaining: int) -> None:
         f"DELEGATION_SUMMARY_SCHEMA format.\n"
         f"3. List BLOCKERS if you cannot finish in time."
     )
-    agent.messages.append(Message(role="user", content=warn_msg))
+    record_message(
+        agent.messages, Message(role="user", content=warn_msg),
+        getattr(agent, "current_turn_messages", None),
+    )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.console import Console
 from rich.table import Table
 
 from henchman.cli.commands import Command, CommandContext
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-def _print_formatted_msg(console: object, message: str, style: str) -> None:
+def _print_formatted_msg(console: Console, message: str, style: str) -> None:
     """Print a styled message to the console.
 
     Args:
@@ -24,7 +25,7 @@ def _print_formatted_msg(console: object, message: str, style: str) -> None:
         message: Text to display.
         style: Rich markup style tag (e.g. ``"red"``, ``"dim"``).
     """
-    console.print(f"[{style}]{message}[/]")  # type: ignore[union-attr]
+    console.print(f"[{style}]{message}[/]")
 
 
 def _check_multi_agent_ready(ctx: CommandContext) -> bool:
@@ -78,7 +79,7 @@ def _build_agents_table(orchestrator: Orchestrator) -> Table:
 
 
 def _show_agent_config(
-    console: object,
+    console: Console,
     orchestrator: Orchestrator,
     role: str | None,
 ) -> None:
@@ -92,24 +93,24 @@ def _show_agent_config(
     pool = orchestrator.pool
     if role:
         if role not in pool.configs:
-            console.print(f"[red]Agent '{role}' not found.[/]")  # type: ignore[union-attr]
+            console.print(f"[red]Agent '{role}' not found.[/]")
             return
         config = pool.configs[role]
         config_name = config.name
         config_description = config.description
         config_tools = config.tools
         config_can_delegate_to = config.can_delegate_to
-        console.print(f"\n[bold green]Configuration for {config_name} ({role})[/]")  # type: ignore[union-attr]
-        console.print(f"Description: {config_description}")  # type: ignore[union-attr]
-        console.print(f"Tools: {', '.join(config_tools)}")  # type: ignore[union-attr]
-        console.print(f"Can delegate to: {', '.join(config_can_delegate_to) or 'None'}")  # type: ignore[union-attr]
+        console.print(f"\n[bold green]Configuration for {config_name} ({role})[/]")
+        console.print(f"Description: {config_description}")
+        console.print(f"Tools: {', '.join(config_tools)}")
+        console.print(f"Can delegate to: {', '.join(config_can_delegate_to) or 'None'}")
         if config.provider:
-            console.print(f"Provider: {config.provider}")  # type: ignore[union-attr]
+            console.print(f"Provider: {config.provider}")
         if config.model:
-            console.print(f"Model: {config.model}")  # type: ignore[union-attr]
+            console.print(f"Model: {config.model}")
     else:
         for r, config in pool.configs.items():
-            console.print(f"  [cyan]{r:15}[/] - {config.description}")  # type: ignore[union-attr]
+            console.print(f"  [cyan]{r:15}[/] - {config.description}")
 
 
 async def _run_agent_direct(ctx: CommandContext, role: str, message: str) -> None:
@@ -121,8 +122,9 @@ async def _run_agent_direct(ctx: CommandContext, role: str, message: str) -> Non
         message: Message to send to the agent.
     """
     try:
-        if hasattr(ctx.repl, "_run_agent_direct"):
-            await ctx.repl._run_agent_direct(role, message)
+        repl = ctx.repl
+        if repl is not None and hasattr(repl, "_run_agent_direct"):
+            await repl._run_agent_direct(role, message)
         else:
             ctx.console.print(
                 "[red]Direct agent targeting not supported in this REPL version.[/]",
@@ -161,7 +163,10 @@ class AgentCommand(Command):
         if not _check_multi_agent_ready(ctx):
             return
 
-        orchestrator = ctx.repl.orchestrator
+        repl = ctx.repl
+        if repl is None:
+            return
+        orchestrator = repl.orchestrator
         args = ctx.args
 
         if not args or args[0] == "list":
@@ -201,7 +206,11 @@ class AgentCommand(Command):
         Returns:
             Orchestrator instance.
         """
-        return ctx.repl.orchestrator
+        repl = ctx.repl
+        if repl is None:
+            msg = "Multi-agent system not initialized"
+            raise RuntimeError(msg)
+        return repl.orchestrator
 
     async def _talk_to_agent_directly(
         self: AgentCommand,

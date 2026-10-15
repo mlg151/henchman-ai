@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -37,7 +37,7 @@ _MAX_PAGE_SIZE: int = 100
 """Maximum number of results per page in plugin search."""
 
 
-class PluginPermission(str, Enum):
+class PluginPermission(StrEnum):
     """Permissions that plugins can request."""
 
     FILE_READ = "file_read"
@@ -49,7 +49,7 @@ class PluginPermission(str, Enum):
     PROCESS_SPAWN = "process_spawn"
 
 
-class PluginSource(str, Enum):
+class PluginSource(StrEnum):
     """Source types for plugin installation."""
 
     PYPI = "pypi"

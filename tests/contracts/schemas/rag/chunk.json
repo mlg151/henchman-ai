@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://henchman.local/schemas/rag/chunk",
+  "title": "Chunk",
+  "type": "object",
+  "properties": {
+    "content": { "type": "string" },
+    "file_path": { "type": "string" },
+    "start_line": { "type": "integer" },
+    "end_line": { "type": "integer" },
+    "chunk_index": { "type": "integer" }
+  },
+  "required": ["content", "file_path", "start_line", "end_line", "chunk_index"],
+  "additionalProperties": false
+}

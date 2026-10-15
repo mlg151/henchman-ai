@@ -1,0 +1,28 @@
+{
+  "$id": "henchman/contracts/config/voice-settings/v1",
+  "title": "VoiceSettings",
+  "description": "Shape contract for the serialised VoiceSettings model.",
+  "type": "object",
+  "required": ["enabled", "preferred_voice", "tts_command", "stt_command"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether voice integrations are enabled"
+    },
+    "preferred_voice": {
+      "type": ["string", "null"],
+      "description": "Preferred voice profile name"
+    },
+    "tts_command": {
+      "type": ["array", "null"],
+      "description": "Command template for text-to-speech",
+      "items": { "type": "string" }
+    },
+    "stt_command": {
+      "type": ["array", "null"],
+      "description": "Command template for speech-to-text",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

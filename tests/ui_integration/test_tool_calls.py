@@ -19,7 +19,7 @@ from rich.console import Console
 
 from henchman.cli.repl import Repl, ReplConfig
 from henchman.core.events import EventType
-from henchman.providers.base import FinishReason, StreamChunk, ToolCall
+from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
 
 
 class TestToolCalls:
@@ -58,7 +58,7 @@ class TestToolCalls:
     def create_tool_call_provider(self, tool_name: str, arguments: dict):
         """Create a provider that triggers a specific tool call."""
 
-        class ToolCallProvider:
+        class ToolCallProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "tool_call_test"
@@ -245,7 +245,7 @@ class TestToolCalls:
         """Test shell tool execution through UI with simple command."""
         # Create provider that triggers shell tool
         provider = self.create_tool_call_provider(
-            "shell", {"command": "echo 'Hello from shell tool'"}
+            "shell", {"command": "echo 'Hello from shell tool'", "background": False}
         )
 
         # Create REPL with real tools
@@ -338,7 +338,7 @@ class TestToolCalls:
         """Test that all built-in tools are registered and available."""
 
         # Create a simple provider
-        class TestProvider:
+        class TestProvider(ModelProvider):
             @property
             def name(self) -> str:
                 return "test"

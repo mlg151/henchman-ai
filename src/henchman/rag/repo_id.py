@@ -7,8 +7,12 @@ git repositories to use as cache keys for RAG indices.
 from __future__ import annotations
 
 import hashlib
+import logging
+import shutil
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def get_git_remote_url(git_root: Path) -> str | None:
@@ -172,22 +176,18 @@ def migrate_old_index(git_root: Path, new_index_dir: Path) -> bool:
     if old_index_dir.exists():
         try:
             # ChromaDB is just a directory with files
-            import shutil
-
             shutil.copytree(old_index_dir, new_index_dir / "chroma", dirs_exist_ok=True)
             migrated = True
         except Exception:
             # If migration fails, we'll just reindex
-            pass
+            logger.warning("Failed to migrate ChromaDB index from %s to %s", old_index_dir, new_index_dir)
 
     # Migrate manifest if it exists
     if old_manifest.exists():
         try:
-            import shutil
-
             shutil.copy2(old_manifest, new_index_dir / "manifest.json")
             migrated = True
         except Exception:
-            pass
+            logger.warning("Failed to migrate manifest from %s to %s", old_manifest, new_index_dir / "manifest.json")
 
     return migrated

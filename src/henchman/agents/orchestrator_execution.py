@@ -5,29 +5,37 @@ Manages the main agent loop, colon-stall detection, and completion assessment.
 
 from __future__ import annotations
 
+import logging
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
+
+from henchman.core.agent_config import AgentConfig
+from henchman.core.events import AgentEvent, EventType
 
 from .orchestrator_loop import (
     assess_agent_completion,
     check_colon_stall,
     check_turn_limits,
-    collect_events,
     finalize_loop,
+    has_current_turn_response,
     last_assistant_content,
-    run_tools_and_collect,
+    stream_tool_events,
 )
 from .orchestrator_types import (
     AgentLoopParams,
+    CompletionRequirement,
     CompletionStatus,
     LoopState,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator
 
     from henchman.core.agent import Agent
-    from henchman.core.events import AgentEvent
     from henchman.providers.base import ToolCall
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +68,7 @@ class ExecutionController:
     async def run_agent_loop(
         self: ExecutionController,
         params: AgentLoopParams,
-    ) -> AsyncIterator[AgentEvent]:
+    ) -> AsyncGenerator[AgentEvent, None]:
         """Run the agent loop, executing tools and intercepting delegations.
 
         Args:
@@ -75,70 +83,106 @@ class ExecutionController:
             msg = "Agent must be provided in AgentLoopParams"
             raise ValueError(msg)
 
+        with self.orchestrator.pool.claim_agent(params.agent, owner=params, running=True):
+            async with closing_event_stream(self._run_claimed_agent_loop(params)) as stream:
+                async for event in stream:
+                    yield event
+
+    async def _run_claimed_agent_loop(
+        self, params: AgentLoopParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Run and settle an agent while its pool execution claim is held."""
         agent = params.agent
         generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)
-        state = LoopState()
+        state = LoopState(completion_requirement=CompletionRequirement(params.completion_requirement))
 
-        while True:
-            pending: list[ToolCall] = []
-            generator_exhausted = False
-            try:
-                async for event in collect_events(generator, pending):
+        try:
+            while True:
+                pending: list[ToolCall] = []
+                state.response_complete = False
+                failed = False
+                primary_error: BaseException | None = None
+                try:
+                    async for event in generator:
+                        if event.type == EventType.TOOL_CALL_REQUEST:
+                            pending.append(event.data)
+                        if event.type == EventType.ERROR:
+                            failed = True
+                            state.failed = True
+                        yield event
+                        if event.type == EventType.FINISHED:
+                            reason = event.data
+                            if isinstance(reason, dict):
+                                reason = reason.get("finish_reason")
+                            state.response_complete = (
+                                reason == "stop" and not pending and has_current_turn_response(agent)
+                            )
+                            if reason not in ("stop", "tool_calls") or (
+                                reason == "tool_calls" and not pending
+                            ):
+                                failed = True
+                                state.failed = True
+                                yield AgentEvent(
+                                    type=EventType.ERROR,
+                                    data=f"Agent response ended without completion: {reason}",
+                                    source_agent=event.source_agent,
+                                )
+                        if failed:
+                            break
+                except BaseException as exc:
+                    primary_error = exc
+                    state.failed = True
+                    raise
+                finally:
+                    await _close_stream(generator, primary_error=primary_error)
+
+                if failed:
+                    for event in _settle_unanswered_calls(agent, "Skipped after agent error"):
+                        yield event
+                    break
+
+                if pending:
+                    budget_events = _check_tool_round_budget(agent, state)
+                    if budget_events is not None:
+                        for event in budget_events:
+                            yield event
+                        break
+                    tool_stream = stream_tool_events(
+                        self.orchestrator, agent, pending, params, state,
+                    )
+                    async with closing_event_stream(tool_stream) as events_stream:
+                        async for event in events_stream:
+                            yield event
+                    should_break, limit_event = check_turn_limits(agent, params, state)
+                    if limit_event is not None:
+                        yield limit_event
+                    if should_break:
+                        break
+                    generator = agent.continue_with_tool_results()
+                    continue
+
+                should_break, events, next_gen = self._process_no_pending(agent, state)
+                for event in events:
                     yield event
-            except StopAsyncIteration:
-                generator_exhausted = True
-
-            # Decide next action based on pending tool calls
-            should_break, events, next_gen = await self._step_loop(
-                agent, pending, params, state, generator_exhausted,
-            )
-
-            for evt in events:
-                yield evt
-
-            if should_break:
-                break
-
-            if next_gen is not None:
-                generator = next_gen
-                continue
-
-            # If no tools and no new generator, we're done
-            if not pending:
-                break
-
-        finalize_loop(self.orchestrator, agent, state)
-
-    async def _step_loop(
-        self: ExecutionController,
-        agent: Agent,
-        pending: list[ToolCall],
-        params: AgentLoopParams,
-        state: LoopState,
-        generator_exhausted: bool,
-    ) -> tuple[bool, list[AgentEvent], AsyncIterator[AgentEvent] | None]:
-        """Determine next step in the agent loop.
-
-        Returns:
-            Tuple of (should_break, events, next_generator).
-        """
-        if not pending:
-            return self._process_no_pending(agent, state)
-
-        # Execute tools and check limits
-        should_break, events = await _execute_and_check(
-            self.orchestrator,
-            agent,
-            pending,
-            params,
-            state,
-        )
-
-        if should_break:
-            return True, events, None
-
-        return False, events, agent.continue_with_tool_results()
-
+                if should_break:
+                    break
+                if next_gen is not None:
+                    generator = next_gen
+                    continue
+                if not pending:
+                    break
+        except BaseException:
+            # Dispatch, cleanup, and cancellation can fail outside provider iteration.
+            state.failed = True
+            if params.depth == 0:
+                self.orchestrator.last_completion_status = CompletionStatus.FAILED
+            raise
+        finally:
+            # History may already contain the whole batch when a consumer stops
+            # after only its first TOOL_CALL_REQUEST. Settle from history, not
+            # just the requests that the consumer managed to observe.
+            _settle_unanswered_calls(agent, "Tool execution was interrupted or cancelled.")
+            finalize_loop(self.orchestrator, agent, state)
 
     def _process_no_pending(
         self: ExecutionController,
@@ -188,20 +232,84 @@ class ExecutionController:
                 - COMPLETED: Agent performed meaningful tool calls and finished normally
                 - NO_WORK_DONE: Agent stopped without making any tool calls
                 - STALLED: Agent announced intent repeatedly but never acted
+                - FAILED: Execution failed or the provider stopped abnormally
+                - RESPONDED: A normal response satisfied a response-only requirement
         """
         return assess_agent_completion(self.orchestrator, agent)
 
 
-async def _execute_and_check(
-    orchestrator: Any,
-    agent: Agent,
-    pending: list[ToolCall],
-    params: AgentLoopParams,
-    state: LoopState,
-) -> tuple[bool, list[AgentEvent]]:
-    """Execute tools and check turn limits, returning events."""
-    events = await run_tools_and_collect(orchestrator, agent, pending, params, state)
-    should_break, err = check_turn_limits(agent, params, state)
-    if err:
-        events.append(err)
-    return should_break, events
+def _check_tool_round_budget(agent: Agent, state: LoopState) -> list[AgentEvent] | None:
+    """Reject a new tool batch after the finite per-agent round budget is spent."""
+    limit = getattr(agent, "base_tool_iterations", AgentConfig().base_tool_iterations)
+    if type(limit) is not int or limit < 0:
+        raise ValueError("base_tool_iterations must be a nonnegative integer")
+    if state.tool_round_count < limit:
+        return None
+    state.timed_out = True
+    reason = f"Tool iteration limit ({limit}) reached"
+    return [
+        AgentEvent(
+            type=EventType.ERROR, data=reason,
+            source_agent=agent.identity.id if agent.identity else None,
+        ),
+        *_settle_unanswered_calls(agent, reason),
+    ]
+
+
+@asynccontextmanager
+async def closing_event_stream(
+    stream: AsyncIterator[AgentEvent],
+) -> AsyncIterator[AsyncIterator[AgentEvent]]:
+    """Close a forwarded stream without masking consumer errors or cancellation."""
+    primary_error: BaseException | None = None
+    try:
+        yield stream
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        await _close_stream(stream, primary_error=primary_error)
+
+
+async def _close_stream(
+    generator: AsyncIterator[AgentEvent],
+    *,
+    primary_error: BaseException | None,
+) -> None:
+    """Close an owned iterator without replacing its primary exception."""
+    close = getattr(generator, "aclose", None)
+    if close is None:
+        return
+    try:
+        await close()
+    except BaseException:
+        if primary_error is None:
+            raise
+        _LOGGER.warning("Agent stream cleanup failed during interruption", exc_info=True)
+
+
+def _settle_unanswered_calls(agent: Agent, reason: str) -> list[AgentEvent]:
+    """Balance the active assistant/tool block without losing completed results."""
+    answered: set[str | None] = set()
+    for message in reversed(agent.messages):
+        if message.role == "tool":
+            answered.add(message.tool_call_id)
+            continue
+        if message.role != "assistant" or not message.tool_calls:
+            return []
+        events = []
+        for call in message.tool_calls:
+            if call.id in answered:
+                continue
+            agent.submit_tool_result(call.id, reason)
+            answered.add(call.id)
+            events.append(AgentEvent(
+                type=EventType.TOOL_CALL_RESULT,
+                data={
+                    "tool_call_id": call.id, "tool_name": call.name,
+                    "result": reason, "success": False,
+                },
+                source_agent=agent.identity.id if agent.identity else None,
+            ))
+        return events
+    return []

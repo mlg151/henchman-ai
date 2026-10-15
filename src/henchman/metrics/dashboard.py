@@ -9,8 +9,8 @@ import csv
 import io
 import json
 import time
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, Protocol
 
 from rich.console import Console
 from rich.layout import Layout
@@ -22,9 +22,15 @@ from rich.text import Text
 from henchman.metrics.models import MetricType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from henchman.metrics.storage import MetricsStorage
+
+
+class _CsvWriter(Protocol):
+    """Minimal interface shared by CSV writer implementations."""
+
+    def writerow(self, row: Iterable[Any]) -> Any: ...
 
 # ---------------------------------------------------------------------------
 # Module-level constants
@@ -215,19 +221,19 @@ def _usage_panel_rows(usage_stats: dict[str, Any]) -> list[tuple[str, str]]:
     ]
 
 
-def _write_token_csv_rows(writer: csv.writer, token_usage: dict[str, Any]) -> None:
+def _write_token_csv_rows(writer: _CsvWriter, token_usage: dict[str, Any]) -> None:
     """Write token-usage rows to *writer*."""
     writer.writerow(["Total Tokens", token_usage.get("total_tokens", 0), "tokens"])
     writer.writerow(["Daily Average Tokens", token_usage.get("daily_average", 0), "tokens"])
 
 
-def _write_cost_csv_rows(writer: csv.writer, costs: dict[str, Any]) -> None:
+def _write_cost_csv_rows(writer: _CsvWriter, costs: dict[str, Any]) -> None:
     """Write cost rows to *writer*."""
     writer.writerow(["Total Cost", costs.get("total_cost", 0), "USD"])
     writer.writerow(["Daily Average Cost", costs.get("daily_average", 0), "USD"])
 
 
-def _write_tool_csv_rows(writer: csv.writer, tool_performance: dict[str, Any]) -> None:
+def _write_tool_csv_rows(writer: _CsvWriter, tool_performance: dict[str, Any]) -> None:
     """Write tool-performance rows to *writer*."""
     writer.writerow(["Total Tool Calls", tool_performance.get("total_calls", 0), "calls"])
     writer.writerow(["Success Rate", tool_performance.get("success_rate", 0), "%"])
@@ -377,7 +383,7 @@ class Dashboard:
         Returns:
             Dictionary of summary statistics.
         """
-        end_date = datetime.now(tz=timezone.utc)
+        end_date = datetime.now(tz=UTC)
         start_date = end_date - timedelta(days=STATS_LOOKBACK_DAYS)
         return _build_summary_stats(self.metrics_storage, start_date, end_date)
 
@@ -438,7 +444,7 @@ class Dashboard:
     def _create_header(self: Dashboard) -> Panel:
         """Create dashboard header."""
         title = Text("Henchman-AI Performance Dashboard", style="bold blue")
-        timestamp_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp_str = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
         timestamp = Text(f"Last updated: {timestamp_str}", style="dim")
         header_text = Text.assemble(title, "\n", timestamp)
         return Panel(header_text, border_style="blue")

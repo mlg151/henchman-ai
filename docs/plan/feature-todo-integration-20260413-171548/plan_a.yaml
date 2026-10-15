@@ -1,0 +1,890 @@
+plan_id: feature-todo-integration-20260413-171548
+objective: Repair the highest-severity broken shipped surfaces first so claimed-complete features become runtime-truthful where small wiring fixes are feasible, then align CLI/help and durable docs with the repaired or explicitly narrowed reality without changing the canonical .henchman model or building missing remote platforms from scratch.
+created_at: '2026-04-13T17:15:48Z'
+created_by: gem-team:gem-planner
+status: pending_approval
+research_confidence: high
+plan_metrics:
+  wave_1_task_count: 6
+  total_dependencies: 25
+  risk_score: high
+tldr: |
+  Variant A is implementation-first: restore real web_search behavior, stop plugin and agents-platform install flows from crashing, reload MCP auth and re-register /mcp, add a local schedule runner, and wire the existing GitHub webhook invalidation helpers into the shipped server where the existing code already supports it. After those code repairs land, make help/doctor/tool_search and public roadmap/docs surfaces tell the same truth about what is runtime-wired, local-only, scaffold-only, or out of scope.
+open_questions:
+  - 'Should the local cron runner live behind an explicit user-started runtime loop or be piggybacked onto an existing always-on local process such as `serve`?'
+  - If remote agent/plugin registry endpoints are unavailable in normal development, should this pass standardize on offline/local publication-aware flows as the default truth surface?
+pre_mortem:
+  overall_risk_level: high
+  critical_failure_modes:
+    - scenario: Marketplace and install-flow repairs make agent or plugin acquisition non-crashing but silently weaken safety checks around downloaded code or metadata.
+      likelihood: medium
+      impact: critical
+      mitigation: Keep compatibility, permission, and sandbox gates in the install path, add regression tests for unsafe or unavailable registry responses, and run a security review before acceptance.
+    - scenario: The local schedule runner executes duplicate jobs, misses due runs, or triggers commands unexpectedly across restarts.
+      likelihood: medium
+      impact: high
+      mitigation: Persist runner state separately from schedule definitions, make execution idempotent per due window, and add deterministic tests for create/pause/resume/restart behavior.
+    - scenario: MCP auth reload restores tokens into the wrong runtime scope or leaks secret state through help, doctor, or status output.
+      likelihood: medium
+      impact: critical
+      mitigation: Reload auth only through the existing auth service, redact tokens from all human output, and add status tests that verify boolean presence instead of token values.
+    - scenario: GitHub webhook wiring exposes an unauthenticated endpoint or invalidates cache entries without signature verification.
+      likelihood: medium
+      impact: critical
+      mitigation: Reuse the existing verified webhook service, require stored installation metadata plus secret configuration, and add route-level tests for valid, invalid, and disabled states.
+    - scenario: Help, roadmap, and README wording only partially update after code repairs, leaving shipped claims drifted across multiple entry points.
+      likelihood: high
+      impact: high
+      mitigation: Make live discovery/classification a prerequisite for doc work, then update command help and durable docs from one runtime-truth matrix.
+  assumptions:
+    - 'Canonical project-local configuration remains `.henchman` only, with no contract changes to Tier 1 foundations.'
+    - Building new hosted registries, Slack runtimes, sync backends, or full Tier 8-10 distributed services remains out of scope for this pass.
+    - Existing code for web search, GitHub webhook handling, MCP auth persistence, plugin registry access, and local schedule persistence is sufficient to support bounded wiring repairs.
+    - Documentation parity must cover FEATURE_TODO.md, TODOS.md, README.md, docs/index.md, and command/help discoverability surfaces in the same pass.
+implementation_specification:
+  code_structure: Keep repairs inside existing seams rather than introducing new subsystems. Use concrete builtin implementations under src/henchman/tools/builtins for web_search and discovery, keep marketplace/install behavior in src/henchman/extensions and src/henchman/agents, reload MCP auth through src/henchman/mcp and existing REPL slash-command registration, extend src/henchman/advanced/schedule.py plus Tier 6 tools for local recurring execution, wire GitHub webhook handling into the existing FastAPI server, and update truth messaging in CLI/help/docs only after runtime classification is generated from live code paths.
+  affected_areas:
+    - src/henchman/tools/builtins/ and Tier 1/Tier 6 tool registration
+    - src/henchman/extensions/ and src/henchman/agents/ install and marketplace management
+    - src/henchman/mcp/ and REPL slash-command registration under src/henchman/cli/commands/
+    - src/henchman/advanced/schedule.py and existing background task execution glue
+    - src/henchman/api/server.py plus src/henchman/git/github_app.py
+    - FEATURE_TODO.md, TODOS.md, README.md, docs/index.md, and nearby command/help text
+  component_details:
+    - component: Web search runtime surface
+      responsibility: Replace the shipped web_search placeholder with the concrete runtime implementation and make failure modes dependency-aware and truthful instead of stubbed.
+      interfaces:
+        - 'ToolRegistry entry for `web_search`'
+        - '`henchman.tools.builtins.tier1_tools.WebSearchTool`'
+        - '`henchman.tools.builtins.web_search.DuckDuckGoSearchTool.execute(...)`'
+    - component: Marketplace and install managers
+      responsibility: Make plugin and agent install flows use real lookup sources or explicit offline/local fallbacks so install attempts never crash on stubbed registry behavior.
+      interfaces:
+        - '`PluginManager.search_plugins/get_plugin_info/install_plugin(...)`'
+        - '`AgentPlatformManager.search_agents/get_agent_info/install_agent(...)`'
+        - '`henchman plugin ...` and `henchman agents-platform ...`'
+    - component: MCP runtime bridge
+      responsibility: 'Reload persisted MCP auth tokens at startup and restore the interactive `/mcp` slash-command surface against the live manager API.'
+      interfaces:
+        - '`McpManager.create_from_settings(...)`'
+        - '`McpManager.list_servers()/discover_tools()/set_auth_token()/clear_auth_token()`'
+        - '`/mcp list|status|logging`'
+    - component: Local recurring schedule runner
+      responsibility: Extend metadata-only schedules into local executable recurring jobs with persisted status and bounded execution semantics.
+      interfaces:
+        - '`CronScheduleService.create_schedule/list_schedules/...`'
+        - schedule runner dispatch/history API
+        - '`schedule_cron` tool actions and status rendering'
+    - component: GitHub webhook bridge
+      responsibility: Reuse stored GitHub App metadata and existing webhook verification helpers to expose a truthful local cache-invalidation endpoint on the shipped API server.
+      interfaces:
+        - '`GitHubWebhookService.handle_event(...)`'
+        - FastAPI webhook route under the existing API app
+        - 'persisted installation metadata from `install-github-app`'
+    - component: Runtime discovery and truth messaging
+      responsibility: Derive help, doctor, tool_search, command summaries, and public docs from live runtime capability classification instead of static aspirational metadata.
+      interfaces:
+        - '`henchman help`'
+        - '`henchman doctor`'
+        - '`tool_search`'
+        - 'command help strings in `src/henchman/cli/app.py`'
+  dependencies:
+    - component: Web search runtime surface
+      relationship: Feeds live tool discovery and removes one high-severity shipped stub from help/doctor output.
+    - component: Marketplace and install managers
+      relationship: Feed CLI truth messaging and docs classification for agent/plugin install and marketplace claims.
+    - component: MCP runtime bridge
+      relationship: Feeds live slash-command discovery and MCP auth/status reporting in the REPL and docs.
+    - component: Local recurring schedule runner
+      relationship: Feeds Tier 6 truth classification by turning schedule_cron into a real local runtime instead of metadata only.
+    - component: GitHub webhook bridge
+      relationship: Feeds Tier 4 truth classification and existing local GitHub App setup guidance.
+    - component: Runtime discovery and truth messaging
+      relationship: Supplies the source-of-truth capability matrix for roadmap, README, docs hub, and command help updates.
+  integration_points:
+    - Existing builtin tool export surface in src/henchman/tools/builtins/__init__.py
+    - Existing click CLI registration in src/henchman/cli/app.py
+    - Existing REPL slash-command registry in src/henchman/cli/commands/builtins.py
+    - Existing FastAPI app in src/henchman/api/server.py
+    - Existing GitHub App metadata persistence and webhook verification helpers in src/henchman/git/github_app.py
+    - Existing roadmap/docs entry points in FEATURE_TODO.md, TODOS.md, README.md, and docs/index.md
+contracts:
+  - from_task: web-search-runtime
+    to_task: live-discovery-alignment
+    interface: A concrete web_search tool implementation plus dependency-aware failure behavior.
+    format: registry-visible Tool class and deterministic execute() result contract
+  - from_task: plugin-marketplace-runtime
+    to_task: live-discovery-alignment
+    interface: Runtime classification for plugin search/install/list support and unavailable-registry behavior.
+    format: structured plugin command/tool states and user-facing error/remediation text
+  - from_task: agents-platform-runtime
+    to_task: live-discovery-alignment
+    interface: Runtime classification for agent search/install/publish flows.
+    format: structured agent capability matrix with local/offline/remote state labels
+  - from_task: mcp-runtime-surface
+    to_task: live-discovery-alignment
+    interface: 'Registered `/mcp` command plus auth-aware MCP server/tool status.'
+    format: slash-command registration and manager status payloads
+  - from_task: local-cron-runner
+    to_task: cli-truth-messaging
+    interface: Actual local schedule execution semantics and status/history fields.
+    format: schedule service records plus tool-rendered state strings
+  - from_task: github-webhook-bridge
+    to_task: cli-truth-messaging
+    interface: Enabled/disabled webhook endpoint behavior and cache invalidation outcomes.
+    format: FastAPI route contract and structured webhook result payload
+  - from_task: live-discovery-alignment
+    to_task: roadmap-public-docs
+    interface: One capability matrix covering runtime-wired, local-only, scaffold-only, and out-of-scope surfaces.
+    format: normalized classification table used to rewrite roadmap and README claims
+  - from_task: cli-truth-messaging
+    to_task: roadmap-public-docs
+    interface: Updated command/help language for repaired or narrowed surfaces.
+    format: command summaries, help strings, and doctor/tool_search wording
+  - from_task: cli-truth-messaging
+    to_task: docs-index-parity
+    interface: Canonical labels for integrations, skills, MCP, webhook, and schedule surfaces.
+    format: short-form capability descriptions suitable for docs landing pages
+  - from_task: roadmap-public-docs
+    to_task: broken-surface-review
+    interface: Final public-claim edits for roadmap and README.
+    format: markdown diffs against the runtime classification matrix
+  - from_task: docs-index-parity
+    to_task: broken-surface-review
+    interface: Final docs-hub and deep-link wording for repaired and narrowed surfaces.
+    format: markdown diffs and link updates
+  - from_task: broken-surface-review
+    to_task: feature-todo-acceptance
+    interface: Pass/fail findings for all security-sensitive repairs and claim-reduction changes.
+    format: review report with required fixes or approval
+
+tasks:
+  - id: web-search-runtime
+    title: Replace the shipped web_search stub with the concrete runtime implementation
+    task_definition: Restore actual web_search behavior by swapping the placeholder Tier 1 alias for the concrete builtin implementation and preserving truthful dependency/network failure handling.
+    description: |
+      Remove the shipped placeholder behavior where `web_search` is registered but
+      always returns "unavailable in this build." Reuse the existing concrete
+      DuckDuckGo-based implementation, keep dependency failures explicit, and make
+      the registry/help/doctor surfaces reflect a real runnable tool.
+    details:
+      - Point the exported WebSearchTool surface at the concrete implementation instead of the Tier 1 placeholder.
+      - Preserve actionable missing-dependency and HTTP/network failure messages rather than silently succeeding or staying stubbed.
+      - Add regression coverage that proves the live registry no longer ships an always-unavailable web_search tool.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+    file_targets:
+      - src/henchman/tools/builtins/tier1_tools.py
+      - src/henchman/tools/builtins/web_search.py
+      - tests/tools/test_tier1_tools.py
+    context_files:
+      - src/henchman/tools/builtins/__init__.py: The builtin export surface currently exposes WebSearchTool through Tier 1 aliases.
+      - src/henchman/cli/commands/doctor_tool_command.py: Doctor currently assumes web_search is a required shipped tool.
+      - README.md: Public feature copy currently claims built-in web search capability.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: builtin tool runtime
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py tests/cli/test_tool_manager_tier1.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_doctor_tool_command.py -q
+    acceptance_criteria:
+      - 'The registered `web_search` tool executes the concrete runtime implementation rather than a hardcoded unavailable stub.'
+      - Missing optional dependencies or runtime failures are surfaced as truthful actionable errors.
+      - Help and doctor can distinguish a real tool implementation from a placeholder export.
+    acceptance_checks:
+      - 'Confirm `ToolManager().register_builtin_tools()` yields a runnable `web_search` declaration.'
+      - Confirm tool execution no longer returns the unconditional placeholder message from Tier 1 aliases.
+    security_sensitive: false
+    failure_modes:
+      - scenario: Repointing the alias breaks import-time tool registration for Tier 1 suites.
+        likelihood: medium
+        impact: high
+        mitigation: Keep constructor and exported class names stable and lock behavior with targeted registry tests.
+    tech_stack:
+      - Python 3.12
+      - aiohttp
+      - beautifulsoup4
+      - pytest
+    test_coverage: Tool runtime, tool-manager registration, and help/doctor discoverability coverage for web_search.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: plugin-marketplace-runtime
+    title: Stop plugin install and marketplace flows from crashing
+    task_definition: Replace the stubbed plugin registry path with a truthful runtime flow that either uses the real registry client or returns structured local/offline guidance without crashing.
+    description: |
+      Repair the plugin command so shipped install and marketplace behavior is no
+      longer a crashing placeholder. The goal is not to build a new hosted
+      registry; it is to wire the existing manager to real lookup logic where
+      available, preserve safety checks, and make offline or unavailable registry
+      states explicit and non-destructive.
+    details:
+      - Wire PluginManager to a real lookup client or a deliberate offline/local fallback instead of the current empty stub client.
+      - Add or expose search/show style capability where needed so marketplace claims have a runtime surface, or explicitly mark registry-unavailable states.
+      - Keep compatibility checks, permission confirmation, and sandbox/security scans in the install path.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+      - cli-truth-messaging
+    file_targets:
+      - src/henchman/extensions/plugin_manager.py
+      - src/henchman/cli/commands/plugin_command.py
+      - tests/cli/test_plugin_command.py
+    context_files:
+      - src/henchman/extensions/plugin_registry_client.py: Existing real registry client that is currently bypassed by the shipped manager.
+      - tests/extensions/test_plugin_manager.py: Existing manager tests define the local persistence and compatibility baseline.
+      - FEATURE_TODO.md: Plugin marketplace and lifecycle are currently claimed complete.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: plugin install truth
+    verification:
+      - uv run --extra dev python -m pytest tests/extensions/test_plugin_manager.py tests/extensions/test_runtime_plugin_manager.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_plugin_command.py tests/cli/test_help_command.py -q
+    acceptance_criteria:
+      - '`henchman plugin install ...` never crashes because of a stubbed registry path.'
+      - Plugin marketplace/search/install states are rendered truthfully as live, offline/local-only, or unavailable with remediation.
+      - Existing compatibility and sandbox checks still gate installation behavior.
+    acceptance_checks:
+      - Exercise install attempts with missing and present registry metadata and verify structured non-crashing outcomes.
+      - Verify command help no longer implies a complete remote marketplace when only local/offline behavior is available.
+    security_sensitive: true
+    failure_modes:
+      - scenario: Crash fixes bypass compatibility or permission gates in order to make install succeed.
+        likelihood: medium
+        impact: critical
+        mitigation: Keep safety gates mandatory in tests and route unavailable-registry cases to truthful errors rather than permissive fallback installs.
+    tech_stack:
+      - Python 3.12
+      - click
+      - aiohttp
+      - pytest
+    test_coverage: Plugin manager, runtime plugin manager, and CLI plugin command regression coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true
+
+  - id: agents-platform-runtime
+    title: Stop agents-platform install flows from depending on a stubbed registry
+    task_definition: Make agents-platform install and discovery flows runtime-truthful by replacing the stubbed registry behavior with local publication-aware resolution and explicit unavailable-remote guidance.
+    description: |
+      Repair the shipped agents-platform surface so install attempts do not fail
+      against an always-empty registry abstraction. Reuse existing local agent
+      publication/discovery paths, preserve publish/list/show behavior, and make
+      remote-registry absence a deliberate user-visible state rather than a crash.
+    details:
+      - Replace the empty registry stub with real local publication-aware lookup plus explicit unavailable-remote behavior.
+      - 'Ensure install/remove/list/show/publish flows share one consistent storage model under `.henchman/agents`.'
+      - Add regression coverage for install attempts against locally published definitions and missing remote metadata.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+      - cli-truth-messaging
+    file_targets:
+      - src/henchman/agents/platform_manager.py
+      - src/henchman/cli/commands/agents_platform_command.py
+      - tests/cli/test_agents_platform_command.py
+    context_files:
+      - src/henchman/agents/catalog.py: Existing local discovery and precedence rules should anchor installation behavior.
+      - src/henchman/agents/models.py: Published and installed agent payloads already define the persistence contract.
+      - FEATURE_TODO.md: Agents platform and registry are currently claimed complete.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 430
+    focus_area: agent install truth
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_agents_platform_command.py tests/agents/test_agent_catalog.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_app.py -q
+    acceptance_criteria:
+      - '`henchman agents-platform install ...` no longer crashes because the registry client always returns nothing.'
+      - Local publication-aware installation and discovery flows are explicit and test-covered.
+      - Remote registry absence is rendered truthfully instead of being implied as fully working.
+    acceptance_checks:
+      - Install from a locally published agent definition and verify persisted installation metadata.
+      - Attempt an unavailable remote install and verify a structured guidance/error response instead of a crash.
+    security_sensitive: true
+    failure_modes:
+      - scenario: Local publication and install precedence diverge, causing the wrong agent definition to be installed or shown.
+        likelihood: medium
+        impact: high
+        mitigation: Reuse catalog precedence rules and add tests that compare publish/list/install resolution under the same project root.
+    tech_stack:
+      - Python 3.12
+      - click
+      - PyYAML
+      - pytest
+    test_coverage: Agent platform command and local catalog regression coverage for publish/install/remove flows.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true
+
+  - id: mcp-runtime-surface
+    title: Reload persisted MCP auth and restore the interactive /mcp command
+    task_definition: 'Make MCP auth persistence effective at startup and re-register the shipped `/mcp` slash-command surface against the live manager API.'
+    description: |
+      Repair the MCP runtime gap by loading stored auth tokens into the manager when
+      the REPL or CLI runtime starts, then restore `/mcp` as a registered interactive
+      command. Align command output with the actual manager API so server and tool
+      status renders cleanly without exposing secret values.
+    details:
+      - 'Reload `.henchman/mcp/auth.json` into McpManager during runtime creation rather than only when the auth tool mutates in-process state.'
+      - 'Register `McpCommand` in the REPL builtins list and reconcile any missing manager helper methods used by `/mcp`.'
+      - 'Keep `/mcp status` and related output secret-safe by reporting auth presence instead of token values.'
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+      - cli-truth-messaging
+    file_targets:
+      - src/henchman/mcp/manager.py
+      - src/henchman/cli/commands/builtins.py
+      - src/henchman/cli/commands/mcp.py
+    context_files:
+      - src/henchman/mcp/auth.py: Existing persistence service should remain the only disk-backed token store.
+      - src/henchman/cli/repl.py: REPL startup already constructs the MCP manager and binds it into runtime state.
+      - tests/e2e/test_mcp_integration.py: Existing integration tests are the right place to lock startup and slash-command behavior.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: MCP runtime wiring
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier6_mcp_tools.py tests/e2e/test_mcp_integration.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_command_processor.py tests/cli/test_repl.py -q
+    acceptance_criteria:
+      - Persisted MCP auth tokens are visible to the manager after startup without re-running the auth tool.
+      - '`/mcp list`, `/mcp status`, and `/mcp logging ...` are registered and executable in the REPL.'
+      - MCP status output never prints raw token values.
+    acceptance_checks:
+      - 'Start a runtime with a populated auth.json fixture and verify auth-configured servers report `auth_configured: true`.'
+      - 'Invoke `/mcp status` from the command processor and confirm the command registry contains `mcp`.'
+    security_sensitive: true
+    failure_modes:
+      - scenario: Startup reload pulls auth from the wrong project root and mixes credentials across workspaces.
+        likelihood: medium
+        impact: critical
+        mitigation: Resolve project-root-scoped auth paths through the existing config path helpers and add fixture-based multi-project tests.
+    tech_stack:
+      - Python 3.12
+      - asyncio
+      - pytest
+      - rich
+    test_coverage: MCP auth persistence, command processor registration, and REPL integration coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true
+
+  - id: local-cron-runner
+    title: Turn schedule_cron into a real local recurring execution surface
+    task_definition: Extend the existing schedule persistence service with a local runner and status history so schedule_cron is no longer metadata-only.
+    description: |
+      Convert `schedule_cron` from a persistence-only feature into a bounded local
+      runtime. Reuse existing cron parsing and background-task primitives, keep the
+      scope project-local, and expose enough runner state that users can see next
+      run, last run, and enabled status without inventing any remote scheduler.
+    details:
+      - Add persisted run-state or execution-history tracking alongside the existing schedule index.
+      - Introduce a bounded local runner or due-schedule dispatch entrypoint that can execute argv payloads safely within the current project scope.
+      - Update the Tier 6 tool surface so list/status output reflects real execution state instead of metadata only.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+      - cli-truth-messaging
+    file_targets:
+      - src/henchman/advanced/schedule.py
+      - src/henchman/tools/builtins/tier6_tools.py
+      - tests/tools/test_tier6_lsp_schedule_tools.py
+    context_files:
+      - FEATURE_TODO.md: Tier 6 currently claims recurring schedule execution is complete.
+      - src/henchman/cli/tool_manager.py: Runtime binding already passes project scope into Tier 6 tools.
+      - tests/tools/test_tier6_mcp_tools.py: Existing Tier 6 style should guide additional runtime-state tests.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 460
+    focus_area: local automation
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier6_lsp_schedule_tools.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_doctor_command.py -q
+    acceptance_criteria:
+      - A created schedule can be observed as runnable local state rather than metadata only.
+      - Schedule status output exposes next/last run or equivalent execution state in a deterministic local-only format.
+      - Pause/resume/delete semantics remain compatible with existing persisted schedules.
+    acceptance_checks:
+      - Create schedules under a temporary project root, execute due work through the new runner seam, and verify persisted run history.
+      - Restart the service or tool binding and confirm schedules and runner state reload deterministically.
+    security_sensitive: true
+    failure_modes:
+      - scenario: Runner dispatch executes the same due schedule multiple times around restart or clock-edge boundaries.
+        likelihood: medium
+        impact: high
+        mitigation: Persist a last-dispatched marker per schedule and test idempotent behavior across repeated due checks.
+    tech_stack:
+      - Python 3.12
+      - asyncio
+      - cron parsing utilities in schedule.py
+      - pytest
+    test_coverage: Tier 6 schedule creation, pause/resume/delete, and new local-runner state regression coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true
+
+  - id: github-webhook-bridge
+    title: Expose the existing GitHub webhook invalidation helpers through the shipped API
+    task_definition: Reuse the current GitHub webhook verification and diff-cache invalidation helpers by wiring them into the existing FastAPI server as an opt-in local endpoint.
+    description: |
+      Close the Tier 4 wiring gap by surfacing the already-implemented webhook
+      verification helpers through the API server that ships today. The repair stays
+      bounded: no new hosted webhook service, just a truthful local endpoint that
+      works when GitHub App metadata and secrets exist and clearly reports disabled
+      status otherwise.
+    details:
+      - 'Add a local webhook endpoint to the existing FastAPI app and route payloads through `GitHubWebhookService`.'
+      - Load persisted installation metadata and diff-cache scope from the current project settings directory.
+      - Return explicit disabled or invalid-signature responses so the runtime surface is truthful in both configured and unconfigured states.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with:
+      - live-discovery-alignment
+      - cli-truth-messaging
+    file_targets:
+      - src/henchman/api/server.py
+      - src/henchman/git/github_app.py
+      - tests/git/test_tier4_services.py
+    context_files:
+      - 'src/henchman/cli/commands/pull_request_command.py: `install-github-app` already persists the metadata needed to back the webhook route.'
+      - FEATURE_TODO.md: Tier 4 currently claims webhook-driven cache invalidation is complete.
+      - README.md: GitHub App setup is publicly presented as shipped capability.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 280
+    focus_area: Tier 4 runtime wiring
+    verification:
+      - uv run --extra dev python -m pytest tests/git/test_tier4_services.py tests/cli/test_tier4_commands.py -q
+      - uv run --extra dev python -m pytest tests/cli/test_app.py -q
+    acceptance_criteria:
+      - The shipped API exposes a bounded webhook route that reuses existing signature verification and cache invalidation logic.
+      - Valid webhook events invalidate the matching PR diff cache entry.
+      - Missing metadata or secrets produce clear disabled responses instead of pretending the feature is fully wired.
+    acceptance_checks:
+      - Exercise valid and invalid webhook requests against a fixture app and verify signature and cache behaviors.
+      - Confirm the route is documented or discoverable only as a local opt-in capability, not a hosted service.
+    security_sensitive: true
+    failure_modes:
+      - scenario: The new route bypasses signature verification in order to simplify FastAPI wiring.
+        likelihood: low
+        impact: critical
+        mitigation: Route every event through GitHubWebhookService and add explicit negative tests for invalid signatures and absent secrets.
+    tech_stack:
+      - Python 3.12
+      - FastAPI
+      - pytest
+      - hmac/sha256 verification
+    test_coverage: Tier 4 service and API-route regression coverage for valid, invalid, and disabled webhook handling.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: true
+
+  - id: live-discovery-alignment
+    title: Make help, doctor, and tool_search classify live runtime surfaces instead of static claims
+    task_definition: Build one runtime-truth classification path that help, doctor, and tool_search can all use after the high-severity repairs land.
+    description: |
+      After the core repairs, align discovery around live runtime state rather than
+      static builtin metadata. This task should distinguish runtime-wired, local-only,
+      scaffold-only, unavailable, and out-of-scope surfaces so users stop learning the
+      wrong thing from help and doctor output.
+    details:
+      - Extend help/doctor/tool_search collection to incorporate repaired runtime surfaces and capability labels.
+      - Distinguish scaffold exporters and discovery-only surfaces from actually executable integrations or invoked skills.
+      - Reuse one shared classification matrix so docs and command help update from the same truth source.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - web-search-runtime
+      - plugin-marketplace-runtime
+      - agents-platform-runtime
+      - mcp-runtime-surface
+      - local-cron-runner
+      - github-webhook-bridge
+    parallelizable: false
+    conflicts_with:
+      - cli-truth-messaging
+      - roadmap-public-docs
+      - docs-index-parity
+    file_targets:
+      - src/henchman/cli/commands/help_command.py
+      - src/henchman/cli/commands/doctor_command.py
+      - src/henchman/tools/builtins/tier1_tools.py
+    context_files:
+      - src/henchman/cli/app.py: Root command metadata must stay in sync with help search.
+      - tests/cli/test_help_command.py: Existing help behavior is the baseline for truth-aligned discovery.
+      - docs/prd.yaml: The PRD requires help/doctor/discovery to follow live runtime surfaces rather than aspirational metadata.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 380
+    focus_area: discoverability
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_help_command.py tests/cli/test_doctor_command.py tests/cli/test_doctor_tool_command.py -q
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py tests/cli/test_app.py -q
+    acceptance_criteria:
+      - Help, doctor, and tool_search all classify repaired surfaces consistently from live runtime state.
+      - Scaffold-only or local-only features are labeled as such instead of being implied as fully runtime-wired distributed systems.
+      - Discovery output includes the repaired MCP, schedule, plugin, agent, and web_search realities.
+    acceptance_checks:
+      - Compare the rendered capability labels for the same feature across help, doctor, and tool_search.
+      - Verify no discovery surface still reports stubbed high-severity items as complete without runtime proof.
+    security_sensitive: false
+    failure_modes:
+      - scenario: Each discovery surface invents its own capability labels, recreating docs drift inside the runtime itself.
+        likelihood: medium
+        impact: high
+        mitigation: Centralize classification terms and cover cross-surface parity in tests.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Help, doctor, tool-search, and app metadata parity coverage for capability classification.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: cli-truth-messaging
+    title: Rewrite command help and CLI messaging around repaired and narrowed truths
+    task_definition: Update command summaries and CLI-facing wording so integrations, skills, MCP, schedule, plugin, and agent surfaces describe exactly what ships after the runtime fixes.
+    description: |
+      Once live discovery is accurate, update the CLI-facing language that still
+      overstates setup, launch, or invocation behavior. This includes scaffold-export
+      commands, skill command messaging, and any root help text that still implies
+      Slack or similar blueprint-only surfaces are runtime-complete.
+    details:
+      - Rename or rephrase scaffold-export commands so they no longer read like full setup/launch flows.
+      - Make skill CLI messaging truthful about discovery versus invocation support in the shipped runtime.
+      - Align root command help strings with the runtime capability labels from the discovery task.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - live-discovery-alignment
+    parallelizable: true
+    conflicts_with:
+      - roadmap-public-docs
+      - docs-index-parity
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/integration_commands.py
+      - src/henchman/cli/commands/skill_command.py
+    context_files:
+      - FEATURE_TODO.md: Tier 7, Tier 8, and skill claims must be narrowed where runtime wiring is absent.
+      - README.md: Public examples already describe integrations as scaffold exports in some places and need consistent wording.
+      - src/henchman/cli/commands/help_command.py: Command summaries shown here must match root help metadata.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: command messaging
+    verification:
+      - uv run --extra dev python -m pytest tests/cli/test_app.py tests/cli/test_skill_command.py tests/cli/test_help_command.py -q
+      - 'Review command `--help` output for integration and skill surfaces against the runtime classification matrix'
+    acceptance_criteria:
+      - Integration commands are described as blueprint/scaffold exporters when they do not perform full setup or launch flows.
+      - Skill command wording does not promise production invocation if only list/show or local-definition rendering ships.
+      - Root help text no longer overstates Slack, MCP, plugin marketplace, or schedule completeness.
+    acceptance_checks:
+      - 'Inspect `henchman --help`, `henchman skill --help`, and integration subcommand help text after changes.'
+    security_sensitive: false
+    failure_modes:
+      - scenario: Help text is corrected in one command but not in the root app metadata, reintroducing inconsistent user guidance.
+        likelihood: medium
+        impact: medium
+        mitigation: Route command summaries through the same vocabulary and verify root/help output together.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: App help, skill command, and help-search regression coverage for CLI wording.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: roadmap-public-docs
+    title: Rewrite roadmap, README, and TODO snapshots around the repaired capability matrix
+    task_definition: Update FEATURE_TODO.md, TODOS.md, and README.md so they match the repaired runtime and narrow out-of-scope claims that still lack shipped wiring.
+    description: |
+      Align the public roadmap and onboarding docs with the runtime truth matrix. Keep
+      the implementation-first wins visible, preserve confirmed realities like the
+      canonical `.henchman` model and real Tier 1/Tier 2 foundations, and narrow the
+      remaining overstated claims for Slack, partial Tier 8 services, Tier 10 dialogs,
+      and any discovery-only or scaffold-only surfaces.
+    details:
+      - Rewrite FEATURE_TODO.md completion language for repaired, partial, scaffold-only, and explicitly out-of-scope surfaces.
+      - Update TODOS.md so the quick snapshot does not contradict the roadmap source of truth.
+      - Update README feature, status, and example sections to match live repaired capabilities and narrowed claims.
+    wave: 4
+    agent: gem-documentation-writer
+    priority: high
+    status: pending
+    dependencies:
+      - cli-truth-messaging
+    parallelizable: true
+    conflicts_with:
+      - docs-index-parity
+    file_targets:
+      - FEATURE_TODO.md
+      - TODOS.md
+      - README.md
+    context_files:
+      - docs/prd.yaml: Acceptance criteria require roadmap and docs truth alignment as a first-class outcome.
+      - src/henchman/cli/app.py: Root command inventory and wording anchor the public docs.
+      - 'AGENTS.md: Canonical `.henchman` and docs-update expectations must be preserved.'
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: public claims
+    verification:
+      - Manual diff review against the runtime classification matrix produced by live-discovery-alignment
+      - Confirm repaired surfaces are promoted and out-of-scope surfaces are narrowed consistently across all three docs
+    acceptance_criteria:
+      - FEATURE_TODO.md no longer marks stubbed, crashing, or undiscoverable surfaces complete without runtime proof.
+      - TODOS.md matches the revised roadmap snapshot instead of advertising tiers as finished by checkbox drift alone.
+      - README examples and project-status language reflect actual shipped runtime behavior after this repair pass.
+    acceptance_checks:
+      - Cross-check every high-severity research finding against its revised roadmap or README wording.
+    security_sensitive: false
+    failure_modes:
+      - scenario: Docs overcorrect and erase the genuine repaired wins, making the product look less complete than the runtime now proves.
+        likelihood: medium
+        impact: medium
+        mitigation: Start from the live capability matrix so repaired surfaces are promoted while only unsupported claims are narrowed.
+    tech_stack:
+      - Markdown
+      - Docs style guide in AGENTS.md
+    test_coverage: null
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+    task_type: update
+    audience: stakeholders
+    coverage_matrix:
+      - FEATURE_TODO.md completion language for Tiers 3-10
+      - TODOS.md quick snapshot parity
+      - README project status, features, and example sections
+
+  - id: docs-index-parity
+    title: Align the docs hub and nearby reference pages with runtime truth
+    task_definition: Update docs/index.md and adjacent docs-hub entry points so the documentation landing surface accurately describes repaired, local-only, and narrowed capabilities.
+    description: |
+      Update the docs hub after the runtime and CLI truth messaging have settled.
+      The docs landing page should stop silently endorsing overstated surfaces and
+      instead direct readers to the right local-only, scaffold, MCP, and extension
+      documentation with truthful summaries.
+    details:
+      - Rewrite docs/index.md summaries and start-here guidance to reflect repaired runtime surfaces.
+      - Update nearby docs-hub references for extensions/MCP/integration pages when the landing text still implies fuller behavior than the runtime ships.
+      - Keep the docs hub aligned with the revised README and roadmap vocabulary.
+    wave: 4
+    agent: gem-documentation-writer
+    priority: medium
+    status: pending
+    dependencies:
+      - cli-truth-messaging
+    parallelizable: true
+    conflicts_with:
+      - roadmap-public-docs
+    file_targets:
+      - docs/index.md
+      - docs/extensions.md
+      - docs/mcp.md
+    context_files:
+      - README.md: Docs hub language should match public onboarding language.
+      - src/henchman/cli/commands/integration_commands.py: Integration docs should reflect scaffold-export behavior.
+      - 'src/henchman/cli/commands/mcp.py: MCP docs should reflect the restored `/mcp` surface and local auth model.'
+    estimated_effort: small
+    estimated_files: 3
+    estimated_lines: 180
+    focus_area: docs hub parity
+    verification:
+      - Manual docs-hub review against the runtime classification matrix and revised CLI wording
+      - Link-check the updated docs/index.md references to ensure destination pages still exist
+    acceptance_criteria:
+      - docs/index.md summaries no longer imply unsupported remote/runtime capabilities.
+      - Extensions and MCP landing text match the repaired or narrowed behavior described elsewhere.
+      - The docs hub uses the same capability vocabulary as help, doctor, README, and FEATURE_TODO.
+    acceptance_checks:
+      - 'Compare docs/index.md wording for MCP, extensions, and integrations against `henchman help` output.'
+    security_sensitive: false
+    failure_modes:
+      - scenario: Docs hub copy lags behind README/roadmap wording and reintroduces different labels for the same capability.
+        likelihood: medium
+        impact: medium
+        mitigation: Use the same runtime classification matrix and reviewer checklist for all durable docs.
+    tech_stack:
+      - Markdown
+      - MkDocs navigation
+    test_coverage: null
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+    task_type: update
+    audience: developers
+    coverage_matrix:
+      - docs/index.md landing summaries
+      - docs/extensions.md marketplace and scaffold wording
+      - docs/mcp.md local auth and runtime command wording
+
+  - id: broken-surface-review
+    title: Review the repaired high-severity surfaces for safety and scope truth
+    task_definition: Perform a focused review of the repaired runtime surfaces and docs parity changes before final acceptance.
+    description: |
+      Review the security-sensitive repairs—plugin and agent installs, MCP auth
+      reload, schedule execution, and webhook verification—alongside the discovery
+      and docs changes that now advertise those surfaces. The reviewer should only
+      surface material security, runtime-truth, or scope-violation issues.
+    details:
+      - Review install flows for safety-regression risk, especially around compatibility, permissions, and sandboxing.
+      - Review MCP and webhook work for secret handling, auth presence reporting, and signature verification.
+      - Review docs and discovery wording for any remaining claims that outrun runtime proof.
+    wave: 5
+    agent: gem-reviewer
+    priority: high
+    status: pending
+    dependencies:
+      - web-search-runtime
+      - plugin-marketplace-runtime
+      - agents-platform-runtime
+      - mcp-runtime-surface
+      - local-cron-runner
+      - github-webhook-bridge
+      - live-discovery-alignment
+      - cli-truth-messaging
+      - roadmap-public-docs
+      - docs-index-parity
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - src/henchman/extensions/
+      - src/henchman/mcp/
+      - src/henchman/api/
+    context_files:
+      - docs/prd.yaml: Source-of-truth scope and acceptance criteria for truth repair versus claim reduction.
+      - FEATURE_TODO.md: Revised roadmap claims must match the reviewed runtime.
+      - tests/git/test_tier4_services.py: Webhook verification and cache invalidation should be locked with tests.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 0
+    focus_area: security and truth review
+    verification:
+      - Produce pass/fail findings focused on safety regressions, secret handling, and lingering overstated claims.
+      - Confirm each security-sensitive repair has corresponding regression coverage before approval.
+    acceptance_criteria:
+      - No critical or high-severity security issues remain in install, schedule, MCP auth, or webhook paths.
+      - No reviewed discovery or docs surface still marks a stubbed or absent capability as complete without runtime proof.
+    acceptance_checks:
+      - Review diffs for all security_sensitive tasks against their contracts and acceptance criteria
+    security_sensitive: true
+    failure_modes:
+      - scenario: Review is deferred until after final acceptance work, forcing late rewrites across both code and docs.
+        likelihood: medium
+        impact: high
+        mitigation: Keep this review as a mandatory gate before the final acceptance task.
+    tech_stack:
+      - Review checklist
+      - FastAPI
+      - ToolRegistry
+      - Click CLI
+    test_coverage: Reviewer confirmation that sensitive paths and truth labels are backed by focused tests or explicit checks.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: feature-todo-acceptance
+    title: Verify repaired surfaces and docs parity end to end against the PRD
+    task_definition: Run the final focused acceptance gate only after runtime repairs, discovery alignment, docs parity, and the review gate are complete.
+    description: |
+      Execute the end-to-end acceptance checkpoint for this integration-truth pass.
+      Re-run the targeted suites for repaired high-severity surfaces, verify the
+      runtime/discovery/docs matrix against the PRD, and close only when the repo
+      presents a truthful shipped surface for the audited features.
+    details:
+      - Re-run the targeted pytest suites for web_search, plugin, agents-platform, MCP, schedule, and GitHub webhook repairs.
+      - Run focused ruff and mypy checks on touched runtime modules.
+      - Verify the PRD acceptance criteria are satisfied through either working runtime wiring or narrowed truthful claims.
+    wave: 6
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - live-discovery-alignment
+      - cli-truth-messaging
+      - roadmap-public-docs
+      - docs-index-parity
+      - broken-surface-review
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - tests/
+      - FEATURE_TODO.md
+      - README.md
+    context_files:
+      - docs/prd.yaml: Final acceptance must satisfy the audit-and-repair framing and all listed criteria.
+      - AGENTS.md: Focused pytest/ruff/mypy commands are the required quality gates for touched areas.
+      - docs/plan/feature-todo-integration-20260413-171548/plan_a.yaml: Final verification should check every contract and task acceptance criterion.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 0
+    focus_area: acceptance
+    verification:
+      - uv run --extra dev python -m pytest tests/tools/test_tier1_tools.py tests/extensions/test_plugin_manager.py tests/cli/test_plugin_command.py tests/cli/test_agents_platform_command.py tests/tools/test_tier6_mcp_tools.py tests/e2e/test_mcp_integration.py tests/tools/test_tier6_lsp_schedule_tools.py tests/git/test_tier4_services.py -q
+      - uv run --extra dev python -m ruff check src/henchman/tools src/henchman/extensions src/henchman/agents src/henchman/mcp src/henchman/api
+      - uv run --extra dev python -m mypy src/henchman/tools src/henchman/extensions src/henchman/agents src/henchman/mcp src/henchman/api
+    acceptance_criteria:
+      - Every high-severity audited surface is either runtime-wired and validated or explicitly narrowed in docs/help with no remaining contradictory claim.
+      - 'The canonical `.henchman` local configuration model and already-real Tier 1/Tier 2 foundations remain unchanged.'
+      - Runtime discovery, public docs, and roadmap state all describe the same repaired reality.
+    acceptance_checks:
+      - Walk the PRD acceptance criteria one by one and map each to a green test, reviewed runtime behavior, or explicit docs claim reduction.
+    security_sensitive: false
+    failure_modes:
+      - scenario: Final verification passes code tests but misses lingering docs/help contradictions, leaving the repo truth-drifted.
+        likelihood: medium
+        impact: high
+        mitigation: Treat runtime/discovery/docs parity as a required acceptance artifact, not a secondary editorial check.
+    tech_stack:
+      - Python 3.12
+      - pytest
+      - ruff
+      - mypy
+    test_coverage: Final focused regression pass across repaired runtime surfaces plus typed/lint checks on touched modules.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false

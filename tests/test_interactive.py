@@ -45,19 +45,15 @@ def test_tool_form():
         result = form.prompt_for_parameters("test_tool", params)
 
         if result["name"] != "default_value":
-            print(f"❌ String param failed. Got {result['name']}")
-            return False
+            raise AssertionError(f"String param failed. Got {result['name']}")
 
         if result["count"] != 42:
-            print(f"❌ Integer param failed. Got {result['count']}")
-            return False
+            raise AssertionError(f"Integer param failed. Got {result['count']}")
 
         if not result["force"]:
-            print(f"❌ Boolean param failed. Got {result['force']}")
-            return False
+            raise AssertionError(f"Boolean param failed. Got {result['force']}")
 
         print("✅ ToolForm parameters collected correctly")
-        return True
 
 
 def test_tab_completion():
@@ -74,16 +70,15 @@ def test_tab_completion():
         # Check if completer was set on session
         if hasattr(session_mock, "completer") and session_mock.completer:
             print("✅ Completer attached to session")
-            return True
         else:
-            print("❌ Completer not attached to session")
-            return False
+            raise AssertionError("Completer not attached to session")
 
 
 if __name__ == "__main__":
     try:
-        success = test_tool_form() and test_tab_completion()
-        sys.exit(0 if success else 1)
+        test_tool_form()
+        test_tab_completion()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

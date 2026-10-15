@@ -4,6 +4,57 @@
 
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 
+This architecture includes both shipped runtime paths and narrower integration seams. The shared discovery capability matrix is authoritative: local skills are local-only; integration blueprints (including Slack) are export-only; `schedule_cron` is metadata-only; remote agent/plugin installs are unavailable; the GitHub webhook helper is docs-only; and Tier 10 dialogs are intentionally absent from generic discovery even though they ship inside `henchman chat --tui`.
+
+`ask_user` is runtime-dependent: classic REPL and Textual supply asynchronous
+input handlers; headless and standalone tools remain unbound by default. See
+[tool input behavior](tools.md#ask_user) for cancellation and session semantics.
+
+Response-format checks observe optional legacy planning metrics without adding
+synthetic user messages. Normal top-level conversation reports `responded` when
+the current turn produces visible text, stops normally, and attempts no tools.
+Empty replies, private reasoning, old messages, failed tool attempts, and abnormal
+finishes cannot satisfy that response contract. A promise can be a response; it
+is not evidence that the promised work happened.
+
+Orchestrator completion status describes observed execution, not verified task
+correctness. Provider errors and abnormal finishes (including length limits and
+content filtering) report `failed`, even after successful tool calls. Loop evidence
+belongs to the specific agent; nested tool results do not count as parent actions.
+Delegated reports cannot overwrite the runtime status. Delegations default to
+`completion_requirement="actions"`, which requires successful tool evidence;
+an answer alone remains `no_work_done`. The lead may explicitly select `response`
+for advice or analysis based on supplied context. Only that explicit requirement
+allows `responded` to satisfy a delegation. Missing or unknown status and observed
+runtime errors are unsuccessful. Both terminal UIs show
+unsuccessful or unknown outcomes explicitly. Headless text runs exit 1 for failed,
+stalled, or timed-out execution, and retain exit 2 for `no_work_done`.
+Completion events separately include `task_verified: false` and an `evidence`
+object with attempted/successful tool counts, whether the final response was
+complete, and the selected requirement (or `null` if runtime evidence is absent).
+The current `completed` status means execution included successful tools; it still
+does not prove that an implementation changed the required behavior or passed
+suitable verification. Neither counters nor specialist prose can establish that.
+The UI therefore says “finished execution.” [Typed acceptance checks](tools.md#plan-acceptance-checks)
+provide historical file, command, and pytest observations; whole-task correctness
+and requirements coverage remain roadmap work. See [orchestrator API](api.md#orchestrator)
+and [JSON output semantics](providers.md#streaming-reliability).
+
+Headless JSON uses the same orchestrator as interactive execution, including
+specialist provider selection and delegation policy checks. Agent-attributed
+events preserve nested activity as it occurs, with consumer backpressure and
+explicit closure of nested streams; `scope: "run"` marks the authoritative outer
+completion. The JSON adapter emits one final `finished` event and rejects a
+missing or unsuccessful outer outcome. Provider tool rounds have a finite budget
+for both lead and specialist agents, independent of delegation call/depth limits.
+
+Tool scopes use a live view of the runtime registry with fixed role allowlists.
+The leader uses the same scope mechanism as specialists. Allowed late tools and
+parent replacements are resolved through one lookup shared by declarations,
+discovery and authorization; local overrides and exclusions stay local. Builtin
+search instances bind separately to each scope. CLI fallback executors use the
+acting agent's registry. See [agent tool scopes](agents.md#tool-scopes-and-late-registration).
+
 ## Core Architecture
 
 ### High-Level Component Diagram
@@ -59,7 +110,6 @@ graph TB
 ### REPL (Read-Eval-Print Loop)
 
 **Location**: `src/henchman/cli/repl.py`  
-**Lines**: 532  
 **Role**: Main orchestrator and coordinator
 
 The REPL class is the central coordinator that initializes and connects all components. It manages the main interaction loop and delegates work to specialized components.
@@ -93,7 +143,6 @@ The REPL class is the central coordinator that initializes and connects all comp
 ### UIRenderer
 
 **Location**: `src/henchman/cli/ui_renderer.py`  
-**Lines**: 337  
 **Role**: Rich console output and UI rendering
 
 Handles all rich console output including formatting, progress bars, and status displays.
@@ -116,7 +165,6 @@ Handles all rich console output including formatting, progress bars, and status 
 ### InputHandler
 
 **Location**: `src/henchman/cli/input_handler.py`  
-**Lines**: 165  
 **Role**: User input processing and management
 
 Handles all aspects of user input including prompt sessions, history, and input validation.
@@ -139,7 +187,6 @@ Handles all aspects of user input including prompt sessions, history, and input 
 ### OutputHandler
 
 **Location**: `src/henchman/cli/output_handler.py`  
-**Lines**: 339  
 **Role**: Console output, status display, and event streaming
 
 Manages all console output including rich formatting, status bars, and event display.
@@ -157,14 +204,12 @@ Manages all console output including rich formatting, status bars, and event dis
 - `print_welcome()`: Display welcome message
 - `print_goodbye()`: Display exit message
 - `get_toolbar_status()`: Generate status bar content
-- `get_rich_status_message()`: Generate agent status message
 - `create_status()`: Create rich status context manager
 - `show_turn_status()`: Display turn progress
 
 ### CommandProcessor
 
 **Location**: `src/henchman/cli/command_processor.py`  
-**Lines**: 130  
 **Role**: Slash command execution and management
 
 Processes all slash commands and delegates to appropriate command handlers.
@@ -185,7 +230,6 @@ Processes all slash commands and delegates to appropriate command handlers.
 ### ToolExecutor
 
 **Location**: `src/henchman/cli/tool_executor.py`  
-**Lines**: 287  
 **Role**: Tool execution and agent coordination
 
 Executes tool calls from agents and manages tool confirmation workflows.
@@ -207,7 +251,6 @@ Executes tool calls from agents and manages tool confirmation workflows.
 ### ToolManager
 
 **Location**: `src/henchman/cli/tool_manager.py`  
-**Lines**: 161  
 **Role**: Tool registration and management
 
 Manages the tool registry and provides tool-related services.
@@ -228,10 +271,11 @@ Manages the tool registry and provides tool-related services.
 ### PluginManager
 
 **Location**: `src/henchman/cli/plugins.py`  
-**Lines**: 164  
-**Role**: Plugin loading and management
+**Role**: Local plugin loading and management
 
 Manages plugin discovery, loading, and integration.
+
+This local manager is distinct from the unavailable remote marketplace-install surface. Registry client and installer classes are extension seams and do not imply a deployed marketplace backend.
 
 **Responsibilities**:
 - Discover plugins in configured directories
@@ -247,10 +291,9 @@ Manages plugin discovery, loading, and integration.
 ### McpManager
 
 **Location**: `src/henchman/mcp/manager.py`  
-**Lines**: 209  
 **Role**: MCP (Model Context Protocol) server management
 
-Manages connections to MCP servers and provides MCP tools.
+Manages connections to configured MCP servers and provides MCP tools. Discovery surfaces classify MCP as live only when both `mcp` and `mcp_auth` are registered in the current runtime.
 
 **Responsibilities**:
 - Connect to configured MCP servers
@@ -266,10 +309,22 @@ Manages connections to MCP servers and provides MCP tools.
 ### SessionManager
 
 **Location**: `src/henchman/cli/session_manager.py`  
-**Lines**: 321  
 **Role**: Session management and persistence
 
 Manages chat sessions including saving, loading, and resuming.
+
+REPL and Textual turns save after their streams close, including cancellation.
+`Agent.current_turn_messages` retains independent copies of the current turn's
+messages before context compaction. Session synchronization replaces only that
+turn's transcript, preserving earlier conversation, full tool results, tool-call
+arguments, reasoning, and marked partial responses. The model's compacted working
+context is separate from this persisted evidence.
+
+Resuming a session restores the configured agent's system prompt and the selected
+session's messages. Summaries from the previously active conversation are discarded.
+Direct-role sessions restore to the selected specialist. These behaviors have
+offline runtime coverage through save/load and a subsequent agent request;
+interactive terminal rendering and live provider execution require separate checks.
 
 **Responsibilities**:
 - Save and load chat sessions
@@ -279,6 +334,7 @@ Manages chat sessions including saving, loading, and resuming.
 
 **Key Methods**:
 - `set_session()`: Set current session
+- `sync_agent_turn()`: Save the settled turn without losing evidence to compaction
 - `save_session()`: Save session to disk
 - `load_session()`: Load session from disk
 - `list_templates()`: List available session templates
@@ -354,7 +410,7 @@ Components communicate through well-defined interfaces:
 
 ### Testing Strategy
 
-- **Unit Tests**: Each component tested independently (100% coverage for core components)
+- **Unit Tests**: Components are tested independently
 - **Integration Tests**: Component coordination tested in `test_repl_integration.py`
 - **End-to-End Tests**: Full workflow tests in `test_repl.py`
 - **Plugin Tests**: Plugin system tests in `test_plugins.py`
@@ -405,11 +461,11 @@ Components communicate through well-defined interfaces:
 
 ### Backward Compatibility
 
-The architecture maintains full backward compatibility:
+Compatibility adapters preserve documented public imports and legacy attributes where covered by the test suite:
 
 1. **Public API unchanged**: All existing methods preserved
 2. **Attribute access**: Legacy attributes (`repl.agent`, `repl.tool_registry`) maintained
-3. **Test compatibility**: All existing tests pass without modification
+3. **Test compatibility**: Compatibility behavior is covered by focused tests
 4. **External dependencies**: No breaking changes to external interfaces
 5. **Configuration files**: Existing settings files continue to work
 
@@ -426,23 +482,11 @@ The component architecture enables future enhancements:
 
 ## System Evolution
 
-### From Simple CLI to Multi-Agent Platform
+### From Simple CLI to a Layered Agent Runtime
 
-The architecture has evolved from a simple CLI to a comprehensive multi-agent platform through 13 development phases:
+The architecture grew through earlier phase-based milestones, but a historical phase label is not a runtime availability guarantee. Current shipped foundations include the provider abstraction, core agent loop, local tool registry, configuration, terminal interfaces, sessions, multi-agent orchestration, configured MCP connectivity, and local extensions.
 
-1. **Phase 1**: Project Foundation ✅
-2. **Phase 2**: Provider System ✅
-3. **Phase 3**: Core Agent Loop ✅
-4. **Phase 4**: Tool System ✅
-5. **Phase 5**: Built-in Tools ✅ (including ask_user tool)
-6. **Phase 6**: Configuration System ✅
-7. **Phase 7**: Terminal UI ✅
-8. **Phase 8**: Session Management ✅
-9. **Phase 9**: MCP Integration ✅
-10. **Phase 10**: Extensions & Plugins ✅
-11. **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON output)
-12. **Phase 12**: Polish & Release ✅ (100% test coverage, all core features implemented)
-13. **Phase 13**: Multi-Agent Dev Team ✅ (Orchestrator, EventBus, Team Delegation)
+Remote infrastructure and registry-backed acquisition remain roadmap work. Integration scaffolds do not launch their target runtimes, recurring schedules are persisted without an executor, and generic help intentionally omits TUI-only dialogs. See `FEATURE_TODO.md` for the tier-by-tier roadmap and the shared discovery capability matrix for user-facing runtime classifications.
 
 ### Current Architecture Benefits
 

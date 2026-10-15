@@ -9,9 +9,9 @@ import pytest
 
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.symbol_trace import (
-    SymbolTraceTool,
-    SymbolTraceResult,
     SymbolTraceParams,
+    SymbolTraceResult,
+    SymbolTraceTool,
     _build_trace_report,
     _collect_annotations,
     _collect_python_files,
@@ -20,7 +20,6 @@ from henchman.tools.builtins.symbol_trace import (
     _find_imports_in_file,
     _find_references_in_file,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -123,14 +122,14 @@ class TestFindDefinitionsInFile:
         """Finds decorated function and extracts correct signature."""
         src = textwrap.dedent("""\
             from typing import Optional
-            
+
             @decorator
             def decorated_func(x: int) -> Optional[str]:
                 return str(x) if x > 0 else None
         """)
         p = tmp_path / "decorated.py"
         p.write_text(src)
-        
+
         defs = _find_definitions_in_file(p, "decorated_func")
         assert len(defs) == 1
         assert defs[0].kind == "function"
@@ -224,17 +223,17 @@ def example_func(
 """
         p = tmp_path / "modern.py"
         p.write_text(src)
-        
+
         # Test collecting annotations for "int"
         int_annotations = _collect_annotations([p], "int")
         assert any("int" in a for a in int_annotations), \
             f"Should find 'int' in annotations: {int_annotations}"
-        
+
         # Test collecting annotations for "Tuple"
         tuple_annotations = _collect_annotations([p], "Tuple")
         assert any("Tuple" in a for a in tuple_annotations), \
             f"Should find 'Tuple' in annotations: {tuple_annotations}"
-        
+
         # Test collecting annotations for "Dict"
         dict_annotations = _collect_annotations([p], "Dict")
         assert any("Dict" in a for a in dict_annotations), \

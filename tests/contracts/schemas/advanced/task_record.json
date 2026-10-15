@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaskRecord",
+  "description": "Persisted metadata for one background task.",
+  "type": "object",
+  "properties": {
+    "task_id": { "type": "string" },
+    "title": { "type": "string" },
+    "argv": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "cwd": { "type": "string" },
+    "status": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "output_path": { "type": "string" },
+    "pid": { "type": ["integer", "null"] },
+    "return_code": { "type": ["integer", "null"] },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "required": ["task_id", "title", "argv", "cwd", "status", "created_at", "started_at", "finished_at", "output_path", "pid", "return_code", "metadata"]
+}

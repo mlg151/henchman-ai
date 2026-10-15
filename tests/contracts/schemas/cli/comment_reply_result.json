@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/comment-reply-result/v1",
+  "type": "object",
+  "required": ["pr_number", "comment_id", "body", "reply_url"],
+  "properties": {
+    "pr_number": { "type": "integer" },
+    "comment_id": { "type": "integer" },
+    "body": { "type": "string" },
+    "reply_url": { "type": "string" }
+  },
+  "additionalProperties": false
+}

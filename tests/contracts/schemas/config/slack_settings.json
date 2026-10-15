@@ -1,0 +1,30 @@
+{
+  "$id": "henchman/contracts/config/slack-settings/v1",
+  "title": "SlackSettings",
+  "description": "Shape contract for the serialised SlackSettings model.",
+  "type": "object",
+  "required": ["enabled", "app_token", "bot_token", "signing_secret", "allowed_user_id"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether Slack integration is enabled"
+    },
+    "app_token": {
+      "type": ["string", "null"],
+      "description": "Slack app-level token"
+    },
+    "bot_token": {
+      "type": ["string", "null"],
+      "description": "Slack bot token"
+    },
+    "signing_secret": {
+      "type": ["string", "null"],
+      "description": "Slack signing secret"
+    },
+    "allowed_user_id": {
+      "type": ["string", "null"],
+      "description": "Slack user ID allowlist"
+    }
+  },
+  "additionalProperties": false
+}

@@ -90,7 +90,7 @@ if __name__ == "__main__":
         test_code_block_with_unicode,
         test_raw_string_with_odd_backslashes,
     ]
-    
+
     for i, test in enumerate(tests, 1):
         try:
             test()

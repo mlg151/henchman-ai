@@ -97,7 +97,7 @@ class TestEmptyMessageValidation:
     @pytest.mark.asyncio
     async def test_agent_validates_messages_before_sending(self):
         """Test that agent validates messages before sending to provider."""
-        mock_provider = AsyncMock()
+        mock_provider = MagicMock()
         agent = Agent(provider=mock_provider)
 
         # Mock the provider's chat_completion_stream to be an async generator
@@ -165,7 +165,7 @@ class TestInputValidationInREPL:
         from henchman.cli.repl import Repl, ReplConfig
 
         console = Console()
-        mock_provider = AsyncMock()
+        mock_provider = MagicMock()
         config = ReplConfig()
 
         repl = Repl(provider=mock_provider, console=console, config=config)
@@ -196,35 +196,37 @@ class TestInputValidationInREPL:
         from henchman.cli.repl import Repl, ReplConfig
 
         console = Console()
-        mock_provider = AsyncMock()
+        mock_provider = MagicMock()
         config = ReplConfig()
 
         repl = Repl(provider=mock_provider, console=console, config=config)
 
         # Mock the orchestrator to track calls
-        mock_orchestrator = AsyncMock()
+        mock_orchestrator = MagicMock()
+
+        from henchman.core.events import AgentEvent, EventType
 
         async def mock_orchestrator_run(_user_input: str):
-            yield MagicMock(type="content", data="Test response")
+            yield AgentEvent(type=EventType.CONTENT, data="Test response")
+            yield AgentEvent(type=EventType.FINISHED, data="stop")
 
-        mock_orchestrator.run = mock_orchestrator_run
+        mock_orchestrator.run = MagicMock(side_effect=mock_orchestrator_run)
         repl.orchestrator = mock_orchestrator
 
         # Mock the renderer
         mock_renderer = MagicMock()
         repl.renderer = mock_renderer
+        rendered_content = MagicMock()
+        monkeypatch.setattr(repl.output_handler, "print_agent_content", rendered_content)
 
         # Test with valid input
         await repl._run_agent("Hello, world!")
 
-        # Orchestrator should have been invoked (we mocked run as a generator)
-        # The _run_agent method calls self.orchestrator.run() directly
-        # The renderer.info() should be called with a status message
-        mock_renderer.info.assert_called()
-        # Check it was called with a string containing "CHAT" or similar
-        call_args = mock_renderer.info.call_args[0][0]
-        assert isinstance(call_args, str)
-        # Either it's a token message or status message is fine
+        mock_orchestrator.run.assert_called_once_with("Hello, world!")
+        rendered_content.assert_called_once_with("Test response")
+        mock_renderer.start_thinking.assert_called_once_with(None)
+        mock_renderer.stop_thinking.assert_called_once()
+        mock_renderer.error.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -324,16 +324,21 @@ class TestEditFileTool:
             assert Path(f.name).read_text() == "line1\nline2\nline3\n"
         Path(f.name).unlink()
 
-    async def test_path_traversal_rejected(self) -> None:
-        """Path traversal in edit path is rejected."""
+    async def test_path_traversal_rejected(self, tmp_path: Path) -> None:
+        """Reject traversal to an existing fixture independently of host layout."""
+        nested = tmp_path / "nested"
+        nested.mkdir()
+        target = tmp_path / "target.txt"
+        target.write_text("original")
         tool = EditFileTool()
         result = await tool.execute(
-            path="../../../etc/passwd",
-            old_str="root",
-            new_str="hacked",
+            path=str(nested / ".." / "target.txt"),
+            old_str="original",
+            new_str="changed",
         )
         assert result.success is False
         assert "Security" in result.content or "validation" in result.content.lower()
+        assert target.read_text() == "original"
 
     async def test_line_range_replacement_adds_newline(self) -> None:
         """Line range replacement adds newline when mid-file replacement needed."""

@@ -1,8 +1,10 @@
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from henchman.cli.textual_app import HenchmanTextualApp, TextualConfig
+from henchman.cli.textual_widgets import ChatMessage
 from henchman.providers.base import ModelProvider
 
 
@@ -62,29 +64,26 @@ async def test_agent_interaction_flow():
     # Simulate a stream of events
     from henchman.core.events import AgentEvent, EventType  # noqa: E402
 
-    async def event_generator(role: str, input_text: str) -> object:  # noqa: ARG001
+    async def event_generator(input_text: str) -> AsyncIterator[AgentEvent]:  # noqa: ARG001
         # 1. Thought
         yield AgentEvent(
-            type=EventType.AGENT_THOUGHT,
-            source="Assistant",
-            content="I should reply to the user.",
-            payload={"thought": "I should reply to the user."},
+            type=EventType.THOUGHT,
+            source_agent="Assistant",
+            data="I should reply to the user.",
         )
         # 2. Content chunks
         yield AgentEvent(
-            type=EventType.AGENT_CONTENT,
-            source="Assistant",
-            content="Hello",
-            payload={"content": "Hello"},
+            type=EventType.CONTENT,
+            source_agent="Assistant",
+            data="Hello",
         )
         yield AgentEvent(
-            type=EventType.AGENT_CONTENT,
-            source="Assistant",
-            content=" World!",
-            payload={"content": " World!"},
+            type=EventType.CONTENT,
+            source_agent="Assistant",
+            data=" World!",
         )
         # 3. Finished
-        yield AgentEvent(type=EventType.AGENT_FINISHED, source="Assistant", content="", payload={})
+        yield AgentEvent(type=EventType.FINISHED, source_agent="Assistant", data="stop")
 
     # Mock the orchestrator
     mock_orchestrator = MagicMock()
@@ -94,6 +93,7 @@ async def test_agent_interaction_flow():
     mock_core_context = MagicMock()
     mock_core_context.orchestrator = mock_orchestrator
     mock_core_context.session_manager = MagicMock()  # To prevent AttributeError in set_session
+    mock_core_context.session_manager.current = None
 
     # Patch create_core_context to return our mock
     with patch("henchman.cli.textual_app.create_core_context", return_value=mock_core_context):
@@ -107,8 +107,8 @@ async def test_agent_interaction_flow():
             await pilot.click("#input")
             await pilot.press("h", "e", "l", "l", "o")
 
-            # 2. Press Enter (Submit) - Changed from Ctrl+Enter
-            await pilot.press("enter")
+            # 2. Press Ctrl+Enter (Submit)
+            await pilot.press("ctrl+enter")
 
             # Wait for processing - increase time to allow worker thread to pick up
             await pilot.pause(2.0)
@@ -126,7 +126,10 @@ async def test_agent_interaction_flow():
             # Actually, standard RichLog has .lines usually? No.
 
             # Verify Orchestrator was called
-            mock_orchestrator.run.assert_called()
+            mock_orchestrator.run.assert_called_once_with("hello")
+
+            messages = app.query(ChatMessage)
+            assert any(message._content_text == "Hello World!" for message in messages)
 
             # 4. Verify Agent response
             # run_direct return value (generator) should be iterated

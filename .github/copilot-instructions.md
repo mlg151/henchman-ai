@@ -14,7 +14,7 @@ Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-c
 - **Phase 9**: MCP Integration ✅
 - **Phase 10**: Extensions & Plugins ✅
 - **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON output)
-- **Phase 12**: Polish & Release ✅ (100% test coverage, all core features implemented)
+- **Phase 12**: Polish & Release ✅ (release tooling and core features implemented)
 - **Phase 13**: Multi-Agent Dev Team ✅ (Orchestrator, EventBus, Team Delegation)
 ## Architecture Overview
 ```
@@ -30,26 +30,31 @@ src/henchman/
 ├── metrics/    # Performance metrics collection, storage, and reporting
 ├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama, OpenRouter
 ├── rag/        # Retrieval-Augmented Generation for semantic code search
-├── tools/      # Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.
+├── tools/      # Runtime-registered built-in and extension tools
 └── utils/      # Utility functions and helpers
 ```
 **Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and similar services. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings.
 ## Development Setup
 ```bash
-pip install -e ".[dev]"       # Install in editable mode with dev deps
-./scripts/ci.sh               # Run full CI pipeline
-henchman --version                 # Verify CLI entry point
+uv sync --extra dev
+uv run --extra dev python -m ruff check src tests
+uv run --extra dev python -m mypy src
+uv run --extra dev python -m pytest --cov-fail-under=90
+uv run henchman --version
 ```
 ## CI Pipeline
-Run `./scripts/ci.sh` to execute:
-1. **Ruff** - Linting
-2. **Mypy** - Type checking  
-3. **Pytest** - Tests with 100% coverage requirement
-4. **Doctests** - Documentation examples
-5. **Doc coverage** - All public functions must have docstrings
+Run the commands above to reproduce the source checks. GitHub Actions also
+tests Python 3.11–3.14, builds the wheel and source distribution, and installs
+those artifacts in clean smoke-test jobs. Each installed artifact must pass
+CLI help and unknown-command checks, API readiness, and a Chroma add/query round trip.
+An independent Python 3.12 Linux/macOS/Windows job builds a wheel and runs
+`tests/testing/installed_wheel_smoke.py` outside the checkout. It verifies installed
+package origin, both CLI aliases, local RAG operations/locking, shell portability,
+Python output encoding, bounded Python quality scans, REPL/Textual question channels and interruption, and the
+five-provider coding workflow. Native jobs must
+actually pass before claiming platform support is verified.
 ## Quality Requirements
-- **100% test coverage** - All code must be tested
-- **100% documentation coverage** - All public functions/classes need docstrings
+- **90% minimum whole-project coverage** - Changed behavior should be fully tested
 - **Type hints** - All function signatures must have type hints
 - **Linting** - Must pass ruff and mypy
 ## Key Patterns
@@ -86,7 +91,7 @@ async for chunk in provider.chat_completion_stream(
 
 **Note**: Providers marked "(config required)" do not have hardcoded default models. You must specify a model in your configuration (settings.yaml) or when creating the provider instance. See example configurations in the documentation for suggested models.
 
-**Configuration Names**: The names in parentheses (e.g., `deepseek`, `anthropic`) are used in configuration files (`settings.yaml`) and CLI flags (`--provider`).
+**Configuration Names**: The names in parentheses (e.g., `deepseek`, `anthropic`) are used in `settings.yaml` or with `henchman config set providers.default <name> --scope project`.
 ### Core Types
 ```python
 from henchman.providers import (
@@ -156,8 +161,8 @@ anyio.run(repl.run)
 # Interactive mode
 henchman
 # Headless mode (single prompt)
-henchman --prompt "What is 2+2?"
-henchman -p "Summarize this file: @document.txt"
+henchman chat --prompt "What is 2+2?"
+henchman chat -p "Summarize this file: @document.txt"
 ```
 **Event Types:**
 - `CONTENT` - Text content from LLM
@@ -947,7 +952,7 @@ henchman-ai/
 │       ├── security.py         # Security validation
 │       └── builtins/           # 34 built-in tools
 │           ├── ask_user.py     # AskUserTool - ask user questions
-│           ├── code_format.py  # CodeFormatTool - ruff formatting
+│           ├── code_format.py  # CodeFormatTool - shared Black formatting
 │           ├── coverage_map.py # CoverageMapTool - parse coverage reports
 │           ├── dead_code.py    # DeadCodeTool - detect unused code
 │           ├── deep_research.py # DeepResearchTool - end-to-end web research
@@ -981,7 +986,7 @@ henchman-ai/
 │           ├── web_fetch.py    # WebFetchTool - fetch web content
 │           └── web_search.py   # WebSearchTool - search the web
 ├── tests/                      # Test suite (mirrors src structure)
-├── scripts/ci.sh               # CI pipeline script
+├── .github/workflows/ci.yml    # CI quality, build, and artifact smoke jobs
 ├── pyproject.toml              # Project configuration
 └── (implementation details in copilot instructions)      # 12-phase roadmap
 ```
@@ -990,26 +995,23 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 ### Standard Development Cycle
 1. **Write tests first** - Create test cases for the feature before implementation
 2. **Implement the feature** - Write the minimum code to pass tests
-3. **Run CI checks** - Execute `./scripts/ci.sh` to verify:
+3. **Run CI checks** - Execute the repository's `uv run --extra dev` Ruff,
+Mypy, and Pytest commands to verify:
 - Ruff linting passes
 - Mypy type checking passes
-- All tests pass with 100% coverage
-- Doctests pass
-- All public APIs have docstrings
+- All tests pass at or above the 90% whole-project coverage floor
 4. **Update documentation** - Update copilot-instructions.md and relevant documentation files
 5. **Commit and push** - Commit with descriptive message, push to GitHub
-### CI Pipeline (`scripts/ci.sh`)
+### CI Pipeline
 ```bash
-./scripts/ci.sh  # Runs all checks in order:
-# 1. ruff check src/ tests/        - Linting
-# 2. mypy src/                      - Type checking
-# 3. pytest --cov-fail-under=100   - Tests with 100% coverage
-# 4. python -m doctest              - Doctests
-# 5. Check all public APIs have docstrings
+uv lock --check
+uv run --extra dev python -m ruff check src tests
+uv run --extra dev python -m mypy src
+uv run --extra dev python -m pytest --cov-fail-under=90
+uv build
 ```
 ### Quality Requirements
-- **100% test coverage** - All code paths must be tested
-- **100% documentation coverage** - All public functions/classes have docstrings
+- **90% minimum whole-project coverage** - Changed behavior should be fully tested
 - **All linting passes** - No ruff or mypy errors
 - **Google-style docstrings** - Consistent documentation format
 ### Adding New Features
@@ -1017,7 +1019,7 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 2. Write test cases covering all functionality
 3. Implement feature in `src/henchman/`
 4. Add exports to `__init__.py` files
-5. Run `./scripts/ci.sh` until all checks pass
+5. Run the CI commands above until all checks pass
 6. Update relevant documentation
 ## Implementation Reference
 The 12-phase implementation roadmap with detailed code examples is documented in the copilot instructions above.

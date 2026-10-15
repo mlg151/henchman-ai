@@ -27,20 +27,17 @@ def test_style_overrides():
     if theme.primary == "magenta":
         print("✅ Theme primary color overridden correctly")
     else:
-        print(f"❌ Theme primary color mismatch: {theme.primary}")
-        return False
+        raise AssertionError(f"Theme primary color mismatch: {theme.primary}")
 
     if theme.success == "bright_green":
         print("✅ Theme success color overridden correctly")
     else:
-        print(f"❌ Theme success color mismatch: {theme.success}")
-        return False
+        raise AssertionError(f"Theme success color mismatch: {theme.success}")
 
     if theme.error == "red":  # default
         print("✅ Theme error color remains default")
     else:
-        print(f"❌ Theme error color modified: {theme.error}")
-        return False
+        raise AssertionError(f"Theme error color modified: {theme.error}")
 
     # 2. Test OutputRenderer with overrides
     console_mock = MagicMock(spec=Console)
@@ -49,16 +46,13 @@ def test_style_overrides():
     if renderer.theme.primary == "magenta":
         print("✅ Renderer applied overrides correctly")
     else:
-        print(f"❌ Renderer theme primary mismatch: {renderer.theme.primary}")
-        return False
-
-    return True
+        raise AssertionError(f"Renderer theme primary mismatch: {renderer.theme.primary}")
 
 
 if __name__ == "__main__":
     try:
-        success = test_style_overrides()
-        sys.exit(0 if success else 1)
+        test_style_overrides()
+        sys.exit(0)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback

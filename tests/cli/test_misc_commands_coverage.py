@@ -136,49 +136,43 @@ class TestTextualDriver:
         assert hasattr(driver_module, "RobustLinuxDriver")
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Linux only")
-    def test_robust_linux_driver_process_selector_events_success(self) -> None:
-        """Test process_selector_events normal path (no exceptions)."""
+    def test_robust_linux_driver_run_input_thread_success(self) -> None:
+        """Test run_input_thread normal path (no exceptions)."""
         from henchman.cli.textual_driver import RobustLinuxDriver
 
         driver = object.__new__(RobustLinuxDriver)
-        # Patch parent method with create=True so it works even if parent lacks the method
         with patch.object(
             RobustLinuxDriver.__bases__[0],
-            "process_selector_events",
+            "run_input_thread",
             return_value=None,
-            create=True,
         ):
-            # Should not raise
-            driver.process_selector_events([], final=False)
+            driver.run_input_thread()
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Linux only")
-    def test_robust_linux_driver_process_selector_events_unicode_error(self) -> None:
-        """Test process_selector_events handles UnicodeDecodeError gracefully."""
+    def test_robust_linux_driver_run_input_thread_unicode_error(self) -> None:
+        """Test run_input_thread handles UnicodeDecodeError gracefully."""
         from henchman.cli.textual_driver import RobustLinuxDriver
 
         driver = object.__new__(RobustLinuxDriver)
         with patch.object(
             RobustLinuxDriver.__bases__[0],
-            "process_selector_events",
+            "run_input_thread",
             side_effect=UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
-            create=True,
         ):
-            # Should not raise - UnicodeDecodeError is caught and silenced
-            driver.process_selector_events([], final=False)
+            driver.run_input_thread()
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Linux only")
-    def test_robust_linux_driver_process_selector_events_other_error(self) -> None:
-        """Test process_selector_events re-raises non-Unicode errors."""
+    def test_robust_linux_driver_run_input_thread_other_error(self) -> None:
+        """Test run_input_thread re-raises non-Unicode errors."""
         from henchman.cli.textual_driver import RobustLinuxDriver
 
         driver = object.__new__(RobustLinuxDriver)
         with patch.object(
             RobustLinuxDriver.__bases__[0],
-            "process_selector_events",
+            "run_input_thread",
             side_effect=RuntimeError("other error"),
-            create=True,
         ), pytest.raises(RuntimeError):
-            driver.process_selector_events([], final=False)
+            driver.run_input_thread()
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/knowledge/entity/v1",
+  "type": "object",
+  "required": ["id", "entity_type", "name", "description", "file_path", "tags", "observations"],
+  "properties": {
+    "id": { "type": "string" },
+    "entity_type": { "type": "string" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "file_path": { "type": ["string", "null"] },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["content", "source", "timestamp", "author"],
+        "properties": {
+          "content": { "type": "string" },
+          "source": { "type": "string" },
+          "timestamp": { "type": "string" },
+          "author": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

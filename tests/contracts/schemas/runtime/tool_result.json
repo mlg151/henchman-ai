@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/tool-result/v1",
+  "type": "object",
+  "required": ["content", "success", "display", "error"],
+  "properties": {
+    "content": { "type": "string" },
+    "success": { "type": "boolean" },
+    "display": { "type": ["string", "null"] },
+    "error": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

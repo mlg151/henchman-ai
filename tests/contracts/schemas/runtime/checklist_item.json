@@ -1,0 +1,18 @@
+{
+  "$id": "henchman/contracts/runtime/checklist-item/v1",
+  "title": "ChecklistItem",
+  "description": "Shape contract for the serialised ChecklistItem dataclass.",
+  "type": "object",
+  "required": ["description", "done"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "What needs to be done"
+    },
+    "done": {
+      "type": "boolean",
+      "description": "Whether this item has been completed"
+    }
+  },
+  "additionalProperties": false
+}

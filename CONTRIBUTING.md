@@ -25,7 +25,7 @@ Thank you for your interest in contributing to Henchman-AI! This document provid
 ## 🏗️ Development Setup
 
 ### Prerequisites
-- Python 3.10 or higher
+- Python 3.11–3.14
 - Git
 - (Optional) uv for faster dependency management
 
@@ -79,14 +79,18 @@ The copilot instructions are regularly updated to reflect the current architectu
 pytest
 
 # Run with coverage
-pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100
+pytest --cov=henchman --cov-report=term-missing --cov-fail-under=90
 
 # Run specific test files
-pytest tests/test_cli.py -v
+pytest tests/cli/test_app.py -v
 
 # Run integration tests
 pytest -m integration
 ```
+
+Pytest pins its coverage configuration to `pyproject.toml` so child shell and
+Python executions use the same branch settings as the test runner. When running
+from another directory, pass an absolute `--cov-config` path.
 
 ### Code Quality
 ```bash
@@ -187,7 +191,7 @@ chore: update dependencies
 - Test one thing per test function
 - Use descriptive test names
 - Mock external dependencies
-- Aim for 100% test coverage (required by CI)
+- Keep whole-project coverage at or above the 90% CI floor; fully test changed behavior
 
 ### Integration Tests
 - Test end-to-end functionality

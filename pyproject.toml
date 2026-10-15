@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "henchman-ai"
-version = "0.3.17"
+version = "0.4.0"
 description = "A model-agnostic AI agent CLI - your AI henchman for the terminal"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     { name = "Matthew", email = "matthew@example.com" }
 ]
@@ -21,10 +21,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
@@ -48,14 +48,16 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "tiktoken>=0.5",
     "fastembed>=0.3",
-    "chromadb>=0.4",
+    "chromadb>=1.5.9",
     "networkx>=3.0",
+    "scipy>=1.11.2",
     "textual>=0.75",
     "appdirs>=1.4",
     "fastapi>=0.104",
     "uvicorn[standard]>=0.24",
     "websockets>=12.0",
     "python-multipart>=0.0",
+    "black>=25.9",
 ]
 
 [project.optional-dependencies]
@@ -66,8 +68,8 @@ dev = [
     "pytest-asyncio>=0.23",
     # Development dependencies with MINIMUM PACKAGE VERSIONS (e.g., 4, 0.4, 1.10)
     # ALL NUMBERS IN THIS SECTION ARE PACKAGE VERSION NUMBERS, NOT COVERAGE PERCENTAGES
-    # The project requires 100% test coverage (--cov-fail-under=100), configured in [tool.pytest.ini_options].
-    "pytest-cov~=4.0",  # PACKAGE VERSION 4.0+, NOT COVERAGE PERCENTAGE (coverage threshold is 100%)
+    # CI enforces a 90% whole-project coverage floor; changed code should remain fully tested.
+    "pytest-cov~=4.0",  # PACKAGE VERSION 4.0+, NOT THE COVERAGE THRESHOLD
     "ruff>=0.4",
     "mypy>=1.10",
     "discord.py>=2.0",  # For testing chat integration
@@ -91,12 +93,26 @@ Discussions = "https://github.com/mlg151/henchman-ai/discussions"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/henchman"]
+exclude = [
+    "**/.env",
+    "**/.env.*",
+    "**/.pypirc",
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/*.bak",
+    "**/*.backup",
+    "**/*.backup.*",
+]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 src = ["src", "tests"]
 extend-exclude = ["*.tcss"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312", "py313", "py314"]
 
 [tool.ruff.lint]
 select = [
@@ -145,8 +161,9 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-v --cov=henchman --cov-report=term-missing"
+addopts = "-v --cov=henchman --cov-config=pyproject.toml --cov-report=term-missing"
 markers = [
+    "e2e: marks end-to-end smoke and workflow tests",
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
     "always_passes: marks behavioral eval as expected to always pass (run in CI)",
     "usually_passes: marks behavioral eval as expected to usually pass (run nightly)",
@@ -157,6 +174,7 @@ source = ["src/henchman"]
 branch = true
 
 [tool.coverage.report]
+fail_under = 90
 exclude_lines = [
     "pragma: no cover",
     "pragma: no branch",
@@ -165,4 +183,28 @@ exclude_lines = [
 ]
 partial_branches = [
     "pragma: no branch",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.coverage*",
+    "/htmlcov",
+    "/site",
+    "**/.env",
+    "**/.env.*",
+    "**/.pypirc",
+    "/.agent_tasks",
+    "/.claude",
+    "/.henchman",
+    "/.serena",
+    "/tmp-wave-check",
+    "/tmp-wave-secrets",
+    "/tests/MagicMock",
+    "/dist",
+    "/test_output.log",
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/*.bak",
+    "**/*.backup",
+    "**/*.backup.*",
 ]

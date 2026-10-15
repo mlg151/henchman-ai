@@ -1,0 +1,118 @@
+"""One bounded live probe; load the user's key in memory, never into an artifact."""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import re
+import shlex
+import shutil
+import time
+from contextlib import aclosing
+from pathlib import Path
+
+from evals.helpers import EvalTestRig
+from evals.run_team import _close_clients, _redact, _secrets, _write_report
+from evals.test_team_python_workflow import run_team_python_workflow
+from henchman.config.schema import Settings
+from henchman.providers.factory import create_configured_provider
+
+ROOT = Path('/home/matthew/mlg-cli/.agent_tasks')
+REPORT = ROOT / 'team-python-live-mimo-report.json'
+ARTIFACTS = ROOT / 'team-python-live-mimo-artifacts'
+MODEL = 'xiaomi/mimo-v2.6-pro'
+REQUEST_LIMIT = 24
+TIMEOUT = 480.0
+
+
+def load_key() -> None:
+    for line in (Path.home() / '.bashrc').read_text().splitlines():
+        if re.match(r'^\s*(?:export\s+)?OPENROUTER_API_KEY\s*=', line):
+            values = shlex.split(line.split('=', 1)[1].strip(), comments=True)
+            if len(values) == 1 and '$' not in values[0] and '`' not in values[0]:
+                os.environ['OPENROUTER_API_KEY'] = values[0]
+                return
+    raise RuntimeError('No literal OpenRouter key was found')
+
+
+async def main() -> None:
+    load_key()
+    settings = Settings.model_validate({
+        'providers': {'default': 'openrouter', 'openrouter': {
+            'api_key': '${OPENROUTER_API_KEY}', 'model': MODEL, 'max_tokens': 8192,
+            'stream_options': {'include_usage': True},
+            'extra_body': {'provider': {'max_price': {'prompt': 0.5, 'completion': 1.0}}},
+        }},
+        'context': {'max_tokens': 32768},
+        'agents': {'max_delegation_retries': 0, 'max_delegation_turns': 12},
+    })
+    provider = create_configured_provider(settings.providers)
+    provider._client.max_retries = 0
+    original_stream = provider.chat_completion_stream
+    requests: list[dict] = []
+    request_lock = asyncio.Lock()
+
+    async def guarded_stream(messages, tools=None, **kwargs):
+        async with request_lock:
+            if len(requests) >= REQUEST_LIMIT:
+                raise RuntimeError('Live probe global request limit reached')
+            estimated = provider.estimate_input_tokens(messages, tools)
+            if estimated > 24576:
+                raise RuntimeError('Live probe estimated input limit exceeded')
+            record = {'index': len(requests) + 1, 'estimated_input_tokens': estimated,
+                      'messages': len(messages), 'tools': len(tools or []), 'usage': None}
+            requests.append(record)
+        print(json.dumps({'request_started': record['index'], 'input_estimate': estimated,
+                          'tools': record['tools']}), flush=True)
+        started = time.perf_counter()
+        try:
+            async with aclosing(original_stream(messages, tools, **kwargs)) as stream:
+                async for chunk in stream:
+                    if chunk.usage is not None:
+                        record['usage'] = dict(chunk.usage)
+                    if chunk.finish_reason is not None:
+                        record['finish_reason'] = chunk.finish_reason.value
+                    yield chunk
+        finally:
+            record['duration_seconds'] = round(time.perf_counter() - started, 3)
+            print(json.dumps({'request_finished': record['index'],
+                              'finish_reason': record.get('finish_reason'),
+                              'duration_seconds': record['duration_seconds']}), flush=True)
+
+    provider.chat_completion_stream = guarded_stream
+    rig = EvalTestRig(provider=provider, profile='team', settings=settings)
+    report: dict = {'model': MODEL, 'request_limit': REQUEST_LIMIT, 'timeout': TIMEOUT,
+                    'context_window': 32768, 'output_tokens': 8192,
+                    'sdk_retries': 0, 'requests': requests, 'task_verified': False,
+                    'pricing_source': 'https://openrouter.ai/xiaomi/mimo-v2.6-pro',
+                    'pricing_snapshot_per_million': {'input': 0.435, 'output': 0.87}}
+    try:
+        rig.setup('live-mimo-team-python')
+        result = await run_team_python_workflow(rig, max_iterations=12, timeout=TIMEOUT)
+        report.update(result=result, profile=rig.profile_metadata, success=result['success'])
+        ARTIFACTS.mkdir(parents=True, exist_ok=True)
+        for name in ('normalization.py', 'label_index.py', 'label_cli.py', 'test_labels.py', 'pyproject.toml'):
+            source = rig.test_dir / name
+            if source.is_file():
+                shutil.copyfile(source, ARTIFACTS / name)
+    except Exception as exc:
+        report.update(success=False, error={'type': type(exc).__name__, 'message': str(exc)})
+    finally:
+        clients = [provider, *rig.providers]
+        errors = await _close_clients(clients)
+        rig.cleanup()
+        if errors:
+            report.update(success=False, cleanup_errors=errors)
+        report['usage_complete'] = bool(requests) and all(row['usage'] is not None for row in requests)
+        if report['usage_complete']:
+            input_tokens = sum(row['usage'].get('prompt_tokens', 0) for row in requests)
+            output_tokens = sum(row['usage'].get('completion_tokens', 0) for row in requests)
+            report['observed_usage'] = {'prompt_tokens': input_tokens, 'completion_tokens': output_tokens}
+            report['estimated_uncached_cost_usd'] = (input_tokens * 0.435 + output_tokens * 0.87) / 1_000_000
+        _write_report(REPORT, _redact(report, _secrets(settings)))
+        print(json.dumps({'report': str(REPORT), 'success': report.get('success'),
+                          'requests': len(requests), 'usage_complete': report['usage_complete']}), flush=True)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

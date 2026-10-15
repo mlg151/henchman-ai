@@ -1,0 +1,22 @@
+{
+  "$id": "henchman/contracts/runtime/problem-entry/v1",
+  "title": "ProblemEntry",
+  "description": "Shape contract for the serialised ProblemEntry dataclass.",
+  "type": "object",
+  "required": ["problem", "status", "resolution"],
+  "properties": {
+    "problem": {
+      "type": "string",
+      "description": "Description of the problem encountered"
+    },
+    "status": {
+      "type": "string",
+      "description": "Current status (e.g. 'open', 'in_progress', 'resolved')"
+    },
+    "resolution": {
+      "type": "string",
+      "description": "How the problem was resolved (empty string if not yet resolved)"
+    }
+  },
+  "additionalProperties": false
+}

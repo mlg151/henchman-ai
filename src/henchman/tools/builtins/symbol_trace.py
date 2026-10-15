@@ -6,7 +6,10 @@ import ast
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -14,6 +17,7 @@ _MAX_FILE_SIZE = 500_000  # bytes - skip very large files
 _MAX_RESULTS_PER_CATEGORY = 50
 _MAX_SIGNATURE_LENGTH = 120  # chars - truncate long function signatures
 _MAX_ANNOTATIONS = 20  # max unique annotation strings to report
+_SectionItem = TypeVar("_SectionItem")
 
 
 @dataclass
@@ -324,8 +328,8 @@ def _collect_annotations(files: list[Path], symbol: str) -> list[str]:
 def _append_section(
     lines: list[str],
     header: str,
-    items: list[object],
-    formatter: callable,
+    items: Sequence[_SectionItem],
+    formatter: Callable[[_SectionItem], str],
     max_items: int = _MAX_RESULTS_PER_CATEGORY,
 ) -> None:
     """Append a section to the report if items are present."""

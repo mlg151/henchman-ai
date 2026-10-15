@@ -1,12 +1,13 @@
 """Test for apostrophe bug in intelligent_context.py."""
 
 import pytest
+
 from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_apostrophe_after_variable():
     """Test that a'hello' is correctly parsed as variable followed by string.
-    
+
     This exposes a bug: a'hello' should be parsed as:
     - variable 'a'
     - string literal 'hello'
@@ -16,7 +17,7 @@ def test_apostrophe_after_variable():
 x = a'hello'
 print(x)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -25,7 +26,7 @@ print(x)
 
 def test_apostrophe_in_word_vs_string():
     """Test differentiation between apostrophe in word and string literal.
-    
+
     isn't -> apostrophe in word
     a'hello' -> variable a followed by string 'hello'
     """
@@ -35,7 +36,7 @@ word = "isn't"  # String containing apostrophe
 result = a'hello'  # Variable a followed by string
 print(word, result)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]
@@ -48,7 +49,7 @@ print(word, result)
 
 def test_string_prefix_with_apostrophe_after_variable():
     """Test r'hello' vs a'r'hello'.
-    
+
     r'hello' -> raw string
     a'r'hello' -> variable a followed by raw string 'hello'
     """
@@ -57,7 +58,7 @@ s1 = r'hello'  # Raw string
 s2 = a'r'hello'  # Variable a followed by raw string
 print(s1, s2)
 ```'''
-    
+
     result = ContentExtractor.extract_code_blocks(content)
     assert len(result) == 1, f"Expected 1 code block, got {len(result)}"
     code = result[0]

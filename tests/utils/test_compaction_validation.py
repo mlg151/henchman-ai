@@ -1,6 +1,6 @@
 """Tests for compaction validation and summarization."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -148,7 +148,7 @@ class TestMessageSummarizer:
     async def test_summarize_with_mock_provider(self) -> None:
         """Should call provider to generate summary."""
         # Create mock provider that returns summary
-        mock_provider = AsyncMock()
+        mock_provider = Mock()
 
         async def mock_stream(*_args, **_kwargs):
             yield StreamChunk(content="This is a summary", finish_reason=FinishReason.STOP)
@@ -168,8 +168,13 @@ class TestMessageSummarizer:
     @pytest.mark.asyncio
     async def test_summarize_handles_exception(self) -> None:
         """Should return None on exception."""
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion_stream.side_effect = Exception("API Error")
+        mock_provider = Mock()
+
+        async def mock_stream(*_args, **_kwargs):
+            raise Exception("API Error")
+            yield  # pragma: no cover - keep this an async generator
+
+        mock_provider.chat_completion_stream = mock_stream
 
         summarizer = MessageSummarizer(provider=mock_provider)
         messages = [Message(role="user", content="Hello")]

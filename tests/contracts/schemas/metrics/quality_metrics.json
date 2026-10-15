@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/metrics/quality_metrics/v1",
+  "title": "QualityMetrics",
+  "description": "Shape contract for the serialized QualityMetrics dataclass (agents/metrics).",
+  "type": "object",
+  "required": [
+    "test_results",
+    "code_coverage",
+    "linting_status",
+    "documentation_coverage"
+  ],
+  "properties": {
+    "test_results": {
+      "type": "object",
+      "description": "Test results summary with passing/total/percentage",
+      "required": ["passing", "total", "percentage"],
+      "properties": {
+        "passing": { "type": "integer" },
+        "total": { "type": "integer" },
+        "percentage": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "code_coverage": {
+      "type": "number",
+      "description": "Code coverage percentage"
+    },
+    "linting_status": {
+      "type": "object",
+      "description": "Linting results with errors and warnings counts",
+      "required": ["errors", "warnings"],
+      "properties": {
+        "errors": { "type": "integer" },
+        "warnings": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "documentation_coverage": {
+      "type": "number",
+      "description": "Documentation coverage percentage"
+    }
+  },
+  "additionalProperties": false
+}

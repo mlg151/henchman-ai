@@ -42,24 +42,26 @@ class TestAskUserTool:
         assert tool.needs_confirmation({"question": "test"}) is None
 
     @pytest.mark.asyncio
-    async def test_execute_success(self, tool: AskUserTool) -> None:
-        """Test successful execution."""
+    async def test_unbound_execution_reports_unavailable_input(self, tool: AskUserTool) -> None:
+        """No input channel must never be reported as an answer."""
         result = await tool.execute(question="What is your name?")
-        assert result.success
-        assert "User input would be collected" in result.content
+        assert not result.success
+        assert "No user input handler" in result.content
+        assert "What is your name?" in result.content
         assert result.display is not None
-        assert "🤔" in result.display
+        assert "What is your name?" in result.display
+        assert result.error
 
     @pytest.mark.asyncio
     async def test_execute_with_timeout(self, tool: AskUserTool) -> None:
         """Test execution with timeout parameter."""
         result = await tool.execute(question="What is your name?", timeout=10)
-        assert result.success
-        assert "User input would be collected" in result.content
+        assert not result.success
+        assert "No user input handler" in result.content
 
     @pytest.mark.asyncio
     async def test_execute_empty_question(self, tool: AskUserTool) -> None:
         """Test execution with empty question."""
         result = await tool.execute(question="")
-        assert result.success
-        assert "User input would be collected" in result.content
+        assert not result.success
+        assert "question" in result.error.lower()

@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import coerce_int
 
 MAX_OUTPUT_CHARS = 100_000
 _GIT_TIMEOUT_SECONDS = 30
@@ -33,7 +34,7 @@ def _build_diff_params_from_kwargs(kwargs: dict[str, object]) -> DiffParams:
         compare=str(kwargs["compare"]) if kwargs.get("compare") is not None else None,
         stat=bool(kwargs.get("stat", False)),
         name_only=bool(kwargs.get("name_only", False)),
-        context_lines=int(raw_context) if raw_context is not None else None,
+        context_lines=coerce_int(raw_context) if raw_context is not None else None,
         cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
     )
 
@@ -106,7 +107,7 @@ async def _run_git_command(
             success=False,
             error="git not found",
         )
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         return ToolResult(
             content=f"git diff timed out after {_GIT_TIMEOUT_SECONDS}s",
             success=False,
@@ -179,7 +180,7 @@ class DiffViewTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self: DiffViewTool,
         **kwargs: object,
     ) -> ToolResult:

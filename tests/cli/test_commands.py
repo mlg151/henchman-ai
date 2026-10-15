@@ -246,7 +246,7 @@ class TestCommandRegistry:
 
         cmd1 = TestCommand()
         cmd2 = TestCommand()  # Same name
-        
+
         registry.register(cmd1)
         with pytest.raises(ValueError, match="Command 'test' is already registered"):
             registry.register(cmd2)

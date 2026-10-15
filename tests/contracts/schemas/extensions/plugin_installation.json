@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/plugin-installation/v1",
+  "title": "PluginInstallation",
+  "description": "Information about one installed plugin.",
+  "type": "object",
+  "properties": {
+    "metadata": { "$ref": "henchman/contracts/extensions/plugin-metadata/v1" },
+    "installed_version": { "type": "string" },
+    "installation_path": { "type": "string" },
+    "enabled": { "type": "boolean" }
+  },
+  "required": ["metadata", "installed_version", "installation_path", "enabled"]
+}

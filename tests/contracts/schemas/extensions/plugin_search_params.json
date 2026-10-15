@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/extensions/plugin-search-params/v1",
+  "title": "PluginSearchParams",
+  "description": "Structured parameters for plugin searches.",
+  "type": "object",
+  "properties": {
+    "query": { "type": ["string", "null"] },
+    "page": { "type": "integer", "minimum": 1 },
+    "page_size": { "type": "integer", "minimum": 1 },
+    "category": { "type": ["string", "null"] }
+  },
+  "required": ["page", "page_size"]
+}

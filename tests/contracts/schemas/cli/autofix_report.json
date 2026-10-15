@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/autofix-report/v1",
+  "type": "object",
+  "required": ["applied_count", "skipped_count", "changes"],
+  "properties": {
+    "applied_count": { "type": "integer" },
+    "skipped_count": { "type": "integer" },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["finding_code", "file_path", "line_number", "applied", "description"],
+        "properties": {
+          "finding_code": { "type": "string" },
+          "file_path": { "type": "string" },
+          "line_number": { "type": ["integer", "null"] },
+          "applied": { "type": "boolean" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

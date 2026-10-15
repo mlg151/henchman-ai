@@ -1,7 +1,7 @@
 """Event types for the agent loop."""
 
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Any
 
 __all__ = ["AgentEvent", "EventType"]
@@ -10,29 +10,29 @@ __all__ = ["AgentEvent", "EventType"]
 class EventType(Enum):
     """Types of events emitted by the agent during execution."""
 
-    CONTENT = auto()  # Text content from model
-    THOUGHT = auto()  # Reasoning/thinking content (for reasoning models)
-    TOOL_CALL_REQUEST = auto()  # Model is requesting a tool call
-    TOOL_CALL_RESULT = auto()  # Result from a tool execution
-    TOOL_CONFIRMATION = auto()  # Awaiting user approval for a tool
-    CONTEXT_COMPACTED = auto()  # Context was compacted to fit model limits
-    TURN_SUMMARIZED = auto()  # Previous turn was summarized
-    TURN_STATUS = auto()  # Status update for current turn
-    ERROR = auto()  # An error occurred
-    FINISHED = auto()  # Agent has finished processing
+    CONTENT = "content"  # Text content from model
+    THOUGHT = "thought"  # Reasoning/thinking content (for reasoning models)
+    TOOL_CALL_REQUEST = "tool_call_request"  # Model is requesting a tool call
+    TOOL_CALL_RESULT = "tool_call_result"  # Result from a tool execution
+    TOOL_CONFIRMATION = "tool_confirmation"  # Awaiting user approval for a tool
+    CONTEXT_COMPACTED = "context_compacted"  # Context was compacted to fit model limits
+    TURN_SUMMARIZED = "turn_summarized"  # Previous turn was summarized
+    TURN_STATUS = "turn_status"  # Status update for current turn
+    ERROR = "error"  # An error occurred
+    FINISHED = "finished"  # Agent has finished processing
 
     # Multi-agent orchestration events
-    AGENT_DELEGATED = auto()  # Tech Lead delegating a task to a specialist
-    AGENT_STARTED = auto()  # Specialist agent beginning work
-    AGENT_COMPLETED = auto()  # Specialist agent finished
-    AGENT_MESSAGE = auto()  # Inter-agent message via EventBus
+    AGENT_DELEGATED = "agent_delegated"  # Tech Lead delegating a task to a specialist
+    AGENT_STARTED = "agent_started"  # Specialist agent beginning work
+    AGENT_COMPLETED = "agent_completed"  # Specialist agent finished
+    AGENT_MESSAGE = "agent_message"  # Inter-agent message via EventBus
 
     # Thinking and reasoning events
-    THINKING_STARTED = auto()  # Agent has started thinking process
-    THINKING_COMPLETED = auto()  # Agent has completed thinking
-    THINKING_REQUIRED = auto()  # Thinking pattern missing in response
-    DELEGATION_DECISION = auto()  # Decision about whether to delegate
-    REFLECTION = auto()  # Reflection on completed work
+    THINKING_STARTED = "thinking_started"  # Agent has started thinking process
+    THINKING_COMPLETED = "thinking_completed"  # Agent has completed thinking
+    THINKING_REQUIRED = "thinking_required"  # Thinking pattern missing in response
+    DELEGATION_DECISION = "delegation_decision"  # Decision about whether to delegate
+    REFLECTION = "reflection"  # Reflection on completed work
 
 
 @dataclass

@@ -588,8 +588,12 @@ class TestCompactWithSummarization:
 
         # Test 3: Exception in provider returns None
         mock_provider3 = MagicMock()
-        # For exception case, we need to mock the method to raise exception
-        mock_provider3.chat_completion_stream = AsyncMock(side_effect=Exception("API error"))
+
+        async def mock_stream3(*_args, **_kwargs):
+            raise Exception("API error")
+            yield  # pragma: no cover - keep this an async generator
+
+        mock_provider3.chat_completion_stream = mock_stream3
 
         summarizer3 = MessageSummarizer(provider=mock_provider3)
         result3 = await summarizer3.summarize([Message(role="user", content="Hello")])

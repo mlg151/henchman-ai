@@ -1,0 +1,1092 @@
+plan_id: tier1-20260410-232950
+objective: Implement Tier 1 from FEATURE_TODO.md with foundations-first TDD, limited to baseline stabilization, local settings/config workflows, operational CLI commands, and core tool reconciliation.
+created_at: 2026-04-10T23:29:50Z
+created_by: gem-team:gem-planner
+status: pending_approval
+research_confidence: medium
+
+plan_metrics:
+  wave_1_task_count: 3
+  total_dependencies: 24
+  risk_score: high
+
+tldr: |
+  Repair the broken import surface first so targeted TDD is reliable, then fan out into
+  parallel Tier 1 slices: settings plumbing, operational CLI commands, UI-facing settings,
+  and missing tool surfaces. Reuse the existing Click CLI, settings schema, theming system,
+  and partial WebSearch wiring; avoid cloud sync and keep portability to local import/export.
+
+open_questions:
+  - Decide during foundation repair whether clean collection is fastest via compatibility re-exports or restoring small missing modules from existing patterns.
+  - Confirm whether update checks should use PyPI metadata only or an existing package metadata helper before implementing version and upgrade details.
+  - Confirm whether help search should index only CLI commands or CLI commands plus registered tools while staying within Tier 1 scope.
+
+pre_mortem:
+  overall_risk_level: high
+  critical_failure_modes:
+    - scenario: Foundation repair is scoped too narrowly, leaving non-Tier-1 import gaps that still break pytest collection and block all later TDD work.
+      likelihood: high
+      impact: critical
+      mitigation: Start with regression tests that codify the broken public surfaces, then require a clean targeted collection checkpoint before any feature slice begins.
+    - scenario: Settings plumbing and config mutation logic diverge, causing init, config, doctor, and UI settings to persist different shapes or precedence rules.
+      likelihood: medium
+      impact: high
+      mitigation: Centralize path resolution, load/merge, validation, and import/export helpers behind one settings service contract consumed by all commands.
+    - scenario: Upgrade and tool-surface work introduces unsafe execution paths or inconsistent command discovery behavior.
+      likelihood: medium
+      impact: high
+      mitigation: Add reviewer gate for security-sensitive tasks, prefer printed guidance over implicit execution, and cover registry/CLI behavior with focused regression tests.
+  assumptions:
+    - Existing Click entrypoints in src/henchman/cli/app.py remain the primary Tier 1 command surface.
+    - Project-local settings should follow the existing .henchman convention from README/PRD rather than introducing a second directory name.
+    - Settings sync is file-based import/export only and must not require network services or hosted accounts.
+    - Existing schema, console themes, and partial WebSearch wiring are sufficient primitives to extend rather than replace.
+
+implementation_specification:
+  code_structure: Shared Tier 1 behavior should be organized as thin CLI command handlers over reusable config/path/helper services, with compatibility shims isolated in small modules and tool registration normalized behind the existing ToolRegistry and ToolManager.
+  affected_areas:
+    - src/henchman/config/
+    - src/henchman/cli/app.py
+    - src/henchman/cli/commands/
+    - src/henchman/tools/
+    - src/henchman/agents/
+    - src/henchman/core/
+    - tests/cli/
+    - tests/config/
+    - tests/tools/
+    - tests/agents/
+  component_details:
+    - component: Foundation compatibility surface
+      responsibility: Restore missing public imports, re-exports, and small compatibility modules needed for clean imports and pytest collection without expanding beyond Tier 1.
+      interfaces:
+        - henchman.config.load_settings()
+        - henchman.config.ContextLoader
+        - henchman.tools.security sanitization helpers
+        - henchman.tools.builtins exported tool classes
+        - henchman.agents/core compatibility exports required by collection
+    - component: Settings service
+      responsibility: Resolve default, user, and project-local settings; validate schema; expose local import/export helpers; and provide key-based mutation helpers shared by commands.
+      interfaces:
+        - resolve_settings_paths()
+        - load_settings()
+        - save_settings()
+        - export_settings()
+        - import_settings()
+        - get_setting_by_key()
+        - set_setting_by_key()
+        - unset_setting_by_key()
+    - component: Operational CLI commands
+      responsibility: Expose init, config, help search, version update check, doctor diagnostics, and guided upgrade behavior using the shared settings service and existing Click app.
+      interfaces:
+        - henchman init
+        - henchman config view|get|set|unset|import|export
+        - henchman help [query]
+        - henchman version
+        - henchman doctor
+        - henchman upgrade [--run]
+    - component: Tier 1 tool surface
+      responsibility: Provide discoverable ToolSearchTool, SkillTool, WebSearchTool, and SleepTool behavior through ToolRegistry and ToolManager with consistent naming and guardrails.
+      interfaces:
+        - ToolSearchTool.execute(...)
+        - SkillTool.execute(...)
+        - WebSearchTool.execute(...)
+        - SleepTool.execute(...)
+        - ToolManager.register_builtin_tools()
+  dependencies:
+    - component: Operational CLI commands
+      relationship: Depends on the settings service for path resolution, validation, persistence, and diagnostics inputs.
+    - component: Tier 1 tool surface
+      relationship: Depends on the foundation compatibility surface for builtins exports and shared security sanitization.
+    - component: UI settings surfacing
+      relationship: Depends on the settings service to persist output_style, theme, keybindings, and style overrides consistently.
+    - component: Final acceptance gate
+      relationship: Depends on all feature slices completing with green targeted tests and a clean collection checkpoint.
+  integration_points:
+    - Click CLI group and subcommand registration in src/henchman/cli/app.py
+    - Slash/help command behavior in src/henchman/cli/commands/builtins.py
+    - ToolRegistry and ToolManager built-in registration flow
+    - Pydantic settings schema in src/henchman/config/schema.py
+    - Console/theme rendering in src/henchman/cli/console.py and textual config consumers
+
+contracts:
+  - from_task: foundation-red-config-cli-tests
+    to_task: foundation-green-config-surface
+    interface: Regression expectations for missing henchman.config exports and CLI import behavior.
+    format: pytest assertions for import paths, callable surfaces, and targeted collection entrypoints
+  - from_task: foundation-red-tool-surface-tests
+    to_task: foundation-green-tool-surface
+    interface: Expected security helper names and built-in tool export/registration surface.
+    format: pytest assertions over ToolRegistry declarations and importable tool classes
+  - from_task: foundation-red-compat-collection-tests
+    to_task: foundation-green-core-compat
+    interface: Minimum compatibility imports required for agents/core collection to proceed.
+    format: pytest collection/import smoke tests for modules and symbols
+  - from_task: foundation-green-core-compat
+    to_task: foundation-green-agent-state-compat
+    interface: Restored AgentConfig/event identity surface used by ledger and working-memory modules.
+    format: importable dataclasses/enums/types with backward-compatible names
+  - from_task: foundation-green-config-surface
+    to_task: settings-plumbing-local-sync
+    interface: Working config package entrypoints for load/save/path/environment helpers.
+    format: Python helper API with deterministic return types and file-path contracts
+  - from_task: settings-plumbing-local-sync
+    to_task: config-cli-key-ux
+    interface: Shared key-path read/write/import/export service for config subcommands.
+    format: validated helper methods returning typed settings values and user-facing errors
+  - from_task: settings-plumbing-local-sync
+    to_task: init-wizard-local-setup
+    interface: Safe settings mutation and persistence helpers for interactive setup.
+    format: idempotent save/update API plus existing-config detection contract
+  - from_task: settings-plumbing-local-sync
+    to_task: doctor-upgrade-guidance
+    interface: Access to resolved settings paths, effective settings source, and installation metadata inputs.
+    format: diagnostic data objects and printable summaries
+  - from_task: settings-plumbing-local-sync
+    to_task: ui-settings-surfacing
+    interface: Persisted schema-backed fields for output_style, theme, keybindings, and style overrides.
+    format: Pydantic fields plus read/write helper contract
+  - from_task: foundation-green-tool-surface
+    to_task: tier1-tooling-surface
+    interface: Stable builtins package exports, sanitizer hooks, and registration extension points.
+    format: importable tool classes and ToolManager registration list
+  - from_task: help-version-discoverability
+    to_task: doctor-upgrade-guidance
+    interface: Shared version/update helper behavior reused by doctor and upgrade output.
+    format: small helper functions returning structured version/install metadata
+  - from_task: foundation-green-agent-state-compat
+    to_task: tier1-acceptance-gate
+    interface: Clean import/collection baseline required before final Tier 1 verification.
+    format: green targeted pytest collection and import smoke checks
+  - from_task: config-cli-key-ux
+    to_task: tier1-security-review
+    interface: Key-based mutation commands and validation/error flows.
+    format: CLI command behaviors, validation errors, and persistence side effects
+  - from_task: init-wizard-local-setup
+    to_task: tier1-security-review
+    interface: Interactive settings creation/update flows that write local configuration safely.
+    format: prompt/response scenarios and resulting settings files
+  - from_task: doctor-upgrade-guidance
+    to_task: tier1-security-review
+    interface: Installation detection and optional command execution logic.
+    format: structured install-method detection plus printed or executed package-manager command
+  - from_task: tier1-tooling-surface
+    to_task: tier1-security-review
+    interface: Tool execution semantics and registry exposure for Tier 1 built-ins.
+    format: tool declarations, execution params, and expected result payloads
+
+tasks:
+  - id: foundation-red-config-cli-tests
+    title: Codify missing config and CLI public surfaces
+    task_definition: Add failing regression tests for henchman.config exports and CLI entrypoints before any Tier 1 implementation begins.
+    description: |
+      Write the red tests that capture the known Tier 1 foundation gaps around
+      henchman.config.load_settings, ContextLoader/environment helpers, and the
+      existing Click CLI imports. Keep the scope on import/public-surface failure
+      modes so the next task can repair them without feature creep.
+    details:
+      - Add import smoke tests for henchman.config public API.
+      - Add CLI tests that prove app entrypoints fail until the missing config surface exists.
+      - Keep tests focused on baseline stabilization, not new feature behavior.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - tests/cli/test_app.py
+      - tests/test_main.py
+      - tests/config/test_loader_runtime.py
+    context_files:
+      - docs/prd.yaml: Tier 1 acceptance criteria and clarified scope.
+      - src/henchman/cli/app.py: Existing Click entrypoint and lazy imports.
+      - src/henchman/config/schema.py: Existing settings model to preserve.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: foundation
+    verification:
+      - Run targeted pytest for the new config/CLI regression tests and confirm they fail for the intended missing surface.
+      - Confirm tests reference importable public symbols instead of internal implementation details.
+    acceptance_criteria:
+      - Regression tests fail because henchman.config public helpers are missing or incomplete.
+      - Tests explicitly lock in the Tier 1 config package surface needed by the existing CLI.
+    acceptance_checks:
+      - pytest tests/config/test_loader_runtime.py tests/cli/test_app.py tests/test_main.py -q
+      - pytest --collect-only -q on the targeted CLI/config subset
+    security_sensitive: false
+    failure_modes:
+      - scenario: Tests overfit to a specific implementation shape and block simpler compatibility fixes.
+        likelihood: medium
+        impact: medium
+        mitigation: Assert public names, precedence, and behavior only; avoid line-level or internal helper coupling.
+    tech_stack:
+      - Python 3.12
+      - pytest
+      - click.testing
+      - pydantic
+    test_coverage: Regression and CLI import coverage for config/public surface.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: foundation-red-tool-surface-tests
+    title: Codify missing built-in tool and security surfaces
+    task_definition: Add failing tests for missing henchman.tools.security helpers and broken builtins package exports before tool reconciliation starts.
+    description: |
+      Write red tests that capture the broken henchman.tools.security imports,
+      the incomplete builtins package, and the expected Tier 1 registry behavior
+      for the current built-in tool surface. Keep these tests narrow enough to
+      guide compatibility repair first, then support later ToolSearch/Skill/WebSearch/Sleep work.
+    details:
+      - Add import smoke tests for henchman.tools.security.
+      - Add registry/export tests for builtins package declarations.
+      - Preserve existing ToolRegistry behavior as the baseline contract.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - tests/tools/test_registry.py
+      - tests/e2e/test_tool_fix.py
+      - tests/tools/test_builtin_surfaces.py
+    context_files:
+      - docs/prd.yaml: Tier 1 tool acceptance criteria.
+      - src/henchman/cli/tool_manager.py: Built-in tool registration flow.
+      - src/henchman/tools/builtins/__init__.py: Broken import surface to replace or normalize.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 220
+    focus_area: foundation
+    verification:
+      - Run targeted pytest for builtins/registry regression tests and confirm red failures point at missing imports or exports.
+      - Confirm the tests lock in public tool names and descriptions relevant to Tier 1.
+    acceptance_criteria:
+      - Tests fail because henchman.tools.security and builtins exports are incomplete.
+      - The expected public tool-registration surface is defined before implementation begins.
+    acceptance_checks:
+      - pytest tests/tools/test_registry.py tests/tools/test_builtin_surfaces.py tests/e2e/test_tool_fix.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: Tests assert the current broken builtins list instead of the intended normalized Tier 1 surface.
+        likelihood: medium
+        impact: medium
+        mitigation: Express expectations in terms of required tool names and importability, not the current file layout.
+    tech_stack:
+      - Python 3.12
+      - pytest
+      - ToolRegistry
+    test_coverage: Registry/import coverage for built-ins and sanitization helpers.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: foundation-red-compat-collection-tests
+    title: Codify compatibility shims required for clean collection
+    task_definition: Add failing import and collection smoke tests for the missing agents/core compatibility modules that currently block pytest collection.
+    description: |
+      Capture the non-Tier-1 compatibility gaps that nonetheless block Tier 1 TDD:
+      core AgentConfig/event-related exports and agent compatibility modules used
+      by the existing test suite. The output should define the minimum shim surface
+      required to achieve clean collection without expanding product scope.
+    details:
+      - Add collection/import smoke tests for missing core and agent modules.
+      - Separate compatibility surface expectations from feature behavior.
+      - Lock in a “minimum viable shim” target for later foundation tasks.
+    wave: 1
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies: []
+    parallelizable: true
+    conflicts_with: []
+    file_targets:
+      - tests/agents/test_pool.py
+      - tests/agents/test_presets.py
+      - tests/core/test_agent_collection.py
+    context_files:
+      - docs/prd.yaml: Foundation stabilization acceptance criteria.
+      - src/henchman/core/__init__.py: Current broken export fan-out.
+      - src/henchman/agents/pool.py: Missing AgentConfig/AgentIdentity dependencies.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 210
+    focus_area: foundation
+    verification:
+      - Run targeted collection/import tests and verify failures are limited to missing compatibility modules.
+      - Ensure test names communicate these are baseline gates, not new product features.
+    acceptance_criteria:
+      - Tests fail because current agents/core compatibility imports are missing.
+      - The minimum shim surface needed for clean collection is explicit and reviewable.
+    acceptance_checks:
+      - pytest tests/agents/test_pool.py tests/agents/test_presets.py tests/core/test_agent_collection.py -q
+      - pytest --collect-only -q tests/agents tests/core
+    security_sensitive: false
+    failure_modes:
+      - scenario: Compatibility tests accidentally require full historical implementations rather than bounded shims.
+        likelihood: medium
+        impact: high
+        mitigation: Assert importability and core type behavior only; defer richer behavior to existing focused tests.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Import smoke coverage for collection blockers outside the Tier 1 feature set.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: foundation-green-config-surface
+    title: Restore config package runtime surface
+    task_definition: Implement the minimal config package modules and exports needed to satisfy baseline CLI/config regression tests.
+    description: |
+      Create the smallest viable henchman.config surface that restores load_settings,
+      ContextLoader, and environment helper imports while preserving the existing
+      schema as the source of truth. This task ends only when the red tests from
+      foundation-red-config-cli-tests go green.
+    details:
+      - Add config package entrypoints and runtime loader helpers.
+      - Preserve current schema defaults and lazy import patterns.
+      - Avoid adding Tier 1 command logic here beyond shared runtime contracts.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-red-config-cli-tests
+    parallelizable: false
+    conflicts_with:
+      - settings-plumbing-local-sync
+      - help-version-discoverability
+    file_targets:
+      - src/henchman/config/__init__.py
+      - src/henchman/config/loader.py
+      - src/henchman/config/environment.py
+    context_files:
+      - src/henchman/cli/app.py: Existing lazy imports and runtime expectations.
+      - src/henchman/config/schema.py: Settings model to keep stable.
+      - tests/config/test_loader_runtime.py: Red tests from wave 1.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 320
+    focus_area: foundation
+    verification:
+      - Re-run the targeted config/CLI regression tests until they pass.
+      - Smoke-test importing henchman.config from the CLI codepath.
+    acceptance_criteria:
+      - henchman.config exposes the runtime helpers expected by current CLI imports.
+      - Targeted config and CLI foundation tests pass without introducing Tier 2+ behavior.
+    acceptance_checks:
+      - pytest tests/config/test_loader_runtime.py tests/cli/test_app.py tests/test_main.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: The new config loader duplicates schema logic and drifts from the existing Settings model.
+        likelihood: medium
+        impact: high
+        mitigation: Keep schema ownership in schema.py and use thin serialization/path helpers around it.
+    tech_stack:
+      - Python 3.12
+      - pydantic
+      - click
+    test_coverage: Green coverage for config runtime surface and CLI imports.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: foundation-green-tool-surface
+    title: Restore built-in tool exports and sanitization hooks
+    task_definition: Implement the minimal henchman.tools.security and builtins package surface needed to satisfy baseline tool tests and unlock Tier 1 tool work.
+    description: |
+      Repair the built-ins package and shared security helpers so ToolRegistry,
+      ToolManager, and existing imports stop failing. Normalize the exported tool
+      surface to what actually exists now, then leave room for Tier 1 tool additions
+      in a later slice.
+    details:
+      - Add the missing henchman.tools.security helpers used by registry and shell tooling.
+      - Replace broken builtins imports with importable, truthful exports.
+      - Ensure current registry startup works before adding new Tier 1 tools.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-red-tool-surface-tests
+    parallelizable: false
+    conflicts_with:
+      - tier1-tooling-surface
+    file_targets:
+      - src/henchman/tools/security.py
+      - src/henchman/tools/builtins/__init__.py
+      - src/henchman/tools/builtins/web_search.py
+    context_files:
+      - src/henchman/tools/registry.py: Security helper import expectations.
+      - src/henchman/cli/tool_manager.py: Built-in registration list to keep coherent.
+      - tests/tools/test_builtin_surfaces.py: Red tests from wave 1.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 340
+    focus_area: foundation
+    verification:
+      - Re-run targeted registry and builtins tests until green.
+      - Confirm ToolManager can enumerate the repaired built-in surface without import errors.
+    acceptance_criteria:
+      - henchman.tools.security exists and satisfies current callers.
+      - Builtins exports no longer reference nonexistent modules.
+      - WebSearchTool remains available as a normalized Tier 1 primitive.
+    acceptance_checks:
+      - pytest tests/tools/test_registry.py tests/tools/test_builtin_surfaces.py tests/e2e/test_tool_fix.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: Security sanitization is implemented inconsistently across registry and shell execution paths.
+        likelihood: medium
+        impact: high
+        mitigation: Define one shared helper surface and make all callers use it instead of ad hoc sanitization.
+    tech_stack:
+      - Python 3.12
+      - ToolRegistry
+      - pytest
+    test_coverage: Green coverage for tool imports, registry behavior, and built-in export integrity.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: foundation-green-core-compat
+    title: Restore core compatibility modules required for collection
+    task_definition: Add the smallest set of core/agent compatibility modules needed to satisfy the collection smoke tests from wave 1.
+    description: |
+      Repair the missing core and agent compatibility surface that prevents test
+      collection, focusing on AgentConfig-related imports, identity/event plumbing,
+      and related public modules used by current code. Keep the changes bounded to
+      import compatibility and existing behavior reuse.
+    details:
+      - Re-export or define the current AgentConfig surface in the expected modules.
+      - Restore missing identity/event/core support modules referenced by agents and CLI runtime.
+      - Stop once the compatibility smoke tests are green.
+    wave: 2
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-red-compat-collection-tests
+    parallelizable: false
+    conflicts_with:
+      - foundation-green-agent-state-compat
+    file_targets:
+      - src/henchman/core/agent_config.py
+      - src/henchman/agents/config.py
+      - src/henchman/agents/identity.py
+    context_files:
+      - src/henchman/core/__init__.py: Broken exports to stabilize.
+      - src/henchman/agents/presets.py: AgentConfig consumer.
+      - tests/core/test_agent_collection.py: Red tests from wave 1.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 280
+    focus_area: foundation
+    verification:
+      - Re-run the targeted collection smoke tests until green.
+      - Confirm imports no longer require full feature implementations outside Tier 1.
+    acceptance_criteria:
+      - core/agent compatibility imports used by tests and current runtime are restored.
+      - The solution stays at the compatibility layer and does not add new product scope.
+    acceptance_checks:
+      - pytest tests/agents/test_pool.py tests/agents/test_presets.py tests/core/test_agent_collection.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Compatibility work leaks into a broad refactor of the agents/core architecture.
+        likelihood: medium
+        impact: high
+        mitigation: Favor targeted re-exports and adapters over structural rewrites.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Green coverage for AgentConfig and compatibility imports.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: foundation-green-agent-state-compat
+    title: Restore ledger and working-memory compatibility surfaces
+    task_definition: Complete the remaining compatibility layer for ledger and working-memory modules so broader collection can proceed before feature work fans out.
+    description: |
+      Implement or restore the minimum ledger and working-memory module surfaces
+      expected by the existing agents test suite. This is still foundation work:
+      the goal is clean collection and bounded backward compatibility, not new
+      non-Tier-1 features.
+    details:
+      - Restore importable ledger types used by delegation/orchestrator tests.
+      - Restore working-memory types and helpers required for collection.
+      - Keep logic bounded to the compatibility requirements exposed by existing tests.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-green-core-compat
+    parallelizable: false
+    conflicts_with:
+      - tier1-acceptance-gate
+    file_targets:
+      - src/henchman/agents/ledger.py
+      - src/henchman/agents/working_memory.py
+      - tests/agents/test_orchestrator.py
+    context_files:
+      - src/henchman/agents/delegation.py: Ledger import expectations.
+      - src/henchman/agents/orchestrator.py: Working-memory import expectations.
+      - tests/agents/: Compatibility consumers already in the suite.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 500
+    focus_area: foundation
+    verification:
+      - Run targeted agents collection/tests for ledger and working-memory imports.
+      - Confirm broader pytest collection progresses beyond the previous blockers.
+    acceptance_criteria:
+      - Ledger and working-memory imports used by the current suite no longer block collection.
+      - The repair remains a compatibility exercise rather than a new roadmap slice.
+    acceptance_checks:
+      - pytest --collect-only -q tests/agents
+      - pytest tests/agents/test_orchestrator.py tests/agents/test_delegation_e2e.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Recreating large legacy modules consumes disproportionate effort and starves actual Tier 1 feature work.
+        likelihood: medium
+        impact: high
+        mitigation: Implement only the smallest behavior needed to satisfy existing tests and defer any non-required functionality.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Collection and focused agents regression coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: settings-plumbing-local-sync
+    title: Build shared settings precedence and local import/export plumbing
+    task_definition: Implement the reusable settings service for defaults, user settings, project-local .henchman overrides, and local import/export portability.
+    description: |
+      Extend the repaired config surface into a shared settings service that
+      handles deterministic precedence, project-local .henchman paths, and file-based
+      import/export. This is the backbone for config, init, doctor, and UI settings work.
+    details:
+      - Add path resolution and precedence merging for defaults, user, and project-local settings.
+      - Add validated local import/export helpers for machine-to-machine portability.
+      - Expose mutation helpers that later CLI commands can call instead of editing YAML directly.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-green-config-surface
+    parallelizable: false
+    conflicts_with:
+      - config-cli-key-ux
+      - init-wizard-local-setup
+      - doctor-upgrade-guidance
+      - ui-settings-surfacing
+    file_targets:
+      - src/henchman/config/loader.py
+      - src/henchman/config/paths.py
+      - tests/config/test_settings_io.py
+    context_files:
+      - docs/prd.yaml: Settings precedence and import/export requirements.
+      - README.md: Existing .henchman hierarchy documentation to preserve.
+      - src/henchman/config/schema.py: Schema fields to validate against.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: settings
+    verification:
+      - Run precedence and round-trip import/export tests.
+      - Verify effective settings resolve deterministically across default, user, and project-local files.
+    acceptance_criteria:
+      - Defaults, user settings, and project-local .henchman settings load in deterministic order.
+      - Import/export round-trips succeed for valid files and fail clearly for invalid ones.
+      - Shared mutation helpers are available for later Tier 1 command slices.
+    acceptance_checks:
+      - pytest tests/config/test_settings_io.py tests/config/test_schema.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Multiple commands each implement their own precedence logic and drift.
+        likelihood: high
+        impact: high
+        mitigation: Centralize all path, merge, and mutation logic in one service and make downstream tasks consume it.
+    tech_stack:
+      - Python 3.12
+      - pydantic
+      - pytest
+    test_coverage: Settings precedence, I/O, and invalid-file handling.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: help-version-discoverability
+    title: Extend help and version into searchable operational support
+    task_definition: Add Tier 1 help search and version/update-check behavior by extending the existing CLI and slash-help primitives.
+    description: |
+      Build on the existing help/version behavior rather than replacing it.
+      Add searchable help results, structured version output, and update-check
+      support that other operational commands can reuse later.
+    details:
+      - Extend existing help command behavior with query/search support.
+      - Add version output that can include update availability.
+      - Keep the implementation reusable for doctor/upgrade messaging.
+    wave: 3
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - foundation-green-config-surface
+    parallelizable: true
+    conflicts_with:
+      - config-cli-key-ux
+      - doctor-upgrade-guidance
+    file_targets:
+      - src/henchman/cli/commands/builtins.py
+      - src/henchman/cli/app.py
+      - tests/cli/test_app_extended.py
+    context_files:
+      - tests/cli/test_builtins.py: Existing help behavior to extend.
+      - tests/cli/test_app.py: Existing version flag behavior.
+      - docs/prd.yaml: Searchable help and update-check acceptance criteria.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 260
+    focus_area: cli
+    verification:
+      - Run focused CLI tests for help search and version output.
+      - Verify existing help/version behaviors remain backward compatible.
+    acceptance_criteria:
+      - Help supports searchable discovery within Tier 1 scope.
+      - Version output reports installed version and update-check status.
+      - Existing help and version entrypoints continue to work.
+    acceptance_checks:
+      - pytest tests/cli/test_builtins.py tests/cli/test_app.py tests/cli/test_app_extended.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Searchable help depends on incomplete command registration and becomes inconsistent across entrypoints.
+        likelihood: medium
+        impact: medium
+        mitigation: Drive search from the same command registry and built-in metadata already used for help output.
+    tech_stack:
+      - Python 3.12
+      - click
+      - rich
+      - pytest
+    test_coverage: CLI coverage for help search and version/update behavior.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: tier1-tooling-surface
+    title: Add ToolSearch, Skill, Sleep, and normalized WebSearch tools
+    task_definition: Implement the missing Tier 1 built-in tools and register them consistently through the existing tool manager.
+    description: |
+      Add the missing core tool surfaces promised by Tier 1: tool search,
+      skill invocation, deterministic sleep, and normalized web search. Reuse
+      the repaired builtins package and registry flow rather than inventing a
+      separate plugin mechanism.
+    details:
+      - Add ToolSearchTool to search registered tools by name and description.
+      - Add SkillTool to invoke the existing skill framework through a stable tool surface.
+      - Add SleepTool with deterministic parameter validation and non-busy waiting behavior.
+      - Normalize WebSearchTool naming/behavior so registry and CLI wiring stay consistent.
+    wave: 3
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-green-tool-surface
+    parallelizable: true
+    conflicts_with:
+      - tier1-security-review
+    file_targets:
+      - src/henchman/tools/builtins/__init__.py
+      - src/henchman/cli/tool_manager.py
+      - tests/ui_integration/test_tool_calls.py
+    context_files:
+      - docs/prd.yaml: Tool acceptance criteria.
+      - src/henchman/tools/registry.py: Expected registration behavior.
+      - src/henchman/cli/tool_manager.py: Built-in construction list to extend.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: tools
+    verification:
+      - Run registry and tool-integration tests for discovery and execution.
+      - Confirm all four Tier 1 tools appear in the registered built-in surface.
+    acceptance_criteria:
+      - ToolSearchTool, SkillTool, WebSearchTool, and SleepTool are importable and registered.
+      - Tool behavior is covered by registry and end-to-end invocation tests.
+      - Tool naming and descriptions are consistent across builtins and registry output.
+    acceptance_checks:
+      - pytest tests/tools/test_registry.py tests/ui_integration/test_tool_calls.py tests/ui_integration/test_tool_integration.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: SkillTool or WebSearchTool bypasses existing safety and approval patterns.
+        likelihood: medium
+        impact: high
+        mitigation: Reuse ToolRegistry/ToolManager execution flow and apply the same confirmation/sanitization hooks as other built-ins.
+    tech_stack:
+      - Python 3.12
+      - ToolRegistry
+      - anyio
+      - pytest
+    test_coverage: Registry and integration coverage for Tier 1 built-in tools.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: config-cli-key-ux
+    title: Ship key-based config view/get/set/unset/import/export commands
+    task_definition: Implement the Tier 1 config CLI using shared settings mutation helpers instead of direct YAML editing.
+    description: |
+      Add a scriptable config command surface for viewing, reading, setting,
+      unsetting, importing, and exporting configuration keys. The UX should be
+      key-based, schema-validated, and consistent with the local import/export model.
+    details:
+      - Add config subcommands or grouped actions to the existing Click CLI.
+      - Reuse shared key-path mutation helpers from settings-plumbing-local-sync.
+      - Return clear errors for missing keys, invalid values, and invalid import files.
+    wave: 4
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - settings-plumbing-local-sync
+    parallelizable: true
+    conflicts_with:
+      - init-wizard-local-setup
+      - doctor-upgrade-guidance
+      - help-version-discoverability
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/config.py
+      - tests/cli/test_config_command.py
+    context_files:
+      - docs/prd.yaml: Config CLI acceptance criteria and error codes.
+      - tests/cli/test_app.py: Current CLI testing pattern.
+      - src/henchman/config/loader.py: Shared settings/mutation contract from wave 3.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 420
+    focus_area: cli
+    verification:
+      - Run focused CLI tests for view/get/set/unset/import/export.
+      - Verify nested keys, persisted writes, and invalid-key exits behave as specified.
+    acceptance_criteria:
+      - Config CLI supports view, get, set, unset, import, and export.
+      - Commands use schema validation and shared mutation helpers.
+      - Invalid key/value flows return non-zero exit codes with clear errors.
+    acceptance_checks:
+      - pytest tests/cli/test_config_command.py tests/config/test_settings_io.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: Config subcommands bypass validation and persist malformed settings.
+        likelihood: medium
+        impact: high
+        mitigation: Route all writes through shared validated mutation helpers and keep direct file writes out of CLI handlers.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pydantic
+      - pytest
+    test_coverage: CLI integration coverage for key-based config operations.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: init-wizard-local-setup
+    title: Ship interactive init wizard for local setup
+    task_definition: Implement the Tier 1 init command as a guided local setup wizard backed by the shared settings service.
+    description: |
+      Add an interactive init flow that can bootstrap or update local settings,
+      detect existing configuration, and support cancel-safe behavior. The command
+      should write only through the shared settings service and stay local-only.
+    details:
+      - Prompt for provider/workspace/settings choices relevant to Tier 1.
+      - Detect existing project-local settings and offer safe update behavior.
+      - Keep cancel flow side-effect free until persistence is confirmed.
+    wave: 4
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - settings-plumbing-local-sync
+    parallelizable: true
+    conflicts_with:
+      - config-cli-key-ux
+      - doctor-upgrade-guidance
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/init.py
+      - tests/cli/test_init_command.py
+    context_files:
+      - docs/prd.yaml: Init acceptance criteria.
+      - src/henchman/config/loader.py: Shared save/update helpers.
+      - tests/cli/test_app.py: Existing CliRunner patterns.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 340
+    focus_area: cli
+    verification:
+      - Run prompt-driven tests for fresh setup, existing-config detection, and cancel flow.
+      - Verify generated settings content matches the shared schema.
+    acceptance_criteria:
+      - Init can create or update local settings safely.
+      - Existing config detection and cancel flow are covered by tests.
+      - The command stays within local-only settings management.
+    acceptance_checks:
+      - pytest tests/cli/test_init_command.py tests/config/test_settings_io.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: Init writes partial files on cancel or failed validation.
+        likelihood: medium
+        impact: medium
+        mitigation: Stage changes in memory first and persist only after final confirmation.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: Interactive CLI coverage for init flows.
+    requires_review: true
+    review_depth: standard
+    review_security_sensitive: true
+
+  - id: doctor-upgrade-guidance
+    title: Ship doctor diagnostics and guided package-manager upgrade flow
+    task_definition: Implement doctor and upgrade commands that inspect environment/config/install mode and print or optionally run the correct pip, uv, or pipx command.
+    description: |
+      Add operational support commands for environment diagnosis and guided upgrades.
+      The upgrade flow must detect pip, uv, or pipx installation style and either
+      print or explicitly run the correct command; if detection is unknown, fall back
+      to safe manual guidance.
+    details:
+      - Add doctor diagnostics covering environment, dependencies, configuration, and install-method detection.
+      - Add guided upgrade behavior with explicit package-manager detection and safe fallback guidance.
+      - Reuse shared version/update helpers and settings-path introspection where possible.
+    wave: 4
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - settings-plumbing-local-sync
+      - help-version-discoverability
+    parallelizable: true
+    conflicts_with:
+      - config-cli-key-ux
+      - init-wizard-local-setup
+    file_targets:
+      - src/henchman/cli/app.py
+      - src/henchman/cli/commands/doctor.py
+      - tests/cli/test_doctor_upgrade_commands.py
+    context_files:
+      - docs/prd.yaml: Doctor and upgrade acceptance criteria plus HMN_UPGRADE_INSTALL_METHOD_UNKNOWN.
+      - README.md: Supported install paths and package manager examples.
+      - src/henchman/cli/app.py: Existing version/help flow to extend.
+    estimated_effort: large
+    estimated_files: 3
+    estimated_lines: 430
+    focus_area: cli
+    verification:
+      - Run CLI tests for doctor summaries and install-method-specific upgrade guidance.
+      - Verify unknown install methods print safe manual guidance rather than guessing.
+    acceptance_criteria:
+      - Doctor reports environment, dependency, configuration, and installation diagnostics.
+      - Upgrade detects pip, uv, or pipx and prints or runs the correct command.
+      - Unknown install methods degrade safely to manual guidance.
+    acceptance_checks:
+      - pytest tests/cli/test_doctor_upgrade_commands.py tests/cli/test_app_extended.py -q
+    security_sensitive: true
+    failure_modes:
+      - scenario: Upgrade guesses the install method incorrectly and runs the wrong command.
+        likelihood: medium
+        impact: high
+        mitigation: Keep detection explicit, prefer print-first semantics, and require a safe fallback path for unknown installs.
+    tech_stack:
+      - Python 3.12
+      - click
+      - pytest
+    test_coverage: CLI coverage for diagnostics and install-method-specific upgrade flows.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: ui-settings-surfacing
+    title: Expose output style, theme, and keybindings as first-class settings
+    task_definition: Extend the existing schema and CLI-facing settings support so output style, theme, keybindings, and style overrides are readable and writable Tier 1 settings.
+    description: |
+      Reuse the current theming and keybinding primitives, then add any missing
+      schema and persistence support—especially output style—so these settings can
+      be managed through the shared Tier 1 configuration flows.
+    details:
+      - Add output_style to the schema and persistence layer.
+      - Preserve existing theme/keybindings/style_overrides fields and make them first-class in settings helpers.
+      - Keep scope limited to settings exposure, not a broader TUI redesign.
+    wave: 4
+    agent: gem-implementer
+    priority: medium
+    status: pending
+    dependencies:
+      - settings-plumbing-local-sync
+    parallelizable: true
+    conflicts_with:
+      - config-cli-key-ux
+    file_targets:
+      - src/henchman/config/schema.py
+      - tests/config/test_schema.py
+      - tests/cli/test_json_output.py
+    context_files:
+      - docs/prd.yaml: UI settings acceptance criteria.
+      - src/henchman/cli/console.py: Existing theme primitives to preserve.
+      - src/henchman/cli/textual_config.py: Current theme/keybinding consumers.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 240
+    focus_area: settings
+    verification:
+      - Run schema and CLI output tests for output_style, theme, keybindings, and style overrides.
+      - Verify no broader TUI redesign is introduced.
+    acceptance_criteria:
+      - Output style, theme, keybindings, and style overrides are schema-backed settings.
+      - These settings are compatible with the shared mutation/import/export flows.
+    acceptance_checks:
+      - pytest tests/config/test_schema.py tests/cli/test_json_output.py tests/cli/test_console.py -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Output-style changes fork rendering behavior instead of layering on the existing renderer configuration.
+        likelihood: medium
+        impact: medium
+        mitigation: Treat output_style as configuration consumed by existing renderers, not as a replacement rendering subsystem.
+    tech_stack:
+      - Python 3.12
+      - pydantic
+      - rich
+      - pytest
+    test_coverage: Schema and CLI coverage for UI-facing Tier 1 settings.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false
+
+  - id: tier1-security-review
+    title: Review Tier 1 mutation, upgrade, and tool execution surfaces
+    task_definition: Perform a security-focused review of Tier 1 settings mutation, upgrade guidance, and new tool execution behavior before final acceptance.
+    description: |
+      Review the security-sensitive Tier 1 slices—config writes, init persistence,
+      doctor/upgrade command execution, and new built-in tools—for unsafe command
+      execution, schema bypasses, and overly permissive registry exposure.
+    details:
+      - Review config/init write paths for validation bypasses or unsafe file handling.
+      - Review upgrade execution behavior for command construction and confirmation safety.
+      - Review Tier 1 tool implementations for registry exposure and sanitization consistency.
+    wave: 5
+    agent: gem-reviewer
+    priority: high
+    status: pending
+    dependencies:
+      - tier1-tooling-surface
+      - config-cli-key-ux
+      - init-wizard-local-setup
+      - doctor-upgrade-guidance
+      - ui-settings-surfacing
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - src/henchman/cli/commands/
+      - src/henchman/tools/
+      - src/henchman/config/
+    context_files:
+      - docs/prd.yaml: Tier 1 error cases and upgrade guidance requirements.
+      - src/henchman/tools/security.py: Shared sanitization logic from foundation work.
+      - tests/cli/test_doctor_upgrade_commands.py: Execution safety regression coverage.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 0
+    focus_area: security
+    verification:
+      - Produce pass/fail findings focused on unsafe command execution, file writes, and registry exposure.
+      - Confirm all security-sensitive tasks have matching regression coverage.
+    acceptance_criteria:
+      - No high-severity security issues remain in Tier 1 mutation, upgrade, or tool execution paths.
+      - Any findings are actionable and bounded before final acceptance proceeds.
+    acceptance_checks:
+      - Review diff for config/init/doctor/upgrade/tool tasks against the Tier 1 contracts
+    security_sensitive: true
+    failure_modes:
+      - scenario: Review happens after final verification and forces expensive rework.
+        likelihood: medium
+        impact: high
+        mitigation: Place the reviewer gate before the final acceptance task and require issues to be resolved first.
+    tech_stack:
+      - Review checklist
+      - ToolRegistry
+      - Click CLI
+    test_coverage: Review-backed confirmation that regression tests cover sensitive paths.
+    requires_review: true
+    review_depth: full
+    review_security_sensitive: true
+
+  - id: tier1-acceptance-gate
+    title: Verify clean collection and Tier 1 acceptance criteria end to end
+    task_definition: Run the final Tier 1 verification gate only after foundations, feature slices, and security review are complete.
+    description: |
+      Execute the final acceptance checkpoint: clean collection, targeted Tier 1
+      test suites, and explicit verification against the PRD acceptance criteria.
+      This task closes the plan only when the repo is a stable Tier 1 baseline.
+    details:
+      - Re-run full collection and targeted Tier 1 suites.
+      - Verify each PRD acceptance criterion is represented by a green test or explicit check.
+      - Document any residual non-Tier-1 failures that are outside the bounded scope only if collection is already green.
+    wave: 6
+    agent: gem-implementer
+    priority: high
+    status: pending
+    dependencies:
+      - foundation-green-agent-state-compat
+      - tier1-tooling-surface
+      - config-cli-key-ux
+      - init-wizard-local-setup
+      - doctor-upgrade-guidance
+      - ui-settings-surfacing
+      - tier1-security-review
+    parallelizable: false
+    conflicts_with: []
+    file_targets:
+      - tests/
+      - src/henchman/
+      - docs/prd.yaml
+    context_files:
+      - docs/prd.yaml: Source of truth for acceptance.
+      - FEATURE_TODO.md: Tier 1 scope boundary.
+      - docs/plan/tier1-20260410-232950/plan_a.yaml: Execution order and task contracts.
+    estimated_effort: medium
+    estimated_files: 3
+    estimated_lines: 0
+    focus_area: verification
+    verification:
+      - Run pytest --collect-only -q and confirm collection succeeds.
+      - Run targeted Tier 1 suites covering config, CLI, tools, and compatibility shims.
+      - Map green checks back to each acceptance criterion in docs/prd.yaml.
+    acceptance_criteria:
+      - Pytest collection succeeds before Tier 1 is considered complete.
+      - All Tier 1 PRD acceptance criteria have a corresponding green verification artifact.
+      - Scope remains limited to Tier 1 plus the minimal baseline compatibility work required to enable TDD.
+    acceptance_checks:
+      - pytest --collect-only -q
+      - pytest tests/config tests/cli tests/tools tests/ui_integration -q
+    security_sensitive: false
+    failure_modes:
+      - scenario: Final verification passes only narrow targeted suites while collection or broader Tier 1 integration still fails.
+        likelihood: medium
+        impact: high
+        mitigation: Require both clean collection and targeted Tier 1 suite success in the same gate.
+    tech_stack:
+      - Python 3.12
+      - pytest
+    test_coverage: Final collection and Tier 1 acceptance gate coverage.
+    requires_review: false
+    review_depth: null
+    review_security_sensitive: false

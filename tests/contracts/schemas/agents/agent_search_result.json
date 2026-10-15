@@ -1,0 +1,40 @@
+{
+  "$id": "henchman/contracts/agents/agent-search-result/v1",
+  "title": "AgentSearchResult",
+  "description": "Shape contract for AgentSearchResult.",
+  "type": "object",
+  "required": ["agents", "total", "page", "page_size"],
+  "properties": {
+    "agents": {
+      "type": "array",
+      "description": "Matching agent definitions",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "description", "tools", "enabled", "version"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "description": { "type": "string" },
+          "system_prompt": { "type": "string" },
+          "tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "provider": { "type": "string" },
+          "model": { "type": "string" },
+          "auto_approve": { "type": "array", "items": { "type": "string" } },
+          "can_delegate_to": { "type": "array", "items": { "type": "string" } },
+          "enabled": { "type": "boolean" },
+          "version": { "type": "string" },
+          "author": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "source_kind": { "type": "string" },
+          "source_path": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "total": { "type": "integer", "description": "Total matching results", "minimum": 0 },
+    "page": { "type": "integer", "description": "Current page number", "minimum": 1 },
+    "page_size": { "type": "integer", "description": "Results per page", "minimum": 1 },
+    "query": { "type": ["string", "null"], "description": "Original search query" }
+  },
+  "additionalProperties": false
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from contextlib import aclosing
 from dataclasses import dataclass
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
@@ -14,8 +15,10 @@ from henchman.core.agent_streaming import (
     StreamContext,
     StreamState,
     generate_stream_events,
+    record_message,
 )
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.tool_selection import prepare_agent_request
 from henchman.core.turn import TurnState
 from henchman.providers.base import Message, ModelProvider
 from henchman.tools.registry import ToolRegistry
@@ -26,7 +29,7 @@ from henchman.utils.validation import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator
 
     from henchman.agents.identity import AgentIdentity
 
@@ -46,6 +49,7 @@ LOG_TRUNCATE_LENGTH = 100
 _CONFIG_FIELDS = frozenset(
     {
         "system_prompt",
+        "context_window",
         "model",
         "base_tool_iterations",
         "intelligent_context",
@@ -76,6 +80,12 @@ _MISSING = object()
 # ---------------------------------------------------------------------------
 # Module-level helpers (avoids Feature Envy + reduces method count)
 # ---------------------------------------------------------------------------
+
+
+def validate_context_limit(max_tokens: int) -> None:
+    """Require an explicit positive integer context budget."""
+    if type(max_tokens) is not int or max_tokens <= 0:
+        raise ValueError("Context limit must be a positive integer")
 
 
 def _resolve_max_tokens(configured: int, model: str | None) -> int:
@@ -341,6 +351,7 @@ def _build_stream_context(
     history: list[Message],
     tool_registry: ToolRegistry,
     source_agent: str | None,
+    current_turn_messages: list[Message] | None = None,
 ) -> StreamContext:
     """Build a StreamContext from the agent's current state."""
     return StreamContext(
@@ -349,19 +360,21 @@ def _build_stream_context(
         history=history,
         tool_declarations=tool_registry.get_declarations(),
         source_agent=source_agent,
+        current_turn_messages=current_turn_messages,
     )
 
 
 async def _non_final_events(
-    stream: AsyncIterator[AgentEvent],
-) -> AsyncIterator[AgentEvent]:
+    stream: AsyncGenerator[AgentEvent, None],
+) -> AsyncGenerator[AgentEvent, None]:
     """Yield every event from *stream* except FINISHED.
 
     Keeps the ``while/try/async-for`` nesting in the stall loop at depth ≤ 3.
     """
-    async for event in stream:
-        if event.type != EventType.FINISHED:
-            yield event
+    async with aclosing(stream):
+        async for event in stream:
+            if event.type != EventType.FINISHED:
+                yield event
 
 
 class Agent:
@@ -395,6 +408,8 @@ class Agent:
 
         # Apply any pending config values that were set before _config was initialized
         self._transfer_pending_config()
+        if self._config.context_window is not None:
+            validate_context_limit(self._config.context_window)
 
         self._stall = StallDetector()
         model = self._config.model
@@ -403,6 +418,8 @@ class Agent:
         self._config.model = model
         self._max_tokens = _resolve_max_tokens(self._config.max_tokens, model)
         self.messages: list[Message] = []
+        # Persistence must use original turn evidence, not compacted API context.
+        self.current_turn_messages: list[Message] = []
         self.turn = TurnState()
         self.unlimited_mode = False
         self._turn_number = 0
@@ -413,6 +430,25 @@ class Agent:
         self._delegation_tool_errors_lock = threading.Lock()
         if self._config.system_prompt:
             self.messages.append(Message(role="system", content=self._config.system_prompt))
+
+    def set_provider(self, provider: ModelProvider, *, model: str | None = None) -> None:
+        """Replace the provider and refresh model limits while retaining conversation state."""
+        effective_model = model if model is not None else getattr(provider, "default_model", None)
+        max_tokens = _resolve_max_tokens(self._config.max_tokens, effective_model)
+        self.provider = provider
+        self._config.model = effective_model
+        self._max_tokens = max_tokens
+
+    def set_context_limit(
+        self, max_tokens: int, *, context_window: int | None = None,
+    ) -> None:
+        """Set conversation and optional request limits retained across switches."""
+        validate_context_limit(max_tokens)
+        if context_window is not None:
+            validate_context_limit(context_window)
+            self._config.context_window = context_window
+        self._config.max_tokens = max_tokens
+        self._max_tokens = max_tokens
 
     # -- dynamic attribute delegation ----------------------------------------
 
@@ -518,8 +554,11 @@ class Agent:
             None
         """
         self.messages = [m for m in self.messages if m.role == "system"]
+        self.current_turn_messages = []
         # Reset turn state to be consistent with cleared history
         self.turn = TurnState()
+        self._stall.reset()
+        self._clear_delegation_errors()
 
     def get_messages_for_api(self: Agent) -> list[Message]:
         """Get messages for the API, with compaction if needed.
@@ -544,11 +583,13 @@ class Agent:
         Returns:
             None
         """
-        self.messages.append(
+        record_message(
+            self.messages,
             Message(role="tool", content=result, tool_call_id=tool_call_id),
+            self.current_turn_messages,
         )
 
-    async def run(self: Agent, user_input: str) -> AsyncIterator[AgentEvent]:
+    async def run(self: Agent, user_input: str) -> AsyncGenerator[AgentEvent, None]:
         """Run the agent with user input.
 
         Args:
@@ -559,14 +600,22 @@ class Agent:
         """
         logger.debug("Agent.run: Starting with input: %s", user_input[:LOG_TRUNCATE_LENGTH])
         self._turn_number += 1
+        if self.tool_registry.supports_tool_discovery:
+            self.tool_registry.prioritize_tools([])
         self.turn.reset(new_start_index=len(self.messages))
-        self.messages.append(Message(role="user", content=user_input))
-        async for event in self._stream_with_stall_loop():
-            yield event
+        self._stall.reset()
+        self._clear_delegation_errors()
+        self.current_turn_messages = []
+        record_message(
+            self.messages, Message(role="user", content=user_input), self.current_turn_messages,
+        )
+        async with aclosing(self._stream_with_stall_loop()) as stream:
+            async for event in stream:
+                yield event
         source = self.identity.id if self.identity else None
         yield _build_outer_finished_event(self._last_stream_state, source)
 
-    async def continue_with_tool_results(self: Agent) -> AsyncIterator[AgentEvent]:
+    async def continue_with_tool_results(self: Agent) -> AsyncGenerator[AgentEvent, None]:
         """Continue execution after tool results have been submitted.
 
         Includes the same stall-detection loop used by :meth:`run` so that
@@ -576,8 +625,11 @@ class Agent:
             AgentEvent instances as the agent continues processing after tool
             results have been submitted.
         """
-        async for event in self._stream_with_stall_loop():
-            yield event
+        async with aclosing(self._stream_with_stall_loop()) as stream:
+            async for event in stream:
+                yield event
+        source = self.identity.id if self.identity else None
+        yield _build_outer_finished_event(self._last_stream_state, source)
 
     # -- private helpers -----------------------------------------------------
 
@@ -627,37 +679,62 @@ class Agent:
         self.turn.start_index = max(0, len(self.messages) - protected_count)
         return True
 
-    async def _stream_with_stall_loop(self: Agent) -> AsyncIterator[AgentEvent]:
+    async def _prepare_stream_context(self) -> tuple[StreamContext, bool]:
+        """Snapshot tools and prepare one request under the active capacity policy."""
+        source = self.identity.id if self.identity else None
+        if self._config.context_window is not None:
+            request = prepare_agent_request(
+                self.provider, self.messages, self.tool_registry,
+                context_window=self._config.context_window,
+                conversation_limit=self._max_tokens,
+                protect_from_index=self.turn.start_index,
+            )
+            return StreamContext(
+                self.provider, request.messages, self.messages, request.tools,
+                source, self.current_turn_messages, request.request_options,
+            ), request.compacted
+        if not is_valid_message_sequence(self.messages):
+            self.messages = repair_message_sequence(self.messages)
+        compacted = await self._compact_if_needed()
+        api_messages = self.get_messages_for_api()
+        if not is_valid_message_sequence(api_messages):
+            api_messages = repair_message_sequence(api_messages)
+        return _build_stream_context(
+            self.provider, api_messages, self.messages,
+            self.tool_registry, source, self.current_turn_messages,
+        ), compacted
+
+    async def _stream_with_stall_loop(self: Agent) -> AsyncGenerator[AgentEvent, None]:
         """Stream provider events with stall detection, retrying on stalls.
 
         Inner FINISHED events from ``generate_stream_events`` are suppressed
-        here so that ``run()`` can emit a single, authoritative FINISHED event
-        with the full payload (finish_reason + usage).  Callers should treat
-        the FINISHED event from ``run()`` as the canonical end-of-turn signal.
+        here so that ``run()`` and ``continue_with_tool_results()`` each emit
+        one authoritative FINISHED event with the response's reason and usage.
+        Tool requests still require execution and a continuation by the caller.
         """
         while True:
+            self._last_stream_state = None
             try:
-                if not is_valid_message_sequence(self.messages):
-                    self.messages = repair_message_sequence(self.messages)
-                compacted = await self._compact_if_needed()
-                api_messages = self.get_messages_for_api()
-                if not is_valid_message_sequence(api_messages):
-                    api_messages = repair_message_sequence(api_messages)
+                ctx, compacted = await self._prepare_stream_context()
                 state = StreamState()
-                source = self.identity.id if self.identity else None
-                ctx = _build_stream_context(
-                    self.provider, api_messages, self.messages,
-                    self.tool_registry, source,
-                )
                 raw_stream = generate_stream_events(ctx, state, compacted=compacted)
-                async for event in _non_final_events(raw_stream):
-                    yield event
+                stream_failed = False
+                async with aclosing(_non_final_events(raw_stream)) as stream:
+                    async for event in stream:
+                        if event.type == EventType.ERROR:
+                            stream_failed = True
+                        yield event
                 self._last_stream_state = state
+                if stream_failed:
+                    break
                 nudge = await self._stall.check(
                     state.content, had_tool_calls=bool(state.tool_calls),
                 )
                 if nudge:
-                    self.messages.append(Message(role="user", content=nudge))
+                    record_message(
+                        self.messages, Message(role="user", content=nudge),
+                        self.current_turn_messages,
+                    )
                     continue
                 break
             except Exception as exc:  # noqa: BLE001
@@ -665,6 +742,11 @@ class Agent:
                 break
 
     # -- delegation error tracking ------------------------------------------
+
+    def _clear_delegation_errors(self: Agent) -> None:
+        """Start fresh diagnostics at an execution or explicit history boundary."""
+        with self._delegation_tool_errors_lock:
+            self._delegation_tool_errors.clear()
 
     def record_delegation_errors(self: Agent, errors: list[str]) -> None:
         """Record tool errors from a delegation for inclusion in summaries.

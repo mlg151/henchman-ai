@@ -9,9 +9,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.tools.base import ToolResult
 
 from .orchestrator_components import OrchestratorComponent
 from .orchestrator_delegation_ctrl import DelegationController
+from .orchestrator_execution import closing_event_stream
 from .orchestrator_metrics_ctrl import ToolMetricsController
 from .orchestrator_types import DELEGATE_TASK_TOOL, RESULT_PREVIEW_LENGTH
 
@@ -78,19 +80,28 @@ class ToolController(OrchestratorComponent):
         """
         for tool_call in pending_tool_calls:
             if tool_call.name == DELEGATE_TASK_TOOL:
-                async for event in self._delegation_controller.execute_delegation_tool(
+                authorized = await agent.tool_registry.authorize(
+                    tool_call.name, tool_call.arguments,
+                )
+                if isinstance(authorized, ToolResult):
+                    yield _report_tool_result(
+                        agent, tool_call, authorized, tool_errors, self._metrics_controller,
+                    )
+                    continue
+                stream = self._delegation_controller.execute_delegation_tool(
                     agent,
                     tool_call,
                     depth,
-                ):
-                    yield event
+                )
             else:
-                async for event in _execute_regular_tool(
+                stream = _execute_regular_tool(
                     agent,
                     tool_call,
                     tool_errors,
                     self._metrics_controller,
-                ):
+                )
+            async with closing_event_stream(stream) as events:
+                async for event in events:
                     yield event
 
 
@@ -105,6 +116,17 @@ async def _execute_regular_tool(
         tool_call.name,
         tool_call.arguments,
     )
+    yield _report_tool_result(agent, tool_call, result, tool_errors, metrics)
+
+
+def _report_tool_result(
+    agent: Agent,
+    tool_call: ToolCall,
+    result: ToolResult,
+    tool_errors: list[str],
+    metrics: ToolMetricsController,
+) -> AgentEvent:
+    """Record execution or authorization outcomes with the same call identity."""
     tc_name = tool_call.name
     tc_id = tool_call.id
 
@@ -119,12 +141,13 @@ async def _execute_regular_tool(
         success=result.success,
     )
 
-    yield AgentEvent(
+    return AgentEvent(
         type=EventType.TOOL_CALL_RESULT,
         data={
             "tool_call_id": tc_id,
             "tool_name": tc_name,
-            "result": (result.content or "")[:RESULT_PREVIEW_LENGTH],
+            "result": result.content or "",
+            "preview": (result.content or "")[:RESULT_PREVIEW_LENGTH],
             "success": result.success,
         },
         source_agent=agent.identity.id if agent.identity else None,

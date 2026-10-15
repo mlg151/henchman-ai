@@ -6,6 +6,18 @@ from typing import Any
 from henchman.tools.base import ToolResult
 
 
+def coerce_int(value: object) -> int:
+    """Convert a JSON-compatible scalar to an integer.
+
+    Raises:
+        TypeError: If *value* is not a scalar accepted by ``int``.
+    """
+    if not isinstance(value, (str, int, float, bytes, bytearray)):
+        message = f"Expected an integer-compatible value, got {type(value).__name__}"
+        raise TypeError(message)
+    return int(value)
+
+
 def validate_file_path(path: str) -> ToolResult | None:
     """Validate a file path exists and is accessible.
 

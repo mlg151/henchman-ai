@@ -1,0 +1,45 @@
+{
+  "$id": "henchman/contracts/config/context-settings/v1",
+  "title": "ContextSettings",
+  "description": "Shape contract for the serialised ContextSettings model.",
+  "type": "object",
+  "required": ["max_tokens", "compaction_threshold", "auto_compact", "intelligent_context", "importance_threshold", "cluster_similarity_threshold", "adaptive_compression"],
+  "properties": {
+    "max_tokens": {
+      "type": "integer",
+      "description": "Maximum tokens to keep in context before compaction",
+      "minimum": 0
+    },
+    "compaction_threshold": {
+      "type": "number",
+      "description": "Percentage of max_tokens at which to start compaction",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "auto_compact": {
+      "type": "boolean",
+      "description": "Whether to automatically compact context"
+    },
+    "intelligent_context": {
+      "type": "boolean",
+      "description": "Whether to use intelligent context management"
+    },
+    "importance_threshold": {
+      "type": "number",
+      "description": "Minimum importance score to preserve a message",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "cluster_similarity_threshold": {
+      "type": "number",
+      "description": "Similarity threshold for clustering messages",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "adaptive_compression": {
+      "type": "boolean",
+      "description": "Whether to use adaptive compression techniques"
+    }
+  },
+  "additionalProperties": false
+}

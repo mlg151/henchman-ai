@@ -106,9 +106,6 @@ def _default_denied_patterns() -> list[str]:
         r";\s*ksh\s*$",
         r"`.*`",  # Backticks for command substitution
         r"\$\(.*\)",  # $(...) command substitution
-        r">\s*/dev/(tcp|udp)/",  # TCP/UDP redirection
-        r">\s*/proc/",  # Proc filesystem access
-        r">\s*/sys/",  # Sys filesystem access
         r"\brm\s+-(rf|fr)\b",  # Dangerous rm flags
         r"\bdd\s+.*(if=|of=)",  # dd with input/output files
         r"\bmkfifo\b",  # Named pipe creation
@@ -303,7 +300,6 @@ def _apply_strict_security(adjusted: ShellSecurityConfig) -> None:
     adjusted.allowlist_mode = True
     adjusted.allow_sudo = False
     adjusted.allow_pipes = False
-    adjusted.allow_redirects = False
     adjusted.allow_background = False
     adjusted.allow_subshells = False
     adjusted.max_command_length = _STRICT_MAX_COMMAND_LENGTH
@@ -412,6 +408,11 @@ _SHELL_SECURE_PARAMETERS: dict[str, object] = {
             "description": "Security level: 'strict', 'moderate', or 'permissive'",
             "default": "moderate",
             "enum": ["strict", "moderate", "permissive"],
+        },
+        "background": {
+            "type": "boolean",
+            "default": True,
+            "description": "Run as a tracked background task; false waits for output.",
         },
     },
     "required": ["command"],
@@ -553,6 +554,10 @@ class SecureShellTool(Tool):
         self.validator = ShellSecurityValidator(self.config)
         self.wrapped_tool = wrapped_tool or ShellTool()
 
+    def bind_runtime(self, *, project_root: Path | None = None, **kwargs: object) -> None:
+        """Keep wrapped shell jobs in the same project as the task tools."""
+        self.wrapped_tool.bind_runtime(project_root=project_root, **kwargs)
+
     @property
     def name(self: SecureShellTool) -> str:
         """Tool name."""
@@ -563,7 +568,8 @@ class SecureShellTool(Tool):
         """Tool description."""
         return (
             "Execute a shell command with security validation to prevent "
-            "command injection attacks. Validates commands before execution."
+            "command injection attacks. Runs in the background by default; use task_get, "
+            "task_output, task_list and task_stop to track jobs, or background=false to wait."
         )
 
     parameters = _SHELL_SECURE_PARAMETERS
@@ -579,6 +585,7 @@ class SecureShellTool(Tool):
         timeout: int | None = None,
         cwd: str | None = None,
         security_level: Literal["strict", "moderate", "permissive"] = "moderate",
+        background: bool = True,
         **kwargs: object,
     ) -> ToolResult:
         """Execute shell command with security validation.
@@ -588,6 +595,7 @@ class SecureShellTool(Tool):
             timeout: Command timeout in seconds.
             cwd: Working directory for the command.
             security_level: Security validation level.
+            background: Start a tracked task, or wait for completion when false.
             **kwargs: Additional arguments.
 
         Returns:
@@ -612,5 +620,6 @@ class SecureShellTool(Tool):
             command=sanitized_command,
             timeout=timeout,
             cwd=cwd,
+            background=background,
             **kwargs,
         )

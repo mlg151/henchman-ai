@@ -6,10 +6,14 @@ Each test targets a specific branch direction that was never exercised.
 from __future__ import annotations
 
 from io import StringIO
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from rich.console import Console
+
+if TYPE_CHECKING:
+    from henchman.agents.delegation import DelegationRunner
 
 # ---------------------------------------------------------------------------
 # src/henchman/agents/orchestrator_delegation_ctrl.py [131, 134]
@@ -46,6 +50,7 @@ class TestDelegationCtrlNoLedger:
 
         async def _stream_delegation(_p, state):  # noqa: ANN001
             state.result_content = "done"
+            state.status = "completed"
             state.had_error = False
             return
             yield  # make it a generator
@@ -62,8 +67,10 @@ class TestDelegationCtrlNoLedger:
             async for ev in controller._run_delegation(params):
                 events.append(ev)
 
-        # When ledger is None, submitted == result (no ledger appended)
-        mock_agent.submit_tool_result.assert_called_once_with("tc1", "done")
+        # Completion metadata is preserved without appending ledger content.
+        mock_agent.submit_tool_result.assert_called_once_with(
+            "tc1", "done\n\nTask verification: not established by runtime execution.",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -90,26 +97,19 @@ class TestSetupTechLeadToolAlreadyRegistered:
 
         mock_provider = MagicMock()
 
-        with patch("henchman.agents.orchestrator_tech_lead.Agent") as mock_agent_cls, patch(
-            "henchman.agents.orchestrator_tech_lead.PromptFactory.create_tech_lead_prompt",
-            return_value="prompt",
-        ), patch(
-            "henchman.agents.orchestrator_tech_lead.create_tech_lead_identity",
-            return_value=MagicMock(),
-        ):
-            mock_agent_instance = MagicMock()
-            mock_agent_cls.return_value = mock_agent_instance
-
-            setup_tech_lead(
-                mock_orch,
-                {},
-                mock_provider,
-                system_prompt=None,
-                environment_context=None,
-            )
+        setup_tech_lead(
+            mock_orch,
+            {},
+            mock_provider,
+            system_prompt=None,
+            environment_context=None,
+        )
 
         # Tool was already registered, so register() should NOT have been called
         mock_orch.tool_registry.register.assert_not_called()
+        mock_orch.pool.get_agent.assert_called_once_with("tech_lead")
+        assert mock_orch.tech_lead is mock_orch.pool.get_agent.return_value
+        assert mock_orch.tech_lead._stall.enabled is False
 
 
 # ---------------------------------------------------------------------------
@@ -423,14 +423,19 @@ class TestGetApiKeyOllama:
         """get_api_key_from_env for ollama does not check HENCHMAN_API_KEY."""
         from henchman.providers.utils import get_api_key_for_provider
 
-        with patch.dict(
-            "os.environ",
-            {"HENCHMAN_API_KEY": "generic-key"},
-            clear=False,
-        ):
+        def missing_env(_key: str, *_args: object) -> None:
+            return None
+
+        with (
+            patch.dict(
+                "os.environ",
+                {"HENCHMAN_API_KEY": "generic-key"},
+                clear=False,
+            ),
             # Remove the ollama-specific env var if present, and skip HENCHMAN_API_KEY
-            with patch("os.environ.get", side_effect=lambda k, *a: None):
-                result = get_api_key_for_provider("ollama")
+            patch("os.environ.get", side_effect=missing_env),
+        ):
+            result = get_api_key_for_provider("ollama")
 
         # For ollama, we skip the HENCHMAN_API_KEY fallback → returns None
         assert result is None

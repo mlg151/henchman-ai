@@ -32,7 +32,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Chat completion request model."""
 
-    messages: list[ChatMessage] = Field(description="Conversation history")
+    messages: list[ChatMessage] = Field(description="Conversation history", min_length=1)
     stream: bool = Field(default=False, description="Whether to stream the response")
     max_tokens: int | None = Field(default=None, description="Maximum tokens to generate")
     temperature: float | None = Field(default=None, description="Sampling temperature")
@@ -297,20 +297,20 @@ async def get_agent() -> Agent:
 @router.post("/completions", response_model=ChatResponse)
 async def chat_completion(
     request: ChatRequest,
-    api_key: Annotated[str | None, Depends(verify_api_key)],
+    api_key_valid: Annotated[bool, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
 ) -> ChatResponse:
     """Create a chat completion.
 
     Args:
         request: Chat completion request.
-        api_key: API key for authentication.
+        api_key_valid: Whether the API key is valid (injected by auth dependency).
         agent: Agent instance.
 
     Returns:
         Chat completion response.
     """
-    if not await verify_api_key(api_key):
+    if not api_key_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
@@ -380,20 +380,20 @@ async def chat_completion(
 @router.post("/completions/stream")
 async def chat_completion_stream(
     request: ChatRequest,
-    api_key: Annotated[str | None, Depends(verify_api_key)],
+    api_key_valid: Annotated[bool, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
 ) -> StreamingResponse:
     """Create a streaming chat completion.
 
     Args:
         request: Chat completion request.
-        api_key: API key for authentication.
+        api_key_valid: Whether the API key is valid (injected by auth dependency).
         agent: Agent instance.
 
     Returns:
         Streaming response with SSE events.
     """
-    if not await verify_api_key(api_key):
+    if not api_key_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
@@ -461,13 +461,14 @@ async def chat_completion_stream(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
 
 
 @router.get("/history")
 async def get_chat_history(
-    api_key: Annotated[str | None, Depends(verify_api_key)],
+    api_key_valid: Annotated[bool, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
     limit: Annotated[
         int, Query(ge=1, le=1000, description="Maximum number of messages to return"),
@@ -476,14 +477,14 @@ async def get_chat_history(
     """Get chat history.
 
     Args:
-        api_key: API key for authentication.
+        api_key_valid: Whether the API key is valid (injected by auth dependency).
         agent: Agent instance.
         limit: Maximum number of messages to return.
 
     Returns:
         List of chat messages.
     """
-    if not await verify_api_key(api_key):
+    if not api_key_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
@@ -506,19 +507,19 @@ async def get_chat_history(
 
 @router.delete("/history")
 async def clear_chat_history(
-    api_key: Annotated[str | None, Depends(verify_api_key)],
+    api_key_valid: Annotated[bool, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
 ) -> dict[str, str]:
     """Clear chat history.
 
     Args:
-        api_key: API key for authentication.
+        api_key_valid: Whether the API key is valid (injected by auth dependency).
         agent: Agent instance.
 
     Returns:
         Success message.
     """
-    if not await verify_api_key(api_key):
+    if not api_key_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",

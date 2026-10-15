@@ -297,7 +297,7 @@ class TestPluginModels:
         )
 
         # Should not be able to modify attributes
-        with pytest.raises(Exception):  # Pydantic raises ValidationError for frozen models
+        with pytest.raises(ValidationError):
             metadata.name = "new-name"  # type: ignore[misc]
 
     def test_json_encoders(self) -> None:

@@ -1,0 +1,75 @@
+{
+  "$id": "henchman/contracts/runtime/session/v1",
+  "title": "Session",
+  "description": "Shape contract for Session.to_dict().",
+  "type": "object",
+  "required": ["id", "project_hash", "started", "last_updated", "plan_mode", "messages", "turn_summaries", "active_agents", "delegation_log", "template_parameters", "export_metadata"],
+  "properties": {
+    "id": { "type": "string", "description": "Unique session identifier" },
+    "tag": { "type": ["string", "null"], "description": "Optional human-readable tag" },
+    "project_hash": { "type": "string", "description": "Hash identifying the project" },
+    "started": { "type": "string", "description": "ISO-8601 start timestamp" },
+    "last_updated": { "type": "string", "description": "ISO-8601 last update timestamp" },
+    "plan_mode": { "type": "boolean", "description": "Whether the session is in Plan Mode" },
+    "messages": {
+      "type": "array",
+      "description": "Conversation messages",
+      "items": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant", "tool", "system"] },
+          "content": { "type": ["string", "null"] },
+          "tool_calls": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "required": ["name", "arguments"],
+              "properties": {
+                "name": { "type": "string" },
+                "arguments": { "type": "object", "additionalProperties": true }
+              },
+              "additionalProperties": false
+            }
+          },
+          "tool_call_id": { "type": ["string", "null"] },
+          "agent_id": { "type": ["string", "null"] },
+          "reasoning_content": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "turn_summaries": {
+      "type": "array",
+      "description": "Summaries of completed turns",
+      "items": {
+        "type": "object",
+        "required": ["turn_number", "summary_text"],
+        "properties": {
+          "turn_number": { "type": "integer", "description": "Sequential turn number in session" },
+          "summary_text": { "type": "string", "description": "LLM-generated summary of the turn" },
+          "files_modified": { "type": "array", "description": "List of files modified during the turn", "items": { "type": "string" } },
+          "tool_count": { "type": "integer", "description": "Number of tool calls made" },
+          "timestamp": { "type": "string", "description": "ISO timestamp when turn completed" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "active_agents": {
+      "type": "array",
+      "description": "Agent roles active in this session",
+      "items": { "type": "string" }
+    },
+    "delegation_log": {
+      "type": "array",
+      "description": "Log of delegation operations",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "parent_id": { "type": ["string", "null"], "description": "Parent session ID if branched" },
+    "branch_point": { "type": ["integer", "null"], "description": "Message index where branch occurred", "minimum": 0 },
+    "template_id": { "type": ["string", "null"], "description": "Template ID if created from template" },
+    "template_parameters": { "type": "object", "description": "Template instantiation parameters", "additionalProperties": true },
+    "export_metadata": { "type": "object", "description": "Metadata for export/import operations", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

@@ -1,5 +1,6 @@
 """Tests for the REPL main loop."""
 
+import asyncio
 from io import StringIO
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -118,6 +119,35 @@ class TestRepl:
         ]
         for name in expected:
             assert repl.tool_registry.get(name) is not None, f"Missing tool: {name}"
+
+    @pytest.mark.anyio
+    async def test_mcp_builtin_uses_repl_runtime_manager(
+        self,
+        mock_provider: MockProvider,
+        console: Console,
+        tmp_path: Any,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The real MCP builtin should report servers configured on its REPL."""
+        from henchman.config.schema import McpServerConfig, Settings
+
+        monkeypatch.chdir(tmp_path)
+        settings = Settings(
+            mcp_servers={
+                "serena": McpServerConfig(command="echo", args=["serena"], trusted=True),
+            },
+        )
+        repl = Repl(
+            provider=mock_provider,
+            console=console,
+            config=ReplConfig(auto_approve_tools=True),
+            settings=settings,
+        )
+
+        result = await repl.tool_registry.execute("mcp", {"action": "status"})
+
+        assert result.success is True
+        assert result.content == "serena: connected=no trusted=yes auth=no"
 
     def test_all_exported_tools_registered(
         self, mock_provider: MockProvider, console: Console
@@ -427,7 +457,11 @@ class TestReplRun:
         inputs = iter(["Hello", "/quit"])
 
         async def get_input():
-            return next(inputs)
+            message = next(inputs)
+            if message == "/quit" and repl._turn_worker is not None:
+                # This conversation test quits after receiving the full response.
+                await asyncio.wait_for(asyncio.shield(repl._turn_worker), 5)
+            return message
 
         with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
@@ -666,7 +700,11 @@ class TestSessionAutoSave:
         inputs = iter(["Hello assistant", "/quit"])
 
         async def get_input():
-            return next(inputs)
+            message = next(inputs)
+            if message == "/quit" and repl._turn_worker is not None:
+                # This conversation test quits after receiving the full response.
+                await asyncio.wait_for(asyncio.shield(repl._turn_worker), 5)
+            return message
 
         with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
@@ -751,7 +789,10 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.tool_registry.register(MockTestTool())
+        tool = MockTestTool()
+        repl.tool_registry.register(tool)
+        # Session recording exercises a tool explicitly granted to the actor.
+        repl.agent.tool_registry.register(tool)
         # Create new session manager and update all component references
         new_session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         repl.session_manager = new_session_manager
@@ -765,7 +806,11 @@ class TestSessionAutoSave:
         inputs = iter(["Run test tool", "/quit"])
 
         async def get_input():
-            return next(inputs)
+            message = next(inputs)
+            if message == "/quit" and repl._turn_worker is not None:
+                # This conversation test quits after receiving the full response.
+                await asyncio.wait_for(asyncio.shield(repl._turn_worker), 5)
+            return message
 
         with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()

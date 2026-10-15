@@ -1,0 +1,42 @@
+{
+  "$id": "henchman/contracts/config/rag-settings/v1",
+  "title": "RagSettings",
+  "description": "Shape contract for the serialised RagSettings model.",
+  "type": "object",
+  "required": ["enabled", "chunk_size", "chunk_overlap", "top_k", "embedding_model", "cache_dir", "file_extensions"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether RAG is enabled"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "description": "Target tokens per chunk",
+      "minimum": 1
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "description": "Token overlap between chunks",
+      "minimum": 0
+    },
+    "top_k": {
+      "type": "integer",
+      "description": "Number of results to return from search",
+      "minimum": 1
+    },
+    "embedding_model": {
+      "type": "string",
+      "description": "Embedding model name"
+    },
+    "cache_dir": {
+      "type": ["string", "null"],
+      "description": "Optional custom directory for RAG cache"
+    },
+    "file_extensions": {
+      "type": "array",
+      "description": "File extensions to index",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

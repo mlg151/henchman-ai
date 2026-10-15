@@ -6,11 +6,11 @@ Unlike behavioral evals that check tool usage, these verify the actual output.
 
 import subprocess
 
-from evals.helpers import eval_test
+from evals.helpers import EvalResult, EvalTestRig, eval_test, verify_python
 
 
 @eval_test("ALWAYS_PASSES")
-async def test_write_hello_world(rig) -> None:
+async def test_write_hello_world(rig: EvalTestRig) -> None:
     """Agent should write a working hello world program."""
     await rig.run("Create a Python file called hello.py that prints 'Hello, World!'")
 
@@ -30,7 +30,7 @@ async def test_write_hello_world(rig) -> None:
 
 
 @eval_test("ALWAYS_PASSES")
-async def test_write_function_with_tests(rig) -> None:
+async def test_write_function_with_tests(rig: EvalTestRig) -> None:
     """Agent should write a function that passes given test cases."""
     await rig.run(
         "Create a Python file called math_utils.py with a function called 'add' "
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
 
 @eval_test("ALWAYS_PASSES")
-async def test_fix_syntax_error(rig) -> None:
+async def test_fix_syntax_error(rig: EvalTestRig) -> None:
     """Agent should fix a syntax error in code."""
     # Create a file with a syntax error
     rig.create_file(
@@ -95,7 +95,7 @@ def greet(name):
 
 
 @eval_test("USUALLY_PASSES")
-async def test_implement_fizzbuzz(rig) -> None:
+async def test_implement_fizzbuzz(rig: EvalTestRig) -> None:
     """Agent should implement FizzBuzz correctly."""
     await rig.run(
         "Create fizzbuzz.py with a function called 'fizzbuzz' that takes a number n "
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
 
 @eval_test("USUALLY_PASSES")
-async def test_implement_fibonacci(rig) -> None:
+async def test_implement_fibonacci(rig: EvalTestRig) -> None:
     """Agent should implement Fibonacci sequence correctly."""
     await rig.run(
         "Create fibonacci.py with a function called 'fib' that takes n and "
@@ -180,9 +180,8 @@ if __name__ == "__main__":
     assert result.returncode == 0, f"Fibonacci tests should pass: {result.stderr}\n{result.stdout}"
 
 
-@eval_test("USUALLY_PASSES")
-async def test_refactor_to_class(rig) -> None:
-    """Agent should refactor functions into a class."""
+async def run_counter_refactor_scenario(rig: EvalTestRig) -> EvalResult:
+    """Refactor a global counter and independently verify isolated instance state."""
     rig.create_file(
         "counter.py",
         """
@@ -207,37 +206,56 @@ def reset():
 """,
     )
 
-    await rig.run(
+    result = await rig.run(
         "Refactor counter.py to use a Counter class instead of global variables. "
-        "The class should have increment(), decrement(), get_count(), and reset() methods."
+        "The class should have increment(), decrement(), get_count(), and reset() "
+        "methods. Each instance must have independent state: creating, updating, "
+        "or resetting one counter must not affect any other counter."
     )
+    assert result.success, result.error or result.final_response
 
-    # Test the refactored class
-    rig.create_file(
-        "test_counter.py",
+    await verify_python(
+        rig.test_dir,
         """
 from counter import Counter
 
-def test_counter():
-    c = Counter()
-    assert c.get_count() == 0
-    assert c.increment() == 1
-    assert c.increment() == 2
-    assert c.decrement() == 1
-    c.reset()
-    assert c.get_count() == 0
+c = Counter()
+assert c.get_count() == 0
+assert c.increment() == 1
+assert c.increment() == 2
+assert c.decrement() == 1
+c.reset()
+assert c.get_count() == 0
 
-if __name__ == "__main__":
-    test_counter()
-    print("Counter tests passed!")
+first = Counter()
+assert first.increment() == 1
+second = Counter()
+assert second.get_count() == 0
+assert first.get_count() == 1, "Constructing another counter changed existing state"
+assert second.decrement() == -1
+assert first.increment() == 2
+assert second.get_count() == -1, "Counter updates share state"
+third = Counter()
+assert third.get_count() == 0
+assert first.get_count() == 2
+assert second.get_count() == -1
+first.reset()
+assert first.get_count() == 0
+assert second.get_count() == -1, "Reset changed another counter"
+assert second.increment() == 0
+assert second.increment() == 1
+assert first.get_count() == 0
+assert third.get_count() == 0
+second.reset()
+assert first.increment() == 1
+assert second.get_count() == 0
+assert third.get_count() == 0
 """,
     )
+    return result
 
-    result = subprocess.run(
-        ["python", "test_counter.py"],
-        cwd=rig.test_dir,
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
-    assert result.returncode == 0, f"Counter tests should pass: {result.stderr}\n{result.stdout}"
+
+@eval_test("USUALLY_PASSES")
+async def test_refactor_to_class(rig: EvalTestRig) -> None:
+    """Agent should refactor functions into a class with independent instances."""
+    await run_counter_refactor_scenario(rig)

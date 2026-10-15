@@ -13,7 +13,7 @@ import hashlib
 import logging
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from henchman.knowledge.models import Entity, Observation, Relation
@@ -45,7 +45,7 @@ def _file_hash(path: Path) -> str:
     Returns:
         Hex digest of the file contents.
     """
-    return hashlib.md5(path.read_bytes()).hexdigest()
+    return hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()
 
 
 def _path_to_entity_id(rel_path: str) -> str:
@@ -489,7 +489,7 @@ def scan_repository(
     if not python_files:
         return 0
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Precompute module lookups for O(1) import matching
     module_to_eid, _ = _build_module_lookup(python_files)

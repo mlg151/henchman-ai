@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/cli/review-report/v1",
+  "type": "object",
+  "required": ["mode", "target", "summary", "findings"],
+  "properties": {
+    "mode": { "type": "string", "enum": ["general", "security"] },
+    "target": { "type": "string" },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "file_path",
+          "line_number",
+          "message",
+          "suggestion",
+          "excerpt",
+          "fixable"
+        ],
+        "properties": {
+          "code": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+          "file_path": { "type": "string" },
+          "line_number": { "type": ["integer", "null"] },
+          "message": { "type": "string" },
+          "suggestion": { "type": ["string", "null"] },
+          "excerpt": { "type": ["string", "null"] },
+          "fixable": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

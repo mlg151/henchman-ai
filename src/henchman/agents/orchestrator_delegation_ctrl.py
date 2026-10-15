@@ -6,19 +6,23 @@ Manages the execution of delegation tool calls and result processing.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
 
+from .ledger import DelegationStatus
 from .orchestrator_components import OrchestratorComponent
 from .orchestrator_events import (
     create_delegation_event,
     create_tool_result_event,
     extract_brief_fields,
+    get_completion_requirement,
     update_ledger,
 )
+from .orchestrator_execution import closing_event_stream
 from .orchestrator_types import (
     DELEGATE_TASK_TOOL,
+    CompletionRequirement,
     DelegationExecutionParams,
     DelegationParams,
 )
@@ -53,6 +57,44 @@ class _StreamState:
     had_error: bool = field(default=False)
     error_message: str = field(default="")
     status: str = field(default="")
+    completion_requirement: CompletionRequirement = CompletionRequirement.ACTIONS
+    evidence: dict[str, Any] | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        """Accept a tool-free response only when the caller requested one."""
+        return not self.had_error and (
+            self.status == "completed"
+            or (
+                self.status == "responded"
+                and self.completion_requirement == CompletionRequirement.RESPONSE
+            )
+        )
+
+
+def _format_delegation_result(target: str, state: _StreamState) -> str:
+    """Combine specialist output with the observed runtime outcome."""
+    result = state.result_content or (
+        "Delegation completed (no output)." if state.succeeded else "No output returned."
+    )
+    result += "\n\nTask verification: not established by runtime execution."
+    if state.had_error:
+        error = state.error_message or "Delegation encountered a runtime error."
+        result = f"❌ ERROR: {error}\n\n{result}"
+
+    if state.status == "completed" or state.succeeded:
+        return result
+    if state.status == "no_work_done":
+        warning = f"Agent {target} ended without sufficient completion evidence."
+    elif state.status == "timed_out":
+        warning = (
+            f"Agent {target} reached the turn limit before finishing its task."
+        )
+    elif state.status:
+        warning = f"Agent {target} ended with status '{state.status}'."
+    else:
+        warning = f"Agent {target} ended without reporting a completion status."
+    return f"⚠️ {warning}\n\n{result}"
 
 
 # ---------------------------------------------------------------------------
@@ -102,8 +144,6 @@ class DelegationController(OrchestratorComponent):
         ledger = self.orchestrator.ledger
         ledger_record = ledger.add_delegation(agent=target, task=task) if ledger else None
 
-        yield create_delegation_event(agent, target, task)
-
         params = DelegationExecutionParams(
             target=target,
             task=task,
@@ -112,8 +152,16 @@ class DelegationController(OrchestratorComponent):
             agent=agent,
             ledger_record=ledger_record,
         )
-        async for event in self._run_delegation(params):
-            yield event
+        try:
+            yield create_delegation_event(agent, target, task)
+            async with closing_event_stream(self._run_delegation(params)) as events:
+                async for event in events:
+                    yield event
+        except BaseException:
+            record = params.ledger_record
+            if ledger and record and record.status == DelegationStatus.PENDING:
+                ledger.fail_delegation(record, "Delegation interrupted before completion.")
+            raise
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -142,30 +190,19 @@ class DelegationController(OrchestratorComponent):
 
         for attempt in range(max_retries + 1):
             state = _StreamState()
-            async for sub_event in self._stream_delegation(params, state):
-                yield sub_event
+            stream = self._stream_delegation(params, state)
+            async with closing_event_stream(stream) as events:
+                async for sub_event in events:
+                    yield sub_event
 
-            result = state.result_content or "Delegation completed (no output)."
-            if state.had_error and state.error_message:
-                result = f"\u274c ERROR: {state.error_message}\n\n{result}"
-
-            if state.status == "no_work_done":
-                result = (
-                    f"\u26a0\ufe0f Agent {target} ended without "
-                    f"making any tool calls.\n\n{result}"
-                )
-            elif state.status == "timed_out":
-                result = (
-                    f"\u26a0\ufe0f Agent {target} reached the turn limit "
-                    f"before finishing its task.\n\n{result}"
-                )
+            result = _format_delegation_result(target, state)
 
             # Update ledger now so _inject_failure_context can see it on retry
             update_ledger(
                 self.orchestrator.ledger,
                 params.ledger_record,
                 result,
-                had_error=state.had_error,
+                had_error=not state.succeeded,
             )
             final_state = state
 
@@ -179,20 +216,7 @@ class DelegationController(OrchestratorComponent):
                     agent=target, task=task,
                 )
 
-        final_result = final_state.result_content or "Delegation completed (no output)."
-        if final_state.had_error and final_state.error_message:
-            final_result = f"\u274c ERROR: {final_state.error_message}\n\n{final_result}"
-
-        if final_state.status == "no_work_done":
-            final_result = (
-                f"\u26a0\ufe0f Agent {target} ended without "
-                f"making any tool calls.\n\n{final_result}"
-            )
-        elif final_state.status == "timed_out":
-            final_result = (
-                f"\u26a0\ufe0f Agent {target} reached the turn limit "
-                f"before finishing its task.\n\n{final_result}"
-            )
+        final_result = _format_delegation_result(target, final_state)
 
         submitted = final_result
         ledger = self.orchestrator.ledger
@@ -200,8 +224,11 @@ class DelegationController(OrchestratorComponent):
             submitted = f"{final_result}\n\n{ledger.render()}"
 
         agent.submit_tool_result(tool_call.id, submitted)
-        success = not final_state.had_error and final_state.status != "no_work_done"
-        yield create_tool_result_event(agent, tool_call, final_result, success=success)
+        event = create_tool_result_event(
+            agent, tool_call, submitted, success=final_state.succeeded,
+        )
+        event.data.update({"task_verified": False, "evidence": final_state.evidence})
+        yield event
 
     async def _stream_delegation(
         self: DelegationController,
@@ -218,7 +245,14 @@ class DelegationController(OrchestratorComponent):
         Yields:
             AgentEvent: Raw events from the specialist agent.
         """
-        brief = extract_brief_fields(params.tool_call.arguments)
+        try:
+            brief = extract_brief_fields(params.tool_call.arguments)
+            state.completion_requirement = get_completion_requirement(brief)
+        except ValueError as exc:
+            state.had_error = True
+            state.error_message = str(exc)
+            yield AgentEvent(type=EventType.ERROR, data=str(exc))
+            return
         delegation_params = DelegationParams(
             target_role=params.target,
             task=params.task,
@@ -227,13 +261,19 @@ class DelegationController(OrchestratorComponent):
         )
 
         runner = self.orchestrator.delegation_runner
-        async for sub_event in runner.run_delegation(delegation_params):
-            if sub_event.type == EventType.AGENT_COMPLETED:
-                data = sub_event.data
-                state.result_content = data.get("summary", "Completed.")
-                state.status = data.get("status", "completed")
-            if sub_event.type == EventType.ERROR:
-                state.had_error = True
-                if not state.error_message:
-                    state.error_message = str(sub_event.data)
-            yield sub_event
+        stream = runner.run_delegation(delegation_params)
+        async with closing_event_stream(stream) as events:
+            async for sub_event in events:
+                if (
+                    sub_event.type == EventType.AGENT_COMPLETED
+                    and sub_event.data.get("agent") == params.target
+                ):
+                    data = sub_event.data
+                    state.result_content = data.get("summary", "")
+                    state.status = data.get("status", "")
+                    state.evidence = data.get("evidence")
+                if sub_event.type == EventType.ERROR:
+                    state.had_error = True
+                    if not state.error_message:
+                        state.error_message = str(sub_event.data)
+                yield sub_event

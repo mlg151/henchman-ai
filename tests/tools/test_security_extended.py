@@ -246,15 +246,13 @@ class TestCheckForDangerousPatterns:
         with pytest.raises(_ImplCommandInjectionError):
             _check_for_dangerous_patterns("echo ${IFS}rm${IFS}-rf${IFS}/")
 
-    def test_raises_for_redirect_to_system_dirs(self) -> None:
-        """Raises CommandInjectionError for redirect to /dev."""
-        with pytest.raises(_ImplCommandInjectionError):
-            _check_for_dangerous_patterns("echo test > /dev/null")
+    def test_allows_redirect_to_dev_null(self) -> None:
+        """Discarding command output is ordinary shell syntax."""
+        _check_for_dangerous_patterns("echo test > /dev/null")
 
     def test_raises_for_trailing_semicolon(self) -> None:
-        """Raises CommandInjectionError for trailing semicolon."""
-        with pytest.raises(_ImplCommandInjectionError):
-            _check_for_dangerous_patterns("echo hello;")
+        """Trailing semicolon should not raise (standard shell operator)."""
+        _check_for_dangerous_patterns("echo hello;")  # Should not raise
 
     def test_raises_for_trailing_pipe(self) -> None:
         """Raises CommandInjectionError for trailing pipe."""
@@ -608,10 +606,10 @@ class TestSanitizeErrorMessage:
         result = sanitize_error_message("Network error accessing /internal/api")
         assert "[PATH]" in result
 
-    def test_generic_error_returns_generic_message(self) -> None:
-        """Unrecognized error returns 'An error occurred'."""
+    def test_generic_error_returns_sanitized_message(self) -> None:
+        """Unrecognized error returns the sanitized message."""
         result = sanitize_error_message("Some weird internal error")
-        assert result == "An error occurred"
+        assert result == "Some weird internal error"
 
     def test_exception_object_accepted(self) -> None:
         """Accepts an Exception object."""
@@ -621,14 +619,12 @@ class TestSanitizeErrorMessage:
     def test_paths_in_env_vars_redacted(self) -> None:
         """Environment variable values are redacted."""
         result = sanitize_error_message("Error: PATH=/usr/local/bin:/usr/bin")
-        assert "[REDACTED]" in result or result == "An error occurred" or "[PATH]" in result
+        assert "[REDACTED]" in result or "[PATH]" in result
 
     def test_home_paths_redacted_before_classification(self) -> None:
         """Home paths are redacted in the message."""
         result = sanitize_error_message("Some weird error with ~/secret/file")
-        # After redaction ~/secret/file -> [HOME_PATH], then message classified
-        # The raw message won't match known patterns so "An error occurred"
-        assert result == "An error occurred" or "[HOME_PATH]" in result
+        assert "[HOME_PATH]" in result
 
 
 # ---------------------------------------------------------------------------
@@ -719,8 +715,6 @@ class TestAtomicRead:
         target = tmp_path / "data.txt"
         target.write_text("content")
 
-        original_stat = target.stat()
-
         # Patch stat to raise OSError on second call (simulating file replacement)
         call_count = [0]
         original_stat_method = Path.stat
@@ -781,9 +775,15 @@ class TestValidateUrlExceptionBranch:
 
     def test_urlparse_exception_raises_ssrf_error(self) -> None:
         """Raises SSRFError when urlparse itself raises."""
-        with patch.object(_security_impl, "urlparse", side_effect=Exception("bad url")):
-            with pytest.raises(_ImplSSRFError, match="Invalid URL"):
-                _security_impl.validate_url("http://example.com")
+        with (
+            patch.object(
+                _security_impl,
+                "urlparse",
+                side_effect=Exception("bad url"),
+            ),
+            pytest.raises(_ImplSSRFError, match="Invalid URL"),
+        ):
+            _security_impl.validate_url("http://example.com")
 
 
 # ---------------------------------------------------------------------------
@@ -798,10 +798,39 @@ class TestAtomicWriteFinally:
         """Temp file is cleaned up even when replace raises."""
         target = tmp_path / "output.txt"
 
-        with patch("pathlib.Path.replace", side_effect=OSError("replace failed")):
-            with pytest.raises(OSError, match="replace failed"):
-                _atomic_write(target, "data")
+        with (
+            patch("pathlib.Path.replace", side_effect=OSError("replace failed")),
+            pytest.raises(OSError, match="replace failed"),
+        ):
+            _atomic_write(target, "data")
 
         # Temp file should be gone even though replace failed
         temp = target.with_suffix(".txt.tmp")
         assert not temp.exists()
+
+
+@pytest.mark.parametrize("command", [
+    "echo test > /dev/null",
+    "echo test >> /etc/example",
+    "echo test > /proc/example",
+    "echo test > /sys/example",
+    "cat < input.txt > output.txt",
+    "echo test 2> errors.txt",
+    "echo test > output.txt 2>&1",
+    "cat 3<&0",
+    "echo test &> output.txt",
+    "echo test &>> output.txt",
+])
+@pytest.mark.parametrize("allowed_commands", [None, ["echo", "cat"]])
+def test_redirects_survive_command_validation(
+    command: str, allowed_commands: list[str] | None,
+) -> None:
+    """Redirections must not be rejected or mistaken for additional commands."""
+    assert sanitize_command(command, allowed_commands) == command
+
+
+@pytest.mark.parametrize("operator", [";", "&&", "||", "|", "&"])
+def test_redirects_do_not_hide_disallowed_subcommands(operator: str) -> None:
+    """Descriptor duplication must preserve checks on subsequent commands."""
+    with pytest.raises(CommandInjectionError):
+        sanitize_command(f"echo test 2>&1 {operator} denied", ["echo"])

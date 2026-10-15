@@ -293,6 +293,7 @@ class TestCoreInitCoverage:
         with patch("asyncio.create_task") as mock_task:
             initialize_mcp(context)
             mock_task.assert_called_once()
+            mock_task.call_args.args[0].close()
 
     def test_initialize_mcp_no_manager(self) -> None:
         """Test initialize_mcp with no MCP manager does nothing."""
@@ -382,7 +383,7 @@ class TestToolManagerCoverage:
             tm = self._make_tool_manager()
             tm.auto_approve = False
 
-            async def custom_handler(req):
+            async def custom_handler(_req):
                 return True
 
             tm._confirmation_handler = custom_handler
@@ -400,7 +401,7 @@ class TestToolManagerCoverage:
     def test_set_confirmation_handler(self) -> None:
         """Test set_confirmation_handler sets the handler."""
         async def _run():
-            async def handler(req):
+            async def handler(_req):
                 return True
 
             tm = self._make_tool_manager()

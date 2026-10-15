@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/runtime/agent-event/v1",
+  "type": "object",
+  "properties": {
+    "type": { "type": "string" },
+    "data": {},
+    "source_agent": { "type": ["string", "null"] }
+  },
+  "required": ["type", "data", "source_agent"],
+  "anyOf": [
+    {
+      "properties": {
+        "type": { "const": "agent_started" },
+        "data": {
+          "type": "object",
+          "properties": { "agent": { "type": "string" } },
+          "required": ["agent"]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "agent_completed" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "agent": { "type": "string" },
+            "status": { "type": "string" },
+            "summary": { "type": "string" }
+          },
+          "required": ["agent", "status", "summary"]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "enum": ["error", "content", "thought"] },
+        "data": { "type": ["string", "null"] }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "finished" },
+        "data": { "type": ["object", "string", "null"] }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "tool_call_request" },
+        "data": {
+          "type": "object",
+          "required": ["id", "name", "arguments"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "arguments": { "type": "object" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "tool_call_result" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tool_call_id": { "type": "string" },
+            "tool_name": { "type": "string" },
+            "result": { "type": "string" },
+            "success": { "type": "boolean" }
+          },
+          "required": ["tool_call_id", "tool_name", "result", "success"]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "enum": ["agent_delegated", "agent_message", "context_compacted", "thinking_required"] }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

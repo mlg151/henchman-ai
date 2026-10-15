@@ -287,7 +287,7 @@ class TestTextInput:
 
                 # Patch process_user_input to capture the call
                 with patch.object(app, "process_user_input") as mock_process:
-                    await _pilot.press("enter")
+                    await _pilot.press("ctrl+enter")
                     await _pilot.pause()
                     mock_process.assert_called_once_with("Hello agent")
 
@@ -326,7 +326,7 @@ class TestTextInput:
                 assert input_widget.text == ""
 
                 with patch.object(app, "process_user_input") as mock_process:
-                    await _pilot.press("enter")
+                    await _pilot.press("ctrl+enter")
                     await _pilot.pause()
                     mock_process.assert_not_called()
 
@@ -857,8 +857,8 @@ class TestErrorHandling:
                 assert "0.0023" in rendered
 
     @pytest.mark.asyncio
-    async def test_is_processing_blocks_submit(self):
-        """When is_processing is True, action_submit_message should be a no-op."""
+    async def test_is_processing_queues_submit(self):
+        """Input submitted during a turn is queued without another agent worker."""
         app = _make_app()
         with _patch_core_init():
             async with app.run_test() as _pilot:
@@ -872,8 +872,8 @@ class TestErrorHandling:
                     await _pilot.pause()
                     mock_process.assert_not_called()
 
-                # Text should still be there (not cleared)
-                assert input_widget.text == "something"
+                assert input_widget.text == ""
+                assert app._queued_inputs() == ["something"]
 
 
 # ============================================================================
@@ -1119,7 +1119,7 @@ class TestEndToEndMessageFlow:
             assert input_widget.text == "Hello provider!"
 
             # --- Press Enter to submit ---
-            await _pilot.press("enter")
+            await _pilot.press("ctrl+enter")
 
             # The submit handler fires process_user_input in a @work
             # worker thread. We need to wait for it to complete.
@@ -1199,7 +1199,7 @@ class TestEndToEndMessageFlow:
 
             # --- First message ---
             input_widget.insert("First message")
-            await _pilot.press("enter")
+            await _pilot.press("ctrl+enter")
             for _ in range(100):
                 await asyncio.sleep(0.1)
                 if not app.is_processing:
@@ -1209,7 +1209,7 @@ class TestEndToEndMessageFlow:
 
             # --- Second message ---
             input_widget.insert("Second message")
-            await _pilot.press("enter")
+            await _pilot.press("ctrl+enter")
             for _ in range(100):
                 await asyncio.sleep(0.1)
                 if not app.is_processing:

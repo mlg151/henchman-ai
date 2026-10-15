@@ -43,9 +43,9 @@ def test_delegate_tool_parameters() -> None:
 
 
 def test_delegate_tool_kind() -> None:
-    """Test that delegation tool is read-only (auto-approved)."""
+    """Delegation can execute specialist actions and needs execution policy."""
     tool = DelegateTaskTool()
-    assert tool.kind.name == "READ"
+    assert tool.kind.name == "EXECUTE"
 
 
 def test_delegate_tool_files_description_emphasizes_importance() -> None:

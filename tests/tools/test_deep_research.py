@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.deep_research import (
     DeepResearchTool,
@@ -16,7 +14,6 @@ from henchman.tools.builtins.deep_research import (
     _execute_deep_research,
     _generate_subqueries,
 )
-
 
 # ---------------------------------------------------------------------------
 # Unit tests for helper functions
@@ -129,31 +126,30 @@ class TestExecuteDeepResearch:
             "henchman.tools.builtins.deep_research._research_single_query",
             new_callable=AsyncMock,
             return_value=[],
+        ), patch(
+            "henchman.tools.builtins.deep_research._generate_subqueries",
+            return_value=["sub1"],
         ):
-            with patch(
-                "henchman.tools.builtins.deep_research._generate_subqueries",
-                return_value=["sub1"],
-            ):
-                import sys
-                import types
-                # Inject mock aiohttp so the import inside function succeeds
-                mock_aiohttp = types.ModuleType("aiohttp")
-                mock_session = AsyncMock()
-                mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_session.__aexit__ = AsyncMock(return_value=None)
-                mock_aiohttp.ClientSession = MagicMock(  # type: ignore[attr-defined]
-                    return_value=mock_session
-                )
-                old_mod = sys.modules.get("aiohttp")
-                sys.modules["aiohttp"] = mock_aiohttp
-                try:
-                    params = ResearchParams(question="obscure topic xyz", max_sources=1)
-                    result = await _execute_deep_research(params)
-                finally:
-                    if old_mod is None:
-                        del sys.modules["aiohttp"]
-                    else:
-                        sys.modules["aiohttp"] = old_mod
+            import sys
+            import types
+            # Inject mock aiohttp so the import inside function succeeds
+            mock_aiohttp = types.ModuleType("aiohttp")
+            mock_session = AsyncMock()
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock(return_value=None)
+            mock_aiohttp.ClientSession = MagicMock(  # type: ignore[attr-defined]
+                return_value=mock_session
+            )
+            old_mod = sys.modules.get("aiohttp")
+            sys.modules["aiohttp"] = mock_aiohttp
+            try:
+                params = ResearchParams(question="obscure topic xyz", max_sources=1)
+                result = await _execute_deep_research(params)
+            finally:
+                if old_mod is None:
+                    del sys.modules["aiohttp"]
+                else:
+                    sys.modules["aiohttp"] = old_mod
 
         assert "No results" in result.content or result.success is True
 
