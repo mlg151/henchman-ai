@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Standards adoption research** — Added the [issue #3 RFC](docs/standards.md) with sourced MCP/A2A/OpenTelemetry/schema research, baseline interface gaps, and a phased implementation roadmap. Protocol adoption and interoperability guarantees remain proposed work.
+- **Standards adoption research** — Added the [issue #3 RFC](https://github.com/mlg151/henchman-ai/blob/main/docs/standards.md) with sourced MCP/A2A/OpenTelemetry/schema research, baseline interface gaps, and a phased implementation roadmap. Protocol adoption and interoperability guarantees remain proposed work.
 
 ## [0.4.0] - 2026-10-14
 
