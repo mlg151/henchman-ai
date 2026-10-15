@@ -20,6 +20,9 @@ passed across snippet/execution/recovery, automatic/manual/registry formatting,
 background execution, prompts and package surface. Ruff passed touched Python
 files; Mypy passed all four changed production modules. Whitespace checks passed.
 Review fix: `414a333`; staging merge: `d32e15a`.
+Latest staging (merged standards PR #5 at `8d9327b`) is also integrated as
+`1af662e`. Its docs-only changes merged cleanly while retaining standards, CI and
+snippet changelog entries; 42 final snippet/documentation/package checks passed.
 
 ## Findings and implementation
 
