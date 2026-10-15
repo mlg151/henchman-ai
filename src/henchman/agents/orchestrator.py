@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from henchman.agents.orchestrator_execution import ExecutionController
     from henchman.agents.orchestrator_tools import ToolController
     from henchman.agents.pool import AgentPool
+    from henchman.agents.subagents import BackgroundSubagentManager
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.eventbus import EventBus
@@ -85,6 +86,7 @@ class Orchestrator:
     ledger: TaskLedger | None
     tech_lead: Agent
     delegation_runner: DelegationRunner
+    subagents: BackgroundSubagentManager
 
     def __init__(
         self: Orchestrator,
@@ -134,13 +136,32 @@ class Orchestrator:
                     data={"agent": "tech_lead"},
                     source_agent="orchestrator",
                 )
-                async with aclosing(
-                    self.execution_controller.run_agent_loop(params)
-                ) as stream:
-                    async for event in stream:
-                        yield event
+                from henchman.agents.subagent_runtime import run_with_notifications
+                from henchman.agents.subagents import subagent_actor
+
+                try:
+                    with subagent_actor("tech_lead"):
+                        async with aclosing(run_with_notifications(self, params)) as stream:
+                            async for event in stream:
+                                yield event
+                except BaseException:
+                    await self.cancel_subagents()
+                    raise
                 for event in finalize_run(self, self.tech_lead, "tech_lead"):
                     yield event
+
+    async def cancel_subagents(self) -> None:
+        """Cancel and join dynamic work while keeping the session reusable."""
+        manager = getattr(self, "subagents", None)
+        if manager is not None:
+            await manager.cancel_all()
+            manager.clear_notifications()
+
+    async def aclose(self) -> None:
+        """Cancel and join all session-owned background conversations on shutdown."""
+        manager = getattr(self, "subagents", None)
+        if manager is not None:
+            await manager.close()
 
     async def run_direct(
         self: Orchestrator,
@@ -173,11 +194,19 @@ class Orchestrator:
                     data={"agent": role},
                     source_agent="orchestrator",
                 )
-                async with aclosing(
-                    self.execution_controller.run_agent_loop(params)
-                ) as stream:
-                    async for event in stream:
-                        yield event
+                from henchman.agents.subagent_runtime import run_with_notifications
+
+                execution = (
+                    run_with_notifications(self, params) if agent is self.tech_lead
+                    else self.execution_controller.run_agent_loop(params)
+                )
+                try:
+                    async with aclosing(execution) as stream:
+                        async for event in stream:
+                            yield event
+                except BaseException:
+                    await self.cancel_subagents()
+                    raise
                 for event in finalize_run(self, agent, role):
                     yield event
 

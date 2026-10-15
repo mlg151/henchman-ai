@@ -460,16 +460,25 @@ async def _run_headless_text(
         prompt: The prompt to process.
         agent_role: Target a specific specialist agent.
     """
-    # Initialize MCP servers
-    await repl.initialize_mcp()
-    if repl.rag_system:
-        await repl.rag_system.index_async()
+    try:
+        await repl.initialize_mcp()
+        if repl.rag_system:
+            await repl.rag_system.index_async()
+        if agent_role:
+            run_agent_direct = object.__getattribute__(repl, "_run_agent_direct")
+            await run_agent_direct(agent_role, prompt)
+        else:
+            await repl.process_input(prompt)
+    finally:
+        await _close_headless_repl(repl)
 
-    if agent_role:
-        run_agent_direct = object.__getattribute__(repl, "_run_agent_direct")
-        await run_agent_direct(agent_role, prompt)
-    else:
-        await repl.process_input(prompt)
+
+async def _close_headless_repl(repl: Any) -> None:
+    """Close the application runtime while preserving standalone eval adapters."""
+    from henchman.cli.repl import Repl
+
+    if isinstance(repl, Repl) and issubclass(type(repl), Repl):
+        await repl.aclose()
 
 
 async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
@@ -632,12 +641,15 @@ async def _run_headless_json_format(
         prompt: The prompt to process.
         render_mode: Either "stream-json" (line-delimited) or "json" (batch).
     """
-    json_renderer = await _initialize_json_processing(repl)
-    render_fn = (
-        json_renderer.render_stream_json if render_mode == "stream-json" else json_renderer.render
-    )
-    if not await _run_headless_json_mode(repl, prompt, render_fn, agent_role):
-        raise click.ClickException("Agent execution failed; see JSON error event")
+    try:
+        json_renderer = await _initialize_json_processing(repl)
+        render_fn = (
+            json_renderer.render_stream_json if render_mode == "stream-json" else json_renderer.render
+        )
+        if not await _run_headless_json_mode(repl, prompt, render_fn, agent_role):
+            raise click.ClickException("Agent execution failed; see JSON error event")
+    finally:
+        await _close_headless_repl(repl)
 
 
 async def _run_headless_json_complete(
@@ -652,13 +664,15 @@ async def _run_headless_json_complete(
         prompt: The prompt to process.
     """
 
-    json_renderer = await _initialize_json_processing(repl)
-    all_events: list[AgentEvent] = []
-
-    success = await _run_headless_json_mode(repl, prompt, all_events.append, agent_role)
-    json_renderer.render_final_json(all_events)
-    if not success:
-        raise click.ClickException("Agent execution failed; see JSON error event")
+    try:
+        json_renderer = await _initialize_json_processing(repl)
+        all_events: list[AgentEvent] = []
+        success = await _run_headless_json_mode(repl, prompt, all_events.append, agent_role)
+        json_renderer.render_final_json(all_events)
+        if not success:
+            raise click.ClickException("Agent execution failed; see JSON error event")
+    finally:
+        await _close_headless_repl(repl)
 
 
 def _check_completion_status(repl: Any) -> None:

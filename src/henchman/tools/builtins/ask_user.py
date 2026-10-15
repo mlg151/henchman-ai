@@ -39,6 +39,7 @@ class AskUserTool(Tool):
     ) -> None:
         """Bind an optional input channel; None from a handler means unanswered."""
         self._question_handler = question_handler
+        self._subagent_manager: object | None = None
 
     @property
     def name(self: AskUserTool) -> str:
@@ -109,11 +110,20 @@ class AskUserTool(Tool):
         timeout = params.get("timeout", 0)
         if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 0:
             return _unanswered(question, "timeout must be a nonnegative integer")
-        if self._question_handler is None:
+        handler = self._question_handler
+        if self._subagent_manager is not None:
+            from henchman.agents.subagents import BackgroundSubagentManager
+
+            if (
+                isinstance(self._subagent_manager, BackgroundSubagentManager)
+                and self._subagent_manager.is_subagent()
+            ):
+                handler = self._subagent_manager.request_input
+        if handler is None:
             return _unanswered(question, "No user input handler is configured; no answer was received")
         try:
             answer = await asyncio.wait_for(
-                self._question_handler(question), timeout=timeout or None,
+                handler(question), timeout=timeout or None,
             )
         except TimeoutError:
             return _unanswered(question, f"User input timed out after {timeout}s; no answer was received")

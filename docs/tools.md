@@ -920,6 +920,46 @@ dependency through the shared discovery capability matrix.
 }
 ```
 
+### Background Subagent Tools
+
+These tools use the active orchestrator's process-owned background runtime.
+They are available to the default primary agent; restricted agents must have the
+tool explicitly in scope. Normal plan-mode and execution-approval policies apply.
+
+| Tool | Parameters | Result and policy |
+| --- | --- | --- |
+| `invoke_subagent` | Required `task`, `role`, `system_prompt`, and `tools` array | Returns a new `conversation_id` immediately; EXECUTE policy |
+| `send_message` | `conversation_id`, `message` | Queues a follow-up or parent reply; WRITE policy |
+| `manage_subagents` | `action: list` (default), or `get`/`cancel` with `conversation_id` | Returns live records/bounded output; list/get READ, cancel WRITE |
+
+Example tool arguments for an independent inspection task:
+
+```json
+{
+  "task": "Inspect the parser and report concrete validation gaps.",
+  "role": "parser reviewer",
+  "system_prompt": "Inspect the assigned parser and return findings with file references.",
+  "tools": ["read_file", "glob", "grep"]
+}
+```
+
+Every delegated tool must be available to the caller; an empty list grants no
+tools. Role names do not select a preset. Each child owns a separate conversation,
+and `send_message` follow-ups retain its history. A child can use the destination
+`parent` to send assistance requests or progress to its owner. Dynamic messaging
+uses `conversation_id`; legacy workspace-channel messaging still uses its
+`workspace`/`sender` parameters, and those addressing modes cannot be mixed.
+
+Records report `running`, `idle`, `waiting_for_input`, `errored`, or `done`, plus
+`cancelled`, `error`, `output`, and `output_truncated`. Completion and assistance
+notifications arrive at safe parent turn boundaries; do not repeatedly poll status
+to wait for results. Cancellation joins owned child work; application exit and
+conversation reset also stop unfinished subagents. These conversations are not
+detached jobs or persistent session checkpoints. See
+[agent lifecycle and scope](agents.md#dynamic-background-subagents).
+
+### Named-Role Delegation
+
 #### delegate_task
 
 Delegate a task to a specialist agent. This is a **critical tool** for the multi-agent system that enables the Tech Lead to leverage specialized expertise for complex tasks. Each specialist agent starts with a CLEAN context, so you MUST provide all relevant information in the structured parameters.

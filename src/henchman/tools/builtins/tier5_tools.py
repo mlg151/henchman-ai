@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -34,13 +35,17 @@ _TEAM_DELETE_PARAMETERS: dict[str, object] = {
 _SEND_MESSAGE_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {
+        "conversation_id": {
+            "type": "string",
+            "description": "Dynamic subagent conversation or its parent; omit for legacy workspace messaging",
+        },
         "workspace": {"type": "string"},
         "sender": {"type": "string"},
         "message": {"type": "string"},
         "channel": {"type": "string"},
         "recipients": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["workspace", "sender", "message"],
+    "required": ["message"],
 }
 
 _SEND_USER_FILE_PARAMETERS: dict[str, object] = {
@@ -115,6 +120,7 @@ class _Tier5ToolBase(Tool):
 
         self._project_root = Path.cwd()
         self._session_manager: Any | None = None
+        self._subagent_manager: Any | None = None
         self._refresh_services()
 
     def bind_runtime(
@@ -124,6 +130,7 @@ class _Tier5ToolBase(Tool):
         session_manager: Any | None = None,
         project_root: Path | None = None,
         agent: Any | None = None,
+        subagent_manager: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Bind runtime state for interactive use."""
@@ -133,6 +140,8 @@ class _Tier5ToolBase(Tool):
             self._project_root = project_root.resolve()
         if session_manager is not None:
             self._session_manager = session_manager
+        if subagent_manager is not None:
+            self._subagent_manager = subagent_manager
         self._refresh_services()
 
     @property
@@ -259,7 +268,7 @@ class SendMessageTool(_Tier5ToolBase):
     def description(self) -> str:
         """Return the tool description."""
 
-        return "Send a message to a team channel and sync session memories."
+        return "Message a background subagent conversation, or send a legacy workspace channel message."
 
     @property
     def parameters(self) -> dict[str, object]:
@@ -270,6 +279,22 @@ class SendMessageTool(_Tier5ToolBase):
     async def execute(self, **params: object) -> ToolResult:
         """Persist one team message and sync the active session memories."""
 
+        if "conversation_id" in params:
+            if self._subagent_manager is None:
+                return ToolResult(
+                    content="Dynamic subagent messaging requires a bound runtime.",
+                    success=False, error="Subagent runtime unavailable",
+                )
+            try:
+                if "workspace" in params or "sender" in params:
+                    raise ValueError("Use conversation_id or workspace/sender, not both.")
+                target = _require_string(params, "conversation_id")
+                await self._subagent_manager.send_message(
+                    target, _require_string(params, "message"),
+                )
+                return ToolResult(content=json.dumps({"conversation_id": target, "queued": True}))
+            except (ValueError, PermissionError, RuntimeError) as exc:
+                return ToolResult(content=str(exc), success=False, error=str(exc))
         workspace = _require_string(params, "workspace")
         recipients = _optional_string_list(params.get("recipients"))
         record = self._workspace_service.post_message(

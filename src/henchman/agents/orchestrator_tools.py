@@ -61,6 +61,24 @@ class ToolController(OrchestratorComponent):
         )
 
     async def process_pending_tool_calls(
+        self,
+        agent: Agent,
+        pending_tool_calls: list[ToolCall],
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Dispatch within the authenticated calling conversation's identity."""
+        from henchman.agents.subagents import subagent_actor
+
+        actor = agent.identity.id if agent.identity is not None else "tech_lead"
+        with subagent_actor(actor):
+            async with closing_event_stream(
+                self._process_pending_tool_calls(agent, pending_tool_calls, depth, tool_errors)
+            ) as events:
+                async for event in events:
+                    yield event
+
+    async def _process_pending_tool_calls(
         self: ToolController,
         agent: Agent,
         pending_tool_calls: list[ToolCall],
