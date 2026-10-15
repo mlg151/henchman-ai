@@ -279,9 +279,14 @@ process. No credentials are written to disk. `PYPI_API_TOKEN` is not used.
 Release attempts are serialized. The workflow validates both committed versions
 against the merged PR milestone and rejects a tag pointing at another commit.
 It retains the exact distributions as an Actions artifact before upload.
+PR CI also retains its validated distribution pair for review. Release archives
+include `henchman/_release.json` (under `src/` in the source distribution),
+recording the tested commit, milestone, and release PR. Both archives' metadata,
+runtime version, and embedded commit must match before credentials are used.
 `uv publish` checks existing file hashes, so matching uploads can be retried and
 different contents cannot replace an existing version. Builds use the commit
-timestamp as `SOURCE_DATE_EPOCH` for reproducibility.
+timestamp as `SOURCE_DATE_EPOCH` for reproducibility. Embedded commit provenance
+makes archives from different commits distinct even before a release tag exists.
 
 To retry, rerun the failed release workflow in Actions. If needed, rerun the
 successful main push CI to trigger it again. Existing uploads for the same

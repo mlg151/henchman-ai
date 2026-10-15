@@ -23,6 +23,8 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.actor.login == github.repository_owner
     runs-on: [self-hosted, homeserver]
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
     environment:
       name: pypi
       url: https://pypi.org/p/henchman-ai
@@ -76,8 +78,12 @@ jobs:
             if (ref && ref.object.sha !== sha) throw new Error('Release tag already belongs to another commit.');
 
       - name: Build and validate distributions
+        env:
+          RELEASE_MILESTONE: ${{ steps.milestone.outputs.title }}
+          RELEASE_PR: ${{ steps.milestone.outputs.pr }}
         run: |
           rm -rf dist/
+          uv run --no-project python src/henchman/ops/release.py prepare
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           uv build --no-sources
           uv run --with twine twine check --strict dist/*
@@ -103,6 +109,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const crypto = require('crypto');
             const tag = process.env.RELEASE_TAG;
             const sha = context.payload.workflow_run.head_sha;
             try {
@@ -125,12 +132,24 @@ jobs:
             const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
               ...context.repo, release_id: release.id, per_page: 100,
             });
-            for (const name of fs.readdirSync('dist')) {
-              if (assets.some(asset => asset.name === name)) continue;
+            const stem = 'henchman_ai-' + tag.slice(1);
+            for (const name of [stem + '-py3-none-any.whl', stem + '.tar.gz']) {
               const data = fs.readFileSync('dist/' + name);
+              const existing = assets.find(asset => asset.name === name);
+              if (existing) {
+                const digest = 'sha256:' + crypto.createHash('sha256').update(data).digest('hex');
+                if (existing.digest !== digest) {
+                  throw new Error('Existing release asset differs from distribution: ' + name);
+                }
+                continue;
+              }
               await github.rest.repos.uploadReleaseAsset({
                 ...context.repo, release_id: release.id, name, data,
                 headers: {'content-type': 'application/octet-stream', 'content-length': data.length},
               });
             }
             await github.rest.repos.updateRelease({...context.repo, release_id: release.id, target_commitish: sha, draft: false});
+
+      - name: Clean generated build provenance
+        if: always()
+        run: rm -f src/henchman/_release.json
