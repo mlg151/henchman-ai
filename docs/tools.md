@@ -616,7 +616,8 @@ Before either execution mode, an isolated worker applies Black's in-memory
 string API with default settings to the snippet. It does not inspect the working
 directory or load project Black configuration. Formatting has a 300 ms deadline,
 with time reserved for worker cleanup within a half-second overhead budget;
-snippets larger than 12 KiB skip formatting. Formatting errors, unavailable Black,
+snippets larger than 12 KiB skip formatting. Formatted output has the same 12 KiB
+limit so expansion cannot exceed process argument limits on Windows. Formatting errors, unavailable Black,
 incomplete output, and timeouts log a warning and execute the original source.
 Python syntax/runtime errors and execution timeouts still report execution failures.
 Cancellation stops formatting and prevents execution.
