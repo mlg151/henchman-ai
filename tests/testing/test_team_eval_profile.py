@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock
 import pytest
 from evals.helpers import EvalTestRig, MockProvider
 
+from henchman.config.schema import AgentConfig as AgentSettingsConfig
 from henchman.config.schema import Settings
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
@@ -48,8 +49,16 @@ def test_settings_are_only_accepted_for_team(profile: str) -> None:
         EvalTestRig(provider=MockProvider(), profile=profile, settings=Settings())
 
 
-def test_team_uses_copied_settings_production_scopes_and_redacted_metadata(make_rig: Any) -> None:
+@pytest.mark.parametrize("primary_tools", [None, ["read_file"]])
+def test_team_uses_copied_settings_production_scopes_and_redacted_metadata(
+    make_rig: Any, primary_tools: list[str] | None,
+) -> None:
     settings = Settings()
+    if primary_tools is not None:
+        settings.agents.agents["tech_lead"] = AgentSettingsConfig(
+            name="Primary", role="tech_lead", description="Restricted evaluation primary",
+            tools=primary_tools,
+        )
     settings.providers.openrouter["api_key"] = "NEVER_EXPOSE_KEY"
     settings.agents.max_delegation_depth = 2
     settings.agents.max_delegation_turns = 7
@@ -62,7 +71,10 @@ def test_team_uses_copied_settings_production_scopes_and_redacted_metadata(make_
     assert orch.settings.agents.max_delegation_depth == 2
     assert orch.settings.agents.max_delegation_retries == 1
     assert orch.tech_lead is orch.pool.get_agent("tech_lead")
-    assert orch.tech_lead.tool_registry.get("edit_file") is None
+    primary_registry = orch.tech_lead.tool_registry
+    for name in ("edit_file", "invoke_subagent", "manage_subagents"):
+        assert (primary_registry.get(name) is not None) == (primary_tools is None)
+    assert primary_registry.get("read_file") is not None
     assert orch.pool.get_agent("engineer").tool_registry.get("edit_file") is not None
     metadata = rig.profile_metadata
     assert metadata["profile"] == "team"
