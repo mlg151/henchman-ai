@@ -338,6 +338,24 @@ Completed: workspace tab with agent/memory/task/skill/team/settings/context surf
 
 ---
 
+## Standards adoption research and roadmap
+
+The [standards adoption RFC](docs/standards.md) is the canonical research for
+[issue #3](https://github.com/mlg151/henchman-ai/issues/3). Research completion
+does not mean these protocols or schema guarantees have been adopted.
+
+- [x] Record sourced protocol/version research, baseline interface gaps, and phased acceptance criteria for MCP, A2A, OpenTelemetry/evaluation, and tool schemas.
+- [ ] P0: Establish tested protocol/SDK compatibility and dependency bounds.
+- [ ] P1: Validate canonical schemas and preserve MCP client data fidelity.
+- [ ] P2: Migrate modern MCP transport, authentication, resources, and prompts.
+- [ ] P3: Add opt-in telemetry and versioned local evaluation artifacts.
+- [ ] P4: Pilot outbound A2A with independently verified interoperability.
+- [ ] P5: Add controlled inbound serving after the client boundaries are verified.
+
+See the [RFC implementation roadmap](docs/standards.md#phased-implementation-roadmap)
+for each phase's scope and exit criteria. Foundations-first ordering and existing
+runtime authorization remain prerequisites.
+
 ## Implementation Notes
 
 1. **Dependencies between tiers:** Tier 1 should be done first as it improves the dev experience for implementing later tiers. Tier 2 (session/context) is foundational for Tier 3 (agents/skills).
