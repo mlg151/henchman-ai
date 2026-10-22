@@ -2,6 +2,9 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 # Add src directory to Python path to ensure tests import local version
 # instead of any installed version
@@ -20,3 +23,16 @@ os.environ.setdefault("DEEPSEEK_API_KEY", "dummy-test-key")
 os.environ.setdefault("OPENAI_API_KEY", "dummy-test-key")
 
 
+def pytest_configure(config: Any) -> None:
+    """Expose the eval rig fixture to every test, including issue tests."""
+    from evals.helpers import EvalTestRig
+
+    @pytest.fixture
+    def eval_rig() -> EvalTestRig:
+        """Yield a fresh eval rig configured for the current test."""
+        rig = EvalTestRig()
+        rig.setup("evals")
+        try:
+            yield rig
+        finally:
+            rig.cleanup()
