@@ -17,6 +17,19 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def eval_rig():
+    """Set up a fresh eval rig for every evals test."""
+    from evals.helpers import EvalTestRig
+
+    rig = EvalTestRig()
+    rig.setup("evals")
+    try:
+        yield rig
+    finally:
+        rig.cleanup()
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config,
     items: list[pytest.Item],
