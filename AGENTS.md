@@ -39,7 +39,6 @@ Use this file as the short operational guide for AI agents and human contributor
 - Long-form documentation belongs in `docs/`.
 - Project context belongs in `HENCHMAN.md`.
 - Roadmap state belongs in `FEATURE_TODO.md` and `TODOS.md`.
-- Scratch analyses, one-off scripts, and temporary task artifacts belong in `.agent_tasks/`.
 
 ## Delegation & specialists
 

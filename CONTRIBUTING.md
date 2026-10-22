@@ -69,7 +69,6 @@ This file contains:
 4. **Apply smart file reading strategies** to optimize context usage
 5. **Delegate specialized tasks** to appropriate agent roles
 6. **Track performance metrics** to improve efficiency
-7. **Place non-source artifacts** in `.agent_tasks/` directory
 
 The copilot instructions are regularly updated to reflect the current architecture and development practices. AI agents should reference this file to understand project conventions, tool capabilities, and performance expectations.
 

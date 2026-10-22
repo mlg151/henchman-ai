@@ -123,13 +123,13 @@ subset; they cannot use the configuration wildcard to expand their authority.
 
 ### Planner
 - **Role**: Architecture and task decomposition specialist.
-- **Responsibilities**: Creates technical plans, designs architectures, breaks down tasks, and writes design docs in `.agent_tasks/`.
-- **Tools**: Basic file tools, file edit tools (for design docs), git tools, web tools, knowledge tools.
+- **Responsibilities**: Creates technical plans, designs architectures, breaks down tasks.
+- **Tools**: Basic file tools, file edit tools, git tools, web tools, knowledge tools.
 
 ### Explorer
 - **Role**: Research and documentation specialist.
-- **Responsibilities**: Researches, analyzes, and documents findings. Creates documentation in `.agent_tasks/`.
-- **Tools**: Basic file tools, file edit tools (for documentation), git tools, web tools, knowledge tools, shell tools.
+- **Responsibilities**: Researches, analyzes, and documents findings.
+- **Tools**: Basic file tools, file edit tools, git tools, web tools, knowledge tools, shell tools.
 
 ### Engineer
 - **Role**: Code implementation and testing specialist.
@@ -176,92 +176,6 @@ henchman chat --agent data_engineer --prompt "Create a data pipeline for user an
 - `/agent config <role>`: View the configuration for a specific agent.
 - `/team status`: See detailed status of the whole team and recent shared decisions.
 - `/team reset`: Reset the conversation history for all agents in the team.
-
-## Agent Workspace Conventions
-
-When working on tasks, agents follow specific conventions for organizing their work artifacts. This ensures consistency and prevents clutter in the main project directories.
-
-### `.agent_tasks/` Directory Convention
-
-Default prompts return short discovery and review findings directly in the
-handoff. They create supporting artifacts when explicitly requested or when
-substantial analysis, long-running work or a durable handoff needs them. A small
-lookup does not require a task folder, scratch probe or README solely for process.
-Explicit user and project documentation requirements take precedence.
-
-All non-source artifacts (analysis scripts, design docs, research notes, validation reports, scratch files) **MUST** be placed inside the `.agent_tasks/` directory in the project root. **NEVER** create these files in the repo root or alongside source code.
-
-#### Directory Structure
-```
-.agent_tasks/
-├── <task-slug>/            # One folder per task or project
-│   ├── README.md           # Task description, status, and findings
-│   ├── analysis/           # Analysis scripts, notebooks, data exploration
-│   ├── docs/               # Design docs, RFCs, research notes
-│   └── scripts/            # Utility/validation/automation scripts
-```
-
-#### Rules
-
-1. **Create `.agent_tasks/` if it doesn't exist** - Agents should create this directory when needed
-2. **Use descriptive task slugs** - Short, descriptive names (e.g., `elo-parameter-tuning`, `api-migration`)
-3. **Summarize substantial tasks** - Use a README for meaningful task state, findings and blockers
-4. **Separate source from artifacts** - Source code changes go in normal project directories; only supporting artifacts go here
-5. **Reuse existing folders** - If a prior task folder exists for the same topic, reuse it instead of creating a new one
-6. **Keep documentation useful** - Update durable notes when findings or handoff state change; repeated updates around every small action are not required by default
-
-#### Agent Responsibilities
-- **Planner**: Creates design documents and architectural plans in `.agent_tasks/<task>/docs/`
-- **Explorer**: Stores research findings and analysis in `.agent_tasks/<task>/analysis/` and `.agent_tasks/<task>/docs/`
-- **All Agents**: Should follow this convention for any non-source artifacts they create
-
-### Working Memory Management
-
-Agents maintain working memory to optimize performance and reduce redundant file reads:
-
-#### Working Memory Template
-```yaml
-working_memory:
-  current_task: "string describing active task"
-  task_objectives: ["specific", "goals", "for", "task"]
-  recent_files:
-    - path: "file/path.py"
-      purpose: "why this file was read"
-      timestamp: "ISO timestamp"
-      lines_read: "start_line-end_line or 'full'"
-      key_insights: ["important", "findings", "from", "file"]
-  active_context:
-    project_structure: "brief description"
-    relevant_patterns: ["patterns", "from", "knowledge", "graph"]
-    constraints: ["known", "limitations"]
-    dependencies: ["required", "components"]
-  decisions_made:
-    - decision: "key decision"
-      rationale: "why this decision"
-      impact: "high|medium|low"
-  completed_steps: ["step1", "step2"]
-  next_actions:
-    - action: "next step"
-      priority: "high|medium|low"
-      estimated_effort: "time estimate"
-  insights_gained: ["new", "learnings"]
-  problems_encountered:
-    - problem: "issue encountered"
-      status: "open|in_progress|resolved"
-      resolution: "how it was fixed"
-```
-
-#### Memory Update Protocol
-
-Use durable working-memory records for substantial work, useful handoffs or
-explicit project requirements. Short lookups can return their findings directly.
-When maintaining a durable record:
-
-1. **Before reading a file**: Check `recent_files` to avoid re-reading
-2. **After meaningful findings**: Update working memory when task state changes
-3. **Every 5 tool calls**: Review and prune `recent_files` (keep last 10)
-4. **Task completion**: Archive to `.agent_tasks/<task>/working_memory.yaml` when a durable handoff needs it or project instructions require it
-5. **Metrics tracking**: Count file reads and compare to baseline (target < 1.3 re-reads/task)
 
 ## Headless team execution
 
