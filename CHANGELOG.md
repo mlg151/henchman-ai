@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Terminal UI research** — Added a [sourced comparison](docs/terminal-ui-research.md) of coding-agent interfaces and Python terminal applications, with Henchman-specific interaction recommendations and phased acceptance criteria. UI implementation and native usability qualification remain planned.
+- **v0.4.2 UI planning** — Included all five UI phases as [epic #11](https://github.com/mlg151/henchman-ai/issues/11) subtasks #32–#36, with shared-service ownership, native prerequisite links and a UI qualification release gate. The epic now contains 24 planned subtasks; no runtime UI completion is implied.
+
+### Removed
+
+- **`.agent_tasks/` workspace convention** — The non-source artifact directory convention (task folders, analysis/docs/scripts subdirectories, working-memory archives, pattern-learning database) is removed from all agent instructions, docs, prompts and tests. All supporting artifacts now live in normal project paths or durable notes. `.agent_tasks/` is deleted from the repository and from exclusions/config. The shared copilot instructions are condensed to under 8,000 characters; `CLAUDE.md` remains a symlink to `.github/copilot-instructions.md`.
+
 ## [0.4.1] - 2026-10-15
 
 ### Added

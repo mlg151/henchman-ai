@@ -97,22 +97,10 @@ def test_primary_prompt_retains_workspace_policy_without_ceremonial_cleanup():
     assert "avoid conflicting writes" in prompt
 
 
-def test_leader_prompt_has_agent_workspace():
-    """Leader prompt includes .agent_tasks workspace convention."""
-    prompt = get_agent_prompt("tech_lead")
-    assert ".agent_tasks/" in prompt
-
-
 def test_explorer_prompt_has_delegation_summary():
     """Explorer prompt includes structured delegation summary."""
     prompt = get_agent_prompt("explorer")
     assert "Structured Delegation Summary" in prompt
-
-
-def test_explorer_prompt_has_agent_workspace():
-    """Explorer prompt includes .agent_tasks workspace convention."""
-    prompt = get_agent_prompt("explorer")
-    assert ".agent_tasks/" in prompt
 
 
 def test_primary_prompt_uses_available_workspace_tools_without_mandatory_kg_step():
@@ -144,12 +132,6 @@ def test_planner_prompt_has_delegation_summary():
     """Planner prompt includes structured delegation summary."""
     prompt = get_agent_prompt("planner")
     assert "Structured Delegation Summary" in prompt
-
-
-def test_planner_prompt_has_agent_workspace():
-    """Planner prompt includes .agent_tasks workspace convention."""
-    prompt = get_agent_prompt("planner")
-    assert ".agent_tasks/" in prompt
 
 
 def test_planner_prompt_has_knowledge_graph():
@@ -201,12 +183,6 @@ def test_data_engineer_prompt_has_delegation_summary():
     """Data Engineer prompt includes structured delegation summary."""
     prompt = get_agent_prompt("data_engineer")
     assert "Structured Delegation Summary" in prompt
-
-
-def test_data_engineer_prompt_has_agent_workspace():
-    """Data Engineer prompt includes .agent_tasks workspace convention."""
-    prompt = get_agent_prompt("data_engineer")
-    assert ".agent_tasks/" in prompt
 
 
 def test_data_engineer_prompt_has_verification_lock():
@@ -333,7 +309,6 @@ def test_engineer_has_plan_awareness():
     """Engineer prompt includes plan awareness for planner handoff (#20)."""
     prompt = get_agent_prompt("engineer")
     assert "Plan Awareness" in prompt
-    assert ".agent_tasks/" in prompt
 
 
 def test_planner_has_engineer_handoff():
