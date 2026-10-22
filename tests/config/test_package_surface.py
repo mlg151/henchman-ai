@@ -187,6 +187,8 @@ def test_ci_smoke_installs_both_distribution_formats() -> None:
     assert parsed_workflow["jobs"]["test"]["strategy"]["matrix"]["python-version"] == [
         "3.11",
         "3.12",
+        "3.13",
+        "3.14",
     ]
     assert "build-check" in parsed_workflow["jobs"]
     assert parsed_workflow["jobs"]["build-check"]["runs-on"] == ["self-hosted", "homeserver"]

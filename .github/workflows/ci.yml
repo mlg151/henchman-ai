@@ -38,12 +38,38 @@ jobs:
 
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, homeserver]
+    runs-on: ${{ matrix.os }}
     if: github.actor == github.repository_owner
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
+          - os: windows-latest
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.14"
+          - os: macos-latest
+            python-version: "3.11"
+          - os: macos-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.14"
     env:
       DEEPSEEK_API_KEY: "dummy-test-key"
       OPENAI_API_KEY: "dummy-test-key"
@@ -88,3 +114,53 @@ jobs:
 
       - name: Verify release workflow behavior without publication
         run: uv run --extra dev python -m pytest --no-cov tests/ops/test_release_workflow.py -q
+
+
+  native-smoke:
+    name: Installed Wheel Smoke (Python ${{ matrix.python-version }})
+    if: github.actor == github.repository_owner
+    needs: [build-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
+          - os: windows-latest
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.14"
+          - os: macos-latest
+            python-version: "3.11"
+          - os: macos-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.14"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build distributions
+        run: |
+          rm -rf dist/
+          uv build
+
+      - name: Run installed wheel smoke test
+        run: |
+          echo "::remove-matcher owner=checkout-git::"
+          uv run --python ${{ matrix.python-version }} --extra dev python tests/testing/installed_wheel_smoke.py --wheel-dir dist
+
