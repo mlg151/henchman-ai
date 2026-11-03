@@ -20,7 +20,8 @@
       }
     },
     "tool_call_id": { "type": ["string", "null"] },
-    "reasoning_content": { "type": ["string", "null"] }
+    "reasoning_content": { "type": ["string", "null"] },
+    "reasoning_details": { "type": ["string", "null"] }
   },
   "additionalProperties": false
 }
