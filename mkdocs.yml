@@ -59,6 +59,7 @@ nav:
   - Tools: tools.md
   - MCP Integration: mcp.md
   - Standards Adoption RFC: standards.md
+  - Terminal UI Research: terminal-ui-research.md
   - Extensions: extensions.md
   - API Reference: api.md
   - Behavioral Evaluations: evals/README.md

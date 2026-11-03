@@ -96,6 +96,7 @@ The shared capability matrix is the source of truth for help, doctor, and tool d
 - [Tools](tools.md) - Built-in and custom tools
 - [MCP Integration](mcp.md) - External tool servers
 - [Standards Adoption RFC](standards.md) - Researched MCP, A2A, telemetry, and schema roadmap; adoption remains proposed
+- [Terminal UI Research](terminal-ui-research.md) - Coding-agent feedback, Python application exemplars, and proposed UI quality phases
 - [Extensions](extensions.md) - Creating plugins
 - [API Reference](api.md) - Programmatic interfaces
 - [Contributing](CONTRIBUTING.md) - How to contribute

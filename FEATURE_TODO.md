@@ -2,6 +2,27 @@
 
 Organized by priority tiers. Each item is a discrete feature to implement.
 
+## v0.4.2 delivery plan (planned)
+
+The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
+turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)
+and [terminal UI research #31](https://github.com/mlg151/henchman-ai/issues/31)
+into 24 dependency-ordered subtasks in the
+[v0.4.2 milestone](https://github.com/mlg151/henchman-ai/milestone/2).
+The epic owns detailed scope, acceptance criteria, dependencies and release gates;
+these are planned outcomes, not completed capabilities.
+
+- [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
+- [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.
+- [ ] Validate privacy boundaries, shared usage budgets, responsiveness and bounded delegation.
+- [ ] Deliver the scoped MCP client work and one Neovim pilot; qualify an optional CPU-local profile.
+- [ ] Deliver UI-0–UI-4: interaction baselines, reliable terminal controls, work visibility, workspace navigation and native/accessibility qualification.
+- [ ] Verify integrated outcomes and the exact release artifacts before publication.
+
+Keep the foundations-first tier ordering below. Existing v0.4.1 issues retain
+their history; cloud settings sync, inbound servers, A2A, broad IDE support and
+unvalidated bundled model weights are outside this release plan.
+
 ## Supported recovery baseline
 
 - [x] Python 3.11–3.14 is the supported CI/runtime range.
@@ -338,6 +359,24 @@ Completed: workspace tab with agent/memory/task/skill/team/settings/context surf
 - [x] Task list widget
 - [x] Team components
 - [x] Theme picker
+
+### UI quality research and follow-through
+
+The [terminal UI research](docs/terminal-ui-research.md) compares firsthand
+coding-agent feedback and Python terminal applications. Existing components
+remain implemented; all five interaction-quality phases below are planned native
+subtasks of the v0.4.2 epic. Release issue #30 is blocked by their completion.
+
+- [x] Research coding-agent UI preferences/friction and Python application exemplars, with source dates, surface distinctions and historical-fix caveats.
+- [ ] [UI-0 / #32](https://github.com/mlg151/henchman-ai/issues/32): Establish reproducible interaction baselines, keyboard/state contracts and native terminal evidence.
+- [ ] [UI-1 / #33](https://github.com/mlg151/henchman-ai/issues/33): Preserve reading position, copy/export, drafts, configurable mouse capture/scrolling and predictable input/cancellation; validate quiet accessible output.
+- [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
+- [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
+- [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
+
+See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
+and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).
+Foundations-first sequencing and current authorization boundaries still apply.
 
 ---
 

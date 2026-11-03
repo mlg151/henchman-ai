@@ -72,26 +72,26 @@ SCOPE_SENTINEL = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.\n"
     "\n"
 )
 
 AGENT_WORKSPACE = """
-**Agent Workspace — `.agent_tasks/` Convention (MANDATORY)**:
+**Agent Workspace — Source vs. Artifacts (MANDATORY)**:
 Honor explicit user and project documentation requirements. Otherwise, create
 supporting artifacts only when substantial analysis, a long-running task, or a
 durable handoff needs them. For a short bounded lookup or review, return concise
 findings directly; do not create a task folder, README, or scratch probe merely
 to follow a routine. Create a probe only to resolve a concrete uncertainty.
 
-All non-source artifacts you do create (analysis scripts, design docs, research
-notes, validation reports, scratch files) MUST stay under `.agent_tasks/<task-slug>/`
-in the project root, never in the root or alongside source code. Reuse an existing
-task folder when appropriate. Keep source changes in their normal project paths.
-For substantial task folders, use a README summarizing the goal, current state,
-findings and blockers, with `analysis/`, `docs/` or `scripts/` as needed. Update
-durable notes when meaningful findings or handoff state change; repeated updates
-before, during and after each small action are not required by default.
+Non-source artifacts you do create (analysis scripts, design docs, research
+notes, validation reports, scratch files) stay in their normal project paths,
+never in the root or alongside source code. Reuse an existing artifact folder when
+appropriate. Keep source changes in their normal project paths. For substantial
+artifact folders, use a README summarizing the goal, current state, findings and
+blockers, with analysis/, docs/ or scripts/ as needed. Update durable notes when
+meaningful findings or handoff state change; repeated updates before, during and
+after each small action are not required by default.
 """
 
 DELEGATION_SUMMARY_SCHEMA = (
@@ -107,7 +107,7 @@ DELEGATION_SUMMARY_SCHEMA = (
     'BLOCKERS: <unresolved issues preventing completion, or "none">\n'
     "HANDOFF_NOTES: <context the next agent should know — patterns found,"
     ' gotchas, dependency versions, or "none">  # noqa: E501\n'
-    'ARTIFACTS: <.agent_tasks/ files created or updated, or "none">\n'
+    'ARTIFACTS: <non-source artifacts created or updated, or "none">\n'
     "SUMMARY: <1-3 sentence description of what was done>\n"
     "```\n"
     "\n"
@@ -232,8 +232,7 @@ CLEANUP_HABIT = (
     "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )
@@ -452,8 +451,8 @@ LEADER_INSTRUCTIONS = (
     "\n"
     "   **Explorer** (`explorer`): Use for researching APIs, libraries, o"
     "r documentation; gathering context from large codebases; writing ana"
-    "lysis reports to `.agent_tasks/`; and populating the project knowled"
-    "ge graph via `kg_update`.  # noqa: E501\n"
+    "lysis reports in the project knowledge graph or durable notes, and pu"
+    "plering the project knowledge graph via `kg_update`.  # noqa: E501\n"
     "\n"
     "   **Engineer** (`engineer`): Use for code implementation, writing t"
     "ests, debugging, running test suites, and making file changes. The E"
@@ -521,7 +520,7 @@ LEADER_INSTRUCTIONS = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.  # noqa: E501"
     "\n" + AGENT_WORKSPACE + DELEGATION_CHECKLIST + "\n"
     "**Delegation Examples — BAD vs GOOD**:\n"
     "\n"
@@ -583,8 +582,7 @@ LEADER_INSTRUCTIONS = (
     "- [ ] Done_when condition is verifiable\n" + VERIFICATION_LOCK + "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )
@@ -639,9 +637,7 @@ PLANNER_INSTRUCTIONS = (
     "hat implementation is unambiguous.  # noqa: E501\n"
     "- Do NOT execute code or run shell commands. You plan; others execut"
     "e.\n"
-    "- Return small scoped plans inline. Save a plan with a README under "
-    "`.agent_tasks/<task-slug>/` when explicitly required or useful for "
-    "substantial work or durable coordination.\n"
+    "- Return small scoped plans inline. Save a plan with a README when explicitly required or useful for substantial work or durable coordination.\n"
     "\n"
     "**Planner→Engineer Handoff**: Write plans with enough specificity th"
     "at the Engineer can implement without guessing: exact file paths, fu"
@@ -663,7 +659,7 @@ PLANNER_INSTRUCTIONS = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.  # noqa: E501"
     "\n" + AGENT_WORKSPACE + "\n"
     "**Early Blocker Protocol (MANDATORY)**:\n"
     "If you encounter a blocker you cannot resolve within 3 tool calls (m"
@@ -689,8 +685,7 @@ PLANNER_INSTRUCTIONS = (
     "u prefer it.\n" + DELEGATION_SUMMARY_SCHEMA + "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )
@@ -722,7 +717,7 @@ EXPLORER_INSTRUCTIONS = (
     " sessions so future agents don't re-research the same things.  # noq"
     "a: E501\n"
     "- **Documentation**: Write research findings, analysis scripts, and "
-    "design docs into `.agent_tasks/<task-slug>/`.  # noqa: E501\n"
+    "design docs to durable notes or the project knowledge graph.  # noqa: E501\n"
     "- **Analysis**: Run commands via `shell` to gather data, test hypoth"
     "eses, or validate findings.\n"
     "\n"
@@ -752,7 +747,7 @@ EXPLORER_INSTRUCTIONS = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.  # noqa: E501"
     "\n" + AGENT_WORKSPACE + "\n"
     "**Early Blocker Protocol (MANDATORY)**:\n"
     "If you encounter a blocker you cannot resolve within 3 tool calls (m"
@@ -778,8 +773,7 @@ EXPLORER_INSTRUCTIONS = (
     "u prefer it.\n" + DELEGATION_SUMMARY_SCHEMA + "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )
@@ -824,10 +818,10 @@ ENGINEER_INSTRUCTIONS = (
     "efactor unrelated code or add unrequested features.  # noqa: E501\n"
     "\n"
     "**Plan Awareness**: Before implementing, check if a Planner has left"
-    " an implementation plan in `.agent_tasks/`. If a plan exists, follow"
+    " an implementation plan in durable notes. If a plan exists, follow"
     " it — don't freelance a different design. If the plan conflicts with"
-    " reality (outdated paths, missing APIs), note the discrepancy in HAN"
-    "DOFF_NOTES so the Tech Lead can update the plan.  # noqa: E501\n"
+    " reality (outdated paths, missing APIs), note the discrepancy in "
+    "HANDOFF_NOTES so the Tech Lead can update the plan.  # noqa: E501\n"
     "\n"
     "**Mandatory Reconnaissance**: Before using any write or execute tool"
     " (write_file, edit_file, shell), you MUST first use at least one rea"
@@ -843,7 +837,7 @@ ENGINEER_INSTRUCTIONS = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.  # noqa: E501"
     "\n" + AGENT_WORKSPACE + "\n"
     "**Early Blocker Protocol (MANDATORY)**:\n"
     "If you encounter a blocker you cannot resolve within 3 tool calls (m"
@@ -869,8 +863,7 @@ ENGINEER_INSTRUCTIONS = (
     "u prefer it.\n" + DELEGATION_SUMMARY_SCHEMA + LINT_ON_WRITE_RULE + VERIFICATION_LOCK + "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )
@@ -959,7 +952,7 @@ DATA_ENGINEER_INSTRUCTIONS = (
     '- Do NOT "improve" or "clean up" code that is not part of the assign'
     "ment.\n"
     "- Do NOT create temporary files, debug scripts, or scratch pads in t"
-    "he repo root. Use `.agent_tasks/` instead (see below).  # noqa: E501"
+    "he repo root.  # noqa: E501"
     "\n" + AGENT_WORKSPACE + "\n"
     "**Early Blocker Protocol (MANDATORY)**:\n"
     "If you encounter a blocker you cannot resolve within 3 tool calls (m"
@@ -985,8 +978,7 @@ DATA_ENGINEER_INSTRUCTIONS = (
     "u prefer it.\n" + DELEGATION_SUMMARY_SCHEMA + LINT_ON_WRITE_RULE + VERIFICATION_LOCK + "\n"
     "**Clean-Up Habit**: Before declaring any task complete, verify:\n"
     "1. No leftover debug print statements or TODO comments were added.\n"
-    "2. No temporary or scratch files were created outside `.agent_tasks/"
-    "`.\n"
+    "2. No temporary or scratch files were created outside the project paths they belong in.\n"
     "3. All files you touched are in a clean, committed-ready state.\n"
     "If you find debris, clean it up before reporting completion.\n"
 )

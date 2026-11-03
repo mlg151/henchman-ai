@@ -21,7 +21,6 @@ Henchman-AI is a Python CLI for multi-provider, tool-using agents. The runtime i
 - `tests/` - Test suite, usually mirroring `src/henchman/`.
 - `docs/` - Long-form reference, guides, and tutorials.
 - `.henchman/` - Canonical project-local settings and context directory.
-- `.agent_tasks/` - Non-source task artifacts such as analysis notes or scratch scripts.
 - `FEATURE_TODO.md` - Tiered roadmap source of truth.
 - `TODOS.md` - Living snapshot of the current roadmap focus.
 

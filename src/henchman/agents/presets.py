@@ -117,12 +117,11 @@ def _create_planner_config() -> AgentConfig:
     """Create configuration for the Planner agent.
 
     The Planner designs architectures and breaks down tasks.
-    Creates design docs in .agent_tasks/.
     """
     return _create_agent_config(
         name="Planner",
         role="planner",
-        description="Architecture, task decomposition, and design docs in .agent_tasks/",
+        description="Architecture, task decomposition, and design docs.",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
             code_discovery_tools=True,
@@ -140,12 +139,11 @@ def _create_explorer_config() -> AgentConfig:
     """Create configuration for the Explorer agent.
 
     The Explorer researches, analyzes, and documents findings.
-    Creates documentation in .agent_tasks/.
     """
     return _create_agent_config(
         name="Explorer",
         role="explorer",
-        description="Research, analysis, and documentation in .agent_tasks/",
+        description="Research, analysis, and documentation.",
         tool_categories=ToolCategoryConfig(
             basic_file_tools=True,
             code_discovery_tools=True,
