@@ -64,11 +64,15 @@ async def test_snippet_uses_black_defaults_and_ignores_project_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Black formats only the string, without searching for workspace settings."""
+    from henchman.tools import snippet_formatting
     from henchman.tools.snippet_formatting import format_python_snippet
 
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[tool.black]\nline-length = "invalid"\n')
     (tmp_path / "black.py").write_text("raise RuntimeError('workspace module imported')\n")
+
+    monkeypatch.setattr(snippet_formatting, "SNIPPET_FORMAT_TIMEOUT", 5.0)
+    # Instrumentation allowance: this timeout is local to the test and doesn't affect production defaults.
     assert await format_python_snippet("values= [1,2]\n") == "values = [1, 2]\n"
 
 
