@@ -36,6 +36,7 @@ class SessionMessage(AsDictMixin):
     agent_id: str | None = None
     agent_role: str | None = None
     reasoning_content: str | None = None
+    reasoning_details: str | None = None
 
     def to_dict(self: SessionMessage) -> dict[str, Any]:
         """Convert to dictionary, omitting ``None`` values.
@@ -56,6 +57,8 @@ class SessionMessage(AsDictMixin):
             data["agent_role"] = self.agent_role
         if self.reasoning_content is not None:
             data["reasoning_content"] = self.reasoning_content
+        if self.reasoning_details is not None:
+            data["reasoning_details"] = self.reasoning_details
         return data
 
 
@@ -76,6 +79,7 @@ def message_from_dict(data: dict[str, Any]) -> SessionMessage:
         agent_id=data.get("agent_id"),
         agent_role=data.get("agent_role"),
         reasoning_content=data.get("reasoning_content"),
+        reasoning_details=data.get("reasoning_details"),
     )
 
 

@@ -93,6 +93,8 @@ def _format_message(message: Message) -> dict[str, Any]:
     }
     if message.reasoning_content:
         result["reasoning_content"] = message.reasoning_content
+    if message.reasoning_details:
+        result["reasoning_details"] = message.reasoning_details
     if message.tool_calls:
         result["tool_calls"] = [_format_tool_call_for_message(tc) for tc in message.tool_calls]
     if message.tool_call_id:

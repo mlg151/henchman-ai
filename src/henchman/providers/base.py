@@ -75,6 +75,7 @@ class Message:
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
     reasoning_content: str | None = None
+    reasoning_details: str | None = None
 
 
 @dataclass
