@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Closes
+
+- Close [issue #2](https://github.com/mlg151/henchman-ai/issues/2) —
+  the single primary coding agent with the full live tool catalog, plus
+  dynamically spawned background subagents with custom roles/prompts/scoped
+  tools, lifecycle states, reactive messaging and cancellation, and CLI
+  shutdown/history cleanup. The implementation shipped through
+  [PR #7](https://github.com/mlg151/henchman-ai/pull/7) into `0.4.1` and
+  [PR #8](https://github.com/mlg151/henchman-ai/pull/8) into `main`; all four
+  acceptance criteria are verified and documented in
+  [docs/agents.md](https://github.com/mlg151/henchman-ai/blob/main/docs/agents.md#dynamic-background-subagents).
+
 ## [0.4.1] - 2026-10-15
 
 ### Added
