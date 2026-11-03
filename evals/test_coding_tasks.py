@@ -5,6 +5,7 @@ Unlike behavioral evals that check tool usage, these verify the actual output.
 """
 
 import subprocess
+import sys
 
 from evals.helpers import EvalResult, EvalTestRig, eval_test, verify_python
 
@@ -85,7 +86,7 @@ def greet(name):
 
     # Verify the file now runs
     result = subprocess.run(
-        ["python", "-c", "import broken; broken.greet('World')"],
+        [sys.executable, "-c", "import broken; broken.greet('World')"],
         cwd=rig.test_dir,
         capture_output=True,
         text=True,
