@@ -176,6 +176,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate requirements
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           python3 -c '
           import os
@@ -187,8 +189,8 @@ jobs:
           
           success_count = 0
           for job_id in required_jobs:
-              outcome = needs_json.get(job_id)
-              if outcome == "success":
+              outcome = needs_json.get(job_id, {})
+              if isinstance(outcome, dict) and outcome.get("result") == "success":
                   success_count += 1
               else:
                   print(f"Job {job_id} did not succeed (status: {outcome})")
@@ -200,4 +202,3 @@ jobs:
           else:
               sys.exit(1)
           '
-          env: NEEDS_JSON: ${{ toJSON(needs) }}
