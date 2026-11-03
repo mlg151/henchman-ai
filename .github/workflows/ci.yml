@@ -79,7 +79,11 @@ jobs:
       - name: Run test suite
         run: |
           echo "::remove-matcher owner=checkout-git::"
-          uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ -q --no-cov
+          if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
+            uv run --python "${{ matrix.python-version }}" --extra dev pytest tests/ -q --cov=henchman --cov-config="$GITHUB_WORKSPACE/pyproject.toml" --cov-fail-under=90
+          else
+            uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ -q --no-cov
+          fi
 
   build-check:
     name: Build & Package Validation
