@@ -4,10 +4,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
-- Supported runtime and CI matrix: Python 3.11–3.14.
+- Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness.
 - Packaging dependency floors: `chromadb>=1.5.9` for RAG and direct `scipy>=1.11.2` for NetworkX PageRank queries.
 - Context safety: outside Git, project instruction discovery is bounded to the current working directory.
-- Install verification: CI builds a wheel and smoke-installs it on Python 3.11 and 3.14, checking both CLI entry points and an ephemeral Chroma collection.
+- Install verification: CI passes its validated wheel to Linux, macOS and Windows smoke jobs on Python 3.11–3.14, checking both CLI entry points, local RAG and scripted coding workflows outside the source checkout. See issue #12 for actual execution evidence.
 
 ## Completed tiers
 

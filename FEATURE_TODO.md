@@ -14,8 +14,10 @@ these are planned outcomes, not completed capabilities.
 
 Implementation has started on the release integration branch. The first reviewed
 foundation increment repairs the strict runtime-message contract after reasoning
-details preservation. CI/native-matrix work and the complete evaluation baseline
-remain in progress; the release gates below are not yet satisfied.
+details preservation. The expanded Python/native CI matrix and fail-closed
+aggregate gate are configured; actual native results, coverage enforcement and
+the complete evaluation baseline remain in progress. The release gates below
+are not yet satisfied.
 The reviewed evaluator increment connects five existing independent scenarios;
 this does not complete the twelve-case corpus or hosted baseline requirements.
 
