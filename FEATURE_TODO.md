@@ -2,7 +2,7 @@
 
 Organized by priority tiers. Each item is a discrete feature to implement.
 
-## v0.4.2 delivery plan (planned)
+## v0.4.2 delivery plan (in progress)
 
 The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
 turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)
@@ -11,6 +11,11 @@ into 24 dependency-ordered subtasks in the
 [v0.4.2 milestone](https://github.com/mlg151/henchman-ai/milestone/2).
 The epic owns detailed scope, acceptance criteria, dependencies and release gates;
 these are planned outcomes, not completed capabilities.
+
+Implementation has started on the release integration branch. The first reviewed
+foundation increment repairs the strict runtime-message contract after reasoning
+details preservation. CI/native-matrix work and the complete evaluation baseline
+remain in progress; the release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.
