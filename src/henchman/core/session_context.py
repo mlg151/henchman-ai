@@ -165,6 +165,7 @@ def _message_to_provider_message(message: SessionMessage) -> Message:
         tool_calls=tool_calls,
         tool_call_id=message.tool_call_id,
         reasoning_content=message.reasoning_content,
+        reasoning_details=message.reasoning_details,
     )
 
 
