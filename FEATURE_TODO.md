@@ -16,6 +16,8 @@ Implementation has started on the release integration branch. The first reviewed
 foundation increment repairs the strict runtime-message contract after reasoning
 details preservation. CI/native-matrix work and the complete evaluation baseline
 remain in progress; the release gates below are not yet satisfied.
+The reviewed evaluator increment connects five existing independent scenarios;
+this does not complete the twelve-case corpus or hosted baseline requirements.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.

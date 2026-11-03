@@ -385,3 +385,20 @@ If an eval is failing:
 2. Review recent changes to system prompts or tool definitions
 3. Consider if the eval expectations are still valid
 4. Prefer fixing prompts over loosening eval criteria
+
+### v0.4.2 corpus registry (in progress)
+
+[release_corpus.py](release_corpus.py) registers five existing independently
+checked scenarios: counter refactoring, method addition, variable rename,
+multi-file editing and Python helper reuse. `list_cases()` exposes their frozen
+metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
+scenario and validates recorded runtime outcomes. Wrong patches and provider
+failures remain rejections, regardless of final prose.
+
+Metadata records the corpus version, declared seed, fixture/oracle labels and a
+preferred profile. These labels do not prove that a provider applied a seed or
+that a particular profile ran: execution reports must record the actual
+`rig.profile_metadata` and supported seed behavior. The complete twelve-case
+corpus, bounded repeat-run reporting and hosted baseline qualification remain
+tracked in [issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
+registry contracts establish evaluator behavior, not model task quality.

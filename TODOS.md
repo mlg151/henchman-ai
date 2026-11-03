@@ -36,6 +36,7 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- The first reviewed evaluation-registry increment connects five existing independent scenarios to typed metadata and validated dispatch. The twelve-case corpus, repeated run reports and budgeted hosted baselines in #13 remain incomplete.
 - The first reviewed v0.4.2 foundation increment repairs the strict runtime-message contract and adds missing/null, opaque-value and invalid-type regressions. The full CI/native and independent evaluation gates remain open.
 - In-progress `v0.4.2` delivery is tracked by [epic #11](https://github.com/mlg151/henchman-ai/issues/11) and its 24 subtasks in the [v0.4.2 milestone](https://github.com/mlg151/henchman-ai/milestone/2), based on [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10) and [terminal UI research #31](https://github.com/mlg151/henchman-ai/issues/31). The dependency-ordered plan covers verified coding, context/control, review/recovery, budgets/privacy, integrations, terminal interaction/navigation/accessibility and release evidence; no completion is implied. Its foundation task reconciles the committed Python 3.11/3.12 self-hosted CI with the broader support claims above before new capabilities ship.
 - Release `0.4.1` integrates snippet formatting, dynamic background subagents, and standards research. Publication after successful main push CI uses the milestone version and repository `PYPI` secret; see [release process](CONTRIBUTING.md#-release-process).
