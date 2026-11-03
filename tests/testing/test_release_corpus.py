@@ -1,0 +1,90 @@
+import pytest
+from evals.helpers import EvalTestRig
+from evals.release_corpus import dispatch_case, get_case, list_cases
+from tests.testing.test_counter_eval_contract import (
+    _GLOBAL_COUNTER,
+    _INSTANCE_COUNTER,
+    _write_counter,
+)
+
+
+@pytest.mark.asyncio
+async def test_registry_dispatch_counter_success():
+    """Prove registry dispatch using the REGISTERED counter case."""
+    provider = _write_counter(_INSTANCE_COUNTER)
+    rig = EvalTestRig(provider=provider)
+
+    try:
+        rig.setup("counter-success")
+        result = await dispatch_case("counter-refactor", rig)
+
+        assert result.success
+        assert any(log.tool_name == "write_file" and log.success for log in result.tool_logs)
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_registry_dispatch_counter_wrong_patch():
+    """_write_counter(_GLOBAL_COUNTER) gives an independently wrong patch."""
+    provider = _write_counter(_GLOBAL_COUNTER)
+    rig = EvalTestRig(provider=provider)
+
+    try:
+        rig.setup("counter-wrong-patch")
+        with pytest.raises(AssertionError):
+            await dispatch_case("counter-refactor", rig)
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_registry_dispatch_counter_runtime_failure():
+    """_write_counter(_INSTANCE_COUNTER, fail_after_write=True) writes correct code then fails runtime."""
+    provider = _write_counter(_INSTANCE_COUNTER, fail_after_write=True)
+    rig = EvalTestRig(provider=provider)
+
+    try:
+        rig.setup("counter-runtime-failure")
+        with pytest.raises(AssertionError):
+            await dispatch_case("counter-refactor", rig)
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_registry_metadata_uniqueness():
+    """Test metadata uniqueness/known-id/unknown-id."""
+    # Known IDs
+    ids = [
+        "counter-refactor",
+        "add-method-class",
+        "rename-variable",
+        "multi-file-edit",
+        "python-reuse",
+    ]
+    for cid in ids:
+        metadata, _ = get_case(cid)
+        assert metadata.id == cid
+        assert metadata.version == "0.4.2-eval-v1"
+        assert metadata.seed == 42
+
+    # Unknown ID
+    with pytest.raises(ValueError, match="Unknown case ID: unknown-id"):
+        get_case("unknown-id")
+
+
+@pytest.mark.asyncio
+async def test_list_cases_completeness():
+    """Verify list_cases returns all registered cases with correct counts."""
+    cases = list_cases()
+    assert len(cases) == 5
+    case_ids = {c.id for c in cases}
+    expected_ids = {
+        "counter-refactor",
+        "add-method-class",
+        "rename-variable",
+        "multi-file-edit",
+        "python-reuse",
+    }
+    assert case_ids == expected_ids
