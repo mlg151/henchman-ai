@@ -164,7 +164,7 @@ jobs:
             smoke_python="$RUNNER_TEMP/henchman-wheel-smoke/bin/python"
           fi
           
-          $smoke_python tests/testing/installed_wheel_smoke.py --wheel-dir "$GITHUB_WORKSPACE/dist"
+          "$smoke_python" tests/testing/installed_wheel_smoke.py --wheel-dir "$GITHUB_WORKSPACE/dist"
 
   aggregate-gate:
     name: Aggregate Readiness Gate
