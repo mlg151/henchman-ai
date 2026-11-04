@@ -449,25 +449,35 @@ class TestFileToolPermissionErrors:
 class TestLsToolEdgeCases:
     """Additional tests for ls tool."""
 
-    async def test_ls_permission_error(self) -> None:
+    async def test_ls_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on directory."""
-        import os
-        import stat
+        from collections.abc import Iterator
 
         from henchman.tools.builtins.ls import LsTool
 
         tool = LsTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a subdirectory and remove permissions
-            subdir = Path(tmpdir) / "restricted"
-            subdir.mkdir()
-            os.chmod(str(subdir), 0o000)
-            try:
-                result = await tool.execute(path=str(subdir))
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                os.chmod(str(subdir), stat.S_IRWXU)
+        # Create a restricted directory
+        restricted_dir = tmp_path / "restricted"
+        restricted_dir.mkdir()
+
+        denied_target: list[Path] = []
+        original_iterdir = Path.iterdir
+
+        def wrapper(self_path: Path) -> Iterator[Path]:
+            if self_path == restricted_dir:
+                denied_target.append(self_path)
+                raise PermissionError("denied by test")
+            return original_iterdir(self_path)
+
+        monkeypatch.setattr(Path, "iterdir", wrapper)
+
+        result = await tool.execute(path=str(restricted_dir))
+        assert result.success is False
+        assert "permission" in result.error.lower()
+
+        assert restricted_dir in denied_target
 
 
 class TestGlobToolEdgeCases:
