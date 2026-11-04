@@ -34,8 +34,9 @@ def get_pytest_command() -> str:
 
 
 @pytest.mark.asyncio
-async def test_python_reuse_scenario() -> None:
-    pytest_command = get_pytest_command()
+@pytest.mark.parametrize("fake_check", [False, True], ids=["actual-pytest", "fake-echo"])
+async def test_python_reuse_scenario(fake_check: bool) -> None:
+    pytest_command = "echo pytest 4 passed" if fake_check else get_pytest_command()
 
     responses = [
         [ToolCall(id="read", name="read_file", arguments={"path": "normalization.py"})],
@@ -59,7 +60,11 @@ async def test_python_reuse_scenario() -> None:
 
     try:
         rig.setup("reuse-positive")
-        result = await run_python_reuse_scenario(rig)
-        assert result.success
+        if fake_check:
+            with pytest.raises(AssertionError, match="verification"):
+                await run_python_reuse_scenario(rig)
+        else:
+            result = await run_python_reuse_scenario(rig)
+            assert result.success
     finally:
         rig.cleanup()
