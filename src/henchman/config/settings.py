@@ -242,14 +242,39 @@ def load_settings_snapshot(
         path_str = ".".join(str(p) for p in field_path) if field_path else "unknown"
 
         source_hint = f" in {files[-1]}" if files else ""
-        if path_str in origins:
-            origin = origins[path_str]
+
+        origin = origins.get(path_str)
+        if origin is not None:
             if origin.scope == "session":
                 source_hint = " in session overrides"
             elif origin.scope == "environment" and origin.source:
                 source_hint = f" from {origin.source}"
             elif origin.scope in ("file", "global", "project") and origin.source:
                 source_hint = f" in {origin.source}"
+        else:
+            descendants = [o for lp, o in origins.items() if lp.startswith(path_str + ".")]
+            if descendants:
+                unique_origins = set(descendants)
+                if len(unique_origins) == 1:
+                    origin = next(iter(unique_origins))
+                    if origin.scope == "session":
+                        source_hint = " in session overrides"
+                    elif origin.scope == "environment" and origin.source:
+                        source_hint = f" from {origin.source}"
+                    elif origin.scope in ("file", "global", "project") and origin.source:
+                        source_hint = f" in {origin.source}"
+                else:
+                    sources = []
+                    for o in unique_origins:
+                        if o.scope == "session":
+                            sources.append("session overrides")
+                        elif o.scope == "environment" and o.source:
+                            sources.append(f"environment ({o.source})")
+                        elif o.scope in ("file", "global", "project") and o.source:
+                            sources.append(f"{o.scope} ({o.source})")
+                        else:
+                            sources.append(f"({o.scope})" if o.source is None else f"({o.scope} {o.source})")
+                    source_hint = f" in {', '.join(sorted(sources))}"
 
         msg = f"Invalid settings{source_hint}: {path_str}"
         raise ConfigError(msg) from e
