@@ -88,8 +88,8 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
         "labels without duplicates, preserving first-seen order and not changing "
         "the input list. Reuse the helper; do not copy its implementation. Keep "
         "normalization.py and test_labels.py unchanged. Use edit_file or write_file "
-        f"to change label_index.py, then run {pytest_command} and "
-        "report what you verified.",
+        "to change label_index.py, then use shell with background=false to run exactly "
+        f"{pytest_command}, and report what you verified.",
         max_iterations=12,
         timeout=300,
     )
@@ -108,7 +108,11 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
     assert any(
         log.success and re.search(r"\b4 passed\b", log.result) and (
             log.tool_name == "pytest_run"
-            or (log.tool_name == "shell" and "pytest" in str(log.arguments.get("command", "")))
+            or (
+                log.tool_name == "shell"
+                and log.arguments.get("command") == pytest_command
+                and log.arguments.get("background") is False
+            )
         )
         for log in result.tool_logs[edits[-1] + 1:]
     ), "No successful pytest verification followed the final edit"
