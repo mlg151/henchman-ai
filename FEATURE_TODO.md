@@ -18,9 +18,9 @@ Implementation is in progress on the release integration branch. Foundation
 including full Linux Python 3.11–3.14 tests, enforced Python 3.12 coverage,
 12 native installed-wheel cohorts and the aggregate gate. Later feature changes
 and final release artifacts still require qualification under #30.
-The reviewed evaluator increment connects seven independent scenarios, including
-syntax repair and Fibonacci implementation with independent correctness and
-runtime checks. Test/doc updates, package lifecycle, semantic bug repair and
+The reviewed evaluator increment connects eight independent scenarios, including
+syntax repair, Fibonacci implementation and test/documentation delivery with
+independent correctness and runtime checks. Package lifecycle, semantic bug repair and
 failure/interruption recovery remain required. The
 complete twelve-case corpus and hosted baseline requirements remain in progress.
 The release gates below are not yet satisfied.

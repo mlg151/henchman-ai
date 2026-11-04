@@ -124,7 +124,7 @@ be recovered within a successful turn. Direct `EvalTestRig.run` calls still retu
 failure evidence for diagnostic callers; reusable scenario helpers explicitly
 check their results before accepting behavior.
 
-Seven registered scenarios expose rig-accepting helpers for configured-provider experiments:
+Eight registered scenarios expose rig-accepting helpers for configured-provider experiments:
 
 | Scenario helper | Independent checks |
 |---|---|
@@ -135,6 +135,7 @@ Seven registered scenarios expose rig-accepting helpers for configured-provider 
 | `test_python_reuse.run_python_reuse_scenario` | Provided tests execute independently, requiring four actual passes and a call to the existing normalizer for each input. |
 | `test_coding_tasks.run_fix_syntax_error_scenario` | Repaired greeting output and return value are checked independently. |
 | `test_coding_tasks.run_fibonacci_scenario` | Fixed numeric results and actual Python integer types are checked independently. |
+| `test_test_docs.run_test_docs_scenario` | Executes required doctests, preserves the implementation AST, and requires passing candidate tests that reject five semantic mutants. Runtime completion must also succeed. |
 
 These use `verify_python` from `evals/helpers.py`. It invokes the current Python
 interpreter with inherited Python options disabled, so `PYTHONOPTIMIZE` cannot
@@ -404,9 +405,10 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers seven independently
+[release_corpus.py](release_corpus.py) registers eight independently
 checked scenarios: counter refactoring, method addition, variable rename,
-multi-file editing, Python helper reuse, syntax repair and Fibonacci implementation. `list_cases()` exposes their frozen
+multi-file editing, Python helper reuse, syntax repair, Fibonacci implementation
+and test/documentation delivery. `list_cases()` exposes their frozen
 metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
 scenario and validates recorded runtime outcomes. Wrong patches and provider
 failures remain rejections, regardless of final prose. The syntax-repair oracle
@@ -416,6 +418,10 @@ fixed expected values and Python `int` results. Fresh per-check bytecode-cache
 locations prevent stale workspace bytecode from deciding Python oracle results. Offline fault tests also
 reject a provider failure after a correct file write; mutation checks verify
 that removing either the independent oracle or runtime-success check is caught.
+The test/documentation case runs required direct doctests, checks the unchanged
+implementation AST and requires candidate tests to reject five semantic mutants.
+Its fault controls also reject a runtime failure after independently valid
+artifacts were written.
 
 Metadata records the corpus version, declared seed, fixture/oracle labels and a
 preferred profile. These labels do not prove that a provider applied a seed or
