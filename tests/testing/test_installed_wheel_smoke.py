@@ -56,13 +56,17 @@ def test_staged_tests_exclude_source_and_source_loading_conftest(tmp_path):
     assert (tmp_path / "evals/artifact_observation.py").is_file()
     assert (tmp_path / "evals/package_oracle.py").is_file()
     assert not (tmp_path / "tests/testing/test_package_oracle.py").exists()
+    assert not (tmp_path / "tests/testing/test_package_runtime_observer.py").exists()
 
 
 def test_package_staging_is_explicit_and_keeps_source_excluded(tmp_path):
     repository = Path(__file__).resolve().parents[2]
     stage_workflow_tests(repository, tmp_path, include_package=True)
     assert not (tmp_path / "src").exists()
-    for name in ("test_package_oracle.py", "test_team_package_scenario.py"):
+    for name in (
+        "test_package_oracle.py", "test_team_package_scenario.py",
+        "test_package_runtime_observer.py",
+    ):
         assert (tmp_path / "tests/testing" / name).read_bytes() == (
             repository / "tests/testing" / name
         ).read_bytes()
