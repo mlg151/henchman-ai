@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -17,12 +18,19 @@ from henchman.config.paths import (
     resolve_project_settings_path,
 )
 from henchman.config.schema import Settings
+from henchman.config.settings import SettingOrigin, load_settings_snapshot
 
 _SETTINGS_FILENAME = "settings.yaml"
 _SUPPORTED_SETTINGS_FILENAMES = ("settings.yaml", "settings.yml", "settings.json")
 _USER_SETTINGS_DIRNAME = ".henchman"
 _SYNC_UI_KEYS = ("output_style", "theme", "keybindings")
 _MISSING = object()
+
+@dataclass(frozen=True)
+class SettingInspection:
+    """Representation of a single setting value with its origin information."""
+    value: Any
+    origin: SettingOrigin
 
 
 class SettingsScope(StrEnum):
@@ -64,6 +72,45 @@ class SettingsRepository:
             return _clone_mapping(self._read_project_settings())
         msg = f"Unsupported settings scope: {scope}"
         raise ValueError(msg)
+
+    def inspect(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, SettingInspection]:
+        """Inspect settings for a selected scope and return their origins.
+
+        Args:
+            scope: Which scope to inspect.
+
+        Returns:
+            A mapping of leaf dotted key paths to their SettingInspection.
+        """
+        if scope is SettingsScope.MERGED:
+            snapshot = load_settings_snapshot(project_root=self._project_root)
+            settings_dict = snapshot.settings.model_dump(mode="python")
+            origins_dict = snapshot.origins
+            leaf_paths = _flatten_key_paths(settings_dict)
+            return {
+                lp: SettingInspection(value=_get_key_path(settings_dict, lp), origin=origins_dict[lp])
+                for lp in leaf_paths
+            }
+
+        directory: Path | None
+        if scope is SettingsScope.GLOBAL:
+            directory = self._user_settings_directory()
+        elif scope is SettingsScope.PROJECT:
+            directory = self._project_settings_directory_for_read()
+        else:
+            msg = f"Unsupported settings scope: {scope}"
+            raise ValueError(msg)
+
+        source_file = _resolve_settings_file(directory) if directory is not None else None
+        settings_dict = _read_settings_file(source_file) if source_file is not None else {}
+        origin = SettingOrigin(
+            scope="global" if scope is SettingsScope.GLOBAL else "project",
+            source=str(source_file) if source_file is not None else None,
+        )
+        return {
+            key: SettingInspection(value=_get_key_path(settings_dict, key), origin=origin)
+            for key in _flatten_key_paths(settings_dict)
+        }
 
     def list(self, *, scope: SettingsScope = SettingsScope.MERGED) -> list[str]:
         """List flattened key paths available within a selected scope.
@@ -156,16 +203,17 @@ class SettingsRepository:
             sync_payload["keybindings"] = dict(keybindings)
         self.import_settings({"ui": sync_payload}, scope=scope)
 
+    def _project_settings_directory_for_read(self) -> Path | None:
+        """Resolve the existing canonical directory or its legacy read fallback."""
+        canonical = resolve_project_settings_path(self._project_root)
+        if canonical.exists():
+            return canonical
+        return resolve_legacy_project_settings_path(self._project_root)
+
     def _read_project_settings(self) -> dict[str, Any]:
         """Return persisted project settings with legacy fallback for reads."""
-        canonical_directory = resolve_project_settings_path(self._project_root)
-        if canonical_directory.exists():
-            return self._read_settings_directory(canonical_directory)
-
-        legacy_directory = resolve_legacy_project_settings_path(self._project_root)
-        if legacy_directory is None:
-            return {}
-        return self._read_settings_directory(legacy_directory)
+        directory = self._project_settings_directory_for_read()
+        return self._read_settings_directory(directory) if directory is not None else {}
 
     def _write_scope_settings(self, scope: SettingsScope, payload: dict[str, Any]) -> None:
         """Validate and persist a scope document."""
