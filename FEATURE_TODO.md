@@ -15,9 +15,10 @@ these are planned outcomes, not completed capabilities.
 Implementation has started on the release integration branch. The first reviewed
 foundation increment repairs the strict runtime-message contract after reasoning
 details preservation. The expanded Python/native CI matrix and fail-closed
-aggregate gate are configured; actual native results, coverage enforcement and
-the complete evaluation baseline remain in progress. The release gates below
-are not yet satisfied.
+aggregate gate and Python 3.12 coverage floor are configured. The first native
+run exposed Windows/macOS portability failures now under repair; successful
+integrated results and the complete evaluation baseline remain in progress.
+The release gates below are not yet satisfied.
 The reviewed evaluator increment connects five existing independent scenarios;
 this does not complete the twelve-case corpus or hosted baseline requirements.
 
