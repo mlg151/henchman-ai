@@ -24,6 +24,7 @@ from henchman.version import VERSION
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
 
+    from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
 
 
@@ -91,8 +92,11 @@ class RuntimeContext:
     env_block: str
 
 
-def _get_provider() -> ModelProvider:
+def _get_provider(settings: Settings | None = None) -> ModelProvider:
     """Get the configured model provider.
+
+    Args:
+        settings: Validated settings to reuse, or None to load configuration.
 
     Returns:
         A ModelProvider instance.
@@ -101,8 +105,11 @@ def _get_provider() -> ModelProvider:
         click.ClickException: If no provider is configured.
     """
     try:
-        load_settings = _import_attr("henchman.config", "load_settings")
         create_provider = _import_attr("henchman.providers.factory", "create_configured_provider")
+        if settings is not None:
+            return cast("ModelProvider", create_provider(settings.providers))
+
+        load_settings = _import_attr("henchman.config", "load_settings")
         settings = load_settings()
         return cast("ModelProvider", create_provider(settings.providers))
     except Exception as exc:
@@ -169,8 +176,11 @@ def _prepare_runtime_context() -> RuntimeContext:
         "format_environment_block",
         "gather_environment",
     )
-    provider = _get_provider()
-    settings = load_settings()
+    try:
+        settings = load_settings()
+    except Exception as exc:
+        raise click.ClickException(f"Unable to configure provider: {exc}") from exc
+    provider = _get_provider(settings=settings)
 
     # Load context from HENCHMAN.md files
     context_loader = context_loader_class()
