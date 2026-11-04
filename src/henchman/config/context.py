@@ -222,12 +222,38 @@ class ContextLoader:
         cwd = (self._start_dir or Path.cwd()).resolve()
         git_root = self._find_git_root(cwd)
         stop_at = git_root or cwd
+        stop_at_resolved = stop_at.resolve()
 
-        files = self._global_context_files()
-        files.extend(self._ancestor_context_files(cwd, stop_at, files))
+        # Gather global candidates
+        globals_raw = self._global_context_files()
+
+        # Gather repository candidates (ancestors + subdirs)
+        ancestors_raw = self._ancestor_context_files(cwd, stop_at, globals_raw)
+
+        subdirs_raw: list[Path] = []
         if self.include_subdirs and git_root:
-            files.extend(self._subdir_context_files(cwd))
-        return files
+            subdirs_raw = self._subdir_context_files(cwd)
+
+        henchman_home = (Path.home() / ".henchman").resolve()
+
+        final_files: list[Path] = []
+        seen_resolved: set[Path] = set()
+
+        # Filter globals
+        for path in globals_raw:
+            resolved = path.resolve()
+            if resolved.is_relative_to(henchman_home) and resolved not in seen_resolved:
+                final_files.append(path)
+                seen_resolved.add(resolved)
+
+        # Filter repository candidates
+        for path in ancestors_raw + subdirs_raw:
+            resolved = path.resolve()
+            if resolved.is_relative_to(stop_at_resolved) and resolved not in seen_resolved:
+                final_files.append(path)
+                seen_resolved.add(resolved)
+
+        return final_files
 
     def load(self: ContextLoader) -> str:
         """Load and concatenate all context files.
