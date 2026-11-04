@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from henchman.agents.metrics import OrchestratorMetrics
     from henchman.agents.orchestrator_types import CompletionStatus, DelegationParams
     from henchman.agents.pool import AgentPool
+    from henchman.config.context import ContextSnapshot
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import Message
@@ -684,6 +685,12 @@ def _populate_execution_params(
         prepared_brief,
         mission=runner.ledger.goal if runner.ledger else None,
     )
+    from henchman.config.context import ContextSnapshot
+    from henchman.core.instruction_provenance import render_delegation_appendix
+
+    snapshot = getattr(runner, "instruction_snapshot", None)
+    if isinstance(snapshot, ContextSnapshot) and snapshot.sources:
+        params.full_task += f"\n\n{render_delegation_appendix(snapshot)}"
     params.msg_start = len(target_agent.messages)
 
 
@@ -852,6 +859,7 @@ class DelegationRunner:
         self._run_agent_loop = run_agent_loop
         self._assess_completion = assess_completion
         self.ledger: TaskLedger | None = None
+        self.instruction_snapshot: ContextSnapshot | None = None
 
     # -- Main entry point -------------------------------------------------
 

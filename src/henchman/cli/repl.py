@@ -371,6 +371,9 @@ class Repl:
             environment_context=environment_context,
         )
         orchestrator.instruction_snapshot = self.config.instruction_snapshot
+        runner = getattr(orchestrator, "delegation_runner", None)
+        if runner is not None:
+            runner.instruction_snapshot = orchestrator.instruction_snapshot
         return orchestrator
 
     def _init_handlers(self: Self) -> None:

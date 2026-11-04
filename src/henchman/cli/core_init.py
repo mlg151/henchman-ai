@@ -131,6 +131,9 @@ def create_core_context(
         environment_context=environment_context,
     )
     orchestrator.instruction_snapshot = instruction_snapshot
+    runner = getattr(orchestrator, "delegation_runner", None)
+    if runner is not None:
+        runner.instruction_snapshot = instruction_snapshot
 
     # Reference Tech Lead as primary agent
     agent = orchestrator.tech_lead

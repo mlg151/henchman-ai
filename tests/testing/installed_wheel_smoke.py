@@ -203,6 +203,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/config/test_context_precedence.py",
         "tests/core/test_instruction_provenance.py",
         "tests/core/test_instruction_policy_boundary.py",
+        "tests/agents/test_delegation_provenance.py",
         "tests/cli/test_session_manager_provenance.py",
         "tests/cli/test_repl_instruction_provenance.py",
         "tests/cli/test_subagent_provenance.py",
