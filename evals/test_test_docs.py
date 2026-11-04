@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from evals.helpers import run_pytest_evidence, verify_python
+from evals.helpers import EvalResult, EvalTestRig, run_pytest_evidence, verify_python
 
 _CLAMP_SOURCE: str = """
 def clamp(value: int, lower: int, upper: int) -> int:
@@ -53,6 +53,7 @@ async def verify_clamp_tests(workspace: Path) -> None:
     finally:
         bounds_path.write_bytes(orig_bounds)
         test_bounds_path.write_bytes(orig_test_bounds)
+
 
 async def verify_clamp_documentation(workspace: Path) -> None:
     """Execute the required examples while preserving the implementation AST."""
@@ -145,3 +146,50 @@ if __name__ == "__main__":
         assert bounds_file.read_bytes() == original, "Doctests changed source"
     finally:
         bounds_file.write_bytes(original)
+
+
+_CLAMP_TEST_STUB: str = """
+import pytest
+from bounds import clamp
+
+def test_clamp():
+    assert clamp(3, 0, 5) == 3
+"""
+
+async def run_test_docs_scenario(rig: EvalTestRig) -> EvalResult:
+    """Deliver tests/docs and verify actual artifacts independently of final prose."""
+    rig.create_file("bounds.py", _CLAMP_SOURCE)
+    rig.create_file("test_bounds.py", _CLAMP_TEST_STUB)
+
+    bounds_file = rig.test_dir / "bounds.py"
+    test_bounds_file = rig.test_dir / "test_bounds.py"
+
+    orig_bounds = bounds_file.read_bytes()
+    orig_test_bounds = test_bounds_file.read_bytes()
+
+    prompt = """Improve the documentation and tests for the clamp function in bounds.py.
+The implementation and signature must stay unchanged except for the docstrings.
+Tests should cover below/inside/above/equal/negative bounds and invalid range.
+The function docstring must have direct doctest examples:
+- clamp(-2,0,5)->0
+- clamp(3,0,5)->3
+- clamp(9,0,5)->5
+- clamp(0,4,1) raising ValueError: lower exceeds upper, with actual traceback-style doctest.
+"""
+
+    result = await rig.run(prompt, max_iterations=12, timeout=300)
+
+    assert result.success, result.error or result.final_response
+
+    candidate_bounds = bounds_file.read_bytes()
+    candidate_test_bounds = test_bounds_file.read_bytes()
+    assert candidate_bounds != orig_bounds, "Documentation was not updated"
+    assert candidate_test_bounds != orig_test_bounds, "Tests were not updated"
+
+    await verify_clamp_documentation(rig.test_dir)
+    await verify_clamp_tests(rig.test_dir)
+
+    assert bounds_file.read_bytes() == candidate_bounds, "bounds.py changed after verification"
+    assert test_bounds_file.read_bytes() == candidate_test_bounds, "test_bounds.py changed after verification"
+
+    return result
