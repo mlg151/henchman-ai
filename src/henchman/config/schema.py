@@ -149,7 +149,7 @@ class UISettings(BaseModel):
         theme: UI color theme name.
         show_line_numbers: Whether to show line numbers in file output.
         mcp_logging: Whether to show MCP connection/logging messages in terminal.
-        output_style: Output verbosity style (verbose, concise, minimal).
+        output_style: Output verbosity style (verbose, concise, minimal, json).
         accessible_mode: Whether to enable accessibility mode.
         keybindings: Custom keybinding mappings.
         style_overrides: Custom style overrides.

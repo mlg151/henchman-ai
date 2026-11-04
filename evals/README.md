@@ -388,14 +388,16 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers six independently
+[release_corpus.py](release_corpus.py) registers seven independently
 checked scenarios: counter refactoring, method addition, variable rename,
-multi-file editing, Python helper reuse and syntax repair. `list_cases()` exposes their frozen
+multi-file editing, Python helper reuse, syntax repair and Fibonacci implementation. `list_cases()` exposes their frozen
 metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
 scenario and validates recorded runtime outcomes. Wrong patches and provider
 failures remain rejections, regardless of final prose. The syntax-repair oracle
 checks the greeting and return value in a bounded child process and requires
-an execution receipt, rejecting an early zero exit. Offline fault tests also
+an execution receipt, rejecting an early zero exit. The Fibonacci case checks
+fixed expected values and Python `int` results. Fresh per-check bytecode-cache
+locations prevent stale workspace bytecode from deciding Python oracle results. Offline fault tests also
 reject a provider failure after a correct file write; mutation checks verify
 that removing either the independent oracle or runtime-success check is caught.
 

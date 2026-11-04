@@ -46,6 +46,10 @@ ui:
 replace an invalid existing value with one of these supported names. This uses
 the same schema when loading settings and validating configuration writes.
 
+Unknown fields inside `ui` are rejected rather than silently ignored. Remove
+obsolete or misspelled fields from existing files; entries inside the supported
+`keybindings` and `style_overrides` mappings remain customizable.
+
 ## Environment Variables
 
 | Variable | Description |
