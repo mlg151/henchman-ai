@@ -237,12 +237,20 @@ def load_settings_snapshot(
     try:
         settings = Settings(**merged)
     except ValidationError as e:
-        source_hint = (
-            f" in {files[-1]}" if files else ""
-        )
         # Extract field path from the first validation error
         field_path = e.errors()[0]["loc"] if e.errors() else ()
         path_str = ".".join(str(p) for p in field_path) if field_path else "unknown"
+
+        source_hint = f" in {files[-1]}" if files else ""
+        if path_str in origins:
+            origin = origins[path_str]
+            if origin.scope == "session":
+                source_hint = " in session overrides"
+            elif origin.scope == "environment" and origin.source:
+                source_hint = f" from {origin.source}"
+            elif origin.scope in ("file", "global", "project") and origin.source:
+                source_hint = f" in {origin.source}"
+
         msg = f"Invalid settings{source_hint}: {path_str}"
         raise ConfigError(msg) from e
 
