@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from prompt_toolkit.application import create_app_session
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -499,7 +500,13 @@ class Repl:
         self.running = True
         self._interactive_loop_active = True
         # Render asynchronous output above the editable prompt, retaining Rich ANSI styling.
-        with patch_stdout(raw=True):
+        prompt_session = self.input_handler.prompt_session
+        with (
+            create_app_session(
+                output=prompt_session.output if prompt_session is not None else None
+            ),
+            patch_stdout(raw=True),
+        ):
             try:
                 self.output_handler.print_welcome()
                 await self.initialize_mcp()
