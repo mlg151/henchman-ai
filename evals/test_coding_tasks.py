@@ -5,7 +5,6 @@ Unlike behavioral evals that check tool usage, these verify the actual output.
 """
 
 import subprocess
-import sys
 
 from evals.helpers import EvalResult, EvalTestRig, eval_test, verify_python
 
@@ -69,10 +68,8 @@ if __name__ == "__main__":
     assert "All tests passed!" in result.stdout
 
 
-@eval_test("ALWAYS_PASSES")
-async def test_fix_syntax_error(rig: EvalTestRig) -> None:
-    """Agent should fix a syntax error in code."""
-    # Create a file with a syntax error
+async def run_fix_syntax_error_scenario(rig: EvalTestRig) -> EvalResult:
+    """Repair syntax and independently verify the greeting and return value."""
     rig.create_file(
         "broken.py",
         """
@@ -81,18 +78,28 @@ def greet(name):
     return True
 """,
     )
+    result = await rig.run("Fix the syntax error in broken.py")
+    assert result.success, result.error or result.final_response
+    await verify_python(
+        rig.test_dir,
+        '''import contextlib
+import io
+import broken
 
-    await rig.run("Fix the syntax error in broken.py")
-
-    # Verify the file now runs
-    result = subprocess.run(
-        [sys.executable, "-c", "import broken; broken.greet('World')"],
-        cwd=rig.test_dir,
-        capture_output=True,
-        text=True,
-        timeout=5,
+output = io.StringIO()
+with contextlib.redirect_stdout(output):
+    returned = broken.greet("World")
+assert returned is True
+assert output.getvalue() == "Hello, World!\\n"
+''',
     )
-    assert result.returncode == 0, f"Fixed code should run: {result.stderr}"
+    return result
+
+
+@eval_test("ALWAYS_PASSES")
+async def test_fix_syntax_error(rig: EvalTestRig) -> None:
+    """Agent should fix a syntax error in code."""
+    await run_fix_syntax_error_scenario(rig)
 
 
 @eval_test("USUALLY_PASSES")
