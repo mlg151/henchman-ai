@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 from henchman.config import load_settings
+from henchman.config.key_paths import flatten_key_paths as _flatten_key_paths
 from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
@@ -377,18 +378,6 @@ def _parse_key_path(key_path: str) -> list[str]:
         msg = f"Invalid key path: {key_path!r}"
         raise ValueError(msg)
     return path_segments
-
-
-def _flatten_key_paths(payload: Mapping[str, Any], prefix: str = "") -> list[str]:
-    """Return dotted key paths for each leaf in a nested mapping."""
-    key_paths: list[str] = []
-    for key, value in payload.items():
-        path = f"{prefix}.{key}" if prefix else key
-        if isinstance(value, Mapping) and value:
-            key_paths.extend(_flatten_key_paths(value, path))
-            continue
-        key_paths.append(path)
-    return key_paths
 
 
 def _clone_mapping(payload: Mapping[str, Any]) -> dict[str, Any]:
