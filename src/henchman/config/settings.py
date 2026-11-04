@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -27,7 +28,7 @@ class ConfigError(ValueError):
 class SettingOrigin:
     """The layer and source responsible for one effective field."""
 
-    scope: Literal["default", "global", "project", "file", "environment"]
+    scope: Literal["default", "global", "project", "file", "environment", "session"]
     source: str | None = None
 
 
@@ -175,12 +176,17 @@ def _apply_env_overrides(
     return result
 
 
-def load_settings_snapshot(project_root: Path | None = None) -> SettingsSnapshot:
+def load_settings_snapshot(
+    project_root: Path | None = None, *, overrides: Mapping[str, Any] | None = None,
+) -> SettingsSnapshot:
     """Load settings with hierarchical merging and return a snapshot with origins.
+
+    This includes an optional transient session layer for temporary overrides.
 
     Args:
         project_root: Optional project root for workspace settings discovery.
             When omitted, the current working directory is used.
+        overrides: Optional transient session overrides.
 
     Returns:
         SettingsSnapshot containing the merged Settings and origin tracking.
@@ -220,6 +226,13 @@ def load_settings_snapshot(project_root: Path | None = None) -> SettingsSnapshot
     # Apply environment overrides
     merged = _apply_env_overrides(merged, origins=origins)
 
+    # Apply transient session overrides
+    if overrides is not None:
+        session_values = dict(overrides)
+        merged = deep_merge(merged, session_values)
+        for lp in flatten_key_paths(session_values):
+            origins[lp] = SettingOrigin(scope="session", source=None)
+
     # Validate and create Settings
     try:
         settings = Settings(**merged)
@@ -246,7 +259,9 @@ def load_settings_snapshot(project_root: Path | None = None) -> SettingsSnapshot
     return SettingsSnapshot(settings=settings, origins=final_origins)
 
 
-def load_settings(project_root: Path | None = None) -> Settings:
+def load_settings(
+    project_root: Path | None = None, *, overrides: Mapping[str, Any] | None = None,
+) -> Settings:
     """Load settings with hierarchical merging.
 
     Precedence (later overrides earlier):
@@ -254,10 +269,12 @@ def load_settings(project_root: Path | None = None) -> Settings:
     2. User settings (~/.henchman/settings.yaml)
     3. Workspace settings (.henchman/settings.yaml)
     4. Environment variables (HENCHMAN_PROVIDER, HENCHMAN_MODEL)
+    5. Transient session overrides
 
     Args:
         project_root: Optional project root for workspace settings discovery.
             When omitted, the current working directory is used.
+        overrides: Optional transient session overrides.
 
     Returns:
         Merged Settings object.
@@ -265,7 +282,11 @@ def load_settings(project_root: Path | None = None) -> Settings:
     Raises:
         ConfigError: If settings files are invalid.
     """
-    snapshot = load_settings_snapshot(project_root)
+    snapshot = (
+        load_settings_snapshot(project_root)
+        if overrides is None
+        else load_settings_snapshot(project_root, overrides=overrides)
+    )
     return snapshot.settings
 
 
