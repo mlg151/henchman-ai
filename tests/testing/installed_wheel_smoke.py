@@ -156,6 +156,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/advanced/test_plan_acceptance.py",
         "tests/testing/test_pytest_reporter.py",
         "tests/testing/test_eval_helpers.py",
+        "tests/testing/test_eval_fixture_encoding.py",
         "tests/testing/test_eval_profiles.py",
         "tests/testing/test_team_eval_profile.py",
         "tests/testing/test_team_environment_context.py",
