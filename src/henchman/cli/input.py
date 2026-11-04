@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import re
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,11 +16,11 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings, KeyPress
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.output.plain_text import PlainTextOutput
 from rich.prompt import Confirm, IntPrompt, Prompt
 
 if TYPE_CHECKING:
     from rich.console import Console
-
 
 try:
     from typing import Self
@@ -214,11 +215,16 @@ def create_session(
 
     history = FileHistory(str(history_file)) if history_file else None
 
+    output = None
+    if sys.stdout is not None and not sys.stdout.isatty():
+        output = PlainTextOutput(sys.stdout)
+
     return PromptSession(
         history=history,
         key_bindings=bindings,
         bottom_toolbar=bottom_toolbar,
         completer=completer,
+        output=output,
     )
 
 
