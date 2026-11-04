@@ -185,6 +185,9 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/testing/test_fibonacci_scenario.py",
         "tests/testing/test_eval_bytecode_freshness.py",
         "tests/config/test_ui_unknown_fields.py",
+        "tests/config/test_settings_snapshot.py",
+        "tests/testing/test_pytest_evidence_helper.py",
+        "tests/testing/test_python_reuse_scenario.py",
         "tests/utils/test_source_files.py",
     ):
         destination = target / relative

@@ -112,7 +112,7 @@ def test_stage_workflow_tests_includes_new_release_and_syntax_files(
 def test_stage_workflow_tests_includes_new_regression_files(
     tmp_path: Path, include_package: bool,
 ) -> None:
-    """Verify the three new files are staged correctly in both modes."""
+    """Verify reviewed regression modules are staged correctly in both modes."""
     repository = Path(__file__).resolve().parents[2]
     stage_workflow_tests(repository, tmp_path, include_package=include_package)
 
@@ -120,6 +120,9 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/testing/test_fibonacci_scenario.py",
         "tests/testing/test_eval_bytecode_freshness.py",
         "tests/config/test_ui_unknown_fields.py",
+        "tests/config/test_settings_snapshot.py",
+        "tests/testing/test_pytest_evidence_helper.py",
+        "tests/testing/test_python_reuse_scenario.py",
     ]
 
     for path_str in paths:
