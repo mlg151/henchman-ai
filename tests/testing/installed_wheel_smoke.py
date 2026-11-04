@@ -191,6 +191,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/config/test_settings_inspection.py",
         "tests/cli/test_config_environment_origins.py",
         "tests/cli/test_runtime_settings_snapshot.py",
+        "tests/cli/test_textual_settings_snapshot.py",
         "tests/utils/test_source_files.py",
     ):
         destination = target / relative
