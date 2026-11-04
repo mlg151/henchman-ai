@@ -175,20 +175,18 @@ class TestEditFileTool:
         assert "old_str" in params["properties"]
         assert "new_str" in params["properties"]
 
-    async def test_edit_file_success(self) -> None:
+    async def test_edit_file_success(self, tmp_path: Path) -> None:
         """Successfully edit a file with string replacement."""
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world")
-            f.flush()
-            result = await tool.execute(
-                path=f.name,
-                old_str="world",
-                new_str="universe",
-            )
-            assert result.success is True
-            assert Path(f.name).read_text() == "hello universe"
-        Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("hello world", encoding="utf-8")
+        result = await tool.execute(
+            path=str(path),
+            old_str="world",
+            new_str="universe",
+        )
+        assert result.success is True
+        assert path.read_text(encoding="utf-8") == "hello universe"
 
     async def test_edit_file_string_not_found(self) -> None:
         """Error when old_str not found in file."""
