@@ -140,8 +140,7 @@ async def test_add_method_to_class(rig: EvalTestRig) -> None:
     await run_add_method_to_class_scenario(rig)
 
 
-@eval_test("USUALLY_PASSES")
-async def test_fix_bug_preserve_formatting(rig: EvalTestRig) -> None:
+async def run_semantic_bug_fix_scenario(rig: EvalTestRig) -> EvalResult:
     """Agent should fix a bug while preserving code formatting."""
     rig.create_file(
         "utils.py",
@@ -173,10 +172,11 @@ def clamp(value, min_val, max_val):
 ''',
     )
 
-    await rig.run(
+    result = await rig.run(
         "Fix the bug in safe_divide in utils.py - it should return None when b is zero, not 0. "
         "Preserve the existing formatting and comments."
     )
+    assert result.success, result.error or result.final_response
 
     content = rig.read_file("utils.py")
 
@@ -210,6 +210,13 @@ assert clamp(3, 0, 5) == 3
 assert clamp(9, 0, 5) == 5
 """
     await verify_python(rig.test_dir, checks)
+    return result
+
+
+@eval_test("USUALLY_PASSES")
+async def test_fix_bug_preserve_formatting(rig: EvalTestRig) -> None:
+    """Agent should fix a bug while preserving code formatting."""
+    await run_semantic_bug_fix_scenario(rig)
 
 
 async def run_rename_variable_consistently_scenario(rig: EvalTestRig) -> EvalResult:
