@@ -8,6 +8,7 @@ from evals.models import EvalResult
 # Import scenarios from the actual test modules
 from evals.test_coding_tasks import (
     run_counter_refactor_scenario,
+    run_fibonacci_scenario,
     run_fix_syntax_error_scenario,
 )
 from evals.test_edit_precision import (
@@ -96,6 +97,17 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             profile="engineer",
         ),
         run_fix_syntax_error_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="fibonacci",
+            category="feature",
+            seed=42,
+            fixture_identity="fibonacci-fixture",
+            oracle_identity="fibonacci-oracle",
+            profile="basic",
+        ),
+        run_fibonacci_scenario,
     ),
 )
 
