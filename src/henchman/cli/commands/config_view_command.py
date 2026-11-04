@@ -12,7 +12,6 @@ import yaml
 from henchman.cli.commands.config_redaction import redact_config_value_for_display
 from henchman.config.repository import SettingsRepository, SettingsScope
 
-_DEFAULT_SCOPE_LABEL: Final[str] = "default"
 _SCOPE_CHOICES: Final[tuple[str, ...]] = tuple(scope.value for scope in SettingsScope)
 _MISSING_KEY_ERROR_CODE: Final[str] = "HMN_CFG_KEY_NOT_FOUND"
 _MISSING_KEY_ERROR_MESSAGE: Final[str] = "Requested configuration key was not found."
@@ -144,16 +143,16 @@ def _build_value_payload(
     scope: SettingsScope,
 ) -> ConfigValuePayload:
     """Build a structured payload for a single config key lookup."""
-    available_keys = _list_keys(repository, scope=scope)
-    if key_path not in available_keys:
+    inspections = repository.inspect(scope=scope)
+    if key_path not in inspections:
         raise _missing_key_exception(key_path=key_path, scope=scope)
 
-    value = repository.get(key_path, scope=scope)
+    entry = inspections[key_path]
     return ConfigValuePayload(
         key=key_path,
-        value=redact_config_value_for_display(key_path=key_path, value=value),
+        value=redact_config_value_for_display(key_path=key_path, value=entry.value),
         requested_scope=scope.value,
-        resolved_scope=_resolve_scope_label(repository=repository, key_path=key_path, scope=scope),
+        resolved_scope=entry.origin.scope,
     )
 
 
@@ -163,37 +162,16 @@ def _build_list_payload(
     scope: SettingsScope,
 ) -> ConfigListPayload:
     """Build a structured payload for listing config keys."""
+    inspections = repository.inspect(scope=scope)
+    sorted_keys = sorted(inspections.keys())
     entries = tuple(
         ConfigListEntry(
             key=key_path,
-            resolved_scope=_resolve_scope_label(repository=repository, key_path=key_path, scope=scope),
+            resolved_scope=inspections[key_path].origin.scope,
         )
-        for key_path in _list_keys(repository, scope=scope)
+        for key_path in sorted_keys
     )
     return ConfigListPayload(requested_scope=scope.value, entries=entries)
-
-
-def _resolve_scope_label(
-    *,
-    repository: SettingsRepository,
-    key_path: str,
-    scope: SettingsScope,
-) -> str:
-    """Resolve the active source label for a config key."""
-    if scope is SettingsScope.GLOBAL:
-        return SettingsScope.GLOBAL.value
-    if scope is SettingsScope.PROJECT:
-        return SettingsScope.PROJECT.value
-    if key_path in _list_keys(repository, scope=SettingsScope.PROJECT):
-        return SettingsScope.PROJECT.value
-    if key_path in _list_keys(repository, scope=SettingsScope.GLOBAL):
-        return SettingsScope.GLOBAL.value
-    return _DEFAULT_SCOPE_LABEL
-
-
-def _list_keys(repository: SettingsRepository, *, scope: SettingsScope) -> tuple[str, ...]:
-    """Return a stable key listing for one repository scope."""
-    return tuple(repository.list(scope=scope))
 
 
 def _missing_key_exception(*, key_path: str, scope: SettingsScope) -> click.ClickException:
