@@ -206,6 +206,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/testing/test_test_docs_documentation.py",
         "tests/testing/test_test_docs_scenario.py",
         "tests/testing/test_semantic_bug_scenario.py",
+        "evals/test_tool_failure_recovery.py",
+        "tests/testing/test_tool_failure_recovery_scenario.py",
     ):
         destination = target / relative
         destination.parent.mkdir(parents=True, exist_ok=True)

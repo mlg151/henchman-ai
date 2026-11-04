@@ -20,6 +20,7 @@ from evals.test_edit_precision import (
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_python_reuse import run_python_reuse_scenario
 from evals.test_test_docs import run_test_docs_scenario
+from evals.test_tool_failure_recovery import run_tool_failure_recovery_scenario
 
 
 @dataclass(frozen=True)
@@ -147,6 +148,18 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             version="0.4.2-eval-v1",
         ),
         run_semantic_bug_fix_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="tool-failure-recovery",
+            category="recovery",
+            seed=42,
+            fixture_identity="tool-failure-recovery-fixture",
+            oracle_identity="tool-failure-recovery-oracle",
+            profile="engineer",
+            version="0.4.2-eval-v1",
+        ),
+        run_tool_failure_recovery_scenario,
     ),
 )
 
