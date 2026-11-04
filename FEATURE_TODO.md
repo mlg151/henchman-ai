@@ -12,15 +12,16 @@ into 24 dependency-ordered subtasks in the
 The epic owns detailed scope, acceptance criteria, dependencies and release gates;
 these are planned outcomes, not completed capabilities.
 
-Implementation has started on the release integration branch. The first reviewed
-foundation increment repairs the strict runtime-message contract after reasoning
-details preservation. The expanded Python/native CI matrix and fail-closed
-aggregate gate and Python 3.12 coverage floor are configured. The first native
-run exposed Windows/macOS portability failures now under repair; successful
-integrated results and the complete evaluation baseline remain in progress.
+Implementation is in progress on the release integration branch. Foundation
+[issue #12](https://github.com/mlg151/henchman-ai/issues/12) is complete at
+`55fd66b`: all 20 jobs passed in the [qualified CI run](https://github.com/mlg151/henchman-ai/actions/runs/41758021286),
+including full Linux Python 3.11–3.14 tests, enforced Python 3.12 coverage,
+12 native installed-wheel cohorts and the aggregate gate. Later feature changes
+and final release artifacts still require qualification under #30.
+The reviewed evaluator increment connects six independent scenarios, including
+syntax repair with independent output, return-value and runtime checks. The
+complete twelve-case corpus and hosted baseline requirements remain in progress.
 The release gates below are not yet satisfied.
-The reviewed evaluator increment connects five existing independent scenarios;
-this does not complete the twelve-case corpus or hosted baseline requirements.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.
@@ -56,7 +57,7 @@ primary integration while preserving independent provider adapters.
 - [x] Preserve runtime failures through completion reporting, specialist handoffs, ledgers, and terminal rendering; isolate agent evidence and reject missing or unknown delegation outcomes. Final-message report fields and explicit no-blocker values preserve actual action evidence. Task correctness remains separate from execution status.
 - [ ] Verify installation and coding tools on Linux, macOS, and Windows in CI.
 - [x] Add an installed-wheel OS matrix and regressions for Unix-only startup imports, native locks, process checks, Windows upgrade paths, and Python output encoding; hosted OS results remain unverified.
-- [x] Run the five-adapter real-tool coding workflow on Linux and verify a fresh wheel install outside the source checkout; model responses are scripted and native macOS/Windows runs remain required.
+- [x] Run the five-adapter real-tool coding workflow from fresh installed wheels outside the checkout on Linux, macOS and Windows, each on Python 3.11–3.14; model responses are scripted. Foundation candidate `55fd66b` passed all cohorts; live-model and final-artifact qualification remain separate gates.
 - [x] Stream serial team events without accumulating whole tool batches, preserving consumer backpressure, interruption cleanup, and per-agent evidence. Full application memory and event-array output remain separate concerns.
 - [ ] Establish reproducible coding-task evaluations with success, regression, latency, and cost measurements before claiming industry-leading performance.
 

@@ -388,12 +388,16 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers five existing independently
+[release_corpus.py](release_corpus.py) registers six independently
 checked scenarios: counter refactoring, method addition, variable rename,
-multi-file editing and Python helper reuse. `list_cases()` exposes their frozen
+multi-file editing, Python helper reuse and syntax repair. `list_cases()` exposes their frozen
 metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
 scenario and validates recorded runtime outcomes. Wrong patches and provider
-failures remain rejections, regardless of final prose.
+failures remain rejections, regardless of final prose. The syntax-repair oracle
+checks the greeting and return value in a bounded child process and requires
+an execution receipt, rejecting an early zero exit. Offline fault tests also
+reject a provider failure after a correct file write; mutation checks verify
+that removing either the independent oracle or runtime-success check is caught.
 
 Metadata records the corpus version, declared seed, fixture/oracle labels and a
 preferred profile. These labels do not prove that a provider applied a seed or

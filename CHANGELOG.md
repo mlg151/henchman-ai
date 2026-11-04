@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Supported CI matrix** — Configure full Linux tests on Python 3.11–3.14 and installed-wheel smoke on Linux, macOS and Windows for each interpreter. Native jobs consume the validated build artifact, and an aggregate gate rejects missing, skipped, cancelled or failed prerequisites. Matrix execution evidence remains required before release.
-- **Evaluation registry** — Register five existing independent coding scenarios with typed, versioned metadata and runtime-validated dispatch. Offline positive/wrong-patch/provider-failure contracts cover the first increment; the complete twelve-case corpus and hosted qualification remain in progress.
+- **Supported CI matrix** — Configure full Linux tests on Python 3.11–3.14 and installed-wheel smoke on Linux, macOS and Windows for each interpreter. Native jobs consume the validated build artifact, and an aggregate gate rejects missing, skipped, cancelled or failed prerequisites. Foundation candidate `55fd66b` passed all 20 required jobs; later changes and final release artifacts still require qualification.
+- **Evaluation registry** — Register six independent coding scenarios with typed, versioned metadata and runtime-validated dispatch, including syntax repair with independent output/return checks and fault controls. Offline positive/wrong-patch/early-exit/provider-failure contracts cover the reviewed increment; the complete twelve-case corpus and hosted qualification remain in progress.
 - **Terminal UI research** — Added a [sourced comparison](docs/terminal-ui-research.md) of coding-agent interfaces and Python terminal applications, with Henchman-specific interaction recommendations and phased acceptance criteria. UI implementation and native usability qualification remain planned.
 - **v0.4.2 UI planning** — Included all five UI phases as [epic #11](https://github.com/mlg151/henchman-ai/issues/11) subtasks #32–#36, with shared-service ownership, native prerequisite links and a UI qualification release gate. The epic now contains 24 planned subtasks; no runtime UI completion is implied.
 
