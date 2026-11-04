@@ -148,44 +148,36 @@ if __name__ == "__main__":
     assert result.returncode == 0, f"FizzBuzz tests should pass: {result.stderr}\n{result.stdout}"
 
 
-@eval_test("USUALLY_PASSES")
-async def test_implement_fibonacci(rig: EvalTestRig) -> None:
-    """Agent should implement Fibonacci sequence correctly."""
-    await rig.run(
+async def run_fibonacci_scenario(rig: EvalTestRig) -> EvalResult:
+    """Agent should implement Fibonacci sequence correctly and independently verify it."""
+    result = await rig.run(
         "Create fibonacci.py with a function called 'fib' that takes n and "
         "returns the nth Fibonacci number (0-indexed, so fib(0)=0, fib(1)=1, fib(2)=1, etc.)"
     )
+    assert result.success, result.error or result.final_response
 
     assert rig.file_exists("fibonacci.py"), "fibonacci.py should be created"
 
-    rig.create_file(
-        "test_fib.py",
-        """
-from fibonacci import fib
+    await verify_python(
+        rig.test_dir,
+        '''from fibonacci import fib
 
-def test_fib():
-    assert fib(0) == 0
-    assert fib(1) == 1
-    assert fib(2) == 1
-    assert fib(3) == 2
-    assert fib(4) == 3
-    assert fib(5) == 5
-    assert fib(10) == 55
-
-if __name__ == "__main__":
-    test_fib()
-    print("Fibonacci tests passed!")
-""",
+expected = [0,1,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]
+for i, val in enumerate(expected):
+    actual = fib(i)
+    assert type(actual) is int
+    assert actual == val
+actual = fib(30)
+assert type(actual) is int
+assert actual == 832040''',
     )
+    return result
 
-    result = subprocess.run(
-        ["python", "test_fib.py"],
-        cwd=rig.test_dir,
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
-    assert result.returncode == 0, f"Fibonacci tests should pass: {result.stderr}\n{result.stdout}"
+
+@eval_test("USUALLY_PASSES")
+async def test_implement_fibonacci(rig: EvalTestRig) -> None:
+    """Agent should implement Fibonacci sequence correctly."""
+    await run_fibonacci_scenario(rig)
 
 
 async def run_counter_refactor_scenario(rig: EvalTestRig) -> EvalResult:
