@@ -455,7 +455,7 @@ class TestHenchmanTextualApp:
     @patch("henchman.cli.textual_config.TextualConfig")
     @patch("henchman.config.environment.format_environment_block")
     @patch("henchman.config.environment.gather_environment")
-    def test_resolve_provider_from_env_handles_all_exceptions(
+    def test_resolve_provider_rejects_settings_and_handles_presentation_errors(
         self,
         mock_gather_environment,
         mock_format_environment_block,
@@ -464,27 +464,20 @@ class TestHenchmanTextualApp:
         mock_get_provider,
         textual_app,
     ):
-        """Test Bug 1 fix: All initialization steps should handle exceptions.
-
-        Previously only _get_provider() was wrapped in try-except. Now
-        load_settings(), TextualConfig(), format_environment_block(), and
-        gather_environment() should all handle exceptions gracefully.
-        """
+        """Invalid settings stop startup; presentation/environment failures fall back."""
         # Setup mocks
         mock_provider = MagicMock()
         mock_provider.name = "test-provider"
         mock_get_provider.return_value = mock_provider
 
-        # Test 1: load_settings() raises exception - should be handled
+        # Invalid settings must fail before provider construction.
         mock_load_settings.side_effect = ValueError("Corrupted settings file")
 
-        # This should NOT crash - should handle exception gracefully
-        with pytest.warns(RuntimeWarning, match="Failed to load settings"):
+        with pytest.raises(ValueError, match="Corrupted settings file"):
             textual_app._resolve_provider_from_env()
 
-        # Verify settings were set to defaults
-        assert textual_app.settings is not None
-        assert hasattr(textual_app.settings, "ui")  # Default Settings object
+        mock_load_settings.assert_called_once_with()
+        mock_get_provider.assert_not_called()
 
         # Test 2: TextualConfig() raises exception - should be handled
         mock_load_settings.reset_mock(side_effect=True)

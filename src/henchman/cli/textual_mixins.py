@@ -75,6 +75,7 @@ if TYPE_CHECKING:
         ToolCallResultMessage,
         ToolConfirmationMessage,
     )
+    from henchman.config.schema import Settings
     from henchman.core.events import AgentEvent
     from henchman.providers.base import (
         Message,
@@ -576,12 +577,14 @@ class _ProviderMixin:
 
     def _resolve_provider_from_env(self: _ProviderMixin) -> None:
         """Auto-detect provider from environment."""
-        self.provider = self._load_provider_safe()
         self.settings = self._load_settings_safe()
+        self.provider = self._load_provider_safe(settings=self.settings)
         self.config = self._create_config_safe()
         self.environment_context = self._gather_env_safe()
 
-    def _load_provider_safe(self: _ProviderMixin) -> ModelProvider:
+    def _load_provider_safe(
+        self: _ProviderMixin, settings: Settings | None = None
+    ) -> ModelProvider:
         """Load provider with fallback to ``_NullProvider``.
 
         Returns:
@@ -589,7 +592,10 @@ class _ProviderMixin:
         """
         try:
             provider_loader = _import_module("henchman.cli.app")._get_provider  # noqa: SLF001
-            return cast(ModelProvider, provider_loader())
+            return cast(
+                ModelProvider,
+                provider_loader(settings=settings) if settings is not None else provider_loader(),
+            )
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to initialize provider: {exc}. Using null provider.",
@@ -599,22 +605,17 @@ class _ProviderMixin:
             return _NullProvider()
 
     @staticmethod
-    def _load_settings_safe() -> Any:
-        """Load settings with fallback to defaults.
+    def _load_settings_safe() -> Settings:
+        """Load settings.
 
         Returns:
-            Loaded or default settings.
+            Loaded settings.
+
+        Raises:
+            ConfigError: If settings fail to load.
         """
-        try:
-            settings_module = _import_module("henchman.config")
-            return settings_module.load_settings()
-        except Exception as exc:  # noqa: BLE001
-            warnings.warn(
-                f"Failed to load settings: {exc}. Using defaults.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            return _import_module("henchman.config.schema").Settings()
+        settings_module = _import_module("henchman.config")
+        return cast("Settings", settings_module.load_settings())
 
     @staticmethod
     def _create_config_safe() -> TextualConfig:
