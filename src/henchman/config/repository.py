@@ -12,7 +12,12 @@ from typing import Any
 import yaml
 
 from henchman.config import load_settings
-from henchman.config.key_paths import flatten_key_paths as _flatten_key_paths
+from henchman.config.key_paths import (
+    flatten_key_paths as _flatten_key_paths,
+)
+from henchman.config.key_paths import (
+    flatten_key_values as _flatten_key_values,
+)
 from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
@@ -86,10 +91,9 @@ class SettingsRepository:
             snapshot = load_settings_snapshot(project_root=self._project_root)
             settings_dict = snapshot.settings.model_dump(mode="python")
             origins_dict = snapshot.origins
-            leaf_paths = _flatten_key_paths(settings_dict)
             return {
-                lp: SettingInspection(value=_get_key_path(settings_dict, lp), origin=origins_dict[lp])
-                for lp in leaf_paths
+                path: SettingInspection(value=val, origin=origins_dict[path])
+                for path, val in _flatten_key_values(settings_dict).items()
             }
 
         directory: Path | None
@@ -108,8 +112,8 @@ class SettingsRepository:
             source=str(source_file) if source_file is not None else None,
         )
         return {
-            key: SettingInspection(value=_get_key_path(settings_dict, key), origin=origin)
-            for key in _flatten_key_paths(settings_dict)
+            key: SettingInspection(value=val, origin=origin)
+            for key, val in _flatten_key_values(settings_dict).items()
         }
 
     def list(self, *, scope: SettingsScope = SettingsScope.MERGED) -> list[str]:
