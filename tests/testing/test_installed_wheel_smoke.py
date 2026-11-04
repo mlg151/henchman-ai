@@ -106,3 +106,23 @@ def test_stage_workflow_tests_includes_new_release_and_syntax_files(
         path = repository / path_str
         assert path.exists(), f"Expected {path} to exist in repository"
         assert (tmp_path / path_str).read_bytes() == path.read_bytes()
+
+
+@pytest.mark.parametrize("include_package", [True, False])
+def test_stage_workflow_tests_includes_new_regression_files(
+    tmp_path: Path, include_package: bool,
+) -> None:
+    """Verify the three new files are staged correctly in both modes."""
+    repository = Path(__file__).resolve().parents[2]
+    stage_workflow_tests(repository, tmp_path, include_package=include_package)
+
+    paths = [
+        "tests/testing/test_fibonacci_scenario.py",
+        "tests/testing/test_eval_bytecode_freshness.py",
+        "tests/config/test_ui_unknown_fields.py",
+    ]
+
+    for path_str in paths:
+        path = repository / path_str
+        assert path.exists(), f"Expected {path} to exist in repository"
+        assert (tmp_path / path_str).read_bytes() == path.read_bytes()
