@@ -1,7 +1,7 @@
 import pytest
 from evals.helpers import EvalTestRig
 from evals.release_corpus import dispatch_case, get_case, list_cases
-from evals.test_coding_tasks import run_fix_syntax_error_scenario
+from evals.test_coding_tasks import run_fibonacci_scenario, run_fix_syntax_error_scenario
 from tests.testing.test_counter_eval_contract import (
     _GLOBAL_COUNTER,
     _INSTANCE_COUNTER,
@@ -64,6 +64,7 @@ async def test_registry_metadata_uniqueness():
         "multi-file-edit",
         "python-reuse",
         "syntax-fix",
+        "fibonacci",
     ]
     for cid in ids:
         metadata, _ = get_case(cid)
@@ -80,7 +81,7 @@ async def test_registry_metadata_uniqueness():
 async def test_list_cases_completeness():
     """Verify list_cases returns all registered cases with correct counts."""
     cases = list_cases()
-    assert len(cases) == 6
+    assert len(cases) == 7
     case_ids = {c.id for c in cases}
     expected_ids = {
         "counter-refactor",
@@ -89,6 +90,7 @@ async def test_list_cases_completeness():
         "multi-file-edit",
         "python-reuse",
         "syntax-fix",
+        "fibonacci",
     }
     assert case_ids == expected_ids
 
@@ -103,3 +105,16 @@ def test_get_case_syntax_fix_metadata() -> None:
     assert metadata.oracle_identity == "syntax-fix-oracle"
     assert metadata.profile == "engineer"
     assert callback is run_fix_syntax_error_scenario
+
+
+def test_get_case_fibonacci_metadata() -> None:
+    """Verify metadata for the fibonacci case."""
+    metadata, callback = get_case("fibonacci")
+    assert metadata.id == "fibonacci"
+    assert metadata.category == "feature"
+    assert metadata.seed == 42
+    assert metadata.fixture_identity == "fibonacci-fixture"
+    assert metadata.oracle_identity == "fibonacci-oracle"
+    assert metadata.profile == "basic"
+    assert metadata.version == "0.4.2-eval-v1"
+    assert callback is run_fibonacci_scenario
