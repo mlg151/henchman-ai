@@ -152,7 +152,8 @@ async def run_fibonacci_scenario(rig: EvalTestRig) -> EvalResult:
     """Agent should implement Fibonacci sequence correctly and independently verify it."""
     result = await rig.run(
         "Create fibonacci.py with a function called 'fib' that takes n and "
-        "returns the nth Fibonacci number (0-indexed, so fib(0)=0, fib(1)=1, fib(2)=1, etc.)"
+        "returns the nth Fibonacci number (0-indexed, so fib(0)=0, fib(1)=1, fib(2)=1, etc.). "
+        "Return a Python int for each non-negative integer n."
     )
     assert result.success, result.error or result.final_response
 
