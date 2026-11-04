@@ -392,25 +392,34 @@ class TestFileToolPermissionErrors:
         assert result.success is False
         assert "permission" in result.error.lower()
 
-    async def test_write_file_permission_error(self) -> None:
+    async def test_write_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Handle permission denied on write."""
-        import os
-        import stat
+        path = tmp_path / "test.txt"
+        denied_paths: list[Path] = []
+
+        original_write_text = Path.write_text
+
+        def wrapper(
+            self_path: Path, data: str, encoding: str | None = None,
+            errors: str | None = None, newline: str | None = None,
+        ) -> int:
+            if self_path == path:
+                denied_paths.append(self_path)
+                raise PermissionError("denied by test")
+            return original_write_text(
+                self_path, data, encoding=encoding, errors=errors, newline=newline,
+            )
+
+        monkeypatch.setattr(Path, "write_text", wrapper)
 
         tool = WriteFileTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Make directory read-only
-            os.chmod(tmpdir, stat.S_IRUSR | stat.S_IXUSR)
-            try:
-                result = await tool.execute(
-                    path=str(Path(tmpdir) / "test.txt"),
-                    content="test",
-                )
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(tmpdir, stat.S_IRWXU)
+        result = await tool.execute(path=str(path), content="test")
+
+        assert result.success is False
+        assert "permission" in result.error.lower()
+        assert path in denied_paths
 
     async def test_edit_file_permission_error(self) -> None:
         """Handle permission denied on edit."""
