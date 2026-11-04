@@ -529,6 +529,7 @@ from henchman.config import (
     load_settings,
     Settings,
     ContextLoader,
+    ContextSnapshot,
     ContextSettings,
     ProviderSettings,
     ToolSettings,
@@ -606,6 +607,17 @@ class Settings:
 ### ContextLoader
 
 ```python
+class ContextSnapshot:
+    sources: tuple[ContextSource, ...]
+    content: str
+
+    @property
+    def digest(self) -> str: ...        # SHA-256 of rendered content
+    @property
+    def truncated_sources(self) -> tuple[ContextSource, ...]: ...
+    def diagnostics(self) -> tuple[ContextSourceDiagnostic, ...]: ...
+    def to_dict(self, *, include_content: bool = False) -> dict: ...
+
 class ContextLoader:
     def __init__(
         self,
@@ -614,14 +626,21 @@ class ContextLoader:
         *,
         include_subdirs: bool = False,
         start_dir: Path | None = None,
+        max_source_chars: int | None = None,
     ) -> None:
         """Initialize context loader."""
-    
+
     def discover_files(self) -> list[Path]:
         """Discover context files."""
-    
+
     def load(self) -> str:
         """Load and concatenate context files."""
+
+    def load_snapshot(self) -> ContextSnapshot:
+        """Capture ordered sources, provenance and the rendered content."""
+
+    def load_for_path(self, target: Path) -> ContextSnapshot:
+        """Re-resolve instructions for another subtree; rejects outside targets."""
 ```
 
 Context discovery is repository-bounded. When `start_dir` is inside Git, ancestor discovery stops at the Git root; outside Git, it stops at `start_dir` itself and subdirectory discovery is disabled. Global context under `~/.henchman/` is collected separately.

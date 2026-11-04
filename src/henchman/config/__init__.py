@@ -3,7 +3,7 @@
 This module provides configuration loading and context file discovery.
 """
 
-from henchman.config.context import DEFAULT_FILENAMES, ContextLoader
+from henchman.config.context import DEFAULT_FILENAMES, ContextLoader, ContextSnapshot
 from henchman.config.environment import (
     EnvironmentContext,
     format_environment_block,
@@ -24,6 +24,7 @@ __all__ = [
     "DEFAULT_FILENAMES",
     "ConfigError",
     "ContextLoader",
+    "ContextSnapshot",
     "ContextSettings",
     "EnvironmentContext",
     "McpServerConfig",
