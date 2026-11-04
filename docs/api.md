@@ -547,9 +547,31 @@ from henchman.config import (
 ### load_settings
 
 ```python
-def load_settings() -> Settings:
+def load_settings(project_root: Path | None = None) -> Settings:
     """Load settings from all sources (defaults, user, workspace, env)."""
 ```
+
+### load_settings_snapshot
+
+```python
+from henchman.config.settings import load_settings_snapshot
+
+snapshot = load_settings_snapshot(project_root=Path.cwd())
+settings = snapshot.settings
+origin = snapshot.origins["providers.default"]
+```
+
+The loader returns validated `Settings` and a mapping from dotted leaf paths to
+`SettingOrigin(scope, source)` from the same load. Scopes are `default`, `global`,
+`project`, `file` for a selected `HENCHMAN_SETTINGS_PATH`, and `environment`.
+Sources identify the settings path or environment variable name; default sources
+are `None`. An overlay remains the origin even when its value equals the lower
+layer. A nonexistent explicit file retains the existing global/project fallback.
+`load_settings` delegates to this loader and returns only its settings.
+
+Snapshot values can contain credentials. Apply the existing configuration display
+redaction before showing or exporting them. Session overrides and CLI origin
+integration remain follow-up work for v0.4.2.
 
 ### Settings
 

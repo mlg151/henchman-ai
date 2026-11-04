@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Settings snapshots** — Expose validated values and traced default, global, project, explicit-file and environment origins from the existing loader. Repository/CLI consumption and transient session overrides remain in progress.
+- **Independent pytest evidence** — Share bounded, fresh-cache pytest verification and validate actual execution counts; the Python reuse oracle still requires all four provided tests to pass.
 - **Supported CI matrix** — Configure full Linux tests on Python 3.11–3.14 and installed-wheel smoke on Linux, macOS and Windows for each interpreter. Native jobs consume the validated build artifact, and an aggregate gate rejects missing, skipped, cancelled or failed prerequisites. Foundation candidate `55fd66b` passed all 20 required jobs; later changes and final release artifacts still require qualification.
 - **Evaluation registry** — Register seven independent coding scenarios with typed, versioned metadata and runtime-validated dispatch, including syntax repair and Fibonacci implementation with independent correctness checks and fault controls. Offline positive/wrong-patch/early-exit/provider-failure contracts cover the reviewed increment; the complete twelve-case corpus and hosted qualification remain in progress.
 - **Terminal UI research** — Added a [sourced comparison](docs/terminal-ui-research.md) of coding-agent interfaces and Python terminal applications, with Henchman-specific interaction recommendations and phased acceptance criteria. UI implementation and native usability qualification remain planned.
