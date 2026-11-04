@@ -126,5 +126,6 @@ def test_repository_load_and_edits_preserve_partial_role_fields_and_other_settin
     repository.import_settings(exported, scope=SettingsScope.PROJECT)
     assert load_settings(project_root=project).agents.agents["tech_lead"] == leader
     assert settings_file.is_file()
-    assert not (project / ".hENCHMAN").exists()
+    assert (project / ".henchman").exists()
+    assert ".hENCHMAN" not in {child.name for child in project.iterdir()}
     assert not home.exists()
