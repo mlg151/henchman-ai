@@ -135,6 +135,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/config/test_grouped_settings_inspection.py",
         "tests/config/test_unknown_group_error_origin.py",
         "tests/cli/test_config_group_values.py",
+        "tests/cli/test_config_header_redaction.py",
         "tests/cli/test_config_environment_origins.py",
         "tests/cli/test_runtime_settings_snapshot.py",
         "tests/cli/test_textual_settings_snapshot.py",
