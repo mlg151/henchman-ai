@@ -37,9 +37,14 @@ tools:
 
 # UI settings
 ui:
-  theme: default
-  markdown_rendering: true
+  theme: dark
+  output_style: verbose
 ```
+
+`ui.output_style` accepts `verbose` (the default), `concise`, `minimal`, or
+`json`. Blank values and unsupported names fail validation at `ui.output_style`;
+replace an invalid existing value with one of these supported names. This uses
+the same schema when loading settings and validating configuration writes.
 
 ## Environment Variables
 

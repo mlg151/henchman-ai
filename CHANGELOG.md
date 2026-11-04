@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Output-style validation** — Reject blank or unsupported UI output-style names through the shared settings schema while retaining verbose, concise, minimal and JSON modes.
 - **Portable text I/O** — Decode source text as UTF-8 and preserve supplied write bytes across platform defaults, retaining the established LF-normalized read/edit contract.
 - **Native verification fixtures** — Write generated Python fixtures as UTF-8, inject permission faults at the actual I/O boundary, and accept native stdout line endings. Use exact byte counts and verify descendant shutdown after stop completion with a release handshake.
 - **Portable prompt startup** — Use plain text output for redirected stdout and reuse the selected prompt output for streaming, avoiding Windows console initialization errors while retaining normal terminal output selection. Native verification remains part of the release gate.
