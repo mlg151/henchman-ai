@@ -68,3 +68,62 @@ async def test_python_reuse_scenario(fake_check: bool) -> None:
             assert result.success
     finally:
         rig.cleanup()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wrong_target", [False, True], ids=["requested-file", "decoy-file"])
+async def test_python_reuse_scenario_gap(wrong_target: bool) -> None:
+    responses = [
+        [ToolCall(id="read", name="read_file", arguments={"path": "normalization.py"})],
+        [
+            ToolCall(
+                id="write",
+                name="write_file",
+                arguments={"path": "label_index.py", "content": CORRECT_IMPLEMENTATION},
+            )
+        ],
+    ]
+
+    if wrong_target:
+        responses.append(
+            [
+                ToolCall(
+                    id="decoy",
+                    name="write_file",
+                    arguments={
+                        "path": "test_decoy.py",
+                        "content": "\n".join(
+                            f"def test_{i}():\n    assert True\n" for i in range(4)
+                        ),
+                    },
+                )
+            ]
+        )
+    responses.extend(
+        [
+            [
+                ToolCall(
+                    id="check",
+                    name="pytest_run",
+                    arguments={
+                        "path": "test_decoy.py" if wrong_target else "test_labels.py",
+                    },
+                )
+            ],
+            "Done",
+        ]
+    )
+
+    provider = MockProvider(responses=responses)
+    rig = EvalTestRig(provider=provider, profile="engineer")
+
+    try:
+        rig.setup("reuse-positive")
+        if wrong_target:
+            with pytest.raises(AssertionError, match="verification"):
+                await run_python_reuse_scenario(rig)
+        else:
+            result = await run_python_reuse_scenario(rig)
+            assert result.success
+    finally:
+        rig.cleanup()
