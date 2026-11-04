@@ -10,6 +10,7 @@ Settings are loaded in this order (later overrides earlier):
 2. **User settings** - `~/.henchman/settings.yaml`
 3. **Workspace settings** - `.henchman/settings.yaml` in current directory
 4. **Environment variables** - `HENCHMAN_PROVIDER`, `HENCHMAN_MODEL`
+5. **Transient API overrides** - validated values passed to `load_settings_snapshot` or `load_settings`
 
 ## Inspecting effective settings
 
@@ -17,7 +18,10 @@ Settings are loaded in this order (later overrides earlier):
 its `resolved_scope`: `default`, `global`, `project`, `file`, or `environment`.
 `henchman config list` reports the same origin labels for its sorted leaf keys.
 Each command reads values and origins from one settings snapshot. A higher
-priority layer remains the origin even when it supplies the same value.
+priority layer remains the origin even when it supplies the same value. Group-valued
+`get`/`view` use actual maps; `mixed` is an origin label for contributions from
+different sources, not a new writable `--scope`. Lists remain leaf-only, secrets
+masked, and the canonical writes/legacy read fallback remains unchanged.
 
 ```bash
 henchman config get providers.default
@@ -36,13 +40,26 @@ them once when omitted, including when a provider is supplied separately.
 Invalid settings stop
 startup before provider construction. The TUI retains its presentation and
 environment fallbacks, but no longer substitutes default settings for an invalid
-configuration. Transient session overrides and remaining runtime consumers
-are still being aligned with this shared configuration path.
+configuration.
+
+Transient Python-API overrides apply after environment values and are not
+persisted. Their snapshot origins use the `session` label:
+
+```python
+from henchman.config.settings import load_settings_snapshot
+
+snapshot = load_settings_snapshot(overrides={"tools": {"shell_timeout": 30}})
+assert snapshot.settings.tools.shell_timeout == 30
+assert snapshot.origins["tools.shell_timeout"].scope == "session"
+```
+
+This API does not add session CLI flags or write scopes. Remaining CLI/REPL,
+resume and subagent consumers are still being aligned with the shared contract.
 
 An existing file selected by `HENCHMAN_SETTINGS_PATH` replaces normal user/project
 file discovery; environment provider/model overrides still apply afterward. If
 the selected path does not exist, normal file discovery remains the fallback.
-This is a file-selection control; transient session overrides remain in progress.
+Programmatic overrides still apply after the selected file and environment layers.
 
 ## Settings File
 
@@ -79,9 +96,11 @@ ui:
 replace an invalid existing value with one of these supported names. This uses
 the same schema when loading settings and validating configuration writes.
 
-Unknown fields inside `ui` are rejected rather than silently ignored. Remove
-obsolete or misspelled fields from existing files; entries inside the supported
-`keybindings` and `style_overrides` mappings remain customizable.
+Unknown fields in typed groups are rejected rather than silently ignored. Remove
+obsolete or misspelled fields from existing files; entries inside the declared
+provider options, UI keybindings, and style dictionaries remain customizable.
+Remove previously ignored keys including `tools.auto_approve`,
+`session.auto_save` and `session.sessions_dir` from existing files.
 
 ## Environment Variables
 
@@ -145,12 +164,6 @@ tools:
   
   # Timeout for shell commands in seconds
   shell_timeout: 60
-  
-  # Auto-approve specific tools by name
-  auto_approve:
-    - read_file
-    - ls
-    - glob
 ```
 
 ## Context Management Settings
@@ -257,14 +270,6 @@ mcp_servers:
     env:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     trusted: true
-```
-
-## Session Settings
-
-```yaml
-session:
-  auto_save: true  # Save sessions on exit
-  sessions_dir: ~/.henchman/sessions  # Session storage location
 ```
 
 ## Multi-Agent Settings
