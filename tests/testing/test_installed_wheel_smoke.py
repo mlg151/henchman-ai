@@ -66,3 +66,22 @@ def test_package_staging_is_explicit_and_keeps_source_excluded(tmp_path):
         assert (tmp_path / "tests/testing" / name).read_bytes() == (
             repository / "tests/testing" / name
         ).read_bytes()
+
+
+@pytest.mark.parametrize("include_package", [True, False])
+def test_stage_workflow_tests_includes_correct_files(
+    tmp_path: Path, include_package: bool,
+) -> None:
+    """Stage the UTF-8 fixture regression and its actual helper in both modes."""
+    repository = Path(__file__).resolve().parents[2]
+    stage_workflow_tests(repository, tmp_path, include_package=include_package)
+
+    regression_path = repository / "tests/testing/test_eval_fixture_encoding.py"
+    helpers_path = repository / "evals/helpers.py"
+
+    assert (tmp_path / regression_path.relative_to(repository)).read_bytes() == (
+        regression_path.read_bytes()
+    )
+    assert (tmp_path / helpers_path.relative_to(repository)).read_bytes() == (
+        helpers_path.read_bytes()
+    )
