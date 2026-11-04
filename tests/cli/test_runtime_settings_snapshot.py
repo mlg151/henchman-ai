@@ -1,7 +1,9 @@
 """Startup must configure provider and runtime from the same settings."""
 
 from types import SimpleNamespace
+from unittest.mock import Mock
 
+import click
 import pytest
 
 import henchman.config as config_module
@@ -9,6 +11,7 @@ import henchman.config.environment
 import henchman.providers.factory
 from henchman.config.context import ContextLoader
 from henchman.config.schema import ProviderSettings, Settings
+from henchman.config.settings import ConfigError
 
 
 def test_prepare_runtime_context_loads_settings_once(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -50,3 +53,19 @@ def test_prepare_runtime_context_loads_settings_once(monkeypatch: pytest.MonkeyP
     assert ctx.settings is first_settings
     assert captured_provider_settings is first_settings.providers
     assert ctx.provider is fake_provider
+
+
+def test_prepare_runtime_context_raises_on_invalid_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    from henchman.cli.app import _prepare_runtime_context
+
+    loader = Mock(side_effect=ConfigError("invalid test settings"))
+    factory = Mock()
+
+    monkeypatch.setattr(config_module, "load_settings", loader)
+    monkeypatch.setattr(henchman.providers.factory, "create_configured_provider", factory)
+
+    with pytest.raises(click.ClickException, match="Unable to configure provider: invalid test settings"):
+        _prepare_runtime_context()
+
+    loader.assert_called_once_with()
+    factory.assert_not_called()
