@@ -11,6 +11,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
+class _SettingsModel(BaseModel):
+    """Reject unknown fields in typed groups while preserving declared dictionaries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
 DEFAULT_SHELL_TIMEOUT = 3600
 """Default shell command timeout in seconds."""
 
@@ -45,7 +52,7 @@ DEFAULT_RAG_TOP_K = 5
 """Default number of results to return from RAG search."""
 
 
-class AgentConfig(BaseModel):
+class AgentConfig(_SettingsModel):
     """Configuration for an agent in the team."""
 
     name: str = Field(..., description="Display name of the agent")
@@ -85,7 +92,7 @@ class AgentConfig(BaseModel):
         return v
 
 
-class ProviderSettings(BaseModel):
+class ProviderSettings(_SettingsModel):
     """Settings for model providers.
 
     Attributes:
@@ -110,7 +117,7 @@ class ProviderSettings(BaseModel):
     fireworks: dict[str, object] = Field(default_factory=dict)
 
 
-class ToolSettings(BaseModel):
+class ToolSettings(_SettingsModel):
     """Settings for tool behavior.
 
     Attributes:
@@ -142,7 +149,7 @@ UI_THEME_NAMES: list[str] = [
 """Valid theme names for the UI."""
 
 
-class UISettings(BaseModel):
+class UISettings(_SettingsModel):
     """Settings for terminal UI.
 
     Attributes:
@@ -226,7 +233,7 @@ class UISettings(BaseModel):
         return v
 
 
-class ContextSettings(BaseModel):
+class ContextSettings(_SettingsModel):
     """Settings for context management.
 
     Attributes:
@@ -248,7 +255,7 @@ class ContextSettings(BaseModel):
     adaptive_compression: bool = True
 
 
-class McpServerConfig(BaseModel):
+class McpServerConfig(_SettingsModel):
     """Configuration for an MCP server.
 
     Attributes:
@@ -282,7 +289,7 @@ class McpServerConfig(BaseModel):
         return v
 
 
-class AgentSettings(BaseModel):
+class AgentSettings(_SettingsModel):
     """Settings for the multi-agent system.
 
     Attributes:
@@ -319,7 +326,7 @@ class AgentSettings(BaseModel):
         }
 
 
-class RagSettings(BaseModel):
+class RagSettings(_SettingsModel):
     """Settings for RAG (Retrieval Augmented Generation).
 
     Attributes:
@@ -429,7 +436,7 @@ class RagSettings(BaseModel):
     )
 
 
-class ApiConfig(BaseModel):
+class ApiConfig(_SettingsModel):
     """API server configuration.
 
     Attributes:
@@ -456,7 +463,7 @@ class ApiConfig(BaseModel):
     )
 
 
-class DiscordSettings(BaseModel):
+class DiscordSettings(_SettingsModel):
     """Discord bot configuration.
 
     Attributes:
@@ -491,7 +498,7 @@ class DiscordSettings(BaseModel):
     )
 
 
-class SlackSettings(BaseModel):
+class SlackSettings(_SettingsModel):
     """Slack bot configuration.
 
     Attributes:
@@ -513,7 +520,7 @@ class SlackSettings(BaseModel):
     )
 
 
-class VoiceSettings(BaseModel):
+class VoiceSettings(_SettingsModel):
     """Voice integration configuration.
 
     Attributes:
@@ -531,7 +538,7 @@ class VoiceSettings(BaseModel):
     stt_command: list[str] = Field(default_factory=list, description="STT command template")
 
 
-class ChatConfig(BaseModel):
+class ChatConfig(_SettingsModel):
     """Chat integration configuration.
 
     Attributes:
@@ -543,7 +550,7 @@ class ChatConfig(BaseModel):
     slack: SlackSettings = Field(default_factory=SlackSettings)
 
 
-class Settings(BaseModel):
+class Settings(_SettingsModel):
     """Main settings model for henchman-cli.
 
     Attributes:
