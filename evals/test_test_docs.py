@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from evals.helpers import run_pytest_evidence
+from evals.helpers import run_pytest_evidence, verify_python
 
 _CLAMP_SOURCE: str = """
 def clamp(value: int, lower: int, upper: int) -> int:
@@ -53,3 +53,95 @@ async def verify_clamp_tests(workspace: Path) -> None:
     finally:
         bounds_path.write_bytes(orig_bounds)
         test_bounds_path.write_bytes(orig_test_bounds)
+
+async def verify_clamp_documentation(workspace: Path) -> None:
+    """Execute the required examples while preserving the implementation AST."""
+    bounds_file = workspace / "bounds.py"
+    original = bounds_file.read_bytes()
+    baseline_source = repr(_CLAMP_SOURCE)
+
+    script = "BASELINE = " + baseline_source + "\n" + """
+
+import ast
+import doctest
+import sys
+from pathlib import Path
+
+# Add current directory to sys.path for importing bounds.py
+sys.path.append(str(Path.cwd()))
+
+def verify_docs():
+    # Parse actual bounds.py UTF-8 and BASELINE.
+    bounds_path = Path("bounds.py")
+    with open(bounds_path, "r", encoding="utf-8") as f:
+        actual_source = f.read()
+
+    baseline_ast = ast.parse(BASELINE)
+    actual_ast = ast.parse(actual_source)
+
+    def strip_docstrings(tree):
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant) and isinstance(node.body[0].value.value, str):
+                    node.body.pop(0)
+        return tree
+
+    baseline_ast = strip_docstrings(baseline_ast)
+    actual_ast = strip_docstrings(actual_ast)
+
+    # assert ast.dump equality (implementation/signature preserved except docs).
+    assert ast.dump(baseline_ast) == ast.dump(actual_ast), "Implementation or signature changed!"
+
+    # Import bounds only after this check.
+    import bounds
+
+    # Parse bounds.clamp.__doc__ with DocTestParser.get_doctest using {"clamp":bounds.clamp}
+    parser = doctest.DocTestParser()
+    parsed_doc = parser.get_doctest(bounds.clamp.__doc__ or "", {"clamp": bounds.clamp}, "clamp", "bounds.py", 0)
+
+    expected_examples = [
+        ("clamp(-2,0,5)", "0"),
+        ("clamp(3,0,5)", "3"),
+        ("clamp(9,0,5)", "5"),
+        ("clamp(0,4,1)", "ValueError: lower exceeds upper"),
+    ]
+
+    for i, (call_str, expected) in enumerate(expected_examples):
+        found = False
+        required_call_ast = ast.dump(ast.parse(call_str).body[0].value)
+
+        for example in parsed_doc.examples:
+            if example.options.get(doctest.SKIP):
+                continue
+
+            tree = ast.parse(example.source)
+            if len(tree.body) != 1 or not isinstance(tree.body[0], ast.Expr):
+                continue
+
+            example_call_ast = ast.dump(tree.body[0].value)
+            if example_call_ast == required_call_ast:
+                if i < 3:
+                    assert example.want.strip() == expected
+                    assert example.exc_msg is None
+                else:
+                    assert example.exc_msg is not None, "Expected ValueError example"
+                    assert example.exc_msg.strip() == expected
+                found = True
+                break
+        assert found, f"Example {call_str} not found in doctests"
+
+    # Actually run DocTestRunner().run(parsed_doc), assert failed==0 and attempted>=4.
+    runner = doctest.DocTestRunner()
+    result = runner.run(parsed_doc)
+    assert result.failed == 0
+    assert result.attempted >= 4
+    assert bounds_path.read_text(encoding="utf-8") == actual_source, "Doctests changed source"
+
+if __name__ == "__main__":
+    verify_docs()
+"""
+    try:
+        await verify_python(workspace, script)
+        assert bounds_file.read_bytes() == original, "Doctests changed source"
+    finally:
+        bounds_file.write_bytes(original)
