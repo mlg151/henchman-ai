@@ -159,9 +159,13 @@ async def test_stopping_shell_also_stops_its_descendant(tmp_path: Path) -> None:
     code = (
         "import signal,time; from pathlib import Path; "
         "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
-        "Path('ready').touch(); time.sleep(1); Path('escaped').touch(); time.sleep(30)"
+        "Path('ready').touch();\n"
+        "while not Path('release').exists():\n    time.sleep(0.01)\n"
+        "Path('escaped').touch(); time.sleep(30)"
     )
-    command = _python_command(code)
+    script = tmp_path / "descendant.py"
+    script.write_text(code, encoding="utf-8")
+    command = shlex.join([sys.executable, str(script)])
     result = await tool.execute(command=command)
     service = TaskService(tmp_path)
     task_id = _task_id(result.content)
@@ -170,6 +174,7 @@ async def test_stopping_shell_also_stops_its_descendant(tmp_path: Path) -> None:
             while not (tmp_path / "ready").exists():
                 await asyncio.sleep(0.01)
         await service.stop_task(task_id)
+        (tmp_path / "release").touch()
         await asyncio.sleep(1.1)
         assert not (tmp_path / "escaped").exists()
         assert (await service.wait_for_task(task_id)).pid is None
