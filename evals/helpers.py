@@ -352,7 +352,7 @@ The current working directory contains test files for this evaluation."""
             test_name: Name of the test (used for logging).
         """
         # Create temp directory
-        self._temp_dir = Path(tempfile.mkdtemp(prefix=f"eval_{test_name}_"))
+        self._temp_dir = Path(tempfile.mkdtemp(prefix=f"eval_{test_name}_")).resolve()
         self._original_cwd = Path.cwd()
         os.chdir(self._temp_dir)
 
