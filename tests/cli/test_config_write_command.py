@@ -361,3 +361,60 @@ def test_import_command_validates_payload_before_mutating_settings(
     assert "Configuration value failed schema validation." in result.output
     assert "Unsupported theme 'midnight'" in result.output
     assert (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8") == before
+
+
+
+def test_import_rejects_provider_credentials_before_writing(
+    tmp_path: Path,
+) -> None:
+    """Sync files cannot carry provider credentials into persisted settings."""
+    project_root = tmp_path / "workspace"
+    import_path = tmp_path / "settings-import.yaml"
+    project_root.mkdir()
+    _write_settings(project_root / ".henchman", {"ui": {"theme": "light"}})
+    before = (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8")
+    import_path.write_text(
+        yaml.safe_dump({"providers": {"openai": {"api_key": "sk-should-not-persist"}}}),
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        _build_config_group(project_root),
+        ["import", str(import_path), "--scope", "project"],
+    )
+
+    assert result.exit_code != 0
+    assert "Unsupported sync payload keys: providers" in result.output
+    assert "sk-should-not-persist" not in (project_root / ".henchman" / "settings.yaml").read_text(
+        encoding="utf-8",
+    )
+    assert (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8") == before
+
+
+def test_export_never_emits_provider_credentials(
+    tmp_path: Path,
+) -> None:
+    """Export is limited to the UI sync payload; provider secrets stay local."""
+    project_root = tmp_path / "workspace"
+    export_path = tmp_path / "settings-export.yaml"
+    project_root.mkdir()
+    _write_settings(
+        project_root / ".henchman",
+        {
+            "ui": {"output_style": "concise", "theme": "light"},
+            "providers": {"openai": {"api_key": "sk-should-not-export"}},
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        _build_config_group(project_root),
+        ["export", str(export_path), "--scope", "project"],
+    )
+
+    assert result.exit_code == 0
+    exported = export_path.read_text(encoding="utf-8")
+    assert "sk-should-not-export" not in exported
+    assert "api_key" not in exported
+    assert "output_style" in exported

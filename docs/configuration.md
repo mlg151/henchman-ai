@@ -102,6 +102,19 @@ provider options, UI keybindings, and style dictionaries remain customizable.
 Remove previously ignored keys including `tools.auto_approve`,
 `session.auto_save` and `session.sessions_dir` from existing files.
 
+## Local import/export sync
+
+`henchman config import` / `henchman config export` move a narrow **sync payload**
+(`ui.output_style`, `ui.theme`, `ui.keybindings`) between files, never the whole
+settings document:
+
+- Import validates before writing; unsupported top-level or UI keys fail without touching the existing settings file.
+- Provider credentials and other non-UI settings cannot flow through import/export in either direction; exports never contain `providers`, API keys or tokens.
+- Writes target the canonical `.henchman` directory for the chosen scope; legacy casing remains a read-only fallback.
+- Human-readable (YAML) output redacts secret-like values; `--format json` is the machine-usable path and keeps raw values, mirroring `config set`.
+
+There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates.
+
 ## Environment Variables
 
 | Variable | Description |
