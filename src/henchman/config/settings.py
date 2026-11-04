@@ -8,17 +8,35 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import ValidationError
 
+from henchman.config.key_paths import flatten_key_paths
 from henchman.config.schema import Settings
 
 
 class ConfigError(ValueError):
     """Error loading or parsing configuration."""
+
+
+@dataclass(frozen=True)
+class SettingOrigin:
+    """The layer and source responsible for one effective field."""
+
+    scope: Literal["default", "global", "project", "file", "environment"]
+    source: str | None = None
+
+
+@dataclass(frozen=True)
+class SettingsSnapshot:
+    """Validated values and their origins from the same load operation."""
+
+    settings: Settings
+    origins: dict[str, SettingOrigin]
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -124,7 +142,9 @@ def _load_file(path: Path) -> dict[str, Any]:
         return data or {}
 
 
-def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:
+def _apply_env_overrides(
+    settings: dict[str, Any], *, origins: dict[str, SettingOrigin] | None = None,
+) -> dict[str, Any]:
     """Apply environment variable overrides to settings.
 
     Supported environment variables:
@@ -133,6 +153,7 @@ def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         settings: Current settings dictionary.
+        origins: Optional mapping of leaf paths to their SettingOrigin.
 
     Returns:
         Settings with environment overrides applied.
@@ -141,13 +162,88 @@ def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:
 
     if provider := os.environ.get("HENCHMAN_PROVIDER"):
         result.setdefault("providers", {})["default"] = provider
+        if origins is not None:
+            origins["providers.default"] = SettingOrigin(scope="environment", source="HENCHMAN_PROVIDER")
 
     if model := os.environ.get("HENCHMAN_MODEL"):
         providers = result.setdefault("providers", {})
         default = providers.get("default", "deepseek")
         providers.setdefault(default, {})["model"] = model
+        if origins is not None:
+            origins[f"providers.{default}.model"] = SettingOrigin(scope="environment", source="HENCHMAN_MODEL")
 
     return result
+
+
+def load_settings_snapshot(project_root: Path | None = None) -> SettingsSnapshot:
+    """Load settings with hierarchical merging and return a snapshot with origins.
+
+    Args:
+        project_root: Optional project root for workspace settings discovery.
+            When omitted, the current working directory is used.
+
+    Returns:
+        SettingsSnapshot containing the merged Settings and origin tracking.
+
+    Raises:
+        ConfigError: If settings files are invalid.
+    """
+    merged: dict[str, Any] = {}
+    origins: dict[str, SettingOrigin] = {}
+
+    explicit_path = os.environ.get("HENCHMAN_SETTINGS_PATH")
+    files = discover_settings_files(project_root)
+    scopes: list[Literal["global", "project", "file"]] = []
+    user_dir = Path.home() / ".henchman"
+    for index, path in enumerate(files):
+        if explicit_path and path.resolve() == Path(explicit_path).resolve():
+            scopes.append("file")
+        elif index == 0 and path.parent == user_dir:
+            scopes.append("global")
+        else:
+            scopes.append("project")
+
+    # Load and merge files in order
+    for i, path in enumerate(files):
+        try:
+            file_settings = _load_file(path)
+            merged = deep_merge(merged, file_settings)
+
+            # Trace file-provided leaf paths as overlays are applied.
+            leaf_paths = flatten_key_paths(file_settings)
+            scope = scopes[i]
+            for lp in leaf_paths:
+                origins[lp] = SettingOrigin(scope=scope, source=str(path))
+        except ConfigError:
+            raise
+
+    # Apply environment overrides
+    merged = _apply_env_overrides(merged, origins=origins)
+
+    # Validate and create Settings
+    try:
+        settings = Settings(**merged)
+    except ValidationError as e:
+        source_hint = (
+            f" in {files[-1]}" if files else ""
+        )
+        # Extract field path from the first validation error
+        field_path = e.errors()[0]["loc"] if e.errors() else ()
+        path_str = ".".join(str(p) for p in field_path) if field_path else "unknown"
+        msg = f"Invalid settings{source_hint}: {path_str}"
+        raise ConfigError(msg) from e
+
+    # Filter the final origins to actual validated settings leaf paths.
+    # Default validated fields not supplied by overlays have scope=default, source=None.
+    final_origins: dict[str, SettingOrigin] = {}
+    all_paths = flatten_key_paths(settings.model_dump())
+    for key_path in all_paths:
+        if key_path in origins:
+            final_origins[key_path] = origins[key_path]
+        else:
+            final_origins[key_path] = SettingOrigin(scope="default", source=None)
+
+    return SettingsSnapshot(settings=settings, origins=final_origins)
 
 
 def load_settings(project_root: Path | None = None) -> Settings:
@@ -169,33 +265,8 @@ def load_settings(project_root: Path | None = None) -> Settings:
     Raises:
         ConfigError: If settings files are invalid.
     """
-    merged: dict[str, Any] = {}
-    loaded_files: list[Path] = []
-
-    # Load and merge files in order
-    for path in discover_settings_files(project_root):
-        try:
-            file_settings = _load_file(path)
-            merged = deep_merge(merged, file_settings)
-            loaded_files.append(path)
-        except ConfigError:
-            raise
-
-    # Apply environment overrides
-    merged = _apply_env_overrides(merged)
-
-    # Validate and create Settings
-    try:
-        return Settings(**merged)
-    except ValidationError as e:
-        source_hint = (
-            f" in {loaded_files[-1]}" if loaded_files else ""
-        )
-        # Extract field path from the first validation error
-        field_path = e.errors()[0]["loc"] if e.errors() else ()
-        path_str = ".".join(str(p) for p in field_path) if field_path else "unknown"
-        msg = f"Invalid settings{source_hint}: {path_str}"
-        raise ConfigError(msg) from e
+    snapshot = load_settings_snapshot(project_root)
+    return snapshot.settings
 
 
 def save_settings(settings: Settings, path: Path | None = None) -> None:
