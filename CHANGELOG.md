@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Startup settings consistency** — CLI runtime preparation loads settings once and passes that same configuration to provider construction. Invalid settings fail before a provider is created.
+- **Startup settings consistency** — CLI runtime preparation and direct TUI startup each load settings once and pass that same configuration to provider construction. Invalid settings fail before a provider is created; TUI presentation and environment fallbacks remain available.
 - **Agent test observations** — Reject a foreground shell command that merely prints a passing pytest summary instead of running the requested test command. Bind pytest-tool observations to the requested file and unfiltered structured execution evidence.
 - **Fresh evaluation checks** — Isolate bytecode caches for independent Python verification so same-size source edits with restored timestamps cannot be replaced by stale compiled code.
 - **Output-style validation** — Reject blank or unsupported UI output-style names and unknown UI setting fields through the shared schema while retaining supported modes and custom keybinding/style mappings.
