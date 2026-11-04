@@ -80,7 +80,11 @@ async def verify_python(workspace: Path, code: str, *, timeout: float = 5.0) -> 
     with tempfile.TemporaryDirectory(prefix="henchman-eval-check-") as directory:
         receipt = Path(directory) / "completed"
         completed = await run_bounded_subprocess(
-            [sys.executable, "-E", "-X", "utf8", "-c", bootstrap, code, str(receipt)],
+            [
+                sys.executable, "-E", "-B", "-X", "utf8",
+                "-X", f"pycache_prefix={Path(directory) / 'cache'}",
+                "-c", bootstrap, code, str(receipt),
+            ],
             cwd=workspace, timeout=timeout, max_output_bytes=8192,
         )
         if completed.returncode != 0:
