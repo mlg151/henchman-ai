@@ -4,6 +4,8 @@ Instruction provenance records *which* project instruction files were in
 force, without copying their contents into session storage. Session records
 store paths, scopes, ordering, sizes and SHA-256 digests so a resumed or
 reviewed session can prove which instructions applied and detect drift.
+Superseded records move to a bounded history so resumed sessions keep
+evidence of earlier instruction sets.
 """
 
 from __future__ import annotations
@@ -18,6 +20,11 @@ if TYPE_CHECKING:
 
 INSTRUCTION_PROVENANCE_KEY = "instruction_sources"
 """Session ``export_metadata`` key holding the provenance record."""
+
+INSTRUCTION_PROVENANCE_HISTORY_KEY = "instruction_sources_history"
+"""Session ``export_metadata`` key holding superseded provenance records."""
+
+_HISTORY_LIMIT = 5
 
 PROVENANCE_VERSION = 1
 _DELEGATION_SOURCE_LIMIT = 50
@@ -106,10 +113,25 @@ class InstructionProvenanceService:
     def capture(self, session: Session, snapshot: ContextSnapshot) -> dict[str, Any]:
         """Record the current instruction provenance on *session*.
 
-        Overwrites any stale record so the session always reflects the
-        instructions in force at attachment time.
+        A record superseded by a changed instruction set is moved to a
+        bounded history (last :data:`_HISTORY_LIMIT` entries) so resumed
+        sessions keep evidence of which instructions were in force before.
+        Identical re-captures do not grow the history.
         """
         record = build_record(snapshot)
+        previous = session.export_metadata.get(INSTRUCTION_PROVENANCE_KEY)
+        if isinstance(previous, dict) and previous.get("digest") != record["digest"]:
+            validate_record(previous)
+            history = session.export_metadata.setdefault(
+                INSTRUCTION_PROVENANCE_HISTORY_KEY, [],
+            )
+            if not isinstance(history, list) or any(
+                not isinstance(item, dict) for item in history
+            ):
+                msg = "Instruction provenance history must be a list of records"
+                raise ValueError(msg)
+            history.append(previous)
+            del history[:-_HISTORY_LIMIT]
         session.export_metadata[INSTRUCTION_PROVENANCE_KEY] = record
         return record
 
@@ -123,6 +145,18 @@ class InstructionProvenanceService:
         if record is None:
             return None
         return validate_record(record)
+
+    def get_history(self, session: Session) -> list[dict[str, Any]]:
+        """Return validated superseded provenance records, oldest first.
+
+        Raises:
+            ValueError: If the stored history fails validation.
+        """
+        history = session.export_metadata.get(INSTRUCTION_PROVENANCE_HISTORY_KEY, [])
+        if not isinstance(history, list):
+            msg = "Instruction provenance history must be a list of records"
+            raise ValueError(msg)
+        return [validate_record(item) for item in history]
 
 
 def render_delegation_appendix(snapshot: ContextSnapshot) -> str:

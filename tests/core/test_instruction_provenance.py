@@ -6,6 +6,7 @@ import pytest
 
 from henchman.config.context import ContextLoader, ContextSnapshot
 from henchman.core.instruction_provenance import (
+    INSTRUCTION_PROVENANCE_HISTORY_KEY,
     INSTRUCTION_PROVENANCE_KEY,
     InstructionProvenanceService,
     render_delegation_appendix,
@@ -80,15 +81,50 @@ def test_get_rejects_malformed_record() -> None:
         InstructionProvenanceService().get(session)
 
 
-def test_capture_overwrites_stale_provenance(snapshot: ContextSnapshot) -> None:
+def test_capture_archives_superseded_provenance(snapshot: ContextSnapshot) -> None:
     session = _session()
     service = InstructionProvenanceService()
     service.capture(session, snapshot)
+    original_digest = snapshot.digest
 
-    session.export_metadata[INSTRUCTION_PROVENANCE_KEY]["digest"] = "stale"
+    session.export_metadata[INSTRUCTION_PROVENANCE_KEY]["digest"] = "a" * 64
     service.capture(session, snapshot)
 
-    assert session.export_metadata[INSTRUCTION_PROVENANCE_KEY]["digest"] == snapshot.digest
+    assert session.export_metadata[INSTRUCTION_PROVENANCE_KEY]["digest"] == original_digest
+    history = service.get_history(session)
+    assert [record["digest"] for record in history] == ["a" * 64]
+
+
+def test_identical_recapture_does_not_grow_history(snapshot: ContextSnapshot) -> None:
+    session = _session()
+    service = InstructionProvenanceService()
+    service.capture(session, snapshot)
+    service.capture(session, snapshot)
+
+    assert service.get_history(session) == []
+
+
+def test_provenance_history_is_bounded(snapshot: ContextSnapshot) -> None:
+    session = _session()
+    service = InstructionProvenanceService()
+    service.capture(session, snapshot)
+    for index in range(7):
+        session.export_metadata[INSTRUCTION_PROVENANCE_KEY]["digest"] = f"{index + 1:064x}"
+        service.capture(session, snapshot)
+
+    history = service.get_history(session)
+    assert len(history) == 5
+    assert history[-1]["digest"] == f"{7:064x}"
+
+
+def test_get_history_rejects_malformed_entries(snapshot: ContextSnapshot) -> None:
+    session = _session()
+    service = InstructionProvenanceService()
+    service.capture(session, snapshot)
+    session.export_metadata[INSTRUCTION_PROVENANCE_HISTORY_KEY] = [{"version": 2}]
+
+    with pytest.raises(ValueError, match="version"):
+        service.get_history(session)
 
 
 def test_delegation_appendix_lists_provenance_not_content(snapshot: ContextSnapshot) -> None:
