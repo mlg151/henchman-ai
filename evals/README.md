@@ -405,10 +405,14 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers nine independently
+[release_corpus.py](release_corpus.py) registers ten independently
 checked scenarios: counter refactoring, method addition, variable rename,
-multi-file editing, Python helper reuse, syntax repair, Fibonacci implementation,
-package lifecycle and test/documentation delivery. `list_cases()` exposes their frozen
+multi-file editing, Python helper reuse, syntax repair, semantic bug repair,
+Fibonacci implementation, package lifecycle and test/documentation delivery.
+`semantic-bug-fix` checks zero/nonzero division in independent bounded Python
+checks, preserves non-target AST, returns the original runtime result, rejects
+unrelated edits and real provider failure despite correct delivered code. Its six
+actual-tool and caller controls are staged in both native modes. `list_cases()` exposes their frozen
 metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
 scenario and validates recorded runtime outcomes. Wrong patches and provider
 failures remain rejections, regardless of final prose. The syntax-repair oracle
