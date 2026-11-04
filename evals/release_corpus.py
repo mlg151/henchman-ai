@@ -15,6 +15,7 @@ from evals.test_edit_precision import (
     run_add_method_to_class_scenario,
     run_multi_file_edit_scenario,
     run_rename_variable_consistently_scenario,
+    run_semantic_bug_fix_scenario,
 )
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_python_reuse import run_python_reuse_scenario
@@ -134,6 +135,18 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             version="0.4.2-eval-v1",
         ),
         run_package_lifecycle_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="semantic-bug-fix",
+            category="bug-fix",
+            seed=42,
+            fixture_identity="semantic-bug-fix-fixture",
+            oracle_identity="semantic-bug-fix-oracle",
+            profile="basic",
+            version="0.4.2-eval-v1",
+        ),
+        run_semantic_bug_fix_scenario,
     ),
 )
 
