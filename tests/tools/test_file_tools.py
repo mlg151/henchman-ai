@@ -412,29 +412,36 @@ class TestFileToolPermissionErrors:
                 # Restore permissions for cleanup
                 os.chmod(tmpdir, stat.S_IRWXU)
 
-    async def test_edit_file_permission_error(self) -> None:
+    async def test_edit_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on edit."""
-        import os
-        import stat
-
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world")
-            f.flush()
-            # Remove write permissions
-            os.chmod(f.name, stat.S_IRUSR)
-            try:
-                result = await tool.execute(
-                    path=f.name,
-                    old_str="hello",
-                    new_str="hi",
-                )
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR)
-                Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("hello world", encoding="utf-8")
+
+        recorded_target: Path | None = None
+        recorded_content: str | None = None
+
+        def mock_atomic_write(path_arg: Path, content: str) -> None:
+            nonlocal recorded_target, recorded_content
+            recorded_target = path_arg
+            recorded_content = content
+            raise PermissionError("denied by test")
+
+        monkeypatch.setattr("henchman.tools.builtins.file_edit.atomic_write", mock_atomic_write)
+
+        result = await tool.execute(
+            path=str(path),
+            old_str="hello",
+            new_str="hi",
+        )
+        assert result.success is False
+        assert "permission" in result.error.lower()
+
+        assert recorded_target == path
+        assert recorded_content == "hi world"
+        assert path.read_bytes() == b"hello world"
 
 
 class TestLsToolEdgeCases:
