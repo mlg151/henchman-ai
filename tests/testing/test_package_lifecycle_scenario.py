@@ -1,7 +1,8 @@
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
-from evals.helpers import EvalTestRig
+from evals.helpers import EvalTestRig, MockProvider
 from evals.models import EvalResult
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from tests.testing.test_team_package_scenario import script
@@ -91,5 +92,27 @@ async def test_package_lifecycle_scenario_authoritative_runtime_failure(
         assert reports[0]["runtime"]["success"] is False
         assert reports[0]["workflow"]["independent_review_completed"] is True
         assert "Authoritative package root failure" in reports[0]["errors"]
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("profile", ["basic", "engineer"])
+async def test_rejection_before_creation_production_profiles(
+    profile: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = MockProvider(responses=["Done"])
+    rig = EvalTestRig(provider=provider, profile=profile)
+    spy = AsyncMock(wraps=rig.run)
+    monkeypatch.setattr(rig, "run", spy)
+    try:
+        rig.setup("package-unsupported-" + profile)
+        assert not (rig.test_dir / "pyproject.toml").exists()
+        with pytest.raises(AssertionError, match="requires the production team"):
+            await run_package_lifecycle_scenario(rig)
+        spy.assert_not_awaited()
+        assert provider.calls == []
+        assert not (rig.test_dir / "pyproject.toml").exists()
     finally:
         rig.cleanup()
