@@ -9,8 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from evals.helpers import EvalResult, EvalTestRig, ToolLog, eval_test
-from henchman.testing.pytest_reporter import PytestEvidence
+from evals.helpers import EvalResult, EvalTestRig, ToolLog, eval_test, run_pytest_evidence
 
 _NORMALIZATION = '''def normalize_label(value: str) -> str:
     """Canonical project labels: casefold and join whitespace with hyphens."""
@@ -65,27 +64,9 @@ def _targets_caller(log: ToolLog) -> bool:
     )
 
 
-def verify_python_reuse(workspace: Path) -> None:
+async def verify_python_reuse(workspace: Path) -> None:
     """Run the unchanged tests independently, requiring four real passed calls."""
-    report = workspace / "independent-verification.json"
-    command = [
-        sys.executable, "-m", "pytest", "-q", "-o", "addopts=",
-        "-p", "henchman.testing.pytest_reporter", "--henchman-report", str(report),
-        "--", "test_labels.py",
-    ]
-    environment = {
-        **os.environ,
-        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
-        "PYTEST_ADDOPTS": "",
-        "PYTHONIOENCODING": "utf-8",
-    }
-    completed = subprocess.run(
-        command, cwd=workspace, env=environment,
-        capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-    evidence = PytestEvidence.load(report)
-    assert evidence is not None, "Independent pytest run produced no execution evidence"
+    evidence = await run_pytest_evidence(workspace, "test_labels.py")
     assert not evidence.collect_only
     assert evidence.executed == evidence.passed == 4
     assert evidence.failed == evidence.skipped == evidence.exit_status == 0
@@ -131,7 +112,7 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
         )
         for log in result.tool_logs[edits[-1] + 1:]
     ), "No successful pytest verification followed the final edit"
-    verify_python_reuse(rig.test_dir)
+    await verify_python_reuse(rig.test_dir)
     return result
 
 
