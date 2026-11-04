@@ -11,6 +11,30 @@ Settings are loaded in this order (later overrides earlier):
 3. **Workspace settings** - `.henchman/settings.yaml` in current directory
 4. **Environment variables** - `HENCHMAN_PROVIDER`, `HENCHMAN_MODEL`
 
+## Inspecting effective settings
+
+`henchman config get KEY` (also `config view`) reports the effective value and
+its `resolved_scope`: `default`, `global`, `project`, `file`, or `environment`.
+`henchman config list` reports the same origin labels for its sorted leaf keys.
+Each command reads values and origins from one settings snapshot. A higher
+priority layer remains the origin even when it supplies the same value.
+
+```bash
+henchman config get providers.default
+henchman config get providers.deepseek.model --scope project
+henchman config list
+```
+
+The default merged scope includes environment overrides. Explicit `--scope global`
+or `--scope project` reads only values persisted in that file scope, so an
+`HENCHMAN_MODEL` override does not replace the explicitly requested file value.
+Existing secret masking applies to displayed values.
+
+An existing file selected by `HENCHMAN_SETTINGS_PATH` replaces normal user/project
+file discovery; environment provider/model overrides still apply afterward. If
+the selected path does not exist, normal file discovery remains the fallback.
+This is a file-selection control; transient session overrides remain in progress.
+
 ## Settings File
 
 Create a YAML file at `~/.henchman/settings.yaml`:
@@ -54,6 +78,7 @@ obsolete or misspelled fields from existing files; entries inside the supported
 
 | Variable | Description |
 |----------|-------------|
+| `HENCHMAN_SETTINGS_PATH` | Select an existing YAML/JSON settings file |
 | `HENCHMAN_PROVIDER` | Override default provider |
 | `HENCHMAN_MODEL` | Override model for default provider |
 | `HENCHMAN_API_KEY` | Fallback API key |

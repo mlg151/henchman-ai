@@ -570,8 +570,8 @@ layer. A nonexistent explicit file retains the existing global/project fallback.
 `load_settings` delegates to this loader and returns only its settings.
 
 Snapshot values can contain credentials. Apply the existing configuration display
-redaction before showing or exporting them. Session overrides and CLI origin
-integration remain follow-up work for v0.4.2.
+redaction before showing or exporting them. Config get/view/list consume this
+inspection path; transient session overrides remain follow-up work for v0.4.2.
 
 ### SettingsRepository.inspect
 
