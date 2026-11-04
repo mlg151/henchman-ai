@@ -258,7 +258,7 @@ For detailed information on intelligent context management, see the [Intelligent
 
 Place instruction files in your project to provide context:
 
-- **Global**: `~/.henchman/HENCHMAN.md` (or `~/.henchman/AGENTS.md` via custom configuration)
+- **Global**: `~/.henchman/<filename>` for any supported filename (defaults include `~/.henchman/HENCHMAN.md` and `~/.henchman/AGENTS.md`)
 - **Project**: `./HENCHMAN.md`, `./AGENTS.md`, or the other supported filenames (in project root)
 - **Subdirectories**: Optional, for specific context
 
