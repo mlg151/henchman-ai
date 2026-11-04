@@ -145,6 +145,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/testing/test_test_docs_documentation.py",
         "tests/testing/test_test_docs_scenario.py",
         "tests/testing/test_semantic_bug_scenario.py",
+        "evals/test_tool_failure_recovery.py",
+        "tests/testing/test_tool_failure_recovery_scenario.py",
         "evals/test_package_lifecycle.py",
     ]
 
