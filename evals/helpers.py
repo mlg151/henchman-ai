@@ -46,6 +46,7 @@ from henchman.providers.base import (
     ToolDeclaration,
 )
 from henchman.providers.factory import create_configured_provider
+from henchman.testing.pytest_reporter import PytestEvidence
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
 
@@ -799,3 +800,41 @@ async def eval_rig() -> AsyncGenerator[EvalTestRig, None]:
         yield rig
     finally:
         rig.cleanup()
+
+
+async def run_pytest_evidence(
+    workspace: Path, target: str, *, timeout: float = 30.0,
+) -> PytestEvidence:
+    """Return real passing/failing pytest evidence, rejecting incomplete checks."""
+    with tempfile.TemporaryDirectory(prefix="henchman-pytest-evidence-") as directory:
+        report_path = Path(directory) / "report.json"
+        arguments = [
+            "-q", "--tb=short", "-o", "addopts=",
+            "-p", "henchman.testing.pytest_reporter",
+            "--henchman-report", str(report_path), "--", target,
+        ]
+        code = f"""import os
+os.environ.pop("PYTEST_ADDOPTS", None)
+os.environ.pop("PYTEST_PLUGINS", None)
+os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+import json
+from pathlib import Path
+import pytest
+
+report_path = Path({str(report_path)!r})
+status = int(pytest.main({arguments!r}))
+if status not in (0, 1):
+    raise RuntimeError("Unexpected pytest exit status: " + str(status))
+report = json.loads(report_path.read_text(encoding="utf-8"))
+if report.get("exit_status") != status:
+    raise RuntimeError("Pytest and its report disagree on the exit status")
+"""
+        await verify_python(workspace, code, timeout=timeout)
+        evidence = PytestEvidence.load(report_path)
+        if evidence is None:
+            raise RuntimeError("Pytest execution did not produce a valid report")
+        if evidence.collect_only or evidence.executed == 0:
+            raise RuntimeError("Pytest did not execute any checks")
+        if evidence.skipped:
+            raise RuntimeError("Pytest checks were skipped")
+        return evidence
