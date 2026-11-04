@@ -186,6 +186,24 @@ class UISettings(BaseModel):
             raise ValueError(f"Unsupported theme '{v}'")
         return v
 
+    @field_validator("output_style")
+    @classmethod
+    def output_style_must_be_known(cls, v: str) -> str:
+        """Reject unknown output styles.
+
+        Args:
+            v: The output style.
+
+        Returns:
+            The validated output style.
+
+        Raises:
+            ValueError: If the output style is not in the known list or is blank.
+        """
+        if v not in UI_OUTPUT_STYLES:
+            raise ValueError(f"Unsupported output style '{v}'")
+        return v
+
     @field_validator("keybindings")
     @classmethod
     def keybindings_must_not_be_blank(cls, v: dict[str, str]) -> dict[str, str]:
