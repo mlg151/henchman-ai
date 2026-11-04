@@ -28,7 +28,7 @@ class ConfigError(ValueError):
 class SettingOrigin:
     """The layer and source responsible for one effective field."""
 
-    scope: Literal["default", "global", "project", "file", "environment", "session"]
+    scope: Literal["default", "global", "project", "file", "environment", "session", "mixed"]
     source: str | None = None
 
 

@@ -454,3 +454,23 @@ def _prune_empty_mappings(payload: Mapping[str, Any]) -> dict[str, Any]:
             continue
         pruned[key] = value
     return pruned
+
+
+def _add_group_inspections(
+    payload: Mapping[str, Any], entries: dict[str, SettingInspection], prefix: str = "",
+) -> None:
+    """Add actual parent values, retaining unanimous or mixed leaf origins."""
+    for key, value in payload.items():
+        if isinstance(value, Mapping) and value:
+            path = f"{prefix}.{key}" if prefix else key
+            _add_group_inspections(value, entries, path)
+
+            descendant_paths = _flatten_key_paths(value, path)
+            origins = {entries[p].origin for p in descendant_paths}
+
+            if len(origins) == 1:
+                chosen_origin = next(iter(origins))
+            else:
+                chosen_origin = SettingOrigin("mixed", None)
+
+            entries[path] = SettingInspection(value=value, origin=chosen_origin)
