@@ -3,13 +3,19 @@ import pytest
 from henchman.tools.security import atomic_read, atomic_write
 
 
-def test_atomic_read_preserves_crlf(tmp_path):
-    content = "café\r\nsecond\r\n"
-    path = tmp_path / "test_crlf.txt"
+@pytest.mark.parametrize(
+    "content",
+    [
+        "café\nsecond\n",
+        "café\r\nsecond\r\n",
+        "café\rsecond\r",
+    ],
+)
+def test_atomic_read_normalizes_to_lf(tmp_path, content):
+    path = tmp_path / "test_atomic_read.txt"
     path.write_bytes(content.encode("utf-8"))
 
-    # Text reads preserve the original physical line endings.
-    assert atomic_read(str(path)) == content
+    assert atomic_read(str(path)) == "café\nsecond\n"
 
 
 @pytest.mark.parametrize(

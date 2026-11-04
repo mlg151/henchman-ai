@@ -417,7 +417,7 @@ def atomic_read(path: str | Path, mode: str = "r", encoding: str = "utf-8") -> s
     path_obj = Path(path)
     stat_info = path_obj.stat()
 
-    with path_obj.open(mode, encoding=encoding, newline="") as f:
+    with path_obj.open(mode, encoding=encoding) as f:
         content: str = f.read()
 
     try:
