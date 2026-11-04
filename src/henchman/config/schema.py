@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 DEFAULT_SHELL_TIMEOUT = 3600
 """Default shell command timeout in seconds."""
@@ -154,6 +154,8 @@ class UISettings(BaseModel):
         keybindings: Custom keybinding mappings.
         style_overrides: Custom style overrides.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     theme: str = "dark"
     show_line_numbers: bool = True
