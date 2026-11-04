@@ -85,6 +85,8 @@ class ContextLoader:
         include_subdirs: Whether to search subdirectories.
     """
 
+    _scope_boundary: Path | None = None
+
     def __init__(
         self,
         filename: str | None = None,
@@ -240,7 +242,7 @@ class ContextLoader:
         """
         cwd = (self._start_dir or Path.cwd()).resolve()
         git_root = self._find_git_root(cwd)
-        stop_at = git_root or cwd
+        stop_at = git_root or self._scope_boundary or cwd
         stop_at_resolved = stop_at.resolve()
 
         # Gather global candidates
@@ -274,6 +276,34 @@ class ContextLoader:
 
         return final_files
 
+
+    def load_for_path(self, target: Path) -> ContextSnapshot:
+        """Load context from a specific target directory or file.
+
+        Args:
+            target: Path to the target directory or file.
+
+        Returns:
+            ContextSnapshot of the target.
+        """
+        base = (self._start_dir or Path.cwd()).resolve()
+        git_root = self._find_git_root(base)
+        boundary = git_root or self._scope_boundary or base
+
+        resolved_target = (target if target.is_absolute() else base / target).resolve()
+
+        if not resolved_target.is_relative_to(boundary):
+            raise ValueError(f"target {resolved_target} is outside boundary {boundary}")
+
+        search_dir = resolved_target if resolved_target.is_dir() else resolved_target.parent
+
+        new_loader = ContextLoader(
+            filenames=self.filenames,
+            include_subdirs=False,
+            start_dir=search_dir,
+        )
+        new_loader._scope_boundary = boundary
+        return new_loader.load_snapshot()
 
     def load_snapshot(self) -> ContextSnapshot:
         """Capture ordered instruction sources and their rendered content."""
