@@ -126,6 +126,10 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/config/test_settings_inspection.py",
         "tests/cli/test_config_environment_origins.py",
         "tests/cli/test_runtime_settings_snapshot.py",
+        "evals/test_test_docs.py",
+        "tests/testing/test_test_docs_oracle.py",
+        "tests/testing/test_test_docs_documentation.py",
+        "tests/testing/test_test_docs_scenario.py",
     ]
 
     for path_str in paths:
