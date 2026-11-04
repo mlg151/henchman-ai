@@ -2,6 +2,7 @@ import pytest
 from evals.helpers import EvalTestRig
 from evals.release_corpus import dispatch_case, get_case, list_cases
 from evals.test_coding_tasks import run_fibonacci_scenario, run_fix_syntax_error_scenario
+from evals.test_edit_precision import run_semantic_bug_fix_scenario
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_test_docs import run_test_docs_scenario
 from tests.testing.test_counter_eval_contract import (
@@ -69,6 +70,7 @@ async def test_registry_metadata_uniqueness():
         "fibonacci",
         "test-docs",
         "package-lifecycle",
+        "semantic-bug-fix",
     ]
 
     for cid in ids:
@@ -86,7 +88,7 @@ async def test_registry_metadata_uniqueness():
 async def test_list_cases_completeness():
     """Verify list_cases returns all registered cases with correct counts."""
     cases = list_cases()
-    assert len(cases) == 9
+    assert len(cases) == 10
     case_ids = {c.id for c in cases}
     expected_ids = {
         "counter-refactor",
@@ -98,6 +100,7 @@ async def test_list_cases_completeness():
         "fibonacci",
         "test-docs",
         "package-lifecycle",
+        "semantic-bug-fix",
     }
     assert case_ids == expected_ids
 
@@ -151,3 +154,16 @@ def test_get_case_package_lifecycle_metadata() -> None:
     assert metadata.profile == "team"
     assert metadata.version == "0.4.2-eval-v1"
     assert callback is run_package_lifecycle_scenario
+
+
+def test_get_case_semantic_bug_fix_metadata() -> None:
+    """Verify metadata for the semantic-bug-fix case."""
+    metadata, callback = get_case("semantic-bug-fix")
+    assert metadata.id == "semantic-bug-fix"
+    assert metadata.category == "bug-fix"
+    assert metadata.seed == 42
+    assert metadata.fixture_identity == "semantic-bug-fix-fixture"
+    assert metadata.oracle_identity == "semantic-bug-fix-oracle"
+    assert metadata.profile == "basic"
+    assert metadata.version == "0.4.2-eval-v1"
+    assert callback is run_semantic_bug_fix_scenario
