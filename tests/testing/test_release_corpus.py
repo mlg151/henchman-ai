@@ -5,6 +5,7 @@ from evals.test_coding_tasks import run_fibonacci_scenario, run_fix_syntax_error
 from evals.test_edit_precision import run_semantic_bug_fix_scenario
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_test_docs import run_test_docs_scenario
+from evals.test_tool_failure_recovery import run_tool_failure_recovery_scenario
 from tests.testing.test_counter_eval_contract import (
     _GLOBAL_COUNTER,
     _INSTANCE_COUNTER,
@@ -71,6 +72,7 @@ async def test_registry_metadata_uniqueness():
         "test-docs",
         "package-lifecycle",
         "semantic-bug-fix",
+        "tool-failure-recovery",
     ]
 
     for cid in ids:
@@ -88,7 +90,7 @@ async def test_registry_metadata_uniqueness():
 async def test_list_cases_completeness():
     """Verify list_cases returns all registered cases with correct counts."""
     cases = list_cases()
-    assert len(cases) == 10
+    assert len(cases) == 11
     case_ids = {c.id for c in cases}
     expected_ids = {
         "counter-refactor",
@@ -101,6 +103,7 @@ async def test_list_cases_completeness():
         "test-docs",
         "package-lifecycle",
         "semantic-bug-fix",
+        "tool-failure-recovery",
     }
     assert case_ids == expected_ids
 
@@ -167,3 +170,15 @@ def test_get_case_semantic_bug_fix_metadata() -> None:
     assert metadata.profile == "basic"
     assert metadata.version == "0.4.2-eval-v1"
     assert callback is run_semantic_bug_fix_scenario
+
+def test_get_case_tool_failure_recovery_metadata() -> None:
+    """Verify metadata for the tool-failure-recovery case."""
+    metadata, callback = get_case("tool-failure-recovery")
+    assert metadata.id == "tool-failure-recovery"
+    assert metadata.category == "recovery"
+    assert metadata.seed == 42
+    assert metadata.fixture_identity == "tool-failure-recovery-fixture"
+    assert metadata.oracle_identity == "tool-failure-recovery-oracle"
+    assert metadata.profile == "engineer"
+    assert metadata.version == "0.4.2-eval-v1"
+    assert callback is run_tool_failure_recovery_scenario
