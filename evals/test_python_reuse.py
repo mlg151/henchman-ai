@@ -64,6 +64,28 @@ def _targets_caller(log: ToolLog) -> bool:
     )
 
 
+def _is_requested_pytest_run(log: ToolLog, workspace: Path) -> bool:
+    """Verifies a successful pytest_run for the specific test file."""
+    if not log.success or log.tool_name != "pytest_run":
+        return False
+
+    path_arg = log.arguments.get("path")
+    if not isinstance(path_arg, str) or not path_arg:
+        return False
+    target_path = Path(path_arg)
+    if not target_path.is_absolute():
+        target_path = workspace / target_path
+    if target_path.resolve() != (workspace / "test_labels.py").resolve():
+        return False
+
+    for key in ["keyword", "markers", "collect_only"]:
+        if log.arguments.get(key):
+            return False
+
+    expected_first_line = "Test execution passed (4 collected, 4 executed; 4 passed, 0 failed, 0 skipped)"
+    return log.result.splitlines()[:1] == [expected_first_line]
+
+
 async def verify_python_reuse(workspace: Path) -> None:
     """Run the unchanged tests independently, requiring four real passed calls."""
     evidence = await run_pytest_evidence(workspace, "test_labels.py")
@@ -107,7 +129,7 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
     ), "Existing helper was not inspected before implementation"
     assert any(
         log.success and re.search(r"\b4 passed\b", log.result) and (
-            log.tool_name == "pytest_run"
+            _is_requested_pytest_run(log, rig.test_dir)
             or (
                 log.tool_name == "shell"
                 and log.arguments.get("command") == pytest_command
