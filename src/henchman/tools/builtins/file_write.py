@@ -22,7 +22,7 @@ def _write_content_to_path(path: str, content: str) -> ToolResult:
     """
     file_path = validate_path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content)
+    file_path.write_text(content, encoding="utf-8", newline="")
     return ToolResult(
         content=f"Successfully wrote {len(content)} bytes to {path}",
         success=True,
