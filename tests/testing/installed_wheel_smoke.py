@@ -207,6 +207,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         for name in (
             "test_package_oracle.py", "test_team_package_scenario.py",
             "test_package_runtime_observer.py",
+            "test_package_lifecycle_scenario.py",
         ):
             package_relative = Path("tests/testing") / name
             shutil.copyfile(repository / package_relative, target / package_relative)
