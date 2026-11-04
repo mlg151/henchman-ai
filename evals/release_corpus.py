@@ -6,7 +6,10 @@ from evals.helpers import EvalTestRig
 from evals.models import EvalResult
 
 # Import scenarios from the actual test modules
-from evals.test_coding_tasks import run_counter_refactor_scenario
+from evals.test_coding_tasks import (
+    run_counter_refactor_scenario,
+    run_fix_syntax_error_scenario,
+)
 from evals.test_edit_precision import (
     run_add_method_to_class_scenario,
     run_multi_file_edit_scenario,
@@ -26,7 +29,7 @@ class CaseMetadata:
     version: Final[str] = "0.4.2-eval-v1"
 
 
-# The FIVE-case typed registry
+# The typed registry
 _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResult]]], ...] = (
     (
         CaseMetadata(
@@ -82,6 +85,17 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             profile="engineer",
         ),
         run_python_reuse_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="syntax-fix",
+            category="bug-fix",
+            seed=42,
+            fixture_identity="syntax-fix-fixture",
+            oracle_identity="syntax-fix-oracle",
+            profile="engineer",
+        ),
+        run_fix_syntax_error_scenario,
     ),
 )
 
