@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 from evals import helpers
@@ -47,3 +48,53 @@ async def test_semantic_bug_scenario(
     else:
         with pytest.raises(AssertionError):
             await scenarios.test_fix_bug_preserve_formatting()
+
+
+@pytest.mark.parametrize(
+    "fail",
+    [False, True],
+)
+async def test_semantic_bug_scenario_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    fail: bool,
+) -> None:
+    from evals.models import EvalResult
+
+    provider = EditingProvider({"utils.py": valid_repair}, fail=fail)
+    rig = helpers.EvalTestRig(provider=provider)
+
+    actual_results: list[EvalResult] = []
+
+    original_run = rig.run
+
+    async def tracked_run(*args: Any, **kwargs: Any) -> EvalResult:
+        result = await original_run(*args, **kwargs)
+        actual_results.append(result)
+        return result
+
+    monkeypatch.setattr(rig, "run", tracked_run)
+
+    try:
+        rig.setup()
+        if fail:
+            with pytest.raises(AssertionError, match="provider failed after edit"):
+                await scenarios.run_semantic_bug_fix_scenario(rig)
+            assert len(actual_results) == 1
+            assert not actual_results[0].success
+        else:
+            result = await scenarios.run_semantic_bug_fix_scenario(rig)
+            assert len(actual_results) == 1
+            assert result is actual_results[0]
+            assert result.success
+
+        verify_code = """
+from utils import safe_divide, clamp
+assert safe_divide(1,0) is None
+assert safe_divide(6,3) == 2
+assert clamp(-2, 0, 5) == 0
+assert clamp(3, 0, 5) == 3
+assert clamp(9, 0, 5) == 5
+"""
+        await helpers.verify_python(rig.test_dir, verify_code)
+    finally:
+        rig.cleanup()
