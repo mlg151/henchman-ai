@@ -3,6 +3,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.file_edit import EditFileTool
 from henchman.tools.builtins.file_read import ReadFileTool
@@ -535,3 +537,54 @@ class TestWebFetchEdgeCases:
 
         assert result.success is False
         assert "aiohttp" in result.error.lower()
+
+
+class TestWriteFileToolEdgeCases:
+    """Additional tests for WriteFileTool."""
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "ascii_lf\n",
+            "ascii_crlf\r\n",
+            "snowman☃\n",
+        ],
+    )
+    async def test_write_file_tool_preserves_utf8_bytes_under_windows_defaults(
+        self, monkeypatch, tmp_path, content
+    ) -> None:
+        """Verify WriteFileTool.execute preserves UTF-8 bytes even if Path.write_text
+        defaults to Windows-like encoding/newline."""
+        from pathlib import Path
+
+        from henchman.tools.builtins.file_write import WriteFileTool
+
+        tool = WriteFileTool()
+        destination = tmp_path / "test_file.txt"
+
+        original_write_text = Path.write_text
+
+        def wrapper(self, data, encoding=None, errors=None, newline=None, **kwargs):
+            if self == destination:
+                actual_encoding = encoding if encoding is not None else "cp1252"
+                actual_newline = newline if newline is not None else "\r\n"
+                return original_write_text(
+                    self,
+                    data,
+                    encoding=actual_encoding,
+                    newline=actual_newline,
+                    errors=errors,
+                    **kwargs,
+                )
+            return original_write_text(
+                self, data, encoding=encoding, newline=newline, errors=errors, **kwargs
+            )
+
+        monkeypatch.setattr(Path, "write_text", wrapper)
+
+        try:
+            result = await tool.execute(path=str(destination), content=content)
+            assert result.success is True
+            assert destination.read_bytes() == content.encode("utf-8")
+        finally:
+            monkeypatch.setattr(Path, "write_text", original_write_text)
