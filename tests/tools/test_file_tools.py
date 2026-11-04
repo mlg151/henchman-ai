@@ -373,25 +373,24 @@ class TestEditFileTool:
 class TestFileToolPermissionErrors:
     """Tests for permission error handling in file tools."""
 
-    async def test_read_file_permission_error(self) -> None:
+    async def test_read_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on read."""
-        import os
-        import stat
+        import anyio
+
+        path = tmp_path / "test.txt"
+        path.write_text("content", encoding="utf-8")
+
+        async def open_file_func(*_args: object, **_kwargs: object) -> None:
+            raise PermissionError("denied by test")
+
+        monkeypatch.setattr(anyio, "open_file", open_file_func)
 
         tool = ReadFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("content")
-            f.flush()
-            # Remove read permissions
-            os.chmod(f.name, 0o000)
-            try:
-                result = await tool.execute(path=f.name)
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR)
-                Path(f.name).unlink()
+        result = await tool.execute(path=str(path))
+        assert result.success is False
+        assert "permission" in result.error.lower()
 
     async def test_write_file_permission_error(self) -> None:
         """Handle permission denied on write."""
