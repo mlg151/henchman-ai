@@ -20,12 +20,20 @@ def damaged_neighbor(source: str) -> str:
     return source.replace("return max(min_val, min(value, max_val))", "return 123")
 
 
+def equivalent_neighbor(source: str) -> str:
+    source = valid_repair(source)
+    return source.replace(
+        "return max(min_val, min(value, max_val))", "return max(min_val, min(value, max_val)) + 0"
+    )
+
+
 @pytest.mark.parametrize(
     "edit, expected_pass",
     [
         (valid_repair, True),
         (always_none, False),
         (damaged_neighbor, False),
+        (equivalent_neighbor, False),
     ],
 )
 async def test_semantic_bug_scenario(

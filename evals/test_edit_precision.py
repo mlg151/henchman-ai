@@ -172,6 +172,12 @@ def clamp(value, min_val, max_val):
 ''',
     )
 
+    initial_ast = ast.parse(rig.read_file("utils.py"))
+    initial_nodes = [
+        ast.dump(node) for node in initial_ast.body
+        if not (isinstance(node, ast.FunctionDef) and node.name == "safe_divide")
+    ]
+
     result = await rig.run(
         "Fix the bug in safe_divide in utils.py - it should return None when b is zero, not 0. "
         "Preserve the existing formatting and comments."
@@ -179,6 +185,12 @@ def clamp(value, min_val, max_val):
     assert result.success, result.error or result.final_response
 
     content = rig.read_file("utils.py")
+    updated_ast = ast.parse(content)
+    updated_nodes = [
+        ast.dump(node) for node in updated_ast.body
+        if not (isinstance(node, ast.FunctionDef) and node.name == "safe_divide")
+    ]
+    assert initial_nodes == updated_nodes, "Changed code outside safe_divide"
 
     # Bug should be fixed
     assert "return None" in content, "Should return None for division by zero"
