@@ -105,7 +105,7 @@ async def _execute_read_file(config: ReadFileConfig) -> ToolResult:
                 error=f"File not found: {config.path}",
             )
 
-        async with await anyio.open_file(file_path, "r") as f:
+        async with await anyio.open_file(file_path, "r", encoding="utf-8") as f:
             lines = await _read_lines_from_file(f, config)
 
         return ToolResult(content="".join(lines), success=True)
