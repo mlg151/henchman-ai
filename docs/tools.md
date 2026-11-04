@@ -99,7 +99,7 @@ observed results. Local checks do not establish a hosted CI run.
 
 #### read_file
 
-Read the contents of a file.
+Read UTF-8 text, with CRLF and CR line endings normalized to LF.
 
 ```json
 {
@@ -123,7 +123,8 @@ Read the file src/main.py
 
 #### write_file
 
-Write content to a file (creates or overwrites).
+Write the supplied content as UTF-8, preserving its newline characters on every
+platform (creates or overwrites).
 
 ```json
 {
@@ -138,7 +139,8 @@ Write content to a file (creates or overwrites).
 
 #### edit_file
 
-Make surgical edits to a file using search and replace.
+Make surgical edits to a file using search and replace. String matching and line
+coordinates use the LF-normalized text returned by `read_file`.
 
 ```json
 {

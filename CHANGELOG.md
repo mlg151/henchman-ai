@@ -30,7 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Portable prompt startup** — Use plain text output for redirected stdout, avoiding Windows console initialization errors while retaining normal terminal output selection. Native verification remains part of the release gate.
+- **Portable text I/O** — Decode source text as UTF-8 and preserve supplied write bytes across platform defaults, retaining the established LF-normalized read/edit contract.
+- **Native verification fixtures** — Use exact byte counts and explicit Unicode encoding in fixtures; verify descendant shutdown after stop completion with a release handshake.
+- **Portable prompt startup** — Use plain text output for redirected stdout and reuse the selected prompt output for streaming, avoiding Windows console initialization errors while retaining normal terminal output selection. Native verification remains part of the release gate.
 - **Evaluation workspaces** — Resolve temporary roots before binding tools so symlinked macOS temporary paths share one project identity and cleanup remains reliable.
 - **Evaluation interpreter** — Run the syntax-repair oracle with the active Python interpreter instead of depending on a `python` command on PATH.
 - **Instrumented formatting test** — Allow formatter startup time locally in the workspace-isolation test while preserving the production timeout and its child-reaping regression.
