@@ -2,6 +2,7 @@ import pytest
 from evals.helpers import EvalTestRig
 from evals.release_corpus import dispatch_case, get_case, list_cases
 from evals.test_coding_tasks import run_fibonacci_scenario, run_fix_syntax_error_scenario
+from evals.test_test_docs import run_test_docs_scenario
 from tests.testing.test_counter_eval_contract import (
     _GLOBAL_COUNTER,
     _INSTANCE_COUNTER,
@@ -65,6 +66,7 @@ async def test_registry_metadata_uniqueness():
         "python-reuse",
         "syntax-fix",
         "fibonacci",
+        "test-docs",
     ]
     for cid in ids:
         metadata, _ = get_case(cid)
@@ -81,7 +83,7 @@ async def test_registry_metadata_uniqueness():
 async def test_list_cases_completeness():
     """Verify list_cases returns all registered cases with correct counts."""
     cases = list_cases()
-    assert len(cases) == 7
+    assert len(cases) == 8
     case_ids = {c.id for c in cases}
     expected_ids = {
         "counter-refactor",
@@ -91,6 +93,7 @@ async def test_list_cases_completeness():
         "python-reuse",
         "syntax-fix",
         "fibonacci",
+        "test-docs",
     }
     assert case_ids == expected_ids
 
@@ -118,3 +121,16 @@ def test_get_case_fibonacci_metadata() -> None:
     assert metadata.profile == "basic"
     assert metadata.version == "0.4.2-eval-v1"
     assert callback is run_fibonacci_scenario
+
+
+def test_get_case_test_docs_metadata() -> None:
+    """Verify metadata for the test-docs case."""
+    metadata, callback = get_case("test-docs")
+    assert metadata.id == "test-docs"
+    assert metadata.category == "test-docs"
+    assert metadata.seed == 42
+    assert metadata.fixture_identity == "test-docs-fixture"
+    assert metadata.oracle_identity == "test-docs-oracle"
+    assert metadata.profile == "basic"
+    assert metadata.version == "0.4.2-eval-v1"
+    assert callback is run_test_docs_scenario

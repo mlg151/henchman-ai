@@ -17,6 +17,7 @@ from evals.test_edit_precision import (
     run_rename_variable_consistently_scenario,
 )
 from evals.test_python_reuse import run_python_reuse_scenario
+from evals.test_test_docs import run_test_docs_scenario
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,18 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             profile="basic",
         ),
         run_fibonacci_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="test-docs",
+            category="test-docs",
+            seed=42,
+            fixture_identity="test-docs-fixture",
+            oracle_identity="test-docs-oracle",
+            profile="basic",
+            version="0.4.2-eval-v1",
+        ),
+        run_test_docs_scenario,
     ),
 )
 
