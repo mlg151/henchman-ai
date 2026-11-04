@@ -33,21 +33,20 @@ The normal install resolves `chromadb>=1.5.9` for RAG storage and `scipy>=1.11.2
 
 ### Platform verification
 
-The CI configuration includes a Python 3.12 installed-wheel job on Linux, macOS,
-and Windows. It checks both CLI aliases, local RAG storage and native file locking,
-shell behavior, bounded Python quality scans, real REPL/Textual question input and interruption, and an offline
-five-provider read/edit/test/recover workflow outside
-the source checkout. The broader Python 3.11–3.14 test matrix runs on Linux.
+CI runs full Linux tests and installed-wheel checks on Linux, macOS and Windows
+for Python 3.11–3.14. Candidate `4940cc9` passed
+[all 20 required jobs](https://github.com/mlg151/henchman-ai/actions/runs/41808758654).
+The wheel checks run outside the checkout and cover both CLI aliases, local RAG,
+native file/shell behavior, bounded Python verification, question input and
+cancellation, and small scripted coding workflows through five provider adapters.
 
-The Linux Python 3.12 wheel workflow has also passed locally in a fresh environment,
-including both CLI aliases, question channels, and all five scripted-provider coding loops. This
-verifies installed runtime behavior, not live model task quality.
-
-Native Windows/macOS results must pass before treating those platforms as verified.
-The current local development checks do not establish that result. See
-[`FEATURE_TODO.md`](../FEATURE_TODO.md#coding-agent-reliability-and-portability)
-for outstanding verification and [shell behavior](tools.md#shell) for host syntax
-and interactive-terminal limits.
+This is automated installed-runtime evidence. Later feature changes, live coding
+quality, native interactive usability and exact publication artifacts still need
+their checks under #13, #30 and #36. See the
+[roadmap](../FEATURE_TODO.md#coding-agent-reliability-and-portability) and
+[shell behavior](tools.md#shell) for outstanding work and terminal limits.
+For v0.4.2 strict-field migration and transient Python API notes, see
+[configuration](configuration.md).
 
 ## API Key Setup
 
