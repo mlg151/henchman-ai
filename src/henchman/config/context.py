@@ -19,6 +19,7 @@ DEFAULT_FILENAMES: tuple[str, ...] = (
     ".henchman/HENCHMAN.md",
     ".github/copilot-instructions.md",
     ".gemini/GEMINI.md",
+    "AGENTS.md",
 )
 """Default context filenames to search for, in priority order."""
 
