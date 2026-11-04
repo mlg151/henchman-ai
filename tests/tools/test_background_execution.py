@@ -247,19 +247,35 @@ async def test_completion_persistence_failure_still_settles_waiter(tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_timeout_log_failure_still_reaps_process(tmp_path: Path) -> None:
+async def test_timeout_log_failure_still_reaps_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Writing a timeout diagnostic must never prevent process termination."""
+    from typing import IO, Any
+
     service = TaskService(tmp_path)
+    rejected_paths: list[Path] = []
+    original_open = Path.open
+
+    def wrapper(
+        path: Path, mode: str = "r", *args: Any, **kwargs: Any,
+    ) -> IO[Any]:
+        if mode == "a" and path.suffix == ".log" and path.parent == tmp_path / ".henchman" / "tasks":
+            rejected_paths.append(path)
+            raise PermissionError(f"Permission denied for {path}")
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", wrapper)
+
     record = await service.start_task(
         argv=[sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.1,
     )
     process = service._runtime.processes[record.task_id]
-    record.output_path.unlink()
-    record.output_path.mkdir()
     final = await service.wait_for_task(record.task_id, timeout=2)
     assert final.status == "failed"
     assert process.returncode is not None
     assert "timeout" in final.metadata.get("error", "").lower()
+    assert record.output_path in rejected_paths
 
 
 @pytest.mark.anyio
