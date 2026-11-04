@@ -10,6 +10,8 @@ _SECRET_NAMES: Final[frozenset[str]] = frozenset(
     {
         "api_key",
         "api_keys",
+        "authorization",
+        "cookie",
         "key",
         "keys",
         "passphrase",
@@ -17,8 +19,10 @@ _SECRET_NAMES: Final[frozenset[str]] = frozenset(
         "password",
         "private_key",
         "private_keys",
+        "proxy_authorization",
         "secret",
         "secrets",
+        "set_cookie",
         "token",
         "tokens",
     }
