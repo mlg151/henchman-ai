@@ -124,7 +124,7 @@ be recovered within a successful turn. Direct `EvalTestRig.run` calls still retu
 failure evidence for diagnostic callers; reusable scenario helpers explicitly
 check their results before accepting behavior.
 
-Four scenarios expose rig-accepting helpers for configured-provider experiments:
+Seven registered scenarios expose rig-accepting helpers for configured-provider experiments:
 
 | Scenario helper | Independent checks |
 |---|---|
@@ -132,6 +132,9 @@ Four scenarios expose rig-accepting helpers for configured-provider experiments:
 | `test_edit_precision.run_add_method_to_class_scenario` | Original method ASTs preserved; multiplication updates state for chained, zero and negative operations. |
 | `test_edit_precision.run_rename_variable_consistently_scenario` | Actual name bindings renamed with the remaining AST preserved; sampled behavior and input immutability checked. |
 | `test_edit_precision.run_multi_file_edit_scenario` | Optional email stored without breaking the existing User API; the application supplies a nonempty email when constructing User. |
+| `test_python_reuse.run_python_reuse_scenario` | Provided tests execute independently, requiring four actual passes and a call to the existing normalizer for each input. |
+| `test_coding_tasks.run_fix_syntax_error_scenario` | Repaired greeting output and return value are checked independently. |
+| `test_coding_tasks.run_fibonacci_scenario` | Fixed numeric results and actual Python integer types are checked independently. |
 
 These use `verify_python` from `evals/helpers.py`. It invokes the current Python
 interpreter with inherited Python options disabled, so `PYTHONOPTIMIZE` cannot
@@ -140,6 +143,18 @@ remove child assertions. It uses the existing bounded subprocess runner with
 completion receipt distinguishes completed assertions from premature exit code
 zero. Timeout and cancellation propagate after child cleanup. This is process
 isolation, not an OS security sandbox.
+
+`run_pytest_evidence` uses the same bounded Python verifier with a fresh cache
+and completion receipt. It runs the actual pytest reporter, neutralizes inherited
+pytest selection/plugin options, and rejects missing, collection-only, empty or
+skipped execution evidence. Real assertion failures return failure counts; callers
+must enforce their required pass counts. The reuse oracle requires exactly four
+executed and passed tests. Its foreground shell observation must match the exact
+requested test command; printing `pytest 4 passed` is rejected by a real scenario
+regression. The separate `pytest_run` observation still needs stricter target
+binding: an observed run against a different four-test file can currently satisfy
+that observation. The unchanged provided tests still run independently afterward.
+This remaining evaluator gap is tracked under #13 before baseline qualification.
 
 Offline contracts in `tests/testing/test_eval_helpers.py`,
 `test_counter_eval_contract.py` and `test_edit_eval_contract.py` feed known correct

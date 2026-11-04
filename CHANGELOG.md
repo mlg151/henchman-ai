@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Agent test observations** — Reject a foreground shell command that merely prints a passing pytest summary instead of running the requested test command. The separate pytest-tool target contract remains in progress.
 - **Fresh evaluation checks** — Isolate bytecode caches for independent Python verification so same-size source edits with restored timestamps cannot be replaced by stale compiled code.
 - **Output-style validation** — Reject blank or unsupported UI output-style names and unknown UI setting fields through the shared schema while retaining supported modes and custom keybinding/style mappings.
 - **Portable text I/O** — Decode source text as UTF-8 and preserve supplied write bytes across platform defaults, retaining the established LF-normalized read/edit contract.
