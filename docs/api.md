@@ -573,6 +573,23 @@ Snapshot values can contain credentials. Apply the existing configuration displa
 redaction before showing or exporting them. Session overrides and CLI origin
 integration remain follow-up work for v0.4.2.
 
+### SettingsRepository.inspect
+
+```python
+from henchman.config.repository import SettingsRepository, SettingsScope
+
+entries = SettingsRepository(project_root=Path.cwd()).inspect()
+entry = entries["ui.theme"]
+# entry.value and entry.origin come from one merged snapshot.
+```
+
+The mapping contains dotted leaf keys with `SettingInspection(value, origin)`
+entries. An explicit `scope=SettingsScope.GLOBAL` or `SettingsScope.PROJECT`
+returns only that scope's persisted values and selected source file, without
+defaults or environment overrides. Project reads preserve the existing legacy
+fallback; writes still use canonical `.henchman`. Inspection does not write files.
+Apply display redaction before exposing values containing credentials.
+
 ### Settings
 
 ```python

@@ -151,10 +151,11 @@ skipped execution evidence. Real assertion failures return failure counts; calle
 must enforce their required pass counts. The reuse oracle requires exactly four
 executed and passed tests. Its foreground shell observation must match the exact
 requested test command; printing `pytest 4 passed` is rejected by a real scenario
-regression. The separate `pytest_run` observation still needs stricter target
-binding: an observed run against a different four-test file can currently satisfy
-that observation. The unchanged provided tests still run independently afterward.
-This remaining evaluator gap is tracked under #13 before baseline qualification.
+regression. `pytest_run` observations must resolve to the requested test file, use no
+selection filters or collection-only mode, and carry the tool's structured
+four-executed/four-passed heading. Actual engineer-profile controls accept the
+requested file and reject a decoy file with four passing tests. The unchanged
+provided tests still run independently afterward.
 
 Offline contracts in `tests/testing/test_eval_helpers.py`,
 `test_counter_eval_contract.py` and `test_edit_eval_contract.py` feed known correct
