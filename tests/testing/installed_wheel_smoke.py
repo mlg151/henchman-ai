@@ -194,6 +194,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/config/test_grouped_settings_inspection.py",
         "tests/config/test_unknown_group_error_origin.py",
         "tests/cli/test_config_group_values.py",
+        "tests/cli/test_config_header_redaction.py",
         "tests/cli/test_config_environment_origins.py",
         "tests/cli/test_runtime_settings_snapshot.py",
         "tests/cli/test_textual_settings_snapshot.py",
