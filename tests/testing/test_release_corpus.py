@@ -2,6 +2,7 @@ import pytest
 from evals.helpers import EvalTestRig
 from evals.release_corpus import dispatch_case, get_case, list_cases
 from evals.test_coding_tasks import run_fibonacci_scenario, run_fix_syntax_error_scenario
+from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_test_docs import run_test_docs_scenario
 from tests.testing.test_counter_eval_contract import (
     _GLOBAL_COUNTER,
@@ -67,7 +68,9 @@ async def test_registry_metadata_uniqueness():
         "syntax-fix",
         "fibonacci",
         "test-docs",
+        "package-lifecycle",
     ]
+
     for cid in ids:
         metadata, _ = get_case(cid)
         assert metadata.id == cid
@@ -83,7 +86,7 @@ async def test_registry_metadata_uniqueness():
 async def test_list_cases_completeness():
     """Verify list_cases returns all registered cases with correct counts."""
     cases = list_cases()
-    assert len(cases) == 8
+    assert len(cases) == 9
     case_ids = {c.id for c in cases}
     expected_ids = {
         "counter-refactor",
@@ -94,6 +97,7 @@ async def test_list_cases_completeness():
         "syntax-fix",
         "fibonacci",
         "test-docs",
+        "package-lifecycle",
     }
     assert case_ids == expected_ids
 
@@ -134,3 +138,16 @@ def test_get_case_test_docs_metadata() -> None:
     assert metadata.profile == "basic"
     assert metadata.version == "0.4.2-eval-v1"
     assert callback is run_test_docs_scenario
+
+
+def test_get_case_package_lifecycle_metadata() -> None:
+    """Verify metadata for the package-lifecycle case."""
+    metadata, callback = get_case("package-lifecycle")
+    assert metadata.id == "package-lifecycle"
+    assert metadata.category == "package-lifecycle"
+    assert metadata.seed == 42
+    assert metadata.fixture_identity == "package-lifecycle-fixture"
+    assert metadata.oracle_identity == "package-lifecycle-oracle"
+    assert metadata.profile == "team"
+    assert metadata.version == "0.4.2-eval-v1"
+    assert callback is run_package_lifecycle_scenario

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
 from evals.artifact_observation import ArtifactTimeline, fingerprint, tool_target
 from evals.helpers import EvalTestRig
-from evals.models import ToolLog
+from evals.models import EvalResult, ToolLog
 from evals.package_oracle import (
     EDITABLE_FILES,
     PACKAGE_TASK,
@@ -131,8 +132,12 @@ async def run_team_python_package(
     *,
     max_iterations: int = 25,
     timeout: float = 300,
+    runtime_observer: Callable[[EvalResult], None] | None = None,
 ) -> dict[str, Any]:
-    """Separate delivered artifacts, runtime completion and observed collaboration."""
+    """Separate delivered artifacts, runtime completion and observed collaboration.
+
+    An optional observer receives the original runtime result before artifact checks.
+    """
     report: dict[str, Any] = {
         "scenario": SCENARIO,
         "version": VERSION,
@@ -162,6 +167,8 @@ async def run_team_python_package(
             timeout=timeout,
             observe_event=timeline,
         )
+        if runtime_observer is not None:
+            runtime_observer(result)
         observation = timeline.finish(len(result.events))
         workflow = assess_package_team(result.tool_logs, workspace, observation)
         report["workflow"] = dict(workflow, artifact_observation=observation)

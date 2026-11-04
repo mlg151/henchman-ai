@@ -195,6 +195,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_tui_injected_settings.py",
         "tests/utils/test_source_files.py",
         "evals/test_test_docs.py",
+        "evals/test_package_lifecycle.py",
         "tests/testing/test_test_docs_oracle.py",
         "tests/testing/test_test_docs_documentation.py",
         "tests/testing/test_test_docs_scenario.py",
@@ -203,7 +204,10 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(repository / relative, destination)
     if include_package:
-        for name in ("test_package_oracle.py", "test_team_package_scenario.py"):
+        for name in (
+            "test_package_oracle.py", "test_team_package_scenario.py",
+            "test_package_runtime_observer.py",
+        ):
             package_relative = Path("tests/testing") / name
             shutil.copyfile(repository / package_relative, target / package_relative)
     for relative in (

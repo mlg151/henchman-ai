@@ -16,6 +16,7 @@ from evals.test_edit_precision import (
     run_multi_file_edit_scenario,
     run_rename_variable_consistently_scenario,
 )
+from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_python_reuse import run_python_reuse_scenario
 from evals.test_test_docs import run_test_docs_scenario
 
@@ -121,6 +122,18 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             version="0.4.2-eval-v1",
         ),
         run_test_docs_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="package-lifecycle",
+            category="package-lifecycle",
+            seed=42,
+            fixture_identity="package-lifecycle-fixture",
+            oracle_identity="package-lifecycle-oracle",
+            profile="team",
+            version="0.4.2-eval-v1",
+        ),
+        run_package_lifecycle_scenario,
     ),
 )
 
