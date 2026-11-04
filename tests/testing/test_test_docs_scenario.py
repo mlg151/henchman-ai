@@ -1,9 +1,35 @@
+from collections.abc import AsyncGenerator
+from typing import Any
+
 import pytest
 from evals.helpers import EvalTestRig, MockProvider
-from evals.test_test_docs import _CLAMP_SOURCE, run_test_docs_scenario
+from evals.test_test_docs import (
+    _CLAMP_SOURCE,
+    run_test_docs_scenario,
+    verify_clamp_documentation,
+    verify_clamp_tests,
+)
 from tests.testing.test_test_docs_documentation import GOOD_DOC
 
-from henchman.providers.base import ToolCall
+from henchman.providers.base import Message, StreamChunk, ToolCall, ToolDeclaration
+
+
+class _FailAfterWritesProvider(MockProvider):
+    async def chat_completion_stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamChunk, None]:
+        if self.calls:
+            raise RuntimeError("test-docs runtime failure")
+        async for chunk in super().chat_completion_stream(
+            messages, tools, temperature, max_tokens, **kwargs
+        ):
+            yield chunk
+
 
 FULL_TESTS = """import pytest
 from bounds import clamp
@@ -78,5 +104,49 @@ async def test_test_docs_scenario(scenario: str) -> None:
             }[scenario]
             with pytest.raises(AssertionError, match=expected_error):
                 await run_test_docs_scenario(rig)
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_test_docs_runtime_failure() -> None:
+    good_source = _CLAMP_SOURCE.replace(
+        '"""Clamp a value between lower and upper bounds."""', GOOD_DOC
+    )
+    tests_content = FULL_TESTS
+
+    provider = _FailAfterWritesProvider(
+        responses=[
+            [
+                ToolCall(
+                    id="docs",
+                    name="write_file",
+                    arguments={"path": "bounds.py", "content": good_source},
+                ),
+                ToolCall(
+                    id="tests",
+                    name="write_file",
+                    arguments={"path": "test_bounds.py", "content": tests_content},
+                ),
+            ],
+            "Done",
+        ]
+    )
+
+    rig = EvalTestRig(provider=provider, profile="basic")
+    try:
+        rig.setup("test-docs-runtime-failure")
+        with pytest.raises(AssertionError, match="test-docs runtime failure"):
+            await run_test_docs_scenario(rig)
+        # Prove the runtime failure occurred after independently valid delivery.
+        # Production writes format Python, so verify the actual delivered bytes.
+        bounds = rig.test_dir / "bounds.py"
+        tests = rig.test_dir / "test_bounds.py"
+        delivered_source = bounds.read_bytes()
+        delivered_tests = tests.read_bytes()
+        await verify_clamp_documentation(rig.test_dir)
+        await verify_clamp_tests(rig.test_dir)
+        assert bounds.read_bytes() == delivered_source
+        assert tests.read_bytes() == delivered_tests
     finally:
         rig.cleanup()
