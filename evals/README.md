@@ -405,10 +405,10 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers eight independently
+[release_corpus.py](release_corpus.py) registers nine independently
 checked scenarios: counter refactoring, method addition, variable rename,
-multi-file editing, Python helper reuse, syntax repair, Fibonacci implementation
-and test/documentation delivery. `list_cases()` exposes their frozen
+multi-file editing, Python helper reuse, syntax repair, Fibonacci implementation,
+package lifecycle and test/documentation delivery. `list_cases()` exposes their frozen
 metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
 scenario and validates recorded runtime outcomes. Wrong patches and provider
 failures remain rejections, regardless of final prose. The syntax-repair oracle
@@ -422,6 +422,14 @@ The test/documentation case runs required direct doctests, checks the unchanged
 implementation AST and requires candidate tests to reject five semantic mutants.
 Its fault controls also reject a runtime failure after independently valid
 artifacts were written.
+
+The `package-lifecycle` case requires the production team profile. It reuses the
+independent build, install, five-test and CLI checks, requires ordered review
+evidence, and returns the original runtime result. Missing, stale or failed
+review and failed runtime completion are rejected. Basic and engineer profiles
+are rejected before model execution. The adapter source is staged in both
+native modes; its functional tests require `include_package=True`. The twelve
+default native cohorts do not execute package lifecycle evaluations.
 
 Metadata records the corpus version, declared seed, fixture/oracle labels and a
 preferred profile. These labels do not prove that a provider applied a seed or
