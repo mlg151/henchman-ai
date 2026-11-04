@@ -405,10 +405,19 @@ If an eval is failing:
 
 ### v0.4.2 corpus registry (in progress)
 
-[release_corpus.py](release_corpus.py) registers ten independently
+[release_corpus.py](release_corpus.py) registers eleven independently
 checked scenarios: counter refactoring, method addition, variable rename,
 multi-file editing, Python helper reuse, syntax repair, semantic bug repair,
-Fibonacci implementation, package lifecycle and test/documentation delivery.
+Fibonacci implementation, package lifecycle, test/documentation delivery and
+tool-failure recovery.
+
+The `tool-failure-recovery` case requires an actual failed `python_exec` before a
+later passing check. An independent pricing oracle checks numeric, non-boolean
+results. The case returns the original runtime result and rejects a skipped
+initial check, a sample-only constant repair and a real provider failure after a
+correct repair. Its five actual-tool and caller controls are staged in both
+native modes.
+
 `semantic-bug-fix` checks zero/nonzero division in independent bounded Python
 checks, preserves non-target AST, returns the original runtime result, rejects
 unrelated edits and real provider failure despite correct delivered code. Its six
