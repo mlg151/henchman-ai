@@ -78,23 +78,29 @@ class SettingsRepository:
         msg = f"Unsupported settings scope: {scope}"
         raise ValueError(msg)
 
-    def inspect(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, SettingInspection]:
+    def inspect(
+        self, *, scope: SettingsScope = SettingsScope.MERGED, include_groups: bool = False,
+    ) -> dict[str, SettingInspection]:
         """Inspect settings for a selected scope and return their origins.
 
         Args:
             scope: Which scope to inspect.
+            include_groups: Whether to include group settings in the inspection.
 
         Returns:
-            A mapping of leaf dotted key paths to their SettingInspection.
+            Leaf inspections, plus actual parent mappings when requested.
         """
         if scope is SettingsScope.MERGED:
             snapshot = load_settings_snapshot(project_root=self._project_root)
             settings_dict = snapshot.settings.model_dump(mode="python")
             origins_dict = snapshot.origins
-            return {
+            entries = {
                 path: SettingInspection(value=val, origin=origins_dict[path])
                 for path, val in _flatten_key_values(settings_dict).items()
             }
+            if include_groups:
+                _add_group_inspections(settings_dict, entries)
+            return entries
 
         directory: Path | None
         if scope is SettingsScope.GLOBAL:
@@ -111,10 +117,13 @@ class SettingsRepository:
             scope="global" if scope is SettingsScope.GLOBAL else "project",
             source=str(source_file) if source_file is not None else None,
         )
-        return {
+        entries = {
             key: SettingInspection(value=val, origin=origin)
             for key, val in _flatten_key_values(settings_dict).items()
         }
+        if include_groups:
+            _add_group_inspections(settings_dict, entries)
+        return entries
 
     def list(self, *, scope: SettingsScope = SettingsScope.MERGED) -> list[str]:
         """List flattened key paths available within a selected scope.
