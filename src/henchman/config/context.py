@@ -308,13 +308,4 @@ class ContextLoader:
         Returns:
             Concatenated context content with file headers.
         """
-        files = self.discover_files()
-        if not files:
-            return ""
-
-        sections: list[str] = []
-        for path in files:
-            content = path.read_text()
-            sections.append(f"# Context: {path}\n{content}")
-
-        return "\n\n---\n\n".join(sections)
+        return self.load_snapshot().content
