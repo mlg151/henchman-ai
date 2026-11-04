@@ -417,12 +417,13 @@ class _InitMixin:
     """Lifecycle and component initialization helpers."""
 
     environment_context: str | None
+    settings: Settings
 
     def _init_provider_and_settings(
         self: _InitMixin,
         provider: ModelProvider | None,
         config: TextualConfig | None,
-        settings: Any | None,
+        settings: Settings | None,
         env_ctx: str | None,
     ) -> None:
         """Resolve provider, config, and settings.
@@ -436,10 +437,12 @@ class _InitMixin:
         if provider is not None:
             self.provider = provider
             self.config = config or TextualConfig()
-            self.settings = settings
+            self.settings = (
+                settings if settings is not None else self._load_settings_safe()  # type: ignore[attr-defined]
+            )
             self.environment_context = env_ctx
             return
-        self._resolve_provider_from_env()  # type: ignore[attr-defined]
+        self._resolve_provider_from_env(settings=settings)  # type: ignore[attr-defined]
 
     def _init_state(self: _InitMixin) -> None:
         """Initialize mutable UI state fields."""
@@ -575,9 +578,11 @@ class _ProviderMixin:
 
     environment_context: str | None
 
-    def _resolve_provider_from_env(self: _ProviderMixin) -> None:
-        """Auto-detect provider from environment."""
-        self.settings = self._load_settings_safe()
+    def _resolve_provider_from_env(
+        self: _ProviderMixin, settings: Settings | None = None,
+    ) -> None:
+        """Initialize the provider from supplied settings or one configuration load."""
+        self.settings = settings if settings is not None else self._load_settings_safe()
         self.provider = self._load_provider_safe(settings=self.settings)
         self.config = self._create_config_safe()
         self.environment_context = self._gather_env_safe()
