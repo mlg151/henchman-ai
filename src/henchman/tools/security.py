@@ -390,7 +390,7 @@ def atomic_write(
     temp_path = path_obj.with_suffix(f"{path_obj.suffix}.tmp")
 
     try:
-        with temp_path.open(mode, encoding=encoding) as f:
+        with temp_path.open(mode, encoding=encoding, newline="") as f:
             f.write(content)
         temp_path.replace(path_obj)
     finally:
@@ -417,7 +417,7 @@ def atomic_read(path: str | Path, mode: str = "r", encoding: str = "utf-8") -> s
     path_obj = Path(path)
     stat_info = path_obj.stat()
 
-    with path_obj.open(mode, encoding=encoding) as f:
+    with path_obj.open(mode, encoding=encoding, newline="") as f:
         content: str = f.read()
 
     try:
