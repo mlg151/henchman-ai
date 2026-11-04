@@ -464,7 +464,7 @@ The current working directory contains test files for this evaluation."""
         """
         file_path = self.test_dir / path
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content)
+        file_path.write_text(content, encoding="utf-8")
         return file_path
 
     def read_file(self, path: str) -> str:
