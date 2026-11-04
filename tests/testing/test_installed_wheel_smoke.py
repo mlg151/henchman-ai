@@ -85,3 +85,24 @@ def test_stage_workflow_tests_includes_correct_files(
     assert (tmp_path / helpers_path.relative_to(repository)).read_bytes() == (
         helpers_path.read_bytes()
     )
+
+
+@pytest.mark.parametrize("include_package", [True, False])
+def test_stage_workflow_tests_includes_new_release_and_syntax_files(
+    tmp_path: Path, include_package: bool,
+) -> None:
+    """Verify that new release corpus and syntax files are staged correctly."""
+    repository = Path(__file__).resolve().parents[2]
+    stage_workflow_tests(repository, tmp_path, include_package=include_package)
+
+    paths = [
+        "evals/release_corpus.py",
+        "tests/testing/test_release_corpus.py",
+        "tests/testing/test_syntax_scenario.py",
+        "tests/testing/test_syntax_eval_contract.py",
+    ]
+
+    for path_str in paths:
+        path = repository / path_str
+        assert path.exists(), f"Expected {path} to exist in repository"
+        assert (tmp_path / path_str).read_bytes() == path.read_bytes()
