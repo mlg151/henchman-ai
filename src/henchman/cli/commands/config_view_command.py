@@ -143,7 +143,7 @@ def _build_value_payload(
     scope: SettingsScope,
 ) -> ConfigValuePayload:
     """Build a structured payload for a single config key lookup."""
-    inspections = repository.inspect(scope=scope)
+    inspections = repository.inspect(scope=scope, include_groups=True)
     if key_path not in inspections:
         raise _missing_key_exception(key_path=key_path, scope=scope)
 

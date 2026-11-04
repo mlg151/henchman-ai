@@ -12,7 +12,12 @@ from typing import Any
 import yaml
 
 from henchman.config import load_settings
-from henchman.config.key_paths import flatten_key_paths as _flatten_key_paths
+from henchman.config.key_paths import (
+    flatten_key_paths as _flatten_key_paths,
+)
+from henchman.config.key_paths import (
+    flatten_key_values as _flatten_key_values,
+)
 from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
@@ -73,24 +78,29 @@ class SettingsRepository:
         msg = f"Unsupported settings scope: {scope}"
         raise ValueError(msg)
 
-    def inspect(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, SettingInspection]:
+    def inspect(
+        self, *, scope: SettingsScope = SettingsScope.MERGED, include_groups: bool = False,
+    ) -> dict[str, SettingInspection]:
         """Inspect settings for a selected scope and return their origins.
 
         Args:
             scope: Which scope to inspect.
+            include_groups: Whether to include group settings in the inspection.
 
         Returns:
-            A mapping of leaf dotted key paths to their SettingInspection.
+            Leaf inspections, plus actual parent mappings when requested.
         """
         if scope is SettingsScope.MERGED:
             snapshot = load_settings_snapshot(project_root=self._project_root)
             settings_dict = snapshot.settings.model_dump(mode="python")
             origins_dict = snapshot.origins
-            leaf_paths = _flatten_key_paths(settings_dict)
-            return {
-                lp: SettingInspection(value=_get_key_path(settings_dict, lp), origin=origins_dict[lp])
-                for lp in leaf_paths
+            entries = {
+                path: SettingInspection(value=val, origin=origins_dict[path])
+                for path, val in _flatten_key_values(settings_dict).items()
             }
+            if include_groups:
+                _add_group_inspections(settings_dict, entries)
+            return entries
 
         directory: Path | None
         if scope is SettingsScope.GLOBAL:
@@ -107,10 +117,13 @@ class SettingsRepository:
             scope="global" if scope is SettingsScope.GLOBAL else "project",
             source=str(source_file) if source_file is not None else None,
         )
-        return {
-            key: SettingInspection(value=_get_key_path(settings_dict, key), origin=origin)
-            for key in _flatten_key_paths(settings_dict)
+        entries = {
+            key: SettingInspection(value=val, origin=origin)
+            for key, val in _flatten_key_values(settings_dict).items()
         }
+        if include_groups:
+            _add_group_inspections(settings_dict, entries)
+        return entries
 
     def list(self, *, scope: SettingsScope = SettingsScope.MERGED) -> list[str]:
         """List flattened key paths available within a selected scope.
@@ -450,3 +463,23 @@ def _prune_empty_mappings(payload: Mapping[str, Any]) -> dict[str, Any]:
             continue
         pruned[key] = value
     return pruned
+
+
+def _add_group_inspections(
+    payload: Mapping[str, Any], entries: dict[str, SettingInspection], prefix: str = "",
+) -> None:
+    """Add actual parent values, retaining unanimous or mixed leaf origins."""
+    for key, value in payload.items():
+        if isinstance(value, Mapping) and value:
+            path = f"{prefix}.{key}" if prefix else key
+            _add_group_inspections(value, entries, path)
+
+            descendant_paths = _flatten_key_paths(value, path)
+            origins = {entries[p].origin for p in descendant_paths}
+
+            if len(origins) == 1:
+                chosen_origin = next(iter(origins))
+            else:
+                chosen_origin = SettingOrigin("mixed", None)
+
+            entries[path] = SettingInspection(value=value, origin=chosen_origin)
