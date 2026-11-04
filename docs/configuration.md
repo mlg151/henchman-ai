@@ -30,6 +30,11 @@ or `--scope project` reads only values persisted in that file scope, so an
 `HENCHMAN_MODEL` override does not replace the explicitly requested file value.
 Existing secret masking applies to displayed values.
 
+CLI runtime preparation loads settings once and uses that same settings object
+to construct its provider. Invalid settings stop startup before provider
+construction. Direct TUI startup and transient session overrides are still
+being aligned with this shared configuration path.
+
 An existing file selected by `HENCHMAN_SETTINGS_PATH` replaces normal user/project
 file discovery; environment provider/model overrides still apply afterward. If
 the selected path does not exist, normal file discovery remains the fallback.
