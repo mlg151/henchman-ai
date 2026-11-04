@@ -32,3 +32,17 @@ async def test_package_lifecycle_scenario(monkeypatch: pytest.MonkeyPatch) -> No
         assert result is actual_results[0]
     finally:
         rig.cleanup()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("defect", ["no_review", "late_edit", "failed_review"])
+async def test_package_lifecycle_scenario_defects(defect: str) -> None:
+    settings = Settings(context={"max_tokens": 32768})
+    settings.agents.max_delegation_retries = 0
+    rig = EvalTestRig(provider=script(defect), profile="team", settings=settings)
+    try:
+        rig.setup("package-lifecycle-" + defect)
+        with pytest.raises(AssertionError, match="Missing team evidence: independent_review_completed"):
+            await run_package_lifecycle_scenario(rig)
+    finally:
+        rig.cleanup()
