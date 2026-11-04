@@ -229,26 +229,24 @@ class TestEditFileTool:
         assert result.success is False
         assert result.error is not None
 
-    async def test_edit_line_range(self) -> None:
+    async def test_edit_line_range(self, tmp_path: Path) -> None:
         """Replace a range of lines by line number."""
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("line1\nline2\nline3\nline4\n")
-            f.flush()
-            result = await tool.execute(
-                path=f.name,
-                new_str="replaced",
-                start_line=2,
-                end_line=3,
-            )
-            assert result.success is True
-            content = Path(f.name).read_text()
-            assert "line1\n" in content
-            assert "replaced\n" in content
-            assert "line4\n" in content
-            assert "line2" not in content
-            assert "line3" not in content
-        Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("line1\nline2\nline3\nline4\n", encoding="utf-8")
+        result = await tool.execute(
+            path=str(path),
+            new_str="replaced",
+            start_line=2,
+            end_line=3,
+        )
+        assert result.success is True
+        content = path.read_text(encoding="utf-8")
+        assert "line1\n" in content
+        assert "replaced\n" in content
+        assert "line4\n" in content
+        assert "line2" not in content
+        assert "line3" not in content
 
     async def test_edit_line_range_invalid(self) -> None:
         """Error on invalid line range."""
