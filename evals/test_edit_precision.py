@@ -190,13 +190,26 @@ def clamp(value, min_val, max_val):
     assert "def clamp(" in content, "Other functions should be preserved"
 
     # Verify it works correctly
-    result = subprocess.run(
-        ["python", "-c", "from utils import safe_divide; assert safe_divide(1, 0) is None"],
-        cwd=rig.test_dir,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, f"Fixed function should work: {result.stderr}"
+    checks = """
+from utils import safe_divide, clamp
+assert safe_divide(-9, 0) is None
+assert safe_divide(0, 0) is None
+assert safe_divide(9, 0) is None
+assert safe_divide(6, 3) == 2
+assert safe_divide(1, 2) == 0.5
+assert safe_divide(-9, 3) == -3
+assert safe_divide(9, -3) == -3
+assert safe_divide(0, -2) == 0
+assert isinstance(safe_divide(6, 3), (int, float)) and not isinstance(safe_divide(6, 3), bool)
+assert isinstance(safe_divide(1, 2), (int, float)) and not isinstance(safe_divide(1, 2), bool)
+assert isinstance(safe_divide(-9, 3), (int, float)) and not isinstance(safe_divide(-9, 3), bool)
+assert isinstance(safe_divide(9, -3), (int, float)) and not isinstance(safe_divide(9, -3), bool)
+assert isinstance(safe_divide(0, -2), (int, float)) and not isinstance(safe_divide(0, -2), bool)
+assert clamp(-2, 0, 5) == 0
+assert clamp(3, 0, 5) == 3
+assert clamp(9, 0, 5) == 5
+"""
+    await verify_python(rig.test_dir, checks)
 
 
 async def run_rename_variable_consistently_scenario(rig: EvalTestRig) -> EvalResult:
