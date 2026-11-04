@@ -9,9 +9,9 @@ import asyncio
 import contextlib
 import logging
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from prompt_toolkit.application import create_app_session
 from prompt_toolkit.filters import Condition
@@ -89,6 +89,8 @@ class ReplConfig:
         auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
         agent_role: Target a specific agent role for all inputs.
         interactive: Whether tools may collect answers from the terminal.
+        instruction_snapshot: Captured instruction provenance for sessions
+            and delegation handoffs; internal wiring, never serialized.
     """
 
     prompt: str = "❯ "
@@ -100,6 +102,7 @@ class ReplConfig:
     auto_approve_tools: bool = False
     agent_role: str | None = None
     interactive: bool = True
+    instruction_snapshot: Any | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -263,7 +266,10 @@ class Repl:
 
         self.renderer = self._init_renderer(renderer)
         self._init_mcp_manager()
-        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
+        self.session_manager = ReplSessionManager(
+            auto_save=self.config.auto_save,
+            instruction_snapshot=self.config.instruction_snapshot,
+        )
         self._init_tool_manager()
         self._init_plugin_manager()
         self.orchestrator = self._init_orchestrator(environment_context)
@@ -356,7 +362,7 @@ class Repl:
 
     def _init_orchestrator(self: Self, environment_context: str | None) -> Orchestrator:
         """Create the orchestrator with provider, tools, and event bus."""
-        return Orchestrator(
+        orchestrator = Orchestrator(
             default_provider=self.provider,
             tool_registry=self.tool_registry,
             event_bus=self.event_bus,
@@ -364,6 +370,8 @@ class Repl:
             system_prompt=self.config.system_prompt,
             environment_context=environment_context,
         )
+        orchestrator.instruction_snapshot = self.config.instruction_snapshot
+        return orchestrator
 
     def _init_handlers(self: Self) -> None:
         """Create output handler and command processor wired to shared subsystems."""

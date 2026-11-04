@@ -249,7 +249,7 @@ class TestShowTeamInfo:
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
-        mock_loader_instance.load.return_value = "system prompt"
+        mock_loader_instance.load_snapshot.return_value.content = "system prompt"
         mock_settings = MagicMock()
 
         with (
@@ -280,7 +280,7 @@ class TestRunHeadless:
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
-        mock_loader_instance.load.return_value = ""
+        mock_loader_instance.load_snapshot.return_value.content = ""
 
         with (
             patch("henchman.cli.app._get_provider") as mock_provider,

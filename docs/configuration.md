@@ -241,17 +241,40 @@ context window or establish a whole-application RAM bound.
 
 For detailed information on intelligent context management, see the [Intelligent Context Management](intelligent-context-management.md) documentation.
 
-## Context Files (HENCHMAN.md)
+## Context Files (HENCHMAN.md and AGENTS.md)
 
-Place `HENCHMAN.md` files in your project to provide context:
+Place instruction files in your project to provide context:
 
-- **Global**: `~/.henchman/HENCHMAN.md`
-- **Project**: `./HENCHMAN.md` (in project root)
+- **Global**: `~/.henchman/HENCHMAN.md` (or `~/.henchman/AGENTS.md` via custom configuration)
+- **Project**: `./HENCHMAN.md`, `./AGENTS.md`, or the other supported filenames (in project root)
 - **Subdirectories**: Optional, for specific context
 
-Inside a Git repository, context files are discovered from the repository root down to the current directory. Optional immediate-subdirectory discovery is available only when a Git root establishes the project boundary. Outside Git, Henchman reads project context only from the current working directory: it does not walk into subdirectories or inherit instruction files from parent directories. This boundary prevents unrelated parent context from being pulled into a non-repository session.
+Default discovery filenames, in priority order: `HENCHMAN.md`, `.henchman/HENCHMAN.md`, `.github/copilot-instructions.md`, `.gemini/GEMINI.md`, `AGENTS.md`. `AGENTS.md` is the portable cross-tool convention; Henchman-specific `HENCHMAN.md` remains the primary, first-loaded file. Existing custom `filenames=` settings keep their configured priority and work unchanged.
 
-The global file `~/.henchman/HENCHMAN.md` is handled separately and may still be loaded for either kind of session.
+**Deterministic precedence:**
+
+1. Explicit user task constraints (your messages and approvals) remain authoritative over any instruction file.
+2. Global files from `~/.henchman/` load first, in filename priority order.
+3. Repository instructions load from the Git root down to the current directory; inside one directory, files follow filename priority order.
+4. Deeper-scope instructions render after broader-scope instructions, so the most specific guidance applies by position. Sibling directories never leak into each other.
+5. Same-scope ties break by filename priority: `HENCHMAN.md` before `.henchman/HENCHMAN.md` before `.github/copilot-instructions.md` before `.gemini/GEMINI.md` before `AGENTS.md`.
+
+**Boundaries and safety:**
+
+- Inside a Git repository, context files are discovered from the repository root down to the current directory. Optional immediate-subdirectory discovery is available only when a Git root establishes the project boundary. Outside Git, Henchman reads project context only from the current working directory: it does not walk into subdirectories or inherit instruction files from parent directories. This boundary prevents unrelated parent context from being pulled into a non-repository session.
+- The global file `~/.henchman/HENCHMAN.md` is handled separately and may still be loaded for either kind of session.
+- Instruction files are deduplicated by physical path (aliases and symlinks resolve once). Sources resolving outside the global home or repository boundary are rejected before any read.
+- Instruction text is data, never authorization: it cannot widen tool scope, approvals, plan-mode policy or access controls, however it is worded.
+
+**Provenance and diagnostics:**
+
+- `ContextLoader.load_snapshot()` returns an immutable `ContextSnapshot` with each source's original path, applicable scope, kind (`global`/`repository`), discovery order, captured content, original size and truncation state.
+- `snapshot.diagnostics()` reports per-source sizes and truncation; `snapshot.truncated_sources` lists truncated sources.
+- Pass `max_source_chars=N` to `ContextLoader` to bound per-source capture. Truncated sources carry an explicit `[truncated: showing N of M characters]` marker and report the original size in diagnostics.
+- `ContextLoader.load_for_path(target)` re-resolves instructions for a different subtree; targets outside the project boundary are rejected before any instruction file is read. Use it when acting on a different part of the repository.
+- Sessions attached through the CLI record instruction provenance in the session's `export_metadata["instruction_sources"]`: paths, scopes, kinds, order, sizes, truncation state and SHA-256 digests — never instruction text. Dynamic background subagents receive a bounded "Project instruction provenance" appendix listing the same sources, restating that instruction text cannot widen tool policy or approvals.
+
+The provenance record is content-free by design, so resuming a session or auditing a delegation shows exactly which instruction files were in force without duplicating their text.
 
 ## MCP Server Configuration
 

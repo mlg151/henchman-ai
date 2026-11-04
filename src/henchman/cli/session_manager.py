@@ -11,6 +11,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
+from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
 from henchman.providers.base import Message, ToolCall
 
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.config.context import ContextSnapshot
     from henchman.core.agent import Agent
 
 
@@ -106,6 +108,7 @@ class ReplSessionManager:
         session_manager: SessionManager | None = None,
         *,
         auto_save: bool = True,
+        instruction_snapshot: ContextSnapshot | None = None,
     ) -> None:
         """Initialize the REPL session manager.
 
@@ -113,10 +116,13 @@ class ReplSessionManager:
             session_manager: Core session manager for persistence.
                 If None, creates a default SessionManager.
             auto_save: Whether to auto-save sessions on exit.
+            instruction_snapshot: Optional instruction provenance captured
+                onto every attached session.
         """
         self.session_manager = session_manager or SessionManager()
         self.session: Session | None = None
         self.auto_save = auto_save
+        self.instruction_snapshot = instruction_snapshot
 
     @property
     def current(self: Self) -> Session | None:
@@ -142,6 +148,8 @@ class ReplSessionManager:
         """
         self.session = session
         self.session_manager.set_current(session)
+        if self.instruction_snapshot is not None:
+            InstructionProvenanceService().capture(session, self.instruction_snapshot)
 
         if history_agent is not None:
             _sync_messages_to_agent(history_agent, session)

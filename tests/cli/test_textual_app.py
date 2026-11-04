@@ -195,6 +195,7 @@ class TestHenchmanTextualApp:
             settings=mock_settings,
             auto_approve_tools=textual_app.config.auto_approve_tools,
             question_handler=textual_app._textual_question,
+            instruction_snapshot=textual_app.config.instruction_snapshot,
         )
 
         # Verify plugin manager UI instance was set

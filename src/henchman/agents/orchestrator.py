@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from henchman.agents.pool import AgentPool
     from henchman.agents.subagents import BackgroundSubagentManager
     from henchman.config.schema import Settings
+    from henchman.config.context import ContextSnapshot
     from henchman.core.agent import Agent
     from henchman.core.eventbus import EventBus
     from henchman.providers.base import ModelProvider
@@ -65,6 +66,8 @@ __all__ = [
 
 class Orchestrator:
     """Orchestrates a team of agents to solve complex tasks."""
+
+    instruction_snapshot: ContextSnapshot | None
 
     default_provider: ModelProvider
     provider_registry: ProviderRegistry | None

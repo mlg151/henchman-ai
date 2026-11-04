@@ -33,7 +33,7 @@ application memory separately from weight-file size. See
 
 ## Runtime architecture
 
-At runtime, the CLI entrypoint builds settings, loads project context from `HENCHMAN.md`, initializes tool and provider registries, and then routes work through either the headless CLI path or the interactive REPL. The REPL coordinates command execution, tool calls, session persistence, plugin loading, and multi-agent delegation without forcing any one subsystem to own the entire interaction loop.
+At runtime, the CLI entrypoint builds settings, loads project context from instruction files (`HENCHMAN.md`, portable `AGENTS.md` and the other supported filenames — see [`docs/configuration.md`](docs/configuration.md#context-files-henchmanmd-and-agentsmd)), initializes tool and provider registries, and then routes work through either the headless CLI path or the interactive REPL. The REPL coordinates command execution, tool calls, session persistence, plugin loading, and multi-agent delegation without forcing any one subsystem to own the entire interaction loop.
 
 For deeper structure, use:
 

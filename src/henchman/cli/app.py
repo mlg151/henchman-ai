@@ -90,6 +90,7 @@ class RuntimeContext:
     settings: Any
     system_prompt: str
     env_block: str
+    instruction_snapshot: Any | None = None
 
 
 def _get_provider(settings: Settings | None = None) -> ModelProvider:
@@ -182,9 +183,10 @@ def _prepare_runtime_context() -> RuntimeContext:
         raise click.ClickException(f"Unable to configure provider: {exc}") from exc
     provider = _get_provider(settings=settings)
 
-    # Load context from HENCHMAN.md files
+    # Load context from HENCHMAN.md files (portable AGENTS.md included)
     context_loader = context_loader_class()
-    system_prompt = context_loader.load()
+    instruction_snapshot = context_loader.load_snapshot()
+    system_prompt = instruction_snapshot.content
 
     # Gather environment context once
     env_ctx = gather_environment()
@@ -195,6 +197,7 @@ def _prepare_runtime_context() -> RuntimeContext:
         settings=settings,
         system_prompt=system_prompt,
         env_block=env_block,
+        instruction_snapshot=instruction_snapshot,
     )
 
 
@@ -252,6 +255,7 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
         interactive=config.prompt is None,
+        instruction_snapshot=ctx.instruction_snapshot,
     )
     return repl_class(
         provider=ctx.provider,
@@ -380,6 +384,7 @@ def _run_textual_tui(config: RunConfig) -> None:
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
         agent_role=config.agent_role,
+        instruction_snapshot=ctx.instruction_snapshot,
     )
 
     if config.output_format != "text":

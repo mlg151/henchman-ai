@@ -1,19 +1,24 @@
 """Context file loading for project instructions.
 
 This module handles discovery and loading of project instruction files
-(HENCHMAN.md, .github/copilot-instructions.md, .gemini/GEMINI.md)
-from the directory hierarchy.
+(HENCHMAN.md, .henchman/HENCHMAN.md, .github/copilot-instructions.md,
+.gemini/GEMINI.md, AGENTS.md) from the directory hierarchy.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+_TRUNCATION_MARKER = "\n… [truncated: showing {shown} of {total} characters]"
+
 
 @dataclass(frozen=True)
 class ContextSource:
@@ -24,6 +29,22 @@ class ContextSource:
     kind: Literal["global", "repository"]
     order: int
     content: str
+    original_chars: int
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class ContextSourceDiagnostic:
+    """Bounded per-source diagnostic for instruction loading."""
+
+    path: Path
+    scope: Path
+    kind: Literal["global", "repository"]
+    order: int
+    chars: int
+    original_chars: int
+    truncated: bool
+
 
 @dataclass(frozen=True)
 class ContextSnapshot:
@@ -31,6 +52,66 @@ class ContextSnapshot:
 
     sources: tuple[ContextSource, ...]
     content: str
+
+    @property
+    def digest(self) -> str:
+        """Return the SHA-256 digest of the rendered instruction content."""
+        return hashlib.sha256(self.content.encode("utf-8")).hexdigest()
+
+    @property
+    def truncated_sources(self) -> tuple[ContextSource, ...]:
+        """Return the sources whose captured content was truncated."""
+        return tuple(source for source in self.sources if source.truncated)
+
+    def diagnostics(self) -> tuple[ContextSourceDiagnostic, ...]:
+        """Return bounded per-source diagnostics for this snapshot."""
+        return tuple(
+            ContextSourceDiagnostic(
+                path=source.path,
+                scope=source.scope,
+                kind=source.kind,
+                order=source.order,
+                chars=len(source.content),
+                original_chars=source.original_chars,
+                truncated=source.truncated,
+            )
+            for source in self.sources
+        )
+
+    def to_dict(self, *, include_content: bool = False) -> dict[str, Any]:
+        """Serialize this snapshot for persistence and diagnostics.
+
+        Args:
+            include_content: When True, include captured instruction text and
+                the rendered content. Defaults to metadata-only records so
+                persisted provenance never duplicates instruction text.
+
+        Returns:
+            JSON-compatible dictionary describing the snapshot.
+        """
+        sources: list[dict[str, Any]] = []
+        for source in self.sources:
+            record: dict[str, Any] = {
+                "path": str(source.path),
+                "scope": str(source.scope),
+                "kind": source.kind,
+                "order": source.order,
+                "chars": len(source.content),
+                "original_chars": source.original_chars,
+                "truncated": source.truncated,
+                "sha256": hashlib.sha256(source.content.encode("utf-8")).hexdigest(),
+            }
+            if include_content:
+                record["content"] = source.content
+            sources.append(record)
+        payload: dict[str, Any] = {
+            "version": 1,
+            "digest": self.digest,
+            "sources": sources,
+        }
+        if include_content:
+            payload["content"] = self.content
+        return payload
 
 
 DEFAULT_FILENAMES: tuple[str, ...] = (
@@ -71,18 +152,21 @@ class ContextLoader:
     """Discovers and loads project instruction / context files.
 
     Searches for multiple context file patterns (HENCHMAN.md,
-    .github/copilot-instructions.md, .gemini/GEMINI.md) in this order:
+    .github/copilot-instructions.md, .gemini/GEMINI.md, AGENTS.md) in
+    configured priority order:
 
-    1. Global: ~/.henchman/HENCHMAN.md
-    2. Ancestors: Walk up from cwd to git root
+    1. Global: ~/.henchman/<filename>
+    2. Ancestors: Walk up from cwd to git root (root-first)
     3. Subdirectories: Walk down from cwd (optional)
 
     At each directory, all configured filenames are checked in priority
-    order and all matches are included.
+    order and all matches are included. Deeper-scope instructions render
+    after broader ones so they take precedence by position.
 
     Attributes:
         filenames: Tuple of context file paths to discover.
         include_subdirs: Whether to search subdirectories.
+        max_source_chars: Optional per-source capture limit.
     """
 
     _scope_boundary: Path | None = None
@@ -94,6 +178,7 @@ class ContextLoader:
         *,
         include_subdirs: bool = False,
         start_dir: Path | None = None,
+        max_source_chars: int | None = None,
     ) -> None:
         """Initialize the context loader.
 
@@ -105,7 +190,16 @@ class ContextLoader:
             include_subdirs: Whether to search subdirectories.
             start_dir: Directory to start discovery from. When omitted,
                 the current working directory is used.
+            max_source_chars: Optional per-source capture limit. When set,
+                captured content is truncated with an explicit marker and the
+                snapshot records the original size in its diagnostics.
+
+        Raises:
+            ValueError: If *max_source_chars* is smaller than 1.
         """
+        if max_source_chars is not None and max_source_chars < 1:
+            msg = "max_source_chars must be a positive integer"
+            raise ValueError(msg)
         if filename is not None:
             self.filenames: tuple[str, ...] = (filename,)
         elif filenames is not None:
@@ -114,6 +208,7 @@ class ContextLoader:
             self.filenames = DEFAULT_FILENAMES
         self.include_subdirs = include_subdirs
         self._start_dir = start_dir
+        self.max_source_chars = max_source_chars
 
     @property
     def filename(self) -> str:
@@ -301,6 +396,7 @@ class ContextLoader:
             filenames=self.filenames,
             include_subdirs=False,
             start_dir=search_dir,
+            max_source_chars=self.max_source_chars,
         )
         new_loader._scope_boundary = boundary
         return new_loader.load_snapshot()
@@ -328,7 +424,15 @@ class ContextLoader:
                     raise ValueError(f"Instruction source does not match configured filenames: {path}")
                 scope = path.parents[len(filename.parts) - 1]
             content = path.read_text(encoding="utf-8")
-            records.append(ContextSource(path, scope, kind, order, content))
+            original_chars = len(content)
+            truncated = False
+            cap = self.max_source_chars
+            if cap is not None and original_chars > cap:
+                content = content[:cap] + _TRUNCATION_MARKER.format(shown=cap, total=original_chars)
+                truncated = True
+            records.append(
+                ContextSource(path, scope, kind, order, content, original_chars, truncated),
+            )
             sections.append(f"# Context: {path}\n{content}")
         return ContextSnapshot(tuple(records), "\n\n---\n\n".join(sections))
 

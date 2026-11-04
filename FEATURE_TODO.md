@@ -24,6 +24,17 @@ package lifecycle and test/documentation delivery with independent correctness
 and runtime checks. Interruption and recovery across resumed sessions remain
 required. The complete twelve-case corpus and hosted baseline requirements
 remain in progress.
+The portable `AGENTS.md` increment is integrated: default discovery includes
+`AGENTS.md` after Henchman's own filenames, physical-path deduplication rejects
+aliases escaping the global/repository boundary, and immutable instruction
+provenance snapshots capture paths, scopes, kinds, order, sizes, truncation
+state and SHA-256 digests. Sessions attached through the CLI record a
+content-free provenance record in session metadata; dynamic background
+subagents receive a bounded provenance appendix. Per-target refresh rejects
+outside-boundary targets before reading, sibling subtrees cannot leak
+instructions, and repository text cannot widen tool policy or approvals.
+Runtime consumers beyond dynamic subagents, truncation of team-prompt
+instruction blocks, and release qualification remain in progress under #15.
 The release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

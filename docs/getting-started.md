@@ -105,6 +105,10 @@ Henchman-AI also supports OpenRouter, Together AI, Groq, Fireworks AI, and other
 
 ## First Run
 
+### Project instruction files
+
+Henchman loads project instructions before the first message. `HENCHMAN.md` stays the primary file; portable `AGENTS.md` (per the cross-tool convention) is also discovered by default, along with `.henchman/HENCHMAN.md`, `.github/copilot-instructions.md` and `.gemini/GEMINI.md`. In a Git repository, files load from the repository root down to the current directory; deeper directories take precedence by position, and sibling directories never leak into each other. Outside Git, only the current directory is read. Attached sessions record which instruction files were in force (paths, scopes, order and digests — never the text), so resumed sessions and audits can see the same provenance. See [configuration](configuration.md#context-files-henchmanmd-and-agentsmd) for the full precedence rules and boundaries.
+
 ### Interactive Mode
 
 Start the interactive REPL:

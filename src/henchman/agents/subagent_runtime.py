@@ -48,6 +48,11 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             )
         parent = acting_agent()
         registry = ScopedToolRegistry(parent.tool_registry, tools, inherit_auto_approve=True)
+        snapshot = getattr(orchestrator, "instruction_snapshot", None)
+        if snapshot is not None and snapshot.sources:
+            from henchman.core.instruction_provenance import render_delegation_appendix
+
+            prompt = f"{prompt}\n\n{render_delegation_appendix(snapshot)}"
         agent = Agent(
             provider=parent.provider,
             tool_registry=registry,

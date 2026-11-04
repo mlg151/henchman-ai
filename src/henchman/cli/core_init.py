@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from henchman.cli.tool_executor import ToolExecutor
+    from henchman.config.context import ContextSnapshot
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
@@ -57,6 +58,7 @@ class CoreContext:
     session_manager: ReplSessionManager
     tool_executor: ToolExecutor | None = None  # UI-specific, initialized separately
     settings: Settings | None = None
+    instruction_snapshot: ContextSnapshot | None = None
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
 
 
@@ -68,6 +70,7 @@ def create_core_context(
     *,
     auto_approve_tools: bool = False,
     question_handler: Callable[[str], Awaitable[str | None]] | None = None,
+    instruction_snapshot: ContextSnapshot | None = None,
 ) -> CoreContext:
     """Create core components shared between UI implementations.
 
@@ -81,6 +84,8 @@ def create_core_context(
         settings: Application settings.
         auto_approve_tools: Auto-approve all tool executions.
         question_handler: Optional UI channel for actual user answers.
+        instruction_snapshot: Optional instruction provenance captured
+            onto attached sessions and delegated agents.
 
     Returns:
         Initialized CoreContext with all core components.
@@ -93,7 +98,10 @@ def create_core_context(
 
     # Runtime dependencies must exist before builtins are registered so every
     # tool's bind_runtime hook receives the live objects it will use.
-    session_manager = ReplSessionManager(auto_save=True)
+    session_manager = ReplSessionManager(
+        auto_save=True,
+        instruction_snapshot=instruction_snapshot,
+    )
     tool_manager = ToolManager(settings=settings, question_handler=question_handler)
     tool_manager.set_auto_approve(auto_approve=auto_approve_tools)
     tool_manager.bind_runtime(
@@ -122,6 +130,7 @@ def create_core_context(
         system_prompt=system_prompt,
         environment_context=environment_context,
     )
+    orchestrator.instruction_snapshot = instruction_snapshot
 
     # Reference Tech Lead as primary agent
     agent = orchestrator.tech_lead
@@ -137,6 +146,7 @@ def create_core_context(
         agent=agent,
         session_manager=session_manager,
         settings=settings,
+        instruction_snapshot=instruction_snapshot,
     )
 
 
