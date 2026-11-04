@@ -8,11 +8,30 @@ from the directory hierarchy.
 from __future__ import annotations
 
 import fnmatch
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+@dataclass(frozen=True)
+class ContextSource:
+    """Captured instruction text and its discovery provenance."""
+
+    path: Path
+    scope: Path
+    kind: Literal["global", "repository"]
+    order: int
+    content: str
+
+@dataclass(frozen=True)
+class ContextSnapshot:
+    """Immutable source records with their rendered instruction content."""
+
+    sources: tuple[ContextSource, ...]
+    content: str
+
 
 DEFAULT_FILENAMES: tuple[str, ...] = (
     "HENCHMAN.md",
@@ -254,6 +273,34 @@ class ContextLoader:
                 seen_resolved.add(resolved)
 
         return final_files
+
+
+    def load_snapshot(self) -> ContextSnapshot:
+        """Capture ordered instruction sources and their rendered content."""
+        files = self.discover_files()
+        global_root = Path.home() / ".henchman"
+        global_paths = {global_root / name for name in self.filenames}
+        records: list[ContextSource] = []
+        sections: list[str] = []
+        for order, path in enumerate(files):
+            kind: Literal["global", "repository"]
+            if path in global_paths and path.resolve().is_relative_to(global_root.resolve()):
+                kind = "global"
+                scope = global_root
+            else:
+                kind = "repository"
+                matches = [
+                    Path(name) for name in self.filenames
+                    if Path(name).parts and path.parts[-len(Path(name).parts):] == Path(name).parts
+                ]
+                filename = max(matches, key=lambda item: len(item.parts), default=None)
+                if filename is None:
+                    raise ValueError(f"Instruction source does not match configured filenames: {path}")
+                scope = path.parents[len(filename.parts) - 1]
+            content = path.read_text(encoding="utf-8")
+            records.append(ContextSource(path, scope, kind, order, content))
+            sections.append(f"# Context: {path}\n{content}")
+        return ContextSnapshot(tuple(records), "\n\n---\n\n".join(sections))
 
     def load(self: ContextLoader) -> str:
         """Load and concatenate all context files.
