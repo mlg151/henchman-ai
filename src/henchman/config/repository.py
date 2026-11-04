@@ -28,7 +28,18 @@ from henchman.config.settings import SettingOrigin, load_settings_snapshot
 _SETTINGS_FILENAME = "settings.yaml"
 _SUPPORTED_SETTINGS_FILENAMES = ("settings.yaml", "settings.yml", "settings.json")
 _USER_SETTINGS_DIRNAME = ".henchman"
-_SYNC_UI_KEYS = ("output_style", "theme", "keybindings")
+_SYNC_UI_KEYS = (
+    "output_style",
+    "theme",
+    "keybindings",
+    "output_mode",
+    "reduced_motion",
+    "detail_density",
+    "keyboard_mode",
+    "mouse_capture",
+    "layout",
+)
+"""UI keys eligible for the local sync payload (never includes credentials)."""
 _MISSING = object()
 
 @dataclass(frozen=True)
@@ -297,6 +308,29 @@ def _build_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     return {"ui": exported_ui}
 
 
+def _normalize_layout_mapping(value: Any) -> dict[str, Any]:
+    """Validate and normalize the nested ``ui.layout`` sync mapping."""
+    if not isinstance(value, Mapping):
+        msg = "Sync payload field 'ui.layout' must be a mapping"
+        raise ValueError(msg)
+    unsupported = sorted(set(value) - {"compact_tables"})
+    if unsupported:
+        unsupported_text = ", ".join(unsupported)
+        msg = f"Unsupported sync payload ui.layout keys: {unsupported_text}"
+        raise ValueError(msg)
+    normalized: dict[str, Any] = {}
+    for key, item in value.items():
+        if not isinstance(item, bool):
+            msg = f"Sync payload field 'ui.layout.{key}' must be a boolean"
+            raise ValueError(msg)
+        normalized[key] = item
+    return normalized
+
+
+_SYNC_STRING_KEYS = ("output_style", "theme", "output_mode", "detail_density", "keyboard_mode")
+_SYNC_BOOL_KEYS = ("reduced_motion", "mouse_capture")
+
+
 def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Validate and normalize an imported Tier 1 local-sync payload."""
     unsupported_top_level_keys = sorted(set(payload) - {"ui"})
@@ -319,14 +353,30 @@ def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError(msg)
 
     normalized_ui: dict[str, Any] = {}
-    for key in _SYNC_UI_KEYS:
+    for key in _SYNC_STRING_KEYS:
         if key not in ui_value:
             continue
         value = ui_value[key]
-        if isinstance(value, Mapping):
-            normalized_ui[key] = _clone_mapping(value)
-            continue
+        if not isinstance(value, str):
+            msg = f"Sync payload field 'ui.{key}' must be a string"
+            raise ValueError(msg)
         normalized_ui[key] = value
+    for key in _SYNC_BOOL_KEYS:
+        if key not in ui_value:
+            continue
+        value = ui_value[key]
+        if not isinstance(value, bool):
+            msg = f"Sync payload field 'ui.{key}' must be a boolean"
+            raise ValueError(msg)
+        normalized_ui[key] = value
+    if "keybindings" in ui_value:
+        value = ui_value["keybindings"]
+        if not isinstance(value, Mapping):
+            msg = "Sync payload field 'ui.keybindings' must be a mapping"
+            raise ValueError(msg)
+        normalized_ui["keybindings"] = _clone_mapping(value)
+    if "layout" in ui_value:
+        normalized_ui["layout"] = _normalize_layout_mapping(ui_value["layout"])
     if not normalized_ui:
         return {}
     return {"ui": normalized_ui}

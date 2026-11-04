@@ -273,15 +273,16 @@ def _raise_prd_failure(code: str, error: BaseException) -> None:
 def _summarize_user_facing_error(error: BaseException) -> str:
     """Return a concise error detail suitable for CLI display."""
     if isinstance(error, ValidationError):
-        messages = [
-            str(message).removeprefix("Value error, ")
-            for message in (
-                entry.get("msg")
-                for entry in error.errors()
-                if isinstance(entry.get("msg"), str)
-            )
-        ]
-        return "; ".join(dict.fromkeys(message for message in messages if message))
+        parts = []
+        for entry in error.errors():
+            message = entry.get("msg")
+            if not isinstance(message, str):
+                continue
+            message = message.removeprefix("Value error, ")
+            loc = entry.get("loc") or ()
+            path = ".".join(str(part) for part in loc)
+            parts.append(f"{path}: {message}" if path else message)
+        return "; ".join(dict.fromkeys(part for part in parts if part))
     return str(error).strip()
 
 
@@ -292,7 +293,8 @@ def _is_sync_payload_error(error: BaseException) -> bool:
         (
             "Unsupported sync payload keys:",
             "Unsupported sync payload ui keys:",
-            "Sync payload field 'ui' must be a mapping",
+            "Unsupported sync payload ui.layout keys:",
+            "Sync payload field",
             "Config payload must contain a mapping:",
             "Unsupported config sync file format ",
         )

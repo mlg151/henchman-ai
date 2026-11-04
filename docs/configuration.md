@@ -89,12 +89,34 @@ tools:
 ui:
   theme: dark
   output_style: verbose
+  output_mode: rich
+  reduced_motion: false
+  detail_density: normal
+  keyboard_mode: standard
+  mouse_capture: true
+  layout:
+    compact_tables: false
 ```
 
 `ui.output_style` accepts `verbose` (the default), `concise`, `minimal`, or
 `json`. Blank values and unsupported names fail validation at `ui.output_style`;
 replace an invalid existing value with one of these supported names. This uses
 the same schema when loading settings and validating configuration writes.
+
+The terminal UI also honors typed controls, with defaults preserving current
+behavior:
+
+| Key | Values | Purpose |
+|----------|--------|---------|
+| `ui.output_mode` | `rich` (default), `plain`, `quiet` | Rendering mode: rich TUI, plain text, or minimal quiet output |
+| `ui.reduced_motion` | `true`/`false` (default `false`) | Suppress non-essential animation and redraws |
+| `ui.detail_density` | `compact`, `normal` (default), `detailed` | Density of presented information |
+| `ui.keyboard_mode` | `standard` (default), `vim` | Keyboard behavior profile |
+| `ui.mouse_capture` | `true` (default) / `false` | TUI mouse capture; set `false` for native scrollback and SSH/mosh use |
+| `ui.layout.compact_tables` | `true`/`false` (default `false`) | Render denser tables and lists where supported |
+
+All are validated with field attribution on error. Consumers for the optional
+layouts and density arrive with the UI workstream; unset keys keep today's behavior.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove
 obsolete or misspelled fields from existing files; entries inside the declared
@@ -105,7 +127,7 @@ Remove previously ignored keys including `tools.auto_approve`,
 ## Local import/export sync
 
 `henchman config import` / `henchman config export` move a narrow **sync payload**
-(`ui.output_style`, `ui.theme`, `ui.keybindings`) between files, never the whole
+(`ui.output_style`, `ui.theme`, `ui.keybindings`, `ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) between files, never the whole
 settings document:
 
 - Import validates before writing; unsupported top-level or UI keys fail without touching the existing settings file.
@@ -113,7 +135,7 @@ settings document:
 - Writes target the canonical `.henchman` directory for the chosen scope; legacy casing remains a read-only fallback.
 - Human-readable (YAML) output redacts secret-like values; `--format json` is the machine-usable path and keeps raw values, mirroring `config set`.
 
-There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates.
+There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates. Sync files containing the newer keys (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) require Henchman v0.4.2 or newer; older binaries reject the entire file with a clear error rather than partially applying it.
 
 ## Environment Variables
 

@@ -11,6 +11,7 @@ from henchman.config.environment import (
 )
 from henchman.config.schema import (
     ContextSettings,
+    LayoutSettings,
     McpServerConfig,
     ProviderSettings,
     RagSettings,
@@ -25,6 +26,7 @@ __all__ = [
     "ConfigError",
     "ContextLoader",
     "ContextSnapshot",
+    "LayoutSettings",
     "ContextSettings",
     "EnvironmentContext",
     "McpServerConfig",

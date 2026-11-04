@@ -148,6 +148,27 @@ UI_THEME_NAMES: list[str] = [
 ]
 """Valid theme names for the UI."""
 
+UI_OUTPUT_MODES: list[str] = ["rich", "plain", "quiet"]
+"""Valid output modes for the UI (rich rendering, plain text, quiet status lines)."""
+
+UI_DETAIL_DENSITIES: list[str] = ["compact", "normal", "detailed"]
+"""Valid detail density levels for the UI."""
+
+UI_KEYBOARD_MODES: list[str] = ["standard", "vim"]
+"""Valid keyboard behavior modes for the UI."""
+
+
+class LayoutSettings(_SettingsModel):
+    """Optional UI layout controls.
+
+    Attributes:
+        compact_tables: Render denser tables and lists where supported.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    compact_tables: bool = False
+
 
 class UISettings(_SettingsModel):
     """Settings for terminal UI.
@@ -160,6 +181,12 @@ class UISettings(_SettingsModel):
         accessible_mode: Whether to enable accessibility mode.
         keybindings: Custom keybinding mappings.
         style_overrides: Custom style overrides.
+        output_mode: Rendering mode (rich, plain, quiet).
+        reduced_motion: Suppress non-essential animation and redraws.
+        detail_density: Density of presented information (compact, normal, detailed).
+        keyboard_mode: Keyboard behavior (standard, vim).
+        mouse_capture: Capture mouse events in the TUI; disable for native scrolling.
+        layout: Optional layout controls.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -176,6 +203,12 @@ class UISettings(_SettingsModel):
         },
     )
     style_overrides: dict[str, str] = Field(default_factory=dict)
+    output_mode: str = "rich"
+    reduced_motion: bool = False
+    detail_density: str = "normal"
+    keyboard_mode: str = "standard"
+    mouse_capture: bool = True
+    layout: LayoutSettings = Field(default_factory=LayoutSettings)
 
     @field_validator("theme")
     @classmethod
@@ -211,6 +244,30 @@ class UISettings(_SettingsModel):
         """
         if v not in UI_OUTPUT_STYLES:
             raise ValueError(f"Unsupported output style '{v}'")
+        return v
+
+    @field_validator("keyboard_mode")
+    @classmethod
+    def keyboard_mode_must_be_known(cls, v: str) -> str:
+        """Reject unsupported keyboard modes."""
+        if v not in UI_KEYBOARD_MODES:
+            raise ValueError(f"Unsupported keyboard mode '{v}'")
+        return v
+
+    @field_validator("detail_density")
+    @classmethod
+    def detail_density_must_be_known(cls, v: str) -> str:
+        """Reject unsupported detail density levels."""
+        if v not in UI_DETAIL_DENSITIES:
+            raise ValueError(f"Unsupported detail density '{v}'")
+        return v
+
+    @field_validator("output_mode")
+    @classmethod
+    def output_mode_must_be_known(cls, v: str) -> str:
+        """Reject unsupported output modes."""
+        if v not in UI_OUTPUT_MODES:
+            raise ValueError(f"Unsupported output mode '{v}'")
         return v
 
     @field_validator("keybindings")
