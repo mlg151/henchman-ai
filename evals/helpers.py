@@ -497,7 +497,7 @@ The current working directory contains test files for this evaluation."""
     async def run(
         self,
         prompt: str,
-        max_iterations: int = 10,
+        max_iterations: int | None = None,
         timeout: float | None = None,
         *,
         observe_event: Callable[[AgentEvent], None] | None = None,
@@ -508,7 +508,7 @@ The current working directory contains test files for this evaluation."""
 
         Args:
             prompt: User prompt to send.
-            max_iterations: Maximum tool call iterations.
+            max_iterations: Maximum tool call iterations; defaults to EVAL_MAX_ITERATIONS or 10.
             timeout: Whole-turn timeout in seconds; defaults to EVAL_TIMEOUT or 60.
             observe_event: Called after each event is retained. Observer errors propagate.
 
@@ -522,6 +522,8 @@ The current working directory contains test files for this evaluation."""
 
         if self._agent is None:
             raise RuntimeError("Test rig not set up. Call setup() first.")
+        if max_iterations is None:
+            max_iterations = int(os.environ.get("EVAL_MAX_ITERATIONS", "10"))
         if type(max_iterations) is not int or max_iterations < 0:
             raise ValueError("max_iterations must be a nonnegative integer")
         effective_timeout = float(os.environ.get("EVAL_TIMEOUT", "60")) if timeout is None else timeout
@@ -599,6 +601,13 @@ The current working directory contains test files for this evaluation."""
         )
         self._run_outcomes[outcome_index] = (result.success, result.error)
         return result
+
+    @property
+    def last_run_outcome(self) -> tuple[bool, str | None] | None:
+        """Outcome of the most recent agent turn: ``(success, error)``, or None if no turn ran."""
+        if not self._run_outcomes:
+            return None
+        return self._run_outcomes[-1]
 
     def assert_successful_runs(self) -> None:
         """Reject missing, failed or interrupted turns, even if their result was ignored."""
