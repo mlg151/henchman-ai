@@ -97,7 +97,7 @@ def apply_plan_mode(
         if enabled and not getattr(session, "plan_mode", False):
             # Only a disabled-to-enabled transition records the origin;
             # re-entering an active user boundary must not demote it.
-            setattr(session, "plan_mode_origin", origin)
+            session.plan_mode_origin = origin
         session.plan_mode = enabled
 
     if agent is not None and hasattr(agent, "system_prompt"):
