@@ -127,6 +127,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_security_bug013_shell_injection.py",
         "tests/tools/test_plan_mode_transition_authority.py",
         "tests/tools/test_plan_mode_operation_effects.py",
+        "tests/tools/test_effective_policy.py",
         "tests/cli/test_plan_mode_resume.py",
         "tests/agents/test_subagent_plan_mode_prompt.py",
         "tests/tools/test_file_tools.py",

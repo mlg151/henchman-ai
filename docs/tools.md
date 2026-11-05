@@ -1156,6 +1156,17 @@ cannot be proven read-only retains the static kind:
   classification: server trust controls local confirmation, not effect, so
   Plan Mode blocks MCP tool calls even from trusted servers.
 
+These verdicts resolve from one centralized policy layer:
+`ToolRegistry.evaluate_policy(name, params)` returns a `PolicyDecision`
+computed by a single shared evaluator (`evaluate_effective_policy`) that
+combines the effective Plan Mode boundary (including inherited scoped-registry
+ancestry), the tool's per-invocation operation effect, and the registry's
+approval grants. `authorize()` — and therefore `execute()`, batch execution,
+and the orchestrated delegation path — consumes that same verdict, so
+late-registered tools and scoped subagent registries cannot bypass the
+boundary. Auto-approval suppresses the confirmation requirement in the
+verdict but never overrides the Plan Mode denial.
+
 ## Configuration
 
 ### Auto-Approve Read Tools

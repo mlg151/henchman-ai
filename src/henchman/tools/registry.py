@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.formatting import PythonAutoFormatter
+from henchman.tools.policy import PolicyDecision, evaluate_effective_policy
 from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
@@ -285,6 +286,23 @@ class ToolRegistry:
         """Return whether this registry explicitly auto-approves a tool."""
         return name in self._auto_approve_policies
 
+    def evaluate_policy(self, name: str, params: dict[str, object]) -> PolicyDecision | None:
+        """Return the centralized effective policy for one invocation.
+
+        The verdict combines the effective Plan Mode boundary, the tool's
+        per-invocation operation effect, and this registry's approval
+        grants. Returns None when the tool is not registered.
+        """
+        tool = self.get(name)
+        if tool is None:
+            return None
+        return evaluate_effective_policy(
+            tool,
+            params,
+            plan_mode_active=self._effective_plan_mode,
+            auto_approved=self.is_auto_approved(name),
+        )
+
     async def authorize(self, name: str, params: dict[str, object]) -> Tool | ToolResult:
         """Return the allowed registered tool or a denial, without executing it.
 
@@ -298,23 +316,24 @@ class ToolRegistry:
                 error=f"Tool '{name}' not found",
             )
 
-        # Check Plan Mode
-        if self._effective_plan_mode and tool.execution_kind(params) in (
-            ToolKind.WRITE,
-            ToolKind.EXECUTE,
-            ToolKind.NETWORK,
-        ):
+        decision = evaluate_effective_policy(
+            tool,
+            params,
+            plan_mode_active=self._effective_plan_mode,
+            auto_approved=self.is_auto_approved(name),
+        )
+        if not decision.allowed:
             return ToolResult(
                 content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
                 success=False,
-                error="Tool disabled in Plan Mode",
+                error=decision.denial_reason,
             )
 
         # Check if confirmation is needed
-        if not self.is_auto_approved(name):
-            confirmation_request = tool.needs_confirmation(params)
+        confirmation_request = decision.confirmation
+        if confirmation_request is not None:
             handler = self._confirmation_handler
-            if confirmation_request is not None and handler:
+            if handler:
                 approved = await handler(confirmation_request)
                 if not approved:
                     return ToolResult(
