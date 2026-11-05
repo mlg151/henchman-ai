@@ -124,6 +124,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_shell_recovery_guidance.py",
         "tests/tools/test_security.py",
         "tests/tools/test_security_bug013_shell_injection.py",
+        "tests/tools/test_plan_mode_transition_authority.py",
         "tests/tools/test_file_tools.py",
         "tests/tools/test_atomic_text_portability.py",
         "tests/tools/test_text_file_roundtrip.py",

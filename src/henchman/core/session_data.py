@@ -35,6 +35,11 @@ class Session:
         messages: List of session messages.
         tag: Optional human-readable tag.
         plan_mode: Whether the session is in Plan Mode.
+        plan_mode_origin: Authority that opened the current plan mode —
+            ``"user"`` (user-imposed read-only boundary) or ``"model"``
+            (model-proposed planning). Only an authorized user/runtime
+            transition may widen execution rights out of a user-imposed
+            boundary.
         turn_summaries: Summaries of completed turns.
         parent_id: ID of parent session if this is a branch.
         branch_point: Message index where branch occurred.
@@ -50,6 +55,7 @@ class Session:
     messages: list[SessionMessage] = field(default_factory=list)
     tag: str | None = None
     plan_mode: bool = False
+    plan_mode_origin: str = "user"
     turn_summaries: list[TurnSummaryRecord] = field(default_factory=list)
     active_agents: list[str] = field(default_factory=list)
     delegation_log: list[dict[str, Any]] = field(default_factory=list)
@@ -72,6 +78,7 @@ class Session:
             "started": self.started,
             "last_updated": self.last_updated,
             "plan_mode": self.plan_mode,
+            "plan_mode_origin": self.plan_mode_origin,
             "messages": [msg.to_dict() for msg in self.messages],
             "turn_summaries": [ts.to_dict() for ts in self.turn_summaries],
             "active_agents": self.active_agents,
@@ -121,6 +128,11 @@ def session_from_dict(data: dict[str, Any]) -> Session:
     Returns:
         Session instance.
     """
+    raw_origin = data.get("plan_mode_origin", "user")
+    # Legacy sessions persisted without an origin stay user-locked so a
+    # model-callable exit can never widen rights it was never granted.
+    plan_mode_origin = raw_origin if raw_origin in ("user", "model") else "user"
+
     return Session(
         id=data["id"],
         tag=data.get("tag"),
@@ -128,6 +140,7 @@ def session_from_dict(data: dict[str, Any]) -> Session:
         started=data["started"],
         last_updated=data["last_updated"],
         plan_mode=data.get("plan_mode", False),
+        plan_mode_origin=plan_mode_origin,
         messages=[message_from_dict(m) for m in data.get("messages", [])],
         turn_summaries=[turn_summary_from_dict(ts) for ts in data.get("turn_summaries", [])],
         active_agents=data.get("active_agents", []),

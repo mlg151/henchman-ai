@@ -96,12 +96,25 @@ class _PlanModeToolBase(Tool):
             )
 
         session = getattr(self._session_manager, "current", None) if self._session_manager else None
-        apply_plan_mode(
+        still_enabled = apply_plan_mode(
             enabled=enabled,
             session=session,
             tool_registry=self._tool_registry,
             agent=self._agent,
+            origin="model",
         )
+
+        if not enabled and still_enabled:
+            # The active boundary was user-imposed; this model call may not
+            # widen execution rights.
+            return ToolResult(
+                content=(
+                    "Plan mode remains enabled: this boundary was set by the "
+                    "user. Use the /plan command to exit plan mode."
+                ),
+                success=False,
+                error="Plan mode is user-controlled",
+            )
 
         backing_manager = getattr(self._session_manager, "session_manager", self._session_manager)
         save = getattr(backing_manager, "save", None)
