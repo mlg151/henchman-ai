@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from henchman.agents.orchestrator import Orchestrator
     from henchman.config.context import ContextSnapshot
     from henchman.core.agent import Agent
+    from henchman.tools.registry import ToolRegistry
 
 
 try:
@@ -123,11 +124,23 @@ class ReplSessionManager:
         self.session: Session | None = None
         self.auto_save = auto_save
         self.instruction_snapshot = instruction_snapshot
+        self._tool_registry: ToolRegistry | None = None
 
     @property
     def current(self: Self) -> Session | None:
         """Get the current session (alias for session attribute)."""
         return self.session
+
+    def bind_tool_registry(self: Self, registry: ToolRegistry) -> None:
+        """Bind the shared tool registry so session switches reset its grants.
+
+        Args:
+            registry: The registry whose approval grants are session-scoped.
+
+        Returns:
+            None
+        """
+        self._tool_registry = registry
 
     def set_session(
         self: Self,
@@ -146,6 +159,9 @@ class ReplSessionManager:
         Returns:
             None
         """
+        # Session boundary: user approvals never carry over into another session.
+        if self._tool_registry is not None:
+            self._tool_registry.clear_grants()
         self.session = session
         self.session_manager.set_current(session)
         if self.instruction_snapshot is not None:

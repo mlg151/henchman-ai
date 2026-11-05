@@ -154,7 +154,8 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
     assert [entry.agent for entry in orch.ledger.delegations] == ["explorer", "engineer", "explorer"]
     assert all(entry.status.value == "completed" for entry in orch.ledger.delegations)
     assert approvals.count("delegate_task") == 3
-    assert approvals.count("shell") == 2
+    # The repeated identical pytest run reuses the first approval grant.
+    assert approvals.count("shell") == 1
     assert "edit_file" in approvals and "verify_plan_execution" in approvals
     assert [event["type"] for event in events].count("finished") == 1
     assert events[-1]["type"] == "finished"

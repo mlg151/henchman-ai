@@ -111,6 +111,8 @@ def create_core_context(
     )
     tool_manager.register_builtin_tools()
     tool_registry = tool_manager.registry  # Backwards compatibility
+    # Session boundaries reset the registry's approval grants.
+    session_manager.bind_tool_registry(tool_registry)
 
     # Initialize Plugin Manager
     plugin_manager = PluginManager(None)  # UI instance set by caller

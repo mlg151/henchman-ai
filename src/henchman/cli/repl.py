@@ -304,6 +304,7 @@ class Repl:
         )
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
+        self.session_manager.bind_tool_registry(self.tool_registry)
 
     @contextlib.asynccontextmanager
     async def _exclusive_terminal(self) -> AsyncIterator[None]:

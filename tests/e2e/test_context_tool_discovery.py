@@ -97,5 +97,6 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
     assert [result["success"] for result in results] == [True, True, False, True, True]
     assert "1 failed" in results[2]["result"]
     assert "1 passed" in results[4]["result"]
-    assert confirmations == ["pytest_run", "edit_file", "pytest_run"]
+    # The repeated identical pytest run reuses the first approval grant.
+    assert confirmations == ["pytest_run", "edit_file"]
     assert events[-1].data["status"] == "completed"

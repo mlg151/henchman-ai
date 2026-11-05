@@ -226,7 +226,9 @@ async def test_real_coding_loop_recovers_from_failed_test_and_edit(
 
     assert source.read_bytes() == b"def add(a, b):\n    return a + b\n"
     assert len(requests) == 6
-    assert confirmations == ["shell", "edit_file", "edit_file", "shell"]
+    # The repeated identical pytest run reuses the first approval grant;
+    # the two edit_file calls differ (old_str) and each prompts.
+    assert confirmations == ["shell", "edit_file", "edit_file"]
     results = [event["data"] for event in events if event["type"] == "tool_call_result"]
     assert [result["tool_call_id"] for result in results] == [call[0] for call in script[:-1]]
     assert [result["success"] for result in results] == [True, False, False, True, True], results

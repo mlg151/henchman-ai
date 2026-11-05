@@ -1167,6 +1167,24 @@ late-registered tools and scoped subagent registries cannot bypass the
 boundary. Auto-approval suppresses the confirmation requirement in the
 verdict but never overrides the Plan Mode denial.
 
+### Approval-reuse scoping
+
+When a user confirms a confirmation request, the approval is recorded as a
+session-scoped grant keyed to the exact approved scope: the tool name, the
+effective operation effect, a canonical digest of the parameters, and the
+risk level. Repeated invocations with the identical scope are authorized
+without re-prompting. Any change — different tool, different arguments,
+escalated operation effect, or changed risk — invalidates the match and
+re-prompts; denials record no grant, and auto-approved tools (whose
+confirmation is suppressed by policy) record none either.
+
+Grants are shared across a registry ancestry (a scoped subagent registry and
+its parent see the same session grants) but are never shared across separate
+registries or persisted to disk. Activating a different session (for example
+`/chat resume`) clears the session's grants through
+`ToolRegistry.clear_grants()`, so an approval from one session never carries
+into another.
+
 ## Configuration
 
 ### Auto-Approve Read Tools

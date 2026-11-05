@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.formatting import PythonAutoFormatter
-from henchman.tools.policy import PolicyDecision, evaluate_effective_policy
+from henchman.tools.policy import (
+    ApprovalGrantStore,
+    GrantKey,
+    PolicyDecision,
+    evaluate_effective_policy,
+    grant_key_for,
+)
 from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
@@ -72,6 +78,7 @@ class ToolRegistry:
         self._policy_parent: ToolRegistry | None = None
         self._auto_approve_policies: set[str] = set()
         self._plan_mode: bool = False
+        self._grants = ApprovalGrantStore()
         self._retry_config = retry_config or RetryConfig()
         self._discovery_tool: Tool | None = None
         self._discovered_tools: list[str] = []
@@ -141,6 +148,13 @@ class ToolRegistry:
         return self._plan_mode or (
             self._policy_parent is not None and self._policy_parent._effective_plan_mode
         )
+
+    @property
+    def _effective_grants(self) -> ApprovalGrantStore:
+        """Share user approvals across the whole session ancestry."""
+        if self._policy_parent is not None:
+            return self._policy_parent._effective_grants
+        return self._grants
 
     @property
     def is_plan_mode_active(self) -> bool:
@@ -286,6 +300,18 @@ class ToolRegistry:
         """Return whether this registry explicitly auto-approves a tool."""
         return name in self._auto_approve_policies
 
+    def list_approval_grants(self) -> list[GrantKey]:
+        """List the user-approved grants active in this session scope."""
+        return self._effective_grants.all()
+
+    def clear_grants(self) -> None:
+        """Invalidate every user approval for the session scope.
+
+        Called at session boundaries (new session, resume, or explicit reset)
+        so that approvals never carry over into a different session scope.
+        """
+        self._effective_grants.clear()
+
     def evaluate_policy(self, name: str, params: dict[str, object]) -> PolicyDecision | None:
         """Return the centralized effective policy for one invocation.
 
@@ -307,6 +333,8 @@ class ToolRegistry:
         """Return the allowed registered tool or a denial, without executing it.
 
         Orchestrated tools use this same check before their custom dispatch.
+        A still-valid user approval (same tool, effect, parameters, and risk)
+        is reused without re-prompting; any changed scope re-prompts.
         """
         tool = self.get(name)
         if tool is None:
@@ -332,15 +360,18 @@ class ToolRegistry:
         # Check if confirmation is needed
         confirmation_request = decision.confirmation
         if confirmation_request is not None:
-            handler = self._confirmation_handler
-            if handler:
-                approved = await handler(confirmation_request)
-                if not approved:
-                    return ToolResult(
-                        content=f"Tool execution denied by user: {name}",
-                        success=False,
-                        error="Execution denied by user",
-                    )
+            key = grant_key_for(confirmation_request, decision.effective_kind)
+            if not self._effective_grants.is_granted(key):
+                handler = self._confirmation_handler
+                if handler:
+                    approved = await handler(confirmation_request)
+                    if not approved:
+                        return ToolResult(
+                            content=f"Tool execution denied by user: {name}",
+                            success=False,
+                            error="Execution denied by user",
+                        )
+                    self._effective_grants.grant(key)
 
         return tool
 
