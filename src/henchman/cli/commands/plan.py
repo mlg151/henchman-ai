@@ -7,7 +7,12 @@ without modifying the codebase.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from henchman.cli.commands import Command, CommandContext
+
+if TYPE_CHECKING:
+    from henchman.core.session import Session
 
 PLAN_MODE_PROMPT = """
 ---
@@ -45,7 +50,7 @@ def _toggle_plan_mode(ctx: CommandContext) -> bool:
 def apply_plan_mode(
     *,
     enabled: bool,
-    session: object | None = None,
+    session: Session | None = None,
     tool_registry: object | None = None,
     agent: object | None = None,
     origin: str = "user",
