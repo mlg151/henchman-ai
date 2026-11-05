@@ -37,15 +37,28 @@
     "ui": {
       "type": "object",
       "description": "Terminal UI settings",
-      "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides"],
+      "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides", "output_mode", "reduced_motion", "detail_density", "keyboard_mode", "mouse_capture", "layout"],
       "properties": {
-        "output_style": { "type": "string", "enum": ["compact", "verbose", "json"] },
+        "output_style": { "type": "string", "enum": ["verbose", "concise", "minimal", "json"] },
         "theme": { "type": "string" },
         "show_line_numbers": { "type": "boolean" },
         "mcp_logging": { "type": "boolean" },
         "accessible_mode": { "type": "boolean" },
         "keybindings": { "type": "object", "additionalProperties": { "type": "string" } },
-        "style_overrides": { "type": "object", "additionalProperties": { "type": "string" } }
+        "style_overrides": { "type": "object", "additionalProperties": { "type": "string" } },
+        "output_mode": { "type": "string", "enum": ["rich", "plain", "quiet"] },
+        "reduced_motion": { "type": "boolean" },
+        "detail_density": { "type": "string", "enum": ["compact", "normal", "detailed"] },
+        "keyboard_mode": { "type": "string", "enum": ["standard", "vim"] },
+        "mouse_capture": { "type": "boolean" },
+        "layout": {
+          "type": "object",
+          "required": ["compact_tables"],
+          "properties": {
+            "compact_tables": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },

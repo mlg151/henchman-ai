@@ -3,11 +3,11 @@
   "title": "UISettings",
   "description": "Shape contract for the serialised UISettings model.",
   "type": "object",
-  "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides"],
+  "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides", "output_mode", "reduced_motion", "detail_density", "keyboard_mode", "mouse_capture", "layout"],
   "properties": {
     "output_style": {
       "type": "string",
-      "enum": ["compact", "verbose", "json"],
+      "enum": ["verbose", "concise", "minimal", "json"],
       "description": "Preferred output style"
     },
     "theme": {
@@ -35,6 +35,41 @@
       "type": "object",
       "description": "Mapping of style tokens to override values",
       "additionalProperties": { "type": "string" }
+    },
+    "output_mode": {
+      "type": "string",
+      "enum": ["rich", "plain", "quiet"],
+      "description": "Rendering mode (rich, plain, quiet)"
+    },
+    "reduced_motion": {
+      "type": "boolean",
+      "description": "Suppress non-essential animation and redraws"
+    },
+    "detail_density": {
+      "type": "string",
+      "enum": ["compact", "normal", "detailed"],
+      "description": "Density of presented information"
+    },
+    "keyboard_mode": {
+      "type": "string",
+      "enum": ["standard", "vim"],
+      "description": "Keyboard behavior mode"
+    },
+    "mouse_capture": {
+      "type": "boolean",
+      "description": "Capture mouse events in the TUI; disable for native scrolling"
+    },
+    "layout": {
+      "type": "object",
+      "description": "Optional UI layout controls",
+      "required": ["compact_tables"],
+      "properties": {
+        "compact_tables": {
+          "type": "boolean",
+          "description": "Render denser tables and lists where supported"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
