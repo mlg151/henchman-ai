@@ -614,6 +614,10 @@ The `command` argument and shell syntax are not translated into Python. Missing
 or blank code returns guidance and performs no execution; use `shell` only when
 it is allowed in the current tool scope.
 
+Invocation classification is per snippet: code that only evaluates
+side-effect-free expressions is classified `READ` (available in Plan Mode);
+anything else stays `EXECUTE`. See [Tool Kinds](#tool-kinds).
+
 Before either execution mode, an isolated worker applies Black's in-memory
 string API with default settings to the snippet. It does not inspect the working
 directory or load project Black configuration. Formatting has a 300 ms deadline,
@@ -681,6 +685,12 @@ sequences are rejected, including inside quoted arguments. These rejections give
 recovery guidance while retaining the validation failure. For multiline Python,
 use `python_exec` when it is allowed in the current agent's tool scope; otherwise
 submit supported single-line commands.
+
+Invocation classification is per command: side-effect-free single commands
+(read-only allowlist programs, read-only `git` subcommands, `find` without
+mutating flags, no chaining/redirects/substitution) are classified `READ`
+(available in Plan Mode); everything else stays `EXECUTE`. See
+[Tool Kinds](#tool-kinds).
 
 Commands use the host's native default shell: `/bin/sh` on Linux/macOS and
 `cmd.exe` on Windows. Use syntax and quoting for that shell; POSIX commands are
@@ -1125,6 +1135,26 @@ Tools are classified by kind, which determines confirmation behavior:
 | `WRITE` | File modifications | No |
 | `EXECUTE` | Shell commands | No |
 | `NETWORK` | Network requests | No |
+
+The static `kind` stays the tool's catalog classification. Tools with read-only
+and mutating modes override `execution_kind()` per invocation; authorization
+(including Plan Mode blocking), confirmation requests, and network retries use
+that effective classification. The classifiers are conservative — anything that
+cannot be proven read-only retains the static kind:
+
+- `shell` downgrades side-effect-free single commands to `READ`: an allowlist of
+  read-only programs, read-only `git` subcommands (`status`, `log`, `diff`,
+  `show`), and `find` without mutating flags, with no chaining, redirection,
+  or substitution.
+- `python_exec` downgrades snippets that only evaluate side-effect-free
+  expressions to `READ`: no imports, assignments, subscripts, attribute
+  access, definitions, or control flow, and calls limited to a small allowlist
+  of pure builtins.
+- The `mcp` management tool downgrades its `status` and `discover` actions to
+  `READ`; `mcp_auth` downgrades its `status` action to `READ`.
+- MCP server tools always carry the conservative `NETWORK` execution
+  classification: server trust controls local confirmation, not effect, so
+  Plan Mode blocks MCP tool calls even from trusted servers.
 
 ## Configuration
 

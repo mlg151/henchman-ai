@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import os
 import sys
@@ -16,6 +17,127 @@ from henchman.tools.utils import create_parameter_schema
 # Safety limits
 MAX_OUTPUT_CHARS = 100_000
 DEFAULT_TIMEOUT_SECONDS = 30
+
+_READ_ONLY_PYTHON_BUILTINS: frozenset[str] = frozenset(
+    {
+        "abs",
+        "all",
+        "any",
+        "bool",
+        "bytes",
+        "chr",
+        "dict",
+        "divmod",
+        "enumerate",
+        "float",
+        "frozenset",
+        "hash",
+        "int",
+        "isinstance",
+        "len",
+        "list",
+        "max",
+        "min",
+        "ord",
+        "print",
+        "pow",
+        "range",
+        "repr",
+        "reversed",
+        "round",
+        "set",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "type",
+        "zip",
+    }
+)
+"""Builtin callables that can run without observable side effects."""
+
+_READ_ONLY_PYTHON_NODES: tuple[type[ast.AST], ...] = (
+    ast.Module,
+    ast.Expr,
+    ast.Constant,
+    ast.Name,
+    ast.UnaryOp,
+    ast.BinOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.JoinedStr,
+    ast.FormattedValue,
+    ast.Starred,
+    ast.keyword,
+    ast.comprehension,
+    ast.List,
+    ast.Tuple,
+    ast.Set,
+    ast.Dict,
+    ast.ListComp,
+    ast.DictComp,
+    ast.SetComp,
+    ast.GeneratorExp,
+    ast.Call,
+    ast.Load,
+    ast.Store,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.MatMult,
+    ast.LShift,
+    ast.RShift,
+    ast.BitOr,
+    ast.BitXor,
+    ast.BitAnd,
+    ast.UAdd,
+    ast.USub,
+    ast.Not,
+    ast.Invert,
+    ast.And,
+    ast.Or,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+)
+"""AST node types that carry no binding, definition, or state mutation."""
+
+
+def is_read_only_python_source(code: str) -> bool:
+    """Return ``True`` when *code* only evaluates side-effect-free expressions.
+
+    The classification is AST-based and deliberately conservative: imports,
+    assignments, subscripts, attribute access, definitions, control flow, and
+    calls outside a small allowlist of pure builtins all retain the static
+    EXECUTE classification.
+    """
+    if not code.strip():
+        return False
+    try:
+        tree = ast.parse(code, mode="exec")
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, _READ_ONLY_PYTHON_NODES):
+            return False
+        if isinstance(node, ast.Call) and (
+            not isinstance(node.func, ast.Name)
+            or node.func.id not in _READ_ONLY_PYTHON_BUILTINS
+        ):
+            return False
+    return True
 
 
 @dataclass
@@ -196,6 +318,19 @@ class PythonExecTool(Tool):
     def kind(self: PythonExecTool) -> ToolKind:
         """Tool kind - EXECUTE requires confirmation."""
         return ToolKind.EXECUTE
+
+    def execution_kind(self: PythonExecTool, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; pure expression snippets stay READ.
+
+        The static EXECUTE kind remains the catalog classification. A snippet
+        that only evaluates side-effect-free expressions is downgraded to READ
+        so Plan Mode keeps it available; anything the classifier cannot prove
+        read-only conservatively retains EXECUTE.
+        """
+        code = params.get("code")
+        if isinstance(code, str) and is_read_only_python_source(code):
+            return ToolKind.READ
+        return self.kind
 
     async def execute(  # type: ignore[override]
         self: PythonExecTool,
