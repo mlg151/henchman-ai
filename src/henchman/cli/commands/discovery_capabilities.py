@@ -219,6 +219,32 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
     ),
+    _CapabilitySpec(
+        name="terminal UI controls",
+        classification="undiscoverable",
+        summary=(
+            "Typed terminal UI settings are TUI-scoped controls; generic "
+            "discovery/help surfaces intentionally do not advertise them as "
+            "generic commands."
+        ),
+        detail=(
+            "ui.output_mode, ui.reduced_motion, ui.detail_density, "
+            "ui.keyboard_mode, ui.mouse_capture, and ui.layout.compact_tables "
+            "are typed settings configured through the config command. Their "
+            "runtime consumers are delivered by the terminal UI workstream; "
+            "runtime-scoped discovery must not present them as generic commands."
+        ),
+        aliases=(
+            "ui.output_mode",
+            "ui.reduced_motion",
+            "ui.detail_density",
+            "ui.keyboard_mode",
+            "ui.mouse_capture",
+            "ui.layout.compact_tables",
+            "terminal ui",
+            "ui settings",
+        ),
+    ),
 )
 
 _TOOL_NAME_TO_CAPABILITY_NAME: Final[dict[str, str]] = {

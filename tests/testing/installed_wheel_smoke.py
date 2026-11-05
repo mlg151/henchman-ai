@@ -98,6 +98,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_switch_context_limit.py",
         "tests/cli/test_chat_session_reasoning.py",
         "tests/cli/test_workflow_discovery.py",
+        "tests/cli/test_ui_controls_discovery.py",
         "tests/team/test_workflow_execution_truth.py",
         "tests/cli/test_provider_switch.py",
         "tests/cli/commands/test_model.py",
