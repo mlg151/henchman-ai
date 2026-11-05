@@ -312,15 +312,25 @@ def _setup_repl_rag(repl: Any, settings: Any, *, headless: bool = False) -> None
 def _apply_interactive_plan_mode(repl: Any, config: RunConfig) -> None:
     """Apply plan mode settings to an interactive REPL, including the agent prompt.
 
+    A resumed session that was persisted in Plan Mode keeps its read-only
+    boundary: the live registry and agent prompt are synchronized with the
+    session rather than re-derived from the CLI flag alone. Re-applying the
+    persisted boundary is not a new transition, so its origin is preserved.
+
     Args:
         repl: The REPL instance.
         config: Run configuration.
     """
-    if not config.plan_mode or not repl.session_manager.current:
+    session = repl.session_manager.current
+    if session is None:
         return
-    repl.session_manager.current.plan_mode = True
+    if not config.plan_mode and not session.plan_mode:
+        return
+    session.plan_mode = True
     repl.tool_manager.set_plan_mode(plan_mode=True)
-    repl.agent.system_prompt += _get_plan_mode_prompt()
+    prompt = _get_plan_mode_prompt()
+    if prompt not in repl.agent.system_prompt:
+        repl.agent.system_prompt += prompt
 
 
 def _dispatch_interactive_run(repl: Any, config: RunConfig) -> None:
@@ -420,9 +430,12 @@ def _create_headless_repl(config: RunConfig) -> tuple[Any, Any, Any]:
     _setup_repl_session(repl)
     _setup_repl_rag(repl, ctx.settings, headless=True)
 
-    # Set plan mode on session/tool-manager if requested
-    if config.plan_mode and repl.session_manager.current:  # pragma: no cover
-        repl.session_manager.current.plan_mode = True
+    # Re-apply plan mode from the CLI flag or a persisted plan-mode session
+    current_session = repl.session_manager.current  # pragma: no cover
+    if current_session is not None and (  # pragma: no cover
+        config.plan_mode or current_session.plan_mode
+    ):
+        current_session.plan_mode = True
         repl.tool_manager.set_plan_mode(plan_mode=True)
 
     return repl, ctx.settings, ctx.system_prompt

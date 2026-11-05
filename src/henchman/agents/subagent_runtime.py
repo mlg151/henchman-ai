@@ -53,6 +53,11 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             from henchman.core.instruction_provenance import render_delegation_appendix
 
             prompt = f"{prompt}\n\n{render_delegation_appendix(snapshot)}"
+        if registry.is_plan_mode_active:
+            from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+
+            if PLAN_MODE_PROMPT not in prompt:
+                prompt = f"{prompt}{PLAN_MODE_PROMPT}"
         agent = Agent(
             provider=parent.provider,
             tool_registry=registry,

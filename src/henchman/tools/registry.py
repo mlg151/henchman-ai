@@ -141,6 +141,11 @@ class ToolRegistry:
             self._policy_parent is not None and self._policy_parent._effective_plan_mode
         )
 
+    @property
+    def is_plan_mode_active(self) -> bool:
+        """Whether the effective Plan Mode boundary is currently in force."""
+        return self._effective_plan_mode
+
     def set_retry_config(self: ToolRegistry, config: RetryConfig) -> None:
         """Set the retry configuration for network tools.
 
