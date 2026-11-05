@@ -508,8 +508,10 @@ The current working directory contains test files for this evaluation."""
 
         Args:
             prompt: User prompt to send.
-            max_iterations: Maximum tool call iterations; defaults to EVAL_MAX_ITERATIONS or 10.
+            max_iterations: Maximum tool call iterations; defaults to EVAL_MAX_ITERATIONS
+                or 10. A set EVAL_MAX_ITERATIONS is a hard cap on an explicit value.
             timeout: Whole-turn timeout in seconds; defaults to EVAL_TIMEOUT or 60.
+                A set EVAL_TIMEOUT is a hard cap on an explicit value.
             observe_event: Called after each event is retained. Observer errors propagate.
 
         Returns:
@@ -526,7 +528,16 @@ The current working directory contains test files for this evaluation."""
             max_iterations = int(os.environ.get("EVAL_MAX_ITERATIONS", "10"))
         if type(max_iterations) is not int or max_iterations < 0:
             raise ValueError("max_iterations must be a nonnegative integer")
-        effective_timeout = float(os.environ.get("EVAL_TIMEOUT", "60")) if timeout is None else timeout
+        env_max_iterations = os.environ.get("EVAL_MAX_ITERATIONS")
+        if env_max_iterations is not None:
+            max_iterations = min(max_iterations, int(env_max_iterations))
+        env_timeout = os.environ.get("EVAL_TIMEOUT")
+        if timeout is None:
+            effective_timeout = float(env_timeout or 60)
+        else:
+            effective_timeout = float(timeout)
+            if env_timeout is not None:
+                effective_timeout = min(effective_timeout, float(env_timeout))
         if isinstance(effective_timeout, bool) or not math.isfinite(effective_timeout) or effective_timeout <= 0:
             raise ValueError("timeout must be a finite positive number")
 

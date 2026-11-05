@@ -139,14 +139,17 @@ async def _run_once(
         rig.setup(f"baseline_{case_id}_{run_index}")
         with _bounded_env(timeout, max_iterations):
             result = await dispatch_case(case_id, rig)
+        # A 0/0 reading means the run path did not report usage; an LLM turn
+        # always consumes prompt tokens, so zeros are unreported, not free.
+        reported = bool(result.tokens_in or result.tokens_out)
         return RunRecord(
             case_id=case_id,
             run_index=run_index,
             profile=profile,
             outcome="success",
             duration_ms=result.duration_ms,
-            tokens_in=result.tokens_in,
-            tokens_out=result.tokens_out,
+            tokens_in=result.tokens_in if reported else None,
+            tokens_out=result.tokens_out if reported else None,
             task_verified=result.success,
             error=result.error,
         )
