@@ -218,6 +218,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_delegation_provenance.py",
         "tests/cli/test_session_manager_provenance.py",
         "tests/core/test_compaction_recovery.py",
+        "tests/core/test_session_enhanced.py",
         "tests/core/test_session_memory_controls.py",
         "tests/core/test_session_tier2_services.py",
         "tests/cli/test_session_context_command.py",

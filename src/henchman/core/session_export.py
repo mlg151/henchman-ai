@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+from .session_memory import SessionMemoryService
+
 if TYPE_CHECKING:
     from .session_data import Session
     from .session_models import SessionMessage, TurnSummaryRecord
@@ -67,7 +69,12 @@ def _render_message(index: int, msg: SessionMessage) -> list[str]:
 
 
 def _render_summaries(summaries: list[TurnSummaryRecord]) -> list[str]:
-    """Render turn summaries as Markdown lines."""
+    """Render turn summaries as Markdown lines.
+
+    Compaction records additionally render the absolute turn numbers they
+    cover and their retained original messages, so compacted turns stay
+    visible in the export.
+    """
     if not summaries:
         return []
     lines = ["## Turn Summaries", ""]
@@ -81,6 +88,43 @@ def _render_summaries(summaries: list[TurnSummaryRecord]) -> list[str]:
                 "",
             ],
         )
+        if ts.kind == "compaction":
+            if ts.source_turns:
+                lines.extend(
+                    [f"**Covers turns:** {', '.join(str(turn) for turn in ts.source_turns)}", ""]
+                )
+            if ts.retained_messages:
+                lines.extend(["**Retained messages:**", ""])
+                for msg in ts.retained_messages:
+                    lines.extend(_render_retained_message(msg))
+    return lines
+
+
+def _render_retained_message(msg: SessionMessage) -> list[str]:
+    """Render one message retained by a compaction record as Markdown lines."""
+    lines = [f"#### {msg.role}", ""]
+    if msg.content:
+        escaped = msg.content.replace("<", "\\<").replace(">", "\\>")
+        lines.extend([escaped, ""])
+    if msg.tool_calls:
+        lines.append("**Tool Calls:**")
+        for tc in msg.tool_calls:
+            name = tc.get("name", "unknown")
+            args: dict[str, Any] = tc.get("arguments", {})
+            lines.append(f"- `{name}`: {args}")
+        lines.append("")
+    return lines
+
+
+def _render_memories(session: Session) -> list[str]:
+    """Render stored session memories as Markdown lines (empty when none)."""
+    memories = SessionMemoryService().list_memories(session)
+    if not memories:
+        return []
+    lines = ["## Session Memories", ""]
+    for memory in memories:
+        lines.append(f"- **{memory.kind}** ({memory.source}, {memory.created_at}): {memory.content}")
+    lines.append("")
     return lines
 
 
@@ -110,6 +154,7 @@ def export_as_markdown(
     for i, msg in enumerate(session.messages):
         lines.extend(_render_message(i, msg))
     lines.extend(_render_summaries(session.turn_summaries))
+    lines.extend(_render_memories(session))
     return "\n".join(lines)
 
 
