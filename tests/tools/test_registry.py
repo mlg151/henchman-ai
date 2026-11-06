@@ -9,6 +9,7 @@ from henchman.tools.base import (
     ToolResult,
 )
 from henchman.tools.registry import BatchResult, ToolRegistry
+from henchman.tools.scoped_registry import ScopedToolRegistry
 from henchman.utils.retry import RetryConfig
 
 
@@ -247,12 +248,57 @@ class TestToolRegistryExecution:
         assert result.success is False
         assert "not found" in result.error.lower()
 
-    async def test_execute_write_tool_without_confirmation(self) -> None:
-        """Write tool executes when no confirmation handler set."""
+    async def test_execute_write_tool_without_confirmation_is_denied(self) -> None:
+        """Confirmation-required tool is explicitly denied, never auto-run, without a handler."""
         registry = ToolRegistry()
         registry.register(MockWriteTool())
         result = await registry.execute("write_file", {"path": "/x", "content": "y"})
-        assert result.success is True
+        assert result.success is False
+        assert result.error is not None
+        assert "confirmation" in result.error.lower()
+        assert "denied by user" not in result.error.lower()
+
+    async def test_headless_denial_is_distinct_from_user_denial(self) -> None:
+        """Needs-input denial and user denial are distinct, inspectable states."""
+        registry = ToolRegistry()
+        registry.register(MockWriteTool())
+        headless = await registry.execute("write_file", {"path": "/x", "content": "y"})
+        assert headless.success is False
+
+        async def deny_handler(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+            return False
+
+        registry.set_confirmation_handler(deny_handler)
+        denied = await registry.execute("write_file", {"path": "/x", "content": "y"})
+        assert denied.success is False
+        assert denied.error != headless.error
+        assert "denied by user" in denied.error.lower()
+
+    async def test_scoped_registry_without_handler_denies_headless(self) -> None:
+        """A scoped registry whose ancestry has no handler denies, never auto-runs."""
+        parent = ToolRegistry()
+        parent.register(MockWriteTool())
+        scoped = ScopedToolRegistry(parent, ["write_file"])
+        result = await scoped.execute("write_file", {"path": "/x", "content": "y"})
+        assert result.success is False
+        assert result.error is not None
+        assert "confirmation" in result.error.lower()
+        assert "denied by user" not in result.error.lower()
+
+    async def test_headless_denial_records_no_grant(self) -> None:
+        """A needs-input denial leaves no grant; a later handler still prompts."""
+        registry = ToolRegistry()
+        registry.register(MockWriteTool())
+        denied = await registry.execute("write_file", {"path": "/x", "content": "y"})
+        assert denied.success is False
+        assert registry.list_approval_grants() == []
+
+        async def approve_handler(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+            return True
+
+        registry.set_confirmation_handler(approve_handler)
+        approved = await registry.execute("write_file", {"path": "/x", "content": "y"})
+        assert approved.success is True
 
     async def test_execute_with_confirmation_handler_approved(self) -> None:
         """Tool executes when confirmation handler approves."""
@@ -468,6 +514,11 @@ class TestToolRegistryBatch:
         registry = ToolRegistry()
         registry.register(MockReadTool())
         registry.register(MockWriteTool())
+
+        async def approve_handler(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+            return True
+
+        registry.set_confirmation_handler(approve_handler)
 
         result = await registry.execute_batch(
             [

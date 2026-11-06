@@ -12,6 +12,11 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import ProviderSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.factory import create_configured_provider
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.parametrize(
@@ -69,6 +74,7 @@ async def test_specialist_sdk_request_preserves_full_mission_and_narrow_assignme
     settings = Settings(providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     orch = Orchestrator(default_provider=provider, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         events = [event async for event in orch.run(mission)]
     finally:

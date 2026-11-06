@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Headless confirmation denial** — When a tool invocation requires user confirmation, no session-scoped grant is active, and no confirmation handler exists anywhere in the registry ancestry (for example, a headless session), `ToolRegistry.authorize()` no longer falls through to a silent approval: it returns an explicit needs-input denial (`Confirmation required but no confirmation handler is available`), distinct from a user's explicit denial (`Execution denied by user`), and records no grant. The orchestrated delegation path reports the denial as the tool result. Four new regressions are staged in the native installed-wheel cohort; [#18](https://github.com/mlg151/henchman-ai/issues/18).
 - **Startup settings consistency** — CLI runtime preparation shares one settings load with provider construction. TUI startup reuses supplied settings or loads them once when omitted, including with an injected provider. Invalid settings fail before a provider is created; TUI presentation and environment fallbacks remain available.
 - **Agent test observations** — Reject a foreground shell command that merely prints a passing pytest summary instead of running the requested test command. Bind pytest-tool observations to the requested file and unfiltered structured execution evidence.
 - **Fresh evaluation checks** — Isolate bytecode caches for independent Python verification so same-size source edits with restored timestamps cannot be replaced by stale compiled code.

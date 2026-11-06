@@ -11,9 +11,14 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import AgentConfig, ProviderSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.factory import create_configured_provider
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.pytest_run import PytestRunTool
 from henchman.tools.builtins.tier1_tools import ToolSearchTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def tool_result_text(request, call_id):
@@ -113,6 +118,7 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
         tools=["tool_search", "delegate_task"],
     )
     orch = Orchestrator(default_provider=provider, tool_registry=registry, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         events = [event async for event in orch.run("Use pytest_run to verify test_total.py.")]
     finally:

@@ -13,8 +13,13 @@ from pathlib import Path
 import pytest
 
 from henchman.advanced import TaskService
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.builtins.shell import ShellTool
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _task_id(content: str) -> str:
@@ -34,6 +39,7 @@ async def test_mixed_jobs_return_before_completion_and_remain_independent(tmp_pa
     from henchman.cli.tool_manager import ToolManager
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
     service = TaskService(tmp_path)
@@ -122,6 +128,7 @@ async def test_background_nonzero_exit_is_visible_to_tracking_tools(tmp_path: Pa
     from henchman.cli.tool_manager import ToolManager
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
     launched = await manager.registry.execute("python_exec", {"code": "raise ValueError('broken')"})

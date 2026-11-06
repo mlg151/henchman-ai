@@ -334,7 +334,10 @@ class ToolRegistry:
 
         Orchestrated tools use this same check before their custom dispatch.
         A still-valid user approval (same tool, effect, parameters, and risk)
-        is reused without re-prompting; any changed scope re-prompts.
+        is reused without re-prompting; any changed scope re-prompts. When
+        confirmation is required, no grant is active, and no confirmation
+        handler is available in the registry ancestry, the result is an
+        explicit needs-input denial (headless input is never fabricated).
         """
         tool = self.get(name)
         if tool is None:
@@ -372,6 +375,18 @@ class ToolRegistry:
                             error="Execution denied by user",
                         )
                     self._effective_grants.grant(key)
+                else:
+                    # Headless input is never fabricated: a confirmation
+                    # requirement with no input channel is an explicit
+                    # needs-input denial, distinct from a user denial.
+                    return ToolResult(
+                        content=(
+                            f"Tool '{name}' requires user confirmation, which is not "
+                            "available in this session. The action was not executed."
+                        ),
+                        success=False,
+                        error="Confirmation required but no confirmation handler is available",
+                    )
 
         return tool
 
@@ -382,7 +397,8 @@ class ToolRegistry:
         1. Look up the tool
         2. Check Plan Mode restrictions
         3. Check if confirmation is needed (unless auto-approved or READ tool)
-        4. Call confirmation handler if needed
+        4. Call confirmation handler if needed; an unavailable handler yields
+           an explicit needs-input denial, never a silent approval
         5. Execute the tool if approved (with retries for NETWORK tools)
 
         Args:

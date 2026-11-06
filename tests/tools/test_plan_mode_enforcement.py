@@ -1,6 +1,6 @@
 """Test plan mode enforcement for write/execute tools."""
 
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
 
 
@@ -140,6 +140,11 @@ class TestPlanModeEnforcement:
 
         # Plan mode disabled (default)
         registry.set_plan_mode(enabled=False)
+
+        async def approve_handler(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+            return True
+
+        registry.set_confirmation_handler(approve_handler)
 
         result = await registry.execute("write_file", {"path": "/test", "content": "data"})
         assert result.success is True

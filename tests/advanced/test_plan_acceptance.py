@@ -7,6 +7,11 @@ from pathlib import Path
 import pytest
 
 from henchman.advanced.plans import PlanExecutionService
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 async def test_reported_completion_does_not_pass_missing_file(tmp_path: Path) -> None:
@@ -119,6 +124,7 @@ async def test_registry_policies_prevent_acceptance_command_execution(tmp_path: 
     tool = VerifyPlanExecutionTool()
     tool.bind_runtime(project_root=tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     registry.register(tool)
     created = await registry.execute("verify_plan_execution", {
         "action": "create", "steps": ["produce marker"],

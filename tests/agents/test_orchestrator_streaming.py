@@ -18,8 +18,12 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.tools.base import Tool, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolResult
 from henchman.utils.validation import validate_message_sequence
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class StreamingTeamProvider(ModelProvider):
@@ -104,6 +108,7 @@ class CountingRead(Tool):
 def _team(*, tools: bool = False) -> tuple[Orchestrator, StreamingTeamProvider, CountingRead]:
     provider = StreamingTeamProvider(tools=tools)
     orchestrator = Orchestrator(default_provider=provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     orchestrator.settings.agents.max_delegation_retries = 0
     read = CountingRead()
     orchestrator.tool_registry.register(read)
@@ -238,6 +243,7 @@ async def test_cleanup_cancellation_without_primary_error_propagates() -> None:
 async def test_interrupted_retry_fails_current_record_and_preserves_previous_failure() -> None:
     provider = StreamingTeamProvider(fail_first_child=True)
     orchestrator = Orchestrator(default_provider=provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     orchestrator.settings.agents.max_delegation_retries = 1
     stream = cast("AsyncGenerator[AgentEvent, None]", orchestrator.run("Inspect source"))
     try:

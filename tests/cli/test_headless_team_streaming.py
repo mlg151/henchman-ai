@@ -9,7 +9,12 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.app import _run_headless_json_mode
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
+from henchman.tools.base import ConfirmationRequest
 from henchman.utils.validation import validate_message_sequence
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class HeldSpecialistProvider(ModelProvider):
@@ -41,6 +46,7 @@ class HeldSpecialistProvider(ModelProvider):
 async def test_headless_renders_child_progress_before_child_finishes() -> None:
     provider = HeldSpecialistProvider()
     orch = Orchestrator(default_provider=provider)
+    orch.tool_registry.set_confirmation_handler(_approve)
     rendered = asyncio.Event()
     events = []
 
@@ -70,6 +76,7 @@ async def test_headless_renders_child_progress_before_child_finishes() -> None:
 async def test_renderer_failure_closes_active_child_without_later_work() -> None:
     provider = HeldSpecialistProvider()
     orch = Orchestrator(default_provider=provider)
+    orch.tool_registry.set_confirmation_handler(_approve)
     events = []
 
     def broken_renderer(event):

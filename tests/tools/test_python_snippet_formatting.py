@@ -14,9 +14,14 @@ import pytest
 
 from henchman.advanced.tasks import TaskService
 from henchman.tools import formatting
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins import python_exec
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.parametrize("background", [False, True])
@@ -38,6 +43,7 @@ async def test_large_workspace_executes_without_source_tracking(
     registry = ToolRegistry()
     tool = PythonExecTool()
     registry.register(tool)
+    registry.set_confirmation_handler(_approve)
     result = await registry.execute(
         "python_exec",
         {

@@ -19,12 +19,16 @@ from henchman.core.session_data import (
     Session,
     session_from_dict,
 )
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.builtins.tier2_tools import (
     EnterPlanModeTool,
     ExitPlanModeTool,
 )
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _make_session(
@@ -78,6 +82,7 @@ class _MockWriteTool(Tool):
 def _registry_with_write_tool() -> ToolRegistry:
     registry = ToolRegistry()
     registry.register(_MockWriteTool())
+    registry.set_confirmation_handler(_approve)
     return registry
 
 

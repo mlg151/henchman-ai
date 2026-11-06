@@ -20,8 +20,12 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -194,6 +198,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("What's in hello.txt?"):
@@ -260,6 +265,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Load the config"):
@@ -315,6 +321,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         # Grant nested delegation explicitly so this exercises the depth guard.
         orchestrator.pool.configs["explorer"].tools.append("delegate_task")
@@ -350,6 +357,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Do something"):
@@ -378,6 +386,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Read hello.txt"):
@@ -414,6 +423,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Read both files"):
@@ -452,6 +462,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Read plan and implement"):
@@ -510,6 +521,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Process hello.txt"):
@@ -616,6 +628,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Fix the bug"):
@@ -682,6 +695,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Fix the auth bug and test it"):
@@ -748,6 +762,7 @@ class TestDelegateTaskEndToEnd:
             tool_registry=tool_registry,
             settings=settings,
         )
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events: list[AgentEvent] = []
         async for event in orchestrator.run("Do something"):

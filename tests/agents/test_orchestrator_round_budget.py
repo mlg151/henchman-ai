@@ -11,8 +11,12 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
-from henchman.tools.base import Tool, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolResult
 from henchman.utils.validation import validate_message_sequence
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class RecordedTool(Tool):
@@ -54,6 +58,7 @@ def _orchestrator(chunks: list[StreamChunk], tool: RecordedTool) -> Orchestrator
 
     provider.chat_completion_stream.side_effect = stream
     orch = Orchestrator(default_provider=provider)
+    orch.tool_registry.set_confirmation_handler(_approve)
     orch.settings.agents.max_delegation_retries = 0
     orch.tool_registry.register(tool)
     return orch

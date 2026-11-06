@@ -7,6 +7,11 @@ from pathlib import Path
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def test_builtin_surface_includes_tungsten_tool() -> None:
@@ -40,6 +45,7 @@ async def test_tungsten_tool_snapshots_and_compares_workspace_state(tmp_path: Pa
     tracked.write_text("print('before')\n", encoding="utf-8")
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

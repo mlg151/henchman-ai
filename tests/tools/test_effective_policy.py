@@ -168,7 +168,16 @@ class TestRegistryPolicyQuery:
         decision = registry.evaluate_policy("op", {})
         assert decision is not None
         authorized = await registry.authorize("op", {})
-        assert decision.allowed == (not isinstance(authorized, ToolResult))
+        if not decision.allowed:
+            assert isinstance(authorized, ToolResult)
+            assert authorized.error == "Tool disabled in Plan Mode"
+        elif decision.confirmation is not None:
+            # No handler in this registry: an explicit needs-input denial
+            # (headless input is never fabricated), distinct from the plan-mode denial.
+            assert isinstance(authorized, ToolResult)
+            assert "Confirmation required" in (authorized.error or "")
+        else:
+            assert not isinstance(authorized, ToolResult)
 
     def test_auto_approval_cannot_override_plan_mode(self) -> None:
         registry = ToolRegistry()
