@@ -55,6 +55,8 @@ def _render_context_snapshot(payload: dict[str, Any]) -> str:
         f"Messages: {payload['message_count']}",
         f"Summaries: {payload['turn_summary_count']}",
         f"Memories: {payload['memory_count']}",
+        f"Memory extraction: {'opted out' if payload['memory_extraction_opt_out'] else 'on'}",
+        f"Compacted turns retained: {payload['compacted_turn_count']}",
         f"Estimated tokens: {payload['token_estimate']}",
         f"Plan mode: {'on' if payload['plan_mode'] else 'off'}",
         (

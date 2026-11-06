@@ -10,6 +10,8 @@ from click.testing import CliRunner
 
 from henchman.cli.app import cli
 from henchman.core.session import SessionManager, SessionMessage
+from henchman.core.session_context import SessionContextService
+from henchman.core.session_memory import SessionMemoryService
 
 
 def _configure_workspace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
@@ -64,6 +66,40 @@ def test_context_command_reports_current_session_as_json(
     assert payload["session_id"] == session_id
     assert payload["turn_count"] == 2
     assert payload["tool_usage"]["calls_by_name"]["read_file"] == 1
+
+
+def test_context_command_reports_retention_policy_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The headless context surface must report the same effective retention policy as the snapshot."""
+
+    runner = CliRunner()
+    project_root = _configure_workspace(monkeypatch, tmp_path)
+    manager, session_id = _create_saved_session(project_root)
+    service = SessionContextService(manager)
+    session = manager.load(session_id)
+    memory_service = SessionMemoryService()
+    memory_service.add_memory(session, content="Always prefer JSON output.", kind="preference")
+    memory_service.set_extraction_opt_out(session, True)
+    service.compact_session(session, preserve_turns=1)
+    manager.save(session)
+
+    result = runner.invoke(cli, ["context"])
+    result_json = runner.invoke(cli, ["context", "--format", "json"])
+
+    assert result.exit_code == 0
+    assert result_json.exit_code == 0
+    snapshot = service.build_snapshot(session).to_dict()
+    payload = json.loads(result_json.output)
+    assert payload["memory_extraction_opt_out"] is snapshot["memory_extraction_opt_out"]
+    assert payload["compacted_turn_count"] == snapshot["compacted_turn_count"]
+    assert f"Memories: {snapshot['memory_count']}" in result.output
+    assert (
+        f"Memory extraction: {'opted out' if snapshot['memory_extraction_opt_out'] else 'on'}"
+        in result.output
+    )
+    assert f"Compacted turns retained: {snapshot['compacted_turn_count']}" in result.output
 
 
 def test_context_playback_renders_recorded_events_as_json(

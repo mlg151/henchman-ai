@@ -48,6 +48,80 @@ def test_build_snapshot_reports_tokens_and_tool_usage(tmp_path: Path) -> None:
     assert snapshot.tool_usage.calls_by_name["read_file"] == 1
 
 
+def test_build_snapshot_reports_retention_policy_state(tmp_path: Path) -> None:
+    """The snapshot must be the single effective retention-policy report for every surface."""
+
+    manager = SessionManager(data_dir=tmp_path / "sessions")
+    _, session = _build_session(manager)
+    service = SessionContextService(manager)
+    memory_service = SessionMemoryService()
+    memory_service.add_memory(session, content="Always prefer JSON output.", kind="preference")
+    memory_service.set_extraction_opt_out(session, True)
+    service.compact_session(session, preserve_turns=1)
+
+    snapshot = service.build_snapshot(session)
+
+    assert snapshot.memory_count == 1
+    assert snapshot.memory_extraction_opt_out is True
+    assert snapshot.compacted_turn_count == 1
+    # Parity: the snapshot mirrors the shared services instead of recomputing.
+    assert snapshot.memory_count == len(memory_service.list_memories(session))
+    assert snapshot.memory_extraction_opt_out is memory_service.extraction_opt_out(session)
+
+
+def test_transcript_and_snapshot_report_the_same_memory_state(tmp_path: Path) -> None:
+    """The transcript surface (REPL /session export and the Textual UI) must agree with the snapshot."""
+
+    manager = SessionManager(data_dir=tmp_path / "sessions")
+    _, session = _build_session(manager)
+    service = SessionContextService(manager)
+    memory_service = SessionMemoryService()
+    memory_service.add_memory(session, content="Always prefer JSON output.")
+    memory_service.add_memory(session, content="Keep reports versioned.")
+
+    snapshot = service.build_snapshot(session)
+    transcript = service.render_transcript(session)
+
+    section = transcript.split("## Session Memories", 1)[1]
+    bullets = [line for line in section.splitlines() if line.startswith("- ")]
+    assert len(bullets) == snapshot.memory_count
+
+
+def test_memory_state_does_not_leak_across_projects(tmp_path: Path) -> None:
+    """Memories are scoped to their session; another project's session sees none."""
+
+    workspace_a = tmp_path / "workspace-a"
+    workspace_b = tmp_path / "workspace-b"
+    workspace_a.mkdir()
+    workspace_b.mkdir()
+
+    manager = SessionManager(data_dir=tmp_path / "sessions")
+    service = SessionContextService(manager)
+    memory_service = SessionMemoryService()
+
+    session_a = manager.create_session(
+        project_hash=manager.compute_project_hash(workspace_a), tag="a"
+    )
+    session_b = manager.create_session(
+        project_hash=manager.compute_project_hash(workspace_b), tag="b"
+    )
+    manager.save(session_a)
+    manager.save(session_b)
+
+    memory_service.add_memory(session_a, content="Always prefer JSON output.")
+    manager.save(session_a)
+
+    _, resolved_a = service.resolve_active_session(workspace_a)
+    _, resolved_b = service.resolve_active_session(workspace_b)
+
+    snapshot_a = service.build_snapshot(resolved_a)
+    snapshot_b = service.build_snapshot(resolved_b)
+
+    assert snapshot_a.memory_count == 1
+    assert snapshot_b.memory_count == 0
+    assert memory_service.list_memories(resolved_b) == []
+
+
 def test_resolve_active_session_falls_back_to_latest_session(tmp_path: Path) -> None:
     """The latest project session should become current when no pointer exists."""
 

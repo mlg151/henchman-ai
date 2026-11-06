@@ -49,6 +49,8 @@ class SessionContextSnapshot:
     token_estimate: int
     tool_usage: ToolUsageSummary
     memory_count: int
+    memory_extraction_opt_out: bool
+    compacted_turn_count: int
     last_updated: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,6 +66,8 @@ class SessionContextSnapshot:
             "token_estimate": self.token_estimate,
             "tool_usage": self.tool_usage.to_dict(),
             "memory_count": self.memory_count,
+            "memory_extraction_opt_out": self.memory_extraction_opt_out,
+            "compacted_turn_count": self.compacted_turn_count,
             "last_updated": self.last_updated,
         }
 
@@ -279,8 +283,19 @@ class SessionContextService:
         return export_as_markdown(session, include_metadata=True)
 
     def build_snapshot(self, session: Session) -> SessionContextSnapshot:
-        """Build a structured snapshot of session/context state."""
+        """Build the single effective retention-policy report for one session.
 
+        Every surface that reports session retention state (the headless
+        ``context`` command, the REPL ``/session export`` and the Textual
+        export path) consumes this snapshot or the same shared services it
+        reads, so all surfaces report the same effective policy.
+        """
+
+        compacted_turn_count = sum(
+            len(record.source_turns)
+            for record in session.turn_summaries
+            if record.kind == "compaction"
+        )
         return SessionContextSnapshot(
             session_id=session.id,
             tag=session.tag,
@@ -291,6 +306,8 @@ class SessionContextService:
             token_estimate=self.estimate_tokens(session),
             tool_usage=self.summarize_tool_use(session),
             memory_count=len(self._memory_service.list_memories(session)),
+            memory_extraction_opt_out=self._memory_service.extraction_opt_out(session),
+            compacted_turn_count=compacted_turn_count,
             last_updated=session.last_updated,
         )
 

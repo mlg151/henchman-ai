@@ -326,6 +326,16 @@ Direct-role sessions restore to the selected specialist. These behaviors have
 offline runtime coverage through save/load and a subsequent agent request;
 interactive terminal rendering and live provider execution require separate checks.
 
+`SessionContextService.build_snapshot()` is the single effective retention-policy
+report for a session: message/turn counts, `plan_mode`, stored-memory count, the
+persisted memory-extraction opt-out flag, and the number of turns currently held in
+compaction records. Every reporting surface consumes that snapshot or the same
+shared services it reads — the headless `context` command renders it directly, and
+the REPL `/session export` and Textual export path render memories and
+compaction-retained turns through the same `SessionMemoryService` and
+`SessionContextService` state — so UI and headless surfaces report the same
+effective policy.
+
 **Responsibilities**:
 - Save and load chat sessions
 - Manage session templates
