@@ -21,6 +21,7 @@
         "type": "object",
         "required": ["name", "arguments"],
         "properties": {
+          "id": { "type": ["string", "null"], "description": "Tool call ID pairing the call with its result" },
           "name": { "type": "string" },
           "arguments": { "type": "object", "additionalProperties": true }
         },

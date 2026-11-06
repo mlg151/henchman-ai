@@ -314,12 +314,24 @@ class SessionContextService:
         kept_turns = turns[-preserve_turns:] if preserve_turns else []
         removed_messages = len(_flatten(dropped_turns))
         summary = _build_compaction_summary(dropped_turns, removed_messages)
+        # The record names the absolute 1-based user-anchored turn numbers
+        # it covers (offset by earlier compactions) and retains their
+        # original messages so they stay recoverable.
+        prior_compacted = sum(
+            len(record.source_turns)
+            for record in session.turn_summaries
+            if record.kind == "compaction"
+        )
+        source_turns = list(range(prior_compacted + 1, prior_compacted + len(dropped_turns) + 1))
 
         session.turn_summaries.append(
             TurnSummaryRecord(
                 turn_number=len(session.turn_summaries) + 1,
                 summary_text=summary,
                 timestamp=_now_iso(),
+                kind="compaction",
+                source_turns=source_turns,
+                retained_messages=_flatten(dropped_turns),
             ),
         )
         session.messages = [*prefix, *_flatten(kept_turns)]
@@ -331,6 +343,21 @@ class SessionContextService:
             removed_messages=removed_messages,
             preserved_turns=len(kept_turns),
         )
+
+    def restore_compacted_messages(self, session: Session) -> list[SessionMessage]:
+        """Reconstruct the full original message sequence of a session.
+
+        Combines the messages retained inside compaction records (in record
+        order) with the messages still in the active context, so turns
+        compacted out of the request context remain retrievable and their
+        tool call/result pairs stay intact.
+        """
+
+        restored: list[SessionMessage] = []
+        for record in session.turn_summaries:
+            restored.extend(record.retained_messages)
+        restored.extend(session.messages)
+        return restored
 
     def rewind_session(self, session: Session, *, turns: int = 1) -> SessionRewindResult:
         """Remove the last *turns* user exchanges from the session in place."""
