@@ -62,12 +62,11 @@ def memory_from_dict(data: dict[str, Any]) -> SessionMemoryRecord:
 
 
 def _get_memory_payload(session: Session) -> list[dict[str, Any]]:
-    """Return the raw persisted session-memory payload."""
+    """Return the raw persisted session-memory payload without mutating the session."""
 
-    payload = session.export_metadata.setdefault(_MEMORY_METADATA_KEY, [])
+    payload = session.export_metadata.get(_MEMORY_METADATA_KEY)
     if isinstance(payload, list):
         return [entry for entry in payload if isinstance(entry, dict)]
-    session.export_metadata[_MEMORY_METADATA_KEY] = []
     return []
 
 

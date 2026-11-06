@@ -94,6 +94,18 @@ def test_clear_memories_removes_all_and_reports_count(tmp_path: Path) -> None:
     assert service.clear_memories(session) == 0
 
 
+def test_list_memories_is_read_only(tmp_path: Path) -> None:
+    """Listing memories must not mutate a session that stores none."""
+
+    manager = SessionManager(data_dir=tmp_path / "sessions")
+    session = manager.create_session(project_hash="abc123", tag="memory")
+    before = dict(session.export_metadata)
+    service = SessionMemoryService()
+
+    assert service.list_memories(session) == []
+    assert session.export_metadata == before
+
+
 def test_extraction_opt_out_blocks_persistence(tmp_path: Path) -> None:
     """With extraction opt-out set, extract_memories persists nothing."""
 

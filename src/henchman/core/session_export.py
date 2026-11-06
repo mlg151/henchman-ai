@@ -27,6 +27,11 @@ IsoTimestamp: TypeAlias = str
 # ---------------------------------------------------------------------------
 
 
+def _escape_angle_brackets(text: str) -> str:
+    """Escape angle brackets so literal placeholders survive Markdown/HTML rendering."""
+    return text.replace("<", "\\<").replace(">", "\\>")
+
+
 def _render_metadata(session: Session) -> list[str]:
     """Render session metadata as Markdown lines."""
     lines = [
@@ -55,8 +60,7 @@ def _render_message(index: int, msg: SessionMessage) -> list[str]:
     if msg.agent_id:
         lines.append(f"*Agent: {msg.agent_id}*  ")
     if msg.content:
-        escaped = msg.content.replace("<", "\\<").replace(">", "\\>")
-        lines.extend([escaped, ""])
+        lines.extend([_escape_angle_brackets(msg.content), ""])
     if msg.tool_calls:
         lines.append("**Tool Calls:**")
         for tc in msg.tool_calls:
@@ -104,8 +108,7 @@ def _render_retained_message(msg: SessionMessage) -> list[str]:
     """Render one message retained by a compaction record as Markdown lines."""
     lines = [f"#### {msg.role}", ""]
     if msg.content:
-        escaped = msg.content.replace("<", "\\<").replace(">", "\\>")
-        lines.extend([escaped, ""])
+        lines.extend([_escape_angle_brackets(msg.content), ""])
     if msg.tool_calls:
         lines.append("**Tool Calls:**")
         for tc in msg.tool_calls:
@@ -123,7 +126,14 @@ def _render_memories(session: Session) -> list[str]:
         return []
     lines = ["## Session Memories", ""]
     for memory in memories:
-        lines.append(f"- **{memory.kind}** ({memory.source}, {memory.created_at}): {memory.content}")
+        content = _escape_angle_brackets(memory.content)
+        first_line, *continuation = content.splitlines()
+        lines.append(
+            f"- **{memory.kind}** ({memory.source}, {memory.created_at}): {first_line}"
+        )
+        # Indent continuation lines so each memory stays a single list item.
+        for line in continuation:
+            lines.append(f"  {line}")
     lines.append("")
     return lines
 

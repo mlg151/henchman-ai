@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Evaluation interpreter** — Run the syntax-repair oracle with the active Python interpreter instead of depending on a `python` command on PATH.
 - **Instrumented formatting test** — Allow formatter startup time locally in the workspace-isolation test while preserving the production timeout and its child-reaping regression.
 - **Runtime message contracts** — Accept the optional opaque `reasoning_details` string added by reasoning preservation, with regressions for missing/null values, invalid types and strict unknown-field rejection.
+- **Baseline run failure diagnostics** — Independent Python verification that exceeds its budget now raises `TimeoutError` with the budget in its message, so baseline run records carry a non-empty error string instead of an undiagnosable `runtime_error` record with an empty message; the baseline success-path regressions also name each run's outcome and error, so any future CI flake is self-explaining from its failure message; [#13](https://github.com/mlg151/henchman-ai/issues/13).
+- **Non-mutating session memory reads** — `SessionMemoryService.list_memories` no longer injects an empty `session_memories` payload into sessions that store no memories, so read-only surfaces (such as Markdown export) leave memory-free sessions untouched; [#19](https://github.com/mlg151/henchman-ai/issues/19).
+- **Markdown export memory rendering** — `export_as_markdown` escapes angle brackets in memory content so literal placeholders such as `<repo>` survive rendering and indents multiline memory continuation lines so each memory stays a single list item; the session contract also accepts the persisted tool-call `id` on compaction-retained messages, matching the live message contract; [#19](https://github.com/mlg151/henchman-ai/issues/19).
 
 ### Removed
 

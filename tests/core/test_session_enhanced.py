@@ -335,6 +335,56 @@ class TestSessionEnhancedCoverage:
 
         assert "## Session Memories" not in exported
 
+    def test_export_session_markdown_escapes_memory_angle_brackets(
+        self, manager: SessionManager
+    ) -> None:
+        """Memory content must keep literal angle brackets through rendering."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        memory_service = SessionMemoryService()
+        memory_service.add_memory(
+            session, content="Always use the <repo> layout.", kind="preference"
+        )
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        assert "<repo>" not in exported
+        assert "\\<repo\\>" in exported
+
+    def test_export_session_markdown_keeps_multiline_memory_as_one_item(
+        self, manager: SessionManager
+    ) -> None:
+        """Multiline memory content must stay inside its single list item."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        memory_service = SessionMemoryService()
+        memory_service.add_memory(
+            session, content="Use the canonical endpoint.\nKeep it versioned.", kind="note"
+        )
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        section = exported.split("## Session Memories", 1)[1]
+        bullets = [line for line in section.splitlines() if line.startswith("- ")]
+        assert len(bullets) == 1
+        assert "  Keep it versioned." in exported
+
+    def test_export_markdown_does_not_mutate_memory_free_session(
+        self, manager: SessionManager
+    ) -> None:
+        """Rendering a session that stores no memories must leave it untouched."""
+        from henchman.core.session_export import export_as_markdown
+
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        before = dict(session.export_metadata)
+
+        export_as_markdown(session)
+
+        assert session.export_metadata == before
+
     def test_export_session_markdown_renders_compaction_retained_messages(
         self, manager: SessionManager
     ) -> None:

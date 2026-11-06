@@ -296,9 +296,12 @@ async def test_python_verification_bounds_failure_diagnostics(tmp_path):
     assert len(str(error.value)) < 18000
 
 
-async def test_python_verification_timeout_propagates(tmp_path):
-    with pytest.raises(TimeoutError):
+async def test_python_verification_timeout_surfaces_diagnostics(tmp_path):
+    # A verifier that exceeds its budget must name the timeout: a bare
+    # TimeoutError stringifies to "" and leaves baseline records undiagnosable.
+    with pytest.raises(TimeoutError, match="timed out after 0.05s") as error:
         await helpers.verify_python(tmp_path, "import time; time.sleep(60)", timeout=0.05)
+    assert "Independent Python verification" in str(error.value)
 
 
 @pytest.mark.parametrize("code", ["import sys; sys.exit(0)", "import os; os._exit(0)"])

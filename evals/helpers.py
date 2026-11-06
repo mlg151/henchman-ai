@@ -80,14 +80,21 @@ async def verify_python(workspace: Path, code: str, *, timeout: float = 5.0) -> 
     )
     with tempfile.TemporaryDirectory(prefix="henchman-eval-check-") as directory:
         receipt = Path(directory) / "completed"
-        completed = await run_bounded_subprocess(
-            [
-                sys.executable, "-E", "-B", "-X", "utf8",
-                "-X", f"pycache_prefix={Path(directory) / 'cache'}",
-                "-c", bootstrap, code, str(receipt),
-            ],
-            cwd=workspace, timeout=timeout, max_output_bytes=8192,
-        )
+        try:
+            completed = await run_bounded_subprocess(
+                [
+                    sys.executable, "-E", "-B", "-X", "utf8",
+                    "-X", f"pycache_prefix={Path(directory) / 'cache'}",
+                    "-c", bootstrap, code, str(receipt),
+                ],
+                cwd=workspace, timeout=timeout, max_output_bytes=8192,
+            )
+        except TimeoutError as exc:
+            # A bare TimeoutError stringifies to "", leaving baseline run
+            # records undiagnosable; carry the verifier budget in the message.
+            raise TimeoutError(
+                f"Independent Python verification timed out after {timeout:g}s"
+            ) from exc
         if completed.returncode != 0:
             diagnostics = (completed.stdout + completed.stderr).decode("utf-8", errors="replace")
             truncation = " [diagnostics truncated]" if (

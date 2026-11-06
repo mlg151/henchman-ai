@@ -221,6 +221,41 @@ class TestTurnSummaryRecordContract:
             schema_name="runtime/turn_summary_record",
         )
 
+    def test_session_with_compaction_retained_tool_call_id_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        # Retained messages carry the live message tool-call shape, including
+        # the id that pairs each call with its result.
+        record = TurnSummaryRecord(
+            turn_number=1,
+            summary_text="Compacted 1 earlier turn(s).",
+            kind="compaction",
+            source_turns=[1],
+            retained_messages=[
+                SessionMessage(
+                    role="assistant",
+                    content=None,
+                    tool_calls=[
+                        {"id": "tc1", "name": "read_file", "arguments": {"path": "a.txt"}}
+                    ],
+                ),
+                SessionMessage(role="tool", content="file contents", tool_call_id="tc1"),
+            ],
+        )
+        session = Session(
+            id="sess-compact-tool-1",
+            project_hash="a1b2c3d4",
+            started="2025-01-01T00:00:00Z",
+            last_updated="2025-01-01T01:00:00Z",
+            messages=[SessionMessage(role="user", content="Next request.")],
+            turn_summaries=[record],
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=session.to_dict(),
+            schema_name="runtime/session",
+        )
+
     def test_session_with_compaction_record_matches_contract(
         self, contract_suite: object
     ) -> None:

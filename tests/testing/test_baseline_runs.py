@@ -80,6 +80,15 @@ def _percentile(values: list[float], pct: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (rank - low)
 
 
+def _describe(records: list[baseline_runs.RunRecord]) -> str:
+    """Name each run's outcome and error so a bare assert failure is diagnosable."""
+    return "; ".join(
+        f"run {record.run_index}: outcome={record.outcome} verified={record.task_verified} "
+        f"error={record.error!r}"
+        for record in records
+    )
+
+
 async def test_two_successful_runs_record_two_successes() -> None:
     # One full scripted response per run: the mock queue is consumed per turn.
     provider = _write_counter(_INSTANCE_COUNTER)
@@ -90,9 +99,9 @@ async def test_two_successful_runs_record_two_successes() -> None:
         "counter-refactor", provider=provider, runs=2
     )
     assert [record.run_index for record in records] == [1, 2]
-    assert all(record.outcome == "success" for record in records)
-    assert all(record.task_verified for record in records)
-    assert all(record.error is None for record in records)
+    assert all(record.outcome == "success" for record in records), _describe(records)
+    assert all(record.task_verified for record in records), _describe(records)
+    assert all(record.error is None for record in records), _describe(records)
     assert all(record.profile == "engineer" for record in records)
     assert all(record.duration_ms > 0 for record in records)
 
