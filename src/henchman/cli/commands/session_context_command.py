@@ -96,6 +96,13 @@ def _render_memory_payload(payload: dict[str, Any]) -> str:
             f"{'Deleted' if payload.get('deleted') else 'Did not find'} memory "
             f"{payload['memory_id']}.\n"
         )
+    if operation == "edit":
+        return (
+            f"{'Edited' if payload.get('edited') else 'Did not find'} memory "
+            f"{payload['memory_id']}.\n"
+        )
+    if operation == "clear":
+        return f"Cleared {payload['cleared']} session memory(ies).\n"
     if not memories:
         return "No session memories.\n"
     lines = [f"Session memories ({len(memories)}):"]
@@ -353,7 +360,19 @@ def create_memory_command(*, project_root: Path | None = None) -> click.Group:
             nl=False,
         )
 
-    @memory_command.command(name="extract", help="Extract memory candidates from session history.")
+    @memory_command.command(name="edit", help="Edit one stored memory by id.")
+    @click.argument("memory_id")
+    @click.argument("content", nargs=-1)
+    @click.option(
+        "--kind",
+        type=click.Choice(("note", "preference"), case_sensitive=False),
+        default=None,
+    )
+    @click.option(
+        "--source",
+        type=click.Choice(("manual", "extracted"), case_sensitive=False),
+        default=None,
+    )
     @click.option(
         "--format",
         "output_format",
@@ -361,13 +380,82 @@ def create_memory_command(*, project_root: Path | None = None) -> click.Group:
         default="text",
         show_default=True,
     )
-    def extract_command(output_format: str) -> None:
+    def edit_command(
+        memory_id: str,
+        content: tuple[str, ...],
+        kind: str | None,
+        source: str | None,
+        output_format: str,
+    ) -> None:
         manager, _project_hash, session = _resolve_session(project_root=_resolve_project_root(project_root))
+        updated = memory_service.edit_memory(
+            session,
+            memory_id,
+            content=" ".join(content) or None,
+            kind=kind,
+            source=source,
+        )
+        manager.save(session)
+        payload = {
+            "operation": "edit",
+            "session_id": session.id,
+            "memory_id": memory_id,
+            "edited": updated is not None,
+            "memories": [updated.to_dict()] if updated is not None else [],
+        }
+        click.echo(
+            _render_json(payload) if output_format == "json" else _render_memory_payload(payload),
+            nl=False,
+        )
+
+    @memory_command.command(name="clear", help="Remove every stored memory from the session.")
+    @click.option(
+        "--format",
+        "output_format",
+        type=click.Choice(("text", "json"), case_sensitive=False),
+        default="text",
+        show_default=True,
+    )
+    def clear_command(output_format: str) -> None:
+        manager, _project_hash, session = _resolve_session(project_root=_resolve_project_root(project_root))
+        cleared = memory_service.clear_memories(session)
+        manager.save(session)
+        payload = {
+            "operation": "clear",
+            "session_id": session.id,
+            "cleared": cleared,
+            "memories": [],
+        }
+        click.echo(
+            _render_json(payload) if output_format == "json" else _render_memory_payload(payload),
+            nl=False,
+        )
+
+    @memory_command.command(name="extract", help="Extract memory candidates from session history.")
+    @click.option(
+        "--opt-out/--no-opt-out",
+        "opt_out",
+        default=None,
+        is_flag=True,
+        help="Persist extraction opt-out for this session (nothing is stored).",
+    )
+    @click.option(
+        "--format",
+        "output_format",
+        type=click.Choice(("text", "json"), case_sensitive=False),
+        default="text",
+        show_default=True,
+    )
+    def extract_command(opt_out: bool | None, output_format: str) -> None:
+        manager, _project_hash, session = _resolve_session(project_root=_resolve_project_root(project_root))
+        if opt_out is not None:
+            memory_service.set_extraction_opt_out(session, opt_out)
         created = memory_service.extract_memories(session)
         manager.save(session)
         payload = {
             "operation": "extract",
             "session_id": session.id,
+            "opt_out": memory_service.extraction_opt_out(session),
             "memories": [memory.to_dict() for memory in created],
         }
         click.echo(

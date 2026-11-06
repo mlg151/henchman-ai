@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from henchman.core.session_data import Session
+from henchman.core.session_memory import SessionMemoryRecord, SessionMemoryService
 from henchman.core.session_models import (
     SessionMessage,
     TurnSummaryRecord,
@@ -252,6 +253,46 @@ class TestTurnSummaryRecordContract:
 
 
 # ---------------------------------------------------------------------------
+# SessionMemoryRecord contract
+# ---------------------------------------------------------------------------
+
+
+class TestSessionMemoryRecordContract:
+    """SessionMemoryRecord.to_dict() must satisfy its contract."""
+
+    def test_manual_memory_matches_contract(self, contract_suite: object) -> None:
+        record = SessionMemoryRecord(
+            id="mem-1",
+            content="Always prefer JSON output.",
+            kind="preference",
+            source="manual",
+            created_at="2025-01-01T00:00:00Z",
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=record.to_dict(),
+            schema_name="runtime/session_memory_record",
+        )
+
+    def test_extracted_memory_with_index_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        record = SessionMemoryRecord(
+            id="mem-2",
+            content="Remember the canonical endpoint.",
+            kind="note",
+            source="extracted",
+            created_at="2025-01-01T00:00:00Z",
+            message_index=4,
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=record.to_dict(),
+            schema_name="runtime/session_memory_record",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Session contracts
 # ---------------------------------------------------------------------------
 
@@ -297,5 +338,25 @@ class TestSessionContract:
         assert_contract_matches(
             contract_suite=contract_suite,  # type: ignore[arg-type]
             payload=populated_session.to_dict(),
+            schema_name="runtime/session",
+        )
+
+    def test_session_with_memory_payload_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        """Persisted session memories and the opt-out flag satisfy the contract."""
+        session = Session(
+            id="sess-memory-1",
+            project_hash="a1b2c3d4",
+            started="2025-01-01T00:00:00Z",
+            last_updated="2025-01-01T01:00:00Z",
+            messages=[SessionMessage(role="user", content="Prefer JSON output.")],
+        )
+        service = SessionMemoryService()
+        service.add_memory(session, content="Always prefer JSON.", kind="preference")
+        service.set_extraction_opt_out(session, True)
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=session.to_dict(),
             schema_name="runtime/session",
         )

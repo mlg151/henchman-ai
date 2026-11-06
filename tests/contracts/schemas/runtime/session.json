@@ -103,7 +103,31 @@
     "branch_point": { "type": ["integer", "null"], "description": "Message index where branch occurred", "minimum": 0 },
     "template_id": { "type": ["string", "null"], "description": "Template ID if created from template" },
     "template_parameters": { "type": "object", "description": "Template instantiation parameters", "additionalProperties": true },
-    "export_metadata": { "type": "object", "description": "Metadata for export/import operations", "additionalProperties": true }
+    "export_metadata": {
+      "type": "object",
+      "description": "Metadata for export/import operations",
+      "additionalProperties": true,
+      "properties": {
+        "session_memories": {
+          "type": "array",
+          "description": "Persisted per-session memory records",
+          "items": {
+            "type": "object",
+            "required": ["id", "content", "kind", "source", "created_at"],
+            "properties": {
+              "id": { "type": "string" },
+              "content": { "type": "string" },
+              "kind": { "type": "string" },
+              "source": { "type": "string" },
+              "created_at": { "type": "string" },
+              "message_index": { "type": ["integer", "null"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "memory_extraction_opt_out": { "type": "boolean", "description": "Persisted extraction/persistence opt-out flag" }
+      }
+    }
   },
   "additionalProperties": false
 }
