@@ -1,5 +1,6 @@
 """Persisted instruction provenance for sessions and delegation handoffs."""
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -133,6 +134,7 @@ def test_delegation_appendix_lists_provenance_not_content(snapshot: ContextSnaps
     assert "Project instruction provenance" in appendix
     for source in snapshot.sources:
         assert str(source.path) in appendix
+        assert hashlib.sha256(source.content.encode("utf-8")).hexdigest() in appendix
     assert "Root project instructions" not in appendix
     assert "Child agent instructions" not in appendix
     assert "tool policy" in appendix

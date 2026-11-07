@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 # Type alias for confirmation handler
 ConfirmationHandler = Callable[[ConfirmationRequest], Awaitable[bool]]
 TeamToolResolver = Callable[[str], list[str] | None]
+ExecutionGuard = Callable[[Tool, dict[str, object]], ToolResult | None]
 
 # Maximum characters for tool output before truncation
 MAX_TOOL_OUTPUT = 50000
@@ -83,7 +84,16 @@ class ToolRegistry:
         self._discovery_tool: Tool | None = None
         self._discovered_tools: list[str] = []
         self._team_tool_resolver: TeamToolResolver | None = None
+        self._execution_guard: ExecutionGuard | None = None
         self._formatter = PythonAutoFormatter()
+
+    def bind_execution_guard(self, guard: ExecutionGuard | None) -> None:
+        """Bind a repeatable preflight that may defer, never approve, execution.
+
+        Checks repeat after awaited approval and immediately before dispatch;
+        guards must not execute tools or consume one-use state themselves.
+        """
+        self._execution_guard = guard
 
     @property
     def _effective_formatter(self) -> PythonAutoFormatter:
@@ -360,6 +370,11 @@ class ToolRegistry:
                 error=decision.denial_reason,
             )
 
+        if self._execution_guard is not None:
+            deferred = self._execution_guard(tool, params)
+            if deferred is not None:
+                return deferred
+
         # Check if confirmation is needed
         confirmation_request = decision.confirmation
         if confirmation_request is not None:
@@ -375,6 +390,12 @@ class ToolRegistry:
                             error="Execution denied by user",
                         )
                     self._effective_grants.grant(key)
+                    # Instructions may change while the user considers approval.
+                    # Retain that approval if fresh context defers this attempt.
+                    if self._execution_guard is not None:
+                        deferred = self._execution_guard(tool, params)
+                        if deferred is not None:
+                            return deferred
                 else:
                     # Headless input is never fabricated: a confirmation
                     # requirement with no input channel is an explicit
@@ -412,16 +433,25 @@ class ToolRegistry:
         if isinstance(tool, ToolResult):
             return tool
 
+        async def execute_once() -> ToolResult:
+            # The formatter can await its mutation lock and filesystem snapshot
+            # after authorization. Check again at the actual dispatch boundary.
+            if self._execution_guard is not None:
+                deferred = self._execution_guard(tool, params)
+                if deferred is not None:
+                    return deferred
+            return await tool.execute(**params)
+
         async def execute_authorized() -> ToolResult:
             if (
                 tool.execution_kind(params) == ToolKind.NETWORK
                 and self._retry_config.max_retries > 0
             ):
                 return await retry_async(
-                    lambda: tool.execute(**params),
+                    execute_once,
                     config=self._retry_config,
                 )
-            return await tool.execute(**params)
+            return await execute_once()
 
         # Formatting completes before verification can consume the tool result.
         try:

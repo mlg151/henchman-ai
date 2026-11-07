@@ -49,6 +49,8 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         parent = acting_agent()
         registry = ScopedToolRegistry(parent.tool_registry, tools, inherit_auto_approve=True)
         snapshot = getattr(orchestrator, "instruction_snapshot", None)
+        if parent.instruction_context is not None:
+            snapshot = parent.instruction_context.snapshot
         if snapshot is not None and snapshot.sources:
             from henchman.core.instruction_provenance import render_delegation_appendix
 
@@ -73,6 +75,10 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             context_window=parent.context_window,
             base_tool_iterations=parent.base_tool_iterations,
         )
+        if snapshot is not None:
+            from henchman.core.instruction_context import InstructionContext
+
+            InstructionContext.attach(agent, snapshot, orchestrator.pool.instruction_observer)
         facade = copy.copy(orchestrator)
         facade.tech_lead = agent
         facade.tool_registry = registry

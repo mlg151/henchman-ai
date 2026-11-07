@@ -389,6 +389,31 @@ Default discovery filenames, in priority order: `HENCHMAN.md`, `.henchman/HENCHM
 
 The provenance record is content-free by design, so resuming a session or auditing a delegation shows exactly which instruction files were in force without duplicating their text.
 
+**Runtime refresh:**
+
+Each primary or delegated agent refreshes its active snapshot before a provider
+request. Supported file tools refresh their structured targets, including generated
+test destinations, import-graph scan directories and all files in a parsed patch.
+Directory formatting uses the formatter's bounded file resolver to collect affected
+instruction scopes. A newly applicable or changed snapshot defers a mutation until
+a subsequent model request has received it. A read followed by a write in the same
+tool batch cannot skip that review. Fresh scoped messages replace earlier sibling
+messages while preserving custom filenames, capture limits and conflict precedence.
+
+Checks repeat after awaited approval and formatter waits, immediately before
+dispatch. An instruction-only deferral retains the existing approval grant, while
+ordinary Plan Mode and tool policies remain binding. When runtime instructions are
+attached, `lint_check(path=<directory>, fix=True)` requires explicit file targets:
+inspect without fixing, then fix named files. This avoids assuming a linter's
+configured recursive scope matches the formatter's file selection.
+
+Shell/Python execution refreshes its declared `cwd`; paths embedded in arbitrary
+code and unknown plugin/MCP parameter conventions are not inferred. Outside-boundary
+instructions are never read, and instruction discovery does not authorize access.
+Session provenance records the latest active scopes, including after resume and
+after a delegated agent visits another subtree. Delegation appendices include
+actual digests, original/captured sizes and truncation markers.
+
 ## MCP Server Configuration
 
 Configure Model Context Protocol servers:

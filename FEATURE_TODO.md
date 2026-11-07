@@ -37,8 +37,13 @@ content-free provenance record in session metadata; dynamic background
 subagents receive a bounded provenance appendix. Per-target refresh rejects
 outside-boundary targets before reading, sibling subtrees cannot leak
 instructions, and repository text cannot widen tool policy or approvals.
-Runtime consumers beyond dynamic subagents, truncation of team-prompt
-instruction blocks, and release qualification remain in progress under #15.
+Runtime consumers now refresh before requests and at supported tool targets,
+including generated output paths, parsed patch files and formatter descendants.
+Changed instructions defer mutations until presented to the model; checks repeat
+after approval and formatter waits. Delegated agents retain private scoped text
+and bounded provenance. Directory lint fixes require explicit file targets;
+shell/Python embedded paths remain cwd-scoped. Final qualification remains open
+under #15 and #30; see [runtime refresh](docs/configuration.md#context-files-henchmanmd-and-agentsmd).
 Session persistence under #23 now uses versioned atomic replacement, integrity
 checks, one recoverable prior copy and native locking with stale-writer rejection.
 Legacy files migrate on save; corrupted current files recover with explicit warnings.

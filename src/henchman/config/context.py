@@ -47,11 +47,23 @@ class ContextSourceDiagnostic:
 
 
 @dataclass(frozen=True)
+class ContextDiscovery:
+    """Immutable discovery settings retained for runtime refresh, never persisted."""
+
+    filenames: tuple[str, ...]
+    start_dir: Path
+    boundary: Path
+    max_source_chars: int | None
+    targets: tuple[Path, ...] = ()
+
+
+@dataclass(frozen=True)
 class ContextSnapshot:
     """Immutable source records with their rendered instruction content."""
 
     sources: tuple[ContextSource, ...]
     content: str
+    discovery: ContextDiscovery | None = None
 
     @property
     def digest(self) -> str:
@@ -434,7 +446,13 @@ class ContextLoader:
                 ContextSource(path, scope, kind, order, content, original_chars, truncated),
             )
             sections.append(f"# Context: {path}\n{content}")
-        return ContextSnapshot(tuple(records), "\n\n---\n\n".join(sections))
+        start_dir = (self._start_dir or Path.cwd()).resolve()
+        discovery = ContextDiscovery(
+            self.filenames, start_dir,
+            self._find_git_root(start_dir) or self._scope_boundary or start_dir,
+            self.max_source_chars,
+        )
+        return ContextSnapshot(tuple(records), "\n\n---\n\n".join(sections), discovery)
 
     def load(self: ContextLoader) -> str:
         """Load and concatenate all context files.

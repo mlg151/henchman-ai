@@ -176,7 +176,12 @@ def render_delegation_appendix(snapshot: ContextSnapshot) -> str:
     shown = snapshot.sources[:_DELEGATION_SOURCE_LIMIT]
     for source in shown:
         marker = "global" if source.kind == "global" else "repository"
-        lines.append(f"- {source.path} (scope: {source.scope}; {marker}; order {source.order})")
+        digest = hashlib.sha256(source.content.encode("utf-8")).hexdigest()
+        lines.append(
+            f"- {source.path} (scope: {source.scope}; {marker}; order {source.order}; "
+            f"sha256: {digest}; chars: {len(source.content)}/{source.original_chars}; "
+            f"truncated: {source.truncated})"
+        )
     if len(snapshot.sources) > len(shown):
         lines.append(f"- … and {len(snapshot.sources) - len(shown)} more sources (not listed)")
     lines.append(

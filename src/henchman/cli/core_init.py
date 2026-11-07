@@ -138,6 +138,9 @@ def create_core_context(
     runner = getattr(orchestrator, "delegation_runner", None)
     if runner is not None:
         runner.instruction_snapshot = instruction_snapshot
+    from henchman.agents.instruction_runtime import bind_instruction_runtime
+
+    bind_instruction_runtime(orchestrator, session_manager, instruction_snapshot)
 
     # Reference Tech Lead as primary agent
     agent = orchestrator.tech_lead

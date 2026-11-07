@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from henchman.agents.identity import AgentIdentity
+    from henchman.core.instruction_context import InstructionContext
 
 logger = logging.getLogger(__name__)
 
@@ -404,6 +405,7 @@ class Agent:
         self.provider = provider
         self.tool_registry = tool_registry if tool_registry is not None else ToolRegistry()
         self.identity = identity
+        self.instruction_context: InstructionContext | None = None
         self._config = config if config is not None else AgentConfig(**kwargs)
 
         # Apply any pending config values that were set before _config was initialized
@@ -681,6 +683,8 @@ class Agent:
 
     async def _prepare_stream_context(self) -> tuple[StreamContext, bool]:
         """Snapshot tools and prepare one request under the active capacity policy."""
+        if self.instruction_context is not None:
+            self.instruction_context.prepare()
         source = self.identity.id if self.identity else None
         if self._config.context_window is not None:
             request = prepare_agent_request(
@@ -689,6 +693,8 @@ class Agent:
                 conversation_limit=self._max_tokens,
                 protect_from_index=self.turn.start_index,
             )
+            if self.instruction_context is not None:
+                self.instruction_context.presented_digest = self.instruction_context.snapshot.digest
             return StreamContext(
                 self.provider, request.messages, self.messages, request.tools,
                 source, self.current_turn_messages, request.request_options,
@@ -699,6 +705,8 @@ class Agent:
         api_messages = self.get_messages_for_api()
         if not is_valid_message_sequence(api_messages):
             api_messages = repair_message_sequence(api_messages)
+        if self.instruction_context is not None:
+            self.instruction_context.presented_digest = self.instruction_context.snapshot.digest
         return _build_stream_context(
             self.provider, api_messages, self.messages,
             self.tool_registry, source, self.current_turn_messages,

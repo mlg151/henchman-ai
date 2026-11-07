@@ -377,6 +377,9 @@ class Repl:
         runner = getattr(orchestrator, "delegation_runner", None)
         if runner is not None:
             runner.instruction_snapshot = orchestrator.instruction_snapshot
+        from henchman.agents.instruction_runtime import bind_instruction_runtime
+
+        bind_instruction_runtime(orchestrator, self.session_manager, self.config.instruction_snapshot)
         return orchestrator
 
     def _init_handlers(self: Self) -> None:

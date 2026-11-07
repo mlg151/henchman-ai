@@ -1,6 +1,6 @@
 """AgentPool manages the lifecycle and instantiation of agents in a team."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import partial
@@ -16,6 +16,7 @@ from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
     from henchman.agents.config import AgentConfig
+    from henchman.config.context import ContextSnapshot
     from henchman.core.eventbus import EventBus
     from henchman.providers.base import ModelProvider
     from henchman.providers.registry import ProviderRegistry
@@ -207,6 +208,8 @@ class AgentPool:
                 adaptive_compression=adaptive_compression,
             )
         self.context_config = context_config
+        self.instruction_snapshot: ContextSnapshot | None = None
+        self.instruction_observer: Callable[[ContextSnapshot], None] | None = None
         self._agents: dict[str, Agent] = {}
         self._execution_claims: dict[int, _AgentClaim] = {}
 
@@ -426,6 +429,10 @@ class AgentPool:
             adaptive_compression=ctx.adaptive_compression,
         )
 
+        if self.instruction_snapshot is not None:
+            from henchman.core.instruction_context import InstructionContext
+
+            InstructionContext.attach(agent, self.instruction_snapshot, self.instruction_observer)
         self._agents[role] = agent
         scoped_registry.bind_team_tool_resolver(
             partial(self.find_team_tool_roles, requester_role=role),

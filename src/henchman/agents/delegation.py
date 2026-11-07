@@ -686,11 +686,16 @@ def _populate_execution_params(
         mission=runner.ledger.goal if runner.ledger else None,
     )
     from henchman.config.context import ContextSnapshot
+    from henchman.core.agent import Agent
     from henchman.core.instruction_provenance import render_delegation_appendix
 
     snapshot = getattr(runner, "instruction_snapshot", None)
     if isinstance(snapshot, ContextSnapshot) and snapshot.sources:
         params.full_task += f"\n\n{render_delegation_appendix(snapshot)}"
+    if isinstance(snapshot, ContextSnapshot) and isinstance(target_agent, Agent):
+        from henchman.core.instruction_context import InstructionContext
+
+        InstructionContext.attach(target_agent, snapshot, runner.pool.instruction_observer)
     params.msg_start = len(target_agent.messages)
 
 
