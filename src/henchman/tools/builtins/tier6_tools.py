@@ -120,7 +120,10 @@ _VERIFY_PLAN_PARAMETERS: dict[str, object] = {
         "step": {"type": "integer"},
         "evidence": {"type": "string"},
         "checks": {"type": "array", "minItems": 1, "maxItems": 20,
-                   "items": {"oneOf": _CHECK_SCHEMAS}},
+                   # Required, distinct kind constants make these branches
+                   # mutually exclusive; anyOf preserves that meaning and fits
+                   # every shipped provider's non-strict projection profile.
+                   "items": {"anyOf": _CHECK_SCHEMAS}},
     },
     "required": ["action"],
 }

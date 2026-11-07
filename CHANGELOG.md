@@ -50,7 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Provider schema projections** — All five adapters now expand supported local
   references into detached request schemas while preserving optional/null meaning.
   Unsupported projections fail before transport, and input estimates use the same
-  wire shape. Offline adapter/workflow tests cover these client profiles; remote
+  wire shape. The complete builtin catalog is covered, including acceptance-check
+  unions with mutually exclusive required kind tags. Offline adapter/workflow tests
+  cover these client profiles; remote
   endpoint conformance remains independently qualified.
 
 - **Private task evidence** — Background logs redact known credentials before

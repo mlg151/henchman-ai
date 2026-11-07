@@ -19,6 +19,47 @@ from henchman.tools.contracts import SchemaContract
 PROVIDERS = ("anthropic", "deepseek", "ollama", "openrouter", "openai_compat")
 
 
+@pytest.mark.parametrize("provider", PROVIDERS)
+def test_complete_registered_builtin_catalog_projects_to_every_adapter(provider):
+    from henchman.cli.tool_manager import ToolManager
+
+    manager = ToolManager()
+    manager.register_builtin_tools()
+    declarations = manager.registry.get_declarations()
+    assert any(tool.name == "verify_plan_execution" for tool in declarations)
+    for tool in declarations:
+        project_tool_parameters(tool.parameters, provider)
+
+
+def test_plan_check_union_preserves_exclusive_kind_validation():
+    from henchman.tools.builtins.tier6_tools import VerifyPlanExecutionTool
+
+    parameters = VerifyPlanExecutionTool().parameters
+    original = deepcopy(parameters)
+    branches = original["properties"]["checks"]["items"].pop("anyOf")
+    original["properties"]["checks"]["items"]["oneOf"] = branches
+    assert len({branch["properties"]["kind"]["const"] for branch in branches}) == len(branches)
+    for check, valid in [
+        ({"kind": "file_exists", "path": "file"}, True),
+        ({"kind": "file_contains", "path": "file", "text": "match"}, True),
+        ({"kind": "file_changed", "path": "file"}, True),
+        ({"kind": "command", "argv": ["python", "-V"]}, True),
+        ({"kind": "pytest", "path": "tests"}, True),
+        ({"path": "file"}, False),
+        ({"kind": "file_contains", "path": "file"}, False),
+        ({"kind": "command", "argv": ["python"], "path": "file"}, False),
+        ({"kind": "unknown", "path": "file"}, False),
+    ]:
+        for candidate in (parameters, original):
+            contract = SchemaContract(candidate)
+            arguments = {"action": "create", "checks": [check]}
+            if valid:
+                contract.validate(arguments)
+            else:
+                with pytest.raises(ValueError):
+                    contract.validate(arguments)
+
+
 def schema():
     return {"$schema": "https://json-schema.org/draft/2020-12/schema",
             "$defs": {"maybe": {"anyOf": [{"type": "string"}, {"type": "null"}]}},
