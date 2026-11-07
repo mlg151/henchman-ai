@@ -75,8 +75,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   plus headless aggregates. Standalone API requests now use isolated caller-owned
   process runs, preserve tool-follow-up budgets and reject unsupported durable
   mode. Explicit user goal transitions authorize replacement;
-  transcript metadata cannot refund consumption. Native/live qualification and
-  remaining UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
+  transcript metadata cannot refund consumption. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)
+  confirms failed-request/unknown-hold retention and pre-HTTP denial after restart.
+  Successful live final-usage reconciliation, native qualification and remaining
+  UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers
   now follow the current project's scope across root commands, REPL/Textual slash

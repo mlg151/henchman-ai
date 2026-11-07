@@ -78,6 +78,10 @@ Direct `Agent` evaluation harnesses must explicitly bind a run scope to obtain
 those aggregate guarantees. A final-response token count alone is not a whole-run
 measurement. Reports must distinguish configured cost estimates from provider
 billing and leave missing usage/prices unknown; zero pricing must be explicit.
+The [local budget retention probe](../docs/evaluations/2026-11-07-local-budget-qualification.md)
+records one failed local request whose consumed request and uncertain token hold
+survived a process restart. Both follow-ups were denied before HTTP. Successful
+live final-usage reconciliation remains unqualified by that attempt.
 
 ### ALWAYS_PASSES subset (live provider required)
 

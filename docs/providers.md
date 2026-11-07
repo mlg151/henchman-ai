@@ -426,10 +426,12 @@ further primary/delegate dispatch instead of becoming ordinary retry messages.
 
 CLI, REPL and Textual bind scopes to their selected session. `usage.persistence`
 selects process or durable accounting; see [configuration](configuration.md#usage-limits-and-explicit-prices)
-for task boundaries and explicit goal transitions. Settings and prices are
-captured when a new run starts; changing settings during an active task does not
-refund it or replace its limits. A provider/model switch remains explicit, and
-price lookup uses the run's captured catalog for the actual provider/model.
+for task boundaries and explicit goal transitions. Changing settings during an
+active task does not refund consumption or replace its original limits. Within
+one runtime, the run retains its captured price catalog for the actual
+provider/model. After runtime recreation, future attempts use the current exact
+provider/model catalog; previously recorded prices and consumed amounts remain
+unchanged. A new currency must remain compatible with the original money cap.
 
 `/usage` presents aggregate consumption, remaining limits and stop reasons, with
 estimated cost, held estimates and reported billing labeled separately. Unknown

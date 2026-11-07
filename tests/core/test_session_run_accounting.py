@@ -1,16 +1,80 @@
 """Goal continuation and recovered transcripts cannot reset task accounting."""
 
 from copy import deepcopy
+from decimal import Decimal
 
 import pytest
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import Settings
 from henchman.core.goals import GoalService
-from henchman.core.run_budget import BudgetControlError, BudgetExceeded
+from henchman.core.run_budget import BudgetControlError, BudgetExceeded, RequestEstimate
 from henchman.core.session_data import Session
 from henchman.core.session_run_accounting import SessionRunAccounting
+from henchman.providers.usage import UsageReport
 from tests.agents.test_agent_budget_scope import AccountingProvider
+
+
+@pytest.mark.parametrize("currency", ["USD", "EUR"])
+def test_durable_resume_recaptures_future_prices_without_repricing_consumption_or_limits(tmp_path, currency):
+    original_price = {
+        "provider": "test", "model": "test-model", "input_per_1k": "1",
+        "output_per_1k": "1", "cache_read_per_1k": "1", "cache_write_per_1k": "1",
+        "source": "original-catalog", "as_of": "2026-11-06",
+    }
+    settings = Settings.model_validate({"usage": {
+        "persistence": "durable", "limits": {"max_cost": "0.1"}, "prices": [original_price],
+    }})
+    session = Session("session", "project", "today", "today")
+    path = tmp_path / "ops.db"
+    runtime = SessionRunAccounting(settings, lambda: session, lambda _: None, path)
+    scope = runtime.begin(AccountingProvider())
+    price = scope.pricing_resolver("test", "test-model")
+    first = scope.ledger.reserve(RequestEstimate(10, 10, price), provider="test", model="test-model")
+    assert scope.ledger.start(first.request_id)
+    usage = UsageReport(prompt_tokens=10, completion_tokens=2, source="reported")
+    scope.ledger.reconcile(first.request_id, usage, final=True)
+
+    replacement = Settings.model_validate({"usage": {
+        "persistence": "durable", "limits": {"max_cost": "100", "currency": currency},
+        "prices": [{**original_price, "input_per_1k": "2", "output_per_1k": "2",
+                    "cache_read_per_1k": "2", "cache_write_per_1k": "2", "currency": currency,
+                    "source": "replacement-catalog", "as_of": "2026-11-07"}],
+    }})
+    runtime.settings = replacement
+    assert runtime.begin(AccountingProvider()).pricing_resolver("test", "test-model") == price
+    restored_session = Session.from_dict(session.to_dict())
+    restored = SessionRunAccounting(replacement, lambda: restored_session, lambda _: None, path)
+    resumed = restored.begin(AccountingProvider())
+    assert resumed.ledger.run_id == scope.ledger.run_id
+    snapshot = resumed.ledger.snapshot()
+    assert snapshot.limits.max_cost == Decimal("0.1")
+    assert snapshot.limits.currency == "USD"
+    assert snapshot.remaining_cost == Decimal("0.088")
+    assert snapshot.records[0].estimate.pricing == price
+    current_price = resumed.pricing_resolver("test", "test-model")
+    assert current_price.source == "replacement-catalog"
+    assert current_price.currency == currency
+    if currency == "EUR":
+        with pytest.raises(BudgetExceeded, match="currency_mismatch"):
+            resumed.ledger.reserve(RequestEstimate(10, 10, current_price))
+        assert resumed.ledger.snapshot().consumed_requests == 1
+        assert resumed.ledger.snapshot().money[0].settled_estimated_cost == Decimal("0.012")
+    else:
+        second = resumed.ledger.reserve(RequestEstimate(10, 10, current_price), provider="test", model="test-model")
+        assert resumed.ledger.start(second.request_id)
+        resumed.ledger.reconcile(second.request_id, usage, final=True)
+        resumed.ledger.reconcile(first.request_id, usage, final=True)
+        snapshot = resumed.ledger.snapshot()
+        assert snapshot.remaining_cost == Decimal("0.064")
+        assert snapshot.consumed_requests == 2
+        assert [(record.estimate.pricing.source, record.estimate.pricing.as_of, record.accounted_cost)
+                for record in snapshot.records] == [
+            ("original-catalog", "2026-11-06", Decimal("0.012")),
+            ("replacement-catalog", "2026-11-07", Decimal("0.024")),
+        ]
+        with pytest.raises(BudgetExceeded, match="money_limit"):
+            resumed.ledger.reserve(RequestEstimate(1, 100, current_price))
 
 
 def runtime(tmp_path, *, durable=False, session=None):

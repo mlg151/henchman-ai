@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Durable price provenance** — Resume regressions cover changed prices and
+  currencies while retaining historical charges and original limits. A bounded
+  local probe records failed-request retention and pre-HTTP denials after restart;
+  it does not establish successful live usage reconciliation.
+
 - **Offline test isolation** — Pytest and installed-wheel cohorts now block external
   DNS/TCP and existing local model services. Adapter fixtures use HTTP mock
   transports that survive accounting client copies; inherited provider keys are
