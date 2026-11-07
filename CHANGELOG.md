@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Config evidence redaction** — Text/JSON mutation responses and sync export
+  files now redact credential echoes, including nested values, dynamic keys and
+  validation errors. Persisted settings and runtime inputs stay unchanged;
+  nonsecret sync remains intact and credential-echo exports are explicitly lossy.
+
 - **Automatic compaction control** — Disabling `context.auto_compact` now retains
   history and suppresses automatic summaries across primary, specialist, dynamic
   child and API agents. Explicit request capacity still rejects oversized input

@@ -42,6 +42,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   qualification, schemas, pagination and typed results remain open; see the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 
+- #20 config mutation responses and JSON/YAML sync exports now redact credential
+  echoes, including shadowed/configured keys and freeform UI fields. Actual
+  persisted/runtime values stay unchanged; sync redaction is explicitly lossy.
+
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale
   grant reuse. Typed restricted roots now mediate builtin file reads/writes on

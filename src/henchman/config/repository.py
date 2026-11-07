@@ -22,8 +22,21 @@ from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
 )
-from henchman.config.schema import Settings
-from henchman.config.settings import SettingOrigin, SettingsSnapshot, load_settings_snapshot
+from henchman.config.schema import (
+    UI_DETAIL_DENSITIES,
+    UI_KEYBOARD_MODES,
+    UI_OUTPUT_MODES,
+    UI_OUTPUT_STYLES,
+    UI_THEME_NAMES,
+    Settings,
+)
+from henchman.config.settings import (
+    SettingOrigin,
+    SettingsSnapshot,
+    discover_settings_files,
+    load_settings_snapshot,
+)
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
 _SETTINGS_FILENAME = "settings.yaml"
 _SUPPORTED_SETTINGS_FILENAMES = ("settings.yaml", "settings.yml", "settings.json")
@@ -209,8 +222,27 @@ class SettingsRepository:
         return True
 
     def export_settings(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
-        """Export the Tier 1 local-sync settings payload for a selected scope."""
-        return _build_sync_payload(self.view(scope=scope))
+        """Export a sync projection with credential echoes removed from freeform fields."""
+        source = self.view(scope=scope)
+        redactor = self.evidence_redactor()
+        redactor.register_config(source)
+        return project_sync_evidence(_build_sync_payload(source), redactor=redactor)
+
+    def evidence_redactor(self) -> EvidenceRedactor:
+        """Collect configured credentials without requiring valid effective settings.
+
+        Raw layers include shadowed credentials and allow config commands to
+        repair invalid settings. An explicit file or active snapshot supplies
+        additional effective credentials; none of these inputs are modified.
+        """
+        redactor = EvidenceRedactor()
+        for scope in (SettingsScope.GLOBAL, SettingsScope.PROJECT):
+            redactor.register_config(self.view(scope=scope))
+        for path in discover_settings_files(project_root=self._project_root):
+            redactor.register_config(_read_settings_file(path))
+        if self._snapshot_provider is not None:
+            redactor.register_config(self._snapshot_provider().settings.model_dump(mode="python"))
+        return redactor
 
     def import_settings(self, payload: Mapping[str, Any], *, scope: SettingsScope) -> None:
         """Import a Tier 1 local-sync payload into an explicit persisted scope."""
@@ -316,6 +348,22 @@ def _build_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if not exported_ui:
         return {}
     return {"ui": exported_ui}
+
+
+def project_sync_evidence(payload: Mapping[str, Any], *, redactor: EvidenceRedactor) -> dict[str, Any]:
+    """Redact freeform sync evidence while retaining verified protocol identities."""
+    ui = payload.get("ui")
+    ui_schema: dict[str, Any] = dict.fromkeys(_SYNC_UI_KEYS)
+    ui_schema["layout"] = {"compact_tables": None}
+    if isinstance(ui, Mapping):
+        enums = {"theme": UI_THEME_NAMES, "output_style": UI_OUTPUT_STYLES,
+                 "output_mode": UI_OUTPUT_MODES, "detail_density": UI_DETAIL_DENSITIES,
+                 "keyboard_mode": UI_KEYBOARD_MODES}
+        for key, allowed in enums.items():
+            if isinstance(ui.get(key), str) and ui[key] in allowed:
+                ui_schema[key] = PRESERVE_IDENTITY
+    projected: dict[str, Any] = redactor.redact(payload, schema={"ui": ui_schema})
+    return projected
 
 
 def _normalize_layout_mapping(value: Any) -> dict[str, Any]:

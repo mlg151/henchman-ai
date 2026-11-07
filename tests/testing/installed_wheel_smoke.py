@@ -243,6 +243,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/testing/test_eval_bytecode_freshness.py",
         "tests/config/test_ui_unknown_fields.py",
         "tests/config/test_settings_snapshot.py",
+        "tests/config/test_config_export_evidence.py",
         "tests/testing/test_pytest_evidence_helper.py",
         "tests/testing/test_python_reuse_scenario.py",
         "tests/config/test_settings_inspection.py",

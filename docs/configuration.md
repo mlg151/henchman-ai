@@ -333,7 +333,8 @@ settings document:
 - Import validates before writing; unsupported top-level or UI keys fail without touching the existing settings file.
 - Provider credentials and other non-UI settings cannot flow through import/export in either direction; exports never contain `providers`, API keys or tokens.
 - Writes target the canonical `.henchman` directory for the chosen scope; legacy casing remains a read-only fallback.
-- Human-readable (YAML) output redacts secret-like values; `--format json` is the machine-usable path and keeps raw values, mirroring `config set`.
+- Both text and JSON mutation responses redact credentials and known credential echoes. Actual `set`/`import` persistence and runtime values retain the supplied input.
+- Exported JSON/YAML files also redact credential echoes in freeform UI values and dynamic keys. This is deliberately lossy for those values; ordinary nonsecret sync remains unchanged. Fixed schema keys and validated UI enum values retain their meanings.
 
 There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates. Sync files containing the newer keys (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) require Henchman v0.4.2 or newer; older binaries reject the entire file with a clear error rather than partially applying it.
 

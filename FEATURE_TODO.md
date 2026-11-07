@@ -63,8 +63,10 @@ flushes pending evidence before completion or on interruption without changing
 execution inputs. REPL/Textual event streams, tool displays/approvals, Textual
 command output and direct chat/status/history displays now share that policy.
 Interactive failure logs project tracebacks without attaching raw exceptions.
-Other logs/UI panels/metrics/handoffs, config-export secret references and
-broader restricted filesystem/network execution still requires implementation and qualification.
+Config mutation responses and sync exports now redact credential echoes while
+retaining raw settings and runtime inputs. Other logs/UI panels/metrics/handoffs
+and broader restricted filesystem/network execution still require implementation
+and qualification.
 Approval scope now includes registration, project and physical target identity,
 with fresh checks after approval, formatter waits and retry delays. Restricted
 root settings now mediate qualified builtin file reads/writes through directory
