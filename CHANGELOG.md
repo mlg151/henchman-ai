@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Specialist price identity** — Model-only agent overrides retain the configured
+  provider alias through initial construction and runtime switches. An unrelated
+  compatible-adapter price entry can no longer substitute for the actual
+  provider catalog or bypass a money cap.
+
 - Tool approval freshness now includes registration, project and physical target
   identity. Changes during approval, formatter waits or retry delays deny the
   stale invocation; unchanged scoped registries still share grants. Filesystem

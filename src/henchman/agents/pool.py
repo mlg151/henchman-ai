@@ -288,9 +288,13 @@ class AgentPool:
     ) -> "ModelProvider":
         """Construct an isolated model override using the live provider connection."""
         # A model-only override inherits the live provider, including runtime switches.
-        provider_name = provider.name
-        if provider_name == "openai-compatible":
-            provider_name = "openai_compat"
+        configured_name = getattr(provider, "_accounting_provider_name", None)
+        if isinstance(configured_name, str) and configured_name.strip():
+            provider_name = configured_name
+        else:
+            provider_name = provider.name
+            if provider_name == "openai-compatible":
+                provider_name = "openai_compat"
         settings = self.provider_settings.model_copy(deep=True)
         configured = dict(getattr(settings, provider_name, {}))
         request_defaults = getattr(provider, "request_defaults", None)
