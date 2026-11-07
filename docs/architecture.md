@@ -3,7 +3,8 @@
 ## Overview
 
 The [checkpoint service](checkpoints.md) owns scoped content capture and durable
-conflict-checked POSIX restore. CLI, REPL and Textual command input share its user
+conflict-checked POSIX restore and a native NTFS content-only backend awaiting
+qualification. CLI, REPL and Textual command input share its user
 adapter. Restores invalidate plan verification and supersede in-flight check
 results; automatic mutation ownership remains separate integration work.
 Conversation rewind does not restore workspace files.

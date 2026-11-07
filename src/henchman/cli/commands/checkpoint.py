@@ -45,7 +45,7 @@ def _review_payload(review: CheckpointReview) -> dict[str, Any]:
             "hunk_status": item.hunk_status, "hunks": hunks,
             "hunks_omitted": len(item.hunks) - len(hunks),
         })
-    return {"checkpoint_id": review.checkpoint_id, "revision": review.revision, "files": files}
+    return {"checkpoint_id": review.checkpoint_id, "revision": review.revision, "files": files, "metadata_policy": review.metadata_policy}
 
 
 def create_checkpoint_command(

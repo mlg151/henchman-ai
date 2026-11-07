@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import stat
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -108,7 +109,18 @@ class CheckpointService:
             raise ValueError("Invalid persisted checkpoint authority") from error
         if tuple(payload["project"]) != self._files.identity or payload["repository"] != self._files.repository:
             raise CheckpointConflict(reason="Checkpoint belongs to a different physical project")
+        self._validate_platform_paths(payload["changes"] if plan else payload["before"])
         return payload
+
+    def _validate_platform_paths(self, names: Sequence[str] | Mapping[str, Any]) -> None:
+        for name in names:
+            self._files.path(name)
+        if self._files.windows is not None and len({name.casefold() for name in names}) != len(names):
+            raise ValueError("Windows checkpoint scope contains case aliases")
+
+    @property
+    def metadata_policy(self) -> str:
+        return "windows-private-acl-content-only" if self._files.windows is not None else "posix-mode"
 
     def _save(self, payload: dict[str, Any], *, plan: bool = False) -> None:
         validate(payload, payload["id"], plan=plan, max_file_bytes=self._files.max_file_bytes)
@@ -120,6 +132,7 @@ class CheckpointService:
     def begin(self, paths: Sequence[str], *, actor: str) -> CheckpointRecord:
         """Capture a bounded explicit edit scope before agent execution."""
         names = sorted({self._files.path(path) for path in paths})
+        self._validate_platform_paths(names)
         if not names or len(names) > 256:
             raise ValueError("Checkpoint scope must contain between one and 256 files")
         with self._store.lock:
@@ -223,7 +236,7 @@ class CheckpointService:
             accepted = payload["accepted_hunks"].get(name, [])
             hunks = tuple(replace(hunk, accepted=_hunk_id(hunk) in accepted) for hunk in _hunks(before, after))
             files.append(ReviewFile(name, before, after, hunks, payload["decisions"].get(name, "pending")))
-        return CheckpointReview(payload["id"], payload["revision"], tuple(files))
+        return CheckpointReview(payload["id"], payload["revision"], tuple(files), self.metadata_policy)
 
     def preview(self, checkpoint_id: str, *, decision: str, paths: Sequence[str] | None = None,
                 hunks: Mapping[str, Sequence[int]] | None = None) -> ReviewPlan:
@@ -263,7 +276,7 @@ class CheckpointService:
                     "applied": [], "changed": [], "created": time.time(),
                     "hunks": {path: sorted(set(indices)) for path, indices in hunks.items()} if hunks is not None else None}
             self._save(plan, plan=True)
-            return ReviewPlan(identity, checkpoint_id, review.revision, decision, tuple(sorted(selected)))
+            return ReviewPlan(identity, checkpoint_id, review.revision, decision, tuple(sorted(selected)), self.metadata_policy)
 
     def pending_restores(self) -> tuple[str, ...]:
         with self._store.lock:
@@ -369,7 +382,10 @@ class CheckpointService:
 
     def _restore(self, plan: dict[str, Any], payload: dict[str, Any]) -> ReviewResult:
         directory = self._store.path / "plans" / plan["id"]
-        directory.mkdir(mode=0o700, exist_ok=True)
+        if self._files.windows is not None:
+            self._files.windows.api.private_directory(directory)
+        else:
+            directory.mkdir(mode=0o700, exist_ok=True)
         if directory.is_symlink():
             raise ValueError("Restore journal directory cannot be a symlink")
         for index, (name, change) in enumerate(sorted(plan["changes"].items())):
@@ -408,6 +424,13 @@ class CheckpointService:
         return ReviewResult(tuple(plan["changed"]), bool(plan["changed"]))
 
     def _restore_file(self, name: str, expected: FileState, desired: FileState, directory: Path, index: int) -> None:
+        if self._files.windows is not None:
+            from henchman.advanced.checkpoint_windows_restore import restore_file
+
+            restore_file(self._files.windows, name, expected, desired, directory, index, self._fault)
+            return
+        if sys.platform == "win32":
+            raise ValueError("Windows checkpoint backend is unavailable")
         backup = directory / f"{index}.old"
         staged = directory / f"{index}.new"
         with self._files.parent(name) as (parent, leaf, parents):

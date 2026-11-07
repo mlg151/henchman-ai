@@ -51,8 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery preserve unrelated work and the Git index. Private bounded retention
   preserves displaced originals; unsupported or known-secret content cannot be
   restored. Shared CLI and interactive `/checkpoint` commands expose review,
-  preview, apply, recovery and retention. Runtime capture, dedicated UI and Windows
-  integration remain under #22. See
+  preview, apply, recovery and retention. A native Windows NTFS backend uses held
+  handles and explicit private-ACL content-only semantics; native qualification,
+  runtime capture and dedicated UI remain under #22. See
   [checkpoint limits and recovery](docs/checkpoints.md).
 
 - **Restore verification invalidation** — Content-changing checkpoint restores

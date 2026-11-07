@@ -1,9 +1,9 @@
 # Content checkpoints
 
 The content checkpoint service is a foundation for [#22](https://github.com/mlg151/henchman-ai/issues/22).
-It exposes a Python API and shared user commands with a POSIX restore backend.
-Runtime ownership capture, dedicated Textual navigation and a Windows backend
-remain required. Existing Tungsten metadata snapshots are explicitly
+It exposes a Python API and shared user commands with POSIX and native Windows
+restore backends. Runtime ownership capture, dedicated Textual navigation and
+native Windows qualification remain required. Existing Tungsten metadata snapshots are explicitly
 versioned, non-restorable records; they cannot reconstruct file contents.
 
 ## User commands
@@ -91,7 +91,7 @@ blocks restore before displacement. Accepting unchanged content leaves historica
 checks intact. External/embedder evidence stores must consume the result signal
 and invalidate their own records.
 
-An already-open writer may continue writing a displaced inode. Its original is
+On POSIX, an already-open writer may continue writing a displaced inode. Its original is
 retained in the private journal and located with `retained_originals(plan_id)`;
 this is not a guarantee of atomic comparison against arbitrary open-handle writers.
 `discard(checkpoint_id)` removes inactive capture/history and retained originals.
@@ -102,3 +102,24 @@ Pass the current `EvidenceRedactor` when constructing the service. Newly registe
 secrets are hidden from later review and block restore. Historical private bytes
 already captured remain on disk until explicit discard or retention; registering
 a secret does not retroactively scrub the store.
+
+## Windows content and metadata policy
+
+The Windows backend requires a local fixed NTFS volume and ordinary writable UTF-8
+files with one link and no alternate data streams. Reparse points, junctions,
+read-only files, special attributes, case-sensitive directories, device names and
+short-name aliases are unsupported. Capture reports unsupported content explicitly.
+Held directory handles pin ancestors during an operation; exclusive file handles
+turn sharing conflicts into a refusal to overwrite. Recovery retains originals and
+publishes replacements only while the target name is absent.
+
+`show` and `preview` report `metadata_policy: windows-private-acl-content-only`.
+Restored files and retained originals have a private DACL granting the current user
+and SYSTEM access. Arbitrary original ACLs, timestamps and extended metadata are
+not restored. An existing file's ACL is narrowed before displacement; an interrupted
+attempt can leave that narrower ACL in place before its content is moved. Recover
+the prepared plan to complete the content decision. POSIX reports `posix-mode`.
+
+Windows recovery covers process interruption. It does not promise POSIX directory
+fsync behavior after power loss or protection against another process acting as
+the same user or an administrator. Native CI qualification is still pending.

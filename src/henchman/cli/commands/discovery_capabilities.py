@@ -62,9 +62,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         summary="User checkpoint commands review captured file/hunk changes and preview decisions.",
         detail=(
             "CLI checkpoint and interactive /checkpoint share list/show/preview/apply/recover/discard/prune. "
-            "Captured content is revision-bound and POSIX restore conflicts on intervening edits. "
-            "Runtime capture, automatic verification invalidation, dedicated TUI navigation and Windows "
-            "restore remain pending. Legacy hash snapshots are non-restorable."
+            "Captured content is revision-bound; restore conflicts on intervening edits and invalidates plan checks. "
+            "POSIX preserves supported modes; Windows NTFS uses an explicit private-ACL content-only policy "
+            "pending native qualification. Runtime capture and dedicated TUI navigation remain pending. "
+            "Legacy hash snapshots are non-restorable."
         ),
         aliases=("/checkpoint", "checkpoint", "file review", "hunk review", "restore"),
     ),

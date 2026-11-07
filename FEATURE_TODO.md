@@ -25,7 +25,9 @@ POSIX restore, interrupted-restore recovery and private bounded retention.
 CLI and interactive `/checkpoint` commands now share file/hunk review, preview,
 apply, recovery and retention. Content-changing restores revoke plan-check success
 and concurrent-save authority; pending restores block verification. Runtime ownership
-capture, dedicated review navigation and Windows restore remain incomplete under #22.
+capture and dedicated review navigation remain incomplete under #22. The Windows
+NTFS content-only backend is implemented with explicit private-ACL semantics;
+native qualification remains pending.
 
 The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
 turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)

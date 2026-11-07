@@ -1,7 +1,7 @@
 """Descriptor-scoped regular-file observations for checkpoint review.
 
-This backend requires POSIX no-follow and directory-relative operations. It is
-not an OS sandbox against an owner moving directories or writing open handles.
+POSIX uses no-follow directory-relative operations; Windows delegates to its
+explicit native NTFS subset. Neither backend is an OS sandbox against the owner.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import hashlib
 import os
 import stat
 import subprocess
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
@@ -29,14 +30,25 @@ class WorkspaceFiles:
             raise ValueError("Checkpoint root must be a physical directory")
         metadata = self.root.stat()
         self.identity = (metadata.st_dev, metadata.st_ino)
-        self.repository = self._repository_identity()
         self.redactor = redactor
         self.max_file_bytes = max_file_bytes
         self.exclusions = exclusions
+        self.windows = None
+        if sys.platform == "win32":
+            from henchman.advanced.checkpoint_windows import WindowsWorkspace
+
+            self.windows = WindowsWorkspace(self)
+        self.repository = self._repository_identity()
 
     def check_root(self) -> None:
         metadata = self.root.lstat()
-        if not stat.S_ISDIR(metadata.st_mode) or (metadata.st_dev, metadata.st_ino) != self.identity:
+        if getattr(metadata, "st_file_attributes", 0) & 0x400:
+            raise CheckpointConflict(reason="Checkpoint root became a reparse point")
+        identity = (metadata.st_dev, metadata.st_ino)
+        if self.windows is not None:
+            with self.windows.api.open(self.root, directory=True) as handle:
+                identity = self.windows.api.info(handle).identity
+        if not stat.S_ISDIR(metadata.st_mode) or identity != self.identity:
             raise CheckpointConflict(reason="Checkpoint project directory changed")
         if self._repository_identity() != self.repository:
             raise CheckpointConflict(reason="Checkpoint repository or worktree identity changed")
@@ -53,10 +65,19 @@ class WorkspaceFiles:
         if entry is None:
             return None
         metadata = entry.lstat()
+        if getattr(metadata, "st_file_attributes", 0) & 0x400:
+            raise ValueError("Unsupported checkpoint repository reparse point")
+        identity = (metadata.st_dev, metadata.st_ino)
+        if self.windows is not None:
+            with self.windows.api.open(entry, directory=stat.S_ISDIR(metadata.st_mode)) as handle:
+                identity = self.windows.api.info(handle).identity
+                data = self.windows.api.read(handle, 4096) if stat.S_ISREG(metadata.st_mode) else b""
+        else:
+            data = entry.read_bytes() if stat.S_ISREG(metadata.st_mode) and metadata.st_size <= 4096 else b""
         if stat.S_ISDIR(metadata.st_mode):
-            value = f"{entry}:{metadata.st_dev}:{metadata.st_ino}"
-        elif stat.S_ISREG(metadata.st_mode) and metadata.st_size <= 4096:
-            value = f"{entry}:{metadata.st_dev}:{metadata.st_ino}:{hashlib.sha256(entry.read_bytes()).hexdigest()}"
+            value = f"{entry}:{identity[0]}:{identity[1]}"
+        elif stat.S_ISREG(metadata.st_mode) and metadata.st_size <= 4096 and len(data) <= 4096:
+            value = f"{entry}:{identity[0]}:{identity[1]}:{hashlib.sha256(data).hexdigest()}"
         else:
             raise ValueError("Unsupported checkpoint repository identity")
         return hashlib.sha256(value.encode()).hexdigest()
@@ -67,11 +88,17 @@ class WorkspaceFiles:
             raise ValueError("Checkpoint paths must be relative files without traversal")
         if self.redactor.text(value) != value:
             raise ValueError("Credential-bearing paths cannot be persisted in checkpoints")
+        if sys.platform == "win32":
+            from henchman.advanced.checkpoint_windows import validate_path
+
+            validate_path(value)
         return path.as_posix()
 
     def excluded(self, value: str) -> bool:
         parts = PurePosixPath(value).parts
-        if any(part in _EXCLUDED or part == ".env" or part.startswith(".env.") for part in parts):
+        checked_parts = tuple(part.casefold() for part in parts) if self.windows is not None else parts
+        excluded_parts = {part.casefold() for part in _EXCLUDED} if self.windows is not None else _EXCLUDED
+        if any(part in excluded_parts or part == ".env" or part.startswith(".env.") for part in checked_parts):
             return True
         if any(fnmatch.fnmatchcase(value, pattern) for pattern in self.exclusions):
             return True
@@ -126,7 +153,7 @@ class WorkspaceFiles:
 
     @contextmanager
     def parent(self, value: str) -> Iterator[tuple[int, str, tuple[tuple[int, int], ...]]]:
-        if os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or os.open not in os.supports_dir_fd:
+        if sys.platform == "win32" or os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or os.open not in os.supports_dir_fd:
             raise ValueError("Checkpoint restore requires the supported POSIX descriptor backend")
         self.check_root()
         parts = PurePosixPath(self.path(value)).parts
@@ -152,6 +179,10 @@ class WorkspaceFiles:
         value = self.path(value)
         if self.excluded(value):
             return FileState("excluded")
+        if self.windows is not None:
+            return self.windows.state(value)
+        if sys.platform == "win32":
+            raise ValueError("Windows checkpoint backend is unavailable")
         try:
             with self.parent(value) as (directory, name, parents):
                 try:

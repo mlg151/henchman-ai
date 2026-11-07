@@ -107,6 +107,7 @@ class CheckpointReview:
     checkpoint_id: str
     revision: int
     files: tuple[ReviewFile, ...]
+    metadata_policy: str = "posix-mode"
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,7 @@ class ReviewPlan:
     revision: int
     decision: str
     paths: tuple[str, ...]
+    metadata_policy: str = "posix-mode"
 
 
 @dataclass(frozen=True)

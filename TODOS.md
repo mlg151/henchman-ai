@@ -25,8 +25,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   POSIX capture/review/restore service with private retention and crash recovery.
   CLI and interactive `/checkpoint` share review/preview/apply/recovery/retention.
   Restore invalidates plan checks and supersedes in-flight observations.
-  Runtime ownership, dedicated review navigation and Windows support
-  remain open under #22; legacy metadata snapshots are explicitly non-restorable.
+  The Windows NTFS backend exposes a private-ACL content-only policy and awaits
+  native qualification. Runtime ownership and dedicated review navigation remain
+  open under #22; legacy metadata snapshots are explicitly non-restorable.
 
 - Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.
 - Packaging dependency floors: `chromadb>=1.5.9` for RAG and direct `scipy>=1.11.2` for NetworkX PageRank queries.
