@@ -10,6 +10,7 @@ never fabricate a cost figure.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import contextlib
 import json
 import math
@@ -135,10 +136,16 @@ async def _run_once(
 ) -> RunRecord:
     rig = EvalTestRig(provider=provider, profile=profile)
     start = time.perf_counter()
+    deadline = asyncio.get_running_loop().time() + timeout
     try:
-        rig.setup(f"baseline_{case_id}_{run_index}")
-        with _bounded_env(timeout, max_iterations):
-            result = await dispatch_case(case_id, rig)
+        async with asyncio.timeout_at(deadline):
+            rig.setup(f"baseline_{case_id}_{run_index}")
+            with _bounded_env(timeout, max_iterations):
+                result = await dispatch_case(case_id, rig)
+            # Synchronous scenario work or a swallowed cancellation cannot turn
+            # an expired deadline into a successful recorded observation.
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError
         # A 0/0 reading means the run path did not report usage; an LLM turn
         # always consumes prompt tokens, so zeros are unreported, not free.
         reported = bool(result.tokens_in or result.tokens_out)
@@ -152,6 +159,12 @@ async def _run_once(
             tokens_out=result.tokens_out if reported else None,
             task_verified=result.success,
             error=result.error,
+        )
+    except TimeoutError as exc:
+        return RunRecord(
+            case_id=case_id, run_index=run_index, profile=profile, outcome="timeout",
+            duration_ms=_wall_ms(start), tokens_in=None, tokens_out=None,
+            task_verified=False, error=str(exc) or f"Scenario timed out after its {timeout:g}s wall-clock budget",
         )
     except AssertionError as exc:
         outcome, error = _classify_failure(rig, str(exc))
@@ -297,7 +310,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--runs", type=int, default=2, help="Runs per case (default: 2).")
     parser.add_argument("--timeout", type=float, default=120.0, help="Per-run wall-clock timeout in seconds.")
-    parser.add_argument("--max-iterations", type=int, default=10, help="Max agent tool iterations per run.")
+    parser.add_argument("--max-iterations", type=int, default=10, help="Max agent tool iterations per turn.")
     parser.add_argument("--report", required=True, help="Path to write the JSON report.")
     return parser
 

@@ -319,6 +319,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Complete-scenario evaluation deadlines** — Baseline timeouts now cover setup
+  and pauses before, between and after model turns. Expired scenarios remain
+  unverified even when they suppress cancellation; independent checker timeout
+  diagnostics are preserved. Iteration caps remain per turn, and cooperative
+  cleanup can extend elapsed time. Five regressions cover these boundaries.
+
 - **Windows task-store locks** — Synchronize buffered marker reads before native
   byte-range unlock so task updates release the originally acquired lock byte.
 

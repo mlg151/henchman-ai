@@ -480,6 +480,13 @@ qualification remains tracked in
 [issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
 registry contracts establish evaluator behavior, not model task quality.
 
+`baseline_runs --timeout` covers the whole scenario, including setup and work
+before, between and after model turns. Expiry records a timeout and cannot become
+a verified success, even if scenario code suppresses cancellation. The iteration
+cap applies to each turn. Cancellation is cooperative: synchronous work and
+owned cleanup can extend elapsed time beyond the deadline. Independent checker
+timeouts retain their own diagnostic text.
+
 The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
 retains all 22 attempts: all timed out at the declared 120-second turn limit, with
 no verified successes or reported token usage. Its invocation, raw report,

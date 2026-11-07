@@ -45,6 +45,53 @@ class HangingProvider(MockProvider):
         return
 
 
+@pytest.mark.parametrize("pause", ["before_turn", "between_turns", "after_turn"])
+async def test_scenario_budget_covers_work_outside_each_model_turn(monkeypatch, pause):
+    provider = MockProvider(responses=["First", "Second"])
+
+    async def scenario(_case_id, rig):
+        if pause == "before_turn":
+            await asyncio.sleep(1)
+        first = await rig.run("First turn", timeout=5)
+        if pause == "between_turns":
+            await asyncio.sleep(1)
+        second = await rig.run("Second turn", timeout=5)
+        if pause == "after_turn":
+            await asyncio.sleep(1)
+        assert first.success and second.success
+        return second
+
+    monkeypatch.setattr(baseline_runs, "dispatch_case", scenario)
+    records = await baseline_runs.run_case_repeated("fibonacci", provider=provider, runs=1, timeout=.5)
+    assert len(records) == 1
+    assert records[0].outcome == "timeout" and records[0].task_verified is False
+    assert records[0].error and "0.5" in records[0].error
+    assert len(provider.calls) <= {"before_turn": 0, "between_turns": 1, "after_turn": 2}[pause]
+
+
+async def test_scenario_cannot_convert_its_timeout_into_a_successful_record(monkeypatch):
+    async def scenario(_case_id, rig):
+        result = await rig.run("First turn")
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            return result
+
+    monkeypatch.setattr(baseline_runs, "dispatch_case", scenario)
+    records = await baseline_runs.run_case_repeated("fibonacci", provider=MockProvider(), timeout=.5)
+    assert records[0].outcome == "timeout" and records[0].task_verified is False
+
+
+async def test_scenario_retains_independent_checker_timeout_diagnostic(monkeypatch):
+    async def scenario(_case_id, _rig):
+        raise TimeoutError("Independent Python verification timed out after 5s")
+
+    monkeypatch.setattr(baseline_runs, "dispatch_case", scenario)
+    records = await baseline_runs.run_case_repeated("fibonacci", provider=MockProvider(), timeout=30)
+    assert records[0].outcome == "timeout"
+    assert records[0].error == "Independent Python verification timed out after 5s"
+
+
 class AlwaysToolProvider(MockProvider):
     """Provider that always requests a tool, to exercise iteration caps."""
 
