@@ -97,6 +97,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   owned callback/token flows and guarded manager APIs with teardown invalidation.
   Explicit Python clients now support authenticated HTTP with pinned pre-header
   guards and unusable-transport handling after uncertain cleanup.
+  Discovery and token exchange share the guard after connection setup, with
+  conservative claim settlement and no implicit replay after uncertain dispatch.
   Configured OAuth connections remain refused
   pending interactive login and normal manager activation.
   Remaining qualification gates are

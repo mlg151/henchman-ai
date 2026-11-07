@@ -44,7 +44,7 @@ async def test_native_discovery_is_credential_free_detached_and_does_not_dispatc
         assert result.scopes == ("write", "read")
         assert result.token_endpoint == peer.origin + "/token"
         assert result.authorization_response_iss_required
-        assert len(guards) == 2
+        assert len(guards) == 4  # Before handoff and after TLS for each document.
         assert [request[0] for request in peer.requests] == ["GET", "GET"]
         assert all("authorization" not in headers and "cookie" not in headers for _, _, headers in peer.requests)
         peer.metadata["token_endpoint"] = "https://changed.example/token"

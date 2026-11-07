@@ -328,10 +328,10 @@ def test_sdk_diagnostics_retains_rotated_oauth_credentials_before_formatting(tmp
 
 @pytest.mark.parametrize("package", ["httpx2", "httpcore2"])
 async def test_unqualified_http_stack_refuses_authenticated_client_before_network(tmp_path, trusted_tls, monkeypatch, package):
-    from henchman.mcp import oauth_transport
+    from henchman.mcp import http_guard
 
-    original = oauth_transport.version
-    monkeypatch.setattr(oauth_transport, "version", lambda name: "0.0.0" if name == package else original(name))
+    original = http_guard.version
+    monkeypatch.setattr(http_guard, "version", lambda name: "0.0.0" if name == package else original(name))
     async with HttpPeer(ssl_context=trusted_tls) as peer:
         manager, _settings, config = native_authority(peer, tmp_path)
         with pytest.raises(OAuthError, match="runtime profile"):

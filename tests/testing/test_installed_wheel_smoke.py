@@ -223,6 +223,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/mcp/test_oauth_flow.py",
         "tests/mcp/test_oauth_manager.py",
         "tests/mcp/test_oauth_transport.py",
+        "tests/mcp/test_oauth_dispatch.py",
         "tests/cli/test_mcp_context_attachment.py",
         "tests/core/test_context_attachments.py",
         "tests/utils/test_context_attachment_compaction.py",

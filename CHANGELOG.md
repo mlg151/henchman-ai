@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OAuth discovery and token dispatch authority** — The pinned HTTP/1.1 guard
+  now rechecks discovery and token exchange after TCP/TLS setup. It validates the
+  actual destination, rejects unowned extensions and repeated header attempts,
+  and distinguishes undispatched claims from uncertain writes without replay.
+  Thirty-five regressions cover TLS waits, cancellation, expiry and profile
+  refusal. Normal interactive OAuth activation remains pending.
+
 - **Textual activity and decision navigation** — Persistent foreground status
   distinguishes running, waiting, cancelling, closing and settled outcomes.
   F6 focuses the existing question or approval without answering or replacing

@@ -26,6 +26,8 @@ callback/token flows and explicitly guarded manager operations are implemented;
 manager teardown invalidates pending OAuth work before transport cleanup.
 Explicit Python clients now support credential-scoped HTTP requests with a pinned
 pre-header guard and cleanup uncertainty handling.
+The same pinned guard now checks discovery and token exchange after connection
+setup, retaining uncertain post-boundary claims without replay.
 Configured OAuth connections remain refused
 until interactive login and normal manager activation.
 Those flows and final native qualification remain open under #25.

@@ -5,19 +5,13 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
-from importlib.metadata import version
 
 import httpx2
 
+from henchman.mcp.http_guard import guard_http_request, require_oauth_http_profile
 from henchman.mcp.oauth import OAuthBinding, OAuthError
 from henchman.mcp.oauth_store import OAuthAuthority, OAuthCredentialStore
 from henchman.utils.evidence_redaction import EvidenceRedactor
-
-
-def require_oauth_http_profile() -> None:
-    """Qualify the trace event immediately before HTTP/1.1 header transmission."""
-    if version("httpx2") != "2.16.0" or version("httpcore2") != "2.16.0":
-        raise OAuthError("Unsupported OAuth HTTP runtime profile; expected httpx2/httpcore2 2.16.0")
 
 
 def authorize_http_request(
@@ -31,16 +25,13 @@ def authorize_http_request(
         raise OAuthError("OAuth HTTP request cannot override authentication headers")
     request.headers["authorization"] = captured.authorization
 
-    async def trace(event: str, _info: dict[str, object]) -> None:
-        if event == "http11.send_request_headers.started":
-            authorize()
-            current = lease()
-            if current != captured:
-                raise OAuthError("OAuth HTTP credential changed before header dispatch")
-        elif event.startswith("http2."):
-            raise OAuthError("OAuth HTTP/2 dispatch is not qualified")
+    def check() -> None:
+        authorize()
+        current = lease()
+        if current != captured:
+            raise OAuthError("OAuth HTTP credential changed before header dispatch")
 
-    request.extensions["trace"] = trace
+    guard_http_request(request, authorize=check)
     return captured
 
 

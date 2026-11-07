@@ -17,6 +17,7 @@ from mcp.client.auth import PKCEParameters
 
 from henchman.config.mcp import oauth_origin
 from henchman.mcp.diagnostics import http_diagnostics
+from henchman.mcp.http_guard import guard_http_request, require_oauth_http_profile
 from henchman.mcp.http_transport import _NoCookies
 from henchman.mcp.oauth import (
     OAUTH_DOCUMENT_BYTES,
@@ -133,20 +134,30 @@ async def _token_request(
         raise OAuthError("OAuth token request exceeds its bound")
     with anyio.fail_after(OAUTH_TOKEN_TIMEOUT):
         async with httpx2.AsyncClient(trust_env=False, follow_redirects=False, timeout=OAUTH_TOKEN_TIMEOUT,
-                                      cookies=CookieJar(policy=_NoCookies())) as client:
+                                      cookies=CookieJar(policy=_NoCookies()), http2=False) as client:
             request = client.build_request("POST", target, content=body, headers={
                 "content-type": "application/x-www-form-urlencoded", "accept": "application/json", "accept-encoding": "identity",
             })
             if request.url != target:
                 raise OAuthError("OAuth token destination changed before dispatch")
-            authorize()
-            store.check_claim(claim)
-            binding.check_destination(endpoint)
-            issued_at = _time(clock)
-            attempt.dispatched = True
+            issued_at: float | None = None
+
+            def guard() -> None:
+                authorize()
+                store.check_claim(claim)
+                binding.check_destination(endpoint)
+
+            def dispatched() -> None:
+                nonlocal issued_at
+                issued_at = _time(clock)
+                attempt.dispatched = True
+
+            guard_http_request(request, authorize=guard, dispatched=dispatched)
             response = await client.send(request, stream=True, follow_redirects=False)
             try:
                 store.remember_evidence(dict(response.headers))
+                if issued_at is None:
+                    raise OAuthError("OAuth token request bypassed the qualified dispatch boundary")
                 if sum(len(key) + len(value) for key, value in response.headers.raw) > OAUTH_HEADER_BYTES:
                     raise OAuthError("OAuth token response headers exceed their bound")
                 if (response.headers.get("content-encoding", "identity").strip().lower() != "identity"
@@ -187,6 +198,7 @@ async def login_oauth(
     claim = None
     attempt = _Attempt()
     try:
+        require_oauth_http_profile()
         with http_diagnostics(), anyio.fail_after(OAUTH_LOGIN_TIMEOUT):
             store.register_evidence(evidence)
             authorize()
@@ -237,6 +249,7 @@ async def refresh_oauth(
     claim = None
     attempt = _Attempt()
     try:
+        require_oauth_http_profile()
         with http_diagnostics(), anyio.fail_after(OAUTH_TOKEN_TIMEOUT):
             store.register_evidence(evidence)
             authorize()

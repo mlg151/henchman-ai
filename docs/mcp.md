@@ -202,6 +202,17 @@ Login has a 300-second total deadline; token exchange has a 30-second deadline a
 discovery substitution or automatic retry. Missing expiry remains distinct from
 an already expired token. Logout or policy changes reject late publication.
 
+Discovery and token exchange use the same pinned HTTP/1.1 pre-header guard as
+authenticated MCP requests. It rechecks caller/configuration/policy and the
+current claim after TCP/TLS setup, validates the actual method and destination,
+and permits one header attempt. Unknown transport extensions and runtime versions
+are refused. Token expiry starts at that boundary. Failure or cancellation before
+it leaves the owned token claim needing a fresh login, without restoring an old
+rotating token. Crossing the boundary does not prove that bytes reached the peer:
+a later write failure conservatively retains `login_started`/`refresh_started`
+uncertainty and never triggers automatic replay. Logout and newer generations
+remain authoritative.
+
 `McpManager.create_from_settings` binds OAuth to the captured project root and
 the live settings owner. Direct embedders can call `bind_oauth_runtime` once.
 The explicit `oauth_status`, `oauth_login`, `oauth_refresh` and `oauth_logout`

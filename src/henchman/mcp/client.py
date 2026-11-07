@@ -297,8 +297,8 @@ class McpClient:
         self._oauth_permit: OAuthHttpPermit | None = None
         self._oauth_config: dict[str, Any] | None = None
         if oauth_authority is not None:
+            from henchman.mcp.http_guard import require_oauth_http_profile
             from henchman.mcp.oauth import OAuthBinding, OAuthError
-            from henchman.mcp.oauth_transport import require_oauth_http_profile
 
             require_oauth_http_profile()
             if OAuthBinding.from_config(name, config) != oauth_authority.binding:

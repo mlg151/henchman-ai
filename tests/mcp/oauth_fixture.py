@@ -14,6 +14,7 @@ class OAuthPeer:
         self.context = tls_context
         self.routes = {}
         self.requests = []
+        self.application_bytes = 0
         self.tasks = set()
         self.writers = set()
         self.closing = False
@@ -87,11 +88,16 @@ class OAuthPeer:
 
     async def handle(self, reader, writer):
         try:
-            header = (await reader.readuntil(b"\r\n\r\n")).decode("ascii")
+            first = await reader.readexactly(1)
+            self.application_bytes += len(first)
+            rest = await reader.readuntil(b"\r\n\r\n")
+            self.application_bytes += len(rest)
+            header = (first + rest).decode("ascii")
             lines = header.split("\r\n")
             method, path, _ = lines[0].split(" ")
             headers = dict(line.lower().split(": ", 1) for line in lines[1:] if ": " in line)
             body = await reader.readexactly(int(headers.get("content-length", "0")))
+            self.application_bytes += len(body)
             self.requests.append((method, path, headers))
             route = self.auth_route(method, path, body) if self.oauth_enabled else None
             status, data, extra, delay = route or self.routes.get(path, (404, {}, {}, 0))
@@ -103,7 +109,9 @@ class OAuthPeer:
             writer.write(f"HTTP/1.1 {status} Fixture\r\n".encode()
                          + "".join(f"{key}: {value}\r\n" for key, value in fields.items()).encode() + b"\r\n" + raw)
             await writer.drain()
-        except (ConnectionError, asyncio.IncompleteReadError):
+        except asyncio.IncompleteReadError as error:
+            self.application_bytes += len(error.partial)
+        except ConnectionError:
             pass
         finally:
             writer.close()

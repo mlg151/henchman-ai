@@ -22,6 +22,7 @@ from mcp.client.auth.utils import (
 from henchman.config.mcp import canonical_oauth_resource, oauth_origin, validate_oauth_url
 from henchman.config.schema import McpServerConfig
 from henchman.mcp.diagnostics import http_diagnostics
+from henchman.mcp.http_guard import guard_http_request, require_oauth_http_profile
 from henchman.mcp.http_transport import _NoCookies
 
 OAUTH_REQUEST_TIMEOUT = 10.0
@@ -196,7 +197,11 @@ async def discover_oauth(
             request = client.build_request("GET", url, headers={"accept": "application/json", "accept-encoding": "identity"})
             if oauth_origin(str(request.url)) != oauth_origin(url):
                 raise OAuthError("OAuth destination changed before dispatch")
-            authorize()
+            def guard() -> None:
+                authorize()
+                binding.check_destination(url, resource_metadata=resource_metadata)
+
+            guard_http_request(request, authorize=guard)
             response = await client.send(request, stream=True, follow_redirects=False)
             try:
                 if sum(len(key) + len(value) for key, value in response.headers.raw) > OAUTH_HEADER_BYTES:
@@ -218,9 +223,11 @@ async def discover_oauth(
                 await response.aclose()
 
     try:
+        require_oauth_http_profile()
         with http_diagnostics(), anyio.fail_after(OAUTH_DISCOVERY_TIMEOUT):
             async with httpx2.AsyncClient(trust_env=False, follow_redirects=False,
-                                          cookies=CookieJar(policy=_NoCookies()), timeout=OAUTH_REQUEST_TIMEOUT) as client:
+                                          cookies=CookieJar(policy=_NoCookies()), timeout=OAUTH_REQUEST_TIMEOUT,
+                                          http2=False) as client:
                 urls = build_protected_resource_metadata_discovery_urls(parsed_challenge.resource_metadata, binding.endpoint)
                 resource = None
                 for url in dict.fromkeys(urls):
