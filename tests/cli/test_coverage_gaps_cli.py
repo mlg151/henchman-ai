@@ -32,6 +32,30 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
+class _McpStartupClient:
+    """Controlled connection; startup still uses the real manager and registry."""
+
+    def __init__(self) -> None:
+        self.is_connected = False
+
+    async def connect(self) -> None:
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        self.is_connected = False
+
+    def get_tools(self) -> list[Any]:
+        from henchman.mcp.client import McpToolDefinition
+
+        return [McpToolDefinition("inspect", "Fixture read", {"type": "object"})]
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        from henchman.mcp.client import McpToolResult
+
+        assert self.is_connected and name == "inspect" and arguments == {}
+        return McpToolResult("fixture result")
+
 # ---------------------------------------------------------------------------
 # repl.py – missing lines 43-44 (typing_extensions import), 101-103, 121-128,
 #   197, 217-218, 308, 322, 328, 354, 405, 446-450, 479-492
@@ -324,33 +348,36 @@ class TestReplMissingLines:
 
     @pytest.mark.anyio
     async def test_initialize_mcp_with_tools(self) -> None:
-        """Lines 322, 328: initialize_mcp registers tools and shows message."""
+        """Startup binds manager-owned tools and displays the connection count."""
         from henchman.cli.repl import Repl
+        from henchman.config.schema import McpServerConfig
+        from henchman.mcp.manager import McpManager
+        from henchman.tools.registry import ToolRegistry
 
         with patch("henchman.cli.input.PromptSession"):
             provider = MagicMock()
             provider.name = "mock"
             repl = Repl(provider=provider)
 
-        mock_tool = MagicMock()
-        mock_mcp = MagicMock()
-        mock_mcp.clients = {}
-        mock_mcp.connect_all = AsyncMock()
-        mock_mcp.get_all_tools.return_value = [mock_tool]
-
-        repl.mcp_manager = mock_mcp
-
-        # Mock tool_registry.register to track calls
-        mock_registry = MagicMock()
-        repl.tool_registry = mock_registry
-
-        # settings.ui.mcp_logging = True for line 328
-        mock_settings = MagicMock()
-        mock_settings.ui.mcp_logging = True
-        repl.settings = mock_settings
-
-        await repl.initialize_mcp()
-        mock_registry.register.assert_called_with(mock_tool)
+        client = _McpStartupClient()
+        manager = McpManager(
+            {"fixture": McpServerConfig(command="fixture", trusted=True)},
+            client_factory=lambda *_: client,
+        )
+        registry = ToolRegistry()
+        repl.mcp_manager = manager
+        repl.tool_registry = registry
+        repl.settings.ui.mcp_logging = True
+        repl.renderer = MagicMock()
+        try:
+            await repl.initialize_mcp()
+            assert client.is_connected
+            result = await registry.execute("mcp_fixture_inspect", {})
+            assert result.success and result.content == "fixture result"
+            repl.renderer.success.assert_called_once_with("Connected to 1 MCP server(s) with 1 tools")
+        finally:
+            await manager.disconnect_all()
+        assert registry.get("mcp_fixture_inspect") is None
 
     @pytest.mark.anyio
     async def test_run_calls_disconnect_all(self) -> None:
@@ -538,21 +565,23 @@ class TestCoreInitMissingLines:
 
     @pytest.mark.anyio
     async def test_initialize_mcp_background_connect_with_tools(self) -> None:
-        """Line 151: background MCP registers tools."""
+        """Background startup binds tools whose cleanup stays manager-owned."""
         from henchman.cli.core_init import CoreContext, initialize_mcp
+        from henchman.config.schema import McpServerConfig
+        from henchman.mcp.manager import McpManager
+        from henchman.tools.registry import ToolRegistry
 
-        mock_mcp = MagicMock()
-        mock_mcp.clients = {}
-        mock_tool = MagicMock()
-        mock_mcp.connect_all = AsyncMock()
-        mock_mcp.get_all_tools.return_value = [mock_tool]  # Returns one tool
-
-        mock_registry = MagicMock()
+        client = _McpStartupClient()
+        manager = McpManager(
+            {"fixture": McpServerConfig(command="fixture", trusted=True)},
+            client_factory=lambda *_: client,
+        )
+        registry = ToolRegistry()
         context = CoreContext(
             provider=MagicMock(),
             tool_manager=MagicMock(),
-            tool_registry=mock_registry,
-            mcp_manager=mock_mcp,
+            tool_registry=registry,
+            mcp_manager=manager,
             plugin_manager=MagicMock(),
             event_bus=MagicMock(),
             orchestrator=MagicMock(),
@@ -562,9 +591,16 @@ class TestCoreInitMissingLines:
             settings=None,
         )
 
-        initialize_mcp(context)
-        await asyncio.sleep(0.1)
-        mock_registry.register.assert_called_with(mock_tool)
+        try:
+            initialize_mcp(context)
+            assert context.background_tasks
+            await asyncio.gather(*context.background_tasks)
+            assert client.is_connected
+            result = await registry.execute("mcp_fixture_inspect", {})
+            assert result.success and result.content == "fixture result"
+        finally:
+            await manager.disconnect_all()
+        assert registry.get("mcp_fixture_inspect") is None
 
     @pytest.mark.anyio
     async def test_initialize_mcp_background_connect(self) -> None:
