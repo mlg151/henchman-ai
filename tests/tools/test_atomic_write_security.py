@@ -92,6 +92,8 @@ def test_failed_write_preserves_destination_and_cleans_only_owned_temp(tmp_path:
 def test_concurrent_atomic_writers_use_distinct_temps_and_complete_payloads(tmp_path: Path, monkeypatch) -> None:
     target = tmp_path / "result.txt"
     target.write_text("original")
+    unrelated = tmp_path / "result.txt.tmp"
+    unrelated.write_text("unrelated work")
     barrier = Barrier(4)
     original_replace = os.replace
     observed: list[Path] = []
@@ -103,9 +105,22 @@ def test_concurrent_atomic_writers_use_distinct_temps_and_complete_payloads(tmp_
 
     monkeypatch.setattr(os, "replace", replace)
     payloads = [f"writer-{index}:" + str(index) * 100_000 for index in range(4)]
+    successful: list[str] = []
     with ThreadPoolExecutor(max_workers=4) as executor:
-        list(executor.map(lambda content: atomic_write(target, content), payloads))
+        attempts = [(content, executor.submit(atomic_write, target, content)) for content in payloads]
+        for content, future in attempts:
+            try:
+                future.result()
+            except PermissionError as exc:
+                # Windows may reject simultaneous destination replacement. The
+                # API surfaces the error and still removes its own temp file.
+                if os.name != "nt" or getattr(exc, "winerror", None) not in {5, 32}:
+                    raise
+            else:
+                successful.append(content)
+    assert successful
     assert len(set(observed)) == 4
     assert all(path.parent == tmp_path for path in observed)
-    assert target.read_text() in payloads
-    assert list(tmp_path.iterdir()) == [target]
+    assert target.read_text() in successful
+    assert unrelated.read_text() == "unrelated work"
+    assert set(tmp_path.iterdir()) == {target, unrelated}
