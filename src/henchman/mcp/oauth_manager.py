@@ -11,6 +11,7 @@ from henchman.mcp.auth import McpAuthService
 from henchman.mcp.oauth import OAuthBinding, OAuthError
 from henchman.mcp.oauth_flow import login_oauth, refresh_oauth
 from henchman.mcp.oauth_store import OAuthStatus
+from henchman.mcp.oauth_transport import OAuthHttpAuthority
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
 
@@ -34,6 +35,7 @@ class McpOAuthRuntime:
         self._store = McpAuthService(self._project_root).oauth_store()
         self._pending: set[str] = set()
         self._teardown_depth = 0
+        self._http_epoch = 0
         self.register_evidence(evidence)
 
     def matches(self, settings: Settings, project_root: Path) -> bool:
@@ -73,6 +75,33 @@ class McpOAuthRuntime:
         status, _authority = self._store.bound_status(binding)
         return status
 
+    def capture_http(self, server: str, *, authorize: Callable[[], None]) -> OAuthHttpAuthority:
+        """Capture ready authority for an explicit client; never connect or refresh."""
+        self._caller(authorize)
+        self._policy()
+        if self._teardown_depth or server in self._pending:
+            raise OAuthError("OAuth HTTP authority is unavailable during a pending operation or teardown")
+        config = self._configuration(server)
+        identity = config.model_dump()
+        binding = OAuthBinding.from_config(server, config)
+        status, authority = self._store.bound_status(binding)
+        if authority is None or status.state != "ready" or self._store.credentials(authority) is None:
+            raise OAuthError("OAuth HTTP requires a current ready access credential")
+        generation = self._generation(server)
+        http_epoch = self._http_epoch
+
+        def common() -> None:
+            self._caller(authorize)
+            self._policy()
+            if self._configuration(server).model_dump() != identity:
+                raise OAuthError("OAuth runtime configuration changed")
+
+        def active() -> None:
+            if self._teardown_depth or self._http_epoch != http_epoch or self._generation(server) != generation:
+                raise OAuthError("OAuth HTTP connection authority changed")
+
+        return OAuthHttpAuthority(binding, self._store, authority, common, active)
+
     def logout(self, server: str, *, authorize: Callable[[], None]) -> OAuthStatus:
         """Revoke locally even after configuration removal or network restriction."""
         self._caller(authorize)
@@ -87,6 +116,7 @@ class McpOAuthRuntime:
     def teardown(self) -> Iterator[None]:
         """Revoke active flows before any await and fence admission until teardown exits."""
         self._teardown_depth += 1
+        self._http_epoch += 1
         try:
             for server in tuple(self._pending):
                 self._invalidate(server)

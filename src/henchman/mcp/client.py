@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
     from henchman.config.schema import McpServerConfig
     from henchman.mcp.context import McpContextCatalog, McpContextResult
+    from henchman.mcp.oauth_transport import OAuthHttpAuthority, OAuthHttpPermit
     from henchman.mcp.protocol import McpProtocolSession
 
 
@@ -281,6 +282,7 @@ class McpClient:
         config: McpServerConfig,
         *,
         verbose: bool = False,
+        oauth_authority: OAuthHttpAuthority | None = None,
     ) -> None:
         """Initialize the client.
 
@@ -292,6 +294,17 @@ class McpClient:
         self.name = name
         self.config = config
         self.verbose = verbose
+        self._oauth_permit: OAuthHttpPermit | None = None
+        self._oauth_config: dict[str, Any] | None = None
+        if oauth_authority is not None:
+            from henchman.mcp.oauth import OAuthBinding, OAuthError
+            from henchman.mcp.oauth_transport import require_oauth_http_profile
+
+            require_oauth_http_profile()
+            if OAuthBinding.from_config(name, config) != oauth_authority.binding:
+                raise OAuthError("OAuth HTTP permit does not match its client configuration")
+            self._oauth_config = copy.deepcopy(config.model_dump())
+            self._oauth_permit = oauth_authority.for_client(self)
         self._session: McpProtocolSession | None = None
         self.protocol_version: str | None = None
         self._tools: list[McpToolDefinition] = []
@@ -346,7 +359,10 @@ class McpClient:
 
     def _check_credentials(self) -> None:
         self._check_access()
-        if getattr(self.config, "oauth", None) is not None:
+        if self._oauth_permit is not None:
+            self._check_oauth_configuration()
+            self._oauth_permit.check()
+        elif getattr(self.config, "oauth", None) is not None:
             raise RuntimeError("MCP OAuth login and authenticated transport are not yet supported")
         if self._invalid_reason is not None:
             raise RuntimeError(self._invalid_reason)
@@ -361,6 +377,14 @@ class McpClient:
             if current != self._connection_environment:
                 self.invalidate_credentials()
                 raise RuntimeError("MCP environment credentials changed; reconnect the server before dispatch")
+
+    def _check_oauth_configuration(self) -> None:
+        if self._oauth_config is not None and self.config.model_dump() != self._oauth_config:
+            raise RuntimeError("MCP OAuth client configuration changed")
+
+    def _check_http_cleanup(self) -> None:
+        self._check_access()
+        self._check_oauth_configuration()
 
     def _build_server_params(self: Self) -> StdioServerParameters:  # pragma: no cover
         """Build StdioServerParameters from this client's configuration."""
@@ -388,9 +412,13 @@ class McpClient:
         if self.config.transport == "streamable_http":
             if self.config.url is None:
                 raise RuntimeError("MCP Streamable HTTP requires an endpoint")
-            with sdk_diagnostics({}):
+            policy = EvidenceRedactor()
+            if self._oauth_permit is not None:
+                self._oauth_permit.authority.register_evidence(policy)
+            with sdk_diagnostics({}, policy=policy):
                 session, self.protocol_version = await open_http_session(
-                    stack, self.config.url, authorize=self._check_credentials, authorize_cleanup=self._check_access,
+                    stack, self.config.url, authorize=self._check_credentials, authorize_cleanup=self._check_http_cleanup,
+                    oauth_permit=self._oauth_permit, oauth_owner=self,
                     **timeouts,
                 )
             return session

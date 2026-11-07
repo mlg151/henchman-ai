@@ -6,7 +6,7 @@ import asyncio
 import copy
 from collections.abc import Callable
 from contextlib import AsyncExitStack, suppress
-from typing import Annotated, Any, Protocol, TextIO, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Protocol, TextIO, TypeVar
 
 import anyio
 from mcp.client.session import _clamp_inbound_ttl, _later_revision_fields
@@ -25,6 +25,9 @@ from pydantic import BaseModel, BeforeValidator, TypeAdapter, ValidationError
 from henchman.mcp.stdio_transport import StdioState, bounded_stdio_client
 from henchman.tools.contracts import SchemaContractError
 from mcp import Client, ClientSession, StdioServerParameters, types
+
+if TYPE_CHECKING:
+    from henchman.mcp.oauth_transport import OAuthHttpPermit
 
 SUPPORTED_STDIO_REVISIONS = (
     "2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25", "2026-07-28",
@@ -102,6 +105,10 @@ class McpProtocolSession:
         revision validation and parsing, without its lossy continuation handling.
         This adapter deliberately exposes no resumption or retry options.
         """
+        if self.state.failure is not None:
+            raise self.state.failure
+        if self.state.closed:
+            raise RuntimeError("MCP transport is closed; explicit reconnection is required")
         data = request.model_dump(by_alias=True, mode="json", exclude_none=True)
         method = data["method"]
         options: CallOptions = {}
@@ -226,6 +233,7 @@ async def open_stdio_session(
 async def open_http_session(
     stack: AsyncExitStack, url: str, *, authorize: Callable[[], None], authorize_cleanup: Callable[[], None],
     request_timeout: float | None = None, negotiation_timeout: float | None = None,
+    oauth_permit: OAuthHttpPermit | None = None, oauth_owner: object | None = None,
 ) -> tuple[McpProtocolSession, str]:
     """Negotiate the HTTP revisions over an owned bounded transport."""
     from henchman.mcp.http_transport import HttpState, bounded_http_client
@@ -234,7 +242,7 @@ async def open_http_session(
     state = HttpState()
     timeout = REQUEST_TIMEOUT_SECONDS if request_timeout is None else request_timeout
     transport = bounded_http_client(url, state=state, authorize=authorize, authorize_cleanup=authorize_cleanup,
-                                    request_timeout=timeout)
+                                    request_timeout=timeout, oauth_permit=oauth_permit, oauth_owner=oauth_owner)
     client = Client(transport, mode="auto", cache=None, read_timeout_seconds=timeout)
     return await _negotiate(stack, client, state, timeout, negotiation_timeout, SUPPORTED_STDIO_REVISIONS[1:])
 

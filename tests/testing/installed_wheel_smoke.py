@@ -221,6 +221,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/mcp/test_oauth_callback.py",
         "tests/mcp/test_oauth_flow.py",
         "tests/mcp/test_oauth_manager.py",
+        "tests/mcp/test_oauth_transport.py",
         "tests/mcp/context_fixture.py",
         "tests/mcp/test_context_catalog.py",
         "tests/mcp/test_context_attachment_handles.py",

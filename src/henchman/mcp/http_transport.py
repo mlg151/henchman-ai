@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from http.cookiejar import CookieJar, DefaultCookiePolicy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import httpx2
@@ -20,10 +20,14 @@ from henchman.mcp.diagnostics import http_diagnostics
 from henchman.tools.contracts import MAX_VALUE_BYTES, SchemaContract, SchemaContractError
 from mcp import types
 
+if TYPE_CHECKING:
+    from henchman.mcp.oauth_transport import OAuthHttpPermit
+
 MAX_HTTP_BODY_BYTES = MAX_VALUE_BYTES
 MAX_SSE_BODY_BYTES = 4 * MAX_VALUE_BYTES
 MAX_HTTP_HEADER_BYTES = 8192
 HTTP_SHUTDOWN_TIMEOUT_SECONDS = 5.0
+HTTP_CONCURRENCY = 16
 _JSON = SchemaContract(True)
 
 
@@ -34,6 +38,7 @@ class McpHttpError(RuntimeError):
 @dataclass
 class HttpState:
     failure: Exception | None = None
+    cleanup_failure: McpHttpError | None = None
     closed: bool = False
     session_id: str | None = None
     protocol_version: str | None = None
@@ -64,6 +69,15 @@ class _BoundedBody(httpx2.AsyncByteStream):
         await self.stream.aclose()
 
 
+class _OwnedBodyResponse(httpx2.Response):
+    """Read using public HTTP parsers; the original response owns bounded cleanup."""
+
+    async def aclose(self) -> None:
+        # Response.aiter_raw otherwise closes in its own unbounded finally and
+        # can replace a primary cancellation with an unrelated close failure.
+        pass
+
+
 def _parse_message(data: str | bytes) -> SessionMessage:
     try:
         raw = json.loads(data)
@@ -78,8 +92,12 @@ def _parse_message(data: str | bytes) -> SessionMessage:
 async def bounded_http_client(
     url: str, *, state: HttpState, authorize: Callable[[], None], authorize_cleanup: Callable[[], None],
     request_timeout: float,
+    oauth_permit: OAuthHttpPermit | None = None, oauth_owner: object | None = None,
 ) -> AsyncIterator[TransportStreams]:
     """Own HTTP requests and cleanup; every request targets one validated endpoint."""
+    from henchman.mcp.oauth import OAuthError
+    from henchman.mcp.oauth_transport import OAuthAccessLease, authorize_http_request
+
     validate_mcp_endpoint(url)
     try:
         endpoint = httpx2.URL(url)
@@ -89,6 +107,7 @@ async def bounded_http_client(
     incoming, read_stream = create_context_streams[SessionMessage | Exception](0)
     write_stream, outgoing = create_context_streams[SessionMessage](0)
     active: dict[str | int, anyio.CancelScope] = {}
+    capacity = anyio.CapacityLimiter(HTTP_CONCURRENCY)
 
     def fail(error: Exception) -> None:
         if state.failure is None:
@@ -118,7 +137,8 @@ async def bounded_http_client(
 
     async with httpx2.AsyncClient(
         trust_env=False, follow_redirects=False, timeout=httpx2.Timeout(request_timeout),
-        cookies=CookieJar(policy=_NoCookies()), limits=httpx2.Limits(max_connections=16, max_keepalive_connections=8),
+        cookies=CookieJar(policy=_NoCookies()), http2=False,
+        limits=httpx2.Limits(max_connections=None, max_keepalive_connections=8),
     ) as client:
         async def deliver(data: str | bytes, request_id: str | int) -> bool:
             message = _parse_message(data)
@@ -134,6 +154,10 @@ async def bounded_http_client(
             return False
 
         async def post(message: SessionMessage) -> None:
+            if state.failure is not None:
+                raise state.failure
+            if state.closed:
+                raise McpHttpError("MCP HTTP transport is closed; explicit reconnection is required")
             body = message.message
             is_request = isinstance(body, types.JSONRPCRequest)
             method = body.method if isinstance(body, types.JSONRPCRequest | types.JSONRPCNotification) else None
@@ -149,11 +173,23 @@ async def bounded_http_client(
             request = client.build_request("POST", endpoint, headers=headers, content=payload)
             if request.url != endpoint:
                 raise McpHttpError("MCP HTTP destination changed before dispatch")
-            authorize()
+            lease: OAuthAccessLease | None = None
+            if oauth_permit is not None:
+                lease = authorize_http_request(request, lease=lambda: oauth_permit.request("POST", url), authorize=authorize)
+            else:
+                authorize()
+            if sum(len(key) + len(value) for key, value in request.headers.raw) > MAX_HTTP_HEADER_BYTES:
+                raise McpHttpError("MCP HTTP headers exceed their byte limit")
             response = await client.send(request, stream=True, follow_redirects=False)
+            primary_failure: BaseException | None = None
             try:
                 if response.status_code == 401:
+                    if lease is not None:
+                        lease.reject()
+                        raise McpHttpError("MCP HTTP access token rejected; explicit refresh or login required; no automatic retry")
                     raise McpHttpError("MCP HTTP authentication required; OAuth is not configured; no automatic retry")
+                if response.status_code == 403 and lease is not None:
+                    raise McpHttpError("MCP HTTP authorization scope was rejected; no automatic login or replay")
                 if 300 <= response.status_code < 400:
                     raise McpHttpError("MCP HTTP redirects are unsupported; configure the final endpoint explicitly")
                 if response.headers.get("content-encoding", "identity").strip().lower() != "identity":
@@ -180,8 +216,10 @@ async def bounded_http_client(
                 if not isinstance(response.stream, httpx2.AsyncByteStream):
                     raise McpHttpError("MCP HTTP response stream is unsupported")
                 response.stream = _BoundedBody(response.stream, limit)
+                body_response = _OwnedBodyResponse(response.status_code, headers=response.headers,
+                    stream=response.stream, request=response.request)
                 if content_type == "application/json":
-                    data = await response.aread()
+                    data = await body_response.aread()
                     parsed = _parse_message(data).message
                     if response.status_code >= 400 and not isinstance(parsed, types.JSONRPCError):
                         raise McpHttpError("MCP HTTP server rejected the request")
@@ -192,7 +230,7 @@ async def bounded_http_client(
                     if not await deliver(data, body.id):
                         raise McpHttpError("MCP HTTP JSON response contains no result")
                 else:
-                    async for event in httpx2.EventSource(response, max_event_size=MAX_HTTP_BODY_BYTES):
+                    async for event in httpx2.EventSource(body_response, max_event_size=MAX_HTTP_BODY_BYTES):
                         if event.event == "message" and event.data:
                             parsed = _parse_message(event.data).message
                             if method == "initialize" and isinstance(parsed, types.JSONRPCResponse):
@@ -202,18 +240,37 @@ async def bounded_http_client(
                             if await deliver(event.data, body.id):
                                 return
                     raise McpHttpError("MCP HTTP stream ended without a result; no automatic resumption or replay")
+            except BaseException as error:
+                primary_failure = error
+                raise
             finally:
-                await response.aclose()
+                try:
+                    with anyio.move_on_after(HTTP_SHUTDOWN_TIMEOUT_SECONDS, shield=True) as closing:
+                        await response.aclose()
+                    if closing.cancelled_caught:
+                        raise McpHttpError("MCP HTTP response cleanup deadline exceeded")
+                except (Exception, anyio.get_cancelled_exc_class()):
+                    # Cleanup must settle without replacing the request's original
+                    # rejection/cancellation, but uncertain cleanup fences this owner.
+                    cleanup_error = McpHttpError("MCP HTTP response cleanup failed or exceeded its deadline; "
+                        "transport is unavailable and remote outcome may be unknown; explicit reconnection is required")
+                    state.cleanup_failure = cleanup_error
+                    if primary_failure is not None:
+                        primary_failure.add_note(str(cleanup_error))
+                    fail(primary_failure if isinstance(primary_failure, Exception) else cleanup_error)
+                    if primary_failure is None:
+                        raise cleanup_error from None
 
         async def worker(message: SessionMessage, scope: anyio.CancelScope) -> None:
             body = message.message
             request_id = body.id if isinstance(body, types.JSONRPCRequest) else None
             try:
                 with scope, anyio.fail_after(request_timeout), http_diagnostics():
-                    await post(message)
+                    async with capacity:
+                        await post(message)
             except (anyio.ClosedResourceError, anyio.BrokenResourceError):
                 pass
-            except (McpHttpError, SchemaContractError, PermissionError) as error:
+            except (McpHttpError, SchemaContractError, PermissionError, OAuthError) as error:
                 fail(error)
             except Exception:
                 fail(McpHttpError("MCP HTTP transport failed; outcome may be unknown; no automatic replay"))
@@ -255,20 +312,38 @@ async def bounded_http_client(
                 for scope in active.values():
                     scope.cancel()
                 try:
+                    if state.cleanup_failure is not None:
+                        # Do not send a DELETE through a transport whose response
+                        # stream ownership could not be settled. Pool close still runs.
+                        raise state.cleanup_failure
                     if state.session_id:
                         with anyio.move_on_after(HTTP_SHUTDOWN_TIMEOUT_SECONDS, shield=True) as cleanup, http_diagnostics():
                             try:
-                                request = client.build_request("DELETE", endpoint, headers=request_headers())
-                                authorize_cleanup()
-                                response = await client.send(request, stream=True, follow_redirects=False)
-                                try:
-                                    # Legacy servers may explicitly decline session deletion.
-                                    if not 200 <= response.status_code < 300 and response.status_code != 405:
-                                        raise McpHttpError("MCP HTTP session cleanup was rejected")
-                                finally:
-                                    await response.aclose()
+                                async with capacity:
+                                    request = client.build_request("DELETE", endpoint, headers=request_headers())
+                                    cleanup_lease = None
+                                    if oauth_permit is not None:
+                                        closing_permit = oauth_permit.closing(oauth_owner, state.session_id)
+                                        cleanup_lease = authorize_http_request(request,
+                                            lease=lambda: closing_permit.request("DELETE", url, state.session_id or ""),
+                                            authorize=authorize_cleanup)
+                                    else:
+                                        authorize_cleanup()
+                                    if sum(len(key) + len(value) for key, value in request.headers.raw) > MAX_HTTP_HEADER_BYTES:
+                                        raise McpHttpError("MCP HTTP cleanup headers exceed their byte limit; remote state is unknown")
+                                    response = await client.send(request, stream=True, follow_redirects=False)
+                                    try:
+                                        if response.status_code == 401 and cleanup_lease is not None:
+                                            cleanup_lease.reject()
+                                        # Legacy servers may explicitly decline session deletion.
+                                        if not 200 <= response.status_code < 300 and response.status_code != 405:
+                                            raise McpHttpError("MCP HTTP session cleanup was rejected; remote state is unknown")
+                                    finally:
+                                        await response.aclose()
+                            except OAuthError:
+                                raise McpHttpError("MCP HTTP cleanup authority is unavailable; remote state is unknown") from None
                             except PermissionError:
-                                raise McpHttpError("MCP HTTP cleanup denied by active access policy") from None
+                                raise McpHttpError("MCP HTTP cleanup denied by active access policy; remote state is unknown") from None
                             except McpHttpError:
                                 raise
                             except Exception:

@@ -63,9 +63,15 @@ for _logger_name in (
 
 
 @contextmanager
-def sdk_diagnostics(environment: Mapping[str, str], *, secrets: Iterable[str] = ()) -> Iterator[None]:
+def sdk_diagnostics(
+    environment: Mapping[str, str], *, secrets: Iterable[str] = (), policy: EvidenceRedactor | None = None,
+) -> Iterator[None]:
     """Capture credentials for child transport tasks without leaking caller scope."""
-    policy = EvidenceRedactor(secrets)
+    if policy is None:
+        policy = EvidenceRedactor(secrets)
+    else:
+        for secret in secrets:
+            policy.register_secret(secret)
     policy.register_config(environment)
     token = _policy.set(policy)
     try:

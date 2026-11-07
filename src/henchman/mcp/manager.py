@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from henchman.mcp.context import ContextFamily, McpContextCatalog, McpContextResult
     from henchman.mcp.oauth_manager import McpOAuthRuntime
     from henchman.mcp.oauth_store import OAuthStatus
+    from henchman.mcp.oauth_transport import OAuthHttpAuthority
     from henchman.tools.registry import ToolRegistry
 
 
@@ -206,6 +207,10 @@ class McpManager:
     def oauth_status(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
         """Inspect local OAuth state for live settings without connecting or writing."""
         return self._require_oauth_runtime().status(server_name, authorize=authorize)
+
+    def capture_oauth_http(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthHttpAuthority:
+        """Capture explicit HTTP authority without activating a manager connection."""
+        return self._require_oauth_runtime().capture_http(server_name, authorize=authorize)
 
     async def oauth_login(
         self, server_name: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]],

@@ -14,6 +14,8 @@ class HttpPeer:
         self.requests = []
         self.effects = 0
         self.behavior = "complete"
+        self.required_bearer = None
+        self.auth_status = 401
         self.cleanup_behavior = "complete"
         self.delays = {}
         self.capabilities = {"tools": {}}
@@ -26,11 +28,17 @@ class HttpPeer:
         self.tasks = set()
         self.writers = set()
         self.closing = False
+        self.sse_started = asyncio.Event()
+        self.sse_closed = asyncio.Event()
         self.server = None
         self.url = ""
 
     async def __aenter__(self):
-        self.server = await asyncio.start_server(self._accept, "127.0.0.1", 0, ssl=self.ssl_context)
+        self.server = await asyncio.start_server(
+            self._accept, "127.0.0.1", 0, ssl=self.ssl_context,
+            ssl_handshake_timeout=2 if self.ssl_context else None,
+            ssl_shutdown_timeout=2 if self.ssl_context else None,
+        )
         port = self.server.sockets[0].getsockname()[1]
         scheme = "https" if self.ssl_context is not None else "http"
         self.url = f"{scheme}://127.0.0.1:{port}/mcp"
@@ -66,9 +74,17 @@ class HttpPeer:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            self.tasks.difference_update(tasks)
             for writer in writers:
-                with suppress(ConnectionError):
-                    await writer.wait_closed()
+                try:
+                    with suppress(ConnectionError):
+                        await writer.wait_closed()
+                except asyncio.CancelledError:
+                    # Cancelling a joined handler can cancel its shared close
+                    # waiter. The transport was already aborted above; preserve
+                    # cancellation directed at the fixture owner itself.
+                    if asyncio.current_task().cancelling():
+                        raise
                 self.writers.discard(writer)
 
     async def _handle(self, reader, writer):
@@ -83,6 +99,14 @@ class HttpPeer:
             raw = await reader.readexactly(int(headers.get("content-length", "0")))
             request = json.loads(raw) if raw else {}
             self.requests.append({"verb": verb, "target": target, "headers": headers, "body": request})
+            auth_rejected = self.required_bearer is not None and headers.get("authorization") != self.required_bearer
+            method = request.get("method")
+            if method in self.delays:
+                await asyncio.sleep(self.delays[method])
+            if auth_rejected:
+                await self._respond(writer, self.auth_status, b"private-auth-error-canary",
+                                    headers={"WWW-Authenticate": 'Bearer resource_metadata="https://untrusted.invalid/meta"'})
+                return
             if verb == "DELETE":
                 if self.cleanup_behavior == "drop":
                     return
@@ -97,9 +121,6 @@ class HttpPeer:
             if verb != "POST":
                 await self._respond(writer, 405, b"")
                 return
-            method = request.get("method")
-            if method in self.delays:
-                await asyncio.sleep(self.delays[method])
             if "id" not in request:
                 await self._respond(writer, 202, b"")
                 return
@@ -131,6 +152,18 @@ class HttpPeer:
                 result = dict(self.context_results[method])
             elif method == "tools/call":
                 self.effects += 1
+                if self.behavior == "sse_wait":
+                    notification = {"jsonrpc": "2.0", "method": "notifications/progress",
+                                    "params": {"progressToken": "fixture", "progress": 1}}
+                    chunk = b"event: message\ndata: " + json.dumps(notification).encode() + b"\n\n"
+                    writer.write(b"HTTP/1.1 200 Fixture\r\nContent-Type: text/event-stream\r\n"
+                                 b"Transfer-Encoding: chunked\r\n\r\n" + f"{len(chunk):x}\r\n".encode()
+                                 + chunk + b"\r\n")
+                    await writer.drain()
+                    self.sse_started.set()
+                    await reader.read()
+                    self.sse_closed.set()
+                    return
                 if self.behavior == "accepted_without_result":
                     await self._respond(writer, 202, b"")
                     return

@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit authenticated MCP HTTP clients** — Captured credential authority is
+  rechecked after connection setup before headers, with generation-scoped 401
+  rejection, bounded cleanup and explicit reconnection after cleanup uncertainty.
+  Normal manager activation and interactive login remain pending.
+
 - **Textual tool evidence inspection** — Compact correlated rows, keyboard
   inspection and bounded multiline/typed evidence preserve explicit unknown and
   interrupted outcomes, draft/focus and credential projection. Omitted evidence

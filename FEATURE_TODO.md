@@ -24,8 +24,10 @@ idle, preserving source evidence and untrusted roles across compaction. OAuth
 configuration, bounded discovery, generation-bound storage and explicit library
 callback/token flows and explicitly guarded manager operations are implemented;
 manager teardown invalidates pending OAuth work before transport cleanup.
+Explicit Python clients now support credential-scoped HTTP requests with a pinned
+pre-header guard and cleanup uncertainty handling.
 Configured OAuth connections remain refused
-until interactive login and authenticated transport integration.
+until interactive login and normal manager activation.
 Those flows and final native qualification remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement

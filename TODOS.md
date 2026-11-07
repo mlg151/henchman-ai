@@ -95,8 +95,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   process-local single-use handles and retained source evidence. OAuth now has
   typed configuration, guarded discovery, separate generation-bound storage and
   owned callback/token flows and guarded manager APIs with teardown invalidation.
+  Explicit Python clients now support authenticated HTTP with pinned pre-header
+  guards and unusable-transport handling after uncertain cleanup.
   Configured OAuth connections remain refused
-  pending interactive login and authenticated transport integration.
+  pending interactive login and normal manager activation.
   Remaining qualification gates are
   recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).

@@ -180,8 +180,9 @@ An optional `oauth` group is accepted only for Streamable HTTP servers. It binds
 an exact HTTPS `issuer`, a pre-registered public `client_id`, an optional canonical
 `resource` URI (defaulting to the server endpoint), and up to 16 additional HTTPS
 `allowed_endpoint_origins`. The resource must contain the endpoint under the same
-origin and path. Configuring this group currently refuses connection explicitly:
-interactive login and authenticated MCP transport are not yet wired.
+origin and path. Configuring this group alone currently refuses connection:
+interactive login and normal manager connection activation are not yet wired.
+Python embedders can use the explicit authenticated transport described below.
 
 The library's `discover_oauth` performs credential-free metadata discovery under
 a caller-supplied authorization guard. It checks exact issuer/resource identity,
@@ -215,8 +216,42 @@ Manager teardown invalidates pending OAuth operations before awaiting transport
 cleanup and blocks new login/refresh admission until cleanup settles. The caller
 still owns each flow's cancellation and deadline; teardown does not join those
 caller tasks. These manager APIs do not connect or replay MCP requests, and
-configured OAuth connections remain refused pending authenticated transport and
+configured OAuth connections remain refused pending normal manager activation and
 interactive integration.
+
+### Explicit authenticated HTTP client
+
+`manager.capture_oauth_http(server, authorize=guard)` reads matching local ready
+credentials and captures their authority without a network request or returning
+a token. Pass it explicitly as `McpClient(..., oauth_authority=authority)`; ordinary
+manager connections still refuse OAuth configurations. No browser, refresh or
+RPC replay is triggered by connection or authentication failure.
+
+Each request acquires owned capacity before checking caller authority, exact
+configuration, initial/live policy, credential generation and expiry. The pinned
+`httpx2==2.16.0`/`httpcore2==2.16.0` HTTP/1.1 profile rechecks after connection/TLS
+setup, immediately before header transmission. Other stack versions and HTTP/2
+are refused for authenticated clients. This cannot revoke bytes already sent or
+make cross-process credential changes atomic with a socket write. Request metadata
+cannot override authentication or routing headers; redirects, cookies and inherited
+proxy credentials remain unsupported.
+
+A 401 rejects only the dispatched credential generation and access-token digest,
+retaining its refresh material for a later explicit refresh. An older 401 cannot
+invalidate a rotated credential. A 403 reports denied scope without automatic
+login or retry. Legacy session cleanup permits one exact client/session/resource
+DELETE after local connection invalidation, while still enforcing current
+configuration, policy and stored credentials. Logout, expiry or rotation can deny
+that cleanup, leaving remote state explicitly unknown; the 2026 revision has no
+session DELETE.
+
+Response cleanup is bounded and preserves the original cancellation or rejection.
+Failed or timed-out cleanup makes the transport unavailable, blocks further
+dispatch and requires an explicit fresh connection. Manager teardown also revokes
+normal permits captured by direct clients. Local TLS fixtures cover these
+boundaries; they do not qualify a real authorization service or browser flow.
+
+### Retained OAuth credentials
 
 Bind `register_evidence` before credential access. The retained store registers old
 and rotated credentials, plus credential fields from parsed responses, with bound

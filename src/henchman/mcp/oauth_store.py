@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import math
 import os
 import stat
@@ -25,7 +26,7 @@ from henchman.utils.file_lock import _set_file_lock
 
 MAX_OAUTH_STORE_BYTES = 1024 * 1024
 MAX_OAUTH_RECORDS = 128
-_State = Literal["empty", "revoked", "ready", "login_started", "refresh_started", "needs_login"]
+_State = Literal["empty", "revoked", "ready", "access_rejected", "login_started", "refresh_started", "needs_login"]
 
 
 class OAuthStoreError(OAuthError):
@@ -69,7 +70,7 @@ class _Record(BaseModel):
 
     @model_validator(mode="after")
     def validate_state(self) -> _Record:
-        if (self.state == "ready") != (self.credentials is not None):
+        if (self.state in {"ready", "access_rejected"}) != (self.credentials is not None):
             raise ValueError("Invalid OAuth credential state")
         if (self.state in {"login_started", "refresh_started"}) != (self.claim_id is not None):
             raise ValueError("Invalid OAuth claim state")
@@ -362,13 +363,33 @@ class OAuthCredentialStore:
         payload = self._read()
         if payload is None:
             raise OAuthStoreError("OAuth authority storage is missing")
-        credentials = self._require(payload, authority).credentials
+        record = self._require(payload, authority)
+        credentials = record.credentials if record.state == "ready" else None
         if credentials is not None:
             now = self._clock()
             if (not math.isfinite(now) or now < credentials.issued_at
                 or (credentials.expires_at is not None and now >= credentials.expires_at)):
                 return None
         return credentials.model_copy(deep=True) if credentials is not None else None
+
+    def reject_access(self, authority: OAuthAuthority, token_sha256: str) -> bool:
+        """Reject only the exact dispatched access generation, preserving explicit refresh."""
+        with self._locked() as directory_fd:
+            payload = self._payload(directory_fd)
+            record = payload.records.get(authority.binding.server)
+            if (payload.store_id != authority.store_id or record is None or record.state != "ready"
+                or record.generation != authority.generation or record.fingerprint != authority.binding.fingerprint):
+                return False
+            record = self._require(payload, authority)
+            credentials = record.credentials
+            if credentials is None or not hmac.compare_digest(
+                hashlib.sha256(credentials.access_token.encode()).hexdigest(), token_sha256,
+            ):
+                return False
+            payload.records[authority.binding.server] = _Record(fingerprint=record.fingerprint,
+                generation=record.generation + 1, state="access_rejected", credentials=credentials)
+            self._write(payload, directory_fd)
+            return True
 
     def check_authority(self, authority: OAuthAuthority) -> None:
         """Check a captured configuration generation without returning credential values."""

@@ -362,12 +362,22 @@ async def test_queued_request_behind_blocked_stdin_has_an_outer_deadline(tmp_pat
     assert not [task for task in asyncio.all_tasks() if task.get_name() == "henchman-mcp-stderr"]
 
 
-async def test_negotiation_has_an_outer_deadline_and_cleans_up(tmp_path, monkeypatch):
-    from henchman.mcp import protocol
+@pytest.mark.parametrize("startup_delay", [0, 1])
+async def test_negotiation_has_an_outer_deadline_and_cleans_up(tmp_path, monkeypatch, startup_delay):
+    from henchman.mcp import protocol, stdio_transport
 
-    monkeypatch.setattr(protocol, "NEGOTIATION_TIMEOUT_SECONDS", 0.1, raising=False)
+    monkeypatch.setattr(protocol, "NEGOTIATION_TIMEOUT_SECONDS", 0.5, raising=False)
+    spawned = []
+    create_process = stdio_transport._create_platform_compatible_process
+
+    async def capture_process(**kwargs):
+        process = await create_process(**kwargs)
+        spawned.append(process)
+        return process
+
+    monkeypatch.setattr(stdio_transport, "_create_platform_compatible_process", capture_process)
     client, transcript = fixture(tmp_path)
-    client.config.args[3] = SERVER.replace(
+    client.config.args[3] = f"import time; time.sleep({startup_delay})\n" + SERVER.replace(
         'if method == "server/discover":', 'if method == "server/discover":\n        continue',
     )
     async with asyncio.timeout(3):
@@ -375,7 +385,11 @@ async def test_negotiation_has_an_outer_deadline_and_cleans_up(tmp_path, monkeyp
             await client.connect()
     assert not client.is_connected
     assert client._owner_task is None
-    assert transcript.with_suffix(".jsonl.closed").exists()
+    # A startup timeout may terminate Python before it can write any marker.
+    # The owned process handle establishes cleanup in either startup phase.
+    assert len(spawned) == 1 and spawned[0].returncode is not None
+    assert not [task for task in asyncio.all_tasks() if task.get_name() == "henchman-mcp-stderr"]
+    assert not [item for item in requests(transcript) if item["method"] == "tools/call"]
 
 
 async def test_slow_catalog_pages_share_a_total_deadline_and_keep_previous_catalog(tmp_path, monkeypatch):
