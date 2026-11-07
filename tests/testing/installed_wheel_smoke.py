@@ -379,6 +379,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/contracts/schemas/config/settings.json",
         "tests/contracts/schemas/config/tool_settings.json",
         "tests/contracts/schemas/runtime/session.json",
+        "tests/contracts/schemas/runtime/message.json",
         "tests/contracts/schemas/runtime/session_message.json",
         "tests/contracts/schemas/runtime/session_memory_record.json",
         "tests/contracts/schemas/runtime/session_metadata.json",

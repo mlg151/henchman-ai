@@ -81,13 +81,14 @@ async def test_dynamic_children_keep_context_policy_and_restored_history() -> No
 async def test_dynamic_child_uses_parent_hard_capacity(auto_compact: bool) -> None:
     provider = RecordingProvider()
     orch = Orchestrator(provider, settings=Settings(context={
-        "max_tokens": 128, "compaction_threshold": 0.5, "auto_compact": auto_compact,
+        "max_tokens": 256, "compaction_threshold": 0.5, "auto_compact": auto_compact,
     }))
     try:
         record = orch.subagents.spawn(
             "task", role="child", system_prompt="child rules", tools=[],
         )
         child = orch.subagents._conversations[record.conversation_id].agent
+        assert child.context_window == 256
         child.messages.extend([Message("user", "old task " * 300), Message("assistant", "answer")])
         await asyncio.wait_for(orch.subagents.wait_for_notification(), 2)
         if auto_compact:

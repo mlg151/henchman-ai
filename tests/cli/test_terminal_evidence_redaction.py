@@ -133,7 +133,7 @@ async def test_tool_display_redacts_marked_args_before_escape_and_preview(runtim
     assert "marked-" not in rendered
     assert "[REDACTED]" in rendered
     runtime.agent.tool_registry.execute.assert_awaited_once_with("echo", call.arguments)
-    runtime.agent.submit_tool_result.assert_called_once_with("call", raw_result)
+    runtime.agent.submit_tool_result.assert_called_once_with("call", result)
     assert call.arguments["api_key"] == secret
     assert result.content == raw_result
     assert runtime.sessions.current.messages[-1].content == raw_result
@@ -220,7 +220,7 @@ async def test_full_tool_batch_registers_later_credentials_before_earlier_result
     await runtime.executor.execute_tool_calls(calls, runtime.agent)
 
     assert secret not in runtime.transcript.getvalue()
-    assert runtime.agent.submit_tool_result.call_args_list[0].args == ("one", secret)
+    assert runtime.agent.submit_tool_result.call_args_list[0].args == ("one", ToolResult(secret))
     assert calls[1].arguments["password"] == secret
 
 

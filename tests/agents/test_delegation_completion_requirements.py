@@ -77,7 +77,10 @@ async def test_invalid_explicit_requirement_fails_without_running_specialist(
         and event.data.get("tool_call_id") == "delegate-advice"
     )
     assert result["success"] is False
-    assert "completion_requirement" in result["result"]
+    assert result["result"] == (
+        "Tool contract failed: validation_enum" if isinstance(requirement, str)
+        else "Tool contract failed: validation_type"
+    )
 
 
 def test_delegation_schema_exposes_explicit_completion_requirement() -> None:

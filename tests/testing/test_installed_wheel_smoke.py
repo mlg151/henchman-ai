@@ -193,6 +193,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "evals/test_package_lifecycle.py",
         "evals/test_interruption_recovery.py",
         "tests/testing/test_interruption_recovery_scenario.py",
+        "tests/core/test_typed_tool_results.py",
+        "tests/contracts/schemas/runtime/message.json",
     ]
 
     for path_str in paths:
