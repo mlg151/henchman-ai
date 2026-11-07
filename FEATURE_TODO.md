@@ -27,6 +27,8 @@ The [operation journal](docs/operation-recovery.md) now commits correlated tool
 attempts before dispatch, binds public runtime/session recovery and exposes explicit
 revision-checked user resolution/retry. Provider opaque continuation and background
 process restart authority remain incomplete under #23.
+Notification-driven primary turns now preserve ordered request/result correlation
+and text-only turns through child questions, parent replies and durable reload.
 Recovered running task records now expose unknown outcomes and refuse unowned
 process control; detached process recovery and replay remain unsupported.
 

@@ -11,7 +11,7 @@ from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.runtime_operations import current_operation_run
 from henchman.core.session_data import Session
 from henchman.core.session_operations import SessionRunOperations
-from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
+from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
 from henchman.tools.registry import ToolRegistry
 
 
@@ -126,3 +126,20 @@ async def test_operation_cleanup_failure_prevents_successful_budget_close(tmp_pa
     with pytest.raises(OperationRecoveryError, match="session_save_failed"):
         _ = [event async for event in orchestrator.run("perform effect")]
     assert len(finished) == 1 and not finished[0][1]["completed"]
+
+
+def test_earlier_primary_turn_growth_cannot_retarget_later_saved_requests(tmp_path):
+    orchestrator, _, tool, session = build(tmp_path)
+    agent = orchestrator.tech_lead
+    run = orchestrator.operation_runtime.begin(agent=agent)
+    first = [Message("user", "first"), Message("assistant", "answer")]
+    agent.current_turn_messages = first
+    run.capture_agent(agent)
+    agent.current_turn_messages = [Message("user", "notification")]
+    _, offset, _ = run.capture_agent(agent)
+    assert offset == 2
+    saved = deepcopy(session.messages)
+    first.append(Message("assistant", "late insertion"))
+    with pytest.raises(OperationRecoveryError, match="primary_turn_history_changed"):
+        run.capture_agent(agent)
+    assert session.messages == saved and not tool.calls

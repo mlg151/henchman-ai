@@ -4,6 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from functools import partial
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -172,8 +173,11 @@ async def _collect(orch: Orchestrator, prompt: str) -> list[Any]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("durable", [False, True])
 async def test_child_question_and_parent_answer_use_real_queued_messages(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    durable: bool,
 ) -> None:
     parent_calls = 0
     answered = False
@@ -240,12 +244,38 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(AskUserTool())
-    orch = Orchestrator(provider, tool_registry=registry)
+    settings = Settings.model_validate({"operations": {"persistence": "durable" if durable else "process"}})
+    orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    from henchman.core.session_data import Session, session_from_dict
+    from henchman.core.session_operations import SessionRunOperations
+
+    session = Session("notification-session", "project", "today", "today")
+    saved = []
+    runtime = SessionRunOperations(settings, lambda: session, lambda item: saved.append(item.to_dict()), tmp_path / "ops.db")
+    orch.operation_runtime = runtime
     for name in ("invoke_subagent", "send_message"):
         registry.add_auto_approve_policy(name)
     try:
         await asyncio.wait_for(_collect(orch, "Review requested file"), 3)
         assert answered
         assert orch.subagents.list()[0].status == "done"
+        assert session.operations is not None
+        primary = [item for item in session.operations.bindings if item.conversation_id is None]
+        assert [item.context.tool_call_id for item in primary] == ["launch", "answer"]
+        assert primary[0].assistant_index < primary[1].assistant_index
+        for binding in primary:
+            calls = session.messages[binding.assistant_index].tool_calls
+            assert calls and calls[0]["id"] == binding.context.tool_call_id
+        assert [(item.role, item.content) for item in session.messages] == [
+            (item.role, item.content) for item in orch.tech_lead.current_turn_messages
+        ]
+        before = parent_calls
+        if durable:
+            restored = session_from_dict(saved[-1])
+            resumed = SessionRunOperations(settings, lambda: restored, lambda _item: None, tmp_path / "ops.db")
+            resumed.begin()
+            assert {item.state for item in resumed.report().records} == {"completed"}
+            assert restored.operations.observed_ids == session.operations.observed_ids
+        assert parent_calls == before
     finally:
         await orch.aclose()

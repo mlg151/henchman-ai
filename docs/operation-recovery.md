@@ -28,6 +28,9 @@ the assistant request and binding, and commits the dispatch transition. The
 journal stores a digest of the arguments rather than executable arguments. Session
 evidence remains subject to credential redaction. Separate specialist-turn
 conversations preserve correlation when a cached specialist is reused.
+Primary turns resumed by background notifications retain ordered transcript
+positions, including intervening text-only turns. Later replies cannot overwrite
+the requests associated with earlier tool effects.
 
 Durable storage is discovered independently of the transcript's saved reference.
 An older backup cannot reset known effects or authorize a second dispatch.

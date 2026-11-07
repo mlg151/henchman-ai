@@ -56,6 +56,7 @@ class OperationRun:
     primary_agent: Agent | None = None
     session_start: int = 0
     _sources: list[tuple[Agent, list[Message], str | None]] = field(default_factory=list, repr=False)
+    _primary_offsets: dict[int, int] = field(default_factory=dict, repr=False)
 
     def bind_call(self, call: ToolCall, *, agent_id: str, assistant_index: int,
                   conversation_id: str | None = None) -> OperationInvocation:
@@ -74,6 +75,11 @@ class OperationRun:
             if known_agent is agent and known_source is source:
                 return self._capture_source(agent, source, conversation_id)
         conversation_id = None if agent is self.primary_agent else f"{self.run_id}:{actor}:{uuid4().hex}"
+        if agent is self.primary_agent:
+            self._primary_offsets[id(source)] = self.session_start + sum(
+                len(known_source) for known_agent, known_source, _ in self._sources
+                if known_agent is self.primary_agent
+            )
         # Retain the list itself: a reused specialist replaces its current turn
         # list, but late tool responses still belong to the earlier turn.
         self._sources.append((agent, source, conversation_id))
@@ -82,8 +88,15 @@ class OperationRun:
     def _capture_source(self, agent: Agent, source: list[Message], conversation_id: str | None) -> tuple[list[SessionMessage], int, str | None]:
         messages = [SessionMessage(**deepcopy(asdict(message))) for message in source]
         if agent is self.primary_agent:
-            self.session.messages[self.session_start:] = messages
-            return messages, self.session_start, None
+            transcript: list[SessionMessage] = []
+            for known_agent, known_source, _ in self._sources:
+                if known_agent is not self.primary_agent:
+                    continue
+                if self._primary_offsets[id(known_source)] != self.session_start + len(transcript):
+                    raise OperationRecoveryError("primary_turn_history_changed")
+                transcript.extend(SessionMessage(**deepcopy(asdict(item))) for item in known_source)
+            self.session.messages[self.session_start:] = transcript
+            return messages, self._primary_offsets[id(source)], None
         assert conversation_id is not None
         state = self.session.operations
         assert state is not None

@@ -22,6 +22,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - [Operation recovery](docs/operation-recovery.md) now binds durable dispatch
   authority to saved requests/results and exposes `/recovery` user decisions.
+  Primary turns resumed by background notifications now retain ordered correlation
+  across child questions, parent replies and durable reload.
   Process mode remains the default; opaque provider continuation and background
   task restart authority remain open under #23.
   Saved running task records are now reported as outcome-unknown without invented

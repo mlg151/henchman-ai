@@ -171,6 +171,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/core/test_session_operations.py",
         "tests/core/test_typed_tool_results.py",
         "tests/agents/test_operation_runtime.py",
+        "tests/agents/test_primary_subagent_runtime.py",
         "tests/agents/test_operation_control.py",
         "tests/cli/test_recovery_command.py",
         "tests/config/test_operation_settings.py",

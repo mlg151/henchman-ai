@@ -22,6 +22,7 @@ from henchman.agents.orchestrator_types import (
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_operations import current_operation_run
 from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
@@ -186,6 +187,11 @@ async def run_with_notifications(
                             except StopAsyncIteration:
                                 break
                         yield event
+                operation_run = current_operation_run()
+                if operation_run is not None:
+                    # A notification starts a new Agent.run list. Capture this
+                    # whole turn before it is replaced, including text-only turns.
+                    operation_run.capture_agent(params.agent)
             finally:
                 transcript.extend(params.agent.current_turn_messages)
                 state = getattr(params.agent, "_orchestrator_loop_state", None)

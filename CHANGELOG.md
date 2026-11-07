@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Background notification recovery correlation** — Resumed primary turns keep
+  their original request/result positions and complete transcript across child
+  questions, parent answers and durable reload, without repeating completed tools.
+
 - **Modern and legacy bounded MCP stdio** — SDK 2.3.0 is exactly pinned and
   tested against five protocol revisions through 2026-07-28. Raw frames are
   bounded before parsing; tool calls avoid implicit replay and reject unsupported
