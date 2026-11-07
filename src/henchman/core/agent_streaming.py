@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
-from henchman.core.run_budget import BudgetExceeded
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_accounting import require_accounted_provider
 from henchman.providers.base import (
     FinishReason,
     Message,
@@ -249,6 +250,7 @@ async def generate_stream_events(
     provider_stream = None
     interrupted = False
     try:
+        require_accounted_provider(ctx.provider)
         provider_stream = ctx.provider.chat_completion_stream(
             messages=ctx.api_messages,
             tools=ctx.tool_declarations,
@@ -268,7 +270,7 @@ async def generate_stream_events(
                     yield event
         if state.finish_reason is None:
             raise ValueError("Provider stream ended without a finish reason")
-    except (asyncio.CancelledError, GeneratorExit, BudgetExceeded):
+    except (asyncio.CancelledError, GeneratorExit, BudgetControlError):
         interrupted = True
         if state.finish_reason is None and (state.content or state.thinking):
             # Preserve what the user saw without committing an unfinished tool

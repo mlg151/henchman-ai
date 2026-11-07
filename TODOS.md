@@ -62,8 +62,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   account compatible/Anthropic attempts and summaries using typed usage limits and
   provider/model prices. A SQLite adapter now persists claims, cumulative
   reconciliation and authoritative session bindings, with process/crash tests.
-  Automatic run scopes, session lifecycle integration and aggregate display remain
-  open; see [usage provenance](docs/providers.md#usage-and-cost-provenance).
+  Public orchestrator and CLI turns now bind shared scopes across delegation,
+  summaries and continuation, retain interrupted/goal budgets and expose `/usage`
+  plus headless aggregates. Explicit user goal transitions authorize replacement;
+  transcript metadata cannot refund consumption. Native/live qualification and
+  remaining UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers
   now follow the current project's scope across root commands, REPL/Textual slash

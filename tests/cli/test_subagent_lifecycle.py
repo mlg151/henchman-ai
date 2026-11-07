@@ -101,7 +101,8 @@ async def test_headless_json_joins_subagents_even_when_rendering_fails(renderer_
     work = BackgroundWork()
     await asyncio.sleep(0)
 
-    async def events(_prompt):
+    async def events(_prompt, *, invocation):
+        invocation.claimed = True
         yield AgentEvent(EventType.CONTENT, "Result")
         yield AgentEvent(
             EventType.AGENT_COMPLETED,

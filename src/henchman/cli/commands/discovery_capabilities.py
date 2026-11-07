@@ -44,6 +44,18 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="task usage",
+        classification="runtime-wired",
+        summary="/usage shows shared task budgets with separate estimates and reported billing.",
+        detail=(
+            "REPL and Textual report the active or most recent run's dispatched requests, "
+            "settled/held task tokens, remaining limits, accounting lifetime and explicit "
+            "price provenance. Unknown costs stay unavailable and currencies stay separate. "
+            "This is cumulative task accounting, separate from conversation context occupancy."
+        ),
+        aliases=("/usage", "remaining budget", "cost provenance", "task tokens"),
+    ),
+    _CapabilitySpec(
         name="live configuration",
         classification="runtime-wired",
         summary="REPL and Textual inspect active settings and origins through /config and /doctor.",

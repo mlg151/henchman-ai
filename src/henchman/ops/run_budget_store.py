@@ -16,7 +16,7 @@ import sqlite3
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, TypeVar, cast
@@ -49,6 +49,14 @@ def _process_origin() -> str:
 
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+@dataclass(frozen=True)
+class SessionBudgetInspection:
+    """Read-only session authority and its active or most recent run evidence."""
+
+    reference: SessionAccountingReference
+    snapshot: BudgetSnapshot | None
 
 
 class RunBudgetStore:
@@ -155,6 +163,12 @@ class RunBudgetStore:
             self._store_id = row[0]
 
     def _load(self, connection: sqlite3.Connection, run_id: str) -> tuple[RunBudgetLedger, sqlite3.Row, bool]:
+        return self._read_ledger(connection, run_id, clock=self._clock, clock_origin=self._clock_origin())
+
+    @staticmethod
+    def _read_ledger(
+        connection: sqlite3.Connection, run_id: str, *, clock: Callable[[], float], clock_origin: str,
+    ) -> tuple[RunBudgetLedger, sqlite3.Row, bool]:
         row = connection.execute("SELECT * FROM budget_runs WHERE run_id=?", (run_id,)).fetchone()
         if row is None:
             raise BudgetAccountingError("missing_run")
@@ -175,16 +189,80 @@ class RunBudgetStore:
                 raise ValueError("Invalid accounting lifecycle")
             if row["owner_key"] is not None:
                 _identifier(row["owner_key"], "owner_key")
-            verified = row["process_origin"] == self._clock_origin()
+            verified = row["process_origin"] == clock_origin
             if verified:
-                elapsed = self._clock() - row["monotonic_start"]
+                elapsed = clock() - row["monotonic_start"]
                 if not math.isfinite(elapsed):
                     raise ValueError("Invalid accounting clock")
                 state = replace(state, elapsed_seconds=max(state.elapsed_seconds, elapsed))
-            ledger = RunBudgetLedger.from_state(state, clock=self._clock)
+            ledger = RunBudgetLedger.from_state(state, clock=clock)
             return ledger, row, verified
         except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError) as exc:
             raise BudgetAccountingError("invalid_accounting_state") from exc
+
+    @classmethod
+    def inspect_session(
+        cls, path: Path, project_hash: str, session_id: str, *,
+        reference: SessionAccountingReference | None = None,
+    ) -> SessionBudgetInspection | None:
+        """Read an existing database without initialization, migrations or writes.
+
+        Missing unreferenced storage/namespace means unavailable history. A
+        missing referenced store, wrong identity, newer schema or damaged state
+        raises an accounting control error instead of suggesting empty capacity.
+        """
+        cls._session_pair(project_hash, session_id)
+        connection = None
+        try:
+            path = Path(path).resolve()
+            if not path.exists():
+                if reference is not None:
+                    raise BudgetAccountingError("missing_accounting_store")
+                return None
+            connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, isolation_level=None, timeout=1)
+            connection.row_factory = sqlite3.Row
+            connection.execute("BEGIN")
+            tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            version = connection.execute("SELECT version FROM schema_versions WHERE namespace='run_budget'").fetchone() if "schema_versions" in tables else None
+            if version is None:
+                if reference is not None or any(name.startswith("budget_") for name in tables):
+                    raise BudgetAccountingError("missing_accounting_schema")
+                return None
+            if version[0] != 1:
+                raise BudgetAccountingError("unsupported_schema")
+            identity = connection.execute("SELECT store_id FROM budget_store WHERE singleton=1").fetchone()
+            if identity is None:
+                raise BudgetAccountingError("missing_store_identity")
+            _identifier(identity[0], "store_id")
+            rows = connection.execute("SELECT b.run_id,b.active,r.owner_key FROM budget_session_runs b LEFT JOIN budget_runs r ON b.run_id=r.run_id WHERE b.project_hash=? AND b.session_id=? ORDER BY b.sequence", (project_hash, session_id)).fetchall()
+            active = [row for row in rows if row["active"]]
+            if len(active) > 1:
+                raise BudgetAccountingError("invalid_accounting_state")
+            binding = SessionAccountingReference(
+                identity[0], active[0]["run_id"] if active else None,
+                tuple(row["run_id"] for row in rows), active[0]["owner_key"] if active else None,
+            )
+            if reference is not None and (reference.store_id != binding.store_id or not set(reference.run_ids).issubset(binding.run_ids)):
+                raise BudgetAccountingError("session_accounting_identity_mismatch")
+            selected = binding.active_run_id or (binding.run_ids[-1] if binding.run_ids else None)
+            snapshot = None
+            for row in rows:
+                ledger, _metadata, verified = cls._read_ledger(
+                    connection, row["run_id"], clock=_NATIVE_CLOCK,
+                    clock_origin=f"{_process_origin()}:monotonic",
+                )
+                if row["run_id"] == selected:
+                    uncertain = ledger.limits.max_seconds is not None and not verified
+                    result = ledger.snapshot()
+                    snapshot = replace(result, accounting_lifetime="durable",
+                                       remaining_seconds=None if uncertain else result.remaining_seconds,
+                                       accounting_error="time_origin_unverified" if uncertain else None)
+            return SessionBudgetInspection(binding, snapshot)
+        except (sqlite3.Error, OSError, ValueError) as exc:
+            raise BudgetAccountingError("accounting_inspection_unavailable") from exc
+        finally:
+            if connection is not None:
+                connection.close()
 
     def _write(self, connection: sqlite3.Connection, ledger: RunBudgetLedger) -> None:
         state = ledger.export_state()

@@ -347,8 +347,8 @@ Agent completion events retain `usage_source` whenever they include counts, so
 an estimate cannot become reported usage by passing through the agent loop.
 Configured providers also retain their exact configuration identity for price
 lookup; aliases sharing one adapter do not silently share a price catalog.
-Run-wide aggregation, shared budget enforcement, retry accounting and persisted
-reconciliation remain tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
+Shared run aggregation and admission are described below; final qualification
+remains tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
 ### Explicit run budget scopes
 
@@ -389,7 +389,8 @@ with a terminal reported snapshot. Cancellation and incomplete usage keep holds.
 Summary calls drain trailing usage and cannot swallow budget exhaustion. Supported
 adapters advertise `supports_run_budget`; uninstrumented custom providers are not
 automatically accounted by this explicit scope. Requests outside a scope retain
-their existing behavior. Automatic CLI/run scope creation remains open.
+their existing behavior. Public orchestrator and CLI entrypoints create scopes
+automatically as described below.
 
 ### Durable accounting storage
 
@@ -412,8 +413,35 @@ only while their original monotonic clock domain can be verified: native clocks
 resume within the original process, and injected clocks within their owning
 store instance. Other processes can reconcile/inspect those runs, but cannot
 restart their timer. Without a time cap, independent processes share the same
-atomic request/token/money admission state. CLI lifecycle activation and displays
-remain a separate integration step under #24.
+atomic request/token/money admission state.
+
+### Automatic task accounting
+
+`Orchestrator.run()` and `run_direct()` capture one shared scope for their primary
+agent, delegates, explicit retries and compaction summaries. An enclosing scope
+is retained; a supplied different ledger cannot replace it. Agent tool-result
+continuations retain the original scope even when consumed outside the caller's
+context. Budget control failures propagate through background workers and stop
+further primary/delegate dispatch instead of becoming ordinary retry messages.
+
+CLI, REPL and Textual bind scopes to their selected session. `usage.persistence`
+selects process or durable accounting; see [configuration](configuration.md#usage-limits-and-explicit-prices)
+for task boundaries and explicit goal transitions. Settings and prices are
+captured when a new run starts; changing settings during an active task does not
+refund it or replace its limits. A provider/model switch remains explicit, and
+price lookup uses the run's captured catalog for the actual provider/model.
+
+`/usage` presents aggregate consumption, remaining limits and stop reasons, with
+estimated cost, held estimates and reported billing labeled separately. Unknown
+amounts are unavailable rather than zero. Headless completion/failure evidence
+includes the shared aggregate, with decimal amounts serialized as strings.
+These are admission bounds and accounting observations: already-started remote
+requests can incur billing that differs from estimates, especially after a
+disconnect or cancellation. No automatic paid-model fallback occurs.
+
+The [standalone HTTP API](api.md#http-chat-and-task-usage) uses isolated process
+runs and caller-owned continuation IDs. Durable API session binding is not yet
+implemented; requesting it fails before model dispatch.
 
 ### Headless coding workflows
 

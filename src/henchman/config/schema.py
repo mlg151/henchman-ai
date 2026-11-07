@@ -203,6 +203,7 @@ class UsageSettings(_SettingsModel):
 
     limits: RunBudgetSettings = Field(default_factory=RunBudgetSettings)
     prices: list[ModelPriceSettings] = Field(default_factory=list)
+    persistence: Literal["process", "durable"] = "process"
 
     @model_validator(mode="after")
     def unique_price_identities(self) -> UsageSettings:

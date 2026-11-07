@@ -72,6 +72,13 @@ async def test_asks_before_deleting_files(rig: EvalTestRig):
 
 ## Running Evaluations
 
+Public orchestrator/CLI runs now enforce configured shared task budgets across
+delegates, retries and summaries; see [task accounting](../docs/providers.md#automatic-task-accounting).
+Direct `Agent` evaluation harnesses must explicitly bind a run scope to obtain
+those aggregate guarantees. A final-response token count alone is not a whole-run
+measurement. Reports must distinguish configured cost estimates from provider
+billing and leave missing usage/prices unknown; zero pricing must be explicit.
+
 ### ALWAYS_PASSES subset (live provider required)
 
 ```bash

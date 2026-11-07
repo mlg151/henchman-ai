@@ -21,6 +21,7 @@ from henchman.cli.commands.session import SessionCommand
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.theme import ThemeCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
+from henchman.cli.commands.usage import UsageCommand
 
 # ---------------------------------------------------------------------------
 # Module-level helpers (exempt from Feature Envy detection)
@@ -370,5 +371,6 @@ def get_builtin_commands() -> list[Command]:
         UnlimitedCommand(),
         ContextCommand(),
         RuntimeConfigCommand(),
+        UsageCommand(),
         RuntimeDoctorCommand(),
     ]

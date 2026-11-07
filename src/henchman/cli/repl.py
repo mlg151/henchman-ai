@@ -390,6 +390,9 @@ class Repl:
         from henchman.agents.instruction_runtime import bind_instruction_runtime
 
         bind_instruction_runtime(orchestrator, self.session_manager, self.config.instruction_snapshot)
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(orchestrator, self.session_manager)
         return orchestrator
 
     def _init_handlers(self: Self) -> None:

@@ -150,6 +150,9 @@ def create_core_context(
     from henchman.agents.instruction_runtime import bind_instruction_runtime
 
     bind_instruction_runtime(orchestrator, session_manager, instruction_snapshot)
+    from henchman.cli.accounting import bind_session_accounting
+
+    bind_session_accounting(orchestrator, session_manager)
 
     # Reference Tech Lead as primary agent
     agent = orchestrator.tech_lead

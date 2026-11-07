@@ -835,9 +835,11 @@ async def _generate_summary_with_provider(
     """
     formatted = format_func(messages)
     prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
-    from henchman.core.run_budget import BudgetExceeded
+    from henchman.core.run_budget import BudgetControlError
+    from henchman.core.runtime_accounting import require_accounted_provider
 
     try:
+        require_accounted_provider(provider)
         summary_parts: list[str] = []
         stream = provider.chat_completion_stream(
             messages=[Message(role="user", content=prompt)],
@@ -856,15 +858,23 @@ async def _generate_summary_with_provider(
             if close is not None:
                 try:
                     await close()
-                except Exception:
+                except Exception as cleanup_error:
                     if primary_error is None:
+                        raise
+                    if (
+                        isinstance(cleanup_error, BudgetControlError)
+                        and isinstance(primary_error, Exception)
+                        and not isinstance(primary_error, BudgetControlError)
+                    ):
+                        # An ordinary summary failure must not hide failed accounting.
+                        # Preserve an earlier control failure or explicit cancellation.
                         raise
                     logger.warning("Summary cleanup failed after interruption", exc_info=True)
 
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except BudgetExceeded:
+    except BudgetControlError:
         raise
     except Exception:
         # Summarization failed, log warning and return None to fall back to simple dropping
@@ -1093,7 +1103,7 @@ async def _attempt_summarization(
         return result
 
     summarizer = MessageSummarizer(provider=provider)
-    from henchman.core.run_budget import BudgetExceeded
+    from henchman.core.run_budget import BudgetControlError
 
     try:
         summary = await summarizer.summarize(dropped_messages)
@@ -1105,7 +1115,7 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except BudgetExceeded:
+    except BudgetControlError:
         raise
     except Exception:
         # Summarization failed, continue with simple dropping

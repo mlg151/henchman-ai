@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer overwrite unrelated files; destination symlinks are replaced without
   modifying their referents.
 
+- **Automatic task budgets** — Public orchestrator and CLI turns share one budget
+  across primary/delegated requests, retries, summaries and continuations.
+  Interrupted and active goal tasks retain consumption; explicit user goal
+  replacement authorizes a new task without trusting saved metadata. Optional
+  durable session accounting fails closed on missing/conflicting state. `/usage`
+  and headless events report limits, uncertain holds and separate estimated and
+  reported costs. Native/live qualification remains under #24/#35.
+
 - **Restricted tool access** — Typed read/write roots and network disabling bind
   to project identity and intersect across registry ancestry. Qualified builtin
   reads/writes use directory handles with symlink and hardlink checks; other tools
@@ -46,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before provider I/O, retains unknown consumption across crashes, and reconciles
   cumulative usage without double counting. Session bindings survive transcript
   backup rollback; incompatible clock domains and invalid stores fail closed.
-  Automatic runtime lifecycle activation remains in progress under #24.
+  CLI lifecycle activation is described under automatic task budgets above.
 
 - **Live scoped instructions** — Primary and delegated agents refresh repository
   guidance before requests and supported tool dispatch. Changed target guidance
@@ -61,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provenance. Compatible requests ask for usage by default, with an explicit
   opt-out for unsupported endpoints. Cost records retain unknown values and
   valid zero rates, separate estimates from reported billing, and keep currencies
-  distinct. Shared run budgets and aggregation remain open under
+  distinct. Final budget qualification remains under
   [#24](https://github.com/mlg151/henchman-ai/issues/24); see
   [usage provenance](docs/providers.md#usage-and-cost-provenance).
 
@@ -121,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changing the reserved model or cap. Summary calls retain trailing usage. Typed
   `usage` settings preserve exact Decimal limits and provider/model price catalogs;
   price metadata persists without conversion to float. Automatic CLI scope creation,
-  durable accounting and budget displays remain open under #24/#35.
+  durable accounting and displays are described above; qualification remains under #24/#35.
 
 - **Observed interruption evidence** — Recovery evaluations now require completed
   tool work followed by a verified tool-limit cancellation. Provider failures,
@@ -145,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cancellation. Exact decimal accounting prevents precision-dependent admission.
   Thirty regressions cover concurrent claims, retries, partial/final usage, cache
   prices, cancellation and currency/precision boundaries. Live provider integration
-  and durable accounting remain open under [#24](https://github.com/mlg151/henchman-ai/issues/24).
+  and durable accounting are now integrated above; qualification remains under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
 - **Interactive evidence privacy** — REPL streams and Textual events share the
   session credential registry, including split content/reasoning and tool displays.

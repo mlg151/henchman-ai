@@ -13,9 +13,15 @@ from henchman.agents.metrics_reporter import MetricsReporter
 from henchman.agents.orchestrator_components import AgentValidator
 from henchman.agents.orchestrator_execution import ExecutionController, closing_event_stream
 from henchman.agents.orchestrator_tools import ToolController
-from henchman.agents.orchestrator_types import AgentLoopParams, CompletionRequirement, LoopState
+from henchman.agents.orchestrator_types import (
+    AgentLoopParams,
+    CompletionRequirement,
+    CompletionStatus,
+    LoopState,
+)
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
 from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
@@ -166,7 +172,12 @@ async def run_with_notifications(
                 async with closing_event_stream(
                     orchestrator.execution_controller.run_agent_loop(params)
                 ) as stream:
-                    async for event in stream:
+                    while True:
+                        with manager.accounting_guard():
+                            try:
+                                event = await anext(stream)
+                            except StopAsyncIteration:
+                                break
                         yield event
             finally:
                 transcript.extend(params.agent.current_turn_messages)
@@ -203,6 +214,11 @@ async def run_with_notifications(
             params.input_text = notification_text(notifications)
             params.prior_tool_rounds = aggregate.tool_round_count
             params.prior_tool_calls = aggregate.tool_call_count
+    except BudgetControlError:
+        aggregate.failed = True
+        observed_state = True
+        orchestrator.last_completion_status = CompletionStatus.FAILED
+        raise
     finally:
         params.agent.current_turn_messages = transcript
         if observed_state:

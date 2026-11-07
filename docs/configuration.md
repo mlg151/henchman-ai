@@ -295,11 +295,32 @@ rejected; missing entries or applicable rates remain unknown. No wildcard price,
 implicit local-free rate or currency conversion applies. Accounting configuration
 is separate from `providers.*` and is never sent as SDK request options.
 
-These settings currently supply the explicit Python
-[run budget scope](providers.md#explicit-run-budget-scopes). Automatic CLI/run
-scope creation, persistent accounting and remaining-budget displays are still
-being integrated under #24/#35; merely saving limits does not yet activate them.
-UI settings sync does not transfer the usage group.
+Public orchestrator runs and CLI turns capture these settings into one shared
+task budget for the primary agent, delegates, retries and summary calls. Supported
+providers account even without limits. Uninstrumented provider extensions remain
+usable only without configured limits or prices; bounded runs reject them before
+dispatch. Context-window capacity and task-token limits are separate controls.
+
+`usage.persistence` defaults to `process`: accounting lasts only for the current
+process. `durable` enables authoritative SQLite accounting for CLI sessions in
+the session data directory's sibling `ops.db` (normally `~/.henchman/ops.db`).
+Goal continuation, pause/resume, interruptions and unfinished background work
+retain the same budget. Successful ordinary tasks close their run. Explicit user
+`/goal set`, a shorthand objective replacement and `/goal clear` authorize a new task;
+saved goal metadata cannot reset consumed accounting. A process exit between
+saving a goal change and applying that transition requires repeating the user
+action. Missing or conflicting accounting state fails before dispatch.
+
+`/usage` inspects the selected task's request/token/time/money limits, retained
+uncertain usage, per-agent requests and price provenance. Headless terminal
+events include an aggregate `budget` with exact decimal strings; unknown amounts
+stay null and currencies remain separate. A time-capped durable run cannot
+resume dispatch after its original monotonic clock domain is lost.
+
+See [run accounting](providers.md#automatic-task-accounting) for lifecycle and
+billing limits. The standalone HTTP API currently supports process accounting
+only and rejects `durable` before dispatch. Local UI import/export sync does not
+transfer the usage group.
 
 ## Local import/export sync
 
