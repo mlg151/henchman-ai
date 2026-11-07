@@ -4,6 +4,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- Context token estimates and RAG chunking use packaged verified vocabularies;
+  fresh offline installs no longer depend on a warm tokenizer download cache.
+  Native smoke runs isolate settings, interpreter lookup and cold token caches.
+
 - MCP client/wrapper fidelity now includes bounded paginated catalogs, local
   input/output validation and typed results. Explicit refresh updates owned
   registry entries and invalidates stale handles without widening agent scopes.

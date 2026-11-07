@@ -7,10 +7,13 @@ models, with model-specific limits and fallback to cl100k_base encoding.
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
 import tiktoken
+
+from henchman.utils.token_encodings import encoding_name_for_model, offline_encoding
 
 if TYPE_CHECKING:
     from henchman.providers.base import Message
@@ -100,16 +103,15 @@ def _resolve_tiktoken_encoding(
     Returns:
         The tiktoken Encoding object.
     """
+    name = DEFAULT_ENCODING_NAME
     if model:
-        try:
-            return tiktoken.encoding_for_model(model)
-        except KeyError:
-            pass
+        with suppress(KeyError):
+            name = encoding_name_for_model(model)
 
-    if DEFAULT_ENCODING_NAME not in cache:
-        cache[DEFAULT_ENCODING_NAME] = tiktoken.get_encoding(DEFAULT_ENCODING_NAME)
+    if name not in cache:
+        cache[name] = offline_encoding(name)
 
-    return cache[DEFAULT_ENCODING_NAME]
+    return cache[name]
 
 
 def _count_single_message_tokens(msg: Message, encode: object) -> int:

@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Offline tokenizer resources** — Fresh installs count tokens and chunk RAG
+  text using packaged, hash-verified cl100k/o200k vocabularies with upstream MIT
+  attribution. No cache or tokenizer download is required. Unsupported legacy
+  encodings fail explicitly; local estimates remain distinct from provider usage.
+
 - **MCP catalog and result fidelity** — Bounded pagination, atomic explicit
   refresh, input/output validation and detached typed results preserve catalog
   meaning. Refresh invalidates stale tool handles and approval grants while

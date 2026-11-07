@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import tiktoken
+from henchman.utils.token_encodings import offline_encoding
 
 
 @dataclass
@@ -81,7 +81,7 @@ class TextChunker:
         """
         self.target_tokens = target_tokens
         self.overlap_tokens = overlap_tokens
-        self.encoding = tiktoken.get_encoding(encoding_name)
+        self.encoding = offline_encoding(encoding_name)
 
     def count_tokens(self: TextChunker, text: str) -> int:
         """Count the number of tokens in text.

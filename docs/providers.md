@@ -2,6 +2,21 @@
 
 Henchman-AI supports multiple LLM providers through a unified interface.
 
+## Offline token estimates
+
+Token counting and RAG chunking use hash-verified vocabularies packaged in the
+wheel, so a fresh installation needs no tokenizer cache or runtime download.
+Bundled encodings are `cl100k_base`, `o200k_base` and `o200k_harmony`. Known model
+names resolve through the installed tiktoken name metadata; unknown/local models
+use the existing `cl100k_base` estimate. Recognized legacy encodings outside this
+set fail explicitly instead of downloading or silently substituting another
+encoding. The public tiktoken engine remains responsible for encode/decode.
+
+The vocabulary hashes, upstream URLs and MIT license are included under
+`henchman/data/tokenizers` in the distribution. These estimates do not establish
+the exact tokenizer or prompt-template accounting used by a remote server or a
+local model. Reported provider usage remains separate from local estimates.
+
 ## Supported Providers
 
 | Provider | Status | API Compatibility | Configuration Name | Notes |

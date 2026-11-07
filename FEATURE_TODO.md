@@ -4,6 +4,10 @@ Organized by priority tiers. Each item is a discrete feature to implement.
 
 ## v0.4.2 delivery plan (in progress)
 
+Cold offline startup now uses [packaged tokenizer vocabularies](docs/providers.md#offline-token-estimates)
+for context estimates and RAG chunking. Native artifact tests isolate user settings,
+interpreter lookup and empty token caches; final hosted qualification remains required.
+
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed client/wrapper results while invalidating stale handles and
 keeping scoped allowlists. [Result propagation](docs/mcp.md#refresh-a-connected-catalog)
