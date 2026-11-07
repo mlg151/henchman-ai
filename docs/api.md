@@ -1117,8 +1117,10 @@ from henchman.mcp import (
 
 ### McpClient
 
-The current client uses the exactly pinned SDK 2.3.0 through a bounded stdio
-adapter with single-dispatch tool requests. See [wire and telemetry limits](mcp.md#stdio-wire-limits-and-telemetry).
+The client pins SDK 2.3.0 and uses bounded stdio or Streamable HTTP adapters with
+single-dispatch tool requests. Both public config types share validation. See
+[transport options](mcp.md#configuration-options), [HTTP limits](mcp.md#streamable-http)
+and [telemetry limits](mcp.md#stdio-wire-limits-and-telemetry).
 `protocol_version: str | None` reports negotiated protocol metadata while
 connected and clears on disconnect/failure. See the
 [tested compatibility profiles](standards.md#implemented-compatibility-foundation-v042-work)

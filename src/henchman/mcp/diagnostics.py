@@ -11,6 +11,29 @@ from contextvars import ContextVar
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
 _policy: ContextVar[EvidenceRedactor | None] = ContextVar("henchman_mcp_diagnostics", default=None)
+_http_private: ContextVar[bool] = ContextVar("henchman_mcp_http_diagnostics", default=False)
+
+
+class _HttpDiagnostics(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Transport debug records include raw URLs, headers and exception reprs.
+        # Owned HTTP operations supply their own value-free failure diagnostics.
+        return not _http_private.get()
+
+
+for _http_logger_name in ("httpx2", "httpcore2.connection", "httpcore2.http11", "httpcore2.http2",
+                          "httpcore2.proxy", "httpcore2.socks"):
+    logging.getLogger(_http_logger_name).addFilter(_HttpDiagnostics())
+
+
+@contextmanager
+def http_diagnostics() -> Iterator[None]:
+    """Suppress sensitive HTTP internals only inside an owned MCP operation."""
+    token = _http_private.set(True)
+    try:
+        yield
+    finally:
+        _http_private.reset(token)
 
 
 class _ScopedDiagnostics(logging.Filter):

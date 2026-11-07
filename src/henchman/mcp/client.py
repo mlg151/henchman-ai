@@ -301,6 +301,7 @@ class McpClient:
         self._lifecycle_lock = asyncio.Lock()
         self._connection_environment: dict[str, str] | None = None
         self._dispatch_guard: Callable[[], None] | None = None
+        self._access_guard: Callable[[], None] | None = None
         self._invalid_reason: str | None = None
         self.catalog_generation = 0
         self._discovery_lock = asyncio.Lock()
@@ -312,13 +313,25 @@ class McpClient:
             return False
         try:
             self._check_credentials()
-        except (RuntimeError, ValueError):
+        except (RuntimeError, ValueError, PermissionError):
             return False
         return True
 
     def set_dispatch_guard(self, guard: Callable[[], None]) -> None:
         """Bind the manager's immutable connection generation to native dispatch."""
         self._dispatch_guard = guard
+
+    def set_access_guard(self, guard: Callable[[], None]) -> None:
+        """Bind trusted runtime restrictions independently of connection revocation."""
+        self._access_guard = guard
+
+    def _check_access(self) -> None:
+        from henchman.tools.access_policy import ToolAccessError, current_access_policies
+
+        if any(policy.restricted for policy in current_access_policies()):
+            raise ToolAccessError("MCP transport is unsupported under restricted filesystem/network policy")
+        if self._access_guard is not None:
+            self._access_guard()
 
     def invalidate_credentials(self) -> None:
         """Synchronously deny new calls and signal the owning task to close."""
@@ -328,6 +341,7 @@ class McpClient:
             self._owner_task.cancel()
 
     def _check_credentials(self) -> None:
+        self._check_access()
         if self._invalid_reason is not None:
             raise RuntimeError(self._invalid_reason)
         if self._dispatch_guard is not None:
@@ -346,6 +360,8 @@ class McpClient:
         """Build StdioServerParameters from this client's configuration."""
         environment = resolve_environment(self.config.env)
         self._connection_environment = environment
+        if self.config.command is None:
+            raise RuntimeError("MCP stdio requires a command")
         return StdioServerParameters(
             command=self.config.command,
             args=self.config.args,
@@ -357,8 +373,21 @@ class McpClient:
         stack: AsyncExitStack,
     ) -> McpProtocolSession:
         """Enter the bounded stdio transport and negotiate the pinned SDK."""
-        from henchman.mcp.protocol import open_stdio_session
+        from henchman.mcp.protocol import open_http_session, open_stdio_session
 
+        request_timeout = self.config.request_timeout_seconds
+        negotiation_timeout = self.config.negotiation_timeout_seconds
+        timeouts = {"request_timeout": request_timeout if request_timeout != 30 else None,
+                    "negotiation_timeout": negotiation_timeout if negotiation_timeout != 40 else None}
+        if self.config.transport == "streamable_http":
+            if self.config.url is None:
+                raise RuntimeError("MCP Streamable HTTP requires an endpoint")
+            with sdk_diagnostics({}):
+                session, self.protocol_version = await open_http_session(
+                    stack, self.config.url, authorize=self._check_credentials, authorize_cleanup=self._check_access,
+                    **timeouts,
+                )
+            return session
         params = self._build_server_params()
         diagnostic_config = copy.copy(self.config)
         diagnostic_config.env = dict(params.env or {})
@@ -367,7 +396,7 @@ class McpClient:
             errlog = await stack.enter_async_context(
                 _stdio_stderr(diagnostic_config, verbose=self.verbose, secrets=secrets)
             )
-            session, self.protocol_version = await open_stdio_session(stack, params, errlog)
+            session, self.protocol_version = await open_stdio_session(stack, params, errlog, **timeouts)
         return session
 
     async def connect(self: Self) -> None:  # pragma: no cover
@@ -503,7 +532,8 @@ class McpClient:
         from henchman.mcp.protocol import CATALOG_TIMEOUT_SECONDS
 
         try:
-            with anyio.fail_after(CATALOG_TIMEOUT_SECONDS):
+            timeout = self.config.catalog_timeout_seconds
+            with anyio.fail_after(CATALOG_TIMEOUT_SECONDS if timeout == 60 else timeout):
                 return await self._prepare_tools()
         except TimeoutError:
             raise RuntimeError("MCP catalog discovery deadline exceeded; previous catalog retained") from None
@@ -559,7 +589,11 @@ class McpClient:
 
     def publish_tools(self, tools: list[McpToolDefinition]) -> None:
         """Publish a previously validated staged snapshot without an await gap."""
+        from henchman.mcp.protocol import McpProtocolSession
+
         self._check_credentials()
+        if isinstance(self._session, McpProtocolSession):
+            self._session.publish_catalog({tool.name: copy.deepcopy(tool.input_schema) for tool in tools})
         self._tools = copy.deepcopy(tools)
         self.catalog_generation += 1
 

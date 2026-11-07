@@ -64,6 +64,7 @@ class McpManager:
         self._client_factory = client_factory or _create_mcp_client
         self._catalog_generations: dict[str, int] = {}
         self._registries: WeakKeyDictionary[ToolRegistry, dict[str, dict[str, McpTool]]] = WeakKeyDictionary()
+        self._access_guard: Callable[[], None] | None = None
         for config in self.configs.values():
             self._remember_environment(config.env)
 
@@ -115,11 +116,23 @@ class McpManager:
         configs: dict[str, McpServerConfig] = {}
         for server_name, config in settings.mcp_servers.items():
             env = dict(config.env)
-            if not mcp_logging_enabled:
+            if not mcp_logging_enabled and config.transport == "stdio":
                 env = cls._build_logging_env(server_name, config, env)
             configs[server_name] = config.model_copy(update={"env": env})
 
         manager = cls(configs, verbose=mcp_logging_enabled)
+        initial_tools = copy.deepcopy(settings.tools)
+
+        def check_access() -> None:
+            from henchman.tools.access_policy import ToolAccessError, validate_tool_backend
+
+            for controls in (initial_tools, settings.tools):
+                validate_tool_backend(controls)
+                if (controls.network_access == "disabled" or controls.filesystem_read_roots is not None
+                    or controls.filesystem_write_roots is not None):
+                    raise ToolAccessError("MCP transport is unsupported under restricted filesystem/network policy")
+
+        manager._access_guard = check_access
         auth_service = McpAuthService(project_root)
         for server_name in configs:
             token = auth_service.get_token(server_name)
@@ -142,6 +155,8 @@ class McpManager:
 
     async def connect_server(self, server_name: str) -> None:
         """Connect one configured MCP server."""
+        if self._access_guard is not None:
+            self._access_guard()
         lock = self._connection_locks.setdefault(server_name, asyncio.Lock())
         async with lock:
             await self.disconnect_server(server_name)
@@ -149,7 +164,7 @@ class McpManager:
             environment = resolve_environment(config.env)
             self._remember_environment(config.env, environment)
             generation = self._generations.get(server_name, 0)
-            identity = (config.command, tuple(config.args), config.trusted, dict(config.env))
+            identity = self._config_identity(config)
 
             def guard() -> None:
                 if self._generations.get(server_name, 0) != generation:
@@ -157,10 +172,7 @@ class McpManager:
                 try:
                     if server_name in self.configs:
                         current_config = self._client_config(server_name)
-                        current_identity = (
-                            current_config.command, tuple(current_config.args),
-                            current_config.trusted, current_config.env,
-                        )
+                        current_identity = self._config_identity(current_config)
                         current = resolve_environment(current_config.env)
                         self._remember_environment(current_config.env, current)
                     else:
@@ -176,6 +188,8 @@ class McpManager:
             client = self._client_factory(server_name, config, self._verbose)
             if isinstance(client, _NativeMcpClient):
                 client.set_dispatch_guard(guard)
+                if self._access_guard is not None:
+                    client.set_access_guard(self._access_guard)
             self._connecting[server_name] = client
             try:
                 await client.connect()
@@ -196,6 +210,8 @@ class McpManager:
 
     def _client_config(self, server_name: str) -> McpServerConfig:
         config = self.configs[server_name]
+        if config.transport == "streamable_http" and self._auth_tokens.get(server_name):
+            raise RuntimeError("MCP stdio tokens cannot authenticate HTTP; OAuth is not configured")
         environment = dict(config.env)
         if server_name in self._revoked_auth:
             environment.pop("HMN_MCP_AUTH_TOKEN", None)
@@ -206,6 +222,11 @@ class McpManager:
         client_config = copy.deepcopy(config)
         client_config.env = environment
         return client_config
+
+    @staticmethod
+    def _config_identity(config: McpServerConfig) -> tuple[object, ...]:
+        return (config.transport, config.command, tuple(config.args), config.url, config.trusted, dict(config.env),
+                config.request_timeout_seconds, config.negotiation_timeout_seconds, config.catalog_timeout_seconds)
 
     def _invalidate(self, server_name: str) -> None:
         self._generations[server_name] = self._generations.get(server_name, 0) + 1
@@ -432,7 +453,7 @@ class McpManager:
         result["NO_COLOR"] = "1"
         result["TERM"] = "dumb"
 
-        command = config.command
+        command = config.command or ""
         is_python = "python" in command or command in ("uvx", "uv")
         is_node = "node" in command or command in ("npx",)
 

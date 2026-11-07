@@ -439,14 +439,19 @@ class McpServerConfig(_SettingsModel):
         trusted: Whether to skip confirmation for this server's tools.
     """
 
-    command: str = Field(..., min_length=1)
+    transport: Literal["stdio", "streamable_http"] = "stdio"
+    command: str | None = Field(None, min_length=1)
+    url: str | None = None
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     trusted: bool = False
+    request_timeout_seconds: float = Field(30.0, gt=0, le=3600, strict=True)
+    negotiation_timeout_seconds: float = Field(40.0, gt=0, le=3600, strict=True)
+    catalog_timeout_seconds: float = Field(60.0, gt=0, le=3600, strict=True)
 
     @field_validator("command")
     @classmethod
-    def command_must_not_be_whitespace(cls, v: str) -> str:
+    def command_must_not_be_whitespace(cls, v: str | None) -> str | None:
         """Reject commands that are only whitespace.
 
         Args:
@@ -458,9 +463,23 @@ class McpServerConfig(_SettingsModel):
         Raises:
             ValueError: If the command is empty or only whitespace.
         """
-        if not v.strip():
+        if v is not None and not v.strip():
             raise ValueError("MCP server command must not be empty or whitespace")
         return v
+
+    @model_validator(mode="after")
+    def validate_transport(self) -> McpServerConfig:
+        """Keep stdio process settings separate from an explicit HTTP endpoint."""
+        from henchman.config.mcp import validate_mcp_endpoint
+
+        if self.transport == "stdio":
+            if self.command is None or self.url is not None:
+                raise ValueError("MCP stdio requires command and does not accept url")
+        else:
+            if self.url is None or self.command is not None or self.args or self.env:
+                raise ValueError("MCP Streamable HTTP requires url and does not accept command/args/env")
+            validate_mcp_endpoint(self.url)
+        return self
 
 
 class AgentSettings(_SettingsModel):

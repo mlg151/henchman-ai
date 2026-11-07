@@ -549,7 +549,8 @@ actual digests, original/captured sizes and truncation markers.
 
 ## MCP Server Configuration
 
-The current transport is stdio through SDK 1.x; see the
+MCP SDK 2.3.0 supports configured stdio and unauthenticated Streamable HTTP; see
+[transport options and limits](mcp.md#configuration-options) and the
 [tested protocol profiles](standards.md#implemented-compatibility-foundation-v042-work).
 Verbose logging changes filtering, not credential redaction. Configured
 credential-named environment values are masked in process stderr and SDK

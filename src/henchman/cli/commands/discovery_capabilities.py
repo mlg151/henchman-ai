@@ -184,7 +184,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "tools; status output must report auth presence without printing tokens. "
             "Explicit refresh replaces the connected tool catalog without expanding scoped allowlists. "
             "Pinned SDK 2.3.0 supports tested legacy and 2026-07-28 stdio with bounded frames and "
-            "single-dispatch tool calls. Active SDK telemetry is refused; HTTP/OAuth/resources/prompts remain pending."
+            "single-dispatch tool calls. Bounded unauthenticated Streamable HTTP supports JSON/SSE from "
+            "2025-03-26 through 2026-07-28. Active SDK telemetry is refused; OAuth/resources/prompts remain pending."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

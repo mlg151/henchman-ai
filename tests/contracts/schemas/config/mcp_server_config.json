@@ -1,8 +1,13 @@
 {
   "type": "object",
-  "required": ["command"],
+  "required": ["transport", "command", "url", "args", "env", "trusted", "request_timeout_seconds", "negotiation_timeout_seconds", "catalog_timeout_seconds"],
   "properties": {
-    "command": {"type": "string"},
+    "transport": {"enum": ["stdio", "streamable_http"]},
+    "command": {"type": ["string", "null"]},
+    "url": {"type": ["string", "null"]},
+    "request_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "negotiation_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "catalog_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
     "args": {
       "type": "array",
       "items": {"type": "string"}
@@ -13,5 +18,9 @@
     },
     "trusted": {"type": "boolean"}
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "anyOf": [
+    {"properties": {"transport": {"const": "stdio"}, "command": {"type": "string", "minLength": 1}, "url": {"type": "null"}}},
+    {"properties": {"transport": {"const": "streamable_http"}, "command": {"type": "null"}, "url": {"type": "string", "minLength": 1}, "args": {"maxItems": 0}, "env": {"maxProperties": 0}}}
+  ]
 }

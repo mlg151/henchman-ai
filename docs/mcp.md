@@ -4,11 +4,12 @@ Henchman-AI supports the Model Context Protocol (MCP) for connecting to external
 
 MCP is classified as runtime-wired only when both the `mcp` and `mcp_auth` tools are registered. A configuration entry or installed MCP dependency alone does not make the surface live; use help or doctor to inspect the current runtime classification. Auth status reporting indicates whether credentials are present without printing their values.
 
-The stdio client uses the exactly pinned MCP SDK 2.3.0 and tests revisions
-2024-11-05, 2025-03-26, 2025-06-18, 2025-11-25 and 2026-07-28. It negotiates modern
-discovery or legacy initialization through the SDK. Streamable HTTP, OAuth,
-resources and prompts remain [roadmap work](standards.md#mcp-adoption-details).
-This tested stdio subset is not a claim of complete protocol conformance.
+The client pins MCP SDK 2.3.0 and tests stdio revisions 2024-11-05, 2025-03-26,
+2025-06-18, 2025-11-25 and 2026-07-28. Streamable HTTP supports the latter four
+revisions with JSON and SSE responses through an owned bounded transport. The SDK
+negotiates modern discovery or legacy initialization. OAuth, resources and prompts
+remain [roadmap work](standards.md#mcp-adoption-details). These tested subsets do
+not establish complete protocol conformance.
 
 ## What is MCP?
 
@@ -63,10 +64,18 @@ mcp_servers:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `command` | string | Command to run the server |
-| `args` | list | Command arguments |
-| `env` | dict | Environment variables |
-| `trusted` | bool | If true, skip tool confirmation |
+| `transport` | string | `stdio` (default) or `streamable_http` |
+| `command` | string | Required for stdio; forbidden for HTTP |
+| `args` | list | Stdio command arguments |
+| `env` | dict | Stdio environment variables |
+| `url` | string | Required HTTP endpoint; forbidden for stdio |
+| `trusted` | bool | If true, skip tool confirmation; other policy still applies |
+| `request_timeout_seconds` | number | Per-request deadline, default 30 |
+| `negotiation_timeout_seconds` | number | Total negotiation deadline, default 40 |
+| `catalog_timeout_seconds` | number | Total paginated catalog deadline, default 60 |
+
+Timeouts must be finite, positive and at most 3,600 seconds. Settings validation
+rejects mixed transport configuration before starting a process or request.
 
 ### Credentials and connection lifetime
 
@@ -78,7 +87,7 @@ reference. Only explicitly configured values supplement the MCP SDK's normal
 process-environment allowlist.
 
 Changing or clearing a managed token, changing a referenced environment value,
-or changing the server command, arguments, environment or trust setting invalidates
+or changing the transport, endpoint, command, arguments, environment, timeouts or trust setting invalidates
 the connection. Retained tool handles then reject new dispatch until the server
 is reconnected. This does not undo a call already dispatched, and external edits
 to the auth file are not watched automatically.
@@ -94,7 +103,7 @@ The native stdio connection owns its SDK contexts in one lifecycle task, so
 startup, calls and shutdown may originate from different application tasks.
 Failed or cancelled startup and shutdown join owned transport cleanup. This is
 part of the [stdio compatibility foundation](standards.md#implemented-compatibility-foundation-v042-work);
-modern transports and resource/prompt retrieval remain separate roadmap work.
+HTTP authentication and resource/prompt retrieval remain separate roadmap work.
 
 ### Stdio wire limits and telemetry
 
@@ -120,6 +129,45 @@ outbound trace/baggage propagation therefore blocks connection and dispatch with
 an explicit diagnostic. Henchman leaves application-global tracing state intact.
 Known credentials remain projected from server stderr and SDK diagnostics. See the
 [pinned SDK implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v2.3.0/src/mcp/shared/_otel.py).
+
+### Streamable HTTP
+
+```yaml
+mcp_servers:
+  local_service:
+    transport: streamable_http
+    url: http://127.0.0.1:8080/mcp
+    trusted: false
+    request_timeout_seconds: 30
+```
+
+Use HTTPS for remote endpoints. Plain HTTP requires a literal loopback IP address;
+`http://localhost` is not accepted. URLs cannot include credentials, query strings
+or fragments. The client verifies TLS, ignores environment proxy/TLS settings,
+rejects redirects and sends no inherited cookies, arbitrary headers or stdio
+credentials. HTTP authentication is currently unsupported: a 401 produces an
+explicit diagnostic without retrying or fetching advertised OAuth metadata.
+
+Each request rechecks its configured destination and active access policy. MCP
+is unavailable under restricted filesystem roots or disabled network access,
+including previously connected clients. Connection cleanup also checks current
+access policy. A legacy session uses its negotiated session header and bounded
+DELETE cleanup; a cleanup failure leaves remote state unknown.
+
+JSON messages and each SSE event are limited to 1 MiB; an SSE response is limited
+to 4 MiB in total, with the shared JSON depth/node limits. Compressed responses
+and server-initiated requests are unsupported. A response must match its request
+ID. Modern parameter-header maps change only with a complete validated catalog.
+HTTP internals that could expose endpoints or session headers are suppressed only
+within owned MCP requests; transport failures use value-free diagnostics.
+
+Requests are sent once. Disconnection, timeout or a response without a result
+can leave the outcome unknown; there is no automatic GET resumption, reconnect
+or effect replay. Cancellation settles owned request tasks and session cleanup.
+The per-request/negotiation/catalog settings above apply to both transports.
+Independent loopback HTTP/TLS fixtures cover the supported revisions, JSON/SSE,
+headers, cancellation, bounds and policy changes. These fixtures do not qualify remote production servers;
+final native artifact qualification remains pending.
 
 ## Trust Levels
 

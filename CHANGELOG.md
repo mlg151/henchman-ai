@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bounded Streamable HTTP MCP** — Shared typed transport configuration, verified
+  TLS, JSON/SSE responses and atomic modern parameter-header maps support four
+  protocol revisions. Dispatch and cleanup recheck policy; redirects, inherited
+  credentials/cookies and automatic replay are refused. OAuth remains pending.
+
 - **Operation-scoped automatic checkpoints** — Deterministic write/edit/patch/test
   targets are captured before dispatch and after formatting, with correlated
   advisory status and partial-failure evidence. Unknown or restricted scopes are
@@ -42,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tested against five protocol revisions through 2026-07-28. Raw frames are
   bounded before parsing; tool calls avoid implicit replay and reject unsupported
   input continuation. Active SDK telemetry blocks dispatch with a diagnostic.
-  HTTP, OAuth and resource/prompt retrieval remain separate integration work.
+  OAuth and resource/prompt retrieval remain separate integration work.
 
 - **Truthful background-task restart state** — Saved running jobs load as
   `outcome_unknown` without an invented stop time or exit result. Retained output

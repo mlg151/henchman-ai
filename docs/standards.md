@@ -84,8 +84,15 @@ shutdown does not wait indefinitely for descendants retaining stderr. Configured
 environment credentials are redacted from stderr and SDK malformed-stdout logs
 before output. This does not establish OS containment or complete third-party
 logging coverage. Native/fresh artifact qualification remains under #21/#25;
-HTTP/OAuth/resource/prompt integration remains under #25. The original research
+OAuth/resource/prompt integration remains under #25. The original research
 gap table above stays pinned to its baseline.
+
+An owned Streamable HTTP adapter now supports the four revisions from 2025-03-26
+through 2026-07-28. Independent HTTP/TLS peers cover JSON/SSE, parameter/session
+headers, bounded bodies, cancellation, deadlines, policy changes and single
+dispatch. HTTPS or literal loopback HTTP is required; redirects, inherited auth,
+cookies, compression and automatic resumption are refused. HTTP authentication
+remains unsupported. See [HTTP behavior and qualification limits](mcp.md#streamable-http).
 
 ### Local schema contract foundation
 
@@ -147,7 +154,7 @@ structured output is validated against the dispatch snapshot, with absent output
 distinct from explicit null. Invalid result evidence becomes a value-free failed
 observation after dispatch and never triggers an automatic replay. Tool failures
 need not satisfy a success-output schema. Final qualification remains required
-for #21/P1. Modern transport,
+for #21/P1. OAuth and
 resources/prompts remain separate #25 work. Native stdio now bounds raw frames
 before decoding/parsing, rejects unsupported multi-round input results without
 automatic replay, and blocks dispatch when SDK telemetry cannot remain private.

@@ -15,8 +15,9 @@ retention while invalidating stale handles and keeping scoped allowlists. Broade
 under #21/#25.
 The exact SDK 2.3.0 pin now supports bounded native stdio across four legacy
 revisions and 2026-07-28, with no implicit mutating replay and explicit telemetry
-privacy refusal. HTTP/OAuth/resource/prompt integration and native qualification
-remain open under #25.
+privacy refusal. Bounded unauthenticated Streamable HTTP now covers four
+revisions with JSON/SSE and policy-checked cleanup; OAuth/resource/prompt
+integration and final native qualification remain open under #25.
 
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured
@@ -135,19 +136,8 @@ retained one failed request and unknown token hold across restart, with both
 follow-ups denied before HTTP. Successful live final-usage reconciliation, native
 qualification and remaining UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
-MCP stdio now uses a bounded SDK 1.x dependency and independent process fixtures
-for four legacy protocol profiles, with bounded redacted diagnostic draining.
-Explicit environment references now resolve once before startup; credential or
-configuration changes invalidate old dispatch handles. Private atomic auth storage,
-session evidence binding and task-owned SDK cleanup have focused regressions; see
-[credentials and connection lifetime](docs/mcp.md#credentials-and-connection-lifetime).
-Native qualification and the remaining schema/discovery/result work stay open
-under #21; modern SDK/transport migration stays under #25.
-The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
-now validates bounded 2020-12 contracts without coercion or remote reference
-retrieval. All five adapters share explicit versioned projections with preserved
-optional/null semantics and pre-transport diagnostics for unsupported constructs.
-Runtime registration/output coverage and MCP fidelity remain in progress.
+MCP/schema foundations and their remaining #21/#25 qualification gates are
+recorded above and in the [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 Automatic compaction now respects the configured disable flag across primary,
 specialist, dynamic child and API agents while retaining explicit hard-capacity
 checks. Broader context/UI consumption remains under #14.

@@ -18,7 +18,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Registry-wide schema compilation and output validation now cover local tools
   and extensions, including approval-time schema changes and completed failures.
   SDK 2.3.0 adds bounded modern/legacy stdio and rejects implicit replay or active
-  telemetry; HTTP/OAuth/context retrieval and native qualification remain open.
+  telemetry. Bounded unauthenticated Streamable HTTP supports JSON/SSE across four
+  revisions; OAuth/context retrieval and final native qualification remain open.
 
 - [Operation recovery](docs/operation-recovery.md) now binds durable dispatch
   authority to saved requests/results and exposes `/recovery` user decisions.
@@ -71,18 +72,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
-- #21 stdio foundation now uses a bounded SDK 1.x dependency and independent
-  subprocess fixtures for four legacy protocol profiles. Pipe startup, cancellation,
-  bounded diagnostic cleanup and known-credential projection are covered. Explicit
-  environment references, invalidation after credential/configuration changes,
-  private auth replacement and task-owned SDK cleanup now have focused regressions;
-  see [connection lifetime](docs/mcp.md#credentials-and-connection-lifetime). Native
-  qualification, schemas, pagination and typed results remain open; see the
+- #21/#25 transport/schema foundations and remaining qualification gates are
+  recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
-  The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
-  preserves missing/null semantics and bounds non-retrieving validation. Five
-  adapter profiles now project supported contracts explicitly; runtime integration
-  and MCP result fidelity remain in progress.
 
 - #20 config mutation responses and JSON/YAML sync exports now redact credential
   echoes, including shadowed/configured keys and freeform UI fields. Actual
