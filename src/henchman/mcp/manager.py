@@ -8,7 +8,7 @@ import logging
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
-from weakref import WeakSet
+from weakref import WeakKeyDictionary, WeakSet
 
 from henchman.config.schema import McpServerConfig
 from henchman.mcp.auth import McpAuthService
@@ -23,6 +23,7 @@ _NativeMcpClient = McpClient
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.mcp.client import McpToolDefinition
+    from henchman.tools.registry import ToolRegistry
 
 
 ClientFactory = Callable[[str, McpServerConfig, bool], McpClientProtocol]
@@ -61,6 +62,8 @@ class McpManager:
         self._evidence = EvidenceRedactor()
         self._evidence_policies: WeakSet[EvidenceRedactor] = WeakSet()
         self._client_factory = client_factory or _create_mcp_client
+        self._catalog_generations: dict[str, int] = {}
+        self._registries: WeakKeyDictionary[ToolRegistry, dict[str, dict[str, McpTool]]] = WeakKeyDictionary()
         for config in self.configs.values():
             self._remember_environment(config.env)
 
@@ -185,6 +188,11 @@ class McpManager:
                     self._connecting.pop(server_name)
             self.clients[server_name] = client
             self._guards[server_name] = guard
+            try:
+                self._update_bound_server(server_name)
+            except BaseException:
+                await self.disconnect_server(server_name)
+                raise
 
     def _client_config(self, server_name: str) -> McpServerConfig:
         config = self.configs[server_name]
@@ -239,6 +247,10 @@ class McpManager:
         """Disconnect one active MCP client."""
         self._invalidate(server_name)
         self._guards.pop(server_name, None)
+        for registry, servers in self._registries.items():
+            for name, tool in servers.pop(server_name, {}).items():
+                if registry.get(name) is tool:
+                    registry.unregister(name)
         client = self.clients.pop(server_name, None)
         starting = self._connecting.get(server_name)
         if starting is not None:
@@ -254,18 +266,90 @@ class McpManager:
         for server_name, client in self.clients.items():
             if not self._connection_valid(server_name):
                 continue
-            config = self.configs.get(server_name, McpServerConfig(command="true"))
-            for tool_definition in client.get_tools():
-                wrapped.append(
-                    McpTool(
-                        mcp_tool=tool_definition,
-                        client=client,
-                        server_name=server_name,
-                        trusted=config.trusted,
-                        before_call=self._guards.get(server_name),
-                    ),
-                )
+            wrapped.extend(self._wrap_tools(server_name, client.get_tools()))
         return wrapped
+
+    def _wrap_tools(self, server_name: str, definitions: list[McpToolDefinition]) -> list[McpTool]:
+        client = self.clients[server_name]
+        generation = self._catalog_generations.get(server_name, 0)
+        connection_guard = self._guards.get(server_name)
+
+        def guard() -> None:
+            if self._catalog_generations.get(server_name, 0) != generation:
+                raise RuntimeError("MCP catalog changed; resolve a current tool before dispatch")
+            if self.clients.get(server_name) is not client:
+                raise RuntimeError("MCP connection changed; reconnect the server before dispatch")
+            if connection_guard is not None:
+                connection_guard()
+
+        config = self.configs.get(server_name, McpServerConfig(command="true"))
+        return [McpTool(definition, client, server_name, trusted=config.trusted, before_call=guard)
+                for definition in definitions]
+
+    @staticmethod
+    def _check_registration(
+        registry: ToolRegistry, names: list[str], owned: dict[str, McpTool],
+    ) -> None:
+        if len(set(names)) != len(names):
+            raise ValueError("MCP catalog has conflicting registered names")
+        for name in names:
+            existing = registry.get(name)
+            if existing is not None and existing is not owned.get(name):
+                raise ValueError("MCP catalog conflicts with a separately registered tool")
+
+    def bind_registry(self, registry: ToolRegistry) -> None:
+        """Bind a parent catalog; restricted live views retain their own allowlists."""
+        from henchman.tools.scoped_registry import ScopedToolRegistry
+
+        if isinstance(registry, ScopedToolRegistry):
+            raise ValueError("Bind the MCP catalog to a parent registry, not a scoped tool view")
+        servers = {name: {tool.name: tool for tool in self._wrap_tools(name, client.get_tools())}
+                   for name, client in self.clients.items() if self._connection_valid(name)}
+        owned = {name: tool for tools in self._registries.get(registry, {}).values() for name, tool in tools.items()}
+        names = [name for tools in servers.values() for name in tools]
+        self._check_registration(registry, names, owned)
+        for name, tool in owned.items():
+            if registry.get(name) is tool:
+                registry.unregister(name)
+        for tools in servers.values():
+            for tool in tools.values():
+                registry.register(tool)
+        self._registries[registry] = servers
+
+    def _update_bound_server(self, server_name: str) -> None:
+        definitions = self.clients[server_name].get_tools()
+        names = [f"mcp_{server_name}_{tool.name}" for tool in definitions]
+        for registry, servers in self._registries.items():
+            self._check_registration(registry, names, servers.get(server_name, {}))
+        wrapped = self._wrap_tools(server_name, definitions)
+        for registry, servers in self._registries.items():
+            for name, old in servers.get(server_name, {}).items():
+                if registry.get(name) is old:
+                    registry.unregister(name)
+            for tool in wrapped:
+                registry.register(tool)
+            servers[server_name] = {tool.name: tool for tool in wrapped}
+
+    async def refresh_server(self, server_name: str) -> list[McpToolDefinition]:
+        """Atomically refresh a native catalog and invalidate prior wrapper grants."""
+        lock = self._connection_locks.setdefault(server_name, asyncio.Lock())
+        async with lock:
+            if not self._connection_valid(server_name):
+                raise RuntimeError("MCP server is not connected; connect before refreshing its catalog")
+            client = self.clients[server_name]
+            if not isinstance(client, _NativeMcpClient):
+                raise RuntimeError("This MCP client does not support atomic catalog refresh")
+            async with client._discovery_lock:
+                definitions = await client.prepare_tools()
+                names = [f"mcp_{server_name}_{tool.name}" for tool in definitions]
+                for registry, servers in self._registries.items():
+                    self._check_registration(registry, names, servers.get(server_name, {}))
+                # No await from publication through registry replacement: a
+                # cancellation or malformed later page cannot publish a subset.
+                client.publish_tools(definitions)
+                self._catalog_generations[server_name] = self._catalog_generations.get(server_name, 0) + 1
+                self._update_bound_server(server_name)
+                return client.get_tools()
 
     def get_server_names(self) -> list[str]:
         """Return names of all configured servers.

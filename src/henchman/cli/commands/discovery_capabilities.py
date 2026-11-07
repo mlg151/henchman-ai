@@ -149,10 +149,11 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
         name="mcp",
         classification="runtime-wired",
-        summary="MCP auth/status surfaces are runtime-wired with secret-safe status reporting.",
+        summary="MCP auth, status, and bounded catalog refresh are runtime-wired with secret-safe status reporting.",
         detail=(
             "Treat MCP as live only when the runtime exposes both mcp and mcp_auth "
-            "tools; status output must report auth presence without printing tokens."
+            "tools; status output must report auth presence without printing tokens. "
+            "Explicit refresh replaces the connected tool catalog without expanding scoped allowlists."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

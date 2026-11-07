@@ -4,6 +4,17 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- MCP client/wrapper fidelity now includes bounded paginated catalogs, local
+  input/output validation and typed results. Explicit refresh updates owned
+  registry entries and invalidates stale handles without widening agent scopes.
+  Provider/session propagation and modern transport remain #21/#25 work; see
+  [compatibility limits](docs/mcp.md#refresh-a-connected-catalog).
+
+- [Content checkpoints](docs/checkpoints.md) now provide a tested standalone
+  POSIX capture/review/restore service with private retention and crash recovery.
+  Runtime ownership, CLI/REPL/TUI controls, check invalidation and Windows support
+  remain open under #22; legacy metadata snapshots are explicitly non-restorable.
+
 - Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.
 - Packaging dependency floors: `chromadb>=1.5.9` for RAG and direct `scipy>=1.11.2` for NetworkX PageRank queries.
 - Context safety: outside Git, project instruction discovery is bounded to the current working directory.

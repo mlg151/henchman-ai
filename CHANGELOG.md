@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP catalog and result fidelity** — Bounded pagination, atomic explicit
+  refresh, input/output validation and detached typed results preserve catalog
+  meaning. Refresh invalidates stale tool handles and approval grants while
+  retaining agent scopes. SDK 1.x output-shape and parsing limits are explicit;
+  provider/session result propagation remains under #21.
+
+- **Content checkpoint foundation** — Explicit before/after file capture,
+  revision-bound file/hunk review, conflict-checked POSIX restore and durable
+  recovery preserve unrelated work and the Git index. Private bounded retention
+  preserves displaced originals; unsupported or known-secret content cannot be
+  restored. Runtime, UI and Windows integration remain under #22. See
+  [checkpoint limits and recovery](docs/checkpoints.md).
+
 - **Provider schema projections** — All five adapters now expand supported local
   references into detached request schemas while preserving optional/null meaning.
   Unsupported projections fail before transport, and input estimates use the same

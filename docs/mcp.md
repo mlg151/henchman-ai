@@ -124,6 +124,36 @@ mcp_servers:
 
 ## Commands
 
+### Refresh a connected catalog
+
+```
+/mcp refresh <server>
+```
+
+The `mcp` management tool also accepts `action="refresh"` with `server`.
+Refresh follows all discovery pages and publishes only a complete validated
+catalog. Invalid schemas, repeated cursors, duplicate names, collisions with
+separately registered tools, or cancellation leave the previous catalog intact.
+Successful refresh replaces owned registry entries and invalidates retained
+wrappers and their confirmation grants. Scoped agents retain their allowlists.
+Custom injected clients without atomic refresh support report that limitation.
+
+Catalogs are bounded to 32 pages, 1,024 tools and 4 MiB in total; each accepted SDK
+payload is also subject to the 1 MiB local contract bound. Input/output schemas,
+annotations and typed result data are detached from the SDK models. Annotations
+never grant execution authority. Arguments are validated before transport and
+successful structured results against their captured output schema afterwards.
+Error results remain errors rather than being checked as successful output.
+
+The native result and `ToolResult` preserve content blocks, structured content,
+presence separately from null, and metadata. Text compatibility output labels
+non-text blocks. SDK 1.x permits object-or-null `structuredContent`; scalar and
+array wire forms fail explicitly even though the canonical local validator can
+validate them. Results accept at most 256 blocks within the payload bound.
+Provider/session propagation remains a separate integration gate under #21.
+These are accepted-payload bounds: the SDK parses a complete stdio line first,
+so they do not bound memory used while parsing a hostile oversized wire message.
+
 ### List Servers
 
 ```

@@ -40,6 +40,10 @@ class ToolResult:
     success: bool = True
     display: str | None = None
     error: str | None = None
+    content_blocks: tuple[dict[str, object], ...] = ()
+    structured_content: object = None
+    structured_content_present: bool = False
+    metadata: dict[str, object] | None = None
 
 
 @dataclass

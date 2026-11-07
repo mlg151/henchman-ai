@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
+from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.config import load_settings
 from henchman.config.runtime import runtime_settings_state
 
@@ -144,6 +145,7 @@ class McpCommand(BaseCommand):
     _help_lines: ClassVar[list[str]] = [
         "  /mcp list      - List configured MCP servers",
         "  /mcp status    - Show connection status and tools",
+        "  /mcp refresh <server> - Refresh a connected server's tool catalog",
         "  /mcp logging   - Control MCP logging (on/off/status)",
     ]
 
@@ -160,7 +162,7 @@ class McpCommand(BaseCommand):
     @property
     def usage(self: McpCommand) -> str:
         """Command usage."""
-        return "/mcp <list|status|logging>"
+        return "/mcp <list|status|refresh|logging>"
 
     async def execute(self: McpCommand, ctx: CommandContext) -> None:
         """Execute the mcp command.
@@ -182,8 +184,28 @@ class McpCommand(BaseCommand):
             await self._status(ctx)
         elif subcommand == "logging":
             await self._logging(ctx)
+        elif subcommand == "refresh":
+            await self._refresh(ctx)
         else:
             await self._show_help(ctx)
+
+    async def _refresh(self, ctx: CommandContext) -> None:
+        """Explicitly refresh one connected catalog without changing tool scopes."""
+        manager = getattr(ctx, "mcp_manager", None)
+        if manager is None:
+            ctx.console.print("[dim]No MCP servers configured[/]")
+            return
+        if len(ctx.args) != 2:
+            ctx.console.print("Usage: /mcp refresh <server>")
+            return
+        try:
+            tools = await manager.refresh_server(ctx.args[1])
+        except Exception as exc:
+            policy = runtime_evidence_redactor(ctx.repl if ctx.repl is not None else ctx)
+            detail = policy.text(str(exc))
+            ctx.console.print(f"MCP catalog refresh failed: {detail}", markup=False)
+            return
+        ctx.console.print(f"MCP catalog refreshed: {len(tools)} tools.")
 
     async def _list(self: McpCommand, ctx: CommandContext) -> None:
         """List configured MCP servers.

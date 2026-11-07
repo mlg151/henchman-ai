@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from henchman.mcp.client import McpClient
+from henchman.mcp.client import McpClient, McpToolDefinition
 from henchman.mcp.config import McpServerConfig
+from mcp import types
 
 
 class TestMcpClient:
@@ -28,13 +29,15 @@ class TestMcpClient:
         """Create a mock MCP session."""
         session = AsyncMock()
         session.initialize = AsyncMock()
-        session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
+        session.list_tools = AsyncMock(return_value=types.ListToolsResult(tools=[]))
         return session
 
     def _connect_client(self, client: McpClient, mock_session: AsyncMock) -> None:
         """Wire a mock session into a client as if connected."""
         client._session = mock_session
         client._exit_stack = AsyncExitStack()
+        client._tools = [McpToolDefinition("read_file", "read", {"type": "object"}),
+                         McpToolDefinition("test", "test", {"type": "object"})]
 
     def test_init(self, config: McpServerConfig) -> None:
         """Test initializing client."""
@@ -62,16 +65,13 @@ class TestMcpClient:
         client = McpClient(name="test", config=config)
 
         # Create mock tool
-        mock_tool = MagicMock()
-        mock_tool.name = "read_file"
-        mock_tool.description = "Read a file"
-        mock_tool.inputSchema = {
+        mock_tool = types.Tool(name="read_file", description="Read a file", inputSchema={
             "type": "object",
             "properties": {"path": {"type": "string"}},
             "required": ["path"],
-        }
+        })
 
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
+        mock_session.list_tools = AsyncMock(return_value=types.ListToolsResult(tools=[mock_tool]))
         self._connect_client(client, mock_session)
         tools = await client.discover_tools()
 
@@ -84,9 +84,7 @@ class TestMcpClient:
         """Test calling a tool."""
         client = McpClient(name="test", config=config)
 
-        mock_result = MagicMock()
-        mock_result.content = [MagicMock(text="file contents")]
-        mock_result.isError = False
+        mock_result = types.CallToolResult(content=[types.TextContent(type="text", text="file contents")], isError=False)
 
         mock_session.call_tool = AsyncMock(return_value=mock_result)
         self._connect_client(client, mock_session)
@@ -100,9 +98,7 @@ class TestMcpClient:
         """Test calling a tool that returns an error."""
         client = McpClient(name="test", config=config)
 
-        mock_result = MagicMock()
-        mock_result.content = [MagicMock(text="File not found")]
-        mock_result.isError = True
+        mock_result = types.CallToolResult(content=[types.TextContent(type="text", text="File not found")], isError=True)
 
         mock_session.call_tool = AsyncMock(return_value=mock_result)
         self._connect_client(client, mock_session)
@@ -150,18 +146,11 @@ class TestMcpClient:
         """Test calling a tool that returns non-text content."""
         client = McpClient(name="test", config=config)
 
-        # Content item without text attribute (falls back to str())
-        class NonTextContent:
-            def __str__(self) -> str:
-                return "raw content"
-
-        mock_result = MagicMock()
-        mock_result.content = [NonTextContent()]
-        mock_result.isError = False
+        mock_result = types.CallToolResult(content=[types.ImageContent(type="image", data="aGVsbG8=", mimeType="image/png")])
 
         mock_session.call_tool = AsyncMock(return_value=mock_result)
         self._connect_client(client, mock_session)
         result = await client.call_tool("test", {})
 
-        # Should fall back to str() representation
-        assert "raw content" in result.content or len(result.content) > 0
+        assert "image" in result.content
+        assert result.content_blocks[0]["data"] == "aGVsbG8="

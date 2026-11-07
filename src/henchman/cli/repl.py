@@ -505,9 +505,7 @@ class Repl:
         ):  # Only connect if not already connected
             try:
                 await self.mcp_manager.connect_all()
-                # Register MCP tools with the tool registry
-                for tool in self.mcp_manager.get_all_tools():
-                    self.tool_registry.register(tool)
+                self.mcp_manager.bind_registry(self.tool_registry)
                 if (
                     self.mcp_manager.get_all_tools()
                     and self.settings

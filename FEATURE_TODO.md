@@ -4,6 +4,17 @@ Organized by priority tiers. Each item is a discrete feature to implement.
 
 ## v0.4.2 delivery plan (in progress)
 
+MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
+annotations and typed client/wrapper results while invalidating stale handles and
+keeping scoped allowlists. [Result propagation](docs/mcp.md#refresh-a-connected-catalog)
+through provider/session paths and broader #21/#25 qualification remain pending.
+
+The [content checkpoint foundation](docs/checkpoints.md) now captures explicit
+before/after file scopes and supports revision-bound review, conflict-checked
+POSIX restore, interrupted-restore recovery and private bounded retention.
+Runtime ownership capture, user controls, verification invalidation and Windows
+restore remain incomplete under #22.
+
 The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
 turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)
 and [terminal UI research #31](https://github.com/mlg151/henchman-ai/issues/31)

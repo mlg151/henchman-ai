@@ -72,7 +72,7 @@ _MCP_AUTH_PARAMETERS: dict[str, object] = {
 _MCP_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {
-        "action": {"type": "string", "enum": ["status", "connect", "disconnect", "discover"]},
+        "action": {"type": "string", "enum": ["status", "connect", "disconnect", "discover", "refresh"]},
         "server": {"type": "string"},
     },
     "required": ["action"],
@@ -650,7 +650,7 @@ class MCPTool(_Tier6McpToolBase):
     def description(self) -> str:
         """Return the tool description."""
 
-        return "Inspect, connect, disconnect, and discover configured MCP servers."
+        return "Inspect, connect, disconnect, discover, and refresh configured MCP server tools."
 
     @property
     def parameters(self) -> dict[str, object]:
@@ -670,7 +670,7 @@ class MCPTool(_Tier6McpToolBase):
         The static NETWORK kind remains the catalog classification. The
         read-only ``status`` and ``discover`` actions (both in-memory reads
         of already-connected clients) are downgraded to READ so Plan Mode
-        keeps them available; ``connect`` and ``disconnect`` retain NETWORK.
+        keeps them available; ``connect``, ``disconnect`` and ``refresh`` retain NETWORK.
         """
         action = str(params.get("action", "")).strip()
         if action in ("status", "discover"):
@@ -738,6 +738,13 @@ class MCPTool(_Tier6McpToolBase):
             return ToolResult(
                 content="\n".join(str(getattr(tool, "name", tool)) for tool in discovered),
             )
+
+        if action == "refresh":
+            if not server:
+                return ToolResult(content="A server is required to refresh its catalog.",
+                                  success=False, error="Missing server")
+            tools = await self._mcp_manager.refresh_server(server)
+            return ToolResult(content=f"MCP catalog refreshed: {len(tools)} tools.")
 
         return ToolResult(
             content=f"Unsupported MCP action '{action}'.",

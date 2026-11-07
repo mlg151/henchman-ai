@@ -10,22 +10,25 @@ import asyncio
 import codecs
 import copy
 import io
+import json
 import os
 import re
 import sys
 from collections.abc import Callable, Iterable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import anyio
 from mcp.client.stdio import stdio_client
+from pydantic import ValidationError
 
 from henchman.mcp.credentials import reference_values, resolve_environment
 from henchman.mcp.diagnostics import sdk_diagnostics
+from henchman.tools.contracts import SchemaContract, SchemaContractError
 from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 from henchman.utils.pipe_output import pipe_chunk as _pipe_chunk
-from mcp import ClientSession, StdioServerParameters
+from mcp import ClientSession, StdioServerParameters, types
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -64,6 +67,31 @@ class McpClientProtocol(Protocol):
         ...
 
 # Precompiled patterns for log-line detection (avoids recompilation on every write).
+MAX_DISCOVERY_PAGES = 32
+MAX_DISCOVERY_TOOLS = 1024
+MAX_CATALOG_BYTES = 4 * 1024 * 1024
+MAX_RESULT_BLOCKS = 256
+_JSON_PAYLOAD = SchemaContract(True)
+
+
+class _ContractClientSession(ClientSession):
+    """Keep SDK transport/negotiation while replacing its unsafe schema path.
+
+    SDK 1.26 uses bare jsonschema.validate here, which can retrieve remote refs
+    and include rejected values in exceptions. McpClient owns bounded local
+    contracts captured from the complete catalog instead.
+    """
+
+    async def _validate_tool_result(self, name: str, result: types.CallToolResult) -> None:
+        del name, result
+
+
+def _sdk_payload(value: Any) -> dict[str, Any]:
+    payload = value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    _JSON_PAYLOAD.validate(payload)
+    return cast("dict[str, Any]", payload)
+
+
 _LOG_TIMESTAMP_RE = re.compile(
     r"^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}",
 )
@@ -229,6 +257,10 @@ class McpToolResult:
 
     content: str
     is_error: bool = False
+    content_blocks: tuple[dict[str, Any], ...] = ()
+    structured_content: object = None
+    structured_content_present: bool = False
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -244,6 +276,8 @@ class McpToolDefinition:
     name: str
     description: str
     input_schema: dict[str, Any]
+    output_schema: dict[str, Any] | None = None
+    annotations: dict[str, Any] = field(default_factory=dict)
 
 
 class McpClient:
@@ -280,6 +314,8 @@ class McpClient:
         self._connection_environment: dict[str, str] | None = None
         self._dispatch_guard: Callable[[], None] | None = None
         self._invalid_reason: str | None = None
+        self.catalog_generation = 0
+        self._discovery_lock = asyncio.Lock()
 
     @property
     def is_connected(self: Self) -> bool:
@@ -344,7 +380,7 @@ class McpClient:
             read, write = await stack.enter_async_context(
                 stdio_client(params, errlog=errlog),
             )
-            session = await stack.enter_async_context(ClientSession(read, write))
+            session = await stack.enter_async_context(_ContractClientSession(read, write))
             initialized = await session.initialize()
             self.protocol_version = str(initialized.protocolVersion)
         return session
@@ -469,20 +505,65 @@ class McpClient:
         Returns:
             List of tool definitions.
         """
-        self._check_credentials()
-        if self._session is None:
-            return []
+        async with self._discovery_lock:
+            tools = await self.prepare_tools()
+            self.publish_tools(tools)
+            return self.get_tools()
 
-        result = await self._session.list_tools()
-        self._tools = [
-            McpToolDefinition(
-                name=tool.name,
-                description=tool.description or "",
-                input_schema=dict(tool.inputSchema) if tool.inputSchema else {},
-            )
-            for tool in result.tools
-        ]
-        return self._tools
+    async def prepare_tools(self) -> list[McpToolDefinition]:
+        """Stage a complete bounded catalog without changing published authority."""
+        self._check_credentials()
+        session = self._session
+        if session is None:
+            return []
+        tools: list[McpToolDefinition] = []
+        names: set[str] = set()
+        cursors: set[str] = set()
+        cursor = None
+        total_bytes = 0
+        for _ in range(MAX_DISCOVERY_PAGES):
+            try:
+                result = await session.list_tools(cursor=cursor) if cursor is not None else await session.list_tools()
+            except ValidationError:
+                raise SchemaContractError("mcp_catalog_shape") from None
+            self._check_credentials()
+            if self._session is not session:
+                raise SchemaContractError("mcp_connection_changed")
+            payload = _sdk_payload(result)
+            total_bytes += len(json.dumps(payload, ensure_ascii=True))
+            if total_bytes > MAX_CATALOG_BYTES:
+                raise SchemaContractError("mcp_catalog_bytes")
+            for raw in payload.get("tools", []):
+                name = raw["name"]
+                if not name or len(name) > 128 or any(ord(char) < 32 for char in name):
+                    raise SchemaContractError("mcp_tool_name")
+                if name in names:
+                    raise SchemaContractError("mcp_duplicate_tool")
+                names.add(name)
+                if len(names) > MAX_DISCOVERY_TOOLS:
+                    raise SchemaContractError("mcp_tool_limit")
+                input_schema = raw["inputSchema"]
+                output_schema = raw.get("outputSchema")
+                SchemaContract(input_schema)
+                if output_schema is not None:
+                    SchemaContract(output_schema)
+                tools.append(McpToolDefinition(
+                    name=name, description=raw.get("description") or "", input_schema=copy.deepcopy(input_schema),
+                    output_schema=copy.deepcopy(output_schema), annotations=copy.deepcopy(raw.get("annotations") or {}),
+                ))
+            cursor = payload.get("nextCursor")
+            if cursor is None:
+                return tools
+            if not isinstance(cursor, str) or not cursor or len(cursor) > 4096 or cursor in cursors:
+                raise SchemaContractError("mcp_cursor_cycle_or_shape")
+            cursors.add(cursor)
+        raise SchemaContractError("mcp_page_limit")
+
+    def publish_tools(self, tools: list[McpToolDefinition]) -> None:
+        """Publish a previously validated staged snapshot without an await gap."""
+        self._check_credentials()
+        self._tools = copy.deepcopy(tools)
+        self.catalog_generation += 1
 
     def get_tools(self: Self) -> list[McpToolDefinition]:
         """Get cached tool definitions.
@@ -490,7 +571,7 @@ class McpClient:
         Returns:
             List of tool definitions.
         """
-        return self._tools
+        return copy.deepcopy(self._tools)
 
     async def call_tool(
         self: Self,
@@ -514,15 +595,33 @@ class McpClient:
             msg = f"Client '{self.name}' is not connected"
             raise RuntimeError(msg)
 
-        result = await self._session.call_tool(name, arguments)
-
-        content_parts = [
-            item.text if hasattr(item, "text") else str(item)
-            for item in result.content
-        ]
-        content = "\n".join(content_parts) if content_parts else ""
-
-        return McpToolResult(
-            content=content,
-            is_error=bool(result.isError),
+        definition = next((tool for tool in self._tools if tool.name == name), None)
+        if definition is None:
+            raise SchemaContractError("mcp_unknown_tool")
+        definition = copy.deepcopy(definition)
+        SchemaContract(definition.input_schema).validate(arguments)
+        captured = copy.deepcopy(arguments)
+        try:
+            result = await self._session.call_tool(name, captured)
+        except ValidationError:
+            # SDK 1.x supports object-or-null structuredContent, not scalar or
+            # array wire forms. Never forward Pydantic's rejected input values.
+            raise SchemaContractError("mcp_result_shape_object_or_null_required") from None
+        payload = _sdk_payload(result)
+        blocks = payload.get("content", [])
+        if len(blocks) > MAX_RESULT_BLOCKS:
+            raise SchemaContractError("mcp_result_block_limit")
+        present = "structuredContent" in payload
+        structured = payload.get("structuredContent")
+        is_error = bool(payload.get("isError", False))
+        if not is_error and definition.output_schema is not None:
+            if not present:
+                raise SchemaContractError("mcp_structured_output_missing")
+            SchemaContract(definition.output_schema).validate(structured)
+        content = "\n".join(
+            block["text"] if block["type"] == "text" else f"[MCP {block['type']} content]"
+            for block in blocks
         )
+        return McpToolResult(content=content, is_error=is_error,
+                             content_blocks=tuple(copy.deepcopy(blocks)), structured_content=copy.deepcopy(structured),
+                             structured_content_present=present, metadata=copy.deepcopy(payload.get("_meta")))

@@ -191,9 +191,7 @@ def initialize_mcp(context: CoreContext) -> None:
             """Connect to MCP servers and register tools."""
             try:
                 await mcp_manager.connect_all()
-                # Register MCP tools with the tool registry
-                for tool in mcp_manager.get_all_tools():
-                    context.tool_registry.register(tool)
+                mcp_manager.bind_registry(context.tool_registry)
             except Exception as e:
                 # Log error but don't crash
                 print(f"Failed to connect to MCP servers: {runtime_exception_text(context, e)}")

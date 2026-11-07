@@ -127,8 +127,20 @@ unknown keywords and Boolean subschemas fail before transport. Original canonica
 schemas still govern local validation. These profiles are tested offline adapter
 contracts; they do not establish support by every remote endpoint or model.
 
-MCP pagination/refresh, typed result preservation and runtime-wide
-registration/output validation remain required for #21/P1.
+### MCP catalog and result foundation
+
+The native SDK 1.x client now stages bounded paginated catalogs, validates local
+input/output contracts and preserves detached output schemas, annotations,
+content blocks, structured-content presence/null and result metadata. Explicit
+`/mcp refresh <server>` and management-tool refresh replace owned registry entries
+without expanding scoped agent allowlists; stale wrappers and confirmation grants
+are invalidated. Native fixture processes cover refresh, collisions, cancellation,
+malformed catalogs and structured errors. See [MCP bounds and compatibility](mcp.md#refresh-a-connected-catalog).
+
+SDK 1.x structured output is object-or-null; scalar/array wire forms are rejected
+explicitly. Provider/session propagation of typed results and runtime-wide
+registration/output validation remain required for #21/P1. Modern transport,
+resources/prompts and preparse wire bounds remain separate #25 work.
 
 ### Remaining phase gates
 
