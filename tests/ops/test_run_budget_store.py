@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from decimal import Decimal
 from pathlib import Path
 from threading import Event
@@ -81,7 +82,7 @@ def test_price_strings_and_final_billing_survive_reopening(tmp_path: Path) -> No
     estimate = RequestEstimate(10, 10, TokenPricing.uniform(Decimal("0.123456789012345678901")))
     ledger.reserve(estimate, request_id="r")
     assert ledger.reserve(estimate, request_id="r").estimate == estimate
-    with sqlite3.connect(tmp_path / "ops.db") as connection:
+    with closing(sqlite3.connect(tmp_path / "ops.db")) as connection, connection:
         data = json.loads(connection.execute("SELECT payload_json FROM budget_attempts").fetchone()[0])
     assert data["estimate"]["pricing"]["input_per_1k"] == "0.123456789012345678901"
     assert ledger.start("r")
@@ -219,7 +220,7 @@ def test_corrupt_or_newer_accounting_never_restores_an_empty_budget(tmp_path: Pa
     ledger = store.create_run()
     ledger.reserve(RequestEstimate(1, 1), request_id="r")
     ledger.start("r")
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         if damage == "usage":
             connection.execute("UPDATE budget_attempts SET payload_json='{}'")
         elif damage == "delete_attempt":
@@ -269,7 +270,7 @@ RunBudgetStore(Path(sys.argv[1]),checkpoint=checkpoint)
     boundary = f"migration:{'after' if committed else 'before'}_commit"
     result = subprocess.run([sys.executable, "-c", script, str(path), boundary], timeout=20, check=False)
     assert result.returncode == 73
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert ("budget_runs" in tables) is committed
         assert ("schema_versions" in tables) is committed
@@ -311,7 +312,7 @@ def test_lock_failure_and_replaced_store_do_not_admit_requests(tmp_path: Path) -
     path = tmp_path / "ops.db"
     store = RunBudgetStore(path)
     ledger = store.create_run()
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("BEGIN IMMEDIATE")
         with pytest.raises(BudgetAccountingError, match="store_unavailable"):
             ledger.reserve(RequestEstimate(1, 1))
@@ -326,7 +327,7 @@ def test_session_binding_does_not_hide_a_missing_authoritative_run(tmp_path: Pat
     path = tmp_path / "ops.db"
     store = RunBudgetStore(path)
     store.create_run(run_id="run", project_hash="project", session_id="session")
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("DELETE FROM budget_runs")
     with pytest.raises(BudgetAccountingError, match="missing_run"):
         store.session_binding("project", "session")
@@ -343,7 +344,7 @@ def test_creation_lock_wait_cannot_move_the_run_time_origin(tmp_path: Path) -> N
 
     path = tmp_path / "ops.db"
     store = RunBudgetStore(path, clock=clock)
-    with sqlite3.connect(path) as connection, ThreadPoolExecutor(max_workers=1) as executor:
+    with closing(sqlite3.connect(path)) as connection, connection, ThreadPoolExecutor(max_workers=1) as executor:
         connection.execute("BEGIN IMMEDIATE")
         future = executor.submit(store.create_run, limits=BudgetLimits(max_seconds=6))
         assert entered.wait(timeout=5)
