@@ -297,6 +297,7 @@ class EvalTestRig:
         self._team_runtime: TeamEvalRuntime | None = None
         self._original_cwd: Path | None = None
         self._run_outcomes: list[tuple[bool, str | None]] = []
+        self._interruption_evidence: list[tuple[bool, str | None]] = []
 
     def _get_eval_system_prompt(self) -> str:
         """Get the system prompt for behavioral evals."""
@@ -636,6 +637,35 @@ The current working directory contains test files for this evaluation."""
             if not success
         ]
         assert not failures, "\n".join(failures)
+
+    @property
+    def interruption_evidence(self) -> list[tuple[bool, str | None]]:
+        """Outcomes of turns scenarios consumed as expected interruptions."""
+        return list(self._interruption_evidence)
+
+    def consume_expected_interruption(self) -> tuple[bool, str | None]:
+        """Consume the latest turn as an expected interruption, recording its evidence.
+
+        Scenarios that deliberately bound a turn use this to exclude the
+        interrupted outcome from the strict success gate while retaining it as
+        observable evidence.
+
+        Returns:
+            The consumed ``(success, error)`` outcome.
+
+        Raises:
+            AssertionError: If no turn ran or the latest turn completed successfully.
+        """
+        if not self._run_outcomes:
+            raise AssertionError("Evaluation did not run an agent turn")
+        evidence = self._run_outcomes.pop()
+        success, error = evidence
+        if success:
+            raise AssertionError(
+                "Expected an interrupted turn, but the latest turn completed successfully"
+            )
+        self._interruption_evidence.append(evidence)
+        return evidence
 
     def tool_was_called(self, tool_name: str) -> bool:
         """Check if a tool was called during the eval.

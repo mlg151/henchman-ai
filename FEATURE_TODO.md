@@ -18,12 +18,11 @@ Implementation is in progress on the release integration branch. Foundation
 including full Linux Python 3.11–3.14 tests, enforced Python 3.12 coverage,
 12 native installed-wheel cohorts and the aggregate gate. Later feature changes
 and final release artifacts still require qualification under #30.
-The reviewed evaluator increment connects eleven independent scenarios, including
-syntax repair, semantic bug repair, tool-failure recovery, Fibonacci implementation,
-package lifecycle and test/documentation delivery with independent correctness
-and runtime checks. Interruption and recovery across resumed sessions remain
-required. The complete twelve-case corpus and hosted baseline requirements
-remain in progress.
+The reviewed evaluator increment connects twelve independent scenarios, including
+syntax repair, semantic bug repair, tool-failure recovery, interruption/recovery,
+Fibonacci implementation, package lifecycle and test/documentation delivery with
+independent correctness and runtime checks. The complete twelve-case corpus is
+frozen; hosted baseline requirements remain in progress.
 The [first local development cohort](docs/evaluations/2026-11-07-local-baseline.md)
 completed all 22 planned attempts with 22 timeouts and no verified successes.
 The raw report is retained; inference readiness and successful model qualification

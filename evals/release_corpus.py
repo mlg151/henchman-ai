@@ -17,6 +17,7 @@ from evals.test_edit_precision import (
     run_rename_variable_consistently_scenario,
     run_semantic_bug_fix_scenario,
 )
+from evals.test_interruption_recovery import run_interruption_recovery_scenario
 from evals.test_package_lifecycle import run_package_lifecycle_scenario
 from evals.test_python_reuse import run_python_reuse_scenario
 from evals.test_test_docs import run_test_docs_scenario
@@ -160,6 +161,18 @@ _REGISTRY: tuple[tuple[CaseMetadata, Callable[[EvalTestRig], Awaitable[EvalResul
             version="0.4.2-eval-v1",
         ),
         run_tool_failure_recovery_scenario,
+    ),
+    (
+        CaseMetadata(
+            id="interruption-recovery",
+            category="interruption-recovery",
+            seed=42,
+            fixture_identity="interruption-recovery-fixture",
+            oracle_identity="interruption-recovery-oracle",
+            profile="engineer",
+            version="0.4.2-eval-v1",
+        ),
+        run_interruption_recovery_scenario,
     ),
 )
 

@@ -403,13 +403,13 @@ If an eval is failing:
 3. Consider if the eval expectations are still valid
 4. Prefer fixing prompts over loosening eval criteria
 
-### v0.4.2 corpus registry (in progress)
+### v0.4.2 corpus registry (frozen at twelve cases)
 
-[release_corpus.py](release_corpus.py) registers eleven independently
+[release_corpus.py](release_corpus.py) registers twelve independently
 checked scenarios: counter refactoring, method addition, variable rename,
 multi-file editing, Python helper reuse, syntax repair, semantic bug repair,
-Fibonacci implementation, package lifecycle, test/documentation delivery and
-tool-failure recovery.
+Fibonacci implementation, package lifecycle, test/documentation delivery,
+tool-failure recovery and interruption/recovery.
 
 The `tool-failure-recovery` case requires an actual failed `python_exec` before a
 later passing check. An independent pricing oracle checks numeric, non-boolean
@@ -417,6 +417,16 @@ results. The case returns the original runtime result and rejects a skipped
 initial check, a sample-only constant repair and a real provider failure after a
 correct repair. Its five actual-tool and caller controls are staged in both
 native modes.
+
+The `interruption-recovery` case bounds the first turn to a single tool round,
+so any first attempt that acts on the workspace is interrupted before it can
+finish; the recovery turn must resume from the persisted workspace, leave the
+provided tests untouched, and pass an independent pytest oracle. The rig's
+`consume_expected_interruption()` records the interrupted turn as evidence and
+excludes it from `assert_successful_runs()`. The case rejects a first turn that
+completes normally, a recovery that leaves the oracle failing, tampered
+provided tests and a real provider failure during recovery. Its seven scenario
+controls and two dispatch controls are staged in both native modes.
 
 `semantic-bug-fix` checks zero/nonzero division in independent bounded Python
 checks, preserves non-target AST, returns the original runtime result, rejects
@@ -447,9 +457,10 @@ default native cohorts do not execute package lifecycle evaluations.
 Metadata records the corpus version, declared seed, fixture/oracle labels and a
 preferred profile. These labels do not prove that a provider applied a seed or
 that a particular profile ran: execution reports must record the actual
-`rig.profile_metadata` and supported seed behavior. The complete twelve-case
-corpus, bounded repeat-run reporting and hosted baseline qualification remain
-tracked in [issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
+`rig.profile_metadata` and supported seed behavior. The twelve-case corpus is
+frozen and the bounded repeat-run reporting is delivered; hosted baseline
+qualification remains tracked in
+[issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
 registry contracts establish evaluator behavior, not model task quality.
 
 The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
