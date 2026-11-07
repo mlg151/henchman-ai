@@ -75,7 +75,8 @@ and zero prices remain valid. A reviewed process-lifetime ledger now implements
 atomic reservations, single-dispatch claims and conservative reconciliation;
 explicit Python scopes now connect it to compatible/Anthropic transport attempts
 and summary calls. Typed limits and exact provider/model prices are available;
-automatic CLI run scopes, event-level aggregation and persisted reconciliation remain open; see
+durable SQLite claims/reconciliation and session bindings now pass crash and
+concurrency tests. Automatic CLI lifecycle and event-level aggregation remain open; see
 [usage provenance](docs/providers.md#usage-and-cost-provenance).
 The release gates below are not yet satisfied.
 REPL/Textual now retain a shared live settings snapshot with accurate session

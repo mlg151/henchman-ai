@@ -56,7 +56,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   process-lifetime ledger now supplies atomic reservation/claim/reconciliation with
   exact money arithmetic and conservative uncertain holds. Explicit Python scopes
   account compatible/Anthropic attempts and summaries using typed usage limits and
-  provider/model prices. Automatic run scopes, aggregate display and persisted reconciliation remain
+  provider/model prices. A SQLite adapter now persists claims, cumulative
+  reconciliation and authoritative session bindings, with process/crash tests.
+  Automatic run scopes, session lifecycle integration and aggregate display remain
   open; see [usage provenance](docs/providers.md#usage-and-cost-provenance).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers

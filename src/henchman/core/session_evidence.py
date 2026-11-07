@@ -53,6 +53,8 @@ _SESSION = {
     "template_id": PRESERVE_IDENTITY, "active_agents": PRESERVE_IDENTITY,
     "plan_mode": PRESERVE_IDENTITY, "plan_mode_origin": PRESERVE_IDENTITY,
     "_storage": {"version": PRESERVE_IDENTITY, "sha256": PRESERVE_IDENTITY},
+    "accounting": {"store_id": PRESERVE_IDENTITY, "active_run_id": PRESERVE_IDENTITY,
+                   "run_ids": PRESERVE_IDENTITY, "active_owner_key": PRESERVE_IDENTITY},
     "tag": None, "messages": [_MESSAGE], "turn_summaries": [_SUMMARY],
     "delegation_log": None, "template_parameters": None, "export_metadata": _METADATA,
 }

@@ -24,7 +24,7 @@ from henchman.providers.request_budget import estimate_serialized_input, validat
 from henchman.providers.usage import TokenPricing, UsageReport
 
 if TYPE_CHECKING:
-    from henchman.core.run_budget import CacheMode, RequestEstimate, RunBudgetLedger
+    from henchman.core.run_budget import CacheMode, RequestEstimate, RunBudgetAccounting
     from henchman.providers.base import ModelProvider, StreamChunk
 
 PricingResolver = Callable[[str, str], TokenPricing | None]
@@ -39,7 +39,7 @@ class RunBudgetScope:
     No price resolver means unknown pricing, even for a local provider.
     """
 
-    ledger: RunBudgetLedger
+    ledger: RunBudgetAccounting
     agent_id: str | None = None
     pricing_resolver: PricingResolver | None = None
     default_output_tokens: int = 4096
@@ -66,8 +66,8 @@ def current_run_budget() -> RunBudgetScope | None:
 
 
 @contextmanager
-def use_run_budget(scope: RunBudgetScope) -> Iterator[RunBudgetScope]:
-    """Activate a captured scope for this task and restore it on every exit."""
+def use_run_budget(scope: RunBudgetScope | None) -> Iterator[RunBudgetScope | None]:
+    """Activate a captured scope (or its absence) and restore it on every exit."""
     token = _scope.set(scope)
     try:
         yield scope

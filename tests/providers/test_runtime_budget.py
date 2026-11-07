@@ -108,6 +108,55 @@ async def consume(provider: Any, **kwargs: Any) -> list[Any]:
     return [chunk async for chunk in provider.chat_completion_stream([Message("user", "Go")], **kwargs)]
 
 
+async def test_persistent_dispatch_is_committed_before_mock_http(sdk_transport, tmp_path, monkeypatch) -> None:
+    from henchman.ops.run_budget_store import RunBudgetStore
+
+    provider, transport = sdk_transport
+    path = tmp_path / "accounting.db"
+    store = RunBudgetStore(path)
+    ledger = store.create_run(limits=BudgetLimits(max_requests=1))
+    original = Transport.__call__
+
+    async def inspect_dispatch(self, request):
+        independent = RunBudgetStore(path).resume_run(ledger.run_id, store_id=store.store_id)
+        assert independent.snapshot().consumed_requests == 1
+        assert independent.snapshot().unknown_dispatched_requests == 1
+        return await original(self, request)
+
+    monkeypatch.setattr(Transport, "__call__", inspect_dispatch)
+    with use_run_budget(RunBudgetScope(ledger)):
+        await consume(provider, max_tokens=7)
+    assert len(transport.requests) == 1
+    assert ledger.snapshot().settled_tokens == 12
+
+
+@pytest.mark.parametrize("committed", [False, True])
+async def test_accounting_commit_failure_prevents_mock_http(sdk_transport, tmp_path, committed) -> None:
+    from henchman.core.run_budget import BudgetAccountingError
+    from henchman.ops.run_budget_store import RunBudgetStore
+
+    provider, transport = sdk_transport
+    def fail_start(name):
+        if name == f"start:{'after' if committed else 'before'}_commit":
+            raise OSError("injected durable write failure")
+
+    store = RunBudgetStore(tmp_path / "accounting.db", checkpoint=fail_start)
+    ledger = store.create_run()
+    with use_run_budget(RunBudgetScope(ledger)), pytest.raises(BudgetAccountingError):
+        await consume(provider, max_tokens=7)
+    assert not transport.requests
+    assert ledger.snapshot().consumed_requests == int(committed)
+    assert ledger.snapshot().unknown_dispatched_requests == int(committed)
+
+
+def test_explicit_absence_can_be_captured_without_inheriting_consumer_scope() -> None:
+    scope = RunBudgetScope(RunBudgetLedger())
+    with use_run_budget(scope):
+        with use_run_budget(None):
+            assert current_run_budget() is None
+        assert current_run_budget() is scope
+
+
 async def test_attempts_settle_cumulative_usage_and_enforce_exact_wire_cap(sdk_transport) -> None:
     provider, transport = sdk_transport
     ledger = RunBudgetLedger(limits=BudgetLimits(max_requests=1))

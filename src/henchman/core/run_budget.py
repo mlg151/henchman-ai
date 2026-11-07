@@ -15,10 +15,13 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from fractions import Fraction
 from threading import RLock
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, Protocol
 from uuid import uuid4
 
 from henchman.providers.usage import TokenPricing, UsageReport
+
+if TYPE_CHECKING:
+    from henchman.core.run_budget_state import LedgerState
 
 StopReason = Literal[
     "request_limit", "token_limit", "time_limit", "money_limit", "unknown_price", "currency_mismatch",
@@ -196,15 +199,51 @@ class BudgetSnapshot:
     remaining_cost: Decimal | None
     money: tuple[CurrencyTotals, ...]
     stop_reason: StopReason | None
-    accounting_lifetime: Literal["process"] = "process"
+    accounting_lifetime: Literal["process", "durable"] = "process"
+    accounting_error: str | None = None
 
 
-class BudgetExceeded(RuntimeError):
+class BudgetControlError(RuntimeError):
+    """Accounting control failures must not trigger provider retries or fallbacks."""
+
+
+class BudgetAccountingError(BudgetControlError):
+    """Durable accounting is unavailable or cannot safely authorize continuation."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Run accounting prevented dispatch: {reason}")
+
+
+class BudgetExceeded(BudgetControlError):
     """Admission was denied before a new provider attempt could start."""
 
     def __init__(self, reason: StopReason) -> None:
         self.reason = reason
         super().__init__(f"Run budget prevented dispatch: {reason}")
+
+
+class RunBudgetAccounting(Protocol):
+    """Admission and reconciliation contract shared by memory and durable stores."""
+
+    @property
+    def run_id(self) -> str: ...
+
+    @property
+    def limits(self) -> BudgetLimits: ...
+
+    def reserve(self, estimate: RequestEstimate, *, request_id: str | None = None,
+                operation_id: str | None = None, agent_id: str | None = None,
+                provider: str | None = None, model: str | None = None) -> RequestRecord: ...
+
+    def start(self, request_id: str) -> bool: ...
+
+    def reconcile(self, request_id: str, usage: UsageReport | None = None, *,
+                  final: bool = False, reported_cost: ReportedCost | None = None) -> RequestRecord: ...
+
+    def cancel(self, request_id: str) -> RequestRecord: ...
+
+    def snapshot(self) -> BudgetSnapshot: ...
 
 
 @dataclass
@@ -395,6 +434,42 @@ class RunBudgetLedger:
     def limits(self) -> BudgetLimits:
         return self._limits
 
+    @property
+    def monotonic_origin(self) -> float:
+        """Read this ledger's clock origin without rebasing it during persistence."""
+        return self._started_at
+
+    def export_state(self) -> LedgerState:
+        """Capture source observations and finality without copying locks or clocks."""
+        from henchman.core.run_budget_state import AttemptState, LedgerState
+
+        with self._lock:
+            attempts = tuple(AttemptState(
+                e.request_id, e.operation_id, e.agent_id, e.provider, e.model, e.estimate,
+                e.state, e.dispatched, e.usage, e.final_usage,
+                tuple(ReportedCost(amount, currency) for currency, amount in sorted(e.billings.items())),
+                tuple(sorted(e.final_billings)),
+            ) for e in self._entries.values())
+            return LedgerState(self.run_id, self.limits, attempts, self._elapsed(), self._last_stop)
+
+    @classmethod
+    def from_state(cls, state: LedgerState, *, clock: Callable[[], float] = time.monotonic) -> RunBudgetLedger:
+        """Restore validated source state, retaining elapsed time and uncertainty."""
+        from henchman.core.run_budget_state import LedgerState
+
+        if not isinstance(state, LedgerState):
+            raise ValueError("Expected validated LedgerState")
+        ledger = cls(run_id=state.run_id, limits=state.limits, clock=clock)
+        ledger._started_at -= state.elapsed_seconds
+        ledger._elapsed_seconds = state.elapsed_seconds
+        ledger._last_stop = state.last_stop
+        ledger._entries = {e.request_id: _Entry(
+            e.request_id, e.operation_id, e.agent_id, e.provider, e.model, e.estimate,
+            e.state, e.dispatched, e.usage, e.final_usage,
+            {b.currency: b.amount for b in e.billings}, set(e.final_billings),
+        ) for e in state.attempts}
+        return ledger
+
     def _elapsed(self) -> float:
         now = self._clock()
         if not math.isfinite(now):
@@ -531,6 +606,12 @@ class RunBudgetLedger:
             reason = problem or self._last_stop
             if limits.max_seconds is not None and elapsed >= limits.max_seconds:
                 reason = "time_limit"
+            elif limits.max_requests is not None and consumed + reserved > limits.max_requests:
+                reason = "request_limit"
+            elif limits.max_tokens is not None and settled + held > limits.max_tokens:
+                reason = "token_limit"
+            elif problem is None and limits.max_cost is not None and _money_total(r.accounted_cost or Decimal(0) for r in records) > limits.max_cost:
+                reason = "money_limit"
             return BudgetSnapshot(
                 self.run_id, limits, records, consumed, reserved, settled, held,
                 sum(r.dispatched and r.settled_tokens is None for r in records),

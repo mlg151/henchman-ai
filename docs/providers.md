@@ -368,7 +368,7 @@ cache usage and unexpected currencies cannot release money for additional calls.
 Cost arithmetic and aggregation preserve exact finite decimal values regardless
 of the caller's decimal precision. Snapshots label accounting as `process` lifetime.
 The ledger alone does not persist or restore reservations or guarantee the bill
-for an already-started remote request. Durable reconciliation remains open under #24.
+for an already-started remote request. A durable adapter is available below.
 `BudgetExceeded` propagates through agent preparation, streaming and legacy
 delegation instead of becoming a recoverable provider error or delegation retry.
 
@@ -390,6 +390,30 @@ Summary calls drain trailing usage and cannot swallow budget exhaustion. Support
 adapters advertise `supports_run_budget`; uninstrumented custom providers are not
 automatically accounted by this explicit scope. Requests outside a scope retain
 their existing behavior. Automatic CLI/run scope creation remains open.
+
+### Durable accounting storage
+
+`RunBudgetStore(path)` from `henchman.ops.run_budget_store` creates explicitly
+owned runs with the same reservation/claim/reconciliation interface. Each change
+loads authoritative state under a SQLite write transaction; dispatch permission
+is returned only after its start claim commits. A crash after that commit retains
+the consumed request and uncertain usage even if HTTP never started. Late final
+usage can reconcile it; a retry requires a new attempt ID.
+
+Prices, monetary limits and billing retain exact decimal strings. Records store
+identities and accounting observations, never prompts, tool arguments or headers.
+Session bindings commit with run creation, so an older transcript backup cannot
+refund a known run. Session references are advisory; missing/corrupt stores,
+wrong identities and unsupported schemas fail closed instead of creating a fresh
+balance. Closing a run retains its history and uncertain consumption.
+
+Snapshots label this adapter's lifetime `durable`. Time-capped runs can dispatch
+only while their original monotonic clock domain can be verified: native clocks
+resume within the original process, and injected clocks within their owning
+store instance. Other processes can reconcile/inspect those runs, but cannot
+restart their timer. Without a time cap, independent processes share the same
+atomic request/token/money admission state. CLI lifecycle activation and displays
+remain a separate integration step under #24.
 
 ### Headless coding workflows
 

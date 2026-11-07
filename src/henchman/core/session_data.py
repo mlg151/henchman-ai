@@ -26,6 +26,38 @@ from .session_models import (
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class SessionAccountingReference:
+    """Advisory run identities; only the accounting database authorizes dispatch."""
+
+    store_id: str
+    active_run_id: str | None
+    run_ids: tuple[str, ...]
+    active_owner_key: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.store_id, str) or not self.store_id.strip():
+            raise ValueError("Invalid accounting store identity")
+        if not isinstance(self.run_ids, tuple) or any(not isinstance(r, str) or not r.strip() for r in self.run_ids):
+            raise ValueError("Invalid accounting run identities")
+        if len(set(self.run_ids)) != len(self.run_ids):
+            raise ValueError("Duplicate accounting run identity")
+        if self.active_run_id is not None and self.active_run_id not in self.run_ids:
+            raise ValueError("Active accounting run is missing from history")
+        if self.active_owner_key is not None and (self.active_run_id is None or not isinstance(self.active_owner_key, str) or not self.active_owner_key.strip()):
+            raise ValueError("Invalid active accounting owner")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"store_id": self.store_id, "active_run_id": self.active_run_id,
+                "run_ids": list(self.run_ids), "active_owner_key": self.active_owner_key}
+
+    @classmethod
+    def from_dict(cls, value: Any) -> SessionAccountingReference:
+        if not isinstance(value, dict) or set(value) - {"active_owner_key"} != {"store_id", "active_run_id", "run_ids"} or not isinstance(value["run_ids"], list):
+            raise ValueError("Invalid accounting reference")
+        return cls(value["store_id"], value["active_run_id"], tuple(value["run_ids"]), value.get("active_owner_key"))
+
+
 @dataclass
 class Session:
     """A conversation session.
@@ -67,6 +99,7 @@ class Session:
     template_id: str | None = None
     template_parameters: dict[str, Any] = field(default_factory=dict)
     export_metadata: dict[str, Any] = field(default_factory=dict)
+    accounting: SessionAccountingReference | None = None
     # Disk concurrency/recovery state is deliberately absent from portable exports.
     _storage_token: str | None = field(default=None, init=False, repr=False, compare=False)
     _storage_path: str | None = field(default=None, init=False, repr=False, compare=False)
@@ -98,6 +131,7 @@ class Session:
             "template_id": self.template_id,
             "template_parameters": self.template_parameters,
             "export_metadata": self.export_metadata,
+            **({"accounting": self.accounting.to_dict()} if self.accounting is not None else {}),
         }, self.evidence_redactor)
 
     def to_json(self: Session) -> str:
@@ -160,6 +194,7 @@ def session_from_dict(data: dict[str, Any]) -> Session:
         template_id=data.get("template_id"),
         template_parameters=data.get("template_parameters", {}),
         export_metadata=data.get("export_metadata", {}),
+        accounting=SessionAccountingReference.from_dict(data["accounting"]) if data.get("accounting") is not None else None,
     )
 
 

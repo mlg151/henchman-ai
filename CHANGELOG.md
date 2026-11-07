@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Durable accounting foundation** — SQLite run state commits dispatch claims
+  before provider I/O, retains unknown consumption across crashes, and reconciles
+  cumulative usage without double counting. Session bindings survive transcript
+  backup rollback; incompatible clock domains and invalid stores fail closed.
+  Automatic runtime lifecycle activation remains in progress under #24.
+
 - **Live scoped instructions** — Primary and delegated agents refresh repository
   guidance before requests and supported tool dispatch. Changed target guidance
   defers mutations until the model receives it, including generated test outputs,
