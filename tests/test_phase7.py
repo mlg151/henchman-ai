@@ -6,13 +6,6 @@ from unittest.mock import MagicMock
 # Add src to path
 sys.path.append(str(Path.cwd() / "src"))
 
-# Mock dependencies
-mcp_mock = MagicMock()
-sys.modules["mcp"] = mcp_mock
-sys.modules["mcp.client"] = mcp_mock
-sys.modules["mcp.client.stdio"] = mcp_mock
-sys.modules["mcp.types"] = mcp_mock
-
 from henchman.cli.console import AsyncOutputRenderer, OutputRenderer  # noqa: E402
 from henchman.tools.builtins.file_read import ReadFileTool  # noqa: E402
 

@@ -6,15 +6,6 @@ from unittest.mock import MagicMock, patch
 # Add src to path
 sys.path.append(str(Path.cwd() / "src"))
 
-# Mock mcp module to avoid ImportError
-mcp_mock = MagicMock()
-sys.modules["mcp"] = mcp_mock
-sys.modules["mcp.client"] = mcp_mock
-sys.modules["mcp.client.stdio"] = mcp_mock
-sys.modules["mcp.types"] = mcp_mock
-
-sys.modules["mcp.types"] = mcp_mock
-
 from henchman.cli.ui_renderer import ProgressManager  # noqa: E402
 
 
