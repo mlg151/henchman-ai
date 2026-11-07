@@ -236,9 +236,21 @@ async def test_real_coding_loop_recovers_from_failed_test_and_edit(
     assert "1 passed" in results[4]["result"]
     # Each adapter must send the real previous result back to the model.
     for index, result in enumerate(results, 1):
-        encoded = json.dumps(requests[index]["messages"])
-        assert json.dumps(result["result"])[1:-1] in encoded
-        assert result["tool_call_id"] in encoded
+        message = requests[index]["messages"][-1]
+        if provider_name == "anthropic":
+            block = message["content"][-1]
+            assert block["tool_use_id"] == result["tool_call_id"]
+            wire = block["content"]
+            assert bool(block.get("is_error")) is not result["success"]
+        else:
+            assert message["tool_call_id"] == result["tool_call_id"]
+            wire = message["content"]
+        if result.get("tool_result") is not None:
+            observed = json.loads(wire)["tool_result"]
+            assert observed["content"] == result["result"]
+            assert observed["success"] is result["success"]
+        else:
+            assert wire == result["result"]
     assert len([event for event in events if event["type"] == "finished"]) == 1
     assert events[-1]["type"] == "finished"
     finish = events[-1]["data"]
