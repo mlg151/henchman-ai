@@ -33,7 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revision-bound file/hunk review, conflict-checked POSIX restore and durable
   recovery preserve unrelated work and the Git index. Private bounded retention
   preserves displaced originals; unsupported or known-secret content cannot be
-  restored. Runtime, UI and Windows integration remain under #22. See
+  restored. Shared CLI and interactive `/checkpoint` commands expose review,
+  preview, apply, recovery and retention. Runtime capture, dedicated UI and Windows
+  integration remain under #22. See
   [checkpoint limits and recovery](docs/checkpoints.md).
 
 - **Provider schema projections** — All five adapters now expand supported local

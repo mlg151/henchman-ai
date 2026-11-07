@@ -882,6 +882,7 @@ cli.add_command(serve_command)
 from henchman.cli.commands.agents_platform_command import (  # noqa: E402
     register_agents_platform_command,
 )
+from henchman.cli.commands.checkpoint import create_checkpoint_command  # noqa: E402
 from henchman.cli.commands.config_command import register_config_command  # noqa: E402
 from henchman.cli.commands.doctor_command import register_doctor_command  # noqa: E402
 from henchman.cli.commands.git_command import register_git_commands  # noqa: E402
@@ -907,6 +908,7 @@ from henchman.cli.commands.voice_command import register_voice_command  # noqa: 
 
 register_agents_platform_command(cli)
 register_config_command(cli)
+cli.add_command(create_checkpoint_command())
 register_doctor_command(cli)
 register_git_commands(cli)
 register_help_command(cli)

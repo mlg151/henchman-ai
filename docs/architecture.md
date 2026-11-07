@@ -2,6 +2,11 @@
 
 ## Overview
 
+The [checkpoint service](checkpoints.md) owns scoped content capture and durable
+conflict-checked POSIX restore. CLI, REPL and Textual command input share its user
+adapter. Automatic mutation ownership and verification invalidation remain
+separate integration work; conversation rewind does not restore workspace files.
+
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 
 This architecture includes both shipped runtime paths and narrower integration seams. The shared discovery capability matrix is authoritative: local skills are local-only; integration blueprints (including Slack) are export-only; `schedule_cron` is metadata-only; remote agent/plugin installs are unavailable; the GitHub webhook helper is docs-only; and Tier 10 dialogs are intentionally absent from generic discovery even though they ship inside `henchman chat --tui`.

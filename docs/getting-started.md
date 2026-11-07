@@ -1,5 +1,10 @@
 # Getting Started
 
+For API-created content captures, `henchman checkpoint` and interactive
+`/checkpoint` share file/hunk review, preview, apply and interrupted-restore
+recovery. See [commands and current platform limits](checkpoints.md#user-commands).
+Automatic agent capture remains pending.
+
 ## Textual input and reading history
 
 In the Textual UI, Enter or Ctrl+Enter submits a draft; Shift+Enter or Ctrl+J

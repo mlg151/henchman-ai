@@ -1,10 +1,35 @@
 # Content checkpoints
 
 The content checkpoint service is a foundation for [#22](https://github.com/mlg151/henchman-ai/issues/22).
-It currently exposes a Python API with a POSIX restore backend. Runtime ownership
-capture, CLI/REPL/Textual review controls, verification invalidation wiring, and a
-Windows backend remain required. Existing Tungsten metadata snapshots are explicitly
+It exposes a Python API and shared user commands with a POSIX restore backend.
+Runtime ownership capture, dedicated Textual navigation, verification invalidation
+wiring, and a Windows backend remain required. Existing Tungsten metadata snapshots are explicitly
 versioned, non-restorable records; they cannot reconstruct file contents.
+
+## User commands
+
+Use `henchman checkpoint` from the CLI or `/checkpoint` in the REPL/Textual command
+input. All three use the same service and return structured JSON:
+
+```text
+henchman checkpoint list
+henchman checkpoint show CHECKPOINT_ID
+henchman checkpoint preview CHECKPOINT_ID reject --path src/example.py --hunk 0
+henchman checkpoint apply PLAN_ID
+henchman checkpoint recover PLAN_ID
+henchman checkpoint discard CHECKPOINT_ID
+henchman checkpoint prune
+```
+
+`preview` accepts `accept` or `reject`, repeated `--path` selections, or repeated
+`--hunk` indices for exactly one path. Omitting selections covers the full captured
+scope. It returns a plan ID without changing files; `apply` performs the recorded
+decision after conflict checks. `list` includes pending recovery IDs. `show`
+reports unsupported files and bounds displayed text to 65,536 characters/256 hunks,
+with explicit truncation/omission fields. Display limits never change stored bytes
+or restore decisions. `discard` permanently removes that capture and its retained
+originals unless a restore is pending. These commands review captures created by
+the API; automatic agent capture remains pending.
 
 ## Capture and review
 

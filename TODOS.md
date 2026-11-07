@@ -12,7 +12,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - [Content checkpoints](docs/checkpoints.md) now provide a tested standalone
   POSIX capture/review/restore service with private retention and crash recovery.
-  Runtime ownership, CLI/REPL/TUI controls, check invalidation and Windows support
+  CLI and interactive `/checkpoint` share review/preview/apply/recovery/retention.
+  Runtime ownership, dedicated review navigation, check invalidation and Windows support
   remain open under #22; legacy metadata snapshots are explicitly non-restorable.
 
 - Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.

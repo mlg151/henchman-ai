@@ -10,6 +10,7 @@ from typing import Any
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.agent import AgentCommand
 from henchman.cli.commands.chat import ChatCommand
+from henchman.cli.commands.checkpoint import CheckpointCommand
 from henchman.cli.commands.context import ContextCommand
 from henchman.cli.commands.goal import GoalCommand
 from henchman.cli.commands.mcp import McpCommand
@@ -372,5 +373,6 @@ def get_builtin_commands() -> list[Command]:
         ContextCommand(),
         RuntimeConfigCommand(),
         UsageCommand(),
+        CheckpointCommand(),
         RuntimeDoctorCommand(),
     ]

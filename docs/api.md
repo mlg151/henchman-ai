@@ -2,8 +2,9 @@
 
 This page provides API reference for the main Henchman-AI modules.
 
-The standalone [content checkpoint API](checkpoints.md) provides scoped capture,
-review and recoverable POSIX restore; runtime and UI integration remain pending.
+The [content checkpoint API and commands](checkpoints.md) provide scoped capture,
+review and recoverable POSIX restore; automatic capture and dedicated UI navigation
+remain pending.
 
 ## HTTP service health
 

@@ -44,6 +44,18 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="content checkpoints",
+        classification="runtime-wired",
+        summary="User checkpoint commands review captured file/hunk changes and preview decisions.",
+        detail=(
+            "CLI checkpoint and interactive /checkpoint share list/show/preview/apply/recover/discard/prune. "
+            "Captured content is revision-bound and POSIX restore conflicts on intervening edits. "
+            "Runtime capture, automatic verification invalidation, dedicated TUI navigation and Windows "
+            "restore remain pending. Legacy hash snapshots are non-restorable."
+        ),
+        aliases=("/checkpoint", "checkpoint", "file review", "hunk review", "restore"),
+    ),
+    _CapabilitySpec(
         name="task usage",
         classification="runtime-wired",
         summary="/usage shows shared task budgets with separate estimates and reported billing.",
