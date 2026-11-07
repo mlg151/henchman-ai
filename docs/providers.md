@@ -340,8 +340,11 @@ from explicitly supplied provider billing. Summaries keep currencies separate an
 mark totals incomplete when any recorded cost is unknown. Historical synthetic
 cost records lack trustworthy provenance and are treated as unknown.
 
-This is provider-boundary accounting. Agent-event provenance propagation,
-run-wide aggregation, shared budget enforcement, retry accounting and persisted
+Agent completion events retain `usage_source` whenever they include counts, so
+an estimate cannot become reported usage by passing through the agent loop.
+Configured providers also retain their exact configuration identity for price
+lookup; aliases sharing one adapter do not silently share a price catalog.
+Run-wide aggregation, shared budget enforcement, retry accounting and persisted
 reconciliation remain tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
 ### Run ledger foundation
@@ -364,6 +367,8 @@ of the caller's decimal precision. Snapshots label accounting as `process` lifet
 This component does not persist or restore reservations, wrap SDK retries, impose
 provider output caps, or guarantee the bill for an already-started remote request.
 Live integration and durable reconciliation remain open under #24.
+`BudgetExceeded` propagates through agent preparation, streaming and legacy
+delegation instead of becoming a recoverable provider error or delegation retry.
 
 ### Headless coding workflows
 

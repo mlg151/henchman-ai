@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Budget stop propagation** — Agent and legacy delegation loops preserve
+  `BudgetExceeded` without wrapping it into retryable errors. Completion events
+  retain usage provenance, and configured provider aliases retain their identity
+  for exact price lookup outside SDK request options.
+
 - **Shared run ledger foundation** — An in-memory ledger atomically reserves and
   claims request/token/time/optional-money capacity, separates reported usage and
   billing from configured estimates, and retains uncertain started attempts on

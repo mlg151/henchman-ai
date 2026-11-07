@@ -120,6 +120,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_delegation_error_isolation.py",
         "tests/agents/test_team_tool_discovery.py",
         "tests/agents/test_run_completion_scope.py",
+        "tests/agents/test_budget_exhaustion.py",
         "tests/agents/test_delegation_policies.py",
         "tests/providers/stream_helpers.py",
         "tests/providers/test_stream_safety.py",

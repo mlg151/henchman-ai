@@ -16,6 +16,7 @@ from henchman.agents.orchestrator_execution import _close_stream, closing_event_
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetExceeded
 
 from .orchestrator_anchoring import (
     _enrich_completion_from_report,
@@ -774,6 +775,9 @@ async def _execute_loop(
     try:
         async for event in agent_loop_result:
             yield event
+    except BudgetExceeded as exc:
+        primary_error = exc
+        raise
     except Exception as exc:
         primary_error = exc
         msg = (
@@ -977,6 +981,9 @@ class DelegationRunner:
         try:
             async for event in stream:
                 yield event
+        except BudgetExceeded as exc:
+            primary_error = exc
+            raise
         except Exception as exc:  # noqa: BLE001
             primary_error = exc
             yield self._make_error_event(

@@ -18,6 +18,7 @@ from henchman.core.agent_streaming import (
     record_message,
 )
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetExceeded
 from henchman.core.tool_selection import prepare_agent_request
 from henchman.core.turn import TurnState
 from henchman.providers.base import Message, ModelProvider
@@ -176,7 +177,7 @@ def _build_outer_finished_event(
     fr = state.finish_reason if state else None
     finish_data: str | dict[str, Any] = fr.value if fr else "Agent completed execution"
     if state and state.usage:
-        finish_data = {"finish_reason": finish_data, "usage": state.usage}
+        finish_data = {"finish_reason": finish_data, "usage": state.usage, "usage_source": state.usage_source}
     return AgentEvent(type=EventType.FINISHED, data=finish_data, source_agent=source_agent)
 
 
@@ -745,6 +746,8 @@ class Agent:
                     )
                     continue
                 break
+            except BudgetExceeded:
+                raise
             except Exception as exc:  # noqa: BLE001
                 yield self._emit(EventType.ERROR, f"Streaming failed: {exc}")
                 break

@@ -103,6 +103,9 @@ class StreamChunk:
 class ModelProvider(ABC):
     """Abstract base class for model providers."""
 
+    _accounting_provider_name: str | None = None
+    """Configured catalog identity, separate from shared adapter and SDK options."""
+
     def required_tool_names(self) -> list[str]:
         """Return named schemas that must survive optional catalog reduction."""
         return []
