@@ -526,6 +526,21 @@ class Tool(ABC):
         """Execute the tool."""
 ```
 
+### Local schema validation
+
+`SchemaContract(schema).validate(value)` validates a detached 2020-12 contract
+without modifying the schema or value. `validate_tool_input(parameters, arguments)`
+provides the same check for tool inputs; failures raise `SchemaContractError`
+with a value-free diagnostic. See the [supported bounds and reference rules](standards.md#local-schema-contract-foundation).
+
+```python
+from henchman.tools.contracts import SchemaContract
+
+contract = SchemaContract({"type": "object", "properties": {"label": {"type": ["string", "null"]}}})
+contract.validate({})              # Omitted stays omitted.
+contract.validate({"label": None}) # Explicit null stays null.
+```
+
 ### ToolKind
 
 ```python

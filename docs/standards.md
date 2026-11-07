@@ -88,6 +88,29 @@ logging coverage. Native/fresh artifact qualification, canonical schemas,
 pagination, refresh and typed results remain under #21; SDK migration remains
 under #25. The original research gap table above stays pinned to its baseline.
 
+### Local schema contract foundation
+
+`henchman.tools.contracts.SchemaContract` snapshots and validates the canonical
+2020-12 dialect using `jsonschema>=4.23,<5` and an explicitly non-retrieving
+`referencing` registry. Inputs are never coerced and defaults are never inserted;
+missing properties remain distinct from explicit null. Output validation supports
+objects, arrays, scalars and null. Local pointers/anchors and productive recursive
+definitions are supported; dangling references, external references, resource IDs,
+custom vocabularies and other declared dialects fail explicitly. See the
+[validator's reference API](https://python-jsonschema.readthedocs.io/en/stable/referencing/).
+
+Schemas are limited to 64 KiB of serialized JSON; values to 1 MiB, depth 64 and
+16,384 nodes. Validation has a cooperative work/deadline budget. Regex support is
+deliberately restricted to literals/classes with at most one quantified atom,
+anchored at the start when quantified; groups, alternatives and backreferences
+are rejected. `format` remains an annotation. Unsupported contracts produce
+value-free diagnostics instead of changing meaning or disclosing rejected input.
+The original schema snapshot remains separate from its validation copy.
+
+This foundation does not complete provider projections, MCP pagination/refresh,
+typed result preservation or runtime-wide registration/output validation. Those
+remain required for #21/P1.
+
 ### Remaining phase gates
 
 All items below remain **implementation work**. Each phase should ship with focused tests and nearest-reference documentation; maintain roadmap state and changelog when behavior changes.

@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Local tool schema contracts** — Added bounded JSON Schema 2020-12 validation
+  with immutable schema snapshots, local references, missing/null preservation,
+  scalar/array outputs and value-free failures. Unsupported resource scopes and
+  regex forms fail explicitly; no remote references are fetched. Provider/MCP
+  integration remains under #21.
+
 - **MCP credential lifecycle** — Whole-value environment references resolve once
   before server startup; missing references fail explicitly. Token, reference and
   server configuration changes invalidate retained dispatch handles. Auth files

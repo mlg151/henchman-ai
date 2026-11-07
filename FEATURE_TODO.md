@@ -100,6 +100,10 @@ session evidence binding and task-owned SDK cleanup have focused regressions; se
 [credentials and connection lifetime](docs/mcp.md#credentials-and-connection-lifetime).
 Native qualification and the remaining schema/discovery/result work stay open
 under #21; modern SDK/transport migration stays under #25.
+The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
+now validates bounded 2020-12 contracts without coercion or remote reference
+retrieval. Runtime registration/output coverage, explicit provider projections
+and MCP fidelity remain in progress.
 Automatic compaction now respects the configured disable flag across primary,
 specialist, dynamic child and API agents while retaining explicit hard-capacity
 checks. Broader context/UI consumption remains under #14.
