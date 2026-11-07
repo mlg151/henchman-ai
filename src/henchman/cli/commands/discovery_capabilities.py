@@ -188,7 +188,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "Explicit refresh replaces the connected tool catalog without expanding scoped allowlists. "
             "Pinned SDK 2.3.0 supports tested legacy and 2026-07-28 stdio with bounded frames and "
             "single-dispatch tool calls. Bounded unauthenticated Streamable HTTP supports JSON/SSE from "
-            "2025-03-26 through 2026-07-28. Active SDK telemetry is refused; OAuth/resources/prompts remain pending."
+            "2025-03-26 through 2026-07-28. Interactive resources/templates/prompts/read/prompt commands "
+            "explicitly preview bounded untrusted context without changing conversation history. "
+            "Active SDK telemetry is refused; OAuth and context attachment remain pending."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

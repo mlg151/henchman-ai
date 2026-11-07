@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from typing import Self, TextIO
 
     from henchman.config.schema import McpServerConfig
+    from henchman.mcp.context import McpContextCatalog, McpContextResult
     from henchman.mcp.protocol import McpProtocolSession
 
 
@@ -305,6 +306,9 @@ class McpClient:
         self._invalid_reason: str | None = None
         self.catalog_generation = 0
         self._discovery_lock = asyncio.Lock()
+        self.connection_generation = 0
+        from henchman.mcp.context import McpContextService
+        self._context = McpContextService(self)
 
     @property
     def is_connected(self: Self) -> bool:
@@ -455,6 +459,8 @@ class McpClient:
             try:
                 self._check_credentials()
                 self._session = await self._open_session(stack)
+                self.connection_generation += 1
+                self._context.clear()
                 self._check_credentials()
                 await self.discover_tools()
                 self._check_credentials()
@@ -478,6 +484,7 @@ class McpClient:
             self._connection_environment = None
             self.protocol_version = None
             self._tools = []
+            self._context.clear()
 
     async def disconnect(self: Self) -> None:
         """Disconnect from the MCP server.
@@ -544,6 +551,9 @@ class McpClient:
         session = self._session
         if session is None:
             return []
+        from henchman.mcp.protocol import McpProtocolSession
+        if isinstance(session, McpProtocolSession) and not session.supports("tools"):
+            return []
         tools: list[McpToolDefinition] = []
         names: set[str] = set()
         cursors: set[str] = set()
@@ -604,6 +614,26 @@ class McpClient:
             List of tool definitions.
         """
         return copy.deepcopy(self._tools)
+
+    async def list_resources(self) -> McpContextCatalog:
+        """Explicitly refresh this server's resource catalog."""
+        return await self._context.list("resources")
+
+    async def list_resource_templates(self) -> McpContextCatalog:
+        """Explicitly refresh template descriptions without expanding any URI."""
+        return await self._context.list("templates")
+
+    async def list_prompts(self) -> McpContextCatalog:
+        """Explicitly refresh prompt declarations without using their content."""
+        return await self._context.list("prompts")
+
+    async def read_resource(self, uri: str) -> McpContextResult:
+        """Read an opaque resource URI exclusively through this server."""
+        return await self._context.read(uri)
+
+    async def get_prompt(self, name: str, arguments: dict[str, str]) -> McpContextResult:
+        """Retrieve a declared prompt as data without changing conversation state."""
+        return await self._context.prompt(name, arguments)
 
     async def call_tool(
         self: Self,

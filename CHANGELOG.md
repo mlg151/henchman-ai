@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit MCP context previews** — Interactive resource/template/prompt
+  catalogs and retrieval preserve bounded typed data and source provenance without
+  changing conversation history. Single dispatch rejects unsupported continuation
+  before legacy SDK normalization; markup and binary previews stay explicit.
+
 - **Versioned background-task authority** — Locked per-task updates preserve
   concurrent records and commit launch intent before dispatch. Unowned unresolved
   jobs retain unknown outcomes without log replacement or replay; unresolved

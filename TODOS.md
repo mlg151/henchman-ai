@@ -85,7 +85,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   bounded repair and live evaluation remain open; see
   [verification freshness](docs/tools.md#declared-input-freshness).
 
-- #21/#25 transport/schema foundations and remaining qualification gates are
+- #21/#25 transport/schema foundations now include explicit resource/template/
+  prompt previews, with bounded retrieval and no history/instruction changes.
+  OAuth, conversation attachment and remaining qualification gates are
   recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 

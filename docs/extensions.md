@@ -20,6 +20,10 @@ Extensions can provide:
 
 **Note**: Custom provider extensions are not currently supported. Use the built-in provider system instead.
 
+[MCP resource and prompt previews](mcp.md#resource-and-prompt-previews) use an
+explicit retrieval path. Their remote contents and roles are displayed as
+untrusted data and never enter extension `get_context()` or system instructions.
+
 ## Creating Extensions
 
 ### Extension Base Class

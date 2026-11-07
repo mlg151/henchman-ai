@@ -116,6 +116,7 @@ class CommandProcessor:
             repl=repl,
             registry=self.command_registry,
             settings=getattr(repl, "settings", None),
+            raw_input=input_text,
         )
         # Add session_manager and project_hash for /chat command
         # Handle both ReplSessionManager and any wrapper that has a session_manager attribute

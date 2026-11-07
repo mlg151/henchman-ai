@@ -16,6 +16,9 @@ class HttpPeer:
         self.behavior = "complete"
         self.cleanup_behavior = "complete"
         self.delays = {}
+        self.capabilities = {"tools": {}}
+        self.context_pages = {}
+        self.context_results = {}
         self.ssl_context = ssl_context
         self.pages = {"": {"tools": [{"name": "effect", "inputSchema": {
             "type": "object", "properties": {"region": {"type": "string", "x-mcp-header": "region"}},
@@ -81,17 +84,21 @@ class HttpPeer:
                 return
             if method == "server/discover":
                 if self.version == "2026-07-28":
-                    result = {"supportedVersions": [self.version], "capabilities": {"tools": {}}}
+                    result = {"supportedVersions": [self.version], "capabilities": self.capabilities}
                 else:
                     error = {"code": -32601, "message": "Method not found"}
             elif method == "initialize":
-                result = {"protocolVersion": self.version, "capabilities": {"tools": {}},
+                result = {"protocolVersion": self.version, "capabilities": self.capabilities,
                           "serverInfo": {"name": "independent-http", "version": "1"}}
                 extra_headers["Mcp-Session-Id"] = "fixture-session-private"
             elif method == "tools/list":
                 cursor = request.get("params", {}).get("cursor", "")
                 result = dict(self.pages[cursor])
                 extra_headers["Set-Cookie"] = "unwanted=private-cookie; Path=/"
+            elif method in self.context_pages:
+                result = dict(self.context_pages[method][request.get("params", {}).get("cursor", "")])
+            elif method in self.context_results:
+                result = dict(self.context_results[method])
             elif method == "tools/call":
                 self.effects += 1
                 if self.behavior == "accepted_without_result":
@@ -136,8 +143,8 @@ class HttpPeer:
             else:
                 error = {"code": -32601, "message": "Method not found"}
             if error is None and self.version == "2026-07-28":
-                result["resultType"] = "complete"
-                if method in {"server/discover", "tools/list"}:
+                result.setdefault("resultType", "complete")
+                if method in {"server/discover", "tools/list", "resources/list", "resources/templates/list", "resources/read", "prompts/list"}:
                     result.update({"ttlMs": 0, "cacheScope": "private"})
             response = {"jsonrpc": "2.0", "id": request["id"]}
             if self.behavior == "wrong_id":

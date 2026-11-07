@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 from collections.abc import Callable
-from contextlib import AsyncExitStack
-from typing import Any, Protocol, TextIO
+from contextlib import AsyncExitStack, suppress
+from typing import Annotated, Any, Protocol, TextIO, TypeVar
 
 import anyio
+from mcp.client.session import _clamp_inbound_ttl, _later_revision_fields
+from mcp.shared.dispatcher import CallOptions
 from mcp.shared.exceptions import MCPError
-from mcp.shared.inbound import find_invalid_x_mcp_header, x_mcp_header_map
+from mcp.shared.inbound import (
+    MCP_NAME_HEADER,
+    encode_header_value,
+    find_invalid_x_mcp_header,
+    x_mcp_header_map,
+)
+from mcp_types import methods
 from opentelemetry import propagate, trace
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, BeforeValidator, TypeAdapter, ValidationError
 
 from henchman.mcp.stdio_transport import StdioState, bounded_stdio_client
 from henchman.tools.contracts import SchemaContractError
@@ -26,6 +35,7 @@ CATALOG_TIMEOUT_SECONDS = 60.0
 _TOOL_RESULT: TypeAdapter[types.CallToolResult | types.InputRequiredResult] = TypeAdapter(
     types.CallToolResult | types.InputRequiredResult,
 )
+_ResultT = TypeVar("_ResultT", bound=BaseModel)
 
 
 class _ConnectionState(Protocol):
@@ -34,6 +44,21 @@ class _ConnectionState(Protocol):
 
     @property
     def closed(self) -> bool: ...
+
+
+def _context_resource_forms(value: Any) -> Any:
+    """Reject ambiguous resources before SDK union models discard extra fields."""
+    if isinstance(value, dict):
+        contents = list(value.get("contents", [])) if isinstance(value.get("contents"), list) else []
+        for message in value.get("messages", []) if isinstance(value.get("messages"), list) else []:
+            if isinstance(message, dict) and isinstance(message.get("content"), dict):
+                block = message["content"]
+                if block.get("type") == "resource":
+                    contents.append(block.get("resource"))
+        for content in contents:
+            if isinstance(content, dict) and "text" in content and "blob" in content:
+                raise SchemaContractError("mcp_context_resource_shape")
+    return value
 
 
 def require_private_sdk() -> None:
@@ -61,6 +86,76 @@ class McpProtocolSession:
         self.session = session
         self.state = state
         self.request_timeout = request_timeout
+        capabilities = session.server_capabilities
+        self._capabilities = capabilities.model_dump(mode="json", by_alias=True, exclude_none=True) if capabilities is not None else {}
+
+    def supports(self, feature: str) -> bool:
+        """Read the capabilities captured at negotiation, not later remote hints."""
+        return feature in self._capabilities
+
+    async def _send_request(
+        self, request: types.Request[Any, Any], result_type: type[_ResultT] | TypeAdapter[_ResultT],
+    ) -> _ResultT:
+        """Check terminal results before SDK 2.3 removes later-revision fields.
+
+        Preserve the pinned SDK's header stamping, dispatcher cancellation,
+        revision validation and parsing, without its lossy continuation handling.
+        This adapter deliberately exposes no resumption or retry options.
+        """
+        data = request.model_dump(by_alias=True, mode="json", exclude_none=True)
+        method = data["method"]
+        options: CallOptions = {}
+        self.session._stamp(data, options)
+        headers = options.setdefault("headers", {})
+        if (key := type(request).name_param) is not None and MCP_NAME_HEADER not in headers:
+            name = (data.get("params") or {}).get(key)
+            if not isinstance(name, str):
+                raise SchemaContractError("mcp_request_name")
+            headers[MCP_NAME_HEADER] = encode_header_value(name)
+        options["timeout"] = self.request_timeout
+        raw = await self.session._dispatcher.send_raw_request(method, data.get("params"), options)
+        if (raw.get("resultType", "complete") != "complete"
+            or "inputRequests" in raw or "requestState" in raw):
+            raise RuntimeError("MCP input_required or other continuation is unsupported; no automatic replay")
+        _clamp_inbound_ttl(raw)
+        version = self.session.protocol_version or "2025-11-25"
+        with suppress(KeyError):
+            methods.validate_server_result(method, version, raw)
+        foreign = _later_revision_fields(method, version)
+        if not foreign.isdisjoint(raw):
+            raw = {key: value for key, value in raw.items() if key not in foreign}
+        if isinstance(result_type, TypeAdapter):
+            return result_type.validate_python(raw, by_name=False)
+        return result_type.model_validate(raw, by_name=False)
+
+    async def request_context(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Send one typed context request without automatic continuation or retry."""
+        contracts: dict[str, tuple[Any, Any]] = {
+            "resources/list": (types.ListResourcesRequest, types.ListResourcesResult),
+            "resources/templates/list": (types.ListResourceTemplatesRequest, types.ListResourceTemplatesResult),
+            "prompts/list": (types.ListPromptsRequest, types.ListPromptsResult),
+            "resources/read": (types.ReadResourceRequest, TypeAdapter(Annotated[types.ReadResourceResult | types.InputRequiredResult, BeforeValidator(_context_resource_forms)])),
+            "prompts/get": (types.GetPromptRequest, TypeAdapter(Annotated[types.GetPromptResult | types.InputRequiredResult, BeforeValidator(_context_resource_forms)])),
+        }
+        if method not in contracts:
+            raise RuntimeError("Unsupported MCP context operation")
+        request_type, result_type = contracts[method]
+        require_private_sdk()
+        try:
+            request = request_type.model_validate({"method": method, "params": copy.deepcopy(params)})
+            with anyio.fail_after(self.request_timeout):
+                result = await self._send_request(request, result_type)
+        except TimeoutError:
+            raise RuntimeError("MCP context request deadline exceeded; no automatic retry") from None
+        except ValidationError:
+            raise SchemaContractError("mcp_context_shape") from None
+        except MCPError:
+            if self.state.failure is not None:
+                raise self.state.failure from None
+            raise RuntimeError("MCP context request failed; remote error details withheld") from None
+        if isinstance(result, types.InputRequiredResult) or result.result_type != "complete":
+            raise RuntimeError("MCP input_required continuation is unsupported; no automatic retry")
+        return copy.deepcopy(result.model_dump(mode="json", by_alias=True, exclude_unset=True))
 
     @property
     def is_connected(self) -> bool:
@@ -78,7 +173,7 @@ class McpProtocolSession:
             # entries and mutates caches before the complete catalog is valid.
             # Stdio needs no HTTP header maps; retain our atomic publication.
             with anyio.fail_after(self.request_timeout):
-                result = await self.session.send_request(
+                result = await self._send_request(
                     types.ListToolsRequest(
                         params=types.PaginatedRequestParams(cursor=cursor) if cursor is not None else None,
                     ),
@@ -100,7 +195,7 @@ class McpProtocolSession:
         require_private_sdk()
         try:
             with anyio.fail_after(self.request_timeout):
-                result = await self.session.send_request(
+                result = await self._send_request(
                     types.CallToolRequest(params=types.CallToolRequestParams(name=name, arguments=arguments)),
                     _TOOL_RESULT,
                 )

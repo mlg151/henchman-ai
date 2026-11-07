@@ -23,6 +23,7 @@ _NativeMcpClient = McpClient
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.mcp.client import McpToolDefinition
+    from henchman.mcp.context import McpContextCatalog, McpContextResult
     from henchman.tools.registry import ToolRegistry
 
 
@@ -187,6 +188,10 @@ class McpManager:
 
             client = self._client_factory(server_name, config, self._verbose)
             if isinstance(client, _NativeMcpClient):
+                # The native owner increments on successful negotiation. Seed
+                # it from this manager so replacement clients cannot reuse a
+                # prior connection's context provenance generation.
+                client.connection_generation = generation - 1
                 client.set_dispatch_guard(guard)
                 if self._access_guard is not None:
                     client.set_access_guard(self._access_guard)
@@ -379,6 +384,35 @@ class McpManager:
             List of server name strings.
         """
         return list(self.configs.keys())
+
+    def _context_client(self, server_name: str) -> McpClient:
+        """Require the current native connection without connecting implicitly."""
+        if not self._connection_valid(server_name):
+            raise RuntimeError("MCP server is not connected; connect before retrieving context")
+        client = self.clients[server_name]
+        if not isinstance(client, _NativeMcpClient):
+            raise RuntimeError("This MCP client does not support context retrieval")
+        return client
+
+    async def list_resources(self, server_name: str) -> McpContextCatalog:
+        """Explicitly refresh one connected server's resource catalog."""
+        return await self._context_client(server_name).list_resources()
+
+    async def list_resource_templates(self, server_name: str) -> McpContextCatalog:
+        """Explicitly refresh one server's URI template descriptions."""
+        return await self._context_client(server_name).list_resource_templates()
+
+    async def list_prompts(self, server_name: str) -> McpContextCatalog:
+        """Explicitly refresh one connected server's prompt catalog."""
+        return await self._context_client(server_name).list_prompts()
+
+    async def read_resource(self, server_name: str, uri: str) -> McpContextResult:
+        """Retrieve data from an explicitly selected server and opaque URI."""
+        return await self._context_client(server_name).read_resource(uri)
+
+    async def get_prompt(self, server_name: str, name: str, arguments: dict[str, str]) -> McpContextResult:
+        """Retrieve a previously discovered prompt as untrusted data."""
+        return await self._context_client(server_name).get_prompt(name, arguments)
 
     def is_trusted(self, server_name: str) -> bool:
         """Check whether a configured server is trusted.

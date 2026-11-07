@@ -7,7 +7,8 @@ MCP is classified as runtime-wired only when both the `mcp` and `mcp_auth` tools
 The client pins MCP SDK 2.3.0 and tests stdio revisions 2024-11-05, 2025-03-26,
 2025-06-18, 2025-11-25 and 2026-07-28. Streamable HTTP supports the latter four
 revisions with JSON and SSE responses through an owned bounded transport. The SDK
-negotiates modern discovery or legacy initialization. OAuth, resources and prompts
+negotiates modern discovery or legacy initialization. Explicit resource and prompt
+previews are available in interactive frontends; OAuth and conversation attachment
 remain [roadmap work](standards.md#mcp-adoption-details). These tested subsets do
 not establish complete protocol conformance.
 
@@ -103,7 +104,8 @@ The native stdio connection owns its SDK contexts in one lifecycle task, so
 startup, calls and shutdown may originate from different application tasks.
 Failed or cancelled startup and shutdown join owned transport cleanup. This is
 part of the [stdio compatibility foundation](standards.md#implemented-compatibility-foundation-v042-work);
-HTTP authentication and resource/prompt retrieval remain separate roadmap work.
+HTTP authentication remains separate roadmap work. Context retrieval uses the
+same connection and access guards described below.
 
 ### Stdio wire limits and telemetry
 
@@ -123,6 +125,9 @@ Tool dispatch uses one typed request. It does not enter SDK automatic header
 mismatch replay or multi-round input continuation; `input_required` is explicitly
 unsupported. An ambiguous transport failure reports that the outcome may be
 unknown. It does not establish that effects were undone.
+The adapter rejects continuation fields before the pinned SDK can strip fields
+from a later revision, including mixed results and omitted `resultType` tags.
+This applies to tools, resources and prompts without replaying a request.
 
 SDK 2.3 has no public telemetry-off switch. A configured tracer provider or active
 outbound trace/baggage propagation therefore blocks connection and dispatch with
@@ -196,6 +201,39 @@ mcp_servers:
 - Default behavior
 
 ## Commands
+
+### Resource and prompt previews
+
+The REPL and Textual share explicit commands for a currently connected server:
+
+```text
+/mcp resources <server>
+/mcp templates <server>
+/mcp read <server> <uri>
+/mcp prompts <server>
+/mcp prompt <server> <name> {"argument":"value with spaces"}
+```
+
+The three list commands refresh only the selected catalog. Resource URIs are
+passed to that server as opaque identifiers; Henchman does not open local files,
+follow links, fetch icons or expand templates. Prompt retrieval requires an
+explicitly fetched current declaration and validates required/unknown arguments
+before dispatch. Argument values must be strings; JSON string whitespace is
+preserved. Resource-only and prompt-only servers need not expose tools.
+
+Previews show untrusted data with source, negotiated protocol, connection/catalog
+generation and retrieval arguments. Native typed content remains available to
+the API caller; interactive output redacts registered credentials, summarizes
+binary media and renders markup literally. Prompt roles are displayed as data.
+Preview does not append messages, change instructions, invoke a model, or attach
+content to a session. Conversation attachment and OAuth remain pending.
+
+Catalogs retain at most 32 pages, 1,024 entries and 4 MiB, with the configured
+catalog deadline including lock waits (default 60 seconds). Results retain at
+most 256 blocks and pass the 1 MiB contract bound; requests use the configured
+deadline (default 30 seconds). Invalid pages preserve the previous catalog.
+Retrieval rechecks connection, credentials and access policy, without implicit
+connection, refresh, subscriptions, completion or multi-round replay.
 
 ### Refresh a connected catalog
 

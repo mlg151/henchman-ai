@@ -106,9 +106,14 @@ async def test_negotiation_preserves_null_arguments_and_never_injects_trace_meta
         await client.disconnect()
 
 
-@pytest.mark.parametrize("behavior", ["header_mismatch", "input_required", "mixed_input_required", "disconnect"])
-async def test_tool_failure_or_continuation_never_replays_an_effect(tmp_path, behavior):
-    client, transcript = fixture(tmp_path, behavior=behavior)
+@pytest.mark.parametrize("version,behavior", [
+    ("2026-07-28", "header_mismatch"), ("2026-07-28", "input_required"),
+    ("2026-07-28", "mixed_input_required"), ("2026-07-28", "disconnect"),
+    ("2024-11-05", "mixed_input_required"), ("2025-03-26", "mixed_input_required"),
+    ("2025-06-18", "mixed_input_required"), ("2025-11-25", "mixed_input_required"),
+])
+async def test_tool_failure_or_continuation_never_replays_an_effect(tmp_path, caplog, version, behavior):
+    client, transcript = fixture(tmp_path, version=version, behavior=behavior)
     try:
         async with asyncio.timeout(5):
             await client.connect()
@@ -116,6 +121,8 @@ async def test_tool_failure_or_continuation_never_replays_an_effect(tmp_path, be
                 await client.call_tool("effect", {})
         assert "private-error-canary" not in str(error.value)
         assert "private-state" not in str(error.value)
+        assert "private-state" not in caplog.text
+        assert all("private-state" not in record.getMessage() for record in caplog.records)
         assert [item["method"] for item in requests(transcript)].count("tools/call") == 1
         assert [item["method"] for item in requests(transcript)].count("tools/list") == 1
         if behavior == "disconnect":

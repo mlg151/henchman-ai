@@ -16,8 +16,10 @@ under #21/#25.
 The exact SDK 2.3.0 pin now supports bounded native stdio across four legacy
 revisions and 2026-07-28, with no implicit mutating replay and explicit telemetry
 privacy refusal. Bounded unauthenticated Streamable HTTP now covers four
-revisions with JSON/SSE and policy-checked cleanup; OAuth/resource/prompt
-integration and final native qualification remain open under #25.
+revisions with JSON/SSE and policy-checked cleanup. Explicit resource/template/
+prompt catalogs and previews now preserve untrusted source data without changing
+conversation history; continuation is rejected before SDK normalization. OAuth,
+context attachment and final native qualification remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or
