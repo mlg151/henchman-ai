@@ -212,6 +212,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/utils/test_context_attachment_compaction.py",
         "tests/contracts/test_context_attachment_contract.py",
         "tests/contracts/schemas/runtime/message.json",
+        "tests/contracts/schemas/providers/message.json",
         "tests/contracts/schemas/runtime/stream_chunk.json",
         "tests/contracts/schemas/config/mcp_server_config.json",
         "tests/contracts/test_advanced_contracts.py",

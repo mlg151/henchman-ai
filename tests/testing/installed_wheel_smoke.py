@@ -432,6 +432,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/contracts/schemas/runtime/session_memory_record.json",
         "tests/contracts/schemas/runtime/session_metadata.json",
         "tests/contracts/schemas/runtime/turn_summary_record.json",
+        "tests/contracts/schemas/providers/message.json",
         "tests/contracts/test_session_contracts.py",
         "tests/contracts/test_operation_contracts.py",
         "tests/cli/test_repl_instruction_provenance.py",

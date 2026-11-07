@@ -4,7 +4,7 @@ from dataclasses import asdict
 
 import pytest
 
-from henchman.core.session import SessionManager, SessionMessage
+from henchman.core.session import SessionManager, SessionMessage, TurnSummaryRecord
 from tests.contracts.helpers import assert_contract_matches
 from tests.core.test_context_attachments import attachment_message
 
@@ -21,3 +21,9 @@ def test_session_attachment_contract(contract_suite):
     session = manager.create_session("project")
     session.messages = [SessionMessage(**asdict(attachment_message()))]
     assert_contract_matches(payload=session.to_dict(), schema_name="runtime/session", contract_suite=contract_suite)
+
+
+def test_retained_attachment_contract(contract_suite):
+    summary = TurnSummaryRecord(1, "Retained context", kind="compaction", source_turns=[1],
+                                retained_messages=[SessionMessage(**asdict(attachment_message()))])
+    assert_contract_matches(payload=summary.to_dict(), schema_name="runtime/turn_summary_record", contract_suite=contract_suite)
