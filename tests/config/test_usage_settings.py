@@ -141,7 +141,11 @@ def test_snapshot_inspection_and_canonical_writes_round_trip_exact_money(tmp_pat
     assert restored.settings.usage.limits.max_cost == Decimal("1E-29")
     assert restored.settings.usage.limits.max_tokens == 0
     assert restored.settings.usage.prices[0].output_per_1k == Decimal(amount)
-    assert not (settings_dir.parent / ".hENCHMAN").exists()
+    # Case-insensitive filesystems resolve this alias to the canonical directory.
+    # Inspect stored entry names to verify which spelling was actually written.
+    names = {entry.name for entry in settings_dir.parent.iterdir()}
+    assert ".henchman" in names
+    assert ".hENCHMAN" not in names
 
 
 def test_save_settings_serializes_decimal_and_date_without_precision_loss(tmp_path: Path) -> None:
