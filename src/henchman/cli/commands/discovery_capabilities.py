@@ -79,6 +79,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "REPL and Textual report the active or most recent run's dispatched requests, "
             "settled/held task tokens, remaining limits, accounting lifetime and explicit "
             "price provenance. Unknown costs stay unavailable and currencies stay separate. "
+            "Model observations distinguish reported, estimated and unknown counts with request coverage; "
+            "unknown-priced attempts remain visible and configured rate snapshots retain their source and date. "
             "This is cumulative task accounting, separate from conversation context occupancy."
         ),
         aliases=("/usage", "remaining budget", "cost provenance", "task tokens"),

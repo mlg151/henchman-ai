@@ -19,7 +19,8 @@
     "money",
     "stop_reason",
     "accounting_lifetime",
-    "accounting_error"
+    "accounting_error",
+    "usage_breakdown"
   ],
   "properties": {
     "run_id": {
@@ -189,6 +190,201 @@
         "string",
         "null"
       ]
+    },
+    "usage_breakdown": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "usage_source",
+          "dispatched_requests",
+          "settled_requests",
+          "counts",
+          "counted_requests",
+          "pricing"
+        ],
+        "properties": {
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usage_source": {
+            "type": "string",
+            "enum": [
+              "reported",
+              "estimated",
+              "unknown"
+            ]
+          },
+          "dispatched_requests": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "settled_requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "prompt_tokens",
+              "completion_tokens",
+              "total_tokens",
+              "cached_tokens",
+              "cache_creation_tokens",
+              "reasoning_tokens"
+            ],
+            "properties": {
+              "prompt_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "completion_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "total_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "cached_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "cache_creation_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reasoning_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "counted_requests": {
+            "type": "object",
+            "required": [
+              "prompt_tokens",
+              "completion_tokens",
+              "total_tokens",
+              "cached_tokens",
+              "cache_creation_tokens",
+              "reasoning_tokens"
+            ],
+            "properties": {
+              "prompt_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "completion_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "total_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cached_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cache_creation_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reasoning_tokens": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "pricing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "input_per_1k",
+              "output_per_1k",
+              "cache_read_per_1k",
+              "cache_write_per_1k",
+              "currency",
+              "source",
+              "as_of"
+            ],
+            "properties": {
+              "input_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "output_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cache_read_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cache_write_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "currency": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

@@ -485,6 +485,14 @@ unchanged. A new currency must remain compatible with the original money cap.
 estimated cost, held estimates and reported billing labeled separately. Unknown
 amounts are unavailable rather than zero. Headless completion/failure evidence
 includes the shared aggregate, with decimal amounts serialized as strings.
+Model rows include unknown-priced attempts and distinguish reported, estimated
+and unknown observations. Each token field retains the number of requests that
+supplied it; a partial observed subtotal is not complete run consumption. Cache
+and reasoning counts remain subsets. Distinct configured price snapshots retain
+their input/output/cache rates, source and date; these are not provider bills.
+API and headless `usage_breakdown` expose the same grouped observations without
+changing budget holds or admission totals. Credential projection affects evidence
+labels only.
 These are admission bounds and accounting observations: already-started remote
 requests can incur billing that differs from estimates, especially after a
 disconnect or cancellation. No automatic paid-model fallback occurs.

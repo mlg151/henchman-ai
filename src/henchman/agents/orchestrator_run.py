@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.agents.ledger import TaskLedger
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.run_accounting import budget_snapshot_payload
+from henchman.core.usage_summary import budget_evidence_redactor
 from henchman.providers.runtime_budget import RunBudgetScope
 
 from .orchestrator_anchoring import completion_evidence
@@ -69,6 +70,7 @@ def prepare_run(orch: Any, user_input: str) -> None:
         None: This function initializes orchestrator state but returns nothing.
     """
     orch.ledger = TaskLedger(goal=user_input)
+    budget_evidence_redactor(orch)
     orch.delegation_runner.ledger = orch.ledger
     orch.metrics.reset_for_run()
     orch.metrics.performance.task_start_time = time.time()
@@ -107,7 +109,7 @@ def finalize_run(
             type=EventType.AGENT_COMPLETED,
             data={"agent": role_label, "scope": "run", "status": status.value,
                   **completion_evidence(agent),
-                  **({"budget": budget_snapshot_payload(orch.last_budget_scope.ledger.snapshot())}
+                  **({"budget": budget_snapshot_payload(orch.last_budget_scope.ledger.snapshot(), redactor=budget_evidence_redactor(orch))}
                      if isinstance(getattr(orch, "last_budget_scope", None), RunBudgetScope) else {})},
             source_agent="orchestrator",
         ),

@@ -16,6 +16,7 @@ from henchman.config.schema import Settings
 from henchman.core import Agent, AgentEvent, EventType
 from henchman.core.run_accounting import budget_snapshot_payload, public_run_budget
 from henchman.core.runtime_accounting import budgeted_events
+from henchman.core.usage_summary import budget_evidence_redactor
 from henchman.providers.base import Message, ToolCall
 from henchman.providers.runtime_budget import RunBudgetScope, use_run_budget
 
@@ -33,11 +34,12 @@ class ApiChatRun:
     interrupted: bool = False
     history_hidden: bool = False
     pending_tools: tuple[str, ...] = ()
+    settings: Settings | None = None
 
     def budget(self) -> dict[str, Any] | None:
         """Return the common aggregate without manufacturing absent usage."""
         return (
-            budget_snapshot_payload(self.scope.ledger.snapshot())
+            budget_snapshot_payload(self.scope.ledger.snapshot(), redactor=budget_evidence_redactor(self))
             if self.scope is not None
             else None
         )
@@ -159,8 +161,10 @@ class ApiChatRuns:
             with use_run_budget(None):
                 scope = public_run_budget(captured, agent.provider, None)
             run = ApiChatRun(
-                scope.ledger.run_id if scope is not None else uuid4().hex, authority, agent, scope
+                scope.ledger.run_id if scope is not None else uuid4().hex, authority, agent, scope,
+                settings=self.settings,
             )
+            budget_evidence_redactor(run)
             self._runs[run.run_id] = run
             if system_prompt is not None:
                 agent.system_prompt = system_prompt

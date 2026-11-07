@@ -87,6 +87,15 @@ universal rate or date breakdown is invented. `total_tokens` is null while
 dispatched usage is unknown. Unsupported unbounded provider extensions expose
 `budget: null`; configured caps/prices require an instrumented provider.
 
+`budget.usage_breakdown` groups dispatched attempts by provider/model, usage
+source and configured price snapshot. `counts` contains nullable observed token
+subtotals; `counted_requests` gives each field's request coverage, alongside
+dispatched and settled request counts. Unknown-priced attempts remain visible,
+and missing counts remain null. `pricing` is null or contains exact rate strings,
+currency, source and date. These observations do not add to the aggregate, release
+holds or establish actual charges. Credential-bearing labels are projected with
+the runtime's retained evidence policy.
+
 The registry holds at most 1,024 process runs and evicts only completed runs.
 Active, interrupted and tool-waiting runs retain their authority; a full registry
 returns 503. This is process-local storage, without multi-worker or restart

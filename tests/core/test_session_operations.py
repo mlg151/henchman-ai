@@ -75,6 +75,28 @@ async def test_completed_result_reconciles_after_restart_without_repeating_effec
     assert len(restored_session.operations.observed_ids) == 1
 
 
+async def test_recovery_registers_current_actor_key_before_saving_reconciled_evidence(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    secret = "recovered-actor-credential-canary"
+    session, call, saved, runtime, registry, tool = setup(tmp_path)
+
+    async def result(**_params):
+        return ToolResult(secret)
+
+    monkeypatch.setattr(tool, "execute", result)
+    invocation = runtime.begin().bind_call(call, agent_id="tech_lead", assistant_index=0)
+    with use_operation_call(invocation):
+        await registry.execute(call.name, call.arguments)
+    restored_session = session_from_dict(saved[-1])
+    _, _, recovered_saves, restored, _, _ = setup(tmp_path, session=restored_session)
+    actor = SimpleNamespace(provider=SimpleNamespace(api_key=secret))
+    restored.begin(agent=actor)
+    assert recovered_saves
+    assert secret not in str(recovered_saves)
+    assert recovered_saves[-1]["messages"][-1]["content"] == "[REDACTED]"
+
+
 @pytest.mark.parametrize("downgrade", [False, True])
 async def test_backup_without_reference_cannot_hide_completed_effect(tmp_path: Path, downgrade: bool) -> None:
     session, call, _, runtime, registry, tool = setup(tmp_path)

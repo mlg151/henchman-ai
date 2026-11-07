@@ -11,7 +11,9 @@ from henchman.agents.orchestrator_execution import _close_stream
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.run_accounting import RunInvocation, budget_snapshot_payload
 from henchman.core.run_budget import BudgetControlError
+from henchman.core.usage_summary import budget_evidence_redactor
 from henchman.providers.runtime_budget import RunBudgetScope
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 
 @dataclass
@@ -83,12 +85,12 @@ def _finish_run(
     return successful
 
 
-def _budget_evidence(scope: RunBudgetScope | None) -> dict[str, Any] | None:
+def _budget_evidence(scope: RunBudgetScope | None, redactor: EvidenceRedactor) -> dict[str, Any] | None:
     """Keep accounting evidence on failed runs without inventing missing totals."""
     if not isinstance(scope, RunBudgetScope):
         return None
     try:
-        return budget_snapshot_payload(scope.ledger.snapshot())
+        return budget_snapshot_payload(scope.ledger.snapshot(), redactor=redactor)
     except BudgetControlError as exc:
         return {"run_id": scope.ledger.run_id, "accounting_error": str(exc)}
 
@@ -102,6 +104,7 @@ async def run_orchestrator_json(
     """Reuse the configured team runtime and close it on every exit path."""
     role = agent_role or "tech_lead"
     outcome = _RenderedRun()
+    policy = budget_evidence_redactor(orchestrator)
     invocation = RunInvocation()
     try:
         stream = (
@@ -113,11 +116,17 @@ async def run_orchestrator_json(
     except Exception as exc:
         if outcome.renderer_failed:
             raise
+        # Control failures can skip normal finalization after registering a new
+        # credential in the session. Refresh before emitting partial evidence.
+        policy.register_policy(budget_evidence_redactor(orchestrator))
         return _finish_run(
             role, outcome.completion, render_event, f"{type(exc).__name__}: {exc}",
-            budget=_budget_evidence(invocation.budget_scope),
+            budget=_budget_evidence(invocation.budget_scope, policy),
         )
     finally:
         if invocation.claimed:
+            # Embedded successful runtimes need not call finalize_run. Capture
+            # their current session policy before cleanup can replace bindings.
+            policy.register_policy(budget_evidence_redactor(orchestrator))
             await orchestrator.aclose()
-    return _finish_run(role, outcome.completion, render_event, budget=_budget_evidence(invocation.budget_scope))
+    return _finish_run(role, outcome.completion, render_event, budget=_budget_evidence(invocation.budget_scope, policy))

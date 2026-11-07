@@ -160,3 +160,34 @@ async def test_usage_reports_referenced_storage_failure_without_previous_totals(
     assert "Accounting unavailable" in output
     assert "1 dispatched" not in output
     assert not (tmp_path / "ops.db").exists()
+
+
+@pytest.mark.parametrize("textual", [False, True])
+async def test_usage_names_unknown_priced_models_and_labels_partial_observations(textual):
+    from tests.core.test_usage_summary import dispatch
+
+    ledger = RunBudgetLedger()
+    dispatch(ledger, UsageReport(total_tokens=12, source="reported"), model="unknown-priced")
+    dispatch(ledger, UsageReport(prompt_tokens=3, source="reported"), model="unknown-priced", final=False)
+    dispatch(ledger, UsageReport(total_tokens=8, source="estimated"), model="estimated-model")
+    dispatch(ledger, model="no-usage-model")
+    text = await render(ledger, textual=textual)
+    assert "compatible/unknown-priced" in text
+    assert "reported: 12 observed tokens" in text
+    assert "1/2 requests have totals" in text
+    assert "compatible/estimated-model" in text and "estimated: 8 observed tokens" in text
+    assert "compatible/no-usage-model" in text and "unknown: tokens unavailable" in text
+    assert "Price source" in text and "unavailable" in text
+
+
+async def test_usage_model_and_price_labels_are_literal_redacted_evidence():
+    from tests.core.test_usage_summary import dispatch
+
+    ledger = RunBudgetLedger()
+    dispatch(ledger, model="[bold]private-canary[/bold]",
+             pricing=TokenPricing(0, 0, source="[red]private-canary[/red]", as_of="2026-11-07"))
+    settings = Settings(providers={"deepseek": {"api_key": "private-canary"}})
+    text = await render(ledger, settings=settings)
+    assert "private-canary" not in text
+    assert "[bold][REDACTED][/bold]" in text
+    assert "[red][REDACTED][/red]" in text

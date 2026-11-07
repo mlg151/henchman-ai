@@ -11,6 +11,7 @@ from rich.text import Text
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.core.run_budget import BudgetControlError
+from henchman.core.usage_summary import summarize_usage
 from henchman.providers.runtime_budget import RunBudgetScope
 
 
@@ -91,13 +92,24 @@ class UsageCommand(Command):
         actors = Counter(record.agent_id or "unattributed" for record in snapshot.records if record.dispatched)
         for actor, count in sorted(actors.items()):
             row("Agent requests", f"{actor}: {count}")
-        prices = {
-            (record.provider or "unknown provider", record.model or "unknown model",
-             record.estimate.pricing.source, record.estimate.pricing.as_of)
-            for record in snapshot.records if record.estimate.pricing is not None
-        }
-        for provider, model, source, date in sorted(prices, key=str):
-            row("Price source", f"{provider}/{model}: {source or 'unavailable'} ({date or 'date unavailable'})")
+        for summary in summarize_usage(snapshot):
+            model = f"{summary.provider or 'unknown provider'}/{summary.model or 'unknown model'}"
+            total = summary.counts["total_tokens"]
+            observed = "tokens unavailable" if total is None else f"{total} observed tokens"
+            coverage = f"{summary.counted_requests['total_tokens']}/{summary.dispatched_requests} requests have totals"
+            row("Model usage", f"{model} — {summary.usage_source}: {observed}; {coverage}; "
+                f"{summary.settled_requests} settled")
+            price = summary.pricing
+            if price is None:
+                row("Price source", f"{model}: unavailable")
+            else:
+                row("Price source", f"{model}: {price.source} ({price.as_of or 'date unavailable'}); {price.currency}")
+                rates = ", ".join(
+                    f"{label} {getattr(price, name) if getattr(price, name) is not None else 'unavailable'}"
+                    for label, name in (("input", "input_per_1k"), ("output", "output_per_1k"),
+                                        ("cache read", "cache_read_per_1k"), ("cache write", "cache_write_per_1k"))
+                )
+                row("Configured rates", f"per 1,000 tokens: {rates}")
         if snapshot.stop_reason or snapshot.accounting_error:
             row("Accounting stop", snapshot.accounting_error or snapshot.stop_reason or "")
         ctx.console.print(table)

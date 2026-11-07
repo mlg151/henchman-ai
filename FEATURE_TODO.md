@@ -151,7 +151,9 @@ and summary calls. Typed limits and exact provider/model prices are available;
 durable SQLite claims/reconciliation and session bindings now pass crash and
 concurrency tests. Public orchestrator/CLI runs now share scopes through delegates,
 summaries and continuations, with trusted goal transitions, durable session
-bindings and `/usage`/headless aggregates. Standalone API process runs now isolate
+bindings and `/usage`/headless aggregates. Grouped model observations now retain
+per-field request coverage and exact configured price provenance, including
+unknown-priced attempts, without changing holds. Standalone API process runs now isolate
 caller histories and retain budgets through tool-result continuation; durable
 API binding fails explicitly. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)
 retained one failed request and unknown token hold across restart, with both

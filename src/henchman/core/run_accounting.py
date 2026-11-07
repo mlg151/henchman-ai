@@ -7,7 +7,9 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.run_budget import BudgetAccountingError, BudgetSnapshot, RunBudgetLedger
+from henchman.core.usage_summary import summarize_usage
 from henchman.providers.runtime_budget import RunBudgetScope, current_run_budget
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -55,7 +57,7 @@ def public_run_budget(
     return supplied if supplied is not None else new_run_budget(settings, provider)
 
 
-def budget_snapshot_payload(snapshot: BudgetSnapshot) -> dict[str, Any]:
+def budget_snapshot_payload(snapshot: BudgetSnapshot, *, redactor: EvidenceRedactor | None = None) -> dict[str, Any]:
     """Serialize aggregate accounting; absent charges remain null, never zero.
 
     Monetary decimals remain exact strings. Provider estimates, reported billing
@@ -72,7 +74,25 @@ def budget_snapshot_payload(snapshot: BudgetSnapshot) -> dict[str, Any]:
             return [value(child) for child in item]
         return item
 
-    return {
+    payload = {
         field.name: value(getattr(snapshot, field.name))
         for field in fields(snapshot) if field.name != "records"
     }
+    policy = redactor if redactor is not None else EvidenceRedactor()
+    breakdown = []
+    for summary in summarize_usage(snapshot):
+        row = value(summary)
+        for name in ("provider", "model"):
+            if row[name] is not None:
+                row[name] = policy.text(row[name])
+        if summary.pricing is not None:
+            price = row["pricing"]
+            for name in ("input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k"):
+                rate = getattr(summary.pricing, name)
+                price[name] = str(rate) if rate is not None else None
+            for name in ("source", "as_of"):
+                if price[name] is not None:
+                    price[name] = policy.text(price[name])
+        breakdown.append(row)
+    payload["usage_breakdown"] = breakdown
+    return payload

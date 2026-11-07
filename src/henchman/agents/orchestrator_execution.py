@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.runtime_operations import current_operation_run
 
 from .orchestrator_loop import (
     assess_agent_completion,
@@ -84,9 +85,18 @@ class ExecutionController:
             raise ValueError(msg)
 
         with self.orchestrator.pool.claim_agent(params.agent, owner=params, running=True):
-            async with closing_event_stream(self._run_claimed_agent_loop(params)) as stream:
-                async for event in stream:
-                    yield event
+            operation_run = current_operation_run()
+            if operation_run is not None:
+                operation_run.register_actor_credentials(params.agent)
+            try:
+                async with closing_event_stream(self._run_claimed_agent_loop(params)) as stream:
+                    async for event in stream:
+                        if operation_run is not None:
+                            operation_run.register_actor_credentials(params.agent)
+                        yield event
+            finally:
+                if operation_run is not None:
+                    operation_run.register_actor_credentials(params.agent)
 
     async def _run_claimed_agent_loop(
         self, params: AgentLoopParams,

@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Usage provenance by model** — Interactive, API and headless reports retain
+  unknown-priced attempts, reported/estimated/unknown observations and per-field
+  request coverage, plus distinct configured rate snapshots. Evidence projection
+  leaves admission totals, holds and stored accounting unchanged.
+
 - **Explicit OAuth library flows** — Owned loopback callbacks, S256 PKCE and
   one-shot code/refresh exchange retain credential generations, bounded cleanup
   and value-free diagnostics. Interactive login and authenticated MCP transport

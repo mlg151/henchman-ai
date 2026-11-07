@@ -142,7 +142,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   reconciliation and authoritative session bindings, with process/crash tests.
   Public orchestrator and CLI turns now bind shared scopes across delegation,
   summaries and continuation, retain interrupted/goal budgets and expose `/usage`
-  plus headless aggregates. Standalone API requests now use isolated caller-owned
+  plus headless aggregates. Model observations now retain partial-count coverage
+  and distinct configured price snapshots, including unknown-priced attempts.
+  Standalone API requests now use isolated caller-owned
   process runs, preserve tool-follow-up budgets and reject unsupported durable
   mode. Explicit user goal transitions authorize replacement;
   transcript metadata cannot refund consumption. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)

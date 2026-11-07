@@ -40,6 +40,12 @@ if TYPE_CHECKING:
 Journal = OperationJournal | PersistentOperationJournal
 
 
+def _register_actor_credentials(session: Session, agent: Agent) -> None:
+    key = getattr(agent.provider, "api_key", None)
+    if isinstance(key, str):
+        session.evidence_redactor.register_secret(key)
+
+
 def input_digest(params: dict[str, object]) -> str:
     try:
         encoded = json.dumps(params, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -59,6 +65,10 @@ class OperationRun:
     _sources: list[tuple[Agent, list[Message], str | None]] = field(default_factory=list, repr=False)
     _primary_offsets: dict[int, int] = field(default_factory=dict, repr=False)
 
+    def register_actor_credentials(self, agent: Agent) -> None:
+        """Retain the actual actor's current credentials in shared evidence policy."""
+        _register_actor_credentials(self.session, agent)
+
     def bind_call(self, call: ToolCall, *, agent_id: str, assistant_index: int,
                   conversation_id: str | None = None) -> OperationInvocation:
         state = self.session.operations
@@ -70,6 +80,8 @@ class OperationRun:
         return OperationInvocation(self, OperationBinding(uuid4().hex, context, assistant_index, conversation_id))
 
     def capture_agent(self, agent: Agent) -> tuple[list[SessionMessage], int, str | None]:
+        self.session.evidence_redactor.register_config(self.runtime.settings.model_dump())
+        self.register_actor_credentials(agent)
         actor = agent.identity.id if agent.identity is not None else "tech_lead"
         source = agent.current_turn_messages
         for known_agent, known_source, conversation_id in self._sources:
@@ -211,6 +223,9 @@ class SessionRunOperations:
 
     def begin(self, *, agent: Agent | None = None, user_input: str | None = None) -> OperationRun:
         session = self._session()
+        session.evidence_redactor.register_config(self.settings.model_dump())
+        if agent is not None:
+            _register_actor_credentials(session, agent)
         journal = self._journal(session)
         self._reconcile(session, journal)
         start = len(session.messages)

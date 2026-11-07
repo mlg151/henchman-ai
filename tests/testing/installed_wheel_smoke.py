@@ -167,6 +167,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/commands/test_model_large_context.py",
         "tests/core/test_request_budget.py",
         "tests/core/test_run_budget.py",
+        "tests/core/test_usage_summary.py",
         "tests/core/test_run_budget_state.py",
         "tests/core/test_session_accounting_reference.py",
         "tests/core/test_session_run_accounting.py",

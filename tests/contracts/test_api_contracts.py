@@ -309,6 +309,12 @@ def test_run_budget_and_nullable_usage_contracts_keep_exact_money_and_unknowns(c
     invalid = deepcopy(budget)
     invalid["money"][0]["held_cost"] = 0.0
     assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/run_budget_snapshot"))
+    invalid = deepcopy(budget)
+    invalid["usage_breakdown"][0]["pricing"]["input_per_1k"] = 0.0
+    assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/run_budget_snapshot"))
+    invalid = deepcopy(budget)
+    invalid["usage_breakdown"][0]["usage_source"] = "actual_charge"
+    assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/run_budget_snapshot"))
     invalid = deepcopy(usage)
     invalid["total_cost"] = 0.0
     assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/usage_response"))

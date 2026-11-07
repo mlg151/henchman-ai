@@ -76,11 +76,11 @@ def api(monkeypatch):
 
         settings = settings or Settings()
         runtime = State()
-        provider = OpenAICompatibleProvider("test", "https://test.invalid", "test-model")
+        provider = OpenAICompatibleProvider("offline-provider-key", "https://test.invalid", "test-model")
         await provider._client.close()
         transport = Transport()
         provider._client = AsyncOpenAI(
-            api_key="test",
+            api_key="offline-provider-key",
             http_client=httpx.AsyncClient(
                 transport=httpx.MockTransport(transport),
             ),
@@ -423,6 +423,8 @@ async def test_price_snapshot_remains_exact_and_separate_from_reported_billing(a
                         "currency": "EUR",
                         "input_per_1k": "1.000000000000000000000000000001",
                         "output_per_1k": "2",
+                        "source": "reviewed catalog",
+                        "as_of": "2026-11-07",
                     }
                 ]
             }
@@ -434,7 +436,32 @@ async def test_price_snapshot_remains_exact_and_separate_from_reported_billing(a
         assert money["currency"] == "EUR"
         assert money["settled_estimated_cost"] == "0.01400000000000000000000000000001"
         assert money["reported_cost"] is None
+        summary = response["budget"]["usage_breakdown"][0]
+        assert (summary["provider"], summary["model"], summary["usage_source"]) == ("openai-compatible", "test-model", "reported")
+        assert summary["counts"]["total_tokens"] == 12
+        assert summary["counted_requests"]["total_tokens"] == 1
+        assert summary["pricing"]["input_per_1k"] == "1.000000000000000000000000000001"
+        assert summary["pricing"]["source"] == "reviewed catalog"
+        assert summary["pricing"]["as_of"] == "2026-11-07"
         assert (await client.get("/v1/usage")).json()["total_cost"] is None
+
+
+async def test_usage_price_labels_reproject_current_and_rotated_credentials(api) -> None:
+    settings = Settings.model_validate({
+        "providers": {"deepseek": {"api_key": "old-credential"}},
+        "usage": {"prices": [{"provider": "openai-compatible", "model": "test-model",
+                              "input_per_1k": "0", "output_per_1k": "0",
+                              "source": "old-credential new-credential"}]},
+    })
+    async with api(settings) as (client, transport, runtime):
+        initial = (await client.post("/v1/chat/completions", json=user())).json()
+        assert initial["budget"]["usage_breakdown"][0]["pricing"]["source"] == "[REDACTED] new-credential"
+        settings.providers.deepseek["api_key"] = "new-credential"
+        restored = (await client.get("/v1/usage", params={"run_id": initial["run_id"]})).json()
+        assert restored["budget"]["usage_breakdown"][0]["pricing"]["source"] == "[REDACTED] [REDACTED]"
+        assert len(transport.requests) == 1
+        run = next(iter(runtime.chat_runs._runs.values()))
+        assert run.scope.ledger.snapshot().records[0].estimate.pricing.source == "old-credential new-credential"
 
 
 async def test_uninstrumented_provider_with_limits_refuses_dispatch(api) -> None:
