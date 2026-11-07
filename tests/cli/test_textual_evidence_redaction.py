@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from rich.text import Text
 
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.session_manager import ReplSessionManager
@@ -29,6 +30,11 @@ def runtime(tmp_path, *secrets):
         core_context=SimpleNamespace(session_manager=sessions), post_message=MagicMock(),
     )
     return app, policy
+
+
+def console_text(app):
+    """Assert visible text while retaining separate raw-ANSI style checks."""
+    return Text.from_ansi("".join(call.args[0].text for call in app.post_message.call_args_list)).plain
 
 
 async def test_bridge_masks_split_and_marked_credentials_without_changing_tools(tmp_path):
@@ -133,7 +139,7 @@ def test_console_adapter_masks_credentials_across_styles_and_prints(tmp_path):
     styled = Text("private-canary!")
     styled.stylize("bold red", 3, 10)
     adapter.print(styled)
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "private-" not in shown
     assert shown.count("[REDACTED]") == 2
 
@@ -144,7 +150,7 @@ def test_console_adapter_consumes_separate_newline_after_auth_header(tmp_path):
     adapter.print("Authorization: unknown-canary", end="")
     adapter.print("")
     adapter.print("ordinary next line!")
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "unknown-canary" not in shown
     assert "ordinary next line!" in shown
 
@@ -214,7 +220,7 @@ def test_console_projects_before_wrapping_and_markup(tmp_path, direct_console, k
         adapter.flush_to_chat()
     printer("")
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     for forbidden in ("private-", "0123456789", "sensitive-header", "private-middle"):
         assert forbidden not in shown
     assert "[REDACTED]" in shown
@@ -244,7 +250,7 @@ def test_console_redacts_nested_rich_renderables_without_mutating_them(tmp_path,
     }[kind]
     adapter.console.print(renderable)
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "nested-private" not in shown
     assert "0123456789" not in shown
     assert "[REDACTED]" in shown
@@ -284,7 +290,7 @@ def test_console_streams_every_ansi_and_markup_boundary(tmp_path, text):
             adapter.flush_to_chat()
         adapter.console.print("")
         adapter.flush_to_chat()
-        shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+        shown = console_text(app)
         assert all(value not in shown for value in ("private-", "unknown-header-canary", "private-middle"))
         assert "[REDACTED]" in shown
         if "ordinary next line!" in text:
@@ -309,7 +315,7 @@ def test_console_masks_unknown_headers_in_nested_renderables(tmp_path, kind):
     }[kind]
     adapter.console.print(renderable)
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "unknown-header" not in shown
     assert "canary" not in shown
     assert "[REDACTED]" in shown
@@ -322,7 +328,7 @@ def test_console_marks_structured_credentials_before_pretty_rendering(tmp_path):
     value = {"echo": secret, "api_key": secret}
     adapter.console.print(value)
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "new-structured" not in shown
     assert "1234567890" not in shown
     assert value == {"echo": secret, "api_key": secret}
@@ -338,7 +344,7 @@ def test_console_masks_pending_prefix_before_structured_output(tmp_path):
     assert not app.post_message.called
     adapter.console.print(Panel("Ordinary output!"))
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert "private-" not in shown
     assert "[REDACTED]" in shown
     assert "Ordinary output!" in shown
@@ -354,6 +360,6 @@ def test_console_handles_redaction_that_invalidates_rich_markup(tmp_path, secret
     value = "[bold]Ordinary output![/bold]"
     adapter.console.print(Panel(value) if nested else value)
     adapter.flush_to_chat()
-    shown = "".join(call.args[0].text for call in app.post_message.call_args_list)
+    shown = console_text(app)
     assert secret not in shown
     assert "Ordinary output!" in shown
