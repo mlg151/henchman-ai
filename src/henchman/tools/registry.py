@@ -15,6 +15,7 @@ from henchman.tools.access_policy import (
     use_access_policies,
 )
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.contracts import SchemaContract, SchemaContractError, validate_tool_output
 from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.policy import (
     ApprovalGrantStore,
@@ -54,6 +55,8 @@ class _Authorization:
     grant_generation: int
     confirmation: ConfirmationRequest | None
     policy_generation: tuple[tuple[int, int], ...]
+    input_contract: SchemaContract
+    output_contract: SchemaContract | None
 
 
 @dataclass
@@ -287,6 +290,12 @@ class ToolRegistry:
         if tool.name in self._tools:
             msg = f"Tool '{tool.name}' is already registered"
             raise ValueError(msg)
+        # Compile before publication; even unused definitions must be local,
+        # bounded and valid. Invalid registration cannot leave a visible tool.
+        SchemaContract(tool.parameters)
+        output_schema = tool.output_schema
+        if output_schema is not None:
+            SchemaContract(output_schema)
         self._tools[tool.name] = tool
         self._tool_registrations[tool.name] = next(_TOOL_REGISTRATIONS)
 
@@ -468,7 +477,12 @@ class ToolRegistry:
             )
 
         try:
+            input_contract = SchemaContract(tool.parameters)
+            output_schema = tool.output_schema
+            output_contract = SchemaContract(output_schema) if output_schema is not None else None
             scope = invocation_scope_digest(tool, params)
+        except SchemaContractError as exc:
+            return ToolResult(content=str(exc), success=False, error=str(exc))
         except (OSError, RuntimeError, ValueError) as exc:
             message = f"Cannot resolve tool authorization scope: {sanitize_error_message(exc)}"
             return ToolResult(content=message, success=False, error=message)
@@ -484,6 +498,8 @@ class ToolRegistry:
             grant_generation=grants.generation,
             confirmation=decision.confirmation,
             policy_generation=self._effective_policy_generation,
+            input_contract=input_contract,
+            output_contract=output_contract,
         )
 
     def _revalidate_authorization(
@@ -499,6 +515,9 @@ class ToolRegistry:
             or current.grants is not authorization.grants
             or current.grant_generation != authorization.grant_generation
             or current.policy_generation != authorization.policy_generation
+            or current.input_contract.schema != authorization.input_contract.schema
+            or (current.output_contract.schema if current.output_contract is not None else None)
+            != (authorization.output_contract.schema if authorization.output_contract is not None else None)
             or (
                 require_grant and current.confirmation is not None
                 and not current.grants.is_granted(current.key)
@@ -694,6 +713,13 @@ class ToolRegistry:
                 success=False,
                 error=sanitized_error,
             )
+
+        try:
+            result = validate_tool_output(result, authorization.output_contract)
+        except SchemaContractError as exc:
+            # The effect already ran. Preserve a completed failure observation,
+            # never a retryable exception or unvalidated successful payload.
+            result = ToolResult(content=str(exc), success=False, error=str(exc))
 
         if operation is not None and permit is not None:
             try:

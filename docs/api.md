@@ -544,6 +544,14 @@ without modifying the schema or value. `validate_tool_input(parameters, argument
 provides the same check for tool inputs; failures raise `SchemaContractError`
 with a value-free diagnostic. See the [supported bounds and reference rules](standards.md#local-schema-contract-foundation).
 
+`Tool.output_schema` defaults to `None`; implementations may return a canonical
+dictionary or Boolean schema for successful structured output. `Tool.annotations`
+defaults to an empty dictionary and carries no authority. `ToolRegistry.register`
+compiles both input and optional output schemas before publication. Dispatch binds
+schema snapshots to approval and validates successful structured output before
+journaling completion. `validate_tool_output(result, contract)` validates and
+detaches typed evidence; failed tools are exempt from their success-output schema.
+
 ```python
 from henchman.tools.contracts import SchemaContract
 

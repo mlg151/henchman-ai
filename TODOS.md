@@ -15,6 +15,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   evidence with explicit binary/omission limits. Modern transport and final
   contract qualification remain #21/#25 work; see
   [compatibility limits](docs/mcp.md#refresh-a-connected-catalog).
+  Registry-wide schema compilation and output validation now cover local tools
+  and extensions, including approval-time schema changes and completed failures.
 
 - [Operation recovery](docs/operation-recovery.md) now binds durable dispatch
   authority to saved requests/results and exposes `/recovery` user decisions.

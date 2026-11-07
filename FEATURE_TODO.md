@@ -14,6 +14,11 @@ retention while invalidating stale handles and keeping scoped allowlists. Broade
 [contract/transport qualification](docs/mcp.md#refresh-a-connected-catalog) remains
 under #21/#25.
 
+Runtime registration now rejects invalid input/output contracts before publishing
+tools, binds schema snapshots to approval, and validates successful structured
+results before recording completion. Invalid output is a failed observation of
+the completed attempt, not permission to replay its effects.
+
 The [operation journal](docs/operation-recovery.md) now commits correlated tool
 attempts before dispatch, binds public runtime/session recovery and exposes explicit
 revision-checked user resolution/retry. Provider opaque continuation and background

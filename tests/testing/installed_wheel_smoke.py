@@ -138,6 +138,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/core/test_tool_disclosure.py",
         "tests/tools/test_schema_discovery.py",
         "tests/tools/test_schema_contracts.py",
+        "tests/tools/test_registry_contracts.py",
         "tests/agents/test_scoped_tool_discovery.py",
         "tests/tools/test_live_tool_scopes.py",
         "tests/agents/test_leader_tool_scope.py",

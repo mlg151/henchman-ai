@@ -110,6 +110,16 @@ class Tool(ABC):
         return {}
 
     @property
+    def output_schema(self: Tool) -> dict[str, object] | bool | None:
+        """Optional canonical schema for successful structured output."""
+        return None
+
+    @property
+    def annotations(self: Tool) -> dict[str, object]:
+        """Untrusted descriptive hints; these never grant execution authority."""
+        return {}
+
+    @property
     def kind(self: Tool) -> ToolKind:
         """The kind of tool, used for confirmation policies.
 

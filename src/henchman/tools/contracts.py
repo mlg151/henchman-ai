@@ -15,13 +15,16 @@ from collections.abc import Iterator
 from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jsonschema import Draft202012Validator, validators  # type: ignore[import-untyped]
 from jsonschema.exceptions import SchemaError, ValidationError  # type: ignore[import-untyped]
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource, Unresolvable
 from referencing.jsonschema import DRAFT202012
+
+if TYPE_CHECKING:
+    from henchman.tools.base import ToolResult
 
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 CONTRACT_VERSION = 1
@@ -238,3 +241,24 @@ class SchemaContract:
 def validate_tool_input(parameters: dict[str, Any], arguments: dict[str, Any]) -> None:
     """Validate captured tool input before approval or dispatch, without coercion."""
     SchemaContract(parameters).validate(arguments)
+
+
+def validate_tool_output(result: ToolResult, contract: SchemaContract | None) -> ToolResult:
+    """Validate and detach typed evidence; failed tools need no success payload."""
+    from dataclasses import replace
+
+    from henchman.tools.base import ToolResult
+    from henchman.utils.tool_results import tool_result_from_payload, tool_result_payload
+
+    if (not isinstance(result, ToolResult) or not isinstance(result.content, str)
+            or type(result.success) is not bool or type(result.structured_content_present) is not bool
+            or (result.display is not None and not isinstance(result.display, str))):
+        raise SchemaContractError("result_shape")
+    if not result.structured_content_present and result.structured_content is not None:
+        raise SchemaContractError("result_presence")
+    payload = tool_result_payload(result)
+    if result.success and contract is not None:
+        if not result.structured_content_present:
+            raise SchemaContractError("missing_structured_output")
+        contract.validate(result.structured_content)
+    return replace(tool_result_from_payload(result.content, payload), display=result.display)

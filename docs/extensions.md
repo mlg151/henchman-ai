@@ -126,8 +126,14 @@ class MyExtension(Extension):
 
 The [local schema contract API](api.md#local-schema-validation) validates bounded
 2020-12 input/output schemas without coercion or remote reference retrieval.
-Use it when testing extension contracts; provider-specific projection and full
-registration/output integration remain in progress under #21.
+Registration compiles `parameters` and optional `output_schema` before the tool
+becomes discoverable. A successful result with an output schema must provide
+`structured_content_present=True` and a conforming `structured_content` value;
+explicit null is supported when the schema permits it. Failed results need not
+satisfy the success schema. Invalid output becomes a value-free failed observation
+after execution; it does not authorize retrying the effect. Schema changes during
+approval require fresh authority. `annotations` are descriptive hints and never
+grant permissions. See [provider projection limits](standards.md#provider-schema-projections).
 
 ```python
 from henchman.tools import Tool, ToolKind, ToolResult

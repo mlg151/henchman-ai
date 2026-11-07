@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Registry-wide tool contracts** — Registration rejects invalid schemas before
+  discovery, approval binds immutable schema snapshots, and declared successful
+  structured outputs are checked locally. Missing/null remain distinct; invalid
+  output is recorded as a failed observation without repeating the tool effect.
+
 - **Windows task evidence compatibility** — Log migration compares pathname
   and open-handle metadata within their own timestamp conventions, preserving
   identity and concurrent-change checks on Python 3.12 and later Windows builds.

@@ -141,8 +141,14 @@ SDK 1.x structured output is object-or-null; scalar/array wire forms are rejecte
 explicitly. Typed results now propagate through agents, events, CLI/chat,
 provider text projections and session retention/export/restore. Binary blocks are
 summarized explicitly on provider wires; active-context omission retains a visible
-digest marker. Runtime-wide registration/output validation and final qualification
-remain required for #21/P1. Modern transport,
+digest marker. Registry publication compiles input and optional output contracts
+before exposing any implementation. Approval binds detached input/output schemas;
+schema changes while approval is pending require fresh authority. Successful
+structured output is validated against the dispatch snapshot, with absent output
+distinct from explicit null. Invalid result evidence becomes a value-free failed
+observation after dispatch and never triggers an automatic replay. Tool failures
+need not satisfy a success-output schema. Final qualification remains required
+for #21/P1. Modern transport,
 resources/prompts and preparse wire bounds remain separate #25 work.
 
 ### Remaining phase gates
