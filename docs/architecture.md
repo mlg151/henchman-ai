@@ -341,7 +341,10 @@ uses a valid prior copy and emits a warning naming the session and possible lost
 recent changes; `Session.recovery_notice` retains that diagnostic for consumers.
 It does not repair the current copy until the caller saves. Unknown newer storage
 versions fail explicitly instead of rolling back to an older format. Both copies
-are removed on deletion. The digest detects corruption, not malicious tampering;
+are removed on deletion. CLI startup reports unrecoverable storage and unsupported
+versions instead of silently creating a fresh conversation in place of the selected
+session; the original files and selection remain intact for recovery.
+The digest detects corruption, not malicious tampering;
 cooperative locking is not a filesystem isolation boundary. Forced termination
 can leave a private temporary file, which is never treated as a saved session.
 Temporary filenames identify their owning session; its next successful load, save

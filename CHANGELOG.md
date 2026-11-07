@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Startup recovery errors** — A selected session with no valid storage copy or
+  an unsupported newer storage version now stops CLI startup with an explicit
+  error. Startup preserves the original files and selection instead of silently
+  creating a replacement conversation; [#23](https://github.com/mlg151/henchman-ai/issues/23).
+
 - **Session project isolation** — ID and prefix lookups now enforce the same
   project boundary as tag/list lookups in resume, switch/delete, context/memory
   lookup and slash-command export, branch, merge and template flows. Stale current

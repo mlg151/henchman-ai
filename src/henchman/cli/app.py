@@ -285,8 +285,10 @@ def _setup_repl_session(repl: Any) -> None:
             session = core_manager.load(current_session_id, project_hash=project_hash)
             repl.set_session(session)
             return
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError:
             pass
+        except ValueError as exc:
+            raise click.ClickException(f"Cannot resume saved session: {exc}") from exc
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
 
