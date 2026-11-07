@@ -491,9 +491,11 @@ def main() -> None:
         )
         subprocess.run(
             [sys.executable, "-I", "-m", "pytest", "-p", "pytest_asyncio.plugin", "-q",
-             "--maxfail=10", "--tb=short",
+             "--maxfail=10", "--tb=short", "--durations=15",
              "tests/"],
-            cwd=directory, env=environment, check=True, timeout=600,
+            # This cohort now includes thousands of native regression cases.
+            # Keep its overall watchdog separate from per-operation deadlines.
+            cwd=directory, env=environment, check=True, timeout=1200,
         )
 
 

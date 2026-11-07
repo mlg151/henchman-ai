@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from textual.pilot import Pilot
+
 from henchman.cli import textual_app
 from henchman.cli.textual_app import HenchmanTextualApp
 from henchman.cli.textual_config import TextualConfig
@@ -15,6 +17,19 @@ from henchman.config.schema import Settings
 
 SCENARIO_VERSION = "UI-0.1"
 VIEWPORTS = [(80, 24), (120, 40), (160, 50)]
+
+
+async def settle_layout(pilot: Pilot) -> None:
+    """Wait for layout and its deferred viewport callbacks, without timed sleeps.
+
+    Pilot.pause drains messages queued at entry, then requests a frame. A resize
+    can schedule a viewport callback in that frame, so observe the next one too.
+    """
+    for _ in range(2):
+        await pilot.pause()
+        painted = asyncio.Event()
+        pilot.app.call_after_refresh(painted.set)
+        await asyncio.wait_for(painted.wait(), timeout=5)
 
 
 class InteractionApp(HenchmanTextualApp):

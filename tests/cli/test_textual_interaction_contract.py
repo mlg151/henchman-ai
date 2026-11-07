@@ -8,7 +8,13 @@ from textual.widgets import Button, Static
 
 from henchman.cli.textual_widgets import ChatPane, HenchmanTextArea, StatusBar
 from henchman.providers.base import ToolCall
-from tests.cli.ui_scenarios import VIEWPORTS, InteractionApp, SlowTranscript, populate_history
+from tests.cli.ui_scenarios import (
+    VIEWPORTS,
+    InteractionApp,
+    SlowTranscript,
+    populate_history,
+    settle_layout,
+)
 
 
 @pytest.fixture
@@ -24,22 +30,25 @@ async def test_reading_history_survives_streams_until_explicit_live(app, size):
         chat = app.query_one(ChatPane)
         populate_history(chat)
         chat.append_agent_chunk("lead", "Initial live text\n")
-        await pilot.pause()
+        await settle_layout(pilot)
         composer = app.query_one(HenchmanTextArea)
         assert app.query_one("#chat-navigation").region.bottom <= composer.region.y
         assert composer.region.bottom <= size[1]
         assert chat.content_region.height > 0
         composer.load_text("Unsent\nmultiline draft")
         composer.focus()
-        chat.scroll_to(y=20, animate=False, force=True)
-        await pilot.pause()
+        scrolled = asyncio.Event()
+        chat.scroll_to(y=20, animate=False, force=True, on_complete=scrolled.set)
+        await asyncio.wait_for(scrolled.wait(), timeout=5)
+        await settle_layout(pilot)
         before = chat.scroll_y
+        assert before == 20
         stream = SlowTranscript(app)
         task = asyncio.create_task(stream.run())
         try:
             for source in ("lead", "worker", "lead"):
                 await stream.emit(source, "Additional live content\n")
-                await pilot.pause()
+                await settle_layout(pilot)
             assert chat.scroll_y == before
             assert not chat.follow_live
             assert chat.new_activity
@@ -64,21 +73,23 @@ async def test_expansion_resize_search_and_keyboard_return_preserve_reading_anch
         card._result_text = "Retained tool evidence\n" * 30
         card._update_renderable()
         populate_history(chat)
-        await pilot.pause()
-        card.scroll_visible(top=True, animate=False)
-        await pilot.pause()
+        await settle_layout(pilot)
+        scrolled = asyncio.Event()
+        card.scroll_visible(top=True, animate=False, on_complete=scrolled.set)
+        await asyncio.wait_for(scrolled.wait(), timeout=5)
+        await settle_layout(pilot)
         card.toggle_expansion()
-        await pilot.pause()
+        await settle_layout(pilot)
         assert not chat.follow_live
         offset = card.region.y - chat.content_region.y
         await pilot.resize_terminal(80, 24)
         chat.append_agent_chunk("worker", "A later update\n")
-        await pilot.pause()
+        await settle_layout(pilot)
         assert card._is_expanded
         assert card.region.y - chat.content_region.y == offset
         assert card._result_text == "Retained tool evidence\n" * 30
         await pilot.resize_terminal(160, 50)
-        await pilot.pause()
+        await settle_layout(pilot)
         assert card.region.y - chat.content_region.y == offset
         button = app.query_one("#chat-return-live", Button)
         button.focus()
