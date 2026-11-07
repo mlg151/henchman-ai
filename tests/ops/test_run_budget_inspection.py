@@ -1,6 +1,7 @@
 """Inspect existing accounting without creating, migrating or rewriting storage."""
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -42,10 +43,14 @@ def test_corrupt_referenced_state_is_an_error_not_empty_accounting(tmp_path: Pat
     store = RunBudgetStore(path)
     store.create_run(project_hash="p", session_id="s")
     reference = store.session_binding("p", "s")
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("UPDATE budget_runs SET state_json='{}'")
     with pytest.raises(BudgetAccountingError):
         RunBudgetStore.inspect_session(path, "p", "s", reference=reference)
+    # Transaction context exit alone does not close sqlite handles. Keep this
+    # check platform-independent: Windows refuses unlink while this is open.
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        connection.execute("SELECT 1")
     path.unlink()
     with pytest.raises(BudgetAccountingError):
         RunBudgetStore.inspect_session(path, "p", "s", reference=reference)
@@ -66,7 +71,7 @@ def test_inspection_preserves_unverified_time_and_rejects_wrong_identity(tmp_pat
         RunBudgetStore.inspect_session(path, "p", "s", reference=replace(reference, store_id="another"))
     with pytest.raises(BudgetAccountingError, match="identity"):
         RunBudgetStore.inspect_session(path, "p", "different", reference=reference)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("UPDATE schema_versions SET version=999 WHERE namespace='run_budget'")
     with pytest.raises(BudgetAccountingError, match="unsupported_schema"):
         RunBudgetStore.inspect_session(path, "p", "s")
