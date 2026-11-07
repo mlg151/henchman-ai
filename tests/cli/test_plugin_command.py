@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import aiohttp
+from aiohttp.client_reqrep import ConnectionKey
 from click.testing import CliRunner
 
 from henchman.cli.commands.plugin_command import create_plugin_command
@@ -107,11 +109,22 @@ def test_plugin_install_surfaces_marketplace_unavailable_guidance(
 
     monkeypatch.setattr("henchman.cli.commands.plugin_command.PluginManager", FakePluginManager)
 
+    requests: list[str] = []
+
+    def unavailable(_session, url, **_kwargs):
+        requests.append(url)
+        raise aiohttp.ClientConnectorError(
+            ConnectionKey("registry.henchman.ai", 443, True, True, None, None, None),
+            OSError("Fixture registry is unavailable"),
+        )
+
+    monkeypatch.setattr(aiohttp.ClientSession, "get", unavailable)
     runner = CliRunner()
     result = runner.invoke(create_plugin_command(), ["install", "demo-plugin"])
 
     assert result.exit_code == 1
     assert "error" in result.output.lower()
+    assert requests == ["https://registry.henchman.ai/api/v1/plugins/demo-plugin"]
 
 
 def test_plugin_install_surfaces_registry_miss_without_generic_marketplace_message(
