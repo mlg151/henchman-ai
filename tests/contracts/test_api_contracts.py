@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from henchman.api.endpoints.chat import (
@@ -24,10 +27,14 @@ from henchman.api.endpoints.remote import (
 from henchman.api.remote_sessions import RemoteSessionManager
 from henchman.api.state import State
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_accounting import budget_snapshot_payload
+from henchman.core.run_budget import BudgetLimits, RequestEstimate, RunBudgetLedger
 from henchman.ops.rate_limits import RateLimiter
 from henchman.ops.store import OpsStore
+from henchman.providers.usage import TokenPricing, UsageReport
 from henchman.version import VERSION
-from tests.contracts.helpers import assert_contract_matches
+from tests.api.helpers import install_chat_runtime
+from tests.contracts.helpers import assert_contract_matches, load_contract_schema
 
 
 def _make_chat_agent() -> MagicMock:
@@ -81,8 +88,8 @@ def test_health_models_match_contracts(contract_suite) -> None:
     assert_contract_matches(
         payload=UsageResponse(
             total_tokens=5,
-            total_cost=0.001,
-            daily_usage={"current_session": {"tokens": 5, "cost": 0.001}},
+            total_cost=None,
+            daily_usage={},
         ).model_dump(),
         schema_name="api/usage_response",
         contract_suite=contract_suite,
@@ -155,7 +162,7 @@ def test_chat_models_match_contracts(contract_suite) -> None:
     stream_chunk = ChatStreamChunk(type="content", data={"text": "Hello"}, index=0)
 
     assert_contract_matches(
-        payload=request.model_dump(),
+        payload=request.model_dump(exclude_unset=True),
         schema_name="api/chat_request",
         contract_suite=contract_suite,
     )
@@ -208,6 +215,7 @@ def test_chat_completion_endpoint_matches_contract(contract_suite) -> None:
         },
     )
     auth_state = SimpleNamespace(settings=None)
+    install_chat_runtime(chat_state, agent)
 
     with (
         patch("henchman.api.endpoints.chat.state", chat_state),
@@ -220,6 +228,9 @@ def test_chat_completion_endpoint_matches_contract(contract_suite) -> None:
         )
 
     assert response.status_code == 200
+    assert response.json()["run_id"]
+    assert response.json()["accounting_lifetime"] == "process"
+    assert response.json()["budget"] is None
     assert_contract_matches(
         payload=response.json(),
         schema_name="api/chat_response",
@@ -248,6 +259,7 @@ def test_chat_stream_endpoint_matches_contract(contract_suite) -> None:
         metrics={"requests_total": 0, "requests_successful": 0},
     )
     auth_state = SimpleNamespace(settings=None)
+    install_chat_runtime(chat_state, agent)
 
     with (
         patch("henchman.api.endpoints.chat.state", chat_state),
@@ -260,13 +272,54 @@ def test_chat_stream_endpoint_matches_contract(contract_suite) -> None:
         )
 
     assert response.status_code == 200
+    chunks = []
     for line in (entry for entry in response.text.splitlines() if entry.startswith("data: ")):
         payload = json.loads(line.removeprefix("data: "))
+        chunks.append(payload)
         assert_contract_matches(
             payload=payload,
             schema_name="api/chat_stream_chunk",
             contract_suite=contract_suite,
         )
+    assert [chunk["type"] for chunk in chunks] == ["start", "content", "finished", "done"]
+    assert chunks[0]["data"]["run_id"] == chunks[-1]["data"]["run_id"]
+    assert chunks[-1]["data"]["budget"] is None
+
+
+@pytest.mark.parametrize("missing_usage", [False, True])
+def test_run_budget_and_nullable_usage_contracts_keep_exact_money_and_unknowns(contract_suite, missing_usage):
+    ledger = RunBudgetLedger(limits=BudgetLimits(max_cost=Decimal("1")))
+    record = ledger.reserve(RequestEstimate(10, 10, TokenPricing.uniform(Decimal("0.123456789012345678901"))))
+    ledger.start(record.request_id)
+    if missing_usage:
+        ledger.cancel(record.request_id)
+    else:
+        ledger.reconcile(record.request_id, UsageReport(prompt_tokens=10, completion_tokens=2, source="reported"), final=True)
+    budget = budget_snapshot_payload(ledger.snapshot())
+    assert_contract_matches(payload=budget, schema_name="api/run_budget_snapshot", contract_suite=contract_suite)
+    usage = UsageResponse(total_tokens=None if missing_usage else 12, budget=budget).model_dump()
+    assert_contract_matches(payload=usage, schema_name="api/usage_response", contract_suite=contract_suite)
+    response = ChatResponse(message=ChatMessage(role="assistant", content=""), run_id=ledger.run_id, budget=budget).model_dump()
+    assert_contract_matches(payload=response, schema_name="api/chat_response", contract_suite=contract_suite)
+    assert usage["total_cost"] is None
+    assert budget["money"][0]["reported_cost"] is None
+    expected_estimate = None if missing_usage else "0.001481481468148148146812"
+    assert budget["money"][0]["settled_estimated_cost"] == expected_estimate
+
+    invalid = deepcopy(budget)
+    invalid["money"][0]["held_cost"] = 0.0
+    assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/run_budget_snapshot"))
+    invalid = deepcopy(usage)
+    invalid["total_cost"] = 0.0
+    assert contract_suite.validate_json_schema(invalid, load_contract_schema("api/usage_response"))
+
+
+@pytest.mark.parametrize("field,value", [("max_tokens", 8), ("max_tokens", None), ("temperature", 0.0), ("model", "other")])
+def test_chat_request_contract_rejects_unsupported_options(contract_suite, field, value):
+    payload = {"messages": [{"role": "user", "content": "Hi"}], field: value}
+    assert contract_suite.validate_json_schema(payload, load_contract_schema("api/chat_request"))
+    with pytest.raises(ValueError):
+        ChatRequest.model_validate(payload)
 
 
 def test_remote_models_match_contracts(contract_suite) -> None:
