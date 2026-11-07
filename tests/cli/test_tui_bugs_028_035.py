@@ -4,8 +4,12 @@ Each test class covers one bug using TDD: first verify the bug exists,
 then verify the fix resolves it.
 """
 
+import asyncio
 import inspect
 from unittest.mock import MagicMock
+
+import pytest
+from textual.app import App
 
 from henchman.cli.textual_mixins import (
     _HistoryMixin,
@@ -14,7 +18,6 @@ from henchman.cli.textual_mixins import (
     _MessageHandlerMixin,
 )
 from henchman.cli.textual_widgets import (
-    ChatMessage,
     ChatPane,
     HenchmanTextArea,
 )
@@ -183,21 +186,30 @@ class TestBug033FirstChunkScrolling:
         source = inspect.getsource(ChatPane.append_agent_chunk)
         assert "if not newly_created" not in source
 
-    def test_scroll_called_after_first_chunk(self):
-        pane = ChatPane()
-        pane.mount = MagicMock()
-        pane._scroll_to_bottom = MagicMock()
-        pane._active = {}
-        pane.append_agent_chunk("Assistant", "Hello")
-        assert pane._scroll_to_bottom.called
+    @pytest.mark.parametrize("has_previous_chunk", [False, True])
+    async def test_scroll_after_chunk_layout(self, has_previous_chunk):
+        class ChatApp(App):
+            def compose(self):
+                yield ChatPane()
 
-    def test_scroll_called_after_subsequent_chunk(self):
-        pane = ChatPane()
-        pane.mount = MagicMock()
-        pane._scroll_to_bottom = MagicMock()
-        pane._active = {"Assistant": MagicMock(spec=ChatMessage)}
-        pane.append_agent_chunk("Assistant", " World")
-        assert pane._scroll_to_bottom.called
+        app = ChatApp()
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            pane = app.query_one(ChatPane)
+
+            async def after_layout():
+                refreshed = asyncio.Event()
+                pane.call_after_refresh(refreshed.set)
+                await asyncio.wait_for(refreshed.wait(), 2)
+
+            if has_previous_chunk:
+                pane.append_agent_chunk("Assistant", "Hello")
+                await after_layout()
+            scroll = MagicMock(wraps=pane._scroll_to_bottom)
+            pane._scroll_to_bottom = scroll
+            pane.append_agent_chunk("Assistant", " World")
+            await after_layout()
+            scroll.assert_called_once()
 
 
 # ===================================================================
