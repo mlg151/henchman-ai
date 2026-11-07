@@ -317,7 +317,8 @@ REPL and Textual turns save after their streams close, including cancellation.
 `Agent.current_turn_messages` retains independent copies of the current turn's
 messages before context compaction. Session synchronization replaces only that
 turn's transcript, preserving earlier conversation, full tool results, tool-call
-arguments, reasoning, and marked partial responses. The model's compacted working
+arguments, reasoning, and marked partial responses, subject to evidence redaction.
+The model's compacted working
 context is separate from this persisted evidence.
 
 Resuming a session restores the configured agent's system prompt and the selected
@@ -334,7 +335,21 @@ Native file locks serialize cooperating writers, and a loaded-byte revision toke
 rejects stale updates (including attempts to resurrect a deleted session). Reload
 and reconcile on conflict; a portable import is not permission to overwrite an
 existing session. Legacy unversioned sessions migrate on their next save, retaining
-the legacy prior copy. Portable exports keep the established session JSON shape.
+a redacted prior copy. Portable exports keep the established session JSON shape.
+
+`Session.to_dict()` projects evidence through the shared runtime `EvidenceRedactor`;
+it leaves live messages and execution inputs unchanged. Session managers attach
+the same policy to created, loaded, imported, branched, merged and templated
+sessions. Interactive startup registers settings/provider credentials and provider
+switching adds replacement keys without forgetting old ones. Markdown and playback
+render from the projected session, so credential fields outside a rendered section
+still mask their echoed values. Template metadata uses that policy too.
+Persistence learns marked credentials from the verified retained generation before
+projecting the new generation. Both copies are sanitized and integrity-checked
+before replacing them, including recovery with a missing or corrupt current file.
+The credential registry remains in memory and is excluded from serialization.
+See [session evidence redaction](configuration.md#session-evidence-redaction) for
+the threat model, legacy-file behavior and remaining output/privacy boundaries.
 
 When the current copy is missing, malformed or fails its integrity check, loading
 uses a valid prior copy and emits a warning naming the session and possible lost

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from henchman.cli.session_manager import ReplSessionManager
+
 if TYPE_CHECKING:
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
@@ -52,6 +54,9 @@ def switch_runtime_provider(
             context.max_tokens = context_length
     if orchestrator is not None:
         orchestrator.default_provider = provider
+    session_manager = getattr(runtime, "session_manager", None)
+    if isinstance(session_manager, ReplSessionManager):
+        session_manager.register_credentials(provider=provider)
     runtime.provider = provider
     for name in ("output_handler", "command_processor", "tool_executor", "core_context"):
         component = getattr(runtime, name, None)

@@ -101,6 +101,8 @@ def create_core_context(
     session_manager = ReplSessionManager(
         auto_save=True,
         instruction_snapshot=instruction_snapshot,
+        settings=settings,
+        provider=provider,
     )
     tool_manager = ToolManager(settings=settings, question_handler=question_handler)
     tool_manager.set_auto_approve(auto_approve=auto_approve_tools)

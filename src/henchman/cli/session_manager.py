@@ -20,7 +20,9 @@ if TYPE_CHECKING:
 
     from henchman.agents.orchestrator import Orchestrator
     from henchman.config.context import ContextSnapshot
+    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
+    from henchman.providers.base import ModelProvider
     from henchman.tools.registry import ToolRegistry
 
 
@@ -110,6 +112,8 @@ class ReplSessionManager:
         *,
         auto_save: bool = True,
         instruction_snapshot: ContextSnapshot | None = None,
+        settings: Settings | None = None,
+        provider: ModelProvider | None = None,
     ) -> None:
         """Initialize the REPL session manager.
 
@@ -119,12 +123,28 @@ class ReplSessionManager:
             auto_save: Whether to auto-save sessions on exit.
             instruction_snapshot: Optional instruction provenance captured
                 onto every attached session.
+            settings: Effective settings whose credentials are masked in evidence.
+            provider: Active provider whose key is masked in evidence.
         """
         self.session_manager = session_manager or SessionManager()
         self.session: Session | None = None
         self.auto_save = auto_save
         self.instruction_snapshot = instruction_snapshot
         self._tool_registry: ToolRegistry | None = None
+        self.register_credentials(settings=settings, provider=provider)
+
+    def register_credentials(
+        self, *, settings: Settings | None = None, provider: ModelProvider | None = None,
+    ) -> None:
+        """Keep configured and rotated keys out of session evidence."""
+        if settings is None and provider is None:
+            return
+        redactor = self.session_manager.evidence_redactor
+        if settings is not None:
+            redactor.register_config(settings.model_dump())
+        key = getattr(provider, "api_key", None)
+        if isinstance(key, str):
+            redactor.register_secret(key)
 
     @property
     def current(self: Self) -> Session | None:

@@ -157,6 +157,11 @@ def export_as_markdown(
     Returns:
         Markdown representation of the session.
     """
+    # Project a copy before rendering so marked fields and their echoes share
+    # the same policy as disk/JSON export without altering execution history.
+    from .session_data import session_from_dict
+
+    session = session_from_dict(session.to_dict())
     lines: list[str] = []
     if include_metadata:
         lines.extend(_render_metadata(session))

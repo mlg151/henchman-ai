@@ -41,8 +41,12 @@ Legacy files migrate on save; corrupted current files recover with explicit warn
 Process-termination and simultaneous-writer regressions join the native installed
 wheel suite. Goal/queue/operation recovery and continuation qualification remain open.
 The #20 session-selector boundary now covers full IDs, prefixes, current pointers,
-memory/context lookup and derived exports/branches/templates. Credential redaction
-and restricted filesystem/network execution still require implementation and qualification.
+memory/context lookup and derived exports/branches/templates. Shared credential
+redaction now covers session persistence and retained backups, JSON/Markdown
+exports, templates and new playback recordings. Interactive runtimes register
+configured keys and provider rotation; live execution inputs stay unchanged.
+Terminal output/errors/logs/metrics/handoffs, config-export secret references and
+restricted filesystem/network execution still require implementation and qualification.
 The release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

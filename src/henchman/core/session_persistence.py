@@ -15,6 +15,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
+from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.file_lock import FileLock
 
 from .session_data import Session, session_from_dict
@@ -169,6 +170,10 @@ def persist_session(data_dir: Path, session: Session, *, timestamp: str) -> Path
             raise SessionStorageError(
                 "Session changed on disk; reload and reconcile before saving."
             )
+        retained = _select_prior(current, prior, session)
+        if retained is not None:
+            session.evidence_redactor.register_config(json.loads(retained))
+        # Learn legacy marked credentials before projecting current echoes.
         # A portable import/new object must not replace a recoverable session.
         payload = session.to_dict()
         payload["last_updated"] = timestamp
@@ -176,23 +181,46 @@ def persist_session(data_dir: Path, session: Session, *, timestamp: str) -> Path
         raw = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
         _decode(raw, session.id)  # Validate before touching either committed copy.
         _cleanup_temporary(path)
-        if current is not None:
-            try:
-                _decode(current, session.id)
-            except UnsupportedSessionVersion:
-                raise
-            except SessionStorageError:
-                # A recovered session retains the valid backup, never corrupt bytes.
-                if not session.recovery_notice:
-                    raise
-            else:
-                _replace_bytes(backup, current)
-                prior = current
+        if retained is not None:
+            safe_prior = _redact_stored_copy(retained, session.evidence_redactor)
+            _decode(safe_prior, session.id)
+            if safe_prior != prior:
+                _replace_bytes(backup, safe_prior)
+                prior = safe_prior
         _replace_bytes(path, raw)
         session.last_updated = timestamp
         session._storage_token = _revision(raw, prior)
         session._storage_path = str(path.resolve())
     return path
+
+
+def _select_prior(current: bytes | None, prior: bytes | None, session: Session) -> bytes | None:
+    """Choose only a validated generation, including prior-only recovery."""
+    if current is not None:
+        try:
+            _decode(current, session.id)
+        except UnsupportedSessionVersion:
+            raise
+        except SessionStorageError:
+            if not session.recovery_notice:
+                raise
+        else:
+            return current
+    if prior is not None:
+        _decode(prior, session.id)
+    return prior
+
+
+def _redact_stored_copy(raw: bytes, redactor: EvidenceRedactor) -> bytes:
+    """Do not rotate legacy unredacted bytes into a new retained backup."""
+    payload = json.loads(raw)
+    safe = redactor.redact(payload)
+    if safe == payload:
+        return raw
+    storage = safe.pop("_storage", None)
+    if storage is not None:
+        safe["_storage"] = {"version": 1, "sha256": _digest(_canonical(safe))}
+    return json.dumps(safe, indent=2, ensure_ascii=True).encode("utf-8")
 
 
 def delete_session(path: Path) -> None:

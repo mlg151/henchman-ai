@@ -79,7 +79,9 @@ class SessionManager(_SessionManagerBase):
             now=_now_iso(),
             tag=tag,
         )
-        return branch_session(parent, branch_point, meta)
+        branched = branch_session(parent, branch_point, meta)
+        branched.evidence_redactor = self.evidence_redactor
+        return branched
 
     def merge_sessions(
         self: SessionManager,
@@ -118,6 +120,7 @@ class SessionManager(_SessionManagerBase):
             tag=tag,
         )
         merge_sessions(sessions, session_ids, strategy, merged, now)
+        merged.evidence_redactor = self.evidence_redactor
         return merged
 
     def export_session(
@@ -178,6 +181,7 @@ class SessionManager(_SessionManagerBase):
         """
         if format == "json":
             session = session_from_json(data)
+            session.evidence_redactor = self.evidence_redactor
             import_json_session(session, tag, _generate_id(), _now_iso())
             if project_hash is not None:
                 session.project_hash = project_hash
@@ -244,7 +248,9 @@ class SessionManager(_SessionManagerBase):
             _generate_id(),
             _now_iso(),
         )
-        return create_from_template(template_id, io, parameters, tag, project_hash=project_hash)
+        session = create_from_template(template_id, io, parameters, tag, project_hash=project_hash)
+        session.evidence_redactor = self.evidence_redactor
+        return session
 
     def list_templates(
         self: SessionManager, *, project_hash: str | None = None

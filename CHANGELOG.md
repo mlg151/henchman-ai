@@ -59,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Session evidence credentials** — Shared redaction now covers saved sessions
+  and retained backups, JSON/Markdown exports, templates and new playback records,
+  including compacted turns and stored memories. Interactive settings/provider keys,
+  credential environment references and key rotation feed the policy; marked
+  credential fields also mask their echoes. Legacy recovery sanitizes both copies
+  on save. Live credentials and execution messages stay unchanged. Fourteen canary
+  regressions join the native installed-wheel cohort; other output sinks and
+  restricted execution remain open under [#20](https://github.com/mlg151/henchman-ai/issues/20).
+
 - **Startup recovery errors** — A selected session with no valid storage copy or
   an unsupported newer storage version now stops CLI startup with an explicit
   error. Startup preserves the original files and selection instead of silently

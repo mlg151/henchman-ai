@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from henchman.utils.evidence_redaction import EvidenceRedactor
+
 from .session_data import Session
 from .session_helpers import (
     _generate_id,
@@ -38,15 +40,19 @@ class _SessionManagerBase:
     def __init__(
         self: _SessionManagerBase,
         data_dir: Path | None = None,
+        *,
+        evidence_redactor: EvidenceRedactor | None = None,
     ) -> None:
         """Initialise the session manager.
 
         Args:
             data_dir: Directory for session files.
                 Defaults to ``~/.henchman/sessions``.
+            evidence_redactor: Runtime credential policy for stored/exported evidence.
         """
         self.data_dir = data_dir or (Path.home() / ".henchman" / "sessions")
         self._current: Session | None = None
+        self.evidence_redactor = evidence_redactor or EvidenceRedactor()
 
     # ------------------------------------------------------------------
     # Current session tracking
@@ -59,6 +65,7 @@ class _SessionManagerBase:
 
     def set_current(self: _SessionManagerBase, session: Session) -> None:
         """Set the current session."""
+        session.evidence_redactor = self.evidence_redactor
         self._current = session
 
     def clear_current(self: _SessionManagerBase) -> None:
@@ -124,7 +131,7 @@ class _SessionManagerBase:
             New Session instance.
         """
         now = _now_iso()
-        return Session(
+        session = Session(
             id=_generate_id(),
             project_hash=project_hash,
             started=now,
@@ -132,6 +139,8 @@ class _SessionManagerBase:
             messages=[],
             tag=tag,
         )
+        session.evidence_redactor = self.evidence_redactor
+        return session
 
     def save(self: _SessionManagerBase, session: Session) -> Path:
         """Save a session to disk.
@@ -142,6 +151,7 @@ class _SessionManagerBase:
         Returns:
             Path to saved file.
         """
+        session.evidence_redactor = self.evidence_redactor
         return _persist_session(self.data_dir, session)
 
     # ------------------------------------------------------------------
@@ -186,6 +196,7 @@ class _SessionManagerBase:
     def _load_scoped(self, path: Path, project_hash: str | None) -> Session:
         """Check the final loaded identity, including after prefix resolution."""
         session = load_session(path)
+        session.evidence_redactor = self.evidence_redactor
         if project_hash is not None and session.project_hash != project_hash:
             raise FileNotFoundError("Session not found in current project.")
         return session

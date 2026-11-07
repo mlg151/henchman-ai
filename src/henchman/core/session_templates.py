@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .session_data import Session, session_from_dict
 from .session_persistence import session_path
@@ -70,6 +70,7 @@ def save_template(
         "session_data": session.to_dict(),
         "created_at": io.now,
     }
+    template_data = cast(dict[str, Any], session.evidence_redactor.redact(template_data))
     io.templates_dir.mkdir(parents=True, exist_ok=True)
     path = session_path(io.templates_dir, template_id)
     path.write_text(json.dumps(template_data, indent=2))

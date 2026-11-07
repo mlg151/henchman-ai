@@ -269,6 +269,8 @@ class Repl:
         self.session_manager = ReplSessionManager(
             auto_save=self.config.auto_save,
             instruction_snapshot=self.config.instruction_snapshot,
+            settings=settings,
+            provider=provider,
         )
         self._init_tool_manager()
         self._init_plugin_manager()

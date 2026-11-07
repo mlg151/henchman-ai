@@ -143,8 +143,40 @@ import` command creates a new ID in the destination project and leaves the sourc
 session unchanged. Low-level Python session APIs accept `project_hash=` for scoped access and retain unscoped
 administrative access when it is omitted. These are application access checks,
 not OS isolation: processes with filesystem access can still read saved files.
-Credential redaction and restricted shell/network enforcement remain tracked
-separately under issue #20.
+Restricted shell/network enforcement remains tracked separately under issue #20.
+
+## Session evidence redaction
+
+Session JSON, Markdown exports, new playback recordings and saved templates use
+the shared `EvidenceRedactor` policy. It masks known credential values with
+`[REDACTED]`, including their JSON-escaped forms, standard authentication header
+lines, and values in explicitly credential-bearing fields such as `api_key`,
+`api_keys`, `password`, `authorization` and names ending in `_secret` or `_token`.
+Token counts and ordinary dictionary `key` fields are not credential markers.
+The same policy covers summaries, compaction-retained messages, stored memories
+and nested session metadata. Template names, descriptions and parameters are
+included; backups are redacted before rotation or retention during recovery.
+
+Credential-named environment variables are discovered automatically. REPL and
+Textual initialization also register credentials from effective settings and the
+active provider; provider switches retain old keys in the runtime policy and
+register the replacement key. `${ENV_VAR}` references in credential settings
+track changes to the referenced variable. Embedded Python callers can pass an
+`EvidenceRedactor` to `SessionManager(evidence_redactor=...)` to register other
+known values. This policy does not discover arbitrary secrets or every possible
+encoding. Revocation at the provider remains a separate action.
+
+Redaction produces an independent evidence copy: it does not change live provider
+credentials, tool arguments or in-memory messages used for execution. A resumed
+session contains the redacted evidence; it cannot restore removed secret values.
+Reading a legacy file does not rewrite it; its next save sanitizes the current
+and retained prior copy. Previously exported files and recordings are not scanned
+or rewritten automatically.
+
+This increment does not establish full privacy or OS isolation. Terminal/JSON
+stream output, provider errors, logs, metrics, handoffs, ordinary configuration
+exports and restricted execution still require the remaining work and qualification
+in issue #20. Existing configuration export semantics are described below.
 
 ## Local import/export sync
 
