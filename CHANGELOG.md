@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Owned OAuth browser handoff** — A bounded desktop helper receives authorization
+  URLs through stdin after current authority and cancellation checks. It preserves
+  original cancellation, joins its launcher and reports uncertain handoff without
+  automatic retry. Synthetic launchers cover the lifecycle; interactive activation
+  and real browser/account qualification remain pending.
+
 - **Explicit bounded model repair** — `Orchestrator.repair_direct` runs caller-bound
   checks and repairs under one usage budget and operation journal. A foreground
   lease restricts edits to declared files, preserves protected criteria and blocks

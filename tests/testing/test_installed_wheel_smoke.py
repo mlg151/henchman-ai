@@ -226,6 +226,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/mcp/test_oauth_evidence.py",
         "tests/mcp/test_oauth_callback.py",
         "tests/mcp/test_oauth_flow.py",
+        "tests/cli/test_oauth_browser.py",
         "tests/mcp/test_oauth_manager.py",
         "tests/mcp/test_oauth_transport.py",
         "tests/mcp/test_oauth_dispatch.py",

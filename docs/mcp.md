@@ -230,6 +230,30 @@ caller tasks. These manager APIs do not connect or replay MCP requests, and
 configured OAuth connections remain refused pending normal manager activation and
 interactive integration.
 
+### Owned browser handoff helper
+
+The explicit `henchman.cli.oauth_browser.open_oauth_browser(url, authorize=guard)`
+helper supports a bounded HTTPS authorization URL and a current caller guard.
+It starts an isolated Python child with fixed arguments, waits for READY, rechecks
+authority, cancellation and the deadline, then sends the URL through stdin. The
+helper's arguments and diagnostics never contain the URL. Its environment retains
+required desktop variables but excludes provider keys and browser command templates.
+
+Linux uses an absolute `xdg-open` with a configured graphical desktop; macOS uses
+`/usr/bin/open`; Windows invokes the native URL handler in the owned child. Unix
+launchers replace that child's PID and receive null standard streams. The platform
+launcher necessarily receives the URL as an argument or native-handler parameter.
+The helper waits at most five seconds for READY and ten seconds for handoff, with
+bounded terminate/kill cleanup of its owned launcher. It cannot close an existing
+browser or revoke a page already handed off. A later failure reports that the page
+may have opened and never retries automatically. Successful handoff does not mean
+authentication succeeded.
+
+Owned synthetic-launcher tests cover cancellation, stale guards, deadlines, output
+bounds and cleanup. No real browser/account or native Windows/macOS desktop flow is
+qualified. This helper is not yet wired into interactive commands; ordinary OAuth
+connections remain refused until the controller and frontend integration lands.
+
 ### Explicit authenticated HTTP client
 
 `manager.capture_oauth_http(server, authorize=guard)` reads matching local ready

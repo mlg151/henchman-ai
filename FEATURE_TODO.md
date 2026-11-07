@@ -28,6 +28,8 @@ Explicit Python clients now support credential-scoped HTTP requests with a pinne
 pre-header guard and cleanup uncertainty handling.
 The same pinned guard now checks discovery and token exchange after connection
 setup, retaining uncertain post-boundary claims without replay.
+An owned browser helper now bounds desktop handoff and rechecks authority before
+transferring the URL, with cancellation and cleanup tested using synthetic launchers.
 Configured OAuth connections remain refused
 until interactive login and normal manager activation.
 Those flows and final native qualification remain open under #25.

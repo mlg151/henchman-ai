@@ -101,6 +101,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   guards and unusable-transport handling after uncertain cleanup.
   Discovery and token exchange share the guard after connection setup, with
   conservative claim settlement and no implicit replay after uncertain dispatch.
+  An owned browser helper now provides bounded, guarded desktop handoff; synthetic
+  launcher tests do not qualify a real browser or authorization service.
   Configured OAuth connections remain refused
   pending interactive login and normal manager activation.
   Remaining qualification gates are
