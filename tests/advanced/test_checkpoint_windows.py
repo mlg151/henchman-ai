@@ -318,3 +318,31 @@ CheckpointService(Path(sys.argv[1])).begin(['file'], actor=sys.argv[2])
                  for index in range(3)]
     assert [process.wait(timeout=30) for process in processes] == [0, 0, 0]
     assert len(CheckpointService(tmp_path).list_checkpoints()) == 3
+
+
+def test_directory_guard_requests_data_access_for_windows_share_enforcement(tmp_path, monkeypatch):
+    """Attribute-only opens do not establish the intended delete-sharing guard."""
+    import ctypes
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    from henchman.advanced import checkpoint_windows
+
+    accesses = []
+    closed = []
+
+    def create_file(_path, access, share, *_args):
+        accesses.append((access, share))
+        return 123
+
+    api = object.__new__(checkpoint_windows.WindowsApi)
+    api.kernel = SimpleNamespace(CreateFileW=create_file, CloseHandle=closed.append)
+    api.private_security = lambda: nullcontext(ctypes.c_void_p())
+    api.info = lambda _handle: SimpleNamespace(attributes=0x10, links=1)
+    api.check_name = lambda _handle, _path: None
+    monkeypatch.setattr(checkpoint_windows, "_last_error", lambda: 0)
+    with api.open(tmp_path, directory=True):
+        access, share = accesses[0]
+        assert access & 0x1  # FILE_LIST_DIRECTORY / FILE_READ_DATA
+        assert not share & 0x4  # FILE_SHARE_DELETE
+    assert closed == [123]

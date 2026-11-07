@@ -164,6 +164,11 @@ class WindowsApi:
              create: bool = False, writable: bool = False, share: int | None = None,
              attributes_only: bool = False) -> Iterator[int]:
         access = _READ_CONTROL | (0x80 if attributes_only or directory else _READ)
+        if directory:
+            # Attribute-only handles do not participate in Win32 sharing
+            # enforcement. FILE_LIST_DIRECTORY (FILE_READ_DATA) makes denial
+            # of FILE_SHARE_DELETE effective for these held ancestors.
+            access |= 0x1
         if exclusive:
             access |= _DELETE | _WRITE_DAC
         if writable:
