@@ -70,15 +70,18 @@ def test_cached_and_new_agents_keep_context_policy_when_provider_changes(
     assert future.max_tokens == switched_budget
 
 
+@pytest.mark.parametrize("auto_compact", [False, True])
 @pytest.mark.parametrize("threshold,expected", [(0.5, 1536), (0.0, 1), (1.0, 3072)])
 def test_orchestrator_applies_threshold_to_lead_and_specialists_across_switch(
     threshold: float,
     expected: int,
+    auto_compact: bool,
 ) -> None:
     settings = Settings(
         context={
             "max_tokens": 3072,
             "compaction_threshold": threshold,
+            "auto_compact": auto_compact,
         }
     )
     provider = OllamaProvider(model="gpt-4")
@@ -87,6 +90,8 @@ def test_orchestrator_applies_threshold_to_lead_and_specialists_across_switch(
     lead = orchestrator.tech_lead
     assert cached.max_tokens == expected
     assert lead.max_tokens == expected
+    assert lead.auto_compact is auto_compact
+    assert cached.auto_compact is auto_compact
     lead.messages.append(Message(role="user", content="Remember the lead history"))
     lead_history = lead.messages
     runtime = SimpleNamespace(orchestrator=orchestrator, agent=lead, provider=provider)
@@ -104,3 +109,4 @@ def test_orchestrator_applies_threshold_to_lead_and_specialists_across_switch(
     future = orchestrator.pool.get_agent("engineer")
     assert future.provider is replacement
     assert future.max_tokens == expected
+    assert all(agent.auto_compact is auto_compact for agent in (lead, cached, future))

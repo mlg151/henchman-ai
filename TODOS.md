@@ -56,7 +56,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   now retain live values and session origins for `/config view|get`, `/doctor`,
   provider/context switching and resume. Theme/context persistence changes named
   keys only. Read-confirmation controls now reach primary/scoped registries, and
-  unsupported Docker sandbox requests fail at setup. Context/UI consumers and
+  unsupported Docker sandbox requests fail at setup. Automatic compaction controls
+  now reach primary, specialist, dynamic child and API agents while retaining
+  explicit hard-capacity checks. Remaining context/UI consumers and
   expanded nonsecret transfer remain open; see
   [effective settings](docs/configuration.md#inspecting-effective-settings).
 

@@ -94,6 +94,9 @@ MCP stdio now uses a bounded SDK 1.x dependency and independent process fixtures
 for four legacy protocol profiles, with bounded redacted diagnostic draining.
 Native qualification and the remaining schema/discovery/result work stay open
 under #21; modern SDK/transport migration stays under #25.
+Automatic compaction now respects the configured disable flag across primary,
+specialist, dynamic child and API agents while retaining explicit hard-capacity
+checks. Broader context/UI consumption remains under #14.
 REPL/Textual now retain a shared live settings snapshot with accurate session
 origins for config/doctor inspection, provider switching and resume. Explicit file
 scopes remain independent, and theme/context shortcuts persist only named keys.

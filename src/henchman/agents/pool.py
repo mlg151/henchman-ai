@@ -41,6 +41,7 @@ class ContextConfig:
         max_tokens: Explicit context budget, or None for model-derived limits.
         context_window: Hard requested capacity, separate from compaction budget.
         leader_system_prompt: Optional runtime override for the leader prompt.
+        auto_compact: Whether automatic request preparation may compact history.
     """
 
     environment_context: str | None = field(default=None)
@@ -51,6 +52,7 @@ class ContextConfig:
     max_tokens: int | None = None
     context_window: int | None = None
     leader_system_prompt: str | None = None
+    auto_compact: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +428,7 @@ class AgentPool:
             model=config.model,
             max_tokens=ctx.max_tokens if ctx.max_tokens is not None else 0,
             context_window=ctx.context_window,
+            auto_compact=ctx.auto_compact,
             identity=identity,
             intelligent_context=ctx.intelligent_context,
             importance_threshold=ctx.importance_threshold,

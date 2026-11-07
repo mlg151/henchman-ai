@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Automatic compaction control** — Disabling `context.auto_compact` now retains
+  history and suppresses automatic summaries across primary, specialist, dynamic
+  child and API agents. Explicit request capacity still rejects oversized input
+  before HTTP; API agents now consume the configured context policy.
+
 - **Durable price provenance** — Resume regressions cover changed prices and
   currencies while retaining historical charges and original limits. A bounded
   local probe records failed-request retention and pre-HTTP denials after restart;

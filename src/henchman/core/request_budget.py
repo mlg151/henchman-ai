@@ -40,12 +40,15 @@ def prepare_request(
     context_window: int,
     conversation_limit: int,
     protect_from_index: int,
+    allow_compaction: bool = True,
 ) -> PreparedRequest:
     """Drop old atomic groups until input plus reserved output fits the estimate.
 
     System instructions and the complete current turn are mandatory. The
     conversation limit is a soft target for these messages; the selected request
-    capacity is checked separately. Neither message bodies nor history are edited.
+    capacity is checked separately. Disabled compaction retains every message
+    regardless of the soft target, while still enforcing that hard capacity.
+    Neither message bodies nor history are edited.
     Provider token estimates cannot guarantee a server's tokenizer/template count.
     """
     if type(context_window) is not int or context_window <= 0:
@@ -56,7 +59,10 @@ def prepare_request(
     start = _protection_start(messages, protect_from_index)
     # Only remove prefixes at user-turn boundaries. Existing compaction grouping
     # ends groups on user messages, which could retain an answer without its task.
-    cutoffs = [0, *(i for i in range(1, start) if messages[i].role == "user"), start]
+    cutoffs = (
+        [0, *(i for i in range(1, start) if messages[i].role == "user"), start]
+        if allow_compaction else [0]
+    )
     model = getattr(provider, "default_model", None)
 
     for cutoff in dict.fromkeys(cutoffs):
@@ -67,7 +73,7 @@ def prepare_request(
         input_tokens = provider.estimate_input_tokens(projection, tools)
         fits = input_tokens + output.output_tokens <= context_window
         target_met = TokenCounter.count_messages(projection, model=model) <= conversation_limit
-        if fits and (target_met or cutoff == start):
+        if fits and (not allow_compaction or target_met or cutoff == start):
             if not is_valid_message_sequence(projection):
                 raise ValueError("Context projection would break a tool-call sequence")
             return PreparedRequest(
@@ -75,9 +81,15 @@ def prepare_request(
                 output.output_tokens, len(projection) < len(messages),
             )
 
+    compaction_guidance = (
+        "History is retained because automatic compaction is disabled; "
+        "compact explicitly or enable context.auto_compact. "
+        if not allow_compaction else ""
+    )
     raise ContextTooLargeError(
         f"Required request exceeds the context window ({context_window} tokens): "
         f"estimated input {input_tokens} + reserved output {output.output_tokens}. "
+        f"{compaction_guidance}"
         "Reduce the current prompt, tool results, tool schemas or output cap, "
         "or select a larger context length."
     )

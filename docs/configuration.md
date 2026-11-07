@@ -450,8 +450,11 @@ invalid caps are rejected. When neither cap is configured, they request
 `min(4096, max(1, context_window // 4))` output tokens. Native Anthropic retains
 its configured output cap.
 
-The agent removes complete older conversation turns until the request estimate
-fits. When a full tool catalog still cannot fit and bound `tool_search` is
+With `context.auto_compact: true` (the default), the agent removes complete older
+conversation turns until the request estimate fits. With `false`, it retains all
+history and suppresses automatic summaries, ignoring the softer compaction
+threshold while still enforcing the hard capacity before dispatch. Primary,
+specialist, dynamic child and HTTP API agents use this setting. When a full tool catalog still cannot fit and bound `tool_search` is
 available, it exposes discovery and core coding schemas within the same limit.
 Search by an exact tool name to prioritize its real schema on the next request;
 the latest search prioritizes up to five matching registered tools from its page.
@@ -466,7 +469,10 @@ explicitly searched or provider-required schemas and output cannot fit, the call
 counts and guidance. Custom scopes without discovery retain the explicit overflow
 error. History remains available for persistence. This path uses deterministic
 history pruning rather than the legacy summarizer or content truncation.
-Standalone agents with `context_window=None` retain legacy compaction behavior.
+Standalone agents with `context_window=None` retain legacy compaction behavior
+when automatic compaction is enabled; disabling it does not introduce an explicit
+hard capacity where none was configured. Intelligent-context strategy settings
+apply to the legacy compactor, not the deterministic explicit-capacity path.
 
 Tokenizers and server chat templates differ, so these are estimates, not an exact
 server guarantee; opaque provider extensions are not fully accounted for. Even

@@ -20,6 +20,7 @@ from henchman.config.schema import ApiConfig, Settings
 from henchman.core.events import AgentEvent, EventType
 from henchman.ops.rate_limits import RateLimiter
 from henchman.providers.base import Message
+from henchman.tools.registry import ToolRegistry
 from henchman.version import VERSION
 from tests.api.helpers import install_chat_runtime
 
@@ -1382,7 +1383,7 @@ class TestServer:
             patch("henchman.api.endpoints.health.state", lifecycle_state),
             patch("henchman.api.server.load_settings", return_value=settings),
             patch("henchman.api.server.get_default_registry", return_value=registry),
-            patch("henchman.api.server.Agent", return_value=object()),
+            patch("henchman.api.server.Agent", return_value=SimpleNamespace(tool_registry=ToolRegistry())),
             TestClient(app) as client,
         ):
             normal_statuses = [client.get("/").status_code for _ in range(2)]
@@ -1415,7 +1416,7 @@ class TestServer:
                 side_effect=[first_settings, second_settings],
             ),
             patch("henchman.api.server.get_default_registry", return_value=registry),
-            patch("henchman.api.server.Agent", return_value=object()),
+            patch("henchman.api.server.Agent", return_value=SimpleNamespace(tool_registry=ToolRegistry())),
         ):
             with TestClient(app) as first_client:
                 first_limiter = getattr(lifecycle_state, "rate_limiter", None)

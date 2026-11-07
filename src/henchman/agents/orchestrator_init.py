@@ -166,5 +166,6 @@ def _create_pool(
             adaptive_compression=ctx.adaptive_compression,
             max_tokens=effective_context_budget(ctx.max_tokens, ctx.compaction_threshold),
             context_window=ctx.max_tokens,
+            auto_compact=ctx.auto_compact,
         ),
     )

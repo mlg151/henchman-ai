@@ -142,6 +142,53 @@ async def test_api_factory_preserves_read_confirmation_requirement(api, tmp_path
         assert "unapproved read canary" not in result.content
 
 
+@pytest.mark.parametrize("auto_compact", [False, True])
+async def test_api_context_settings_control_history_projection(api, auto_compact):
+    settings = Settings.model_validate({"context": {
+        "max_tokens": 1024, "compaction_threshold": 0.01,
+        "auto_compact": auto_compact, "intelligent_context": True,
+        "importance_threshold": 0.3, "cluster_similarity_threshold": 0.4,
+        "adaptive_compression": False,
+    }})
+    messages = [
+        {"role": "user", "content": "earlier context " * 40},
+        {"role": "assistant", "content": "earlier answer"},
+        {"role": "user", "content": "current question"},
+    ]
+    async with api(settings) as (client, transport, runtime):
+        response = await client.post("/v1/chat/completions", json={"messages": messages})
+        assert response.status_code == 200, response.text
+        assert len(transport.requests) == 1
+        request = transport.requests[0]
+        assert request["max_tokens"] == 256
+        assert request["messages"] == (messages[-1:] if auto_compact else messages)
+        run = runtime.chat_runs.find("unauthenticated-local", response.json()["run_id"])
+        assert run.agent.context_window == 1024
+        assert run.agent.auto_compact == auto_compact
+        assert run.agent.intelligent_context is True
+        assert run.agent.importance_threshold == 0.3
+        assert run.agent.cluster_similarity_threshold == 0.4
+        assert run.agent.adaptive_compression is False
+        assert [message.content for message in run.agent.messages[:3]] == [
+            message["content"] for message in messages
+        ]
+
+
+@pytest.mark.parametrize("auto_compact", [False, True])
+async def test_api_context_capacity_rejects_oversized_current_turn_before_http(api, auto_compact):
+    settings = Settings.model_validate({"context": {
+        "max_tokens": 64, "auto_compact": auto_compact,
+    }})
+    async with api(settings) as (client, transport, runtime):
+        response = await client.post("/v1/chat/completions", json=user("required content " * 200))
+        assert response.status_code == 500
+        assert "context window" in response.text
+        assert not transport.requests
+        run = runtime.chat_runs.find("unauthenticated-local")
+        assert run.interrupted
+        assert run.scope.ledger.snapshot().consumed_requests == 0
+
+
 async def test_unsupported_api_sandbox_prevents_runtime_readiness(api):
     settings = Settings.model_validate({"tools": {"sandbox": "docker"}})
     async with api(settings) as (client, transport, runtime):

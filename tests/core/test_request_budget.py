@@ -177,3 +177,118 @@ def test_default_output_reservation_is_sent_to_unconfigured_provider() -> None:
         )
         assert request.output_tokens == expected
         assert request.request_options == {"max_tokens": expected}
+
+
+def test_disabled_compaction_ignores_soft_target_but_preserves_full_history() -> None:
+    from henchman.core.request_budget import prepare_request
+
+    messages = [Message("user", "old task"), Message("assistant", "answer"),
+                Message("user", "new task")]
+    request = prepare_request(
+        RecordingProvider(), messages, [], context_window=100,
+        conversation_limit=1, protect_from_index=2, allow_compaction=False,
+    )
+    assert request.messages == messages
+    assert request.messages is not messages
+    assert not request.compacted
+
+
+def test_disabled_compaction_rejects_full_history_over_hard_capacity() -> None:
+    from henchman.core.request_budget import prepare_request
+
+    messages = [Message("user", "old task" * 20), Message("assistant", "answer"),
+                Message("user", "new task")]
+    original = deepcopy(messages)
+    with pytest.raises(ContextTooLargeError, match="automatic compaction is disabled"):
+        prepare_request(
+            RecordingProvider(), messages, [], context_window=100,
+            conversation_limit=80, protect_from_index=2, allow_compaction=False,
+        )
+    assert messages == original
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("context_window", [None, 100])
+async def test_agent_disabled_compaction_preserves_history_and_skips_summary(
+    context_window: int | None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import AsyncMock
+
+    summary = AsyncMock(side_effect=AssertionError("automatic summary attempted"))
+    monkeypatch.setattr("henchman.core.agent._try_summarized_compact", summary)
+    provider = RecordingProvider()
+    agent = Agent(provider, max_tokens=1, context_window=context_window, auto_compact=False)
+    agent.messages.extend([Message("user", "old task"), Message("assistant", "old answer")])
+    original = deepcopy(agent.messages)
+    assert agent.get_messages_for_api() == original
+    events = [event async for event in agent.run("new task")]
+    assert not any(event.type == EventType.ERROR for event in events)
+    assert len(provider.calls) == 1
+    assert provider.calls[0]["messages"] == [*original, Message("user", "new task")]
+    assert agent.messages[:len(original)] == original
+    summary.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_disabled_agent_never_drops_history_to_make_model_call() -> None:
+    provider = RecordingProvider()
+    agent = Agent(provider, context_window=100, max_tokens=80, auto_compact=False)
+    agent.messages.extend([Message("user", "old task" * 20), Message("assistant", "answer")])
+    original = deepcopy(agent.messages)
+    events = [event async for event in agent.run("new task")]
+    assert not provider.calls
+    assert any(event.type == EventType.ERROR and "automatic compaction is disabled" in str(event.data)
+               for event in events)
+    assert agent.messages == [*original, Message("user", "new task")]
+
+
+@pytest.mark.asyncio
+async def test_live_compaction_flag_changes_next_request_without_losing_history() -> None:
+    provider = RecordingProvider()
+    agent = Agent(provider, context_window=100, max_tokens=80)
+    agent.messages.extend([Message("user", "old task" * 20), Message("assistant", "answer")])
+    agent.auto_compact = False
+    _ = [event async for event in agent.run("new task")]
+    assert not provider.calls
+    agent.auto_compact = True
+    events = [event async for event in agent.continue_with_tool_results()]
+    assert not any(event.type == EventType.ERROR for event in events)
+    assert len(provider.calls) == 1
+    assert provider.calls[0]["messages"] == [Message("user", "new task")]
+    assert agent.messages[0].content == "old task" * 20
+
+
+@pytest.mark.parametrize("history_size", [1, 1000])
+def test_discovery_does_not_override_disabled_history_compaction(history_size: int) -> None:
+    from henchman.core.tool_selection import prepare_agent_request
+    from henchman.tools.base import Tool, ToolResult
+    from henchman.tools.builtins.tier1_tools import ToolSearchTool
+    from henchman.tools.registry import ToolRegistry
+
+    class LargeTool(Tool):
+        name = "read_file"
+        description = "x" * 10000
+
+        async def execute(self, **params: object) -> ToolResult:
+            return ToolResult("unused")
+
+    registry = ToolRegistry()
+    search = ToolSearchTool()
+    search.bind_runtime(tool_registry=registry)
+    registry.register(search)
+    registry.register(LargeTool())
+    messages = [Message("user", "old" * history_size), Message("assistant", "answer"),
+                Message("user", "new task")]
+    options = {
+        "context_window": len(search.description) + 100,
+        "conversation_limit": 1, "protect_from_index": 2, "allow_compaction": False,
+    }
+    if history_size > 1:
+        with pytest.raises(ContextTooLargeError, match="automatic compaction is disabled"):
+            prepare_agent_request(RecordingProvider(), messages, registry, **options)
+    else:
+        request = prepare_agent_request(RecordingProvider(), messages, registry, **options)
+        assert request.messages == messages
+        assert not request.compacted
+        assert [tool.name for tool in request.tools] == ["tool_search"]
+    assert registry.get("read_file") is not None

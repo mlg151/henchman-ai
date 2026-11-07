@@ -79,6 +79,13 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             ),
             max_tokens=parent.max_tokens,
             context_window=parent.context_window,
+            auto_compact=parent.auto_compact,
+            intelligent_context=parent.intelligent_context,
+            importance_threshold=parent.importance_threshold,
+            cluster_similarity_threshold=parent.cluster_similarity_threshold,
+            adaptive_compression=parent.adaptive_compression,
+            summarize_dropped=parent.summarize_dropped,
+            max_protected_ratio=parent.max_protected_ratio,
             base_tool_iterations=parent.base_tool_iterations,
         )
         if snapshot is not None:

@@ -59,6 +59,7 @@ _CONFIG_FIELDS = frozenset(
     {
         "system_prompt",
         "context_window",
+        "auto_compact",
         "model",
         "base_tool_iterations",
         "intelligent_context",
@@ -578,6 +579,8 @@ class Agent:
         Returns:
             List of messages, potentially compacted to fit within max_tokens.
         """
+        if not self._config.auto_compact:
+            return list(self.messages)
         compactor = _build_compactor(self._config, self._max_tokens)
         result: list[Message] = compactor.compact(
             self.messages,
@@ -663,6 +666,8 @@ class Agent:
         Returns:
             True if compaction was applied, False otherwise.
         """
+        if not self._config.auto_compact:
+            return False
         model = self._config.model
         if self.turn.start_index < len(self.messages):
             protected = self.messages[self.turn.start_index :]
@@ -707,6 +712,7 @@ class Agent:
                 context_window=self._config.context_window,
                 conversation_limit=self._max_tokens,
                 protect_from_index=self.turn.start_index,
+                allow_compaction=self._config.auto_compact,
             )
             if self.instruction_context is not None:
                 self.instruction_context.presented_digest = self.instruction_context.snapshot.digest

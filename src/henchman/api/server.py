@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from henchman.agents.pool import effective_context_budget
 from henchman.api.endpoints import chat, health, remote
 from henchman.api.run_accounting import ApiChatRuns
 from henchman.api.state import state
@@ -110,19 +111,28 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
                 state.settings.providers,
                 registry=state.provider_registry,
             )
-            state.agent = Agent(
-                provider=provider,
-                system_prompt="",  # Empty system prompt for API server
-            )
             startup_root = Path.cwd()
 
             def create_chat_agent(settings: Settings) -> Agent:
-                agent = Agent(provider=provider, system_prompt="")
+                context = settings.context
+                agent = Agent(
+                    provider=provider, system_prompt="",
+                    context_window=context.max_tokens,
+                    max_tokens=effective_context_budget(
+                        context.max_tokens, context.compaction_threshold,
+                    ),
+                    auto_compact=context.auto_compact,
+                    intelligent_context=context.intelligent_context,
+                    importance_threshold=context.importance_threshold,
+                    cluster_similarity_threshold=context.cluster_similarity_threshold,
+                    adaptive_compression=context.adaptive_compression,
+                )
                 agent.tool_registry.restrict_tool_settings(
                     settings.tools, project_root=startup_root,
                 )
                 return agent
 
+            state.agent = create_chat_agent(state.settings)
             state.chat_runs = ApiChatRuns(state.settings, create_chat_agent)
             print(f"Created agent with provider: {provider_name}")
         except Exception as e:
