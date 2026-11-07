@@ -33,11 +33,13 @@ The [operation journal](docs/operation-recovery.md) now commits correlated tool
 attempts before dispatch, binds public runtime/session recovery and exposes explicit
 revision-checked user resolution/retry. Versioned provider continuation now retains
 qualified opaque profiles and refuses incompatible replay; native/live acceptance,
-goal/queue persistence and background process restart authority remain under #23.
+goal/queue persistence and further restart qualification remain under #23.
 Notification-driven primary turns now preserve ordered request/result correlation
 and text-only turns through child questions, parent replies and durable reload.
 Recovered running task records now expose unknown outcomes and refuse unowned
-process control; detached process recovery and replay remain unsupported.
+process control. Versioned intent and per-record conditional updates now preserve
+concurrent task evidence; unresolved observers leave live logs intact. Queued
+intent is never automatically dispatched; detached process recovery and replay remain unsupported.
 
 The [content checkpoint foundation](docs/checkpoints.md) now captures explicit
 before/after file scopes and supports revision-bound review, conflict-checked
@@ -46,7 +48,8 @@ CLI and interactive `/checkpoint` commands now share file/hunk review, preview,
 apply, recovery and retention. Content-changing restores revoke plan-check success
 and concurrent-save authority; pending restores block verification. Runtime ownership
 capture now covers declared write/edit/patch/test targets; unknown scopes remain
-explicitly unavailable. Dedicated review navigation remains incomplete under #22. The Windows
+explicitly unavailable. Textual F8 now provides staged file/hunk review, preview
+and idle-only Apply; native usability remains incomplete under #22. The Windows
 NTFS content-only backend is implemented with explicit private-ACL semantics;
 native qualification remains pending.
 

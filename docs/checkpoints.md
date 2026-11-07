@@ -2,8 +2,8 @@
 
 The content checkpoint service is a foundation for [#22](https://github.com/mlg151/henchman-ai/issues/22).
 It exposes a Python API and shared user commands with POSIX and native Windows
-restore backends and automatic capture for declared tool file scopes. Dedicated
-Textual navigation and final native qualification remain required. Existing Tungsten metadata snapshots are explicitly
+restore backends, automatic capture for declared tool file scopes and dedicated
+Textual review navigation. Final native qualification remains required. Existing Tungsten metadata snapshots are explicitly
 versioned, non-restorable records; they cannot reconstruct file contents.
 
 ## User commands
@@ -30,6 +30,28 @@ with explicit truncation/omission fields. Display limits never change stored byt
 or restore decisions. `discard` permanently removes that capture and its retained
 originals unless a restore is pending. These commands review both explicit API
 captures and correlated automatic tool captures.
+
+## Textual review
+
+Press **F8**, or choose **Review changes** in the workspace dialog, to browse
+captures without losing the composer draft. Enter opens a capture or file;
+`n`/`p` selects a hunk and `w` selects the whole file. `a`/`r` previews accept or
+reject; the separate **Apply** button performs the decision. Escape returns one
+level and eventually restores the previous focus. F5 refreshes the catalog.
+At narrow widths the catalog, files, detail and preview occupy successive views;
+wider terminals show the list beside the detail. F6/F7 retain composer selection.
+
+Apply requires an idle runtime, including pending approvals, subagents and owned
+background process launches. It shares the mutation lock, rechecks idleness and
+uses the backend's revision/content conflict checks. A conflict requires refresh;
+external writers are detected by those backend checks. Closing during filesystem
+work joins that work before the screen finishes closing.
+
+The **Checks** view (`v`) displays historical project-plan evidence and explicitly
+labels its freshness as unverified. It does not bind a plan to the selected capture
+or establish acceptance. Use the [verification status API](tools.md#declared-input-freshness)
+for current declared-input evidence. Rendered keyboard and resize tests cover
+80×24 and 120×40; native terminal and accessibility qualification remain open.
 
 ## Automatic tool capture
 

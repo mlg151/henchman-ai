@@ -4,41 +4,36 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import os
-import re
 import signal
 from asyncio.subprocess import Process
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import uuid4
 
 from henchman.advanced.task_output import (
     MAX_TASK_OUTPUT_BYTES,
     TaskOutput,
-    atomic_evidence,
     migrate_evidence,
     open_evidence,
-    write_evidence,
 )
+from henchman.advanced.task_store import FINAL_STATES, TaskStore, TaskStoreError
 from henchman.config.paths import resolve_project_settings_path
 from henchman.config.repository import SettingsRepository
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
+TASK_STATUS_QUEUED = "queued"
+TASK_STATUS_STARTED = "started"
+TASK_STATUS_CANCELLED = "cancelled"
 TASK_STATUS_RUNNING = "running"
 TASK_STATUS_COMPLETED = "completed"
 TASK_STATUS_FAILED = "failed"
 TASK_STATUS_STOPPED = "stopped"
 TASK_STATUS_OUTCOME_UNKNOWN = "outcome_unknown"
-_FINAL_TASK_STATUSES = {
-    TASK_STATUS_COMPLETED,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_STOPPED,
-}
+_FINAL_TASK_STATUSES = FINAL_STATES
 _TERMINATE_TIMEOUT_SECONDS = 1.0
-_MAX_INDEX_BYTES = 8 * 1024 * 1024
 
 
 class TaskOwnershipError(RuntimeError):
@@ -67,65 +62,6 @@ def _coerce_string_mapping(value: object) -> dict[str, str]:
     return {str(key): str(item) for key, item in value.items() if str(key).strip()}
 
 
-def _read_json(path: Path, *, default: object) -> object:
-    """Read one JSON payload or return *default* when absent."""
-
-    try:
-        with open_evidence(path) as source:
-            raw = source.read(_MAX_INDEX_BYTES + 1)
-    except FileNotFoundError:
-        return default
-    if len(raw) > _MAX_INDEX_BYTES:
-        raise ValueError("Task index exceeds the 8 MiB load limit; preserve it for explicit repair")
-    try:
-        payload = json.loads(raw)
-    except (ValueError, UnicodeError):
-        raise ValueError("Task index is corrupt; preserve it for explicit repair") from None
-    if not isinstance(payload, list):
-        raise ValueError("Task index must be a list; preserve it for explicit repair")
-    seen: set[str] = set()
-    for item in payload:
-        if not isinstance(item, dict) or not isinstance(item.get("task_id"), str) or not re.fullmatch(
-            r"task-[0-9a-f]{12}", item["task_id"],
-        ) or item["task_id"] in seen:
-            raise ValueError("Task index has invalid or duplicate records; preserve it for explicit repair")
-        required = {"title", "argv", "cwd", "status", "created_at", "started_at", "finished_at",
-                    "output_path", "pid", "return_code", "metadata"}
-        if not required <= item.keys() or not isinstance(item.get("status"), str) or (
-            item["status"] not in _FINAL_TASK_STATUSES | {TASK_STATUS_RUNNING, TASK_STATUS_OUTCOME_UNKNOWN}
-        ):
-            raise ValueError("Task index has an invalid record; preserve it for explicit repair")
-        valid = all(isinstance(item[key], str) for key in ("title", "cwd", "output_path"))
-        valid = valid and isinstance(item["argv"], list) and all(isinstance(arg, str) for arg in item["argv"])
-        valid = valid and isinstance(item["metadata"], dict) and all(
-            isinstance(key, str) and isinstance(value, str) for key, value in item["metadata"].items()
-        )
-        valid = valid and all(item[key] is None or type(item[key]) is int for key in ("pid", "return_code"))
-        try:
-            for key in ("created_at", "started_at", "finished_at"):
-                if key != "finished_at" or item[key] is not None:
-                    datetime.fromisoformat(item[key])
-        except (ValueError, TypeError):
-            valid = False
-        if not valid:
-            raise ValueError("Task index has invalid record fields; preserve it for explicit repair")
-        seen.add(item["task_id"])
-    return payload
-
-
-def _write_json(path: Path, payload: object) -> None:
-    """Atomically replace the private index with already projected evidence."""
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # Never replace unreadable/corrupt historical evidence with an empty index.
-    _read_json(path, default=[])
-    encoded = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
-    if len(encoded) > _MAX_INDEX_BYTES:
-        raise OSError("Task index exceeds the 8 MiB persistence limit")
-    with atomic_evidence(path) as output:
-        write_evidence(output, encoded)
-
-
 @dataclass(frozen=True, slots=True)
 class TaskRecord:
     """Persisted metadata for one background task."""
@@ -136,12 +72,15 @@ class TaskRecord:
     cwd: str
     status: str
     created_at: str
-    started_at: str
+    started_at: str | None
     finished_at: str | None
     output_path: Path = field(repr=False)
     pid: int | None
     return_code: int | None
     metadata: dict[str, str]
+    revision: int = 0
+    owner_id: str | None = None
+    operation_context: dict[str, str] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable representation of the task."""
@@ -159,6 +98,9 @@ class TaskRecord:
             "pid": self.pid,
             "return_code": self.return_code,
             "metadata": dict(self.metadata),
+            "revision": self.revision,
+            "owner_id": self.owner_id,
+            "operation_context": dict(self.operation_context) if self.operation_context is not None else None,
         }
 
     @classmethod
@@ -167,6 +109,7 @@ class TaskRecord:
 
         raw_pid = payload.get("pid")
         raw_return_code = payload.get("return_code")
+        raw_revision = payload.get("revision", 0)
         return cls(
             task_id=str(payload.get("task_id", "")),
             title=str(payload.get("title", "")),
@@ -174,7 +117,7 @@ class TaskRecord:
             cwd=str(payload.get("cwd", "")),
             status=str(payload.get("status", TASK_STATUS_FAILED)),
             created_at=str(payload.get("created_at", "")),
-            started_at=str(payload.get("started_at", "")),
+            started_at=str(payload["started_at"]) if payload.get("started_at") is not None else None,
             finished_at=(
                 str(payload["finished_at"]) if payload.get("finished_at") is not None else None
             ),
@@ -186,6 +129,9 @@ class TaskRecord:
                 else None
             ),
             metadata=_coerce_string_mapping(payload.get("metadata")),
+            revision=raw_revision if type(raw_revision) is int else 0,
+            owner_id=str(payload["owner_id"]) if payload.get("owner_id") is not None else None,
+            operation_context=_coerce_string_mapping(payload["operation_context"]) if payload.get("operation_context") is not None else None,
         )
 
 
@@ -198,6 +144,12 @@ class _TaskRuntime:
     waiters: dict[str, asyncio.Future[TaskRecord]] = field(default_factory=dict)
     monitors: dict[str, asyncio.Task[None]] = field(default_factory=dict)
     policy: EvidenceRedactor = field(default_factory=EvidenceRedactor)
+    owner_id: str = field(default_factory=lambda: uuid4().hex)
+    process_id: int = field(default_factory=os.getpid)
+    store: TaskStore | None = None
+    stopping: set[str] = field(default_factory=set)
+    local_failures: dict[str, TaskRecord] = field(default_factory=dict)
+    launches: dict[str, asyncio.Task[Any]] = field(default_factory=dict)
 
 
 class TaskService:
@@ -211,15 +163,31 @@ class TaskService:
         self._project_root = (project_root or Path.cwd()).resolve()
         self._storage_dir = resolve_project_settings_path(self._project_root) / "tasks"
         self._index_path = self._storage_dir / "index.json"
-        runtime = self._runtimes.setdefault(self._storage_dir, _TaskRuntime())
+        runtime = self._runtimes.get(self._storage_dir)
+        if runtime is None or runtime.process_id != os.getpid():
+            runtime = _TaskRuntime(store=TaskStore(self._index_path))
+            self._runtimes[self._storage_dir] = runtime
         self._runtime = runtime
+        assert runtime.store is not None
+        self._store = runtime.store
         self._refresh_policy()
-        if not runtime.records:
-            self._load_runtime()
-        else:
-            # Retained logs were checked at load; recheck an individual log on
-            # read without rescanning every completed job on each tool launch.
-            self._persist_runtime()
+        self._store.initialize()
+        self._load_runtime()
+
+    @classmethod
+    def has_active_work(cls, project_root: Path) -> bool:
+        """Inspect local handles only, without resolving paths or opening storage.
+
+        The caller supplies its already resolved project root. Stored PIDs and
+        recovered task states cannot confer ownership or block as live handles.
+        """
+        key = Path(os.path.abspath(project_root)) / ".henchman" / "tasks"
+        runtime = cls._runtimes.get(key)
+        return runtime is not None and runtime.process_id == os.getpid() and (
+            any(process.returncode is None for process in runtime.processes.values())
+            or any(not monitor.done() for monitor in runtime.monitors.values())
+            or any(not launch.done() for launch in runtime.launches.values())
+        )
 
     def _refresh_policy(self) -> None:
         self._runtime.policy.register_policy(
@@ -265,20 +233,33 @@ class TaskService:
         output_path = self._storage_dir / f"{task_id}.log"
         # Prepare display evidence before acquiring process ownership; user
         # metadata conversion must not strand a process if it raises.
+        from henchman.core.runtime_operations import current_operation_call
+
+        invocation = current_operation_call()
+        context = ({"operation_id": invocation.binding.operation_id, **asdict(invocation.binding.context)}
+                   if invocation is not None else None)
         record = self._project_record(TaskRecord(
             task_id=task_id,
             title=title.strip() if isinstance(title, str) and title.strip() else normalized_argv[0],
-            argv=normalized_argv, cwd=resolved_cwd, status=TASK_STATUS_RUNNING,
-            created_at=_now_iso(), started_at=_now_iso(), finished_at=None,
+            argv=normalized_argv, cwd=resolved_cwd, status=TASK_STATUS_QUEUED,
+            created_at=_now_iso(), started_at=None, finished_at=None,
             output_path=output_path, pid=None, return_code=None,
-            metadata=_coerce_string_mapping(metadata),
+            metadata=_coerce_string_mapping(metadata), owner_id=self._runtime.owner_id,
+            operation_context=context,
         ))
         output: TaskOutput | None = None
         process: Process | None = None
         spawn: asyncio.Task[Process] | None = None
+        queued = False
+        launch_owner = asyncio.current_task()
+        assert launch_owner is not None
+        self._runtime.launches[task_id] = launch_owner
         try:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            record = self._decode_record(self._store.create(record.to_dict()))
+            self._runtime.records[task_id] = record
+            queued = True
             output = TaskOutput(output_path, self._runtime.policy)
+            record = self._owned_change(task_id, status=TASK_STATUS_STARTED, started_at=_now_iso())
             if shell:
                 launch = asyncio.create_subprocess_shell(
                     normalized_argv[0], cwd=resolved_cwd, env=env, stdout=output.writer,
@@ -292,43 +273,55 @@ class TaskService:
                     start_new_session=os.name == "posix",
                 )
             spawn = asyncio.create_task(launch)
-            # Retain the process result if cancellation arrives during spawn.
             process = await asyncio.shield(spawn)
+            self._runtime.processes[task_id] = process
+            record = self._owned_change(task_id, status=TASK_STATUS_RUNNING, pid=process.pid)
         except BaseException as exc:
+            interrupted = False
+            cleanup_failed = False
             if output is not None:
-                interrupted = await self._await_cleanup(asyncio.create_task(
-                    self._cancel_launch(spawn, output),
-                ))
-                if interrupted:
-                    raise asyncio.CancelledError from None
+                try:
+                    interrupted = await self._await_cleanup(asyncio.create_task(
+                        self._cancel_launch(spawn, output),
+                    ))
+                except BaseException as cleanup:
+                    cleanup_failed = True
+                    exc.add_note(self._runtime.policy.text(f"Task cleanup also failed: {cleanup}"))
+            if process is None and spawn is not None and spawn.done() and not spawn.cancelled():
+                with contextlib.suppress(Exception):
+                    process = spawn.result()
+            live = cleanup_failed and process is not None and process.returncode is None
+            if live:
+                assert process is not None
+                self._runtime.processes[task_id] = process
+            else:
+                self._runtime.processes.pop(task_id, None)
+            if queued:
+                observed = self._runtime.records[task_id]
+                stopped = isinstance(exc, asyncio.CancelledError) or interrupted
+                status = (TASK_STATUS_CANCELLED if observed.status == TASK_STATUS_QUEUED
+                          else TASK_STATUS_OUTCOME_UNKNOWN if cleanup_failed or stopped and process is None
+                          else TASK_STATUS_STOPPED if stopped else TASK_STATUS_FAILED)
+                try:
+                    self._owned_change(task_id, status=status, pid=process.pid if live and process is not None else None,
+                                       finished_at=None if status == TASK_STATUS_OUTCOME_UNKNOWN else _now_iso(),
+                                       metadata={"error": self._runtime.policy.text(str(exc))})
+                except (OSError, ValueError) as persistence:
+                    exc.add_note(self._runtime.policy.text(f"Task intent retained; status save failed: {persistence}"))
+            if interrupted:
+                raise asyncio.CancelledError from None
             if isinstance(exc, OSError):
-                raise type(exc)(self._runtime.policy.text(str(exc))) from None
+                raise OSError(self._runtime.policy.text(str(exc))) from None
             raise
         finally:
             if output is not None:
                 output.close_writer()
+            self._runtime.launches.pop(task_id, None)
 
-        record = replace(record, pid=process.pid)
-        self._runtime.records[task_id] = record
-        self._runtime.processes[task_id] = process
         self._runtime.waiters[task_id] = asyncio.get_running_loop().create_future()
-        try:
-            self._persist_runtime()
-        except OSError as exc:
-            interrupted = await self._await_cleanup(asyncio.create_task(
-                self._finish_capture(process, output),
-            ))
-            self._runtime.records.pop(task_id, None)
-            self._runtime.processes.pop(task_id, None)
-            self._runtime.waiters.pop(task_id, None)
-            if interrupted:
-                raise asyncio.CancelledError from None
-            raise type(exc)(self._runtime.policy.text(str(exc))) from None
         self._runtime.monitors[task_id] = asyncio.create_task(
             self._monitor_process(task_id, process, output, timeout=timeout or None),
         )
-        # Enter the monitor before returning ownership to the caller. A task
-        # cancelled before its first step cannot run its cancellation cleanup.
         try:
             await asyncio.sleep(0)
         except asyncio.CancelledError:
@@ -336,20 +329,50 @@ class TaskService:
             raise
         return record
 
-    def get_task(self, task_id: str) -> TaskRecord | None:
-        """Return one task by ID when it exists."""
+    def _decode_record(self, payload: dict[str, Any]) -> TaskRecord:
+        record = TaskRecord.from_dict(payload)
+        return self._project_record(replace(record, output_path=self._storage_dir / f"{record.task_id}.log"))
 
+    def _owned_change(self, task_id: str, *, metadata: dict[str, str] | None = None, **changes: Any) -> TaskRecord:
+        """Commit a local observation without overwriting concurrent metadata."""
+        self._refresh_policy()
+        safe = self._runtime.policy.redact(metadata or {})
+        updated = self._decode_record(self._store.update_owned(
+            task_id, owner_id=self._runtime.owner_id, changes=changes, metadata=safe,
+            project=lambda payload: self._decode_record(payload).to_dict(),
+        ))
+        self._runtime.records[task_id] = updated
+        return updated
+
+    def _refresh_records(self) -> None:
+        """Read current evidence without changing local process ownership."""
+        payload = self._store.read()
+        self._runtime.policy.register_config(payload)
+        records = {item["task_id"]: self._decode_record(item) for item in payload}
+        for identity in self._runtime.processes:
+            current = records.get(identity)
+            if current is None or current.owner_id != self._runtime.owner_id:
+                raise TaskStoreError("Task index no longer matches local ownership")
+        self._runtime.records = records
+
+    def _view(self, record: TaskRecord) -> TaskRecord:
+        if record.task_id in self._runtime.local_failures:
+            return self._runtime.local_failures[record.task_id]
+        if record.status in {TASK_STATUS_STARTED, TASK_STATUS_RUNNING} and record.task_id not in self._runtime.processes:
+            record = replace(record, status=TASK_STATUS_OUTCOME_UNKNOWN)
+        return self._project_record(record)
+
+    def get_task(self, task_id: str) -> TaskRecord | None:
+        """Read fresh evidence; stored lifecycle never confers local ownership."""
+        self._refresh_records()
         record = self._runtime.records.get(task_id)
-        return self._project_record(record) if record else None
+        return self._view(record) if record else None
 
     def list_tasks(self, *, status: str | None = None) -> list[TaskRecord]:
-        """Return all known tasks, optionally filtered by status."""
-
-        records = [self._project_record(record) for record in
-                   sorted(self._runtime.records.values(), key=lambda item: item.created_at)]
-        if status is None:
-            return records
-        return [record for record in records if record.status == status]
+        """Return refreshed task views without rewriting unowned process state."""
+        self._refresh_records()
+        records = [self._view(record) for record in sorted(self._runtime.records.values(), key=lambda item: item.created_at)]
+        return records if status is None else [record for record in records if record.status == status]
 
     def tail_output(self, task_id: str, *, lines: int = 25) -> str:
         """Return the trailing output lines for one task."""
@@ -360,8 +383,7 @@ class TaskService:
             raise KeyError(msg)
 
         self._refresh_policy()
-        if self._migrate_log(record):
-            self._persist_runtime()
+        self._migrate_log(record)
         record = self._runtime.records[task_id]
         if record.metadata.get("evidence_migration_error"):
             raise OSError(record.metadata["evidence_migration_error"])
@@ -378,26 +400,31 @@ class TaskService:
         return "\n".join(output_lines[-lines:])
 
     def _migrate_log(self, record: TaskRecord) -> bool:
-        """Migrate retained logs, preserving live writer ownership and failures."""
-        if record.task_id in self._runtime.processes:
+        """Never replace an unresolved log which another runtime may be writing."""
+        if record.task_id in self._runtime.processes or record.status not in _FINAL_TASK_STATUSES:
             return False
-        metadata = dict(record.metadata)
-        previous = metadata.pop("evidence_migration_error", None)
-        if previous and metadata.get("error") == previous:
-            metadata.pop("error")
-        try:
-            truncated = migrate_evidence(record.output_path, self._runtime.policy)
-        except FileNotFoundError:
-            return False
-        except (OSError, UnicodeError) as exc:
-            detail = self._runtime.policy.text(str(exc))
-            message = self._runtime.policy.text(f"Task evidence migration failed: {detail}")
-            metadata["evidence_migration_error"] = message
-            metadata.setdefault("error", message)
-        else:
-            if truncated:
-                metadata["output_truncated"] = "true"
-        updated = self._project_record(replace(record, metadata=metadata))
+
+        def project(payload: dict[str, Any]) -> dict[str, Any]:
+            current = self._decode_record(payload)
+            metadata = dict(current.metadata)
+            previous = metadata.pop("evidence_migration_error", None)
+            if previous and metadata.get("error") == previous:
+                metadata.pop("error")
+            try:
+                truncated = migrate_evidence(current.output_path, self._runtime.policy)
+            except FileNotFoundError:
+                return current.to_dict()
+            except (OSError, UnicodeError) as exc:
+                detail = self._runtime.policy.text(str(exc))
+                message = self._runtime.policy.text(f"Task evidence migration failed: {detail}")
+                metadata["evidence_migration_error"] = message
+                metadata.setdefault("error", message)
+            else:
+                if truncated:
+                    metadata["output_truncated"] = "true"
+            return self._project_record(replace(current, metadata=metadata)).to_dict()
+
+        updated = self._decode_record(self._store.project_evidence(record.task_id, project))
         self._runtime.records[record.task_id] = updated
         return updated != record
 
@@ -410,7 +437,8 @@ class TaskService:
     ) -> TaskRecord:
         """Update task metadata without affecting the running process."""
 
-        record = self.get_task(task_id)
+        self._refresh_records()
+        record = self._runtime.records.get(task_id)
         if record is None:
             msg = f"Task {task_id} not found."
             raise KeyError(msg)
@@ -424,81 +452,55 @@ class TaskService:
             title=title.strip() if isinstance(title, str) and title.strip() else record.title,
             metadata=merged_metadata,
         ))
+        updated = self._decode_record(self._store.replace(updated.to_dict(), expected_revision=record.revision))
         self._runtime.records[task_id] = updated
-        self._persist_runtime()
-        return updated
+        return self._view(updated)
 
     async def stop_task(self, task_id: str) -> TaskRecord:
-        """Stop a running task and wait for its final persisted state."""
-
-        record = self.get_task(task_id)
-        if record is None:
-            msg = f"Task {task_id} not found."
-            raise KeyError(msg)
-        if record.status in _FINAL_TASK_STATUSES and task_id not in self._runtime.processes:
-            return record
-
+        """Stop only an owned child, even if its durable index became unreadable."""
         process = self._runtime.processes.get(task_id)
         if process is None:
+            record = self._runtime.local_failures.get(task_id) or self.get_task(task_id)
+            if record is None:
+                raise KeyError(f"Task {task_id} not found.")
+            if record.status in _FINAL_TASK_STATUSES:
+                return record
             raise TaskOwnershipError(
                 f"Task {task_id} is not owned by this runtime; its outcome is unknown. "
                 "Inspect external process state and captured output before starting new work."
             )
-
-        self._runtime.records[task_id] = replace(record, status=TASK_STATUS_STOPPED)
-        # Stop the process even when storage has become unwritable. The monitor
-        # reports persistence failures in the finalized task record.
+        self._runtime.stopping.add(task_id)
         await self._terminate_process(process)
+        if task_id not in self._runtime.waiters:
+            # A failed launch acknowledgement may retain a live handle after
+            # cleanup failed, before a regular monitor could be established.
+            try:
+                return self._owned_change(task_id, status=TASK_STATUS_STOPPED, pid=None,
+                                          return_code=process.returncode, finished_at=_now_iso())
+            finally:
+                self._runtime.processes.pop(task_id, None)
+                self._runtime.stopping.discard(task_id)
         return await self.wait_for_task(task_id, timeout=5.0)
 
     async def wait_for_task(self, task_id: str, timeout: float | None = None) -> TaskRecord:
-        """Wait for a task to reach a final state and return its record."""
-
-        record = self.get_task(task_id)
-        if record is None:
-            msg = f"Task {task_id} not found."
-            raise KeyError(msg)
-        if record.status in _FINAL_TASK_STATUSES and task_id not in self._runtime.processes:
-            return record
-
+        """Await a local observation; an unowned queued/unknown record cannot run."""
         waiter = self._runtime.waiters.get(task_id)
-        if waiter is None:
-            if record.status == TASK_STATUS_OUTCOME_UNKNOWN:
-                raise TaskOwnershipError(
-                    f"Task {task_id} is not owned by this runtime; waiting cannot establish its outcome."
-                )
-            msg = f"Task {task_id} is missing a runtime waiter."
-            raise RuntimeError(msg)
-        return await asyncio.wait_for(asyncio.shield(waiter), timeout=timeout)
+        if waiter is not None:
+            return await asyncio.wait_for(asyncio.shield(waiter), timeout=timeout)
+        record = self._runtime.local_failures.get(task_id) or self.get_task(task_id)
+        if record is None:
+            raise KeyError(f"Task {task_id} not found.")
+        if record.status in _FINAL_TASK_STATUSES:
+            return record
+        raise TaskOwnershipError(
+            f"Task {task_id} is not owned by this runtime; waiting cannot establish its outcome."
+        )
 
     def _load_runtime(self) -> None:
-        """Load persisted task metadata into the shared runtime."""
-
-        try:
-            payload = _read_json(self._index_path, default=[])
-        except OSError as exc:
-            raise type(exc)(self._runtime.policy.text(str(exc))) from None
-        if not isinstance(payload, list):
-            return
-        self._runtime.policy.register_config(payload)
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            record = TaskRecord.from_dict(item)
-            if not re.fullmatch(r"task-[0-9a-f]{12}", record.task_id):
-                continue
-            # Never replay a stored absolute path or redacted display value.
-            record = self._project_record(replace(
-                record, output_path=self._storage_dir / f"{record.task_id}.log",
-            ))
-            if record.status == TASK_STATUS_RUNNING:
-                record = replace(
-                    record,
-                    status=TASK_STATUS_OUTCOME_UNKNOWN,
-                )
-            self._runtime.records[record.task_id] = record
+        """Refresh authority and migrate only completed, unowned log evidence."""
+        self._refresh_records()
+        for record in tuple(self._runtime.records.values()):
             self._migrate_log(record)
-        self._persist_runtime()
 
     async def _terminate_process(self, process: Process) -> None:
         """Terminate the owned process group and reap its direct child."""
@@ -540,9 +542,7 @@ class TaskService:
             timed_out = not done
         except asyncio.CancelledError:
             cancelled = True
-            self._runtime.records[task_id] = replace(
-                self._runtime.records[task_id], status=TASK_STATUS_STOPPED,
-            )
+            self._runtime.stopping.add(task_id)
         # Cleanup remains owned and awaited even if cancellation is repeated.
         cleanup = asyncio.create_task(self._finish_capture(process, output))
         while True:
@@ -551,9 +551,31 @@ class TaskService:
                 break
             except asyncio.CancelledError:
                 cancelled = True
-                self._runtime.records[task_id] = replace(
-                    self._runtime.records[task_id], status=TASK_STATUS_STOPPED,
-                )
+                self._runtime.stopping.add(task_id)
+            except Exception as exc:
+                process_wait.cancel()
+                await asyncio.gather(process_wait, return_exceptions=True)
+                message = self._runtime.policy.text(f"Task cleanup failed: {exc}")
+                observed = replace(self._runtime.records[task_id], status=TASK_STATUS_OUTCOME_UNKNOWN,
+                                   metadata={**self._runtime.records[task_id].metadata, "error": message})
+                try:
+                    observed = self._owned_change(task_id, status=TASK_STATUS_OUTCOME_UNKNOWN,
+                                                  metadata={"error": message})
+                except (OSError, ValueError) as persistence:
+                    observed = replace(observed, metadata={**observed.metadata, "status_persisted": "false",
+                                       "error": self._runtime.policy.text(f"{message}; status save failed: {persistence}")})
+                    self._runtime.local_failures[task_id] = observed
+                self._runtime.records[task_id] = observed
+                self._runtime.monitors.pop(task_id, None)
+                self._runtime.stopping.discard(task_id)
+                if process.returncode is not None:
+                    self._runtime.processes.pop(task_id, None)
+                waiter = self._runtime.waiters.pop(task_id, None)
+                if waiter is not None and not waiter.done():
+                    waiter.set_result(observed)
+                if cancelled:
+                    raise asyncio.CancelledError from exc
+                return
         await process_wait
         if timed_out:
             try:
@@ -573,7 +595,7 @@ class TaskService:
             current = replace(current, metadata={**current.metadata, "output_truncated": "true"})
         final_status = (
             TASK_STATUS_STOPPED
-            if current.status == TASK_STATUS_STOPPED
+            if task_id in self._runtime.stopping
             else TASK_STATUS_FAILED
             if timed_out or diagnostic_error is not None
             else TASK_STATUS_COMPLETED
@@ -587,21 +609,30 @@ class TaskService:
             return_code=return_code,
             pid=None,
         ))
-        self._runtime.records[task_id] = finalized
-        self._runtime.processes.pop(task_id, None)
-        self._runtime.monitors.pop(task_id, None)
-        waiter = self._runtime.waiters.pop(task_id, None)
         try:
-            self._persist_runtime()
-        except OSError as exc:
+            observed_metadata = {}
+            if diagnostic_error is not None:
+                observed_metadata["error"] = diagnostic_error
+            if output.truncated:
+                observed_metadata["output_truncated"] = "true"
+            finalized = self._owned_change(
+                task_id, status=final_status, finished_at=finalized.finished_at,
+                return_code=return_code, pid=None, metadata=observed_metadata,
+            )
+        except (OSError, ValueError) as exc:
             detail = self._runtime.policy.text(str(exc))
             finalized = replace(
                 finalized, status=TASK_STATUS_FAILED,
-                metadata={**finalized.metadata, "error": self._runtime.policy.text(
+                metadata={**finalized.metadata, "status_persisted": "false", "error": self._runtime.policy.text(
                     f"Could not persist task status: {detail}",
                 )},
             )
+            self._runtime.local_failures[task_id] = finalized
             self._runtime.records[task_id] = finalized
+        self._runtime.processes.pop(task_id, None)
+        self._runtime.monitors.pop(task_id, None)
+        self._runtime.stopping.discard(task_id)
+        waiter = self._runtime.waiters.pop(task_id, None)
         if waiter is not None and not waiter.done():
             waiter.set_result(finalized)
         if cancelled:
@@ -623,7 +654,7 @@ class TaskService:
         if spawn is not None:
             # The original launch exception (or cancellation) is propagated
             # by start_task after its evidence resources are closed.
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(Exception, asyncio.CancelledError):
                 process = await spawn
         if process is None:
             await output.finish()
@@ -642,15 +673,3 @@ class TaskService:
                 if cleanup.cancelled():
                     raise
                 interrupted = True
-
-    def _persist_runtime(self) -> None:
-        """Persist the current task index to project-local storage."""
-
-        payload = [
-            self._project_record(record).to_dict()
-            for record in sorted(self._runtime.records.values(), key=lambda item: item.created_at)
-        ]
-        try:
-            _write_json(self._index_path, payload)
-        except (OSError, ValueError) as exc:
-            raise OSError(self._runtime.policy.text(str(exc))) from None

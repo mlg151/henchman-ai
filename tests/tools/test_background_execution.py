@@ -237,7 +237,8 @@ async def test_index_write_failure_cleans_up_new_process(tmp_path: Path) -> None
     service._index_path.mkdir()
     with pytest.raises(OSError):
         await service.start_task(argv=[sys.executable, "-c", "import time; time.sleep(30)"])
-    assert service.list_tasks(status="running") == []
+    with pytest.raises(OSError):
+        service.list_tasks(status="running")
     assert not service._runtime.processes
 
 

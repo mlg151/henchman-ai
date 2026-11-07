@@ -1,0 +1,403 @@
+"""Rendered checkpoint decisions use real shared revision/content authority."""
+
+import asyncio
+from threading import Event
+from types import SimpleNamespace
+
+import pytest
+from textual.widgets import Button, Static, TextArea
+
+from henchman.advanced.checkpoint_models import CheckpointOperation
+from henchman.advanced.checkpoints import CheckpointService
+from henchman.cli.textual_checkpoints import CheckpointReviewScreen
+from henchman.cli.textual_widgets import HenchmanTextArea
+from tests.cli.ui_scenarios import InteractionApp, settle_layout
+
+
+def capture(root):
+    path = root / "file.txt"
+    path.write_text("first\nkeep\nlast\n")
+    service = CheckpointService(root)
+    record = service.begin(["file.txt"], actor="engineer",
+                           operation=CheckpointOperation("operation", "run", "engineer", "edit_file"))
+    path.write_text("FIRST\nkeep\nLAST\n")
+    service.complete(record.checkpoint_id)
+    return service, record.checkpoint_id
+
+
+async def ready(pilot):
+    await settle_layout(pilot)
+    screen = pilot.app.screen
+    if isinstance(screen, CheckpointReviewScreen) and screen._action_task is not None:
+        await asyncio.wait_for(asyncio.shield(screen._action_task), 10)
+    await settle_layout(pilot)
+    return screen
+
+
+@pytest.mark.parametrize("size", [(80, 24), (120, 40)])
+async def test_keyboard_hunk_preview_apply_and_back_preserve_draft(tmp_path, monkeypatch, size):
+    monkeypatch.chdir(tmp_path)
+    service, identity = capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=size) as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("Keep this\nunsent draft")
+        composer.focus()
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        assert isinstance(screen, CheckpointReviewScreen)
+        await pilot.press("enter")  # capture → files
+        await ready(pilot)
+        await pilot.press("enter", "n", "r")  # file → first hunk → reject preview
+        await ready(pilot)
+        assert (tmp_path / "file.txt").read_text() == "FIRST\nkeep\nLAST\n"
+        assert screen._plan is not None and screen._plan.revision == service.review(identity).revision
+        apply = screen.query_one("#checkpoint-apply", Button)
+        assert not apply.disabled and apply.region.bottom <= size[1]
+        assert screen.query_one("#checkpoint-content", TextArea).region.height > 0
+        apply.focus()
+        await pilot.press("enter")
+        await ready(pilot)
+        assert (tmp_path / "file.txt").read_text() == "first\nkeep\nLAST\n"
+        assert "operation" in screen.query_one("#checkpoint-content", TextArea).text
+        await pilot.press("escape", "escape", "escape")
+        await ready(pilot)
+        assert app.screen is not screen
+        assert composer.text == "Keep this\nunsent draft" and app.focused is composer
+
+
+async def test_apply_conflict_preserves_user_work_and_requires_new_preview(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        (tmp_path / "file.txt").write_text("intervening user edit")
+        screen.query_one("#checkpoint-apply", Button).focus()
+        await pilot.press("enter")
+        await ready(pilot)
+        assert (tmp_path / "file.txt").read_text() == "intervening user edit"
+        assert "conflict" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+        assert screen._plan is None and screen.query_one("#checkpoint-apply", Button).disabled
+
+
+@pytest.mark.parametrize("busy", ["agent", "approval", "operation", "subagent", "background"])
+async def test_apply_requires_current_runtime_idle(tmp_path, monkeypatch, busy):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        if busy == "agent":
+            app.is_processing = True
+        elif busy == "approval":
+            app._tool_prompts._answer = asyncio.get_running_loop().create_future()
+        elif busy == "background":
+            from henchman.advanced.tasks import TaskService
+            monkeypatch.setattr(TaskService, "has_active_work", classmethod(lambda _cls, _root: True))
+        else:
+            app.core_context = SimpleNamespace(orchestrator=SimpleNamespace(
+                operation_runtime=SimpleNamespace(_inflight={"op": object()} if busy == "operation" else {}),
+                subagents=SimpleNamespace(has_running_work=lambda: busy == "subagent")))
+        screen.query_one("#checkpoint-apply", Button).focus()
+        await pilot.press("enter")
+        await ready(pilot)
+        assert "idle" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+        assert (tmp_path / "file.txt").read_text().startswith("FIRST")
+        app.is_processing = False
+        app.core_context = None
+        if app._tool_prompts._answer is not None:
+            app._tool_prompts._answer.cancel()
+            app._tool_prompts._answer = None
+
+
+async def test_resize_keeps_selected_file_hunk_and_apply_requires_explicit_activation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "n", "n")
+        selected = screen._hunk_index
+        await pilot.resize_terminal(80, 24)
+        await ready(pilot)
+        assert screen._hunk_index == selected
+        await pilot.press("a")
+        await ready(pilot)
+        assert screen._plan is not None
+        await pilot.press("escape")
+        assert screen._plan is None
+        assert (tmp_path / "file.txt").read_text() == "FIRST\nkeep\nLAST\n"
+
+
+async def test_checks_remain_historical_and_refresh_shows_invalidation(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    plans = PlanExecutionService(tmp_path)
+    plan = plans.create_plan(title="Check file", steps=["Inspect"], checks=[{"kind": "file_exists", "path": "file.txt"}])
+    await plans.verify_plan(plan.plan_id)
+    (tmp_path / "file.txt").write_text("later external change")
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert "recorded pass" in text and "freshness unverified" in text
+        assert "not bound to the selected checkpoint" in text
+        plans.invalidate_checks()
+        await pilot.press("f5")
+        await ready(pilot)
+        assert "stale" in screen.query_one(TextArea).text
+        assert "recorded pass" not in screen.query_one(TextArea).text
+
+
+async def test_revision_changed_before_preview_requires_refresh(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    original = CheckpointService.preview
+    switched = False
+
+    def changed(service, identity, **kwargs):
+        nonlocal switched
+        if not switched:
+            switched = True
+            other = original(service, identity, decision="accept", paths=["file.txt"])
+            service.apply(other.plan_id)
+        return original(service, identity, **kwargs)
+
+    monkeypatch.setattr(CheckpointService, "preview", changed)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        assert screen._plan is None
+        assert "revision changed" in str(screen.query_one("#checkpoint-status", Static).render())
+        assert (tmp_path / "file.txt").read_text().startswith("FIRST")
+
+
+async def test_rotated_secret_is_not_shown_or_restored_from_preview(tmp_path, monkeypatch):
+    from henchman.cli.evidence import runtime_evidence_redactor
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        runtime_evidence_redactor(app).register_secret("FIRST")
+        screen.query_one("#checkpoint-apply", Button).focus()
+        await pilot.press("enter")
+        await ready(pilot)
+        assert (tmp_path / "file.txt").read_text().startswith("FIRST")
+        assert "FIRST" not in screen.query_one(TextArea).text
+        assert screen._plan is None
+
+
+async def test_unmount_joins_apply_worker_and_preserves_actual_result(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    entered, release, finished = Event(), Event(), Event()
+    original = CheckpointService.apply
+
+    def blocked(service, identity):
+        entered.set()
+        assert release.wait(10), "test did not release restore"
+        try:
+            return original(service, identity)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(CheckpointService, "apply", blocked)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        screen.query_one("#checkpoint-apply", Button).focus()
+        await pilot.press("enter")
+        closing = None
+        try:
+            assert await asyncio.to_thread(entered.wait, 5)
+            async def close():
+                await app.pop_screen()
+            closing = asyncio.create_task(close())
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            assert not finished.is_set() and not closing.done()
+        finally:
+            release.set()
+            if closing is not None:
+                await asyncio.wait_for(closing, 10)
+        assert finished.is_set()
+        assert (tmp_path / "file.txt").read_text() == "first\nkeep\nlast\n"
+
+
+async def test_review_shortcuts_do_not_submit_underlying_draft_or_follow_stream(tmp_path, monkeypatch):
+    from henchman.cli.textual_widgets import ChatPane
+    from tests.cli.ui_scenarios import populate_history
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("private unsent draft")
+        chat = app.query_one(ChatPane)
+        populate_history(chat)
+        await ready(pilot)
+        chat.scroll_to(y=20, animate=False, force=True, immediate=True)
+        await ready(pilot)
+        before = chat.scroll_y
+        composer.focus()
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "ctrl+enter")
+        await ready(pilot)
+        chat.append_agent_chunk("worker", "Later activity\n")
+        await ready(pilot)
+        assert app.submitted == [] and composer.text == "private unsent draft"
+        assert app.screen is screen and app.focused is screen.query_one(TextArea)
+        await pilot.press("escape", "escape", "escape")
+        await ready(pilot)
+        assert chat.scroll_y == before and not chat.follow_live
+        assert app.focused is composer
+
+
+async def test_created_file_contents_are_inspectable_without_supported_text_hunks(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    service = CheckpointService(tmp_path)
+    record = service.begin(["created.txt"], actor="engineer")
+    (tmp_path / "created.txt").write_text("new file evidence\n")
+    service.complete(record.checkpoint_id)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        assert "new file evidence" in screen.query_one(TextArea).text
+        assert "missing" in screen.query_one(TextArea).text
+        assert not screen.query_one("#checkpoint-reject", Button).disabled
+
+
+async def test_nonrestorable_and_interrupted_restore_are_explicit(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    service = CheckpointService(tmp_path)
+    (tmp_path / "binary").write_bytes(b"a\x00b")
+    record = service.begin(["binary"], actor="engineer")
+    service.complete(record.checkpoint_id)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        assert "non-restorable" in screen.query_one(TextArea).text
+        assert screen._plan is None and screen.query_one("#checkpoint-reject", Button).disabled
+        _, identity = capture(tmp_path)
+        plan = service.preview(identity, decision="reject")
+        service._fault = lambda stage: (_ for _ in ()).throw(RuntimeError("interrupted")) if stage == "prepared" else None
+        with pytest.raises(RuntimeError):
+            service.apply(plan.plan_id)
+        await pilot.press("f5")
+        await ready(pilot)
+        assert plan.plan_id in screen._status and "/checkpoint recover" in screen._status
+
+
+async def test_refresh_read_errors_are_visible_and_leave_apply_disabled(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        def failed(_service):
+            raise OSError("checkpoint index unavailable")
+        monkeypatch.setattr(CheckpointService, "list_checkpoints", failed)
+        await pilot.press("f5")
+        await ready(pilot)
+        assert "checkpoint index unavailable" in screen._status
+        assert screen.query_one("#checkpoint-apply", Button).disabled
+
+
+async def test_apply_rechecks_idle_after_shared_mutation_lock_wait(tmp_path, monkeypatch):
+    from henchman.tools.registry import ToolRegistry
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    registry = ToolRegistry()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "r")
+        await ready(pilot)
+        app.core_context = SimpleNamespace(tool_registry=registry)
+        try:
+            async with registry._effective_formatter._lock:
+                screen.query_one("#checkpoint-apply", Button).focus()
+                await pilot.press("enter")
+                assert screen._busy
+                assert (tmp_path / "file.txt").read_text().startswith("FIRST")
+                app.is_processing = True
+            await ready(pilot)
+            assert "idle" in screen._status
+            assert (tmp_path / "file.txt").read_text().startswith("FIRST")
+        finally:
+            app.is_processing = False
+            app.core_context = None
+
+
+async def test_workspace_entry_and_existing_composer_selection_keys(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=(120, 40)) as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("first\nsecond")
+        composer.focus()
+        await pilot.press("f6")
+        assert app.screen.id == "_default" and composer.selected_text == "first"
+        button = app.query_one("#workspace-review", Button)
+        button.press()
+        screen = await ready(pilot)
+        assert isinstance(screen, CheckpointReviewScreen)
+        await pilot.press("escape")
+        await ready(pilot)
+        assert composer.text == "first\nsecond"

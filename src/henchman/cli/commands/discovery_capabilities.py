@@ -65,7 +65,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "Captured content is revision-bound; restore conflicts on intervening edits and invalidates plan checks. "
             "POSIX preserves supported modes; Windows NTFS uses an explicit private-ACL content-only policy "
             "pending final native qualification. Runtime capture covers declared write/edit/patch/test targets; "
-            "unknown scopes are explicitly unavailable. Dedicated TUI navigation remains pending. "
+            "unknown scopes are explicitly unavailable. Textual F8 opens file/hunk review with separate "
+            "preview and idle-only Apply controls; native terminal qualification remains pending. "
             "Legacy hash snapshots are non-restorable."
         ),
         aliases=("/checkpoint", "checkpoint", "file review", "hunk review", "restore"),
@@ -115,8 +116,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         summary="Shell commands return tracked background task IDs by default; redirects are supported.",
         detail=(
             "Multiple jobs run concurrently and remain inspectable with task_get, task_list, "
-            "task_output, and task_stop while the application is running. Recovered running records "
-            "are outcome_unknown; saved PIDs do not grant process ownership. Set background=false "
+            "task_output, and task_stop while the application is running. Versioned task intent precedes dispatch; "
+            "recovered started/running records are outcome_unknown and queued intent never auto-starts. "
+            "Saved PIDs do not grant process ownership. Set background=false "
             "for foreground execution and completed output. A successful launch is not a "
             "successful command result. Application shutdown stops unfinished jobs; saved "
             "task records and output do not imply detached execution survives shutdown."
@@ -131,7 +133,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         detail=(
             "Multiple Python and shell jobs share project-local task tracking. Use task_get, "
             "task_list, task_output, and task_stop while the application is running. Restarted runtimes "
-            "report saved running jobs as outcome_unknown without replay or process control. Set "
+            "report saved started/running jobs as outcome_unknown without replay or process control. "
+            "Queued intent remains undispatched; conditional updates preserve concurrent task evidence. Set "
             "background=false for foreground execution and completed output. A successful "
             "launch does not establish a successful result. Application shutdown stops "
             "unfinished jobs; persisted task metadata and logs are not detached execution."

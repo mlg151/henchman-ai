@@ -68,7 +68,7 @@ async def test_active_output_and_index_project_config_env_metadata_before_disk(
             assert secret not in repr(record)
         assert unknown_header not in output
         assert "Authorization: [REDACTED]" in output
-        persisted = json.loads(index)[0]
+        persisted = json.loads(index)["records"][0]
         assert persisted["task_id"] == record.task_id
         assert persisted["output_path"] == record.output_path.name
     finally:
@@ -100,7 +100,7 @@ async def test_short_secret_preserves_task_lookup_paths_and_private_files(tmp_pa
     record = await service.start_task(argv=[sys.executable, "-c", "print('data')"],
                                       metadata={"token": "a"})
     final = await service.wait_for_task(record.task_id, timeout=5)
-    persisted = json.loads(service._index_path.read_text())[0]
+    persisted = json.loads(service._index_path.read_text())["records"][0]
     assert persisted["task_id"] == record.task_id
     assert persisted["status"] == "completed"
     assert final.output_path == record.output_path
@@ -194,7 +194,7 @@ async def test_output_write_failure_terminates_reaps_and_redacts_error(
 
 
 @pytest.mark.anyio
-async def test_index_replace_failure_is_atomic_private_and_reaps_child(
+async def test_index_replace_failure_is_atomic_private_and_prevents_spawn(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from henchman.advanced import tasks
@@ -225,7 +225,7 @@ async def test_index_replace_failure_is_atomic_private_and_reaps_child(
             env={**os.environ, "ACCESS_TOKEN": secret},
         )
     assert secret not in str(caught.value)
-    assert created and created[0].returncode is not None
+    assert created == []
     assert service._index_path.read_bytes() == before
     assert not list(service._storage_dir.glob("*.tmp"))
     assert not service._runtime.processes
@@ -362,9 +362,12 @@ async def test_loaded_index_cannot_redirect_log_read_to_an_external_path(tmp_pat
     await service.wait_for_task(record.task_id, timeout=5)
     external = tmp_path / "outside.txt"
     external.write_text("not owned")
-    payload = json.loads(service._index_path.read_text())
+    # Legacy absolute paths are migrated as evidence, never followed. A changed
+    # versioned index would instead fail its integrity check before reading.
+    payload = json.loads(service._index_path.read_text())["records"]
     payload[0]["output_path"] = str(external)
     service._index_path.write_text(json.dumps(payload))
+    service._index_path.with_suffix(".lock").unlink()
     TaskService._runtimes.pop(service._storage_dir)
     resumed = TaskService(tmp_path)
     assert resumed.tail_output(record.task_id) == "owned"
@@ -396,6 +399,7 @@ def _legacy_task(project: Path, content: bytes) -> tuple[Path, Path, str]:
                         started_at="2026-01-01T00:00:00+00:00", finished_at="2026-01-01T00:01:00+00:00",
                         output_path=path, pid=None, return_code=0, metadata={})
     service._index_path.write_text(json.dumps([record.to_dict()]))
+    service._index_path.with_suffix(".lock").unlink()
     path.write_bytes(content)
     TaskService._runtimes.pop(service._storage_dir)
     return service._index_path, path, task_id
@@ -609,6 +613,7 @@ def test_oversized_legacy_input_is_preserved_with_explicit_limit(tmp_path: Path)
 
 def test_storage_directory_symlink_is_not_followed(tmp_path: Path) -> None:
     service = TaskService(tmp_path)
+    before = service._index_path.read_bytes()
     moved = tmp_path / "external-tasks"
     service._storage_dir.rename(moved)
     try:
@@ -619,7 +624,7 @@ def test_storage_directory_symlink_is_not_followed(tmp_path: Path) -> None:
     TaskService._runtimes.pop(service._storage_dir)
     with pytest.raises(OSError):
         TaskService(tmp_path)
-    assert (moved / "index.json").read_text() == "[]"
+    assert (moved / "index.json").read_bytes() == before
 
 
 @pytest.mark.anyio
@@ -647,7 +652,7 @@ async def test_timeout_diagnostic_does_not_follow_replaced_log_symlink(tmp_path:
 
 
 @pytest.mark.anyio
-async def test_corrupt_index_before_launch_does_not_escape_process_cleanup(
+async def test_corrupt_index_before_launch_prevents_process_creation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = TaskService(tmp_path)
@@ -666,7 +671,7 @@ async def test_corrupt_index_before_launch_does_not_escape_process_cleanup(
         with pytest.raises(OSError, match="index") as caught:
             await service.start_task(argv=[sys.executable, "-c", "import time; time.sleep(30)"])
         assert "corrupt-index-canary" not in str(caught.value)
-        assert created and created[0].returncode is not None
+        assert created == []
         assert service._index_path.read_bytes() == corrupt
         assert not service._runtime.processes
         assert not service._runtime.monitors

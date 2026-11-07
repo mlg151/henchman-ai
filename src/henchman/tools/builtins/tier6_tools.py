@@ -14,7 +14,11 @@ from henchman.advanced import (
     TaskService,
     TungstenService,
 )
-from henchman.advanced.tasks import TASK_STATUS_OUTCOME_UNKNOWN, TaskOwnershipError
+from henchman.advanced.tasks import (
+    TASK_STATUS_OUTCOME_UNKNOWN,
+    TASK_STATUS_QUEUED,
+    TaskOwnershipError,
+)
 from henchman.lsp import LspService
 from henchman.mcp.auth import McpAuthService
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
@@ -193,6 +197,8 @@ def _render_task(record: TaskRecord) -> str:
         f"(cwd={record.cwd}, rc={record.return_code})"
         + (" Process not owned by this runtime; inspect external state before new work."
            if record.status == TASK_STATUS_OUTCOME_UNKNOWN else "")
+        + (" Not dispatched; requires explicit disposition and will not automatically start."
+           if record.status == TASK_STATUS_QUEUED else "")
         + (f" Error: {record.metadata['error']}" if record.metadata.get("error") else "")
     )
 

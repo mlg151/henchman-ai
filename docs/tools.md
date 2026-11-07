@@ -761,13 +761,25 @@ Windows currently terminates the direct subprocess.
 Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.
-When a fresh runtime loads a record last saved as `running`, it reports
+Before dispatch, the service persists `queued` intent, then `started` before
+process creation and `running` after receiving its process handle. `queued`
+means not dispatched and requires explicit disposition; it never starts on reload.
+When a fresh runtime loads a record last saved as `started` or `running`, it reports
 `outcome_unknown` and preserves the observed timestamps and exit-code evidence.
 It does not invent a stop time or infer ownership from the saved PID. `task_get`
 and `task_list(status="outcome_unknown")` expose these records; `task_output`
 continues to expose eligible retained evidence. `task_stop` and waiting refuse
 unowned processes. Inspect external process state before explicitly starting new
 work; no command is replayed from the saved argv.
+
+The versioned `.henchman/tasks/index.json` stores index and per-task revisions,
+a store identity and a damage-detection checksum. A stable `index.lock` protects
+conditional updates across processes; keep that lock with the index. Independent
+task updates merge, while stale updates to the same task fail explicitly. Missing,
+corrupt, replaced or downgraded known authority blocks dispatch. The checksum
+does not authenticate against malicious replacement. Legacy list indexes remain
+readable. Resolving a correlated operation does not resolve its child task, and
+there is no trusted task-disposition command yet.
 
 New task output is decoded and redacted before persistence, with a 1 MiB capture
 limit and a visible truncation marker. Task metadata and private atomic index
@@ -776,15 +788,16 @@ values still reach the child unchanged. Capture failures stop/reap the owned
 process and settle its waiter with an explicit failure. Output readers and
 timeout diagnostics reject linked or substituted files.
 
-Indexed legacy logs are migrated on load/read using private atomic replacement:
+Indexed terminal logs are migrated on load/read using private atomic replacement:
 up to 16 MiB of valid UTF-8 input is examined and at most 1 MiB is retained.
 Malformed, oversized, linked or changed originals remain untouched with an
-`evidence_migration_error` diagnostic; active captures are not replaced. Corrupt
+`evidence_migration_error` diagnostic. Unresolved logs are projected on read without
+replacement, so observing another runtime cannot detach its active output writer. Corrupt
 indexes are preserved for explicit repair instead of overwritten with empty
 history. Migration only covers indexed logs and registered credentials. POSIX
 uses directory descriptors; Windows checks file identities and reparse points
-without the same directory-descriptor guarantee. This evidence handling does not
-provide concurrent-writer arbitration or interrupted-operation recovery.
+without the same directory-descriptor guarantee. Persistent records never confer
+ownership of another process or authorize replay after interruption.
 
 Interactive chat accepts messages while work is underway and processes them in
 order at agent-turn boundaries. `/goal pause` is available during processing;
@@ -801,8 +814,9 @@ that would otherwise look like a control word. Goals persist with sessions.
 
 The registered `goal_status` tool reads the current goal or completes it using
 its current `goal_id` and a verification summary. Replacing a goal invalidates
-old completion IDs. Agent completion is rejected while project jobs are still
-running; the user can explicitly override completion with `/goal complete`.
+old completion IDs. Agent completion is rejected while project jobs are queued,
+started, running, outcome-unknown, or have failed status persistence. The user can
+explicitly override completion with `/goal complete`; that is not verification proof.
 Runtime errors and interrupted turns pause continuation. This is interactive
 session execution, separate from cron scheduling.
 

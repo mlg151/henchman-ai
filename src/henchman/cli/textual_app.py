@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual import on
@@ -240,6 +241,7 @@ class HenchmanTextualApp(
             show=True,
         ),
         Binding("f1", "show_help", "Help", show=True),
+        Binding("f8", "review_changes", "Review", show=True),
         Binding(
             "f2",
             "switch_provider",
@@ -317,6 +319,7 @@ class HenchmanTextualApp(
                         Button("Refresh", id="workspace-refresh"),
                         Button("Bridges", id="workspace-bridges"),
                         Button("Export", id="workspace-export"),
+                        Button("Review changes", id="workspace-review"),
                         id="workspace-actions",
                     ),
                     id="workspace-overview",
@@ -329,6 +332,28 @@ class HenchmanTextualApp(
     def action_follow_live(self) -> None:
         """Return the transcript to live without moving composer focus."""
         self.query_one(ChatPane).return_to_live()
+
+    def action_review_changes(self) -> None:
+        """Open file review without submitting or replacing the composer draft."""
+        from henchman.cli.textual_checkpoints import CheckpointReviewScreen
+
+        if isinstance(self.screen, CheckpointReviewScreen):
+            return
+        if len(self.screen_stack) > 1:
+            self.notify("Close the current dialog before opening review.", markup=False)
+            return
+        focused = self.focused
+
+        def restore_focus(_result: None) -> None:
+            if focused is not None and focused.is_mounted:
+                focused.focus()
+
+        self.push_screen(CheckpointReviewScreen(self, Path.cwd()), restore_focus)
+
+    @on(Button.Pressed, "#workspace-review")
+    def _review_changes_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_review_changes()
 
     def action_history_page_up(self) -> None:
         """Read earlier output without changing the draft."""

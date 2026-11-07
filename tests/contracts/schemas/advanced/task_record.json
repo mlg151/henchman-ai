@@ -13,15 +13,31 @@
     "cwd": { "type": "string" },
     "status": { "type": "string" },
     "created_at": { "type": "string", "format": "date-time" },
-    "started_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
     "finished_at": { "type": ["string", "null"], "format": "date-time" },
     "output_path": { "type": "string" },
     "pid": { "type": ["integer", "null"] },
     "return_code": { "type": ["integer", "null"] },
+    "revision": { "type": "integer", "minimum": 0 },
+    "owner_id": { "type": ["string", "null"] },
+    "operation_context": {
+      "type": ["object", "null"],
+      "properties": {
+        "operation_id": { "type": "string" },
+        "project_hash": { "type": "string" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "turn_id": { "type": "string" },
+        "agent_id": { "type": "string" },
+        "tool_call_id": { "type": "string" }
+      },
+      "required": ["operation_id", "project_hash", "session_id", "run_id", "turn_id", "agent_id", "tool_call_id"],
+      "additionalProperties": false
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": { "type": "string" }
     }
   },
-  "required": ["task_id", "title", "argv", "cwd", "status", "created_at", "started_at", "finished_at", "output_path", "pid", "return_code", "metadata"]
+  "required": ["task_id", "title", "argv", "cwd", "status", "created_at", "started_at", "finished_at", "output_path", "pid", "return_code", "metadata", "revision", "owner_id", "operation_context"]
 }

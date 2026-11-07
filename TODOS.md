@@ -72,6 +72,13 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #22/#23 now have Textual F8 checkpoint review and versioned background-task
+  intent with conditional concurrent updates. Apply waits for idle local work;
+  recovered task evidence cannot control a process or trigger replay. Native
+  qualification, trusted task disposition and goal/queue persistence remain open.
+  See [checkpoints](docs/checkpoints.md#textual-review) and
+  [background tasks](docs/tools.md#background-execution).
+
 - #16 plan checks now bind observations to explicit input contents and requirement
   tags. Read-only current status detects manual edits and separates historical
   pass, stale, unverified and incomplete checks. Project check configuration,

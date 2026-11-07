@@ -34,7 +34,8 @@ def test_restart_reports_unknown_outcome_without_inventing_exit_evidence(tmp_pat
     assert service.list_tasks(status="outcome_unknown") == [record]
     assert "before interruption" in service.tail_output(task_id)
     assert not service._runtime.processes and not service._runtime.waiters
-    assert json.loads(index.read_text())[0]["status"] == "outcome_unknown"
+    # Observing another runtime must not mutate its authoritative lifecycle.
+    assert json.loads(index.read_text())[0]["status"] == "running"
     TaskService._runtimes.pop(service._storage_dir)
     assert TaskService(tmp_path).get_task(task_id) == record
 

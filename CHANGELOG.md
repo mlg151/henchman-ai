@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Versioned background-task authority** — Locked per-task updates preserve
+  concurrent records and commit launch intent before dispatch. Unowned unresolved
+  jobs retain unknown outcomes without log replacement or replay; unresolved
+  intent and failed status persistence block model-driven goal completion.
+
+- **Textual checkpoint review** — F8 and workspace navigation expose captured
+  files and hunks, explicit preview and idle-only Apply, conflict refresh and
+  preserved drafts/focus across narrow layouts. Native usability remains open.
+
 - **Declared-input verification freshness** — Immutable checks accept explicit
   file inputs and requirement tags. Before/after content fingerprints and read-only
   status inspection detect stale results, including manual edits and formatting.

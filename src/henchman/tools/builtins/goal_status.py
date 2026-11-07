@@ -69,10 +69,12 @@ class GoalStatusTool(Tool):
                 summary = params.get("summary")
                 if not isinstance(goal_id, str) or not isinstance(summary, str):
                     raise ValueError("Completion requires goal_id and summary strings")
-                running = TaskService(project_root=self._project_root).list_tasks(status="running")
-                if running:
-                    ids = ", ".join(task.task_id for task in running)
-                    raise ValueError(f"Project background tasks are still running: {ids}")
+                unresolved = [task for task in TaskService(project_root=self._project_root).list_tasks()
+                              if task.status in {"queued", "started", "running", "outcome_unknown"}
+                              or task.metadata.get("status_persisted") == "false"]
+                if unresolved:
+                    ids = ", ".join(task.task_id for task in unresolved)
+                    raise ValueError(f"Project background tasks remain unresolved: {ids}")
                 service.complete(session, goal_id=goal_id, summary=summary)
                 save_goal_session(self._session_manager, session)
             elif action != "status":

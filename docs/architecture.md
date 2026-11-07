@@ -5,14 +5,20 @@
 The [checkpoint service](checkpoints.md) owns scoped content capture and durable
 conflict-checked POSIX restore and a native NTFS content-only backend awaiting
 qualification. CLI, REPL and Textual command input share its user
-adapter. Restores invalidate plan verification and supersede in-flight check
-results; automatic mutation ownership remains separate integration work.
+adapter; Textual F8 adds file/hunk navigation with separate preview and Apply.
+Restores invalidate plan verification and supersede in-flight check results;
+automatic capture uses declared tool targets and operation correlation.
 Conversation rewind does not restore workspace files.
 
 Plan verification keeps historical observations separate from current declared
 input fingerprints. Its read-only status API detects content changes without
 turning a reported step or selected check into task acceptance. See
 [verification freshness](tools.md#declared-input-freshness).
+
+[Background tasks](tools.md#background-execution) persist versioned intent before
+process creation. Locked per-record updates preserve concurrent observations;
+runtime process handles remain the only control authority. Reopening stored
+intent never replays argv, adopts a PID or rewrites an unresolved writer's log.
 
 The [operation journal](operation-recovery.md) commits tool-attempt authority
 before dispatch and reconciles completed observations without repeating effects.
