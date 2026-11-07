@@ -59,6 +59,14 @@ class EvidenceRedactor:
             self._secrets.update(variants)
             self._pattern = None
 
+    def register_policy(self, source: EvidenceRedactor) -> None:
+        """Merge known values and live reference names without sharing mutable state."""
+        source.register_environment()
+        self._environment_references.update(source._environment_references)
+        if source._secrets - self._secrets:
+            self._secrets.update(source._secrets)
+            self._pattern = None
+
     def register_config(self, value: Any) -> None:
         """Collect named credentials without retaining or mutating configuration."""
         if isinstance(value, Mapping):

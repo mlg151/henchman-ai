@@ -6,6 +6,7 @@ tools as internal Tool instances.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
@@ -46,6 +47,7 @@ class McpTool(Tool):
         server_name: str,
         *,
         trusted: bool = False,
+        before_call: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the tool wrapper.
 
@@ -60,6 +62,7 @@ class McpTool(Tool):
         self._client = client
         self._server_name = server_name
         self._trusted = trusted
+        self._before_call = before_call
 
     @property
     def name(self: McpTool) -> str:
@@ -136,7 +139,8 @@ class McpTool(Tool):
             Tool execution result.
         """
         arguments: dict[str, Any] = dict(params)
-
+        if self._before_call is not None:
+            self._before_call()
         result = await self._client.call_tool(
             self._mcp_tool.name,
             arguments,

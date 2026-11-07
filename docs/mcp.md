@@ -68,6 +68,34 @@ mcp_servers:
 | `env` | dict | Environment variables |
 | `trusted` | bool | If true, skip tool confirmation |
 
+### Credentials and connection lifetime
+
+An `env` value of exactly `${NAME}` resolves the named environment variable once,
+just before starting that server. Missing or empty variables and partial references
+such as `prefix-${NAME}` fail before startup. Literal values remain literal;
+resolved values are not expanded recursively. The settings file retains the
+reference. Only explicitly configured values supplement the MCP SDK's normal
+process-environment allowlist.
+
+Changing or clearing a managed token, changing a referenced environment value,
+or changing the server command, arguments, environment or trust setting invalidates
+the connection. Retained tool handles then reject new dispatch until the server
+is reconnected. This does not undo a call already dispatched, and external edits
+to the auth file are not watched automatically.
+
+Tokens set through `mcp_auth` are stored in `.henchman/mcp/auth.json` using a
+private atomic replacement (mode `0600` on POSIX); symlink auth files are rejected.
+Windows permissions follow the directory's existing ACL. Configured and resolved
+credentials, including earlier values after rotation, are registered with the
+session/display evidence policy and redacted from process and SDK diagnostics.
+Execution still receives the original credential values.
+
+The native stdio connection owns its SDK contexts in one lifecycle task, so
+startup, calls and shutdown may originate from different application tasks.
+Failed or cancelled startup and shutdown join owned transport cleanup. This is
+part of the [stdio compatibility foundation](standards.md#implemented-compatibility-foundation-v042-work);
+modern transports, pagination and richer results remain separate roadmap work.
+
 ## Trust Levels
 
 ### Trusted Servers

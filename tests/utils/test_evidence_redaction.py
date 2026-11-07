@@ -87,3 +87,18 @@ def test_marked_non_json_credential_registers_its_display_echo() -> None:
     payload = {"api_key": Path("marked-canary"), "echo": "marked-canary"}
     safe = EvidenceRedactor().redact(payload)
     assert safe["api_key"] == "[REDACTED]" and safe["echo"] == "[REDACTED]"
+
+
+def test_policy_registration_preserves_old_values_and_live_references(monkeypatch):
+    from henchman.utils.evidence_redaction import EvidenceRedactor
+
+    monkeypatch.setenv("ORDINARY_SOURCE", "initial-private-reference-canary")
+    source = EvidenceRedactor(["old-private-canary"])
+    source.register_config({"token": "${ORDINARY_SOURCE}"})
+    target = EvidenceRedactor(["existing-private-canary"])
+    target.text("prime cached pattern")
+    target.register_policy(source)
+    monkeypatch.setenv("ORDINARY_SOURCE", "rotated-private-reference-canary")
+    value = "old-private-canary existing-private-canary initial-private-reference-canary rotated-private-reference-canary"
+    assert "private" not in target.text(value)
+    assert source.text("existing-private-canary") == "existing-private-canary"

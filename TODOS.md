@@ -38,7 +38,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - #21 stdio foundation now uses a bounded SDK 1.x dependency and independent
   subprocess fixtures for four legacy protocol profiles. Pipe startup, cancellation,
-  bounded diagnostic cleanup and known-credential projection are covered. Native
+  bounded diagnostic cleanup and known-credential projection are covered. Explicit
+  environment references, invalidation after credential/configuration changes,
+  private auth replacement and task-owned SDK cleanup now have focused regressions;
+  see [connection lifetime](docs/mcp.md#credentials-and-connection-lifetime). Native
   qualification, schemas, pagination and typed results remain open; see the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 

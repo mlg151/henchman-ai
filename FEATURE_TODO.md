@@ -94,6 +94,10 @@ qualification and remaining UI presentation are still required; see [task accoun
 The release gates below are not yet satisfied.
 MCP stdio now uses a bounded SDK 1.x dependency and independent process fixtures
 for four legacy protocol profiles, with bounded redacted diagnostic draining.
+Explicit environment references now resolve once before startup; credential or
+configuration changes invalidate old dispatch handles. Private atomic auth storage,
+session evidence binding and task-owned SDK cleanup have focused regressions; see
+[credentials and connection lifetime](docs/mcp.md#credentials-and-connection-lifetime).
 Native qualification and the remaining schema/discovery/result work stay open
 under #21; modern SDK/transport migration stays under #25.
 Automatic compaction now respects the configured disable flag across primary,

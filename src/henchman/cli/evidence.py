@@ -32,6 +32,10 @@ def runtime_evidence_redactor(runtime: Any) -> EvidenceRedactor:
     key = getattr(getattr(runtime, "provider", None), "api_key", None)
     if isinstance(key, str):
         policy.register_secret(key)
+    for manager in (getattr(context, "mcp_manager", None), getattr(runtime, "mcp_manager", None)):
+        register = getattr(manager, "register_evidence", None)
+        if callable(register):
+            register(policy)
     return policy
 
 

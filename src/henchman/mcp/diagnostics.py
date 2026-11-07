@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -36,9 +36,9 @@ logging.getLogger("mcp.client.stdio").addFilter(_ScopedDiagnostics())
 
 
 @contextmanager
-def sdk_diagnostics(environment: Mapping[str, str]) -> Iterator[None]:
+def sdk_diagnostics(environment: Mapping[str, str], *, secrets: Iterable[str] = ()) -> Iterator[None]:
     """Capture credentials for child transport tasks without leaking caller scope."""
-    policy = EvidenceRedactor()
+    policy = EvidenceRedactor(secrets)
     policy.register_config(environment)
     token = _policy.set(policy)
     try:

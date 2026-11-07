@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP credential lifecycle** — Whole-value environment references resolve once
+  before server startup; missing references fail explicitly. Token, reference and
+  server configuration changes invalidate retained dispatch handles. Auth files
+  use private atomic replacement, evidence policies retain known rotated values,
+  and native SDK contexts enter and exit in one owned task across cancellation.
+  See [MCP credentials](docs/mcp.md#credentials-and-connection-lifetime).
+
 - **Real MCP stdio qualification** — Independent fixture processes exercise four
   SDK 1.x protocol profiles, unknown-version rejection and cancellation. The SDK
   dependency is bounded to `>=1.26,<2`. Real descriptor-based stderr draining

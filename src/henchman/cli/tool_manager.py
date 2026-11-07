@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from henchman.tools.access_policy import ToolAccessPolicy, validate_tool_backend
 from henchman.tools.base import ConfirmationRequest
 from henchman.tools.registry import ToolRegistry
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -100,6 +101,11 @@ class ToolManager:
             ))
         self._session_manager = session_manager
         self._mcp_manager = mcp_manager
+        core_session_manager = getattr(session_manager, "session_manager", session_manager)
+        policy = getattr(core_session_manager, "evidence_redactor", None)
+        register = getattr(mcp_manager, "register_evidence", None)
+        if isinstance(policy, EvidenceRedactor) and callable(register):
+            register(policy)
 
     @staticmethod
     def _create_builtin_tools(
