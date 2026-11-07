@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Offline test isolation** — Pytest and installed-wheel cohorts now block external
+  DNS/TCP and existing local model services. Adapter fixtures use HTTP mock
+  transports that survive accounting client copies; inherited provider keys are
+  replaced with test values. Owned loopback HTTP/TLS fixtures remain available.
+
 - Serialized settings contracts now include filesystem/network controls and
   accounting persistence, preserving null versus empty root lists.
 

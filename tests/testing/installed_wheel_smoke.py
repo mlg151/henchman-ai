@@ -58,6 +58,8 @@ def smoke_environment(environment: dict[str, str]) -> dict[str, str]:
 def stage_workflow_tests(repository: Path, target: Path, *, include_package: bool = False) -> None:
     """Copy offline coding and terminal workflows, never production source code."""
     for relative in (
+        "tests/offline_network.py",
+        "tests/testing/test_offline_network.py",
         "tests/e2e/test_coding_loop.py",
         "tests/e2e/test_leader_requests.py",
         "tests/e2e/test_team_verification_routing.py",
@@ -334,7 +336,9 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         (target / relative / "__init__.py").touch()
     # The repository conftest prepends src/. This replacement asserts the wheel
     # origin inside the exact pytest process that runs the coding workflow.
-    (target / "tests/conftest.py").write_text(_ORIGIN_CHECK, encoding="utf-8")
+    (target / "tests/conftest.py").write_text(
+        _ORIGIN_CHECK + '\npytest_plugins = ["tests.offline_network"]\n', encoding="utf-8",
+    )
     (target / "pytest.ini").write_text(
         "[pytest]\nasyncio_mode = auto\nasyncio_default_fixture_loop_scope = function\n"
         "markers =\n    always_passes: live evaluation policy\n    usually_passes: live evaluation policy\n"
