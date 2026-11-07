@@ -46,13 +46,13 @@ class HttpPeer:
         await self._close_clients()
 
     def _accept(self, reader, writer):
-        self.writers.add(writer)
         if self.closing:
             # A connection_made callback can have been queued before close().
             # Abort immediately so wait_closed never depends on its handler.
             writer.close()
             writer.transport.abort()
             return
+        self.writers.add(writer)
         task = asyncio.create_task(self._handle(reader, writer))
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)

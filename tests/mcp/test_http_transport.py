@@ -58,7 +58,8 @@ async def test_http_peer_teardown_joins_accepted_incomplete_or_stalled_requests(
         await asyncio.wait_for(closing, timeout=2)
 
 
-async def test_http_peer_closes_an_accept_callback_queued_before_teardown(monkeypatch):
+@pytest.mark.parametrize("after_exit", [False, True])
+async def test_http_peer_closes_an_accept_callback_queued_before_teardown(monkeypatch, after_exit):
     original = asyncio.start_server
     connected = asyncio.Event()
     delayed = {}
@@ -80,6 +81,12 @@ async def test_http_peer_closes_an_accept_callback_queued_before_teardown(monkey
         closing = asyncio.create_task(peer.__aexit__(None, None, None))
         await asyncio.sleep(0)
         assert peer.closing
+        if after_exit:
+            # Model a delayed callback whose transport has already settled;
+            # no bookkeeping may be resurrected after __aexit__ completed.
+            delayed["connection"][1].close()
+            await delayed["connection"][1].wait_closed()
+            await asyncio.wait_for(asyncio.shield(closing), timeout=2)
         delayed["callback"](*delayed["connection"])
         await asyncio.wait_for(asyncio.shield(closing), timeout=2)
         with suppress(ConnectionResetError):
