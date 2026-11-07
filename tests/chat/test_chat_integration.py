@@ -414,21 +414,22 @@ class TestChatIntegration:
         )
 
     @pytest.mark.anyio
-    async def test_single_tool_call_executes_and_continues(self) -> None:
+    async def test_single_tool_call_executes_and_continues(self, tmp_path: Path) -> None:
         """A single tool call must execute, submit result, and get a follow-up response.
 
         Verifies the full tool call / result / continue cycle works end-to-end.
         """
+        (tmp_path / "sample.txt").write_text("sample", encoding="utf-8")
         tool_response = tool_call_response(
             "ls",
-            {"path": "/tmp"},
+            {"path": str(tmp_path)},
             tool_id="call-ls-001",
         )
         follow_up = simple_stop_response("I found the files in /tmp.")
         provider = ScriptedProvider([tool_response, follow_up])
         manager, bot = make_manager_with_provider(provider)
 
-        await manager._handle_message(make_message("List files in /tmp"))
+        await manager._handle_message(make_message(f"List files in {tmp_path}"))
 
         # Provider called twice: first for tool call, then for follow-up
         assert provider.call_count == 2, (
@@ -438,6 +439,10 @@ class TestChatIntegration:
         tool_msgs = [c for _, c in bot.sent_messages if "🔧" in c]
         assert len(tool_msgs) >= 1, "Expected at least one tool-running notification"
         assert "ls" in tool_msgs[0]
+        assert any(
+            m.role == "tool" and "sample.txt" in (m.content or "")
+            for m in provider.calls[1]
+        )
         # Final response should be present
         assert "found the files" in bot.all_text()
 
@@ -809,23 +814,38 @@ class TestChatIntegration:
         assert bot.typing_indicators[0] == "test-user-123"
 
     @pytest.mark.anyio
-    async def test_multiple_tool_calls_sequential(self) -> None:
+    async def test_multiple_tool_calls_sequential(self, tmp_path: Path) -> None:
         """Multiple sequential tool calls must all execute and continue correctly."""
         # Round 1: tool call A
         # Round 2 (after result A): tool call B
         # Round 3 (after result B): final text response
-        call_a = tool_call_response("ls", {"path": "/tmp"}, tool_id="call-a")
-        call_b = tool_call_response("ls", {"path": "/home"}, tool_id="call-b")
+        # Keep tool output bounded independently of the host's directory contents.
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        (first / "first.txt").write_text("first", encoding="utf-8")
+        (second / "second.txt").write_text("second", encoding="utf-8")
+        call_a = tool_call_response("ls", {"path": str(first)}, tool_id="call-a")
+        call_b = tool_call_response("ls", {"path": str(second)}, tool_id="call-b")
         final = simple_stop_response("Done checking both directories.")
 
         provider = ScriptedProvider([call_a, call_b, final])
         manager, bot = make_manager_with_provider(provider)
 
-        await manager._handle_message(make_message("Check tmp and home dirs"))
+        await manager._handle_message(make_message(f"Check {first} and {second}"))
 
         assert provider.call_count == 3, (
             f"Expected 3 LLM calls (tool-A, tool-B, final), got {provider.call_count}"
         )
         tool_msgs = [c for _, c in bot.sent_messages if "🔧" in c]
         assert len(tool_msgs) == 2, f"Expected 2 tool notifications, got {len(tool_msgs)}"
+        assert any(
+            m.role == "tool" and m.tool_call_id == "call-a" and "first.txt" in (m.content or "")
+            for m in provider.calls[1]
+        )
+        assert any(
+            m.role == "tool" and m.tool_call_id == "call-b" and "second.txt" in (m.content or "")
+            for m in provider.calls[2]
+        )
         assert "Done checking" in bot.all_text()
