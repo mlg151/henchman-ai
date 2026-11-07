@@ -326,6 +326,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Comparable baseline latency** — Successful evaluations now report the
+  complete scenario duration instead of only their final model turn. All
+  outcomes include setup and owned cleanup; two controlled-clock regressions
+  preserve those boundaries. Historical evaluation reports remain unchanged.
+
 - **Complete-scenario evaluation deadlines** — Baseline timeouts now cover setup
   and pauses before, between and after model turns. Expired scenarios remain
   unverified even when they suppress cancellation; independent checker timeout

@@ -18,7 +18,7 @@ import os
 import tempfile
 import time
 from collections.abc import Iterator
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -149,43 +149,43 @@ async def _run_once(
         # A 0/0 reading means the run path did not report usage; an LLM turn
         # always consumes prompt tokens, so zeros are unreported, not free.
         reported = bool(result.tokens_in or result.tokens_out)
-        return RunRecord(
+        record = RunRecord(
             case_id=case_id,
             run_index=run_index,
             profile=profile,
             outcome="success",
-            duration_ms=result.duration_ms,
+            duration_ms=0.0,
             tokens_in=result.tokens_in if reported else None,
             tokens_out=result.tokens_out if reported else None,
             task_verified=result.success,
             error=result.error,
         )
     except TimeoutError as exc:
-        return RunRecord(
+        record = RunRecord(
             case_id=case_id, run_index=run_index, profile=profile, outcome="timeout",
-            duration_ms=_wall_ms(start), tokens_in=None, tokens_out=None,
+            duration_ms=0.0, tokens_in=None, tokens_out=None,
             task_verified=False, error=str(exc) or f"Scenario timed out after its {timeout:g}s wall-clock budget",
         )
     except AssertionError as exc:
         outcome, error = _classify_failure(rig, str(exc))
-        return RunRecord(
+        record = RunRecord(
             case_id=case_id,
             run_index=run_index,
             profile=profile,
             outcome=outcome,
-            duration_ms=_wall_ms(start),
+            duration_ms=0.0,
             tokens_in=None,
             tokens_out=None,
             task_verified=False,
             error=error,
         )
     except Exception as exc:
-        return RunRecord(
+        record = RunRecord(
             case_id=case_id,
             run_index=run_index,
             profile=profile,
             outcome="runtime_error",
-            duration_ms=_wall_ms(start),
+            duration_ms=0.0,
             tokens_in=None,
             tokens_out=None,
             task_verified=False,
@@ -194,6 +194,7 @@ async def _run_once(
     finally:
         rig.cleanup()
 
+    return replace(record, duration_ms=_wall_ms(start))
 
 async def run_case_repeated(
     case_id: str,

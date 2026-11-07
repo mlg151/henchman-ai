@@ -92,6 +92,37 @@ async def test_scenario_retains_independent_checker_timeout_diagnostic(monkeypat
     assert records[0].error == "Independent Python verification timed out after 5s"
 
 
+@pytest.mark.parametrize("failed", [False, True])
+async def test_run_latency_covers_setup_scenario_and_cleanup(monkeypatch, failed):
+    from types import SimpleNamespace
+
+    elapsed = [100.0]
+    monkeypatch.setattr(baseline_runs, "time", SimpleNamespace(perf_counter=lambda: elapsed[0]))
+    original_setup, original_cleanup = EvalTestRig.setup, EvalTestRig.cleanup
+
+    def setup(self, *args, **kwargs):
+        original_setup(self, *args, **kwargs)
+        elapsed[0] += 0.25
+
+    def cleanup(self):
+        original_cleanup(self)
+        elapsed[0] += 0.5
+
+    async def scenario(_case_id, rig):
+        result = await rig.run("One model turn")
+        elapsed[0] += 1.0
+        if failed:
+            raise AssertionError("Independent verification failed")
+        return result
+
+    monkeypatch.setattr(EvalTestRig, "setup", setup)
+    monkeypatch.setattr(EvalTestRig, "cleanup", cleanup)
+    monkeypatch.setattr(baseline_runs, "dispatch_case", scenario)
+    records = await baseline_runs.run_case_repeated("fibonacci", provider=MockProvider())
+    assert records[0].outcome == ("verification_failure" if failed else "success")
+    assert records[0].duration_ms == pytest.approx(1750)
+
+
 class AlwaysToolProvider(MockProvider):
     """Provider that always requests a tool, to exercise iteration caps."""
 

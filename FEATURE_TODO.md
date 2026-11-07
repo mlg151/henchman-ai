@@ -92,7 +92,8 @@ independent correctness and runtime checks. The complete twelve-case corpus is
 frozen; hosted baseline requirements remain in progress. The baseline runner now
 applies one deadline to the complete scenario; iteration caps remain per turn.
 Expired work cannot be recorded as verified success, though cooperative cleanup
-can extend elapsed time. See [evaluation bounds](evals/README.md).
+can extend elapsed time. Reported latency includes setup and cleanup for all
+outcomes. See [evaluation bounds](evals/README.md).
 The [first local development cohort](docs/evaluations/2026-11-07-local-baseline.md)
 completed all 22 planned attempts with 22 timeouts and no verified successes.
 The raw report is retained; inference readiness and successful model qualification

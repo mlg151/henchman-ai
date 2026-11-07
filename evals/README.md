@@ -486,6 +486,8 @@ a verified success, even if scenario code suppresses cancellation. The iteration
 cap applies to each turn. Cancellation is cooperative: synchronous work and
 owned cleanup can extend elapsed time beyond the deadline. Independent checker
 timeouts retain their own diagnostic text.
+Run latency includes setup, all scenario turns and owned cleanup for every
+outcome. A successful final turn's duration alone is not the scenario latency.
 
 The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
 retains all 22 attempts: all timed out at the declared 120-second turn limit, with
