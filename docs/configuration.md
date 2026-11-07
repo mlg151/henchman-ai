@@ -278,7 +278,9 @@ directory-handle primitives, including Windows, reject restricted file operation
 
 This is mediated tool access, not OS isolation against hostile host processes or
 mount changes. `network_access: disabled` applies to tool dispatch, not model SDK
-traffic; host allowlists and network connection mediation remain separate work.
+traffic. Unrestricted `web_fetch` now checks resolved addresses, actual peers and
+redirects, but is not yet qualified for restricted registries. Host allowlists,
+other network tools and OS enforcement remain separate work.
 
 ## Usage limits and explicit prices
 

@@ -69,8 +69,10 @@ Approval scope now includes registration, project and physical target identity,
 with fresh checks after approval, formatter waits and retry delays. Restricted
 root settings now mediate qualified builtin file reads/writes through directory
 handles, deny unqualified tools and fail closed on unsupported platforms.
-Network connection mediation, broader tool qualification and custom dispatcher
-boundaries remain open under #20; see [restricted access](docs/configuration.md#restricted-tool-access).
+Web fetch now checks DNS answers, connected peers and redirects without weakening
+TLS or forwarding credentials across origins. Restricted-registry qualification,
+other network tools and custom dispatcher boundaries remain open under #20; see
+[restricted access](docs/configuration.md#restricted-tool-access).
 Provider usage under #24 now preserves reported/unknown provenance and cache
 subsets, including Anthropic and compatible trailing usage snapshots. Explicit
 prices distinguish estimates from provider billing; unknown costs stay unknown

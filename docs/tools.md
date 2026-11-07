@@ -783,6 +783,19 @@ session execution, separate from cron scheduling.
 
 Fetch content from a URL.
 
+HTTP(S) fetches reject private, loopback and special IP targets, including numeric
+aliases. DNS answer sets and the connected peer are checked before HTTP headers
+are sent; every redirect is checked again with fresh connection/DNS resolution.
+TLS retains the original hostname and certificate verification. Redirects share
+one total timeout and stop after ten hops. Environment proxies, netrc credentials
+and cookies are disabled. Explicit initial URL authentication remains only on
+the same origin and is permanently removed after an origin change; redirects
+cannot introduce credentials.
+
+This boundary applies to this fetch implementation. It is not a firewall, model
+traffic policy or host allowlist. `web_fetch` remains unavailable when a
+[restricted tool policy](configuration.md#restricted-tool-access) is enabled.
+
 ```json
 {
   "name": "web_fetch",

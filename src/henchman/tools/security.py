@@ -6,9 +6,11 @@ to protect against common vulnerabilities in tool implementations.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import shlex
+import socket
 import stat
 import tempfile
 from pathlib import Path
@@ -240,9 +242,54 @@ def _check_url_scheme(parsed: ParseResult, allowed_schemes: Iterable[str]) -> No
 
 def _check_localhost_url(parsed: ParseResult) -> None:
     """Raise SSRFError if URL points to a localhost address."""
-    if parsed.hostname in _LOCALHOST_PATTERNS:
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    address = _literal_ip(hostname)
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    if (hostname in _LOCALHOST_PATTERNS or hostname.endswith(".localhost")
+        or address is not None and (address.is_loopback or address.is_unspecified)):
         msg = "Localhost URLs are not allowed"
         raise SSRFError(msg)
+
+
+def _literal_ip(hostname: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """Recognize numeric aliases without DNS; actual DNS answers need separate checks."""
+    if "%" in hostname:
+        raise SSRFError("Scoped IP addresses are not allowed")
+    hostname = hostname.rstrip(".")
+    try:
+        return ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            # inet_aton covers shortened, integer, hexadecimal and octal IPv4
+            # forms accepted by platform getaddrinfo but not by ipaddress.
+            return ipaddress.IPv4Address(socket.inet_aton(hostname))
+        except OSError:
+            return None
+
+
+def validate_public_ip(address: str) -> str:
+    """Validate a resolved/connected numeric address and return its canonical form.
+
+    This function performs no DNS. Transition/scoped IPv6 forms are rejected
+    when they can tunnel an otherwise non-public address through a public prefix.
+    """
+    parsed = _literal_ip(address)
+    if parsed is None:
+        raise SSRFError("Resolved address is not a numeric IP address")
+    mapped = parsed.ipv4_mapped if isinstance(parsed, ipaddress.IPv6Address) else None
+    effective = mapped if mapped is not None else parsed
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is None and (
+        parsed.sixtofour is not None or parsed.teredo is not None
+        or parsed in ipaddress.IPv6Network("64:ff9b::/96")
+        or parsed in ipaddress.IPv6Network("64:ff9b:1::/48")
+        or parsed.is_site_local
+    ):
+        raise SSRFError("IPv6 transition or site-local addresses are not allowed")
+    if (not effective.is_global or effective.is_loopback or effective.is_link_local
+        or effective.is_multicast or effective.is_unspecified or effective.is_reserved):
+        raise SSRFError("Non-public IP addresses are not allowed")
+    return str(parsed)
 
 
 def _check_private_ip_address(parsed: ParseResult) -> None:
@@ -250,10 +297,11 @@ def _check_private_ip_address(parsed: ParseResult) -> None:
     hostname = parsed.hostname
     if not hostname:
         return
-    for pattern in _PRIVATE_IP_PATTERNS:
-        if re.match(pattern, hostname):
-            msg = f"Private IP address not allowed: {hostname}"
-            raise SSRFError(msg)
+    if _literal_ip(hostname) is not None:
+        try:
+            validate_public_ip(hostname)
+        except SSRFError as exc:
+            raise SSRFError(f"Private IP address not allowed: {hostname}") from exc
 
 
 def _check_domain_whitelist(
@@ -262,7 +310,7 @@ def _check_domain_whitelist(
 ) -> None:
     """Raise SSRFError if URL domain is not in the allowed list."""
     hostname = parsed.hostname
-    if allowed_domains and hostname and hostname not in allowed_domains:
+    if allowed_domains is not None and hostname and hostname not in allowed_domains:
         msg = f"Domain {hostname} not in allowed list"
         raise SSRFError(msg)
 
@@ -282,7 +330,10 @@ def validate_url(
     block_private_ips: bool = True,
     block_localhost: bool = True,
 ) -> str:
-    """Validate a URL to prevent SSRF attacks.
+    """Validate URL syntax and literal targets before transport-level SSRF checks.
+
+    Hostnames are not resolved here. Callers must also validate the actual DNS
+    answers, connected peer and each redirect before sending request bytes.
 
     Args:
         url: The URL to validate.
@@ -302,9 +353,15 @@ def validate_url(
     if not url or not isinstance(url, str):
         msg = "URL must be a non-empty string"
         raise ValueError(msg)
+    if any(ord(character) < 32 or ord(character) == 127 for character in url):
+        raise SSRFError("URL contains control characters")
 
     try:
         parsed = urlparse(url)
+        if not parsed.hostname or any(character.isspace() for character in parsed.hostname):
+            raise SSRFError("URL requires a valid hostname")
+        # Accessing port rejects invalid values before any resolver is invoked.
+        _ = parsed.port
     except Exception as e:
         msg = f"Invalid URL: {e}"
         raise SSRFError(msg) from e

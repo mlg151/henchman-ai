@@ -46,7 +46,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   targets after approval, formatter waits and retry delays. This closes stale
   grant reuse. Typed restricted roots now mediate builtin file reads/writes on
   supported platforms; any restriction denies all other, unqualified tools.
-  Network connection mediation and custom-dispatch checks remain open. See
+  Unrestricted web fetch now validates DNS/peers/redirects with verified TLS and
+  origin-scoped credentials; it remains denied in restricted registries. Other
+  network tools, host allowlists and custom-dispatch checks remain open. See
   [restricted tool access](docs/configuration.md#restricted-tool-access).
 
 - #14 configuration persistence now retains explicit default-valued overrides

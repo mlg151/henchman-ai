@@ -133,6 +133,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transports that survive accounting client copies; inherited provider keys are
   replaced with test values. Owned loopback HTTP/TLS fixtures remain available.
 
+- **Web fetch destination checks** — Fetches validate DNS answers, actual peers
+  before HTTP headers and every redirect. Verified TLS keeps the original
+  hostname across aiohttp 3.9/current interfaces; cookies and ambient proxy/netrc
+  auth are disabled, and cross-origin redirects permanently drop credentials.
+  Local HTTP/TLS tests cover aliases, rebinding, redirects and cancellation.
+  Other network tools and restricted-registry qualification remain under #20.
+
 - Serialized settings contracts now include filesystem/network controls and
   accounting persistence, preserving null versus empty root lists.
 
