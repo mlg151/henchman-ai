@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import errno
 import os
+import re
 import select
 import sys
 from dataclasses import dataclass
@@ -49,6 +50,83 @@ _SUDO_PREFIX_LEN = 5
 
 MAX_OUTPUT_CHARS = 100_000
 """Maximum characters of combined stdout+stderr returned to the model."""
+
+_READ_ONLY_SHELL_PROGRAMS: frozenset[str] = frozenset(
+    {
+        "ls",
+        "cat",
+        "head",
+        "tail",
+        "wc",
+        "grep",
+        "rg",
+        "echo",
+        "pwd",
+        "date",
+        "printenv",
+        "which",
+        "whoami",
+        "hostname",
+        "stat",
+        "file",
+        "jq",
+        "tree",
+        "du",
+        "df",
+        "ps",
+        "uname",
+        "id",
+        "diff",
+        "cmp",
+        "uniq",
+        "tr",
+        "cut",
+        "nl",
+        "od",
+        "basename",
+        "dirname",
+        "realpath",
+        "readlink",
+    }
+)
+"""Programs whose ordinary invocations have no observable side effects."""
+
+_READ_ONLY_GIT_SUBCOMMANDS: frozenset[str] = frozenset({"status", "log", "diff", "show"})
+"""Git subcommands that never mutate repository or remote state."""
+
+_FIND_MUTATING_FLAGS: frozenset[str] = frozenset(
+    {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+)
+"""find arguments that can perform file operations."""
+
+_SHELL_EFFECT_METACHARACTERS = frozenset("|&;<>`()$\n\r")
+"""Shell metacharacters that can chain, redirect, or substitute."""
+
+
+def is_read_only_shell_command(command: str) -> bool:
+    """Return ``True`` when *command* is a single side-effect-free read-only command.
+
+    The classification is deliberately conservative: any shell operator that can
+    chain, redirect, or substitute is rejected, and only a small allowlist of
+    read-only programs (plus read-only git subcommands and ``find`` without
+    mutating flags) is downgraded to READ. Everything else retains the static
+    EXECUTE classification.
+    """
+    if not command.strip():
+        return False
+    if any(ch in _SHELL_EFFECT_METACHARACTERS for ch in command):
+        return False
+    tokens = command.split()
+    while tokens and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", tokens[0]):
+        tokens.pop(0)
+    if not tokens:
+        return False
+    program = tokens[0].rsplit("/", 1)[-1]
+    if program == "git":
+        return len(tokens) > 1 and tokens[1] in _READ_ONLY_GIT_SUBCOMMANDS
+    if program == "find":
+        return not any(token in _FIND_MUTATING_FLAGS for token in tokens[1:])
+    return program in _READ_ONLY_SHELL_PROGRAMS
 
 _SHELL_PARAMETERS: dict[str, object] = {
     "type": "object",
@@ -710,6 +788,19 @@ class ShellTool(Tool):
     def kind(self: ShellTool) -> ToolKind:
         """Tool kind - EXECUTE requires confirmation."""
         return ToolKind.EXECUTE
+
+    def execution_kind(self: ShellTool, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; side-effect-free commands stay READ.
+
+        The static EXECUTE kind remains the catalog classification. A
+        clearly read-only single command is downgraded to READ so Plan Mode
+        keeps it available; anything the classifier cannot prove read-only
+        conservatively retains EXECUTE.
+        """
+        command = params.get("command")
+        if isinstance(command, str) and is_read_only_shell_command(command):
+            return ToolKind.READ
+        return self.kind
 
     # -- main entry point ----------------------------------------------------
     async def execute(  # type: ignore[override]

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.builtins.file_edit import EditFileTool
 from henchman.tools.builtins.file_read import ReadFileTool
 from henchman.tools.builtins.file_write import WriteFileTool
@@ -13,10 +13,15 @@ from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.registry import ToolRegistry
 
 
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
+
+
 @pytest.fixture
 def registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ToolRegistry:
     monkeypatch.chdir(tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     for tool in (WriteFileTool(), EditFileTool(), ReadFileTool(), PythonExecTool()):
         registry.register(tool)
     return registry
@@ -123,6 +128,7 @@ async def test_scoped_registries_wait_for_formatting_before_verification(
             return ToolResult(content, success=content == "value = 1\n")
 
     parent, child = ToolRegistry(), ToolRegistry()
+    parent.set_confirmation_handler(_approve)
     child.inherit_policies_from(parent)
     parent.register(Writer())
     child.register(PythonExecTool() if verify_with_python else Verify())

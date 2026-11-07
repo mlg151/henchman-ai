@@ -249,13 +249,16 @@ class TestShowTeamInfo:
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
-        mock_loader_instance.load.return_value = "system prompt"
-        mock_settings = MagicMock()
+        mock_loader_instance.load_snapshot.return_value.content = "system prompt"
+        from henchman.config.runtime import RuntimeSettingsState
+        from henchman.config.schema import Settings
+
+        mock_settings = Settings()
 
         with (
             patch("henchman.cli.app._get_provider") as mock_provider,
             patch("henchman.config.ContextLoader", return_value=mock_loader_instance),
-            patch("henchman.config.load_settings", return_value=mock_settings),
+            patch("henchman.config.load_settings_snapshot", return_value=RuntimeSettingsState.from_settings(mock_settings).snapshot()),
             patch("henchman.cli.repl.Repl", return_value=mock_repl_instance) as mock_repl,
             patch("henchman.cli.app.anyio") as mock_anyio,
         ):
@@ -267,6 +270,7 @@ class TestShowTeamInfo:
             call_kwargs = mock_repl.call_args[1]
             assert call_kwargs["provider"] == mock_provider.return_value
             assert call_kwargs["settings"] == mock_settings
+            assert call_kwargs["settings_state"].settings is call_kwargs["settings"]
             assert call_kwargs["config"].system_prompt == "system prompt"
             mock_anyio.run.assert_called_once_with(mock_repl_instance.run)
 
@@ -280,7 +284,7 @@ class TestRunHeadless:
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
-        mock_loader_instance.load.return_value = ""
+        mock_loader_instance.load_snapshot.return_value.content = ""
 
         with (
             patch("henchman.cli.app._get_provider") as mock_provider,

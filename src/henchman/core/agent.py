@@ -18,6 +18,13 @@ from henchman.core.agent_streaming import (
     record_message,
 )
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_accounting import (
+    agent_budget_scope,
+    budgeted_events,
+    continuation_budget_scope,
+    require_accounted_provider,
+)
 from henchman.core.tool_selection import prepare_agent_request
 from henchman.core.turn import TurnState
 from henchman.providers.base import Message, ModelProvider
@@ -32,6 +39,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from henchman.agents.identity import AgentIdentity
+    from henchman.core.instruction_context import InstructionContext
+    from henchman.providers.runtime_budget import RunBudgetScope
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +59,7 @@ _CONFIG_FIELDS = frozenset(
     {
         "system_prompt",
         "context_window",
+        "auto_compact",
         "model",
         "base_tool_iterations",
         "intelligent_context",
@@ -175,7 +185,7 @@ def _build_outer_finished_event(
     fr = state.finish_reason if state else None
     finish_data: str | dict[str, Any] = fr.value if fr else "Agent completed execution"
     if state and state.usage:
-        finish_data = {"finish_reason": finish_data, "usage": state.usage}
+        finish_data = {"finish_reason": finish_data, "usage": state.usage, "usage_source": state.usage_source}
     return AgentEvent(type=EventType.FINISHED, data=finish_data, source_agent=source_agent)
 
 
@@ -404,6 +414,7 @@ class Agent:
         self.provider = provider
         self.tool_registry = tool_registry if tool_registry is not None else ToolRegistry()
         self.identity = identity
+        self.instruction_context: InstructionContext | None = None
         self._config = config if config is not None else AgentConfig(**kwargs)
 
         # Apply any pending config values that were set before _config was initialized
@@ -424,6 +435,7 @@ class Agent:
         self.unlimited_mode = False
         self._turn_number = 0
         self._last_stream_state: StreamState | None = None
+        self._turn_budget_scope: RunBudgetScope | None = None
         # Eagerly initialize delegation error tracking to avoid TOCTOU race
         # in record_delegation_errors() when called from concurrent threads.
         self._delegation_tool_errors: list[str] = []
@@ -555,6 +567,7 @@ class Agent:
         """
         self.messages = [m for m in self.messages if m.role == "system"]
         self.current_turn_messages = []
+        self._turn_budget_scope = None
         # Reset turn state to be consistent with cleared history
         self.turn = TurnState()
         self._stall.reset()
@@ -566,6 +579,8 @@ class Agent:
         Returns:
             List of messages, potentially compacted to fit within max_tokens.
         """
+        if not self._config.auto_compact:
+            return list(self.messages)
         compactor = _build_compactor(self._config, self._max_tokens)
         result: list[Message] = compactor.compact(
             self.messages,
@@ -599,6 +614,8 @@ class Agent:
             AgentEvent instances as the agent processes the input.
         """
         logger.debug("Agent.run: Starting with input: %s", user_input[:LOG_TRUNCATE_LENGTH])
+        source = self.identity.id if self.identity else None
+        self._turn_budget_scope = agent_budget_scope(source)
         self._turn_number += 1
         if self.tool_registry.supports_tool_discovery:
             self.tool_registry.prioritize_tools([])
@@ -609,7 +626,7 @@ class Agent:
         record_message(
             self.messages, Message(role="user", content=user_input), self.current_turn_messages,
         )
-        async with aclosing(self._stream_with_stall_loop()) as stream:
+        async with aclosing(budgeted_events(self._stream_with_stall_loop(), self._turn_budget_scope)) as stream:
             async for event in stream:
                 yield event
         source = self.identity.id if self.identity else None
@@ -625,7 +642,9 @@ class Agent:
             AgentEvent instances as the agent continues processing after tool
             results have been submitted.
         """
-        async with aclosing(self._stream_with_stall_loop()) as stream:
+        source = self.identity.id if self.identity else None
+        self._turn_budget_scope = continuation_budget_scope(self._turn_budget_scope, source)
+        async with aclosing(budgeted_events(self._stream_with_stall_loop(), self._turn_budget_scope)) as stream:
             async for event in stream:
                 yield event
         source = self.identity.id if self.identity else None
@@ -647,6 +666,8 @@ class Agent:
         Returns:
             True if compaction was applied, False otherwise.
         """
+        if not self._config.auto_compact:
+            return False
         model = self._config.model
         if self.turn.start_index < len(self.messages):
             protected = self.messages[self.turn.start_index :]
@@ -681,6 +702,9 @@ class Agent:
 
     async def _prepare_stream_context(self) -> tuple[StreamContext, bool]:
         """Snapshot tools and prepare one request under the active capacity policy."""
+        require_accounted_provider(self.provider)
+        if self.instruction_context is not None:
+            self.instruction_context.prepare()
         source = self.identity.id if self.identity else None
         if self._config.context_window is not None:
             request = prepare_agent_request(
@@ -688,7 +712,10 @@ class Agent:
                 context_window=self._config.context_window,
                 conversation_limit=self._max_tokens,
                 protect_from_index=self.turn.start_index,
+                allow_compaction=self._config.auto_compact,
             )
+            if self.instruction_context is not None:
+                self.instruction_context.presented_digest = self.instruction_context.snapshot.digest
             return StreamContext(
                 self.provider, request.messages, self.messages, request.tools,
                 source, self.current_turn_messages, request.request_options,
@@ -699,6 +726,8 @@ class Agent:
         api_messages = self.get_messages_for_api()
         if not is_valid_message_sequence(api_messages):
             api_messages = repair_message_sequence(api_messages)
+        if self.instruction_context is not None:
+            self.instruction_context.presented_digest = self.instruction_context.snapshot.digest
         return _build_stream_context(
             self.provider, api_messages, self.messages,
             self.tool_registry, source, self.current_turn_messages,
@@ -737,6 +766,8 @@ class Agent:
                     )
                     continue
                 break
+            except BudgetControlError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 yield self._emit(EventType.ERROR, f"Streaming failed: {exc}")
                 break

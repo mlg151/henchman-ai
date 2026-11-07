@@ -11,8 +11,8 @@ import yaml
 
 from henchman.cli.commands.config_redaction import redact_config_value_for_display
 from henchman.config.repository import SettingsRepository, SettingsScope
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
-_DEFAULT_SCOPE_LABEL: Final[str] = "default"
 _SCOPE_CHOICES: Final[tuple[str, ...]] = tuple(scope.value for scope in SettingsScope)
 _MISSING_KEY_ERROR_CODE: Final[str] = "HMN_CFG_KEY_NOT_FOUND"
 _MISSING_KEY_ERROR_MESSAGE: Final[str] = "Requested configuration key was not found."
@@ -127,7 +127,7 @@ def _create_read_command(
     def read_command(key_path: str, scope_value: str) -> None:
         repository = SettingsRepository(project_root=project_root)
         requested_scope = SettingsScope(scope_value)
-        payload = _build_value_payload(
+        payload = build_config_value_payload(
             repository=repository,
             key_path=key_path,
             scope=requested_scope,
@@ -137,23 +137,26 @@ def _create_read_command(
     return read_command
 
 
-def _build_value_payload(
+def build_config_value_payload(
     *,
     repository: SettingsRepository,
     key_path: str,
     scope: SettingsScope,
+    redactor: EvidenceRedactor | None = None,
 ) -> ConfigValuePayload:
     """Build a structured payload for a single config key lookup."""
-    available_keys = _list_keys(repository, scope=scope)
-    if key_path not in available_keys:
+    inspections = repository.inspect(scope=scope, include_groups=True)
+    if key_path not in inspections:
         raise _missing_key_exception(key_path=key_path, scope=scope)
 
-    value = repository.get(key_path, scope=scope)
+    entry = inspections[key_path]
+    policy = redactor or EvidenceRedactor()
+    policy.register_config({key: item.value for key, item in inspections.items() if "." not in key})
     return ConfigValuePayload(
         key=key_path,
-        value=redact_config_value_for_display(key_path=key_path, value=value),
+        value=redact_config_value_for_display(key_path=key_path, value=policy.redact(entry.value)),
         requested_scope=scope.value,
-        resolved_scope=_resolve_scope_label(repository=repository, key_path=key_path, scope=scope),
+        resolved_scope=entry.origin.scope,
     )
 
 
@@ -163,37 +166,16 @@ def _build_list_payload(
     scope: SettingsScope,
 ) -> ConfigListPayload:
     """Build a structured payload for listing config keys."""
+    inspections = repository.inspect(scope=scope)
+    sorted_keys = sorted(inspections.keys())
     entries = tuple(
         ConfigListEntry(
             key=key_path,
-            resolved_scope=_resolve_scope_label(repository=repository, key_path=key_path, scope=scope),
+            resolved_scope=inspections[key_path].origin.scope,
         )
-        for key_path in _list_keys(repository, scope=scope)
+        for key_path in sorted_keys
     )
     return ConfigListPayload(requested_scope=scope.value, entries=entries)
-
-
-def _resolve_scope_label(
-    *,
-    repository: SettingsRepository,
-    key_path: str,
-    scope: SettingsScope,
-) -> str:
-    """Resolve the active source label for a config key."""
-    if scope is SettingsScope.GLOBAL:
-        return SettingsScope.GLOBAL.value
-    if scope is SettingsScope.PROJECT:
-        return SettingsScope.PROJECT.value
-    if key_path in _list_keys(repository, scope=SettingsScope.PROJECT):
-        return SettingsScope.PROJECT.value
-    if key_path in _list_keys(repository, scope=SettingsScope.GLOBAL):
-        return SettingsScope.GLOBAL.value
-    return _DEFAULT_SCOPE_LABEL
-
-
-def _list_keys(repository: SettingsRepository, *, scope: SettingsScope) -> tuple[str, ...]:
-    """Return a stable key listing for one repository scope."""
-    return tuple(repository.list(scope=scope))
 
 
 def _missing_key_exception(*, key_path: str, scope: SettingsScope) -> click.ClickException:
@@ -214,6 +196,7 @@ __all__ = [
     "ConfigListEntry",
     "ConfigListPayload",
     "ConfigValuePayload",
+    "build_config_value_payload",
     "create_config_get_command",
     "create_config_list_command",
     "create_config_view_command",

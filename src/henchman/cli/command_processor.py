@@ -8,8 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from henchman.cli.commands import CommandContext, CommandRegistry, parse_command
 from henchman.cli.commands.builtins import get_builtin_commands
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 
 if TYPE_CHECKING:
     from henchman.cli.output_handler import OutputHandler
@@ -99,7 +102,8 @@ class CommandProcessor:
         # Try to execute the command
         cmd = self.command_registry.get(cmd_name)
         if cmd is None:
-            self.output_handler.error(f"Unknown command: /{cmd_name}")
+            name = runtime_evidence_redactor(self).text(cmd_name)
+            self.output_handler.error(f"Unknown command: /{name}")
             self.output_handler.muted("Type /help for available commands")
             return True
 
@@ -111,6 +115,7 @@ class CommandProcessor:
             session=self.session_manager.current,
             repl=repl,
             registry=self.command_registry,
+            settings=getattr(repl, "settings", None),
         )
         # Add session_manager and project_hash for /chat command
         # Handle both ReplSessionManager and any wrapper that has a session_manager attribute
@@ -125,10 +130,11 @@ class CommandProcessor:
         try:
             await cmd.execute(ctx)
         except Exception as e:
-            self.output_handler.error(f"Error executing command /{cmd_name}: {e}")
-            import traceback
-
-            self.output_handler.muted(f"Details: {traceback.format_exc()}")
+            message = runtime_exception_text(self, e)
+            name = runtime_evidence_redactor(self).text(cmd_name)
+            self.output_handler.error(f"Error executing command /{name}: {message}")
+            details = runtime_exception_text(self, e, include_traceback=True)
+            self.output_handler.muted(escape(f"Details: {details}"))
         return True
 
     def get_command_registry(self) -> CommandRegistry:

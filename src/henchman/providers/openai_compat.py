@@ -32,6 +32,9 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
+from henchman.providers.schema_projections import project_tool_parameters
+from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 
 __all__ = ["OpenAICompatibleProvider"]
@@ -50,14 +53,14 @@ class ProviderConfig:
     default_model: str
 
 
-def _format_tool(tool: ToolDeclaration) -> dict[str, Any]:
+def _format_tool(tool: ToolDeclaration, provider: str = "openai_compat") -> dict[str, Any]:
     """Format a tool declaration for the OpenAI API."""
     return {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters,
+            "parameters": project_tool_parameters(tool.parameters, provider),
         },
     }
 
@@ -149,13 +152,24 @@ def _extract_usage_from_chunk(chunk: Any) -> dict[str, int] | None:
     Returns:
         Usage dictionary or None if not available.
     """
-    if hasattr(chunk, "usage") and chunk.usage:
-        return {
-            "prompt_tokens": chunk.usage.prompt_tokens,
-            "completion_tokens": chunk.usage.completion_tokens,
-            "total_tokens": chunk.usage.total_tokens,
-        }
-    return None
+    usage = usage_field(chunk, "usage")
+    if usage is None:
+        return None
+    input_details = usage_field(usage, "prompt_tokens_details")
+    output_details = usage_field(usage, "completion_tokens_details")
+    cached = token_count(input_details, "cached_tokens")
+    if cached is None:
+        cached = token_count(usage, "prompt_cache_hit_tokens")
+    report = UsageReport(
+        prompt_tokens=token_count(usage, "prompt_tokens"),
+        completion_tokens=token_count(usage, "completion_tokens"),
+        total_tokens=token_count(usage, "total_tokens"),
+        cached_tokens=cached,
+        cache_creation_tokens=token_count(input_details, "cache_write_tokens"),
+        reasoning_tokens=token_count(output_details, "reasoning_tokens"),
+        source="reported",
+    )
+    return report.to_counts() or None
 
 
 def _extract_reasoning_text(delta: Any) -> str | None:
@@ -169,6 +183,8 @@ def _extract_reasoning_text(delta: Any) -> str | None:
 
 class OpenAICompatibleProvider(ModelProvider):
     """Base provider for OpenAI-compatible APIs."""
+
+    supports_run_budget = True
 
     def __init__(
         self: OpenAICompatibleProvider,
@@ -255,7 +271,7 @@ class OpenAICompatibleProvider(ModelProvider):
         messages = self._repair_message_sequence_if_needed(messages)
         payload: dict[str, Any] = {"messages": [_format_message(message) for message in messages]}
         if tools:
-            payload["tools"] = [_format_tool(tool) for tool in tools]
+            payload["tools"] = [self._format_tool(tool) for tool in tools]
         for name in ("response_format", "tool_choice"):
             if name in options:
                 payload[name] = options[name]
@@ -276,7 +292,7 @@ class OpenAICompatibleProvider(ModelProvider):
         tool: ToolDeclaration,
     ) -> dict[str, Any]:
         """Format a tool declaration for the OpenAI API."""
-        return _format_tool(tool)
+        return _format_tool(tool, self.name)
 
     def _format_message(
         self: OpenAICompatibleProvider,
@@ -325,23 +341,33 @@ class OpenAICompatibleProvider(ModelProvider):
 
         messages = self._repair_message_sequence_if_needed(messages)
         params = self._build_request_params(messages, tools, kwargs)
-        response = await self._make_api_request(params)
-
-        primary_error: BaseException | None = None
-        try:
-            async with aclosing(self._process_stream_response(response)) as chunks:
-                async for chunk in chunks:
-                    yield chunk
-        except BaseException as exc:
-            primary_error = exc
-            raise
-        finally:
+        operation = prepare_budget_operation(
+            self, params, output_fields=("max_tokens", "max_completion_tokens"),
+        )
+        with budget_attempt(operation) as attempt:
+            if attempt is not None:
+                attempt.start()
+            response = (
+                await self._make_api_request(params, accounted=True)
+                if operation is not None else await self._make_api_request(params)
+            )
+            primary_error: BaseException | None = None
             try:
-                await response.close()
-            except Exception:
-                if primary_error is None:
-                    raise
-                logger.exception("Failed to close provider stream after an error")
+                async with aclosing(self._process_stream_response(response)) as chunks:
+                    async for chunk in chunks:
+                        if attempt is not None:
+                            attempt.observe(chunk)
+                        yield chunk
+            except BaseException as exc:
+                primary_error = exc
+                raise
+            finally:
+                try:
+                    await response.close()
+                except Exception:
+                    if primary_error is None:
+                        raise
+                    logger.exception("Failed to close provider stream after an error")
 
     def _repair_message_sequence_if_needed(
         self: OpenAICompatibleProvider,
@@ -385,17 +411,22 @@ class OpenAICompatibleProvider(ModelProvider):
             "model": options.pop("model", self.default_model),
             "messages": [_format_message(m) for m in messages],
             "stream": True,
+            "stream_options": {"include_usage": True},
             **options,
         }
+        if params["stream_options"] is None:
+            # An explicit null opts out for servers without this optional field.
+            params.pop("stream_options")
 
         if tools:
-            params["tools"] = [_format_tool(t) for t in tools]
+            params["tools"] = [self._format_tool(t) for t in tools]
 
         return params
 
     async def _make_api_request(
         self: OpenAICompatibleProvider,
         params: dict[str, Any],
+        *, accounted: bool = False,
     ) -> Any:
         """Make the API request with error handling for context too large errors.
 
@@ -409,8 +440,9 @@ class OpenAICompatibleProvider(ModelProvider):
             ContextTooLargeError: If the request is too large (413 error).
             APIStatusError: For other API errors.
         """
+        client = self._client.with_options(max_retries=0) if accounted else self._client
         try:
-            return await self._client.chat.completions.create(**params)
+            return await client.chat.completions.create(**params)
         except APIStatusError as e:
             if e.status_code == _HTTP_REQUEST_TOO_LARGE:
                 msg = (
@@ -433,13 +465,19 @@ class OpenAICompatibleProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         pending_tool_calls: dict[int, dict[str, Any]] = {}
+        usage_counts: dict[str, int] = {}
 
         async for chunk in response:
             error = getattr(chunk, "error", None)
             if isinstance(error, dict) and error:
                 raise RuntimeError("Provider stream reported an error")
+            usage = _extract_usage_from_chunk(chunk)
+            if usage is not None:
+                usage_counts.update(usage)
+                if "total_tokens" not in usage and {"prompt_tokens", "completion_tokens"} <= usage_counts.keys():
+                    usage_counts["total_tokens"] = usage_counts["prompt_tokens"] + usage_counts["completion_tokens"]
+                usage = dict(usage_counts)
             if not chunk.choices:
-                usage = _extract_usage_from_chunk(chunk)
                 if usage is not None:
                     yield StreamChunk(usage=usage)
                 continue
@@ -467,7 +505,7 @@ class OpenAICompatibleProvider(ModelProvider):
                 tool_calls=tool_calls,
                 finish_reason=finish_reason,
                 thinking=thinking,
-                usage=_extract_usage_from_chunk(chunk),
+                usage=usage,
             )
 
     def _build_tool_calls_from_pending(

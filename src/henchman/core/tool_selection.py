@@ -26,6 +26,7 @@ def prepare_agent_request(
     context_window: int,
     conversation_limit: int,
     protect_from_index: int,
+    allow_compaction: bool = True,
 ) -> PreparedRequest:
     """Try all declarations, then bounded discovery if the required catalog fails.
 
@@ -40,7 +41,9 @@ def prepare_agent_request(
         "protect_from_index": protect_from_index,
     }
     try:
-        return prepare_request(provider, messages, declarations, **options)
+        return prepare_request(
+            provider, messages, declarations, allow_compaction=allow_compaction, **options,
+        )
     except ContextTooLargeError:
         if not registry.supports_tool_discovery:
             raise
@@ -53,13 +56,17 @@ def prepare_agent_request(
         "tool_search", *provider_required, *registry.discovered_tools,
     ]))
     selected = [by_name[name] for name in required if name in by_name]
-    request = prepare_request(provider, messages, selected, **options)
+    request = prepare_request(
+        provider, messages, selected, allow_compaction=allow_compaction, **options,
+    )
     for name in _CORE_TOOLS:
         if name not in by_name or name in required:
             continue
         candidate = [*selected, by_name[name]]
         try:
-            expanded = prepare_request(provider, messages, candidate, **options)
+            expanded = prepare_request(
+                provider, messages, candidate, allow_compaction=allow_compaction, **options,
+            )
         except ContextTooLargeError:
             continue
         selected, request = candidate, expanded

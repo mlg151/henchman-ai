@@ -10,12 +10,15 @@ from henchman.tools.base import (
     ToolKind,
     ToolResult,
 )
+from henchman.tools.policy import PolicyDecision, evaluate_effective_policy
 from henchman.tools.registry import ToolRegistry
 
 __all__ = [
     "ConfirmationRequest",
+    "PolicyDecision",
     "Tool",
     "ToolKind",
     "ToolRegistry",
     "ToolResult",
+    "evaluate_effective_policy",
 ]

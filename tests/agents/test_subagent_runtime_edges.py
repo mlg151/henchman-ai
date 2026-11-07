@@ -13,8 +13,12 @@ from henchman.config.schema import AgentConfig, Settings
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, Message, StreamChunk, ToolCall
 from henchman.providers.ollama import OllamaProvider
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class _NamedTool(Tool):
@@ -76,6 +80,7 @@ async def test_dynamic_tools_are_exactly_the_explicit_subset(
     for name in ("shell", "goal_status", "task_stop"):
         registry.register(_NamedTool(name))
     orch = Orchestrator(provider, tool_registry=registry)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         orch.subagents.spawn("task", role="custom", system_prompt="custom", tools=["shell"])
         await asyncio.wait_for(orch.subagents.wait_for_notification(), 1)
@@ -111,6 +116,7 @@ async def test_restricted_static_agent_cannot_delegate_primary_tools(
         auto_approve=["invoke_subagent"],
     )
     orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         events = [event async for event in orch.run_direct("coder", "task")]
         result = next(event for event in events if event.type == EventType.TOOL_CALL_RESULT)
@@ -146,6 +152,7 @@ async def test_nested_results_reactively_resume_each_parent(
     registry = ToolRegistry()
     registry.add_auto_approve_policy("invoke_subagent")
     orch = Orchestrator(provider, tool_registry=registry)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         async with asyncio.timeout(3):
             events = [event async for event in orch.run("Run nested work")]
@@ -180,6 +187,7 @@ async def test_cancel_primary_joins_child_and_releases_agent_claims(
     registry = ToolRegistry()
     registry.add_auto_approve_policy("invoke_subagent")
     orch = Orchestrator(provider, tool_registry=registry)
+    orch.tool_registry.set_confirmation_handler(_approve)
 
     async def collect() -> None:
         async for _event in orch.run("Launch work"):
@@ -210,6 +218,7 @@ async def test_shared_registry_keeps_managers_and_primary_scopes_independent(
     registry = ToolRegistry()
     registry.register(_NamedTool("shell"))
     unrestricted = Orchestrator(provider, tool_registry=registry)
+    unrestricted.tool_registry.set_confirmation_handler(_approve)
     settings = Settings()
     settings.agents.agents["tech_lead"] = AgentConfig(
         name="Restricted primary",
@@ -218,6 +227,7 @@ async def test_shared_registry_keeps_managers_and_primary_scopes_independent(
         tools=["invoke_subagent"],
     )
     restricted = Orchestrator(provider, tool_registry=registry, settings=settings)
+    restricted.tool_registry.set_confirmation_handler(_approve)
     arguments: dict[str, object] = {
         "task": "task",
         "role": "custom",
@@ -265,6 +275,7 @@ async def test_subagent_control_stays_responsive_during_child_mutation(
     registry = ToolRegistry()
     registry.register(BlockedMutation("mutate", ToolKind.WRITE))
     orch = Orchestrator(provider, tool_registry=registry)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         child = orch.subagents.spawn(
             "task", role="custom", system_prompt="blocked child", tools=["mutate"],
@@ -322,6 +333,7 @@ async def test_notifications_do_not_reset_primary_tool_round_budget(
     registry = ToolRegistry()
     registry.register(RecordedRead("read_file"))
     orch = Orchestrator(provider, tool_registry=registry)
+    orch.tool_registry.set_confirmation_handler(_approve)
     orch.tech_lead.base_tool_iterations = 1
     try:
         events = [event async for event in orch.run("task")]
@@ -366,6 +378,7 @@ async def test_nested_notifications_preserve_dynamic_tool_call_limit(
     settings = Settings()
     settings.agents.max_delegation_turns = 2
     orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         async with asyncio.timeout(3):
             _events = [event async for event in orch.run("nested task")]

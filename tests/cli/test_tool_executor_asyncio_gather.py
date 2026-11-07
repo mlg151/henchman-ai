@@ -13,6 +13,7 @@ import pytest
 
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
+from henchman.config.schema import Settings
 from henchman.providers.base import ToolCall
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
@@ -191,7 +192,7 @@ class TestParallelToolCallFailureHandling:
         if registry is None:
             registry = ToolRegistry()
             registry.register(_EchoTool())
-        tool_manager = ToolManager(MagicMock())
+        tool_manager = ToolManager(Settings())
         tool_manager.registry = registry
         provider = MagicMock()
         return ToolExecutor(

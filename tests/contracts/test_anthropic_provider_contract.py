@@ -1,5 +1,6 @@
 """Contract verification for AnthropicProvider."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -42,12 +43,18 @@ async def test_anthropic_provider_satisfies_contract():
     # Mock events that the provider iterates over
     async def mock_events():
         # Anthropic SDK events
-        yield MagicMock(type="message_start", message=MagicMock(usage=MagicMock(input_tokens=10, output_tokens=0)))
-        yield MagicMock(type="content_block_start", index=0, content_block=MagicMock(type="text", text=""))
-        yield MagicMock(type="content_block_delta", index=0, delta=MagicMock(type="text_delta", text="Hello"))
-        yield MagicMock(type="content_block_stop", index=0)
-        yield MagicMock(type="message_delta", delta=MagicMock(stop_reason="end_turn", usage=MagicMock(output_tokens=5)))
-        yield MagicMock(type="message_stop")
+        yield SimpleNamespace(
+            type="message_start",
+            message=SimpleNamespace(usage=SimpleNamespace(input_tokens=10, output_tokens=0)),
+        )
+        yield SimpleNamespace(type="content_block_start", index=0, content_block=SimpleNamespace(type="text", text=""))
+        yield SimpleNamespace(type="content_block_delta", index=0, delta=SimpleNamespace(type="text_delta", text="Hello"))
+        yield SimpleNamespace(type="content_block_stop", index=0)
+        yield SimpleNamespace(
+            type="message_delta", delta=SimpleNamespace(stop_reason="end_turn"),
+            usage=SimpleNamespace(output_tokens=5),
+        )
+        yield SimpleNamespace(type="message_stop")
 
     mock_stream_obj.__aiter__.side_effect = mock_events
     mock_stream_ctx.__aenter__.return_value = mock_stream_obj

@@ -16,7 +16,11 @@ from henchman.mcp.tool import _build_tool_result
 from henchman.providers.base import FinishReason, Message, StreamChunk, ToolCall, ToolDeclaration
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
-from tests.contracts.helpers import assert_contract_matches, serialize_contract_value
+from tests.contracts.helpers import (
+    assert_contract_matches,
+    load_contract_schema,
+    serialize_contract_value,
+)
 
 
 class _EchoReadTool(Tool):
@@ -129,6 +133,27 @@ def test_provider_runtime_payloads_match_contracts(contract_suite) -> None:
         schema_name="runtime/mcp_tool_result",
         contract_suite=contract_suite,
     )
+
+
+@pytest.mark.parametrize("schema_name", ["runtime/stream_chunk", "providers/stream_chunk"])
+@pytest.mark.parametrize("chunk,source", [
+    (StreamChunk(), "unknown"),
+    (StreamChunk(usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}), "reported"),
+    (StreamChunk(usage={"prompt_tokens": 2}, usage_source="estimated"), "estimated"),
+])
+def test_stream_usage_contract_preserves_provenance(contract_suite, schema_name, chunk, source) -> None:
+    payload = serialize_contract_value(chunk)
+    assert payload["usage_source"] == source
+    assert_contract_matches(payload=payload, schema_name=schema_name, contract_suite=contract_suite)
+
+
+@pytest.mark.parametrize("schema_name", ["runtime/stream_chunk", "providers/stream_chunk"])
+@pytest.mark.parametrize("source", [None, "fabricated", 0])
+def test_stream_usage_contract_rejects_invalid_provenance(contract_suite, schema_name, source) -> None:
+    payload = serialize_contract_value(StreamChunk())
+    payload["usage_source"] = source
+    errors = contract_suite.validate_json_schema(payload, load_contract_schema(schema_name))
+    assert any("usage_source" in error for error in errors)
 
 
 def test_agent_event_specific_types_match_contracts(contract_suite) -> None:

@@ -67,6 +67,71 @@ OpenAI strict tools require closed objects and all properties required, with nul
 
 ## Phased implementation roadmap
 
+### Implemented compatibility foundation (v0.4.2 work)
+
+The runtime now bounds its existing SDK interface to `mcp>=1.26,<2`, with
+`1.26.0` retained in the lockfile. The current stdio fixture profiles are
+`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`. Independent JSON-RPC
+subprocesses exercise initialization, discovery, calls, unsupported-version
+rejection, cancellation and shutdown through the actual SDK. These are legacy
+compatibility profiles, not implementation of the 2026 protocol revision. The
+SDK handles negotiation; `McpClient.protocol_version` exposes the negotiated
+version. See the [SDK release](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v1.26.0)
+and [2025 tool protocol](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
+
+Real process launch now uses a pipe instead of an in-memory stderr object.
+Diagnostics drain without shared executor workers or unbounded line buffers;
+shutdown does not wait indefinitely for descendants retaining stderr. Configured
+environment credentials are redacted from stderr and SDK malformed-stdout logs
+before output. This does not establish OS containment or complete third-party
+logging coverage. Native/fresh artifact qualification, canonical schemas,
+pagination, refresh and typed results remain under #21; SDK migration remains
+under #25. The original research gap table above stays pinned to its baseline.
+
+### Local schema contract foundation
+
+`henchman.tools.contracts.SchemaContract` snapshots and validates the canonical
+2020-12 dialect using `jsonschema>=4.23,<5` and an explicitly non-retrieving
+`referencing` registry. Inputs are never coerced and defaults are never inserted;
+missing properties remain distinct from explicit null. Output validation supports
+objects, arrays, scalars and null. Local pointers/anchors and productive recursive
+definitions are supported; dangling references, external references, resource IDs,
+custom vocabularies and other declared dialects fail explicitly. See the
+[validator's reference API](https://python-jsonschema.readthedocs.io/en/stable/referencing/).
+
+Schemas are limited to 64 KiB of serialized JSON; values to 1 MiB, depth 64 and
+16,384 nodes. Validation has a cooperative work/deadline budget. Regex support is
+deliberately restricted to literals/classes with at most one quantified atom,
+anchored at the start when quantified; groups, alternatives and backreferences
+are rejected. `format` remains an annotation. Unsupported contracts produce
+value-free diagnostics instead of changing meaning or disclosing rejected input.
+The original schema snapshot remains separate from its validation copy.
+
+### Provider schema projections
+
+All five adapters now use versioned client profiles in
+`providers/schema_projections.py`: native Anthropic `input_schema` and compatible
+chat `function.parameters` for DeepSeek, Ollama, OpenRouter and `openai_compat`.
+Request construction and input estimation use the same detached projection.
+Local acyclic references are expanded with independent size/depth/work limits.
+Required lists and nullable types retain their canonical meaning. The adapters
+do not turn optional fields into required nullable fields or enable strict mode;
+Chat Completions' non-strict behavior is documented in the
+[official function-calling guide](https://developers.openai.com/api/docs/guides/function-calling#strict-mode).
+
+The shared conservative subset includes objects/properties, arrays/items, types,
+enums/constants, `anyOf`, additional-property rules, numeric/string/array/object
+constraints and annotations listed in the profile module. Recursive/dynamic
+references, assertion-bearing reference siblings, conditional/unevaluated schemas,
+unknown keywords and Boolean subschemas fail before transport. Original canonical
+schemas still govern local validation. These profiles are tested offline adapter
+contracts; they do not establish support by every remote endpoint or model.
+
+MCP pagination/refresh, typed result preservation and runtime-wide
+registration/output validation remain required for #21/P1.
+
+### Remaining phase gates
+
 All items below remain **implementation work**. Each phase should ship with focused tests and nearest-reference documentation; maintain roadmap state and changelog when behavior changes.
 
 - [ ] **P0 — Compatibility baseline and dependency bounds.** Record supported protocol/SDK versions, add a tested MCP major bound, and establish offline fixtures. Harmonize the effective settings model and legacy MCP config type when extending transport settings. **Exit:** locked and fresh installations import and pass existing checks; capability reporting identifies tested support rather than installed packages.

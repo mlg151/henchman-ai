@@ -46,6 +46,7 @@ from henchman.providers.base import (
     ToolDeclaration,
 )
 from henchman.providers.factory import create_configured_provider
+from henchman.testing.pytest_reporter import PytestEvidence
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
 
@@ -79,10 +80,21 @@ async def verify_python(workspace: Path, code: str, *, timeout: float = 5.0) -> 
     )
     with tempfile.TemporaryDirectory(prefix="henchman-eval-check-") as directory:
         receipt = Path(directory) / "completed"
-        completed = await run_bounded_subprocess(
-            [sys.executable, "-E", "-X", "utf8", "-c", bootstrap, code, str(receipt)],
-            cwd=workspace, timeout=timeout, max_output_bytes=8192,
-        )
+        try:
+            completed = await run_bounded_subprocess(
+                [
+                    sys.executable, "-E", "-B", "-X", "utf8",
+                    "-X", f"pycache_prefix={Path(directory) / 'cache'}",
+                    "-c", bootstrap, code, str(receipt),
+                ],
+                cwd=workspace, timeout=timeout, max_output_bytes=8192,
+            )
+        except TimeoutError as exc:
+            # A bare TimeoutError stringifies to "", leaving baseline run
+            # records undiagnosable; carry the verifier budget in the message.
+            raise TimeoutError(
+                f"Independent Python verification timed out after {timeout:g}s"
+            ) from exc
         if completed.returncode != 0:
             diagnostics = (completed.stdout + completed.stderr).decode("utf-8", errors="replace")
             truncation = " [diagnostics truncated]" if (
@@ -214,6 +226,39 @@ class MockProvider(ModelProvider):
             yield StreamChunk(tool_calls=response, finish_reason=FinishReason.TOOL_CALLS)
 
 
+def _observed_bounded_interruption(result: EvalResult, max_iterations: int) -> bool:
+    """Recognize a standalone tool limit from correlated execution evidence."""
+    reason = f"Tool iteration limit ({max_iterations}) reached"
+    if result.success or result.error != reason or result.diagnostics:
+        return False
+    errors = [
+        (index, event.data) for index, event in enumerate(result.events)
+        if event.type == EventType.ERROR
+    ]
+    if len(errors) != 1 or errors[0][1] != reason or not result.events:
+        return False
+    terminal = result.events[-1]
+    if (
+        terminal.type != EventType.FINISHED
+        or not isinstance(terminal.data, dict)
+        or terminal.data.get("finish_reason") != "error"
+    ):
+        return False
+    error_index = errors[0][0]
+    completed_work = any(
+        log.request_index is not None and log.result_index is not None
+        and log.request_index < log.result_index < error_index
+        for log in result.tool_logs
+    )
+    cancelled_pending = any(
+        log.request_index is not None and log.result_index is not None
+        and log.request_index < error_index < log.result_index
+        and not log.success and log.result == reason
+        for log in result.tool_logs
+    )
+    return completed_work and cancelled_pending
+
+
 class EvalTestRig:
     """Test rig for running behavioral evaluations.
 
@@ -285,6 +330,8 @@ class EvalTestRig:
         self._team_runtime: TeamEvalRuntime | None = None
         self._original_cwd: Path | None = None
         self._run_outcomes: list[tuple[bool, str | None]] = []
+        self._run_interruptions: list[bool] = []
+        self._interruption_evidence: list[tuple[bool, str | None]] = []
 
     def _get_eval_system_prompt(self) -> str:
         """Get the system prompt for behavioral evals."""
@@ -352,7 +399,7 @@ The current working directory contains test files for this evaluation."""
             test_name: Name of the test (used for logging).
         """
         # Create temp directory
-        self._temp_dir = Path(tempfile.mkdtemp(prefix=f"eval_{test_name}_"))
+        self._temp_dir = Path(tempfile.mkdtemp(prefix=f"eval_{test_name}_")).resolve()
         self._original_cwd = Path.cwd()
         os.chdir(self._temp_dir)
 
@@ -360,6 +407,8 @@ The current working directory contains test files for this evaluation."""
         self._tool_logs = []
         self._events = []
         self._run_outcomes = []
+        self._run_interruptions = []
+        self._interruption_evidence = []
 
         try:
             if self._profile == "team":
@@ -464,7 +513,7 @@ The current working directory contains test files for this evaluation."""
         """
         file_path = self.test_dir / path
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content)
+        file_path.write_text(content, encoding="utf-8")
         return file_path
 
     def read_file(self, path: str) -> str:
@@ -492,7 +541,7 @@ The current working directory contains test files for this evaluation."""
     async def run(
         self,
         prompt: str,
-        max_iterations: int = 10,
+        max_iterations: int | None = None,
         timeout: float | None = None,
         *,
         observe_event: Callable[[AgentEvent], None] | None = None,
@@ -503,8 +552,10 @@ The current working directory contains test files for this evaluation."""
 
         Args:
             prompt: User prompt to send.
-            max_iterations: Maximum tool call iterations.
+            max_iterations: Maximum tool call iterations; defaults to EVAL_MAX_ITERATIONS
+                or 10. A set EVAL_MAX_ITERATIONS is a hard cap on an explicit value.
             timeout: Whole-turn timeout in seconds; defaults to EVAL_TIMEOUT or 60.
+                A set EVAL_TIMEOUT is a hard cap on an explicit value.
             observe_event: Called after each event is retained. Observer errors propagate.
 
         Returns:
@@ -517,14 +568,26 @@ The current working directory contains test files for this evaluation."""
 
         if self._agent is None:
             raise RuntimeError("Test rig not set up. Call setup() first.")
+        if max_iterations is None:
+            max_iterations = int(os.environ.get("EVAL_MAX_ITERATIONS", "10"))
         if type(max_iterations) is not int or max_iterations < 0:
             raise ValueError("max_iterations must be a nonnegative integer")
-        effective_timeout = float(os.environ.get("EVAL_TIMEOUT", "60")) if timeout is None else timeout
+        env_max_iterations = os.environ.get("EVAL_MAX_ITERATIONS")
+        if env_max_iterations is not None:
+            max_iterations = min(max_iterations, int(env_max_iterations))
+        env_timeout = os.environ.get("EVAL_TIMEOUT")
+        if timeout is None:
+            effective_timeout = float(env_timeout or 60)
+        else:
+            effective_timeout = float(timeout)
+            if env_timeout is not None:
+                effective_timeout = min(effective_timeout, float(env_timeout))
         if isinstance(effective_timeout, bool) or not math.isfinite(effective_timeout) or effective_timeout <= 0:
             raise ValueError("timeout must be a finite positive number")
 
         outcome_index = len(self._run_outcomes)
         self._run_outcomes.append((False, "Evaluation did not complete"))
+        self._run_interruptions.append(False)
         if self._team_runtime is not None:
             result = await self._team_runtime.run(
                 prompt, max_iterations, effective_timeout, observe_event=observe_event,
@@ -593,7 +656,18 @@ The current working directory contains test files for this evaluation."""
             diagnostics=list(observations.diagnostics),
         )
         self._run_outcomes[outcome_index] = (result.success, result.error)
+        # Capture the classification before callers can mutate returned evidence.
+        self._run_interruptions[outcome_index] = _observed_bounded_interruption(
+            result, max_iterations,
+        )
         return result
+
+    @property
+    def last_run_outcome(self) -> tuple[bool, str | None] | None:
+        """Outcome of the most recent agent turn: ``(success, error)``, or None if no turn ran."""
+        if not self._run_outcomes:
+            return None
+        return self._run_outcomes[-1]
 
     def assert_successful_runs(self) -> None:
         """Reject missing, failed or interrupted turns, even if their result was ignored."""
@@ -604,6 +678,45 @@ The current working directory contains test files for this evaluation."""
             if not success
         ]
         assert not failures, "\n".join(failures)
+
+    @property
+    def interruption_evidence(self) -> list[tuple[bool, str | None]]:
+        """Outcomes of turns scenarios consumed as expected interruptions."""
+        return list(self._interruption_evidence)
+
+    def consume_expected_interruption(self) -> tuple[bool, str | None]:
+        """Consume the latest turn as an expected interruption, recording its evidence.
+
+        Only a standalone tool-iteration limit after a completed tool round,
+        with an observed pending-tool cancellation, qualifies. Provider errors,
+        timeouts and unobserved external cancellation remain failed evidence;
+        they do not demonstrate this deliberate bounded interruption. Validation
+        happens before removing an outcome from the strict success gate.
+
+        Returns:
+            The consumed ``(success, error)`` outcome.
+
+        Raises:
+            AssertionError: If no turn ran or the latest turn was not a verified
+                bounded interruption. Rejection leaves all evidence intact.
+        """
+        if not self._run_outcomes:
+            raise AssertionError("Evaluation did not run an agent turn")
+        evidence = self._run_outcomes[-1]
+        success, error = evidence
+        if success:
+            raise AssertionError(
+                "Expected an interrupted turn, but the latest turn completed successfully"
+            )
+        if not self._run_interruptions[-1]:
+            raise AssertionError(
+                "Expected an interrupted turn with a completed tool round and "
+                f"observed limit cancellation; latest failure: {error}"
+            )
+        self._run_outcomes.pop()
+        self._run_interruptions.pop()
+        self._interruption_evidence.append(evidence)
+        return evidence
 
     def tool_was_called(self, tool_name: str) -> bool:
         """Check if a tool was called during the eval.
@@ -795,3 +908,41 @@ async def eval_rig() -> AsyncGenerator[EvalTestRig, None]:
         yield rig
     finally:
         rig.cleanup()
+
+
+async def run_pytest_evidence(
+    workspace: Path, target: str, *, timeout: float = 30.0,
+) -> PytestEvidence:
+    """Return real passing/failing pytest evidence, rejecting incomplete checks."""
+    with tempfile.TemporaryDirectory(prefix="henchman-pytest-evidence-") as directory:
+        report_path = Path(directory) / "report.json"
+        arguments = [
+            "-q", "--tb=short", "-o", "addopts=",
+            "-p", "henchman.testing.pytest_reporter",
+            "--henchman-report", str(report_path), "--", target,
+        ]
+        code = f"""import os
+os.environ.pop("PYTEST_ADDOPTS", None)
+os.environ.pop("PYTEST_PLUGINS", None)
+os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+import json
+from pathlib import Path
+import pytest
+
+report_path = Path({str(report_path)!r})
+status = int(pytest.main({arguments!r}))
+if status not in (0, 1):
+    raise RuntimeError("Unexpected pytest exit status: " + str(status))
+report = json.loads(report_path.read_text(encoding="utf-8"))
+if report.get("exit_status") != status:
+    raise RuntimeError("Pytest and its report disagree on the exit status")
+"""
+        await verify_python(workspace, code, timeout=timeout)
+        evidence = PytestEvidence.load(report_path)
+        if evidence is None:
+            raise RuntimeError("Pytest execution did not produce a valid report")
+        if evidence.collect_only or evidence.executed == 0:
+            raise RuntimeError("Pytest did not execute any checks")
+        if evidence.skipped:
+            raise RuntimeError("Pytest checks were skipped")
+        return evidence

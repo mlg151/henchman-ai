@@ -1,0 +1,82 @@
+{
+  "budget": {
+    "executed_runs": 2,
+    "planned_runs": 2
+  },
+  "cohort": "local",
+  "cost": {
+    "amount_usd": 0.0,
+    "billing": "none",
+    "source": "local"
+  },
+  "generated_at": "2026-11-07T14:08:26.728317+00:00",
+  "kind": "baseline_repeat_runs",
+  "requested": {
+    "cases": [
+      "syntax-fix"
+    ],
+    "max_iterations": 6,
+    "model": "henchman-eval-cpu-ornith15-20261107",
+    "provider": "openai-compatible",
+    "runs_per_case": 2,
+    "timeout": 300.0
+  },
+  "runs": [
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 1648.1364509672858,
+      "error": "Provider error: Error code: 400 - {'error': {'message': 'request (8810 tokens) exceeds the available context size (8192 tokens), try increasing it', 'type': 'invalid_request_error', 'param': None, 'code': None}}",
+      "outcome": "runtime_error",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 216.46327700000256,
+      "error": "Provider error: Error code: 400 - {'error': {'message': 'request (8810 tokens) exceeds the available context size (8192 tokens), try increasing it', 'type': 'invalid_request_error', 'param': None, 'code': None}}",
+      "outcome": "runtime_error",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  ],
+  "summary": {
+    "cases": {
+      "syntax-fix": {
+        "outcome_counts": {
+          "runtime_error": 2,
+          "success": 0,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      }
+    },
+    "failures": 2,
+    "latency_ms": {
+      "max": 1648.1364509672858,
+      "min": 216.46327700000256,
+      "p50": 932.2998639836442,
+      "p95": 1576.5527922689216
+    },
+    "outcome_counts": {
+      "runtime_error": 2,
+      "success": 0,
+      "timeout": 0,
+      "verification_failure": 0
+    },
+    "successes": 0,
+    "total_runs": 2,
+    "usage": {
+      "available": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  }
+}

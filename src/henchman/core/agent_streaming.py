@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_accounting import require_accounted_provider
 from henchman.providers.base import (
     FinishReason,
     Message,
@@ -21,6 +23,7 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+from henchman.providers.usage import UsageSource
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -87,6 +90,7 @@ class StreamState:
     usage: dict[str, int] | None = None
     content_yielded: bool = False
     finish_reason: FinishReason | None = None
+    usage_source: UsageSource = "unknown"
 
     def create_assistant_message(
         self: StreamState,
@@ -116,7 +120,7 @@ class StreamState:
         """
         base = self.finish_reason.value if self.finish_reason else "Stream completed"
         if self.usage:
-            return {"finish_reason": base, "usage": self.usage}
+            return {"finish_reason": base, "usage": self.usage, "usage_source": self.usage_source}
         return base
 
     def get_pending_tool_calls(
@@ -173,6 +177,7 @@ def _accumulate_chunk(chunk: StreamChunk, state: StreamState) -> None:
         state.tool_calls.extend(chunk.tool_calls)
     if chunk.usage:
         state.usage = chunk.usage
+        state.usage_source = chunk.usage_source or "unknown"
 
 
 def _handle_finish(
@@ -245,6 +250,7 @@ async def generate_stream_events(
     provider_stream = None
     interrupted = False
     try:
+        require_accounted_provider(ctx.provider)
         provider_stream = ctx.provider.chat_completion_stream(
             messages=ctx.api_messages,
             tools=ctx.tool_declarations,
@@ -264,7 +270,7 @@ async def generate_stream_events(
                     yield event
         if state.finish_reason is None:
             raise ValueError("Provider stream ended without a finish reason")
-    except (asyncio.CancelledError, GeneratorExit):
+    except (asyncio.CancelledError, GeneratorExit, BudgetControlError):
         interrupted = True
         if state.finish_reason is None and (state.content or state.thinking):
             # Preserve what the user saw without committing an unfinished tool

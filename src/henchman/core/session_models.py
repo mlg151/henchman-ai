@@ -154,6 +154,13 @@ class TurnSummaryRecord(AsDictMixin):
         files_modified: List of files modified during the turn.
         tool_count: Number of tool calls made.
         timestamp: ISO timestamp when turn completed.
+        kind: Record kind — ``"turn"`` (per-turn summary, legacy default)
+            or ``"compaction"`` (record of turns compacted out of the
+            active context).
+        source_turns: 1-based user-anchored turn numbers covered by the
+            record; empty for legacy records.
+        retained_messages: Original messages moved out of the active
+            context by compaction, retained so the turns stay recoverable.
     """
 
     turn_number: int
@@ -161,9 +168,16 @@ class TurnSummaryRecord(AsDictMixin):
     files_modified: list[str] = field(default_factory=list)
     tool_count: int = 0
     timestamp: str = ""
+    kind: str = "turn"
+    source_turns: list[int] = field(default_factory=list)
+    retained_messages: list[SessionMessage] = field(default_factory=list)
 
     def __hash__(self: TurnSummaryRecord) -> int:
-        """Make TurnSummaryRecord hashable for deduplication."""
+        """Make TurnSummaryRecord hashable for deduplication.
+
+        Retained message contents participate in ``__eq__`` but not in the
+        hash, keeping hashing stable and cheap for large records.
+        """
         return hash(
             (
                 self.turn_number,
@@ -171,6 +185,8 @@ class TurnSummaryRecord(AsDictMixin):
                 tuple(self.files_modified),
                 self.tool_count,
                 self.timestamp,
+                self.kind,
+                tuple(self.source_turns),
             ),
         )
 
@@ -190,6 +206,9 @@ def turn_summary_from_dict(data: dict[str, Any]) -> TurnSummaryRecord:
         files_modified=data.get("files_modified", []),
         tool_count=data.get("tool_count", 0),
         timestamp=data["timestamp"],
+        kind=data.get("kind", "turn"),
+        source_turns=list(data.get("source_turns", [])),
+        retained_messages=[message_from_dict(m) for m in data.get("retained_messages", [])],
     )
 
 

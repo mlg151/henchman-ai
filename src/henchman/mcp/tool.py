@@ -6,9 +6,10 @@ tools as internal Tool instances.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 
 if TYPE_CHECKING:
     from henchman.mcp.client import McpClientProtocol, McpToolDefinition, McpToolResult
@@ -46,6 +47,7 @@ class McpTool(Tool):
         server_name: str,
         *,
         trusted: bool = False,
+        before_call: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the tool wrapper.
 
@@ -60,6 +62,7 @@ class McpTool(Tool):
         self._client = client
         self._server_name = server_name
         self._trusted = trusted
+        self._before_call = before_call
 
     @property
     def name(self: McpTool) -> str:
@@ -91,9 +94,9 @@ class McpTool(Tool):
 
     @property
     def kind(self: McpTool) -> ToolKind:
-        """Tool kind based on trust level.
+        """Catalog tool kind based on trust level.
 
-        Trusted servers get READ kind (auto-approved).
+        Trusted servers get READ kind (auto-approved locally).
         Untrusted servers get NETWORK kind (requires confirmation).
 
         Returns:
@@ -102,6 +105,28 @@ class McpTool(Tool):
         if self._trusted:
             return ToolKind.READ
         return ToolKind.NETWORK
+
+    def execution_kind(self: McpTool, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation conservatively as a remote call.
+
+        Trust controls local confirmation, not effect: an MCP server tool can
+        perform remote or local side effects the local runtime cannot see.
+        Every MCP tool call therefore carries the conservative NETWORK
+        classification, so Plan Mode blocks it even when the server is
+        trusted.
+        """
+        del params
+        return ToolKind.NETWORK
+
+    def needs_confirmation(self: McpTool, params: dict[str, object]) -> ConfirmationRequest | None:
+        """Confirmation policy that preserves trusted-server auto-approval.
+
+        Trusted servers skip confirmation exactly as before; untrusted
+        servers keep the standard NETWORK confirmation request.
+        """
+        if self._trusted:
+            return None
+        return super().needs_confirmation(params)
 
     async def execute(self: McpTool, **params: object) -> ToolResult:
         """Execute the tool via MCP.
@@ -114,7 +139,8 @@ class McpTool(Tool):
             Tool execution result.
         """
         arguments: dict[str, Any] = dict(params)
-
+        if self._before_call is not None:
+            self._before_call()
         result = await self._client.call_tool(
             self._mcp_tool.name,
             arguments,

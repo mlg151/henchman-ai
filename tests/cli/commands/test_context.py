@@ -6,6 +6,7 @@ import pytest
 
 from henchman.cli.commands import CommandContext
 from henchman.cli.commands.context import ContextCommand
+from henchman.config.repository import SettingsScope
 from henchman.config.schema import ContextSettings, Settings
 from henchman.core.agent import Agent
 from henchman.core.session import Session
@@ -78,7 +79,7 @@ async def test_context_command_enable(ctx):
 
     with (
         patch("henchman.cli.commands.context.load_settings") as mock_load,
-        patch("henchman.cli.commands.context.save_settings") as mock_save,
+        patch("henchman.cli.commands.context.SettingsRepository") as repository,
     ):
         mock_settings = Mock(spec=Settings)
         mock_settings.context = Mock(spec=ContextSettings)
@@ -88,8 +89,9 @@ async def test_context_command_enable(ctx):
         await cmd.execute(ctx)
 
         # Should enable intelligent context and save settings
-        assert mock_settings.context.intelligent_context is True
-        mock_save.assert_called_once_with(mock_settings)
+        repository.return_value.set.assert_called_once_with(
+            "context.intelligent_context", True, scope=SettingsScope.GLOBAL,
+        )
         assert ctx.console.print.called
         calls = ctx.console.print.call_args_list
         assert any("enabled" in str(call).lower() for call in calls)
@@ -103,7 +105,7 @@ async def test_context_command_disable(ctx):
 
     with (
         patch("henchman.cli.commands.context.load_settings") as mock_load,
-        patch("henchman.cli.commands.context.save_settings") as mock_save,
+        patch("henchman.cli.commands.context.SettingsRepository") as repository,
     ):
         mock_settings = Mock(spec=Settings)
         mock_settings.context = Mock(spec=ContextSettings)
@@ -113,8 +115,9 @@ async def test_context_command_disable(ctx):
         await cmd.execute(ctx)
 
         # Should disable intelligent context and save settings
-        assert mock_settings.context.intelligent_context is False
-        mock_save.assert_called_once_with(mock_settings)
+        repository.return_value.set.assert_called_once_with(
+            "context.intelligent_context", False, scope=SettingsScope.GLOBAL,
+        )
         assert ctx.console.print.called
         calls = ctx.console.print.call_args_list
         assert any("disabled" in str(call).lower() for call in calls)

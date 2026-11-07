@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from henchman.core.session_memory import SessionMemoryService
 from henchman.team import (
     BridgeSessionService,
     PushNotificationService,
@@ -159,6 +160,7 @@ class _Tier5ToolBase(Tool):
             notification_service=notifications,
         )
         self._memory_service = TeamMemorySyncService(project_root=self._project_root)
+        self._session_memory_service = SessionMemoryService()
         self._workflow_service = WorkflowService(
             project_root=self._project_root,
             notification_service=notifications,
@@ -180,6 +182,7 @@ class _Tier5ToolBase(Tool):
         session = getattr(self._session_manager, "current", None) if self._session_manager else None
         if session is None:
             return 0
+        self._session_memory_service.extract_memories(session)
         return len(self._memory_service.sync_session(workspace_id=workspace_id, session=session))
 
 

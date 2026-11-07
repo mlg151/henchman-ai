@@ -2,38 +2,60 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "henchman/contracts/api/chat-request/v1",
   "type": "object",
-  "required": ["messages"],
+  "required": [
+    "messages"
+  ],
   "properties": {
     "messages": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["role", "content"],
+        "required": [
+          "role",
+          "content"
+        ],
         "properties": {
-          "role": { "type": "string" },
-          "content": { "type": "string" },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
           "tool_calls": {
-            "type": ["array", "null"],
-            "items": { "type": "object" }
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object"
+            }
           },
           "tool_call_id": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
-      }
+      },
+      "minItems": 1
     },
     "stream": {
       "type": "boolean"
     },
-    "max_tokens": {
-      "type": ["integer", "null"]
-    },
-    "temperature": {
-      "type": ["number", "null"]
-    },
     "system_prompt": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
     }
   },
   "additionalProperties": false

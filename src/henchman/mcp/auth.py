@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
+import tempfile
 from pathlib import Path
 
 from henchman.config.paths import resolve_project_settings_path
@@ -53,9 +56,23 @@ class McpAuthService:
     def _read_payload(self) -> dict[str, str]:
         """Read the auth payload from disk."""
 
-        if not self._auth_path.exists():
+        try:
+            metadata = self._auth_path.lstat()
+        except FileNotFoundError:
             return {}
-        raw = json.loads(self._auth_path.read_text(encoding="utf-8"))
+        if not stat.S_ISREG(metadata.st_mode):
+            raise OSError("MCP auth storage must be a regular file, not a symlink")
+        descriptor = os.open(
+            self._auth_path,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+        )
+        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            opened = os.fstat(handle.fileno())
+            if not stat.S_ISREG(opened.st_mode):
+                raise OSError("MCP auth storage must be a regular file")
+            if (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino):
+                raise OSError("MCP auth storage changed while opening; retry the operation")
+            raw = json.load(handle)
         if not isinstance(raw, dict):
             return {}
         return {
@@ -67,8 +84,18 @@ class McpAuthService:
     def _write_payload(self, payload: dict[str, str]) -> None:
         """Persist the auth payload to disk."""
 
-        self._auth_path.parent.mkdir(parents=True, exist_ok=True)
-        self._auth_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        self._auth_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=".auth-", suffix=".tmp", dir=self._auth_path.parent)
+        try:
+            # mkstemp creates mode 0600 on POSIX. Do not preserve a legacy
+            # destination's public mode. Windows permissions follow its ACL.
+            try:
+                with os.fdopen(descriptor, "w", encoding="utf-8", closefd=False) as handle:
+                    json.dump(payload, handle, indent=2, sort_keys=True)
+                    handle.flush()
+                    os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+            os.replace(temporary, self._auth_path)
+        finally:
+            Path(temporary).unlink(missing_ok=True)

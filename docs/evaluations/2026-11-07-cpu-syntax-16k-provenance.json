@@ -1,0 +1,71 @@
+{
+  "source_commit": "6b99036",
+  "server_version": {
+    "version": "0.40.7"
+  },
+  "models": [
+    {
+      "name": "henchman-eval-cpu-ornith15-20261107:latest",
+      "digest": "e87507270d9f0a369588052ff73c6292068e8bae61215df72d5393cc95ef64f4",
+      "size": 6550813683,
+      "details": {
+        "parent_model": "ornith1.5:9b",
+        "format": "gguf",
+        "family": "qwen35",
+        "families": [
+          "qwen35"
+        ],
+        "parameter_size": "9.0B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 262144,
+        "embedding_length": 4096,
+        "runner": "llamacpp"
+      }
+    },
+    {
+      "name": "ornith1.5:9b",
+      "digest": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+      "size": 6550813676,
+      "details": {
+        "parent_model": "ornith-1.5:9b",
+        "format": "gguf",
+        "family": "qwen35",
+        "families": [
+          "qwen35"
+        ],
+        "parameter_size": "9.0B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 262144,
+        "embedding_length": 4096,
+        "runner": "ggml"
+      }
+    }
+  ],
+  "active_models": [
+    {
+      "name": "henchman-eval-cpu-ornith15-20261107:latest",
+      "size": 6485956360,
+      "size_vram": 0,
+      "context_length": 16384
+    }
+  ],
+  "model_parameters": {
+    "num_gpu": 0,
+    "num_ctx": 16384,
+    "num_thread": 14,
+    "temperature": 0
+  },
+  "provider_request_defaults": {
+    "reasoning_effort": "none",
+    "max_tokens": 512,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "agent_config": {
+    "max_tokens": 13926,
+    "context_window": 16384
+  },
+  "observer_python": "3.14.4",
+  "evaluator_python": "3.11.15"
+}

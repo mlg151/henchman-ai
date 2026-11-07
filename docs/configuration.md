@@ -10,6 +10,77 @@ Settings are loaded in this order (later overrides earlier):
 2. **User settings** - `~/.henchman/settings.yaml`
 3. **Workspace settings** - `.henchman/settings.yaml` in current directory
 4. **Environment variables** - `HENCHMAN_PROVIDER`, `HENCHMAN_MODEL`
+5. **Transient API overrides** - validated values passed to `load_settings_snapshot` or `load_settings`
+
+## Inspecting effective settings
+
+`henchman config get KEY` (also `config view`) reports the effective value and
+its `resolved_scope`: `default`, `global`, `project`, `file`, `environment`, or `session`.
+`henchman config list` reports the same origin labels for its sorted leaf keys.
+Each command reads values and origins from one settings snapshot. A higher
+priority layer remains the origin even when it supplies the same value. Group-valued
+`get`/`view` use actual maps; `mixed` is an origin label for contributions from
+different sources, not a new writable `--scope`. Lists remain leaf-only, secrets
+masked, and the canonical writes/legacy read fallback remains unchanged.
+
+```bash
+henchman config get providers.default
+henchman config get providers.deepseek.model --scope project
+henchman config list
+```
+
+The default merged scope includes environment overrides. Explicit `--scope global`
+or `--scope project` reads only values persisted in that file scope, so an
+`HENCHMAN_MODEL` override does not replace the explicitly requested file value.
+Existing secret masking applies to displayed values.
+Explicitly saved values remain in their selected scope even when they equal a
+built-in default. For example, project `ui.output_mode: rich` overrides global
+`quiet`; `config unset ui.output_mode --scope project` removes that override.
+File-based settings imports preserve these explicit defaults too.
+
+CLI runtime preparation loads settings once and uses that same settings object
+to construct its provider. Direct TUI startup reuses supplied settings or loads
+them once when omitted, including when a provider is supplied separately.
+Invalid settings stop
+startup before provider construction. The TUI retains its presentation and
+environment fallbacks, but no longer substitutes default settings for an invalid
+configuration.
+
+Transient Python-API overrides apply after environment values and are not
+persisted. Their snapshot origins use the `session` label:
+
+```python
+from henchman.config.settings import load_settings_snapshot
+
+snapshot = load_settings_snapshot(overrides={"tools": {"shell_timeout": 30}})
+assert snapshot.settings.tools.shell_timeout == 30
+assert snapshot.origins["tools.shell_timeout"].scope == "session"
+```
+
+REPL and Textual retain the startup snapshot and record validated session changes
+in that same state. `/config view KEY` and `/config get KEY` inspect live values
+and origins; `/doctor` uses that state for configuration diagnostics. Explicit
+`--scope global|project` still inspects the selected file. Editing a file or
+environment variable does not silently change an already running session.
+Standalone CLI config/doctor invocations read a fresh startup snapshot.
+
+Provider/model switches update live selection and context origins after provider
+preflight succeeds, preserving history and cached/future specialist settings.
+Constructor-supplied model defaults retain default provenance; an explicitly
+injected provider is a session choice. Resuming a conversation keeps the active
+runtime settings. A fresh process uses its new startup snapshot rather than
+replaying saved credentials or policy overrides.
+
+`/theme` persists only `ui.theme` globally and records the active session change.
+`/mcp logging` is transient. `/context status` shows live values, while context
+setters persist only their named global keys for new sessions. These shortcuts
+never save the entire merged environment/session configuration. No writable
+session scope or settings service is introduced.
+
+An existing file selected by `HENCHMAN_SETTINGS_PATH` replaces normal user/project
+file discovery; environment provider/model overrides still apply afterward. If
+the selected path does not exist, normal file discovery remains the fallback.
+Programmatic overrides still apply after the selected file and environment layers.
 
 ## Settings File
 
@@ -37,14 +108,241 @@ tools:
 
 # UI settings
 ui:
-  theme: default
-  markdown_rendering: true
+  theme: dark
+  output_style: verbose
+  output_mode: rich
+  reduced_motion: false
+  detail_density: normal
+  keyboard_mode: standard
+  mouse_capture: true
+  layout:
+    compact_tables: false
 ```
+
+`ui.output_style` accepts `verbose` (the default), `concise`, `minimal`, or
+`json`. Blank values and unsupported names fail validation at `ui.output_style`;
+replace an invalid existing value with one of these supported names. This uses
+the same schema when loading settings and validating configuration writes.
+
+The terminal UI also honors typed controls, with defaults preserving current
+behavior:
+
+| Key | Values | Purpose |
+|----------|--------|---------|
+| `ui.output_mode` | `rich` (default), `plain`, `quiet` | Rendering mode: rich TUI, plain text, or minimal quiet output |
+| `ui.reduced_motion` | `true`/`false` (default `false`) | Suppress non-essential animation and redraws |
+| `ui.detail_density` | `compact`, `normal` (default), `detailed` | Density of presented information |
+| `ui.keyboard_mode` | `standard` (default), `vim` | Keyboard behavior profile |
+| `ui.mouse_capture` | `true` (default) / `false` | TUI mouse capture; set `false` for native scrollback and SSH/mosh use |
+| `ui.layout.compact_tables` | `true`/`false` (default `false`) | Render denser tables and lists where supported |
+
+All are validated with field attribution on error. Consumers for the optional
+layouts and density arrive with the UI workstream; unset keys keep today's behavior.
+
+Unknown fields in typed groups are rejected rather than silently ignored. Remove
+obsolete or misspelled fields from existing files; entries inside the declared
+provider options, UI keybindings, and style dictionaries remain customizable.
+Remove previously ignored keys including `tools.auto_approve`,
+`session.auto_save` and `session.sessions_dir` from existing files.
+
+## Session project boundaries
+
+Session selection uses the resolved working-directory identity. `resume`,
+`session switch/delete`, `/chat resume`, and `/session` export, branch, merge and
+template operations enforce the current project for tags, full IDs and prefixes.
+A stale current-session pointer cannot activate another project's transcript or
+memory; context lookup falls back only to sessions in the current project.
+Prefix collisions in another project do not make a local selector ambiguous.
+Existing templates are scoped using the project identity embedded in their saved
+session, so they need no migration to acquire this check.
+
+`session list --all-projects` remains an explicit administrative metadata listing;
+it does not authorize reading or modifying those sessions from this project.
+Run the command from the owning directory to access a session there. Explicit
+file import/export is still the way to transfer a user-managed copy. The `/session
+import` command creates a new ID in the destination project and leaves the source
+session unchanged. Low-level Python session APIs accept `project_hash=` for scoped access and retain unscoped
+administrative access when it is omitted. These are application access checks,
+not OS isolation: processes with filesystem access can still read saved files.
+Restricted shell/network enforcement remains tracked separately under issue #20.
+
+## Session evidence redaction
+
+Session JSON, Markdown exports, new playback recordings and saved templates use
+the shared `EvidenceRedactor` policy. It masks known credential values with
+`[REDACTED]`, including their JSON-escaped forms, standard authentication header
+lines, and values in explicitly credential-bearing fields such as `api_key`,
+`api_keys`, `password`, `authorization` and names ending in `_secret` or `_token`.
+Token counts and ordinary dictionary `key` fields are not credential markers.
+The same policy covers summaries, compaction-retained messages, stored memories
+and nested session metadata. Template names, descriptions and parameters are
+included; backups are redacted before rotation or retention during recovery.
+Fixed field names, generated identities, timestamps, correlation IDs, provenance
+digests, roles and lifecycle flags retain their protocol meaning. Short credential
+values therefore cannot rename session keys or change the project identity.
+Memory text, kinds and sources remain evidence fields and are redacted.
+Unexpected structured objects in identity fields fail validation before saving.
+
+Credential-named environment variables are discovered automatically. REPL and
+Textual initialization also register credentials from effective settings and the
+active provider; provider switches retain old keys in the runtime policy and
+register the replacement key. `${ENV_VAR}` references in credential settings
+track changes to the referenced variable. Embedded Python callers can pass an
+`EvidenceRedactor` to `SessionManager(evidence_redactor=...)` to register other
+known values. This policy does not discover arbitrary secrets or every possible
+encoding. Revocation at the provider remains a separate action.
+
+Redaction produces an independent evidence copy: it does not change live provider
+credentials, tool arguments or in-memory messages used for execution. A resumed
+session contains the redacted evidence; it cannot restore removed secret values.
+Reading a legacy file does not rewrite it; its next save sanitizes the current
+and retained prior copy. Previously exported files and recordings are not scanned
+or rewritten automatically.
+Both valid disk generations supply marked credentials before a save, including a
+credential present only in the old backup. Literal redaction-marker text inside a
+credential and whitespace in recognized Bearer headers do not exempt its echoes.
+
+Headless `json`, `stream-json` and `json-complete` output shares the session's
+credential registry. Content and reasoning have separate stream buffers for each
+agent, so a known value split across chunks remains private. Marked tool arguments
+register their credentials before display; execution still receives the original
+arguments. Tool previews are derived from redacted full results. Validated
+completion controls and generated correlation IDs retain their protocol meaning.
+JSON consumers must concatenate content chunks rather than rely on chunk sizes:
+an ambiguous suffix can be delayed until a later chunk or the terminal event.
+Successful completion resolves unmatched prefixes as ordinary text; failure or
+cancellation masks unresolved credential prefixes. Buffered output precedes the
+terminal event, and cancellation still propagates without claiming completion.
+An unfinished authentication-header prefix over 1,024 characters is conservatively
+masked through its next newline to bound retained whitespace. Complete JSON
+collects marked fields before projection; streaming cannot retract text emitted
+before a value was first identified as sensitive.
+
+REPL agent streams and Textual event messages now use the same per-agent
+projection, including tool arguments, results, completion and cancellation.
+Tool approvals display copies; the original arguments and user answers still
+reach execution. Textual command output redacts strings before Rich markup and
+line wrapping, retaining buffers across partial writes and ANSI controls.
+Direct Textual input echoes, public messages, context-file displays, status/search
+labels, context-tree labels, workspace panels and bridge descriptions use the
+same policy; raw lookup IDs and selected paths still reach their original services.
+Both REPL and Textual redact new command-history
+entries before writing. Live editable input and the underlying context file remain
+unchanged; old command histories are not rewritten. Context-file previews redact
+the complete content before truncation so a cut cannot expose part of a credential.
+Interactive worker, tool-cleanup and MCP failures format diagnostic tracebacks
+without locals, then redact them before passing text to the CLI logger or renderer.
+Plugin loading, slash-command errors, provider setup and session-resume failures
+also project their diagnostics before output. Textual export contents and success
+or failure messages use the active runtime policy.
+Exception chains, notes and stack locations remain available; raw exceptions are
+not attached to those log records. Non-JSON objects such as paths and exceptions
+are projected before display conversion.
+
+This increment does not establish full privacy or OS isolation. Remaining
+subsystem and third-party logging, metrics, handoffs, additional command outputs,
+ordinary configuration exports and broader restricted execution still require the work
+and qualification in issue #20. Existing configuration export semantics are
+described below.
+
+## Restricted tool access
+
+`tools.auto_approve_read: false` requires confirmation even for effective read-only
+operations in preset auto-approval lists. Parent requirements apply to scoped
+registries; explicit user approval and unchanged session grants still work.
+`tools.sandbox: docker` is rejected at runtime setup because this build has no
+enforced Docker backend. The default `none` remains supported.
+
+Trusted settings can restrict filesystem operations and disable network tools:
+
+```yaml
+tools:
+  filesystem_read_roots: ["."]
+  filesystem_write_roots: ["."]
+  network_access: disabled
+```
+
+Roots must already exist. Relative roots bind to the runtime project directory;
+absolute roots are also supported. `null` leaves that operation unrestricted;
+`[]` denies it. Configure both read and write roots to confine both operations.
+Scoped registries intersect their restrictions with all parent restrictions.
+Replacing the bound project or root requires trusted runtime rebinding.
+
+With any restriction enabled, only the qualified builtin `read_file` and
+`write_file` implementations currently execute. Other tools, including shell,
+Python, MCP, search and delegation tools, fail explicitly even when trusted or
+auto-approved. Restricted writes bypass automatic Python formatting. Reads and
+writes use directory-relative handles, reject symlink substitution and hardlink
+aliases, and check targets when opening them. Platforms without the required
+directory-handle primitives, including Windows, reject restricted file operations.
+
+This is mediated tool access, not OS isolation against hostile host processes or
+mount changes. `network_access: disabled` applies to tool dispatch, not model SDK
+traffic. Unrestricted `web_fetch` now checks resolved addresses, actual peers and
+redirects, but is not yet qualified for restricted registries. Host allowlists,
+other network tools and OS enforcement remain separate work.
+
+## Usage limits and explicit prices
+
+`usage.limits` accepts `max_requests`, `max_tokens`, `max_seconds`, `max_cost`
+and `currency` (default `USD`). Omitted limits are unlimited; zero is an explicit
+limit. Counts must be nonnegative integers, time must be finite and nonnegative,
+and money is stored as an exact decimal string.
+
+`usage.prices` is a list of entries keyed by exact `provider` configuration name
+and effective `model`. Each entry can set `input_per_1k`, `output_per_1k`,
+`cache_read_per_1k`, `cache_write_per_1k`, `currency`, `source` and `as_of`
+(`YYYY-MM-DD`). Rates use decimal strings. Duplicate provider/model pairs are
+rejected; missing entries or applicable rates remain unknown. No wildcard price,
+implicit local-free rate or currency conversion applies. Accounting configuration
+is separate from `providers.*` and is never sent as SDK request options.
+
+Public orchestrator runs and CLI turns capture these settings into one shared
+task budget for the primary agent, delegates, retries and summary calls. Supported
+providers account even without limits. Uninstrumented provider extensions remain
+usable only without configured limits or prices; bounded runs reject them before
+dispatch. Context-window capacity and task-token limits are separate controls.
+
+`usage.persistence` defaults to `process`: accounting lasts only for the current
+process. `durable` enables authoritative SQLite accounting for CLI sessions in
+the session data directory's sibling `ops.db` (normally `~/.henchman/ops.db`).
+Goal continuation, pause/resume, interruptions and unfinished background work
+retain the same budget. Successful ordinary tasks close their run. Explicit user
+`/goal set`, a shorthand objective replacement and `/goal clear` authorize a new task;
+saved goal metadata cannot reset consumed accounting. A process exit between
+saving a goal change and applying that transition requires repeating the user
+action. Missing or conflicting accounting state fails before dispatch.
+
+`/usage` inspects the selected task's request/token/time/money limits, retained
+uncertain usage, per-agent requests and price provenance. Headless terminal
+events include an aggregate `budget` with exact decimal strings; unknown amounts
+stay null and currencies remain separate. A time-capped durable run cannot
+resume dispatch after its original monotonic clock domain is lost.
+
+See [run accounting](providers.md#automatic-task-accounting) for lifecycle and
+billing limits. The standalone HTTP API currently supports process accounting
+only and rejects `durable` before dispatch. Local UI import/export sync does not
+transfer the usage group.
+
+## Local import/export sync
+
+`henchman config import` / `henchman config export` move a narrow **sync payload**
+(`ui.output_style`, `ui.theme`, `ui.keybindings`, `ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) between files, never the whole
+settings document:
+
+- Import validates before writing; unsupported top-level or UI keys fail without touching the existing settings file.
+- Provider credentials and other non-UI settings cannot flow through import/export in either direction; exports never contain `providers`, API keys or tokens.
+- Writes target the canonical `.henchman` directory for the chosen scope; legacy casing remains a read-only fallback.
+- Both text and JSON mutation responses redact credentials and known credential echoes. Actual `set`/`import` persistence and runtime values retain the supplied input.
+- Exported JSON/YAML files also redact credential echoes in freeform UI values and dynamic keys. This is deliberately lossy for those values; ordinary nonsecret sync remains unchanged. Fixed schema keys and validated UI enum values retain their meanings.
+
+There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates. Sync files containing the newer keys (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) require Henchman v0.4.2 or newer; older binaries reject the entire file with a clear error rather than partially applying it.
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
+| `HENCHMAN_SETTINGS_PATH` | Select an existing YAML/JSON settings file |
 | `HENCHMAN_PROVIDER` | Override default provider |
 | `HENCHMAN_MODEL` | Override model for default provider |
 | `HENCHMAN_API_KEY` | Fallback API key |
@@ -102,12 +400,6 @@ tools:
   
   # Timeout for shell commands in seconds
   shell_timeout: 60
-  
-  # Auto-approve specific tools by name
-  auto_approve:
-    - read_file
-    - ls
-    - glob
 ```
 
 ## Context Management Settings
@@ -159,8 +451,11 @@ invalid caps are rejected. When neither cap is configured, they request
 `min(4096, max(1, context_window // 4))` output tokens. Native Anthropic retains
 its configured output cap.
 
-The agent removes complete older conversation turns until the request estimate
-fits. When a full tool catalog still cannot fit and bound `tool_search` is
+With `context.auto_compact: true` (the default), the agent removes complete older
+conversation turns until the request estimate fits. With `false`, it retains all
+history and suppresses automatic summaries, ignoring the softer compaction
+threshold while still enforcing the hard capacity before dispatch. Primary,
+specialist, dynamic child and HTTP API agents use this setting. When a full tool catalog still cannot fit and bound `tool_search` is
 available, it exposes discovery and core coding schemas within the same limit.
 Search by an exact tool name to prioritize its real schema on the next request;
 the latest search prioritizes up to five matching registered tools from its page.
@@ -175,7 +470,10 @@ explicitly searched or provider-required schemas and output cannot fit, the call
 counts and guidance. Custom scopes without discovery retain the explicit overflow
 error. History remains available for persistence. This path uses deterministic
 history pruning rather than the legacy summarizer or content truncation.
-Standalone agents with `context_window=None` retain legacy compaction behavior.
+Standalone agents with `context_window=None` retain legacy compaction behavior
+when automatic compaction is enabled; disabling it does not introduce an explicit
+hard capacity where none was configured. Intelligent-context strategy settings
+apply to the legacy compactor, not the deterministic explicit-capacity path.
 
 Tokenizers and server chat templates differ, so these are estimates, not an exact
 server guarantee; opaque provider extensions are not fully accounted for. Even
@@ -185,19 +483,74 @@ context window or establish a whole-application RAM bound.
 
 For detailed information on intelligent context management, see the [Intelligent Context Management](intelligent-context-management.md) documentation.
 
-## Context Files (HENCHMAN.md)
+## Context Files (HENCHMAN.md and AGENTS.md)
 
-Place `HENCHMAN.md` files in your project to provide context:
+Place instruction files in your project to provide context:
 
-- **Global**: `~/.henchman/HENCHMAN.md`
-- **Project**: `./HENCHMAN.md` (in project root)
+- **Global**: `~/.henchman/<filename>` for any supported filename (defaults include `~/.henchman/HENCHMAN.md` and `~/.henchman/AGENTS.md`)
+- **Project**: `./HENCHMAN.md`, `./AGENTS.md`, or the other supported filenames (in project root)
 - **Subdirectories**: Optional, for specific context
 
-Inside a Git repository, context files are discovered from the repository root down to the current directory. Optional immediate-subdirectory discovery is available only when a Git root establishes the project boundary. Outside Git, Henchman reads project context only from the current working directory: it does not walk into subdirectories or inherit instruction files from parent directories. This boundary prevents unrelated parent context from being pulled into a non-repository session.
+Default discovery filenames, in priority order: `HENCHMAN.md`, `.henchman/HENCHMAN.md`, `.github/copilot-instructions.md`, `.gemini/GEMINI.md`, `AGENTS.md`. `AGENTS.md` is the portable cross-tool convention; Henchman-specific `HENCHMAN.md` remains the primary, first-loaded file. Existing custom `filenames=` settings keep their configured priority and work unchanged.
 
-The global file `~/.henchman/HENCHMAN.md` is handled separately and may still be loaded for either kind of session.
+**Deterministic precedence:**
+
+1. Explicit user task constraints (your messages and approvals) remain authoritative over any instruction file.
+2. Global files from `~/.henchman/` load first, in filename priority order.
+3. Repository instructions load from the Git root down to the current directory; inside one directory, files follow filename priority order.
+4. Deeper-scope instructions render after broader-scope instructions, so the most specific guidance applies by position. Sibling directories never leak into each other.
+5. Same-scope ties break by filename priority: `HENCHMAN.md` before `.henchman/HENCHMAN.md` before `.github/copilot-instructions.md` before `.gemini/GEMINI.md` before `AGENTS.md`.
+
+**Boundaries and safety:**
+
+- Inside a Git repository, context files are discovered from the repository root down to the current directory. Optional immediate-subdirectory discovery is available only when a Git root establishes the project boundary. Outside Git, Henchman reads project context only from the current working directory: it does not walk into subdirectories or inherit instruction files from parent directories. This boundary prevents unrelated parent context from being pulled into a non-repository session.
+- The global file `~/.henchman/HENCHMAN.md` is handled separately and may still be loaded for either kind of session.
+- Instruction files are deduplicated by physical path (aliases and symlinks resolve once). Sources resolving outside the global home or repository boundary are rejected before any read.
+- Instruction text is data, never authorization: it cannot widen tool scope, approvals, plan-mode policy or access controls, however it is worded.
+
+**Provenance and diagnostics:**
+
+- `ContextLoader.load_snapshot()` returns an immutable `ContextSnapshot` with each source's original path, applicable scope, kind (`global`/`repository`), discovery order, captured content, original size and truncation state.
+- `snapshot.diagnostics()` reports per-source sizes and truncation; `snapshot.truncated_sources` lists truncated sources.
+- Pass `max_source_chars=N` to `ContextLoader` to bound per-source capture. Truncated sources carry an explicit `[truncated: showing N of M characters]` marker and report the original size in diagnostics.
+- `ContextLoader.load_for_path(target)` re-resolves instructions for a different subtree; targets outside the project boundary are rejected before any instruction file is read. Use it when acting on a different part of the repository.
+- Sessions attached through the CLI record instruction provenance in the session's `export_metadata["instruction_sources"]`: paths, scopes, kinds, order, sizes, truncation state and SHA-256 digests — never instruction text. Superseded records move to a bounded `instruction_sources_history` (last five) so resumed sessions keep earlier evidence. Delegated agents (dynamic background subagents and team/legacy delegation inputs) receive a bounded "Project instruction provenance" appendix listing the same sources, restating that instruction text cannot widen tool policy or approvals.
+
+The provenance record is content-free by design, so resuming a session or auditing a delegation shows exactly which instruction files were in force without duplicating their text.
+
+**Runtime refresh:**
+
+Each primary or delegated agent refreshes its active snapshot before a provider
+request. Supported file tools refresh their structured targets, including generated
+test destinations, import-graph scan directories and all files in a parsed patch.
+Directory formatting uses the formatter's bounded file resolver to collect affected
+instruction scopes. A newly applicable or changed snapshot defers a mutation until
+a subsequent model request has received it. A read followed by a write in the same
+tool batch cannot skip that review. Fresh scoped messages replace earlier sibling
+messages while preserving custom filenames, capture limits and conflict precedence.
+
+Checks repeat after awaited approval and formatter waits, immediately before
+dispatch. An instruction-only deferral retains the existing approval grant, while
+ordinary Plan Mode and tool policies remain binding. When runtime instructions are
+attached, `lint_check(path=<directory>, fix=True)` requires explicit file targets:
+inspect without fixing, then fix named files. This avoids assuming a linter's
+configured recursive scope matches the formatter's file selection.
+
+Shell/Python execution refreshes its declared `cwd`; paths embedded in arbitrary
+code and unknown plugin/MCP parameter conventions are not inferred. Outside-boundary
+instructions are never read, and instruction discovery does not authorize access.
+Session provenance records the latest active scopes, including after resume and
+after a delegated agent visits another subtree. Delegation appendices include
+actual digests, original/captured sizes and truncation markers.
 
 ## MCP Server Configuration
+
+The current transport is stdio through SDK 1.x; see the
+[tested protocol profiles](standards.md#implemented-compatibility-foundation-v042-work).
+Verbose logging changes filtering, not credential redaction. Configured
+credential-named environment values are masked in process stderr and SDK
+malformed-stdout diagnostics. Descendants retaining stderr cannot indefinitely
+block diagnostic cleanup; this does not provide process isolation.
 
 Configure Model Context Protocol servers:
 
@@ -214,14 +567,6 @@ mcp_servers:
     env:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     trusted: true
-```
-
-## Session Settings
-
-```yaml
-session:
-  auto_save: true  # Save sessions on exit
-  sessions_dir: ~/.henchman/sessions  # Session storage location
 ```
 
 ## Multi-Agent Settings

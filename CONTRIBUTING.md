@@ -85,6 +85,9 @@ pytest tests/cli/test_app.py -v
 
 # Run integration tests
 pytest -m integration
+
+# Opt in to installing Serena from GitHub and running its live CLI smoke test
+HENCHMAN_RUN_LIVE_SERENA=1 pytest tests/e2e/test_serena_cli_integration.py -k real_serena
 ```
 
 Pytest pins its coverage configuration to `pyproject.toml` so child shell and

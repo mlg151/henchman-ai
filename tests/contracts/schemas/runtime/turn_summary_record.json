@@ -25,6 +25,47 @@
     "timestamp": {
       "type": "string",
       "description": "ISO timestamp when turn completed"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["turn", "compaction"],
+      "description": "Record kind; 'compaction' records summarize turns moved out of the active context. Legacy records default to 'turn'."
+    },
+    "source_turns": {
+      "type": "array",
+      "description": "Absolute 1-based user-anchored turn numbers covered by the record; empty for legacy records",
+      "items": { "type": "integer", "minimum": 1 }
+    },
+    "retained_messages": {
+      "type": "array",
+      "description": "Original messages retained by a compaction record so its turns stay recoverable",
+      "items": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant", "tool", "system"] },
+          "content": { "type": ["string", "null"] },
+          "tool_calls": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "required": ["name", "arguments"],
+              "properties": {
+                "id": { "type": ["string", "null"], "description": "Tool call ID pairing the call with its result" },
+                "name": { "type": "string" },
+                "arguments": { "type": "object", "additionalProperties": true }
+              },
+              "additionalProperties": false
+            }
+          },
+          "tool_call_id": { "type": ["string", "null"] },
+          "agent_id": { "type": ["string", "null"] },
+          "agent_role": { "type": ["string", "null"] },
+          "reasoning_content": { "type": ["string", "null"] },
+          "reasoning_details": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

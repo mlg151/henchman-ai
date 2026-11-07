@@ -9,6 +9,7 @@ from contextlib import aclosing
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import anyio
@@ -16,14 +17,17 @@ import click
 from rich.console import Console
 
 from henchman.cli.chat_serve import discordbot_command
+from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.serve import serve_command
+from henchman.config.runtime import RuntimeSettingsState
 from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
 
+    from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
 
 
@@ -89,10 +93,15 @@ class RuntimeContext:
     settings: Any
     system_prompt: str
     env_block: str
+    instruction_snapshot: Any | None = None
+    settings_state: RuntimeSettingsState | None = None
 
 
-def _get_provider() -> ModelProvider:
+def _get_provider(settings: Settings | None = None) -> ModelProvider:
     """Get the configured model provider.
+
+    Args:
+        settings: Validated settings to reuse, or None to load configuration.
 
     Returns:
         A ModelProvider instance.
@@ -101,12 +110,16 @@ def _get_provider() -> ModelProvider:
         click.ClickException: If no provider is configured.
     """
     try:
-        load_settings = _import_attr("henchman.config", "load_settings")
         create_provider = _import_attr("henchman.providers.factory", "create_configured_provider")
+        if settings is not None:
+            return cast("ModelProvider", create_provider(settings.providers))
+
+        load_settings = _import_attr("henchman.config", "load_settings")
         settings = load_settings()
         return cast("ModelProvider", create_provider(settings.providers))
     except Exception as exc:
-        raise click.ClickException(f"Unable to configure provider: {exc}") from exc
+        message = runtime_evidence_redactor(SimpleNamespace(settings=settings)).text(str(exc))
+        raise click.ClickException(f"Unable to configure provider: {message}") from exc
 
 
 def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> None:
@@ -159,22 +172,31 @@ def _prepare_runtime_context() -> RuntimeContext:
     Returns:
         A RuntimeContext instance.
     """
-    context_loader_class, load_settings = _import_attrs(
+    context_loader_class, load_settings_snapshot = _import_attrs(
         "henchman.config",
         "ContextLoader",
-        "load_settings",
+        "load_settings_snapshot",
     )
     format_environment_block, gather_environment = _import_attrs(
         "henchman.config.environment",
         "format_environment_block",
         "gather_environment",
     )
-    provider = _get_provider()
-    settings = load_settings()
+    try:
+        settings_state = RuntimeSettingsState(load_settings_snapshot())
+        settings = settings_state.settings
+    except Exception as exc:
+        message = runtime_evidence_redactor(SimpleNamespace()).text(str(exc))
+        raise click.ClickException(f"Unable to configure provider: {message}") from exc
+    provider = _get_provider(settings=settings)
+    from henchman.cli.provider_switch import capture_startup_provider_settings
 
-    # Load context from HENCHMAN.md files
+    capture_startup_provider_settings(settings_state, provider)
+
+    # Load context from HENCHMAN.md files (portable AGENTS.md included)
     context_loader = context_loader_class()
-    system_prompt = context_loader.load()
+    instruction_snapshot = context_loader.load_snapshot()
+    system_prompt = instruction_snapshot.content
 
     # Gather environment context once
     env_ctx = gather_environment()
@@ -185,6 +207,8 @@ def _prepare_runtime_context() -> RuntimeContext:
         settings=settings,
         system_prompt=system_prompt,
         env_block=env_block,
+        instruction_snapshot=instruction_snapshot,
+        settings_state=settings_state,
     )
 
 
@@ -242,12 +266,14 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
         interactive=config.prompt is None,
+        instruction_snapshot=ctx.instruction_snapshot,
     )
     return repl_class(
         provider=ctx.provider,
         console=console,
         config=repl_config,
         settings=ctx.settings,
+        settings_state=ctx.settings_state,
         environment_context=ctx.env_block,
         renderer=renderer,
     )
@@ -268,11 +294,14 @@ def _setup_repl_session(repl: Any) -> None:
     current_session_id = getattr(core_manager, "get_project_current", lambda _: None)(project_hash)
     if current_session_id:
         try:
-            session = core_manager.load(current_session_id)
+            session = core_manager.load(current_session_id, project_hash=project_hash)
             repl.set_session(session)
             return
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError:
             pass
+        except ValueError as exc:
+            message = runtime_evidence_redactor(repl).text(str(exc))
+            raise click.ClickException(f"Cannot resume saved session: {message}") from exc
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
 
@@ -298,15 +327,25 @@ def _setup_repl_rag(repl: Any, settings: Any, *, headless: bool = False) -> None
 def _apply_interactive_plan_mode(repl: Any, config: RunConfig) -> None:
     """Apply plan mode settings to an interactive REPL, including the agent prompt.
 
+    A resumed session that was persisted in Plan Mode keeps its read-only
+    boundary: the live registry and agent prompt are synchronized with the
+    session rather than re-derived from the CLI flag alone. Re-applying the
+    persisted boundary is not a new transition, so its origin is preserved.
+
     Args:
         repl: The REPL instance.
         config: Run configuration.
     """
-    if not config.plan_mode or not repl.session_manager.current:
+    session = repl.session_manager.current
+    if session is None:
         return
-    repl.session_manager.current.plan_mode = True
+    if not config.plan_mode and not session.plan_mode:
+        return
+    session.plan_mode = True
     repl.tool_manager.set_plan_mode(plan_mode=True)
-    repl.agent.system_prompt += _get_plan_mode_prompt()
+    prompt = _get_plan_mode_prompt()
+    if prompt not in repl.agent.system_prompt:
+        repl.agent.system_prompt += prompt
 
 
 def _dispatch_interactive_run(repl: Any, config: RunConfig) -> None:
@@ -370,6 +409,7 @@ def _run_textual_tui(config: RunConfig) -> None:
         system_prompt=ctx.system_prompt,
         auto_approve_tools=config.yes,
         agent_role=config.agent_role,
+        instruction_snapshot=ctx.instruction_snapshot,
     )
 
     if config.output_format != "text":
@@ -381,6 +421,7 @@ def _run_textual_tui(config: RunConfig) -> None:
         provider=ctx.provider,
         config=textual_config,
         settings=ctx.settings,
+        settings_state=ctx.settings_state,
         environment_context=ctx.env_block,
     )
 
@@ -405,9 +446,12 @@ def _create_headless_repl(config: RunConfig) -> tuple[Any, Any, Any]:
     _setup_repl_session(repl)
     _setup_repl_rag(repl, ctx.settings, headless=True)
 
-    # Set plan mode on session/tool-manager if requested
-    if config.plan_mode and repl.session_manager.current:  # pragma: no cover
-        repl.session_manager.current.plan_mode = True
+    # Re-apply plan mode from the CLI flag or a persisted plan-mode session
+    current_session = repl.session_manager.current  # pragma: no cover
+    if current_session is not None and (  # pragma: no cover
+        config.plan_mode or current_session.plan_mode
+    ):
+        current_session.plan_mode = True
         repl.tool_manager.set_plan_mode(plan_mode=True)
 
     return repl, ctx.settings, ctx.system_prompt
@@ -495,6 +539,11 @@ async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
     if repl.rag_system:
         await repl.rag_system.index_async()
 
+    from henchman.cli.session_manager import ReplSessionManager
+
+    manager = getattr(repl, "session_manager", None)
+    if isinstance(manager, ReplSessionManager):
+        return JsonOutputRenderer(console, redactor=manager.session_manager.evidence_redactor)
     return JsonOutputRenderer(console)
 
 
@@ -641,6 +690,7 @@ async def _run_headless_json_format(
         prompt: The prompt to process.
         render_mode: Either "stream-json" (line-delimited) or "json" (batch).
     """
+    json_renderer = None
     try:
         json_renderer = await _initialize_json_processing(repl)
         render_fn = (
@@ -649,7 +699,11 @@ async def _run_headless_json_format(
         if not await _run_headless_json_mode(repl, prompt, render_fn, agent_role):
             raise click.ClickException("Agent execution failed; see JSON error event")
     finally:
-        await _close_headless_repl(repl)
+        try:
+            if json_renderer is not None:
+                json_renderer.flush()
+        finally:
+            await _close_headless_repl(repl)
 
 
 async def _run_headless_json_complete(

@@ -357,6 +357,9 @@ class PatchParser:
 
     def _handle_file_header(self: PatchParser) -> None:
         """Consume a file header and update current_file."""
+        self._save_current_hunk()
+        self.current_hunk = None
+        self.hunk_lines = []
         if self.default_path is None:
             path_line = self.lines[self.index + 1]
             path_str = path_line[_UNIFIED_DIFF_PLUS_PREFIX_LEN:].strip()

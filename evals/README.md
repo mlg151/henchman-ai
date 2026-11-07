@@ -72,6 +72,17 @@ async def test_asks_before_deleting_files(rig: EvalTestRig):
 
 ## Running Evaluations
 
+Public orchestrator/CLI runs now enforce configured shared task budgets across
+delegates, retries and summaries; see [task accounting](../docs/providers.md#automatic-task-accounting).
+Direct `Agent` evaluation harnesses must explicitly bind a run scope to obtain
+those aggregate guarantees. A final-response token count alone is not a whole-run
+measurement. Reports must distinguish configured cost estimates from provider
+billing and leave missing usage/prices unknown; zero pricing must be explicit.
+The [local budget retention probe](../docs/evaluations/2026-11-07-local-budget-qualification.md)
+records one failed local request whose consumed request and uncertain token hold
+survived a process restart. Both follow-ups were denied before HTTP. Successful
+live final-usage reconciliation remains unqualified by that attempt.
+
 ### ALWAYS_PASSES subset (live provider required)
 
 ```bash
@@ -124,7 +135,7 @@ be recovered within a successful turn. Direct `EvalTestRig.run` calls still retu
 failure evidence for diagnostic callers; reusable scenario helpers explicitly
 check their results before accepting behavior.
 
-Four scenarios expose rig-accepting helpers for configured-provider experiments:
+Eight registered scenarios expose rig-accepting helpers for configured-provider experiments:
 
 | Scenario helper | Independent checks |
 |---|---|
@@ -132,6 +143,10 @@ Four scenarios expose rig-accepting helpers for configured-provider experiments:
 | `test_edit_precision.run_add_method_to_class_scenario` | Original method ASTs preserved; multiplication updates state for chained, zero and negative operations. |
 | `test_edit_precision.run_rename_variable_consistently_scenario` | Actual name bindings renamed with the remaining AST preserved; sampled behavior and input immutability checked. |
 | `test_edit_precision.run_multi_file_edit_scenario` | Optional email stored without breaking the existing User API; the application supplies a nonempty email when constructing User. |
+| `test_python_reuse.run_python_reuse_scenario` | Provided tests execute independently, requiring four actual passes and a call to the existing normalizer for each input. |
+| `test_coding_tasks.run_fix_syntax_error_scenario` | Repaired greeting output and return value are checked independently. |
+| `test_coding_tasks.run_fibonacci_scenario` | Fixed numeric results and actual Python integer types are checked independently. |
+| `test_test_docs.run_test_docs_scenario` | Executes required doctests, preserves the implementation AST, and requires passing candidate tests that reject five semantic mutants. Runtime completion must also succeed. |
 
 These use `verify_python` from `evals/helpers.py`. It invokes the current Python
 interpreter with inherited Python options disabled, so `PYTHONOPTIMIZE` cannot
@@ -140,6 +155,19 @@ remove child assertions. It uses the existing bounded subprocess runner with
 completion receipt distinguishes completed assertions from premature exit code
 zero. Timeout and cancellation propagate after child cleanup. This is process
 isolation, not an OS security sandbox.
+
+`run_pytest_evidence` uses the same bounded Python verifier with a fresh cache
+and completion receipt. It runs the actual pytest reporter, neutralizes inherited
+pytest selection/plugin options, and rejects missing, collection-only, empty or
+skipped execution evidence. Real assertion failures return failure counts; callers
+must enforce their required pass counts. The reuse oracle requires exactly four
+executed and passed tests. Its foreground shell observation must match the exact
+requested test command; printing `pytest 4 passed` is rejected by a real scenario
+regression. `pytest_run` observations must resolve to the requested test file, use no
+selection filters or collection-only mode, and carry the tool's structured
+four-executed/four-passed heading. Actual engineer-profile controls accept the
+requested file and reject a decoy file with four passing tests. The unchanged
+provided tests still run independently afterward.
 
 Offline contracts in `tests/testing/test_eval_helpers.py`,
 `test_counter_eval_contract.py` and `test_edit_eval_contract.py` feed known correct
@@ -385,3 +413,80 @@ If an eval is failing:
 2. Review recent changes to system prompts or tool definitions
 3. Consider if the eval expectations are still valid
 4. Prefer fixing prompts over loosening eval criteria
+
+### v0.4.2 corpus registry (frozen at twelve cases)
+
+[release_corpus.py](release_corpus.py) registers twelve independently
+checked scenarios: counter refactoring, method addition, variable rename,
+multi-file editing, Python helper reuse, syntax repair, semantic bug repair,
+Fibonacci implementation, package lifecycle, test/documentation delivery,
+tool-failure recovery and interruption/recovery.
+
+The `tool-failure-recovery` case requires an actual failed `python_exec` before a
+later passing check. An independent pricing oracle checks numeric, non-boolean
+results. The case returns the original runtime result and rejects a skipped
+initial check, a sample-only constant repair and a real provider failure after a
+correct repair. Its five actual-tool and caller controls are staged in both
+native modes.
+
+The `interruption-recovery` case requires an observed one-round tool limit after
+completed tool work, with correlated pending calls cancelled by the runtime.
+The recovery turn must resume in the same workspace, leave the provided tests
+untouched, and pass an independent pytest oracle. The rig captures interruption
+evidence when the run ends, before callers can alter returned events.
+`consume_expected_interruption()` excludes only that validated outcome from
+`assert_successful_runs()`. Provider errors, timeouts, a zero-work stop and normal
+completion do not qualify; rejected outcomes remain in the strict success gate.
+Seventeen scenario controls cover those boundaries, successful recovery, failing
+or tampered tests, and rig reset. The scenario and dispatch controls run in both
+native modes.
+
+`semantic-bug-fix` checks zero/nonzero division in independent bounded Python
+checks, preserves non-target AST, returns the original runtime result, rejects
+unrelated edits and real provider failure despite correct delivered code. Its six
+actual-tool and caller controls are staged in both native modes. `list_cases()` exposes their frozen
+metadata; `get_case()` resolves a stable ID; `dispatch_case()` invokes the real
+scenario and validates recorded runtime outcomes. Wrong patches and provider
+failures remain rejections, regardless of final prose. The syntax-repair oracle
+checks the greeting and return value in a bounded child process and requires
+an execution receipt, rejecting an early zero exit. The Fibonacci case checks
+fixed expected values and Python `int` results. Fresh per-check bytecode-cache
+locations prevent stale workspace bytecode from deciding Python oracle results. Offline fault tests also
+reject a provider failure after a correct file write; mutation checks verify
+that removing either the independent oracle or runtime-success check is caught.
+The test/documentation case runs required direct doctests, checks the unchanged
+implementation AST and requires candidate tests to reject five semantic mutants.
+Its fault controls also reject a runtime failure after independently valid
+artifacts were written.
+
+The `package-lifecycle` case requires the production team profile. It reuses the
+independent build, install, five-test and CLI checks, requires ordered review
+evidence, and returns the original runtime result. Missing, stale or failed
+review and failed runtime completion are rejected. Basic and engineer profiles
+are rejected before model execution. The adapter source is staged in both
+native modes; its functional tests require `include_package=True`. The twelve
+default native cohorts do not execute package lifecycle evaluations.
+
+Metadata records the corpus version, declared seed, fixture/oracle labels and a
+preferred profile. These labels do not prove that a provider applied a seed or
+that a particular profile ran: execution reports must record the actual
+`rig.profile_metadata` and supported seed behavior. The twelve-case corpus is
+frozen and the bounded repeat-run reporting is delivered; hosted baseline
+qualification remains tracked in
+[issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
+registry contracts establish evaluator behavior, not model task quality.
+
+The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
+retains all 22 attempts: all timed out at the declared 120-second turn limit, with
+no verified successes or reported token usage. Its invocation, raw report,
+zero-spend provenance and qualification limitations are retained together. A
+healthy HTTP endpoint did not establish inference readiness; bounded direct
+inference/tool-call checks are required before another full cohort. The runner
+now records compatible providers' `default_model`, falling back to `model`.
+
+The [CPU readiness follow-up](../docs/evaluations/2026-11-07-cpu-readiness.md)
+retains four failed syntax-repair attempts and one independently verified
+diagnostic using the installed Ornith 9B model. It records context mismatches,
+effective profiles, model manifest digests and limitations; the temporary CPU
+profile was removed afterward. This is a small development check, not general
+model or 16-GB-machine qualification.

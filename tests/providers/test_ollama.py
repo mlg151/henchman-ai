@@ -59,4 +59,5 @@ class TestOllamaProvider:
         """Test that Ollama doesn't require an API key."""
         provider = OllamaProvider()
         # Should have dummy key since OpenAI client requires one
-        assert provider.api_key == "ollama"
+        assert provider.api_key == ""
+        assert provider._client.api_key == "not-required"

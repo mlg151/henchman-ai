@@ -605,7 +605,10 @@ class SecureShellTool(Tool):
         validator = ShellSecurityValidator(effective_config)
 
         try:
-            errors = validator.validate_command(command, cwd)
+            # Invocation arguments can tighten the configured boundary, never
+            # replace an administrator's command/option/directory restrictions.
+            errors = ShellSecurityValidator(self.config).validate_command(command, cwd)
+            errors.extend(validator.validate_command(command, cwd))
             if errors:
                 return _build_validation_error_result(errors)
         except ValueError as e:

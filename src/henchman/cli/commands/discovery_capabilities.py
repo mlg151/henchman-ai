@@ -44,6 +44,31 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="task usage",
+        classification="runtime-wired",
+        summary="/usage shows shared task budgets with separate estimates and reported billing.",
+        detail=(
+            "REPL and Textual report the active or most recent run's dispatched requests, "
+            "settled/held task tokens, remaining limits, accounting lifetime and explicit "
+            "price provenance. Unknown costs stay unavailable and currencies stay separate. "
+            "This is cumulative task accounting, separate from conversation context occupancy."
+        ),
+        aliases=("/usage", "remaining budget", "cost provenance", "task tokens"),
+    ),
+    _CapabilitySpec(
+        name="live configuration",
+        classification="runtime-wired",
+        summary="REPL and Textual inspect active settings and origins through /config and /doctor.",
+        detail=(
+            "/config view|get KEY reads the retained live snapshot by default; explicit "
+            "--scope global|project reads persisted file values. /doctor uses the same live "
+            "state. Standalone CLI commands read a fresh startup snapshot. Provider/model "
+            "switches retain conversation history and update session origins; file-only "
+            "import/export and canonical .henchman writes remain unchanged."
+        ),
+        aliases=("/config", "/doctor", "settings origins", "session overrides"),
+    ),
+    _CapabilitySpec(
         name="background subagents",
         classification="runtime-dependent",
         summary="The primary coding agent can launch dynamic background conversations.",
@@ -218,6 +243,32 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "unless a first-class exposed surface is added."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
+    ),
+    _CapabilitySpec(
+        name="terminal UI controls",
+        classification="undiscoverable",
+        summary=(
+            "Typed terminal UI settings are TUI-scoped controls; generic "
+            "discovery/help surfaces intentionally do not advertise them as "
+            "generic commands."
+        ),
+        detail=(
+            "ui.output_mode, ui.reduced_motion, ui.detail_density, "
+            "ui.keyboard_mode, ui.mouse_capture, and ui.layout.compact_tables "
+            "are typed settings configured through the config command. Their "
+            "runtime consumers are delivered by the terminal UI workstream; "
+            "runtime-scoped discovery must not present them as generic commands."
+        ),
+        aliases=(
+            "ui.output_mode",
+            "ui.reduced_motion",
+            "ui.detail_density",
+            "ui.keyboard_mode",
+            "ui.mouse_capture",
+            "ui.layout.compact_tables",
+            "terminal ui",
+            "ui settings",
+        ),
     ),
 )
 

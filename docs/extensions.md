@@ -124,6 +124,11 @@ class MyExtension(Extension):
 
 ### Adding Custom Tools
 
+The [local schema contract API](api.md#local-schema-validation) validates bounded
+2020-12 input/output schemas without coercion or remote reference retrieval.
+Use it when testing extension contracts; provider-specific projection and full
+registration/output integration remain in progress under #21.
+
 ```python
 from henchman.tools import Tool, ToolKind, ToolResult
 

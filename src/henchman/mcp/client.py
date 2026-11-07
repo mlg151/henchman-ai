@@ -6,19 +6,30 @@ a connection to an MCP server.
 
 from __future__ import annotations
 
+import asyncio
+import codecs
+import copy
 import io
+import os
 import re
 import sys
-from contextlib import AsyncExitStack, suppress
+from collections.abc import Callable, Iterable
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+import anyio
 from mcp.client.stdio import stdio_client
 
+from henchman.mcp.credentials import reference_values, resolve_environment
+from henchman.mcp.diagnostics import sdk_diagnostics
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
+from henchman.utils.pipe_output import pipe_chunk as _pipe_chunk
 from mcp import ClientSession, StdioServerParameters
 
 if TYPE_CHECKING:
-    from typing import Self
+    from collections.abc import AsyncIterator
+    from typing import Self, TextIO
 
     from henchman.config.schema import McpServerConfig
 
@@ -60,6 +71,25 @@ _LOG_BRACKETED_RE = re.compile(r"^\[(INFO|DEBUG)\]")
 _LOG_COLON_RE = re.compile(r"^(INFO|DEBUG):")
 _LOG_PREFIXES = ("INFO ", "DEBUG ", "INFO:", "DEBUG:")
 _LOG_INLINE_TAGS = ("[INFO]", "[DEBUG]")
+
+
+async def _join_session_task(task: asyncio.Task[None]) -> None:
+    """Join transport cleanup even when the caller is cancelled again."""
+    interruption: asyncio.CancelledError | None = None
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError as error:
+            if not task.done():
+                interruption = error
+        except BaseException:
+            break
+    if interruption is not None:
+        # Retrieve any owner error before forwarding the caller's cancellation.
+        if not task.cancelled():
+            task.exception()
+        raise interruption
+    task.result()
 
 
 def _is_log_line(line: str) -> bool:
@@ -117,6 +147,77 @@ class FilteredStream(io.StringIO):
         return len(text)
 
 
+@asynccontextmanager
+async def _stdio_stderr(
+    config: McpServerConfig, *, verbose: bool, secrets: Iterable[str] = (),
+) -> AsyncIterator[TextIO]:
+    """Supply a real process descriptor and drain redacted diagnostics in memory."""
+    reader, writer = os.pipe()
+    if os.name != "nt":
+        os.set_blocking(reader, False)
+    output = os.fdopen(writer, "wb", buffering=0)
+    policy = EvidenceRedactor(secrets)
+    policy.register_config(config.env)
+    projection = EvidenceStreamRedactor(policy)
+    closing_deadline: float | None = None
+
+    async def drain() -> None:
+        decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        pending = ""
+        discard_line: bool | None = None
+
+        def emit(text: str, *, final: bool = False) -> None:
+            nonlocal pending, discard_line
+            pending += text
+            while pending:
+                newline = pending.find("\n", 0, 8192)
+                if newline >= 0:
+                    size = newline + 1
+                elif len(pending) >= 8192:
+                    size = 8192
+                elif final:
+                    size = len(pending)
+                else:
+                    break
+                fragment = pending[:size]
+                if discard_line is None:
+                    discard_line = not verbose and _is_log_line(fragment)
+                if not discard_line and (verbose or fragment.strip() or not fragment.endswith("\n")):
+                    sys.stderr.write(fragment)
+                if fragment.endswith("\n"):
+                    discard_line = None
+                pending = pending[size:]
+
+        try:
+            loop = asyncio.get_running_loop()
+            while closing_deadline is None or loop.time() < closing_deadline:
+                chunk = _pipe_chunk(reader)
+                if chunk is None:
+                    if closing_deadline is not None:
+                        break
+                    await asyncio.sleep(0.01)
+                    continue
+                if not chunk:
+                    break
+                emit(projection.feed(decoder.decode(chunk)))
+                await asyncio.sleep(0)
+            emit(projection.feed(decoder.decode(b"", final=True)))
+            emit(projection.finish(interrupted=True), final=True)
+        finally:
+            os.close(reader)
+
+    task = asyncio.create_task(drain(), name="henchman-mcp-stderr")
+    try:
+        yield cast("TextIO", output)
+    finally:
+        # A descendant can retain stderr after the SDK's direct process exits.
+        # Flush available bytes with a bound instead of waiting for its EOF.
+        closing_deadline = asyncio.get_running_loop().time() + 0.1
+        output.close()
+        with anyio.CancelScope(shield=True):
+            await task
+
+
 @dataclass
 class McpToolResult:
     """Result from an MCP tool call.
@@ -169,20 +270,62 @@ class McpClient:
         self.config = config
         self.verbose = verbose
         self._session: ClientSession | None = None
+        self.protocol_version: str | None = None
         self._tools: list[McpToolDefinition] = []
         self._exit_stack: AsyncExitStack | None = None
+        self._owner_task: asyncio.Task[None] | None = None
+        self._ready: asyncio.Future[None] | None = None
+        self._stop = asyncio.Event()
+        self._lifecycle_lock = asyncio.Lock()
+        self._connection_environment: dict[str, str] | None = None
+        self._dispatch_guard: Callable[[], None] | None = None
+        self._invalid_reason: str | None = None
 
     @property
     def is_connected(self: Self) -> bool:
         """Check if connected to server."""
-        return self._session is not None
+        if self._session is None:
+            return False
+        try:
+            self._check_credentials()
+        except (RuntimeError, ValueError):
+            return False
+        return True
+
+    def set_dispatch_guard(self, guard: Callable[[], None]) -> None:
+        """Bind the manager's immutable connection generation to native dispatch."""
+        self._dispatch_guard = guard
+
+    def invalidate_credentials(self) -> None:
+        """Synchronously deny new calls and signal the owning task to close."""
+        self._invalid_reason = "MCP credentials changed; reconnect the server before dispatch"
+        self._stop.set()
+        if self._owner_task is not None and self._ready is not None and not self._ready.done():
+            self._owner_task.cancel()
+
+    def _check_credentials(self) -> None:
+        if self._invalid_reason is not None:
+            raise RuntimeError(self._invalid_reason)
+        if self._dispatch_guard is not None:
+            self._dispatch_guard()
+        if self._connection_environment is not None:
+            try:
+                current = resolve_environment(self.config.env)
+            except ValueError:
+                self.invalidate_credentials()
+                raise
+            if current != self._connection_environment:
+                self.invalidate_credentials()
+                raise RuntimeError("MCP environment credentials changed; reconnect the server before dispatch")
 
     def _build_server_params(self: Self) -> StdioServerParameters:  # pragma: no cover
         """Build StdioServerParameters from this client's configuration."""
+        environment = resolve_environment(self.config.env)
+        self._connection_environment = environment
         return StdioServerParameters(
             command=self.config.command,
             args=self.config.args,
-            env=self.config.env or None,
+            env=environment or None,
         )
 
     async def _open_session(  # pragma: no cover
@@ -190,54 +333,135 @@ class McpClient:
         stack: AsyncExitStack,
     ) -> ClientSession:
         """Enter stdio_client and ClientSession contexts, then initialize."""
-        errlog = FilteredStream(verbose=self.verbose)
-        read, write = await stack.enter_async_context(
-            stdio_client(self._build_server_params(), errlog=errlog),
-        )
-        session = await stack.enter_async_context(ClientSession(read, write))
-        await session.initialize()
+        params = self._build_server_params()
+        diagnostic_config = copy.copy(self.config)
+        diagnostic_config.env = dict(params.env or {})
+        secrets = reference_values(self.config.env, diagnostic_config.env)
+        with sdk_diagnostics(diagnostic_config.env, secrets=secrets):
+            errlog = await stack.enter_async_context(
+                _stdio_stderr(diagnostic_config, verbose=self.verbose, secrets=secrets)
+            )
+            read, write = await stack.enter_async_context(
+                stdio_client(params, errlog=errlog),
+            )
+            session = await stack.enter_async_context(ClientSession(read, write))
+            initialized = await session.initialize()
+            self.protocol_version = str(initialized.protocolVersion)
         return session
 
     async def connect(self: Self) -> None:  # pragma: no cover
         """Connect to the MCP server.
 
-        Uses AsyncExitStack to properly manage the stdio_client and
-        ClientSession context managers, keeping their task groups alive
-        for the duration of the connection.
+        A retained owner task enters and exits the SDK context managers.
+        Failed or cancelled startup joins that task before returning.
 
         Returns:
             None
         """
-        if self._session is not None:
-            return
+        async with self._lifecycle_lock:
+            if self.is_connected:
+                return
+            if self._owner_task is not None:
+                self._stop.set()
+                await _join_session_task(self._owner_task)
+                self._owner_task = None
+            self._invalid_reason = None
+            self._stop = asyncio.Event()
+            self._ready = asyncio.get_running_loop().create_future()
+            self._owner_task = asyncio.create_task(self._run_session(self._ready), name="henchman-mcp-session")
+            ready = self._ready
 
-        self._exit_stack = AsyncExitStack()
-        await self._exit_stack.__aenter__()
+            def startup_finished(task: asyncio.Task[None]) -> None:
+                # Retrieve late failures too: readiness may already have been
+                # delivered, and asyncio must not log raw transport errors on
+                # garbage collection. Awaiting the task still raises its error.
+                error = asyncio.CancelledError() if task.cancelled() else task.exception()
+                if not ready.done():
+                    if isinstance(error, asyncio.CancelledError) and self._invalid_reason is not None:
+                        error = RuntimeError(self._invalid_reason)
+                    ready.set_exception(error or RuntimeError("MCP session closed during startup"))
 
+            self._owner_task.add_done_callback(startup_finished)
+            try:
+                await asyncio.shield(self._ready)
+            except BaseException:
+                self._owner_task.cancel()
+                with suppress(BaseException):
+                    await _join_session_task(self._owner_task)
+                self._owner_task = None
+                if self._ready.done() and not self._ready.cancelled():
+                    self._ready.exception()
+                raise
+
+    async def _run_session(self, ready: asyncio.Future[None]) -> None:
+        """Enter and exit SDK task groups in one task, including cancelled startup."""
         try:
-            self._session = await self._open_session(self._exit_stack)
-            await self.discover_tools()
-        except Exception:
-            await self._exit_stack.aclose()
+            stack = AsyncExitStack()
+            await stack.__aenter__()
+            self._exit_stack = stack
+            try:
+                self._check_credentials()
+                self._session = await self._open_session(stack)
+                self._check_credentials()
+                await self.discover_tools()
+                self._check_credentials()
+                ready.set_result(None)
+                await self._stop.wait()
+            finally:
+                # Do not inject application startup failures into SDK task
+                # groups: that wraps a protocol error in nested ExceptionGroups.
+                await stack.aclose()
+        except BaseException as error:
+            if not ready.done():
+                ready.set_exception(
+                    RuntimeError(self._invalid_reason)
+                    if isinstance(error, asyncio.CancelledError) and self._invalid_reason is not None
+                    else error
+                )
+            raise
+        finally:
             self._exit_stack = None
             self._session = None
-            raise
+            self._connection_environment = None
+            self.protocol_version = None
+            self._tools = []
 
     async def disconnect(self: Self) -> None:
         """Disconnect from the MCP server.
 
-        Closes the AsyncExitStack and clears all connection state.
-        Any exceptions during cleanup are silently suppressed.
+        Signals and joins the native owner task before clearing connection
+        state, including when the caller is cancelled during cleanup.
 
         Returns:
             None
         """
-        if self._exit_stack is not None:
-            with suppress(Exception):
-                await self._exit_stack.aclose()
-            self._exit_stack = None
-        self._session = None
-        self._tools = []
+        owner = self._owner_task
+        self._stop.set()
+        if self._owner_task is not None and self._ready is not None and not self._ready.done():
+            self._owner_task.cancel()
+        try:
+            async with self._lifecycle_lock:
+                if self._owner_task is not None:
+                    try:
+                        await _join_session_task(self._owner_task)
+                    finally:
+                        self._owner_task = None
+                elif self._exit_stack is not None:
+                    # Preserve manually supplied protocol/test sessions, which
+                    # have no owned native transport or lifecycle task.
+                    with suppress(Exception):
+                        await self._exit_stack.aclose()
+                    self._exit_stack = None
+                self._session = None
+                self.protocol_version = None
+                self._tools = []
+        except asyncio.CancelledError:
+            # Cancellation can arrive while waiting for a startup caller to
+            # release the lock. Its owner still must finish cleanup first.
+            if owner is not None:
+                with suppress(BaseException):
+                    await _join_session_task(owner)
+            raise
 
     async def discover_tools(self: Self) -> list[McpToolDefinition]:
         """Discover tools from the server.
@@ -245,6 +469,7 @@ class McpClient:
         Returns:
             List of tool definitions.
         """
+        self._check_credentials()
         if self._session is None:
             return []
 
@@ -284,6 +509,7 @@ class McpClient:
         Raises:
             RuntimeError: If not connected.
         """
+        self._check_credentials()
         if self._session is None:
             msg = f"Client '{self.name}' is not connected"
             raise RuntimeError(msg)

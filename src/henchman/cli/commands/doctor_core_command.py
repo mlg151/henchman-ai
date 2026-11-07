@@ -11,6 +11,7 @@ import click
 
 from henchman.cli.system_info import HealthSignal, HealthStatus, SystemInfo, get_system_info
 from henchman.config.repository import SettingsRepository, SettingsScope
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 DependencyProbe = Callable[[str], bool]
 SystemInfoProvider = Callable[[], SystemInfo]
@@ -235,7 +236,7 @@ def _build_runtime_dependencies_check(probe: DependencyProbe) -> DoctorCheck:
 
 def _build_configuration_check(settings_repository: SettingsRepository) -> DoctorCheck:
     try:
-        settings_payload = settings_repository.view(scope=SettingsScope.MERGED)
+        detail = _configuration_details(settings_repository)
     except ValueError as exc:
         return DoctorCheck(
             name="configuration",
@@ -245,14 +246,35 @@ def _build_configuration_check(settings_repository: SettingsRepository) -> Docto
             remediation="Fix the invalid settings values or remove the broken settings override.",
         )
 
-    top_level_keys = ", ".join(sorted(settings_payload)) or "defaults only"
     return DoctorCheck(
         name="configuration",
         status="pass",
         summary="Configuration is valid.",
-        detail=f"Merged settings loaded successfully from: {top_level_keys}.",
+        detail=detail,
         remediation="No action required.",
     )
+
+
+def _configuration_details(repository: SettingsRepository) -> str:
+    """Render selected controls from one snapshot, preserving older view-only adapters."""
+    inspect = getattr(repository, "inspect", None)
+    if not callable(inspect):
+        payload = repository.view(scope=SettingsScope.MERGED)
+        return f"Merged settings loaded successfully from: {', '.join(sorted(payload)) or 'defaults only'}."
+    entries = inspect(scope=SettingsScope.MERGED, include_groups=True)
+    policy = EvidenceRedactor()
+    # Parent mappings retain credential field context, unlike flattened keys.
+    policy.register_config({key: entry.value for key, entry in entries.items() if "." not in key})
+    selected_provider = entries["providers.default"].value
+    selected_model = f"providers.{selected_provider}.model"
+    controls = {
+        key: {"value": policy.redact(entry.value), "resolved_scope": entry.origin.scope}
+        for key, entry in entries.items()
+        if key in ("providers.default", selected_model)
+        or key.startswith(("context.", "ui.", "usage.limits.", "tools."))
+        and not isinstance(entry.value, dict)
+    }
+    return "Effective settings: " + json.dumps(policy.redact(controls), sort_keys=True)
 
 
 def _get_health_signal(system_info: SystemInfo, name: str) -> HealthSignal:

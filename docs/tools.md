@@ -99,7 +99,7 @@ observed results. Local checks do not establish a hosted CI run.
 
 #### read_file
 
-Read the contents of a file.
+Read UTF-8 text, with CRLF and CR line endings normalized to LF.
 
 ```json
 {
@@ -123,7 +123,8 @@ Read the file src/main.py
 
 #### write_file
 
-Write content to a file (creates or overwrites).
+Write the supplied content as UTF-8, preserving its newline characters on every
+platform (creates or overwrites).
 
 ```json
 {
@@ -138,7 +139,8 @@ Write content to a file (creates or overwrites).
 
 #### edit_file
 
-Make surgical edits to a file using search and replace.
+Make surgical edits to a file using search and replace. String matching and line
+coordinates use the LF-normalized text returned by `read_file`.
 
 ```json
 {
@@ -506,6 +508,12 @@ Parse coverage report and show uncovered lines.
 
 Generate pytest test stubs from Python signatures.
 
+Both styles produce Python scaffolds that can be compiled, formatted and collected.
+Generated tests carry explicit `pytest.mark.skip` TODO markers. Implement meaningful
+inputs and assertions, then remove those markers. Creating or collecting these
+stubs does not verify the source behavior; unfinished stubs never count as passing
+checks and do not call application code with invented inputs.
+
 ```json
 {
   "name": "test_gen",
@@ -612,6 +620,12 @@ The `command` argument and shell syntax are not translated into Python. Missing
 or blank code returns guidance and performs no execution; use `shell` only when
 it is allowed in the current tool scope.
 
+Invocation classification is per snippet: code that only evaluates
+side-effect-free expressions is classified `READ` (available in Plan Mode);
+anything else stays `EXECUTE`. See [Tool Kinds](#tool-kinds).
+Pure expressions run with Python's isolated and no-site flags, so working-directory
+and `PYTHONPATH` startup hooks cannot add effects to a read-only invocation.
+
 Before either execution mode, an isolated worker applies Black's in-memory
 string API with default settings to the snippet. It does not inspect the working
 directory or load project Black configuration. Formatting has a 300 ms deadline,
@@ -680,6 +694,12 @@ recovery guidance while retaining the validation failure. For multiline Python,
 use `python_exec` when it is allowed in the current agent's tool scope; otherwise
 submit supported single-line commands.
 
+Invocation classification is per command: side-effect-free single commands
+(read-only allowlist programs, read-only `git` subcommands, `find` without
+mutating flags, no chaining/redirects/substitution) are classified `READ`
+(available in Plan Mode); everything else stays `EXECUTE`. See
+[Tool Kinds](#tool-kinds).
+
 Commands use the host's native default shell: `/bin/sh` on Linux/macOS and
 `cmd.exe` on Windows. Use syntax and quoting for that shell; POSIX commands are
 not translated into Windows commands. Output capture, working-directory selection,
@@ -737,6 +757,23 @@ Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.
 
+New task output is decoded and redacted before persistence, with a 1 MiB capture
+limit and a visible truncation marker. Task metadata and private atomic index
+writes share the known-credential policy; raw command arguments and environment
+values still reach the child unchanged. Capture failures stop/reap the owned
+process and settle its waiter with an explicit failure. Output readers and
+timeout diagnostics reject linked or substituted files.
+
+Indexed legacy logs are migrated on load/read using private atomic replacement:
+up to 16 MiB of valid UTF-8 input is examined and at most 1 MiB is retained.
+Malformed, oversized, linked or changed originals remain untouched with an
+`evidence_migration_error` diagnostic; active captures are not replaced. Corrupt
+indexes are preserved for explicit repair instead of overwritten with empty
+history. Migration only covers indexed logs and registered credentials. POSIX
+uses directory descriptors; Windows checks file identities and reparse points
+without the same directory-descriptor guarantee. This evidence handling does not
+provide concurrent-writer arbitration or interrupted-operation recovery.
+
 Interactive chat accepts messages while work is underway and processes them in
 order at agent-turn boundaries. `/goal pause` is available during processing;
 it stops future goal turns, while the current turn can finish. Esc interrupts
@@ -762,6 +799,19 @@ session execution, separate from cron scheduling.
 #### web_fetch
 
 Fetch content from a URL.
+
+HTTP(S) fetches reject private, loopback and special IP targets, including numeric
+aliases. DNS answer sets and the connected peer are checked before HTTP headers
+are sent; every redirect is checked again with fresh connection/DNS resolution.
+TLS retains the original hostname and certificate verification. Redirects share
+one total timeout and stop after ten hops. Environment proxies, netrc credentials
+and cookies are disabled. Explicit initial URL authentication remains only on
+the same origin and is permanently removed after an origin change; redirects
+cannot introduce credentials.
+
+This boundary applies to this fetch implementation. It is not a firewall, model
+traffic policy or host allowlist. `web_fetch` remains unavailable when a
+[restricted tool policy](configuration.md#restricted-tool-access) is enabled.
 
 ```json
 {
@@ -1123,6 +1173,69 @@ Tools are classified by kind, which determines confirmation behavior:
 | `WRITE` | File modifications | No |
 | `EXECUTE` | Shell commands | No |
 | `NETWORK` | Network requests | No |
+
+The static `kind` stays the tool's catalog classification. Tools with read-only
+and mutating modes override `execution_kind()` per invocation; authorization
+(including Plan Mode blocking), confirmation requests, and network retries use
+that effective classification. The classifiers are conservative — anything that
+cannot be proven read-only retains the static kind:
+
+- `shell` downgrades side-effect-free single commands to `READ`: an allowlist of
+  read-only programs, read-only `git` subcommands (`status`, `log`, `diff`,
+  `show`), and `find` without mutating flags, with no chaining, redirection,
+  or substitution. `sort` remains `EXECUTE` because it can write output and
+  temporary files.
+- `python_exec` downgrades snippets that only evaluate side-effect-free
+  expressions to `READ`: no imports, assignments, subscripts, attribute
+  access, definitions, or control flow, and calls limited to a small allowlist
+  of pure builtins. Unsafe builtins cannot be loaded as values or aliased through
+  comprehension variables.
+- The `mcp` management tool downgrades its `status` and `discover` actions to
+  `READ`; `mcp_auth` downgrades its `status` action to `READ`.
+- MCP server tools always carry the conservative `NETWORK` execution
+  classification: server trust controls local confirmation, not effect, so
+  Plan Mode blocks MCP tool calls even from trusted servers.
+
+These verdicts resolve from one centralized policy layer:
+`ToolRegistry.evaluate_policy(name, params)` returns a `PolicyDecision`
+computed by a single shared evaluator (`evaluate_effective_policy`) that
+combines the effective Plan Mode boundary (including inherited scoped-registry
+ancestry), the tool's per-invocation operation effect, and the registry's
+approval grants. `authorize()` — and therefore `execute()`, batch execution,
+and the orchestrated delegation path — consumes that same verdict, so
+late-registered tools and scoped subagent registries cannot bypass the
+boundary. Auto-approval suppresses the confirmation requirement in the
+verdict but never overrides the Plan Mode denial.
+
+Configured [restricted tool access](configuration.md#restricted-tool-access)
+also applies through this evaluator and the actual file operation. Only qualified
+implementations execute when restrictions are active; a tool's name or declared
+kind cannot grant access. A `shell_secure` invocation's requested security level
+must also satisfy the configured command, option and directory restrictions.
+
+### Approval-reuse scoping
+
+When a user confirms a confirmation request, the approval is recorded as a
+session-scoped grant keyed to the exact approved scope: the registered tool
+implementation, project identity, resolved physical targets, tool name, the
+effective operation effect, a canonical digest of the parameters, and the
+risk level. Repeated invocations with the identical scope are authorized
+without re-prompting. Any change — different tool, different arguments,
+escalated operation effect, or changed risk — invalidates the match and
+re-prompts; denials record no grant, and auto-approved tools (whose
+confirmation is suppressed by policy) record none either.
+
+Grants are shared across a registry ancestry (a scoped subagent registry and
+its parent see the same session grants) but are never shared across separate
+registries or persisted to disk. Activating a different session (for example
+`/chat resume`) clears the session's grants through
+`ToolRegistry.clear_grants()`, so an approval from one session never carries
+over. Policy, registration, parameters and target identity are rechecked after
+approval, formatter waits and before retries. A changed invocation is denied and
+must be retried for fresh approval; replacing a target inode also requires a new
+grant. These checks do not confine filesystem/network access or prevent races
+inside a tool's own I/O. Custom dispatchers using `authorize()` must recheck any
+authority affected by their own later asynchronous work.
 
 ## Configuration
 

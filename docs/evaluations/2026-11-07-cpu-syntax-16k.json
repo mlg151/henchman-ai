@@ -1,0 +1,82 @@
+{
+  "budget": {
+    "executed_runs": 2,
+    "planned_runs": 2
+  },
+  "cohort": "local",
+  "cost": {
+    "amount_usd": 0.0,
+    "billing": "none",
+    "source": "local"
+  },
+  "generated_at": "2026-11-07T14:18:18.940789+00:00",
+  "kind": "baseline_repeat_runs",
+  "requested": {
+    "cases": [
+      "syntax-fix"
+    ],
+    "max_iterations": 6,
+    "model": "henchman-eval-cpu-ornith15-20261107",
+    "provider": "openai-compatible",
+    "runs_per_case": 2,
+    "timeout": 300.0
+  },
+  "runs": [
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 301035.1464159903,
+      "error": "Evaluation timed out after 300s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 97929.24263596069,
+      "error": "Tool iteration limit (6) reached",
+      "outcome": "runtime_error",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  ],
+  "summary": {
+    "cases": {
+      "syntax-fix": {
+        "outcome_counts": {
+          "runtime_error": 1,
+          "success": 0,
+          "timeout": 1,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      }
+    },
+    "failures": 2,
+    "latency_ms": {
+      "max": 301035.1464159903,
+      "min": 97929.24263596069,
+      "p50": 199482.1945259755,
+      "p95": 290879.85122698883
+    },
+    "outcome_counts": {
+      "runtime_error": 1,
+      "success": 0,
+      "timeout": 1,
+      "verification_failure": 0
+    },
+    "successes": 0,
+    "total_runs": 2,
+    "usage": {
+      "available": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  }
+}

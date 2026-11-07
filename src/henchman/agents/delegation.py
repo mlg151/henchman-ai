@@ -16,6 +16,7 @@ from henchman.agents.orchestrator_execution import _close_stream, closing_event_
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
 
 from .orchestrator_anchoring import (
     _enrich_completion_from_report,
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from henchman.agents.metrics import OrchestratorMetrics
     from henchman.agents.orchestrator_types import CompletionStatus, DelegationParams
     from henchman.agents.pool import AgentPool
+    from henchman.config.context import ContextSnapshot
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import Message
@@ -684,6 +686,17 @@ def _populate_execution_params(
         prepared_brief,
         mission=runner.ledger.goal if runner.ledger else None,
     )
+    from henchman.config.context import ContextSnapshot
+    from henchman.core.agent import Agent
+    from henchman.core.instruction_provenance import render_delegation_appendix
+
+    snapshot = getattr(runner, "instruction_snapshot", None)
+    if isinstance(snapshot, ContextSnapshot) and snapshot.sources:
+        params.full_task += f"\n\n{render_delegation_appendix(snapshot)}"
+    if isinstance(snapshot, ContextSnapshot) and isinstance(target_agent, Agent):
+        from henchman.core.instruction_context import InstructionContext
+
+        InstructionContext.attach(target_agent, snapshot, runner.pool.instruction_observer)
     params.msg_start = len(target_agent.messages)
 
 
@@ -762,6 +775,9 @@ async def _execute_loop(
     try:
         async for event in agent_loop_result:
             yield event
+    except BudgetControlError as exc:
+        primary_error = exc
+        raise
     except Exception as exc:
         primary_error = exc
         msg = (
@@ -852,6 +868,7 @@ class DelegationRunner:
         self._run_agent_loop = run_agent_loop
         self._assess_completion = assess_completion
         self.ledger: TaskLedger | None = None
+        self.instruction_snapshot: ContextSnapshot | None = None
 
     # -- Main entry point -------------------------------------------------
 
@@ -964,6 +981,9 @@ class DelegationRunner:
         try:
             async for event in stream:
                 yield event
+        except BudgetControlError as exc:
+            primary_error = exc
+            raise
         except Exception as exc:  # noqa: BLE001
             primary_error = exc
             yield self._make_error_event(

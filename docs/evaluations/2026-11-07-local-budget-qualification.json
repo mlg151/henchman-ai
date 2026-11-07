@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "issue": 24,
+  "qualification_scope": "Public run_direct budget admission and durable retention only",
+  "live_provider_request_succeeded": false,
+  "admission_and_retention_checks_passed": true,
+  "limitations": [
+    "The provider request emitted an error event after 100.199 seconds without content or final reported usage. The configured SDK timeout was 100 seconds; the harness did not retain error text or the underlying exception class, so the precise provider error is unverified.",
+    "This observation does not qualify successful live streaming-final usage, coding quality, performance, or other endpoints.",
+    "The first-process source commit is recorded, but the shared working tree contained concurrent uncommitted work; this is not a clean-checkout release qualification.",
+    "No persistent time cap was configured; the external first-turn deadline was 110 seconds. Cross-process time-origin behavior is covered separately by offline tests."
+  ],
+  "sdk_timeout_seconds": 100,
+  "discovery": {
+    "method": "GET",
+    "url": "http://127.0.0.1:8081/v1/models",
+    "discovered_model": "qwen38-27b-iq3s"
+  },
+  "checks": {
+    "exactly_one_forwarded_local_http_request": true,
+    "no_safety_gate_needed_to_block_a_followup": true,
+    "same_process_followup_denied_before_http": true,
+    "fresh_process_followup_denied_before_http": true,
+    "distinct_processes": true,
+    "stable_run_and_session_reference": true,
+    "original_attempt_retained_without_duplication": true,
+    "consumption_and_unknown_hold_retained": true,
+    "no_reported_usage_or_billing_fabricated": true,
+    "explicit_zero_price_retained": true
+  },
+  "first_process": {
+    "commit_before_start": "fe0d1c1b984092a7707f0503814894b146cdc94e",
+    "started_at_utc": "2026-11-07T17:26:53.830573+00:00",
+    "process_id": 4057541,
+    "python": "3.11.15",
+    "henchman_version": "0.4.1",
+    "openai_sdk_version": "2.21.0",
+    "endpoint": "http://127.0.0.1:8081/v1",
+    "model": "qwen38-27b-iq3s",
+    "external_first_turn_timeout_seconds": 110,
+    "usage_settings": {
+      "limits": {
+        "currency": "USD",
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0"
+      },
+      "prices": [
+        {
+          "currency": "USD",
+          "provider": "openai_compat",
+          "model": "qwen38-27b-iq3s",
+          "input_per_1k": "0",
+          "output_per_1k": "0",
+          "cache_read_per_1k": "0",
+          "cache_write_per_1k": "0",
+          "source": "explicit-local-qualification",
+          "as_of": "2026-11-07"
+        }
+      ],
+      "persistence": "durable"
+    },
+    "qualification_only": "Shared budget admission and durable retention; not model or coding quality",
+    "harness_sha256": "0f03dc1632dc921353e65ee858999eb4a7ea7a9e14682c4b82b2e5dd6d44e390",
+    "first_turn": {
+      "outcome": "error_event",
+      "reason": null,
+      "elapsed_seconds": 100.19932467199396,
+      "event_counts": {
+        "agent_started": 1,
+        "error": 1,
+        "agent_completed": 1
+      },
+      "content_characters": 0,
+      "provider_finishes": [],
+      "completion_status": "failed"
+    },
+    "after_first_turn": {
+      "run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 0,
+      "held_tokens": 53,
+      "unknown_dispatched_requests": 1,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 100.1987828000565,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": null,
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": null,
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "attempts": [
+        {
+          "request_id": "dab3f9301ca54ab0be2bbba1f1386ec2",
+          "operation_id": "997a83aadf4949af9565111a1011eac3",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "qwen38-27b-iq3s",
+          "dispatched": true,
+          "state": "cancelled",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "cached_tokens": null,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "unknown"
+          },
+          "settled_tokens": null,
+          "held_tokens": 53,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "same_process_second_turn": {
+      "outcome": "budget_control",
+      "reason": "request_limit",
+      "elapsed_seconds": 0.006488702027127147,
+      "event_counts": {
+        "agent_started": 1
+      },
+      "content_characters": 0,
+      "provider_finishes": [],
+      "completion_status": "failed"
+    },
+    "after_second_turn": {
+      "run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 0,
+      "held_tokens": 53,
+      "unknown_dispatched_requests": 1,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 100.20689834008226,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": null,
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "attempts": [
+        {
+          "request_id": "dab3f9301ca54ab0be2bbba1f1386ec2",
+          "operation_id": "997a83aadf4949af9565111a1011eac3",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "qwen38-27b-iq3s",
+          "dispatched": true,
+          "state": "cancelled",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "cached_tokens": null,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "unknown"
+          },
+          "settled_tokens": null,
+          "held_tokens": 53,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "goal_active": true,
+    "forwarded_http_requests": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8081/v1/chat/completions",
+        "model": "qwen38-27b-iq3s",
+        "max_tokens": 8,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "tool_count": 0,
+        "message_count": 2
+      }
+    ],
+    "transport_safety_gate_blocks": 0,
+    "session_reference": {
+      "store_id": "b00e07087a4b4c49891b8c085fe06763",
+      "active_run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "run_ids": [
+        "18fd9e0ea7d44ec7b1720de59f3536e3"
+      ],
+      "active_owner_key": "goal:1b82fd3a58b94b689c0dc03a761d2511"
+    }
+  },
+  "fresh_process": {
+    "process_id": 4063822,
+    "started_at_utc": "2026-11-07T17:28:51.433390+00:00",
+    "before_attempt": {
+      "run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 0,
+      "held_tokens": 53,
+      "unknown_dispatched_requests": 1,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 100.20713192905532,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": null,
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null
+    },
+    "turn": {
+      "outcome": "budget_control",
+      "reason": "request_limit",
+      "elapsed_seconds": 0.16044866701122373,
+      "event_counts": {
+        "agent_started": 1
+      },
+      "content_characters": 0,
+      "provider_finishes": [],
+      "completion_status": "failed"
+    },
+    "after_attempt": {
+      "run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 0,
+      "held_tokens": 53,
+      "unknown_dispatched_requests": 1,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 100.2072762020398,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": null,
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "attempts": [
+        {
+          "request_id": "dab3f9301ca54ab0be2bbba1f1386ec2",
+          "operation_id": "997a83aadf4949af9565111a1011eac3",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "qwen38-27b-iq3s",
+          "dispatched": true,
+          "state": "cancelled",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "cached_tokens": null,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "unknown"
+          },
+          "settled_tokens": null,
+          "held_tokens": 53,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "forwarded_http_requests": [],
+    "transport_safety_gate_blocks": 0,
+    "session_reference": {
+      "store_id": "b00e07087a4b4c49891b8c085fe06763",
+      "active_run_id": "18fd9e0ea7d44ec7b1720de59f3536e3",
+      "run_ids": [
+        "18fd9e0ea7d44ec7b1720de59f3536e3"
+      ],
+      "active_owner_key": "goal:1b82fd3a58b94b689c0dc03a761d2511"
+    }
+  }
+}

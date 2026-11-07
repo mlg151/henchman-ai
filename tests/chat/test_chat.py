@@ -447,11 +447,13 @@ class TestChatManager:
         assert "Recent Conversation" in call_args[0][1]
 
     @pytest.mark.anyio
-    async def test_handle_message_no_bot(self, mock_settings: MagicMock) -> None:
+    async def test_handle_message_no_bot(self, mock_settings: MagicMock, caplog) -> None:
         """Test handling message when no bot is registered."""
         from henchman.chat.manager import ChatManager
 
         manager = ChatManager(mock_settings)
+        agent = MagicMock()
+        manager._get_or_create_agent = AsyncMock(return_value=agent)
 
         message = ChatMessage(
             id="1",
@@ -464,6 +466,8 @@ class TestChatManager:
 
         # Should not raise, just log error
         await manager._handle_message(message)
+        agent.run.assert_not_called()
+        assert "No bot found for platform" in caplog.text
 
     @pytest.mark.anyio
     async def test_stop_all(self, mock_settings: MagicMock) -> None:

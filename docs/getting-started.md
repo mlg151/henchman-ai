@@ -1,5 +1,19 @@
 # Getting Started
 
+## Textual input and reading history
+
+In the Textual UI, Enter or Ctrl+Enter submits a draft; Shift+Enter or Ctrl+J
+inserts a newline. Multiline paste stays in the composer until submission.
+Escape requests cancellation during work and preserves an unsent draft.
+
+Scrolling into history, searching or expanding a card holds the reading
+position while new output arrives. The navigation row shows new activity.
+Use **Return to live**, Alt+End, or End with the transcript focused to resume
+following. Alt+Page Up/Down scrolls history from the composer without changing
+the draft. If the terminal intercepts an extended key, Tab to the visible button.
+See the [interaction contract](ui-interaction-contract.md) for supported states
+and the remaining native/accessibility qualification.
+
 ## Prerequisites
 
 - **Python 3.11–3.14**: These are the currently supported and CI-tested Python versions
@@ -33,21 +47,20 @@ The normal install resolves `chromadb>=1.5.9` for RAG storage and `scipy>=1.11.2
 
 ### Platform verification
 
-The CI configuration includes a Python 3.12 installed-wheel job on Linux, macOS,
-and Windows. It checks both CLI aliases, local RAG storage and native file locking,
-shell behavior, bounded Python quality scans, real REPL/Textual question input and interruption, and an offline
-five-provider read/edit/test/recover workflow outside
-the source checkout. The broader Python 3.11–3.14 test matrix runs on Linux.
+CI runs full Linux tests and installed-wheel checks on Linux, macOS and Windows
+for Python 3.11–3.14. Candidate `4940cc9` passed
+[all 20 required jobs](https://github.com/mlg151/henchman-ai/actions/runs/41808758654).
+The wheel checks run outside the checkout and cover both CLI aliases, local RAG,
+native file/shell behavior, bounded Python verification, question input and
+cancellation, and small scripted coding workflows through five provider adapters.
 
-The Linux Python 3.12 wheel workflow has also passed locally in a fresh environment,
-including both CLI aliases, question channels, and all five scripted-provider coding loops. This
-verifies installed runtime behavior, not live model task quality.
-
-Native Windows/macOS results must pass before treating those platforms as verified.
-The current local development checks do not establish that result. See
-[`FEATURE_TODO.md`](../FEATURE_TODO.md#coding-agent-reliability-and-portability)
-for outstanding verification and [shell behavior](tools.md#shell) for host syntax
-and interactive-terminal limits.
+This is automated installed-runtime evidence. Later feature changes, live coding
+quality, native interactive usability and exact publication artifacts still need
+their checks under #13, #30 and #36. See the
+[roadmap](../FEATURE_TODO.md#coding-agent-reliability-and-portability) and
+[shell behavior](tools.md#shell) for outstanding work and terminal limits.
+For v0.4.2 strict-field migration and transient Python API notes, see
+[configuration](configuration.md).
 
 ## API Key Setup
 
@@ -105,6 +118,10 @@ Ollama allows you to run models locally without an API key:
 Henchman-AI also supports OpenRouter, Together AI, Groq, Fireworks AI, and other OpenAI-compatible services. See [Providers](providers.md) for complete setup instructions for these services.
 
 ## First Run
+
+### Project instruction files
+
+Henchman loads project instructions before the first message. `HENCHMAN.md` stays the primary file; portable `AGENTS.md` (per the cross-tool convention) is also discovered by default, along with `.henchman/HENCHMAN.md`, `.github/copilot-instructions.md` and `.gemini/GEMINI.md`. In a Git repository, files load from the repository root down to the current directory; deeper directories take precedence by position, and sibling directories never leak into each other. Outside Git, only the current directory is read. Attached sessions record which instruction files were in force (paths, scopes, order and digests — never the text), so resumed sessions and audits can see the same provenance. See [configuration](configuration.md#context-files-henchmanmd-and-agentsmd) for the full precedence rules and boundaries.
 
 ### Interactive Mode
 

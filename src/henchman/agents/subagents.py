@@ -13,6 +13,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
 
 SubagentStatus = Literal["running", "idle", "waiting_for_input", "errored", "done"]
 _ACTOR: ContextVar[str | None] = ContextVar("henchman_subagent_actor", default=None)
@@ -121,6 +122,70 @@ class BackgroundSubagentManager:
         self._notifications: dict[str, asyncio.Queue[SubagentNotification]] = {}
         self._cancelling: set[str] = set()
         self._closed = False
+        self._accounting_error: BudgetControlError | None = None
+        self._accounting_observers: dict[asyncio.Task[Any], int] = {}
+        self._accounting_interrupts: set[asyncio.Task[Any]] = set()
+
+    def check_accounting(self) -> None:
+        """Propagate the original control failure until an explicit new run."""
+        if self._accounting_error is not None:
+            raise self._accounting_error
+
+    @contextmanager
+    def accounting_guard(self) -> Iterator[None]:
+        """Interrupt primary work awaiting a child failure, never event consumers.
+
+        The guard encloses only an awaited producer step or mailbox wait. A
+        consumer suspended between events keeps ownership of its own task.
+        Child workers are cancelled directly and retain normal cancellation
+        records; the primary receives the exact original control exception.
+        """
+        self.check_accounting()
+        task = asyncio.current_task() if self.actor_id == self.parent_id else None
+        if task is not None:
+            self._accounting_observers[task] = self._accounting_observers.get(task, 0) + 1
+        try:
+            yield
+            self.check_accounting()
+        except asyncio.CancelledError:
+            if task in self._accounting_interrupts:
+                self.check_accounting()
+            raise
+        finally:
+            if task is not None:
+                remaining = self._accounting_observers[task] - 1
+                if remaining:
+                    self._accounting_observers[task] = remaining
+                else:
+                    del self._accounting_observers[task]
+                    if task in self._accounting_interrupts:
+                        self._accounting_interrupts.remove(task)
+                        task.uncancel()
+
+    def _fail_accounting(self, error: BudgetControlError) -> None:
+        """Latch the first failure and stop outstanding work without replacing it."""
+        if self._accounting_error is None:
+            self._accounting_error = error
+        current = asyncio.current_task()
+        for conversation in self._conversations.values():
+            task = conversation.task
+            if task is not None and task is not current and not task.done():
+                task.cancel()
+        for task in self._accounting_observers:
+            if task is not current and task not in self._accounting_interrupts:
+                self._accounting_interrupts.add(task)
+                task.cancel()
+
+    async def prepare_for_run(self) -> None:
+        """Reset a failed run only after joining its workers at a public boundary."""
+        if self.actor_id != self.parent_id:
+            raise PermissionError("Only the primary may reset run accounting")
+        if self._accounting_observers:
+            raise RuntimeError("Cannot reset accounting while a run is active")
+        if self._accounting_error is not None:
+            await self.cancel_all()
+            self.clear_notifications()
+            self._accounting_error = None
 
     @property
     def actor_id(self) -> str:
@@ -180,6 +245,7 @@ class BackgroundSubagentManager:
         """Start a distinct conversation immediately within the caller's scope."""
         if self._closed:
             raise RuntimeError("Subagent manager is closed")
+        self.check_accounting()
         if self._is_cancelling(self.actor_id):
             raise RuntimeError("This subagent tree is being cancelled")
         if not all(
@@ -234,6 +300,7 @@ class BackgroundSubagentManager:
         """Queue a follow-up, or notify the sender's parent without impersonation."""
         if self._closed:
             raise RuntimeError("Subagent manager is closed")
+        self.check_accounting()
         if self._is_cancelling(conversation_id) or self._is_cancelling(self.actor_id):
             raise RuntimeError("This subagent tree is being cancelled")
         if not isinstance(message, str) or not message.strip():
@@ -331,12 +398,14 @@ class BackgroundSubagentManager:
 
     async def wait_for_notification(self, parent_id: str | None = None) -> SubagentNotification:
         """Await the next parent update without a polling loop."""
-        return await self._queue(parent_id).get()
+        with self.accounting_guard():
+            return await self._queue(parent_id).get()
 
     def drain_notifications(
         self, parent_id: str | None = None
     ) -> builtins.list[SubagentNotification]:
         """Consume currently queued updates synchronously at a safe turn boundary."""
+        self.check_accounting()
         queue = self._queue(parent_id)
         notifications: builtins.list[SubagentNotification] = []
         while not queue.empty():
@@ -396,6 +465,13 @@ class BackgroundSubagentManager:
             except asyncio.CancelledError:
                 conversation.record = replace(conversation.record, status="done", cancelled=True)
                 raise
+            except BudgetControlError as exc:
+                self._discard_pending(conversation)
+                conversation.record = replace(
+                    conversation.record, status="errored",
+                    error=f"{type(exc).__name__}: {exc}"[: self._max_output_chars],
+                )
+                self._fail_accounting(exc)
             except Exception as exc:
                 self._discard_pending(conversation)
                 conversation.record = replace(

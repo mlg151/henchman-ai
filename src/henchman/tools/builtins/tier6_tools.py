@@ -575,6 +575,18 @@ class McpAuthTool(_Tier6McpToolBase):
 
         return ToolKind.WRITE
 
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; status inspection stays READ.
+
+        The static WRITE kind remains the catalog classification. The
+        read-only ``status`` action is downgraded to READ so Plan Mode keeps
+        it available; ``set`` and ``clear`` retain WRITE.
+        """
+        action = str(params.get("action", "")).strip()
+        if action == "status":
+            return ToolKind.READ
+        return self.kind
+
     async def execute(self, **params: object) -> ToolResult:
         """Persist or inspect MCP auth tokens."""
 
@@ -651,6 +663,19 @@ class MCPTool(_Tier6McpToolBase):
         """MCP management can perform network/process operations."""
 
         return ToolKind.NETWORK
+
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; introspection actions stay READ.
+
+        The static NETWORK kind remains the catalog classification. The
+        read-only ``status`` and ``discover`` actions (both in-memory reads
+        of already-connected clients) are downgraded to READ so Plan Mode
+        keeps them available; ``connect`` and ``disconnect`` retain NETWORK.
+        """
+        action = str(params.get("action", "")).strip()
+        if action in ("status", "discover"):
+            return ToolKind.READ
+        return self.kind
 
     async def execute(self, **params: object) -> ToolResult:
         """Execute an MCP management action."""

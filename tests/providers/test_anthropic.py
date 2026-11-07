@@ -207,7 +207,7 @@ class TestAnthropicStreaming:
         mock_text_event.delta.type = "text_delta"
         mock_text_event.delta.text = "Hello"
 
-        mock_finish_event = MagicMock()
+        mock_finish_event = MagicMock(usage=None)
         mock_finish_event.type = "message_delta"
         mock_finish_event.delta.stop_reason = "end_turn"
 
@@ -254,7 +254,7 @@ class TestAnthropicStreaming:
         mock_block_stop = MagicMock()
         mock_block_stop.type = "content_block_stop"
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "tool_use"
 
@@ -300,7 +300,7 @@ class TestAnthropicStreaming:
         mock_thinking_event.delta.type = "thinking_delta"
         mock_thinking_event.delta.thinking = "Let me think..."
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "end_turn"
 
@@ -346,7 +346,7 @@ class TestAnthropicStreaming:
         mock_block_stop = MagicMock()
         mock_block_stop.type = "content_block_stop"
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "tool_use"
 
@@ -382,7 +382,7 @@ class TestAnthropicStreaming:
         mock_text_event.delta.type = "text_delta"
         mock_text_event.delta.text = "I am helpful"
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "end_turn"
 
@@ -426,7 +426,7 @@ class TestAnthropicStreaming:
         mock_text.delta.type = "text_delta"
         mock_text.delta.text = "Hello"
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "end_turn"
 
@@ -465,7 +465,7 @@ class TestAnthropicStreaming:
         mock_input.delta.type = "input_json_delta"
         mock_input.delta.partial_json = '{"ignored": true}'
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "end_turn"
 
@@ -502,7 +502,7 @@ class TestAnthropicStreaming:
         mock_unknown = MagicMock()
         mock_unknown.type = "unknown_event"
 
-        mock_finish = MagicMock()
+        mock_finish = MagicMock(usage=None)
         mock_finish.type = "message_delta"
         mock_finish.delta.stop_reason = "end_turn"
 

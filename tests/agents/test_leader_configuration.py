@@ -70,7 +70,7 @@ def test_actual_leader_uses_saved_explicit_provider_settings(
         assert leader.provider.base_url == "https://saved.test/v1"
         assert leader.provider.request_defaults["temperature"] == 0.25
         assert leader.provider.api_key == (
-            "ollama" if name == "ollama" else "saved-test-key"
+            "" if name == "ollama" else "saved-test-key"
         )
     assert leader is orch.pool.get_agent("tech_lead")
 

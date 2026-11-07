@@ -14,6 +14,7 @@ from henchman.providers.ollama import OllamaProvider
 from henchman.providers.openai_compat import OpenAICompatibleProvider
 from henchman.providers.openrouter import OpenRouterProvider
 from henchman.providers.registry import ProviderRegistry, get_default_registry
+from henchman.providers.usage import TokenPricing, UsageReport
 
 __all__ = [
     "AnthropicProvider",
@@ -27,7 +28,9 @@ __all__ = [
     "OpenRouterProvider",
     "ProviderRegistry",
     "StreamChunk",
+    "TokenPricing",
     "ToolCall",
     "ToolDeclaration",
+    "UsageReport",
     "get_default_registry",
 ]

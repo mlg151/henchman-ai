@@ -1063,6 +1063,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "fastembed" },
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "mcp" },
     { name = "networkx" },
     { name = "openai" },
@@ -1070,6 +1071,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-multipart" },
     { name = "pyyaml" },
+    { name = "referencing" },
     { name = "rich" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1115,7 +1117,8 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.104" },
     { name = "fastembed", specifier = ">=0.3" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "mcp", specifier = ">=1.0" },
+    { name = "jsonschema", specifier = ">=4.23,<5" },
+    { name = "mcp", specifier = ">=1.26,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "networkx", specifier = ">=3.0" },
     { name = "openai", specifier = ">=1.40" },
@@ -1128,6 +1131,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "radon", marker = "extra == 'dev'", specifier = ">=6" },
+    { name = "referencing", specifier = ">=0.35,<1" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "scipy", specifier = ">=1.11.2" },
@@ -1138,6 +1142,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24" },
     { name = "websockets", specifier = ">=12.0" },
 ]
+provides-extras = ["discord", "chat", "dev"]
 
 [[package]]
 name = "hf-xet"

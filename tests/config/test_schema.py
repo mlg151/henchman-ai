@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from henchman.config.schema import (
     McpServerConfig,
@@ -86,6 +87,20 @@ class TestUISettings:
         settings = UISettings(theme="light", show_line_numbers=False)
         assert settings.theme == "light"
         assert settings.show_line_numbers is False
+
+    @pytest.mark.parametrize("style", ["verbose", "concise", "minimal", "json"])
+    def test_output_style_accepts_supported_values(self, style: str) -> None:
+        """Existing output styles remain valid."""
+        assert UISettings(output_style=style).output_style == style
+
+    @pytest.mark.parametrize("style", ["", "chatty", "VERBOSE"])
+    def test_output_style_rejects_unsupported_values(self, style: str) -> None:
+        """Invalid styles fail at the actual schema field."""
+        with pytest.raises(ValidationError) as exc_info:
+            UISettings(output_style=style)
+        error = exc_info.value.errors()[0]
+        assert error["loc"] == ("output_style",)
+        assert "Unsupported output style" in error["msg"]
 
 
 class TestMcpServerConfig:

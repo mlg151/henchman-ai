@@ -1,29 +1,22 @@
 """Tests for error cases in session.py."""
 
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from henchman.core.session import SessionManager
 
 
-def test_load_ambiguous_session_id() -> None:
+def test_load_ambiguous_session_id(tmp_path: Path) -> None:
     """Test that load() raises ValueError for ambiguous session ID prefix."""
-    manager = SessionManager()
-
-    # Mock data_dir to return multiple matching files
-    mock_file1 = MagicMock()
-    mock_file1.name = "session-abc123.json"
-
-    mock_file2 = MagicMock()
-    mock_file2.name = "session-abc456.json"
-
-    # Patch the glob method on Path
-    with patch("pathlib.Path.glob") as mock_glob:
-        mock_glob.return_value = [mock_file1, mock_file2]
-
-        with pytest.raises(ValueError, match="Ambiguous session ID prefix: session-abc"):
-            manager.load("session-abc")
+    manager = SessionManager(tmp_path)
+    for session_id in ("session-abc123", "session-abc456"):
+        session = manager.create_session("project")
+        session.id = session_id
+        manager.save(session)
+    with pytest.raises(ValueError, match="Ambiguous session ID prefix: session-abc"):
+        manager.load("session-abc")
 
 
 def test_load_session_not_found() -> None:

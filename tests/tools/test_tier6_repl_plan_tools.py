@@ -7,6 +7,11 @@ from pathlib import Path
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def test_builtin_surface_includes_tier6_repl_and_plan_tools() -> None:
@@ -37,6 +42,7 @@ async def test_repl_tool_persists_session_state_and_history(tmp_path: Path) -> N
     from henchman.advanced import ExperimentReplService
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 
@@ -88,6 +94,7 @@ async def test_verify_plan_execution_tool_enforces_ordered_step_completion(
     from henchman.advanced import PlanExecutionService
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

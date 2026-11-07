@@ -91,10 +91,10 @@ def test_set_command_parses_typed_values_for_explicit_scope(
     )
 
 
-def test_set_command_redacts_secret_like_values_in_text_output_but_not_json(
+def test_set_command_redacts_secret_like_values_in_text_and_json_output(
     tmp_path: Path,
 ) -> None:
-    """Secret-like values should stay machine-usable only in JSON output."""
+    """Both output formats redact credentials while the actual setting stays raw."""
     project_root = tmp_path / "workspace"
     project_root.mkdir()
 
@@ -130,7 +130,7 @@ def test_set_command_redacts_secret_like_values_in_text_output_but_not_json(
         "key": "chat.discord.token",
         "operation": "set",
         "scope": "project",
-        "value": "super-secret-token",
+        "value": "<redacted>",
     }
     assert _read_settings(project_root / ".henchman") == {
         "chat": {"discord": {"token": "super-secret-token"}}
@@ -361,3 +361,237 @@ def test_import_command_validates_payload_before_mutating_settings(
     assert "Configuration value failed schema validation." in result.output
     assert "Unsupported theme 'midnight'" in result.output
     assert (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8") == before
+
+
+
+def test_import_rejects_provider_credentials_before_writing(
+    tmp_path: Path,
+) -> None:
+    """Sync files cannot carry provider credentials into persisted settings."""
+    project_root = tmp_path / "workspace"
+    import_path = tmp_path / "settings-import.yaml"
+    project_root.mkdir()
+    _write_settings(project_root / ".henchman", {"ui": {"theme": "light"}})
+    before = (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8")
+    import_path.write_text(
+        yaml.safe_dump({"providers": {"openai": {"api_key": "sk-should-not-persist"}}}),
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        _build_config_group(project_root),
+        ["import", str(import_path), "--scope", "project"],
+    )
+
+    assert result.exit_code != 0
+    assert "Unsupported sync payload keys: providers" in result.output
+    assert "sk-should-not-persist" not in (project_root / ".henchman" / "settings.yaml").read_text(
+        encoding="utf-8",
+    )
+    assert (project_root / ".henchman" / "settings.yaml").read_text(encoding="utf-8") == before
+
+
+def test_export_never_emits_provider_credentials(
+    tmp_path: Path,
+) -> None:
+    """Export is limited to the UI sync payload; provider secrets stay local."""
+    project_root = tmp_path / "workspace"
+    export_path = tmp_path / "settings-export.yaml"
+    project_root.mkdir()
+    _write_settings(
+        project_root / ".henchman",
+        {
+            "ui": {"output_style": "concise", "theme": "light"},
+            "providers": {"openai": {"api_key": "sk-should-not-export"}},
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        _build_config_group(project_root),
+        ["export", str(export_path), "--scope", "project"],
+    )
+
+    assert result.exit_code == 0
+    exported = export_path.read_text(encoding="utf-8")
+    assert "sk-should-not-export" not in exported
+    assert "api_key" not in exported
+    assert "output_style" in exported
+
+
+@pytest.fixture
+def isolated_config_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "isolated-home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    for name in ("HENCHMAN_PROVIDER", "HENCHMAN_MODEL", "HENCHMAN_SETTINGS_PATH"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+@pytest.mark.parametrize("output_format", ["text", "json"])
+def test_group_set_projects_nested_credentials_without_changing_storage(tmp_path: Path, output_format: str) -> None:
+    canary = "config-group-private-canary"
+    value = {"model": "local-model", "api_key": canary, "echo": canary,
+             "headers": {"Authorization": "Bearer header-private-canary", "Accept": "application/json"}}
+    result = CliRunner().invoke(_build_config_group(tmp_path), [
+        "set", "providers.deepseek", json.dumps(value), "--scope", "project", "--format", output_format,
+    ])
+    assert result.exit_code == 0, result.output
+    assert canary not in result.output
+    assert "header-private-canary" not in result.output
+    output = json.loads(result.output) if output_format == "json" else yaml.safe_load(result.output)
+    assert output["value"]["model"] == "local-model"
+    assert output["value"]["headers"]["Accept"] == "application/json"
+    assert _read_settings(tmp_path / ".henchman")["providers"]["deepseek"] == value
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+@pytest.mark.parametrize("operation", ["set", "import", "export"])
+@pytest.mark.parametrize("output_format", ["text", "json"])
+def test_mutation_responses_and_export_files_redact_known_echoes(
+    tmp_path: Path, operation: str, output_format: str,
+) -> None:
+    canary = "config-ui-private-canary"
+    keybindings = {"c-x": canary, canary: "ordinary-action", "c-z": "Authorization: Bearer header-canary"}
+    _write_settings(tmp_path / ".henchman", {
+        "providers": {"deepseek": {"api_key": canary}}, "ui": {"keybindings": keybindings},
+    })
+    transfer = tmp_path / "sync.json"
+    if operation == "set":
+        arguments = ["set", "ui.keybindings", json.dumps(keybindings)]
+    else:
+        if operation == "import":
+            transfer.write_text(json.dumps({"ui": {"keybindings": keybindings}}), encoding="utf-8")
+        arguments = [operation, str(transfer)]
+    result = CliRunner().invoke(_build_config_group(tmp_path), [
+        *arguments, "--scope", "project", "--format", output_format,
+    ])
+    assert result.exit_code == 0, result.output
+    assert canary not in result.output
+    assert "header-canary" not in result.output
+    output = json.loads(result.output) if output_format == "json" else yaml.safe_load(result.output)
+    assert output["operation"] == operation
+    assert output["scope"] == "project"
+    if operation == "export":
+        assert canary not in transfer.read_text(encoding="utf-8")
+        assert "header-canary" not in transfer.read_text(encoding="utf-8")
+    assert _read_settings(tmp_path / ".henchman")["ui"]["keybindings"] == keybindings
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+@pytest.mark.parametrize("operation", ["set", "import", "export", "unset"])
+def test_mutation_failure_messages_redact_known_credentials(tmp_path: Path, operation: str) -> None:
+    canary = "config-failure-private-canary"
+    _write_settings(tmp_path / ".henchman", {"providers": {"deepseek": {"api_key": canary}}})
+    if operation == "set":
+        arguments = ["set", "ui.theme", canary]
+    elif operation == "import":
+        source = tmp_path / "sync.yaml"
+        source.write_text(yaml.safe_dump({"ui": {"theme": canary}}), encoding="utf-8")
+        arguments = ["import", str(source)]
+    elif operation == "export":
+        arguments = ["export", str(tmp_path / f"{canary}.invalid")]
+    else:
+        arguments = ["unset", f"ui.{canary}"]
+    result = CliRunner().invoke(_build_config_group(tmp_path), [*arguments, "--scope", "project"])
+    assert result.exit_code != 0
+    assert canary not in result.output
+    assert "HMN_" in result.output
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+@pytest.mark.parametrize("operation", ["set", "import"])
+def test_validation_failure_masks_unknown_header_before_error_prefixing(tmp_path: Path, operation: str) -> None:
+    value = "Authorization: Bearer unknown-validation-header-canary"
+    if operation == "set":
+        arguments = ["set", "ui.theme", json.dumps(value)]
+    else:
+        source = tmp_path / "sync.yaml"
+        source.write_text(yaml.safe_dump({"ui": {"theme": value}}), encoding="utf-8")
+        arguments = ["import", str(source)]
+    result = CliRunner().invoke(_build_config_group(tmp_path), [*arguments, "--scope", "project"])
+    assert result.exit_code != 0
+    assert "unknown-validation-header-canary" not in result.output
+    assert "HMN_CFG_INVALID_VALUE" in result.output
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+@pytest.mark.parametrize("operation", ["set", "import"])
+def test_malformed_yaml_does_not_echo_unparsed_secret_source(tmp_path: Path, operation: str) -> None:
+    malformed = "api_key: [unparsed-secret-canary"
+    if operation == "set":
+        arguments = ["set", "providers.deepseek", malformed]
+    else:
+        source = tmp_path / "invalid.yaml"
+        source.write_text(malformed, encoding="utf-8")
+        arguments = ["import", str(source)]
+    result = CliRunner().invoke(_build_config_group(tmp_path), [*arguments, "--scope", "project"])
+    assert result.exit_code != 0
+    assert "unparsed-secret-canary" not in result.output
+    assert "HMN_" in result.output
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+def test_unreadable_configuration_fails_before_mutation_without_source_traceback(tmp_path: Path) -> None:
+    directory = tmp_path / ".henchman"
+    directory.mkdir()
+    source = directory / "settings.yaml"
+    raw = "providers: {deepseek: {api_key: [unparsed-config-secret-canary"
+    source.write_text(raw, encoding="utf-8")
+    result = CliRunner().invoke(_build_config_group(tmp_path), [
+        "set", "ui.theme", "light", "--scope", "project",
+    ])
+    assert result.exit_code != 0
+    assert "HMN_CFG_INVALID_VALUE" in result.output
+    assert "unparsed-config-secret-canary" not in result.output
+    assert isinstance(result.exception, SystemExit)
+    assert source.read_text(encoding="utf-8") == raw
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+def test_export_io_failure_is_actionable_and_redacted(tmp_path: Path, monkeypatch) -> None:
+    from henchman.cli.commands import config_write_command
+
+    canary = "export-io-private-canary"
+    _write_settings(tmp_path / ".henchman", {"providers": {"deepseek": {"api_key": canary}},
+                                           "ui": {"theme": "light"}})
+
+    def fail(*_args, **_kwargs):
+        raise PermissionError(f"Cannot write export: {canary}")
+
+    monkeypatch.setattr(config_write_command, "_write_serialized_payload", fail)
+    result = CliRunner().invoke(_build_config_group(tmp_path), [
+        "export", str(tmp_path / "sync.json"), "--scope", "project",
+    ])
+    assert result.exit_code != 0
+    assert "HMN_SYNC_FILE_INVALID" in result.output
+    assert canary not in result.output
+    assert isinstance(result.exception, SystemExit)
+
+
+@pytest.mark.usefixtures("isolated_config_environment")
+def test_export_effective_settings_failure_is_actionable_and_redacted(tmp_path: Path, monkeypatch) -> None:
+    from henchman.config.repository import SettingsRepository
+    from henchman.config.schema import Settings
+
+    canary = "export-invalid-effective-private-canary"
+    _write_settings(tmp_path / ".henchman", {"providers": {"deepseek": {"api_key": canary}},
+                                           "ui": {"theme": "light"}})
+
+    def invalid_effective_settings(*_args, **_kwargs):
+        # A snapshot/reload failure occurs during export, after the command has
+        # collected configured credentials but before it can serialize a file.
+        Settings.model_validate({"ui": {"theme": canary}})
+
+    monkeypatch.setattr(SettingsRepository, "export_settings", invalid_effective_settings)
+    target = tmp_path / "sync.json"
+    result = CliRunner().invoke(_build_config_group(tmp_path), [
+        "export", str(target), "--scope", "project",
+    ])
+    assert result.exit_code != 0
+    assert "HMN_SYNC_FILE_INVALID" in result.output
+    assert canary not in result.output
+    assert isinstance(result.exception, SystemExit)
+    assert not target.exists()

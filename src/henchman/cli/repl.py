@@ -9,10 +9,11 @@ import asyncio
 import contextlib
 import logging
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from prompt_toolkit.application import create_app_session
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -21,14 +22,18 @@ from rich.text import Text
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.command_processor import CommandProcessor
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.input_handler import InputHandler
 from henchman.cli.output_handler import OutputHandler, resolve_active_agent
 from henchman.cli.plugins import PluginManager
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.stream_event_handlers import build_confirmation_message
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
 from henchman.core.goals import GoalService, save_goal_session
@@ -40,7 +45,6 @@ if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
 
     from henchman.cli.input import KeyMonitor
-    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.events import AgentEvent
     from henchman.core.session import Session
@@ -88,6 +92,8 @@ class ReplConfig:
         auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
         agent_role: Target a specific agent role for all inputs.
         interactive: Whether tools may collect answers from the terminal.
+        instruction_snapshot: Captured instruction provenance for sessions
+            and delegation handoffs; internal wiring, never serialized.
     """
 
     prompt: str = "❯ "
@@ -99,6 +105,7 @@ class ReplConfig:
     auto_approve_tools: bool = False
     agent_role: str | None = None
     interactive: bool = True
+    instruction_snapshot: Any | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -204,10 +211,12 @@ def _collect_event_content(
     event: AgentEvent,
     content_collector: list[str] | None,
     render_error: Callable[[str], None],
+    *,
+    redact_error: Callable[[Any], Any] | None = None,
 ) -> None:
     """Route an agent event to error display or content collection."""
     if event.type == EventType.ERROR:
-        render_error(str(event.data))
+        render_error(str(redact_error(event.data) if redact_error is not None else event.data))
     elif event.type == EventType.CONTENT and content_collector is not None and event.data:
         content_collector.append(event.data)
 
@@ -232,6 +241,7 @@ class Repl:
         settings: Settings | None = None,
         environment_context: str | None = None,
         renderer: UIRenderer | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -246,7 +256,11 @@ class Repl:
         self.provider = provider
         self.console = console or Console()
         self.config = config or ReplConfig()
-        self.settings = settings
+        self.settings_state = settings_state or RuntimeSettingsState.from_settings(settings or Settings())
+        if settings_state is None:
+            capture_startup_provider_settings(self.settings_state, provider, injected=True)
+        self.settings = self.settings_state.settings
+        settings = self.settings
         self.event_bus = EventBus()
         self.running = False
         self.rag_system: object | None = None
@@ -262,7 +276,12 @@ class Repl:
 
         self.renderer = self._init_renderer(renderer)
         self._init_mcp_manager()
-        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
+        self.session_manager = ReplSessionManager(
+            auto_save=self.config.auto_save,
+            instruction_snapshot=self.config.instruction_snapshot,
+            settings=settings,
+            provider=provider,
+        )
         self._init_tool_manager()
         self._init_plugin_manager()
         self.orchestrator = self._init_orchestrator(environment_context)
@@ -297,6 +316,7 @@ class Repl:
         )
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
+        self.session_manager.bind_tool_registry(self.tool_registry)
 
     @contextlib.asynccontextmanager
     async def _exclusive_terminal(self) -> AsyncIterator[None]:
@@ -355,7 +375,7 @@ class Repl:
 
     def _init_orchestrator(self: Self, environment_context: str | None) -> Orchestrator:
         """Create the orchestrator with provider, tools, and event bus."""
-        return Orchestrator(
+        orchestrator = Orchestrator(
             default_provider=self.provider,
             tool_registry=self.tool_registry,
             event_bus=self.event_bus,
@@ -363,6 +383,17 @@ class Repl:
             system_prompt=self.config.system_prompt,
             environment_context=environment_context,
         )
+        orchestrator.instruction_snapshot = self.config.instruction_snapshot
+        runner = getattr(orchestrator, "delegation_runner", None)
+        if runner is not None:
+            runner.instruction_snapshot = orchestrator.instruction_snapshot
+        from henchman.agents.instruction_runtime import bind_instruction_runtime
+
+        bind_instruction_runtime(orchestrator, self.session_manager, self.config.instruction_snapshot)
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(orchestrator, self.session_manager)
+        return orchestrator
 
     def _init_handlers(self: Self) -> None:
         """Create output handler and command processor wired to shared subsystems."""
@@ -406,6 +437,7 @@ class Repl:
             history_file=history_file,
             keybindings=keybindings,
             tool_registry=self.tool_registry,
+            evidence_redactor=runtime_evidence_redactor(self),
         )
         self.input_handler.initialize_prompt_session(
             bottom_toolbar=lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)),
@@ -486,7 +518,7 @@ class Repl:
                     )
             except Exception as e:
                 # Always show errors, regardless of logging setting
-                self.renderer.error(f"Failed to connect to MCP servers: {e}")
+                self.renderer.error(f"Failed to connect to MCP servers: {runtime_exception_text(self, e)}")
 
     async def run(self: Self) -> None:
         """Run the main REPL loop.
@@ -499,7 +531,13 @@ class Repl:
         self.running = True
         self._interactive_loop_active = True
         # Render asynchronous output above the editable prompt, retaining Rich ANSI styling.
-        with patch_stdout(raw=True):
+        prompt_session = self.input_handler.prompt_session
+        with (
+            create_app_session(
+                output=prompt_session.output if prompt_session is not None else None
+            ),
+            patch_stdout(raw=True),
+        ):
             try:
                 self.output_handler.print_welcome()
                 await self.initialize_mcp()
@@ -650,8 +688,8 @@ class Repl:
         if not task.cancelled():
             error = task.exception()
             if error is not None:
-                logger.error("Interactive turn failed", exc_info=error)
-                self.renderer.error(f"Error: {error}")
+                logger.error("Interactive turn failed: %s", runtime_exception_text(self, error, include_traceback=True))
+                self.renderer.error(f"Error: {runtime_exception_text(self, error)}")
                 self._pause_goal()
         if self._pending_inputs:
             self._ensure_turn_worker()
@@ -831,8 +869,8 @@ class Repl:
         except Exception as e:
             stop_thinking()
             self._pause_goal()
-            logger.exception("Agent execution failed: %s", e)
-            self.renderer.error(f"Error: {e}")
+            logger.error("Agent execution failed: %s", runtime_exception_text(self, e, include_traceback=True))
+            self.renderer.error(f"Error: {runtime_exception_text(self, e)}")
         finally:
             stop_thinking()
             if monitor is not None and monitor_task is not None:
@@ -849,7 +887,11 @@ class Repl:
         DEPRECATED: Use ToolExecutor.process_agent_stream instead.
         This method is kept for backwards compatibility with tests.
         """
-        _collect_event_content(event, content_collector, self.renderer.error)
+        policy = runtime_evidence_redactor(self)
+        _collect_event_content(
+            event, content_collector, self.renderer.error,
+            redact_error=lambda value: policy.text(str(policy.redact(value))),
+        )
 
     async def _handle_tool_call(self: Self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.

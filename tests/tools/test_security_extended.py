@@ -799,14 +799,13 @@ class TestAtomicWriteFinally:
         target = tmp_path / "output.txt"
 
         with (
-            patch("pathlib.Path.replace", side_effect=OSError("replace failed")),
+            patch("os.replace", side_effect=OSError("replace failed")),
             pytest.raises(OSError, match="replace failed"),
         ):
             _atomic_write(target, "data")
 
         # Temp file should be gone even though replace failed
-        temp = target.with_suffix(".txt.tmp")
-        assert not temp.exists()
+        assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.parametrize("command", [

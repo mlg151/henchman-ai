@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
 from henchman.config import load_settings
-from henchman.config.settings import save_settings
+from henchman.config.repository import SettingsRepository, SettingsScope
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -367,17 +367,8 @@ class StrategyManager:
         Args:
             ctx: Command context.
         """
-        context_settings = self._load_context_settings()
+        context_settings = _context_settings_for_display(ctx)
         self._console_helper.print_strategy_status(ctx.console, context_settings)
-
-    def _load_context_settings(self: StrategyManager) -> ContextSettings:
-        """Load context settings from configuration.
-
-        Returns:
-            Context settings object.
-        """
-        settings = load_settings()
-        return settings.context
 
 
 # ── Module-level context helpers (not class methods → no Feature Envy) ──────────
@@ -422,13 +413,12 @@ async def _update_context_setting(
     update: ContextSettingUpdate,
 ) -> None:
     """Update a context setting and save it."""
-    settings = load_settings()
-    setattr(settings.context, update.param_name, update.value)
-    save_settings(settings)
+    SettingsRepository().set(f"context.{update.param_name}", update.value, scope=SettingsScope.GLOBAL)
     ctx.console.print(
         f"[green]✓ {update.param_name.replace('_', ' ').capitalize()} "
         f"set to {update.display_value}[/]",
     )
+    ctx.console.print("[dim]Saved globally for new sessions; live runtime settings are unchanged.[/]")
 
 
 async def _handle_adaptive_parameter(ctx: CommandContext, value: str) -> None:
@@ -459,24 +449,14 @@ async def _handle_adaptive_parameter(ctx: CommandContext, value: str) -> None:
 
 async def _enable_intelligent_context(ctx: CommandContext) -> None:
     """Enable intelligent context management."""
-    settings = load_settings()
-    if settings.context.intelligent_context:
-        ctx.console.print("[yellow]Intelligent context is already enabled.[/]")
-        return
-    settings.context.intelligent_context = True
-    save_settings(settings)
+    SettingsRepository().set("context.intelligent_context", True, scope=SettingsScope.GLOBAL)
     ctx.console.print("[green]✓ Intelligent context management enabled.[/]")
     ctx.console.print("[dim]Note: This setting will take effect in new sessions.[/]")
 
 
 async def _disable_intelligent_context(ctx: CommandContext) -> None:
     """Disable intelligent context management."""
-    settings = load_settings()
-    if not settings.context.intelligent_context:
-        ctx.console.print("[yellow]Intelligent context is already disabled.[/]")
-        return
-    settings.context.intelligent_context = False
-    save_settings(settings)
+    SettingsRepository().set("context.intelligent_context", False, scope=SettingsScope.GLOBAL)
     ctx.console.print("[green]✓ Intelligent context management disabled.[/]")
     ctx.console.print("[dim]Note: This setting will take effect in new sessions.[/]")
 
@@ -567,8 +547,7 @@ class ContextCommand(Command):
             ctx: Command context.
             display_func: Function to display the context information.
         """
-        settings = load_settings()
-        context_settings = settings.context
+        context_settings = _context_settings_for_display(ctx)
         display_func(ctx.console, context_settings)
 
     async def _show_status(self: ContextCommand, ctx: CommandContext) -> None:
@@ -581,6 +560,16 @@ class ContextCommand(Command):
 
 
 # ── Module-level statistics helpers (no Feature Envy) ───────────────────────────
+
+
+def _context_settings_for_display(ctx: CommandContext) -> ContextSettings:
+    """Show live values when attached, keeping next-session file writes distinct."""
+    settings = getattr(ctx.repl, "settings", None) if ctx.repl is not None else ctx.settings
+    if settings is None:
+        settings = load_settings()
+    else:
+        ctx.console.print("[dim]Live runtime settings; /context changes are saved for new sessions.[/]")
+    return settings.context
 
 
 def _print_no_compactor_message(console: Console) -> None:

@@ -4,10 +4,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
-- Supported runtime and CI matrix: Python 3.11–3.14.
+- Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.
 - Packaging dependency floors: `chromadb>=1.5.9` for RAG and direct `scipy>=1.11.2` for NetworkX PageRank queries.
 - Context safety: outside Git, project instruction discovery is bounded to the current working directory.
-- Install verification: CI builds a wheel and smoke-installs it on Python 3.11 and 3.14, checking both CLI entry points and an ephemeral Chroma collection.
+- Install verification: CI passes its validated wheel to Linux, macOS and Windows smoke jobs on Python 3.11–3.14, checking both CLI entry points, local RAG and scripted coding workflows outside the source checkout. See issue #12 for actual execution evidence.
 
 ## Completed tiers
 
@@ -32,11 +32,105 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 ### Tier 10: UI (Textual Enhancements)
 
 - Textual dialogs are implemented in the TUI, but generic help/discovery surfaces still classify them as undiscoverable in this variant.
-- [Terminal UI research](docs/terminal-ui-research.md) records coding-agent likes/dislikes and Python application examples. UI-0–UI-4 in [Tier 10](FEATURE_TODO.md#ui-quality-research-and-follow-through) are planned v0.4.2 subtasks #32–#36: establish the baseline, fix interaction reliability, improve work visibility/navigation, then qualify polish and native usability. They are native children of epic #11 and prerequisites for release #30; existing widgets do not establish usability.
+- [Terminal UI research](docs/terminal-ui-research.md) records coding-agent likes/dislikes and Python application examples. UI-0–UI-4 in [Tier 10](FEATURE_TODO.md#ui-quality-research-and-follow-through) are planned v0.4.2 subtasks #32–#36: establish the baseline, fix interaction reliability, improve work visibility/navigation, then qualify polish and native usability. They are native children of epic #11 and prerequisites for release #30; existing widgets do not establish usability. The first [UI-0.1 contract](docs/ui-interaction-contract.md) now records rendered baselines, follow/hold navigation and composer-key regressions. Native, assistive-technology and performance qualification remains open.
 
 ## Current focus
 
-- Planned `v0.4.2` delivery is tracked by [epic #11](https://github.com/mlg151/henchman-ai/issues/11) and its 24 subtasks in the [v0.4.2 milestone](https://github.com/mlg151/henchman-ai/milestone/2), based on [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10) and [terminal UI research #31](https://github.com/mlg151/henchman-ai/issues/31). The dependency-ordered plan covers verified coding, context/control, review/recovery, budgets/privacy, integrations, terminal interaction/navigation/accessibility and release evidence; no completion is implied. Its foundation task reconciles the committed Python 3.11/3.12 self-hosted CI with the broader support claims above before new capabilities ship.
+- #21 stdio foundation now uses a bounded SDK 1.x dependency and independent
+  subprocess fixtures for four legacy protocol profiles. Pipe startup, cancellation,
+  bounded diagnostic cleanup and known-credential projection are covered. Explicit
+  environment references, invalidation after credential/configuration changes,
+  private auth replacement and task-owned SDK cleanup now have focused regressions;
+  see [connection lifetime](docs/mcp.md#credentials-and-connection-lifetime). Native
+  qualification, schemas, pagination and typed results remain open; see the
+  [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
+  The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
+  preserves missing/null semantics and bounds non-retrieving validation. Five
+  adapter profiles now project supported contracts explicitly; runtime integration
+  and MCP result fidelity remain in progress.
+
+- #20 config mutation responses and JSON/YAML sync exports now redact credential
+  echoes, including shadowed/configured keys and freeform UI fields. Actual
+  persisted/runtime values stay unchanged; sync redaction is explicitly lossy.
+  Background task logs now redact before persistence, cap output and migrate
+  eligible indexed legacy logs privately; corrupt/unsupported evidence stays
+  intact with diagnostics. See [background execution](docs/tools.md#background-execution).
+
+- #20 authorization now rechecks policy, registration, project and physical
+  targets after approval, formatter waits and retry delays. This closes stale
+  grant reuse. Typed restricted roots now mediate builtin file reads/writes on
+  supported platforms; any restriction denies all other, unqualified tools.
+  Unrestricted web fetch now validates DNS/peers/redirects with verified TLS and
+  origin-scoped credentials; it remains denied in restricted registries. Other
+  network tools, host allowlists and custom-dispatch checks remain open. See
+  [restricted tool access](docs/configuration.md#restricted-tool-access).
+
+- #14 configuration persistence now retains explicit default-valued overrides
+  through set/import and subsequent edits; only unset removes them. REPL/Textual
+  now retain live values and session origins for `/config view|get`, `/doctor`,
+  provider/context switching and resume. Theme/context persistence changes named
+  keys only. Read-confirmation controls now reach primary/scoped registries, and
+  unsupported Docker sandbox requests fail at setup. Automatic compaction controls
+  now reach primary, specialist, dynamic child and API agents while retaining
+  explicit hard-capacity checks. Remaining context/UI consumers and
+  expanded nonsecret transfer remain open; see
+  [effective settings](docs/configuration.md#inspecting-effective-settings).
+
+- #24 provider usage and explicit pricing: compatible and Anthropic adapters
+  preserve cumulative request counts, cache subsets and availability provenance.
+  Compatible requests ask for usage by default with an explicit opt-out for
+  unsupported servers. Cost records distinguish configured estimates from
+  reported billing, preserve zero rates and leave unknown costs unset. A standalone
+  process-lifetime ledger now supplies atomic reservation/claim/reconciliation with
+  exact money arithmetic and conservative uncertain holds. Explicit Python scopes
+  account compatible/Anthropic attempts and summaries using typed usage limits and
+  provider/model prices. A SQLite adapter now persists claims, cumulative
+  reconciliation and authoritative session bindings, with process/crash tests.
+  Public orchestrator and CLI turns now bind shared scopes across delegation,
+  summaries and continuation, retain interrupted/goal budgets and expose `/usage`
+  plus headless aggregates. Standalone API requests now use isolated caller-owned
+  process runs, preserve tool-follow-up budgets and reject unsupported durable
+  mode. Explicit user goal transitions authorize replacement;
+  transcript metadata cannot refund consumption. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)
+  confirms failed-request/unknown-hold retention and pre-HTTP denial after restart.
+  Successful live final-usage reconciliation, native qualification and remaining
+  UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
+
+- #20 session lookup boundaries: full IDs, prefixes and stale current pointers
+  now follow the current project's scope across root commands, REPL/Textual slash
+  commands, context/memory access and session-derived exports/branches/templates.
+  Existing templates use their embedded session identity. Canary regressions join
+  the native installed-wheel cohort. A shared credential policy now sanitizes
+  session saves/backups, exports, templates and new playback records; configured
+  interactive-provider keys and rotation are registered without mutating live
+  execution inputs. Thirty-one redaction regressions join the native wheel cohort,
+  including short credentials, marker-containing values and legacy backup-only
+  credentials while preserving protocol identities and structured session records.
+  Headless JSON output now masks split credentials with separate agent/content
+  buffers, sanitizes tool previews and flushes safely on failure/cancellation.
+  Execution events and correlation/control fields retain their original meaning.
+  REPL/Textual event streams, tool displays and approvals now share the policy;
+  Textual command output, direct chat/status/history displays and interactive
+  failure diagnostics are also projected before output. Other logs/UI panels,
+  metrics/handoffs, config secret references and restricted execution remain
+  open. See [session project boundaries](docs/configuration.md#session-project-boundaries)
+  and [redaction boundaries](docs/configuration.md#session-evidence-redaction).
+
+- #23 storage foundation: session writes now use atomic replacement, versioned
+  integrity checks, a recoverable prior copy and cooperative native locks with
+  stale-writer rejection. Legacy sessions migrate on save; recovery warns about
+  possibly missing recent changes and never replays actions. Deletion removes both
+  copies. Fault, process-termination and concurrent-writer regressions are staged
+  in the native installed-wheel cohort; operational goal/queue recovery and
+  provider continuation qualification remain open. See [session storage](docs/architecture.md#sessionmanager).
+
+- The reviewed evaluation registry connects twelve independent scenarios to typed metadata and validated dispatch, including syntax repair, semantic bug repair, tool-failure recovery, interruption/recovery, Fibonacci implementation, package lifecycle and test/documentation delivery with wrong-result, early-exit and runtime-failure controls. The interruption/recovery case requires an observed one-round tool limit after completed work and runtime cancellation of pending calls; unrelated first-turn failures remain failed evidence. It then requires a recovery turn in the same workspace, leaves the provided tests untouched, and passes an independent pytest oracle; the rig's `consume_expected_interruption()` records the interrupted turn as evidence without weakening the strict success gate. The test/documentation case executes doctests, preserves the implementation AST and checks candidate tests against five semantic mutants. Independent Python checks isolate bytecode caches so current source determines the result. The bounded repeat-run machinery under [#13](https://github.com/mlg151/henchman-ai/issues/13) is delivered: every run is recorded (success, verification failure, timeout, runtime error), reports publish explicit planned-versus-executed denominators with p50/p95 latency and usage availability, per-run bounds are hard caps scoped per dispatch, local cohorts carry zero-cost provenance and hosted cohorts never fabricate cost, and reports are redacted and written atomically. Verifier timeouts now carry their budget in the recorded error text, and the success-path regressions name each run's outcome and error, so CI flakes are diagnosable from their failure messages. The [first live local development cohort](docs/evaluations/2026-11-07-local-baseline.md) completed all 22 planned attempts with 22 timeouts and no verified successes; token usage was unavailable and API spend was zero. Its original report is retained, and compatible-provider model identity reporting is corrected for future cohorts. A [CPU follow-up](docs/evaluations/2026-11-07-cpu-readiness.md) records four failed syntax attempts and one independently verified diagnostic; its temporary profile was removed after testing. Broader local qualification and hosted baselines within the zero-spend constraint remain incomplete under #13; the twelve-case corpus is frozen.
+- Foundation [#12](https://github.com/mlg151/henchman-ai/issues/12) is complete at `55fd66b`: [all 20 CI jobs passed](https://github.com/mlg151/henchman-ai/actions/runs/41758021286), including all supported Python/native-wheel cohorts. Python 3.12 passed 8,374 tests with 93.12% coverage. Independent evaluation and final-artifact release gates remain open.
+- The typed terminal UI controls (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout.compact_tables`) ship under [#14](https://github.com/mlg151/henchman-ai/issues/14) with field-attributed validation and local import/export sync round-trips, and the shared discovery capability matrix now classifies them as TUI-scoped controls that generic discovery/help surfaces do not advertise as generic commands. Consumer alignment as the UI child features land and final runtime wiring remain open.
+- The portable `AGENTS.md` instruction increment is integrated under [#15](https://github.com/mlg151/henchman-ai/issues/15): default discovery keeps `HENCHMAN.md` primary, boundary and alias rejection is enforced before reads, and immutable provenance snapshots feed content-free session records and a bounded delegation appendix (paths/scopes/digests only). Runtime refresh now covers primary/delegated requests, supported input/output paths, parsed patches and formatter descendants. Mutations defer until new guidance reaches the model, with fresh checks after approval and formatter waits. Directory lint fixes require explicit files; shell/Python embedded paths remain cwd-scoped. [Native CI qualification](https://github.com/mlg151/henchman-ai/actions/runs/42386583146) passed all 12 platform/Python wheel combinations; #15 is complete. Final release qualification remains under #30. See [runtime refresh](docs/configuration.md#context-files-henchmanmd-and-agentsmd).
+- The plan-mode transition authority increment is delivered under [#18](https://github.com/mlg151/henchman-ai/issues/18): sessions persist `plan_mode_origin` (`user`/`model`, legacy sessions default to `user`), a model-callable `exit_plan_mode` closes only model-proposed planning and cannot lift a user-imposed `/plan` boundary, user/runtime transitions retain the widening right for both states, interactive/headless startup re-applies a resumed session's plan mode to the live registry and agent prompt while preserving its persisted origin, dynamic subagents inherit the active plan-mode boundary in their system prompt, and plan mode now classifies each invocation by effective operation effect (read-only shell/`python_exec` sources are `READ`, trusted MCP server tools stay `NETWORK` so they cannot bypass the boundary, and `mcp`/`mcp_auth` introspection actions are `READ`). The effective policy now resolves through one shared `PolicyDecision` evaluator that `ToolRegistry.evaluate_policy()` exposes and that `authorize()` (and therefore `execute()`, batch execution, and orchestrated delegation) consumes, so late-registered tools and scoped subagent registries cannot bypass the boundary. Approval reuse is now scoped to the granted action/path/session policy: user confirmations are recorded as session-scoped grants keyed to (tool, effective effect, canonical parameter digest, risk), reused for identical still-valid authorizations without re-prompting, invalidated on any changed argument or risk, shared across a registry ancestry but never across separate registries or persisted, and cleared when a different session is activated. Headless confirmation is now explicit: when confirmation is required, no grant is active, and no confirmation handler exists in the registry ancestry, `authorize()` returns an explicit needs-input denial (distinct from a user denial) and records no grant.
+- Four #19 increments are delivered under [#19](https://github.com/mlg151/henchman-ai/issues/19): (1) `compact_session` writes a `kind="compaction"` record naming the absolute turn numbers it covers (`source_turns`) and retaining their original messages (`retained_messages`), so compacted turns stay retrievable with valid tool call/result pairs; `SessionContextService.restore_compacted_messages()` reconstructs the full original sequence, legacy records load with documented defaults (`kind="turn"`, empty retention fields), and the session/turn-summary/message contracts cover the retention fields plus the persisted tool-call `id`. (2) Session memory now supports `edit_memory`, `clear_memories` and a persisted extraction opt-out (`set_extraction_opt_out`/`extraction_opt_out` gating `extract_memories`), surfaced as `memory edit`, `memory clear` and `memory extract --opt-out/--no-opt-out`; a `runtime/session_memory_record` contract validates memory payloads and the session contract covers `session_memories` plus the opt-out flag. (3) Workspace memory retention propagation: `TeamMemorySyncService.sync_session` reconciles previously synced records from a session (removing deleted/edited content scoped to the source session) and a new `delete_memory` removes one workspace record; `sync_session` no longer extracts implicitly, so tier-5 tools extract explicitly before syncing and sync respects the persisted opt-out. (4) Export surfaces: `export_as_markdown` renders a `## Session Memories` section and, for compaction records, the covered source turns plus their retained original messages (covering the REPL `/session export` and the Textual UI together). A follow-up hardening pass keeps session memory reads non-mutating, escapes angle brackets in exported memory content and indents multiline memory items, accepts the persisted tool-call `id` on compaction-retained messages in the session contract, and makes verifier timeouts diagnosable in baseline run records. (5) Cross-surface effective-policy parity: `build_snapshot` now carries the persisted memory-extraction opt-out flag and the compacted-turn retention count, the headless `context` command renders both (text and JSON), and the export surfaces report the same shared-service state, so UI and headless surfaces report the same effective policy (a dedicated in-TUI snapshot display stays with the UI workstream). All five #19 scope items are delivered; closure awaits the final CI qualification and the acceptance-criteria evidence pass.
+- In-progress `v0.4.2` delivery is tracked by [epic #11](https://github.com/mlg151/henchman-ai/issues/11) and its 24 subtasks in the [v0.4.2 milestone](https://github.com/mlg151/henchman-ai/milestone/2), based on [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10) and [terminal UI research #31](https://github.com/mlg151/henchman-ai/issues/31). The dependency-ordered plan covers verified coding, context/control, review/recovery, budgets/privacy, integrations, terminal interaction/navigation/accessibility and release evidence; no completion is implied. Its completed foundation task reconciles Python 3.11–3.14 and native-package support; later features and final artifact qualification remain required.
 - Release `0.4.1` integrates snippet formatting, dynamic background subagents, and standards research. Publication after successful main push CI uses the milestone version and repository `PYPI` secret; see [release process](CONTRIBUTING.md#-release-process).
 - The default primary now works directly with the full live tool catalog and can create scoped background conversations through `invoke_subagent`, `send_message`, and `manage_subagents`. CLI shutdown and history/session changes join owned work; configured restrictions and approvals remain binding. See [dynamic subagents](docs/agents.md#dynamic-background-subagents). Live-model effectiveness and whole-process memory still require measurement.
 - Standards research for [issue #3](https://github.com/mlg151/henchman-ai/issues/3) is documented in the [standards adoption RFC](docs/standards.md), including sourced versions, baseline gaps, and acceptance criteria. The [P0–P5 adoption phases](FEATURE_TODO.md#standards-adoption-research-and-roadmap) remain unchecked implementation work; no new protocol support is claimed.
@@ -78,7 +172,7 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - Headless JSON now shares the team orchestrator, honors direct roles, and preserves agent attribution. Round limits and dynamic specialist policies apply; scripted team workflows are runtime evidence, not live-model quality evidence. See [headless teams](docs/agents.md#headless-team-execution).
 - Completion reporting preserves provider failures and abnormal finishes, rejects unsupported specialist success claims, and isolates nested execution evidence. See [execution status limitations](docs/architecture.md#overview); successful tool calls still do not prove task correctness.
 - Native OS verification is configured through an independent installed-wheel CI matrix. Unix-only shell/RAG imports, Linux process assumptions, Windows upgrade-path detection, and Python output encoding have focused regressions; hosted Windows/macOS results are still required.
-- The five-adapter real file edit/test/recover matrix now passes on Linux, both in development and from a fresh installed wheel outside the checkout. Provider responses in this matrix are scripted; live-provider checks and native macOS/Windows runs remain open. Behavioral evals now use explicit provider selection and the bounded runtime loop, and include a Python reuse task with independent verification.
+- The five-adapter real file edit/test/recover matrix passes from fresh installed wheels outside the checkout on Linux, macOS and Windows across Python 3.11–3.14 at foundation candidate `55fd66b`. Provider responses are scripted; live-provider quality and final-artifact qualification remain open. Behavioral evals now use explicit provider selection and the bounded runtime loop, and include a Python reuse task with independent verification.
 - Keep roadmap and README claims aligned to the shared discovery capability matrix.
 - Keep the supported Python range and built-wheel smoke checks aligned with packaging and CI.
 - Preserve confirmed-real local foundations without turning narrowed surfaces back into implied promises.

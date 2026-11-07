@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from henchman.core.session_data import Session
+from henchman.core.session_memory import SessionMemoryRecord, SessionMemoryService
 from henchman.core.session_models import (
     SessionMessage,
     TurnSummaryRecord,
@@ -196,6 +197,135 @@ class TestTurnSummaryRecordContract:
             schema_name="runtime/turn_summary_record",
         )
 
+    def test_compaction_record_with_retained_turns_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        record = TurnSummaryRecord(
+            turn_number=1,
+            summary_text="Compacted 1 earlier turn(s).",
+            kind="compaction",
+            source_turns=[1],
+            retained_messages=[
+                SessionMessage(role="user", content="First request."),
+                SessionMessage(
+                    role="assistant",
+                    content="Reading the file.",
+                    tool_calls=[{"id": "tc1", "name": "read_file", "arguments": {"path": "a.txt"}}],
+                ),
+                SessionMessage(role="tool", content="file contents", tool_call_id="tc1"),
+            ],
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=record.to_dict(),
+            schema_name="runtime/turn_summary_record",
+        )
+
+    def test_session_with_compaction_retained_tool_call_id_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        # Retained messages carry the live message tool-call shape, including
+        # the id that pairs each call with its result.
+        record = TurnSummaryRecord(
+            turn_number=1,
+            summary_text="Compacted 1 earlier turn(s).",
+            kind="compaction",
+            source_turns=[1],
+            retained_messages=[
+                SessionMessage(
+                    role="assistant",
+                    content=None,
+                    tool_calls=[
+                        {"id": "tc1", "name": "read_file", "arguments": {"path": "a.txt"}}
+                    ],
+                ),
+                SessionMessage(role="tool", content="file contents", tool_call_id="tc1"),
+            ],
+        )
+        session = Session(
+            id="sess-compact-tool-1",
+            project_hash="a1b2c3d4",
+            started="2025-01-01T00:00:00Z",
+            last_updated="2025-01-01T01:00:00Z",
+            messages=[SessionMessage(role="user", content="Next request.")],
+            turn_summaries=[record],
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=session.to_dict(),
+            schema_name="runtime/session",
+        )
+
+    def test_session_with_compaction_record_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        record = TurnSummaryRecord(
+            turn_number=1,
+            summary_text="Compacted 1 earlier turn(s).",
+            kind="compaction",
+            source_turns=[1],
+            retained_messages=[
+                SessionMessage(role="user", content="First request."),
+                SessionMessage(role="assistant", content="Done reading."),
+            ],
+        )
+        session = Session(
+            id="sess-compact-1",
+            project_hash="a1b2c3d4",
+            started="2025-01-01T00:00:00Z",
+            last_updated="2025-01-01T01:00:00Z",
+            messages=[
+                SessionMessage(role="user", content="Second request."),
+                SessionMessage(role="assistant", content="Final answer."),
+            ],
+            turn_summaries=[record],
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=session.to_dict(),
+            schema_name="runtime/session",
+        )
+
+
+# ---------------------------------------------------------------------------
+# SessionMemoryRecord contract
+# ---------------------------------------------------------------------------
+
+
+class TestSessionMemoryRecordContract:
+    """SessionMemoryRecord.to_dict() must satisfy its contract."""
+
+    def test_manual_memory_matches_contract(self, contract_suite: object) -> None:
+        record = SessionMemoryRecord(
+            id="mem-1",
+            content="Always prefer JSON output.",
+            kind="preference",
+            source="manual",
+            created_at="2025-01-01T00:00:00Z",
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=record.to_dict(),
+            schema_name="runtime/session_memory_record",
+        )
+
+    def test_extracted_memory_with_index_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        record = SessionMemoryRecord(
+            id="mem-2",
+            content="Remember the canonical endpoint.",
+            kind="note",
+            source="extracted",
+            created_at="2025-01-01T00:00:00Z",
+            message_index=4,
+        )
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=record.to_dict(),
+            schema_name="runtime/session_memory_record",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Session contracts
@@ -243,5 +373,25 @@ class TestSessionContract:
         assert_contract_matches(
             contract_suite=contract_suite,  # type: ignore[arg-type]
             payload=populated_session.to_dict(),
+            schema_name="runtime/session",
+        )
+
+    def test_session_with_memory_payload_matches_contract(
+        self, contract_suite: object
+    ) -> None:
+        """Persisted session memories and the opt-out flag satisfy the contract."""
+        session = Session(
+            id="sess-memory-1",
+            project_hash="a1b2c3d4",
+            started="2025-01-01T00:00:00Z",
+            last_updated="2025-01-01T01:00:00Z",
+            messages=[SessionMessage(role="user", content="Prefer JSON output.")],
+        )
+        service = SessionMemoryService()
+        service.add_memory(session, content="Always prefer JSON.", kind="preference")
+        service.set_extraction_opt_out(session, True)
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=session.to_dict(),
             schema_name="runtime/session",
         )

@@ -13,8 +13,13 @@ from pathlib import Path
 import pytest
 
 from henchman.advanced import TaskService
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.builtins.shell import ShellTool
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _task_id(content: str) -> str:
@@ -34,6 +39,7 @@ async def test_mixed_jobs_return_before_completion_and_remain_independent(tmp_pa
     from henchman.cli.tool_manager import ToolManager
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
     service = TaskService(tmp_path)
@@ -122,6 +128,7 @@ async def test_background_nonzero_exit_is_visible_to_tracking_tools(tmp_path: Pa
     from henchman.cli.tool_manager import ToolManager
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
     launched = await manager.registry.execute("python_exec", {"code": "raise ValueError('broken')"})
@@ -159,9 +166,13 @@ async def test_stopping_shell_also_stops_its_descendant(tmp_path: Path) -> None:
     code = (
         "import signal,time; from pathlib import Path; "
         "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
-        "Path('ready').touch(); time.sleep(1); Path('escaped').touch(); time.sleep(30)"
+        "Path('ready').touch();\n"
+        "while not Path('release').exists():\n    time.sleep(0.01)\n"
+        "Path('escaped').touch(); time.sleep(30)"
     )
-    command = _python_command(code)
+    script = tmp_path / "descendant.py"
+    script.write_text(code, encoding="utf-8")
+    command = shlex.join([sys.executable, str(script)])
     result = await tool.execute(command=command)
     service = TaskService(tmp_path)
     task_id = _task_id(result.content)
@@ -170,6 +181,7 @@ async def test_stopping_shell_also_stops_its_descendant(tmp_path: Path) -> None:
             while not (tmp_path / "ready").exists():
                 await asyncio.sleep(0.01)
         await service.stop_task(task_id)
+        (tmp_path / "release").touch()
         await asyncio.sleep(1.1)
         assert not (tmp_path / "escaped").exists()
         assert (await service.wait_for_task(task_id)).pid is None
@@ -242,19 +254,30 @@ async def test_completion_persistence_failure_still_settles_waiter(tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_timeout_log_failure_still_reaps_process(tmp_path: Path) -> None:
+async def test_timeout_log_failure_still_reaps_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Writing a timeout diagnostic must never prevent process termination."""
+    from henchman.advanced import task_output
+
     service = TaskService(tmp_path)
+    rejected_paths: list[Path] = []
+
+    def reject_append(path: Path, _payload: bytes) -> None:
+        rejected_paths.append(path)
+        raise PermissionError(f"Permission denied for {path}")
+
+    monkeypatch.setattr(task_output, "append_evidence", reject_append)
+
     record = await service.start_task(
         argv=[sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.1,
     )
     process = service._runtime.processes[record.task_id]
-    record.output_path.unlink()
-    record.output_path.mkdir()
     final = await service.wait_for_task(record.task_id, timeout=2)
     assert final.status == "failed"
     assert process.returncode is not None
     assert "timeout" in final.metadata.get("error", "").lower()
+    assert record.output_path in rejected_paths
 
 
 @pytest.mark.anyio

@@ -9,8 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from evals.helpers import EvalResult, EvalTestRig, ToolLog, eval_test
-from henchman.testing.pytest_reporter import PytestEvidence
+from evals.helpers import EvalResult, EvalTestRig, ToolLog, eval_test, run_pytest_evidence
 
 _NORMALIZATION = '''def normalize_label(value: str) -> str:
     """Canonical project labels: casefold and join whitespace with hyphens."""
@@ -65,27 +64,31 @@ def _targets_caller(log: ToolLog) -> bool:
     )
 
 
-def verify_python_reuse(workspace: Path) -> None:
+def _is_requested_pytest_run(log: ToolLog, workspace: Path) -> bool:
+    """Verifies a successful pytest_run for the specific test file."""
+    if not log.success or log.tool_name != "pytest_run":
+        return False
+
+    path_arg = log.arguments.get("path")
+    if not isinstance(path_arg, str) or not path_arg:
+        return False
+    target_path = Path(path_arg)
+    if not target_path.is_absolute():
+        target_path = workspace / target_path
+    if target_path.resolve() != (workspace / "test_labels.py").resolve():
+        return False
+
+    for key in ["keyword", "markers", "collect_only"]:
+        if log.arguments.get(key):
+            return False
+
+    expected_first_line = "Test execution passed (4 collected, 4 executed; 4 passed, 0 failed, 0 skipped)"
+    return log.result.splitlines()[:1] == [expected_first_line]
+
+
+async def verify_python_reuse(workspace: Path) -> None:
     """Run the unchanged tests independently, requiring four real passed calls."""
-    report = workspace / "independent-verification.json"
-    command = [
-        sys.executable, "-m", "pytest", "-q", "-o", "addopts=",
-        "-p", "henchman.testing.pytest_reporter", "--henchman-report", str(report),
-        "--", "test_labels.py",
-    ]
-    environment = {
-        **os.environ,
-        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
-        "PYTEST_ADDOPTS": "",
-        "PYTHONIOENCODING": "utf-8",
-    }
-    completed = subprocess.run(
-        command, cwd=workspace, env=environment,
-        capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-    evidence = PytestEvidence.load(report)
-    assert evidence is not None, "Independent pytest run produced no execution evidence"
+    evidence = await run_pytest_evidence(workspace, "test_labels.py")
     assert not evidence.collect_only
     assert evidence.executed == evidence.passed == 4
     assert evidence.failed == evidence.skipped == evidence.exit_status == 0
@@ -107,8 +110,8 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
         "labels without duplicates, preserving first-seen order and not changing "
         "the input list. Reuse the helper; do not copy its implementation. Keep "
         "normalization.py and test_labels.py unchanged. Use edit_file or write_file "
-        f"to change label_index.py, then run {pytest_command} and "
-        "report what you verified.",
+        "to change label_index.py, then use shell with background=false to run exactly "
+        f"{pytest_command}, and report what you verified.",
         max_iterations=12,
         timeout=300,
     )
@@ -126,12 +129,16 @@ async def run_python_reuse_scenario(rig: EvalTestRig) -> EvalResult:
     ), "Existing helper was not inspected before implementation"
     assert any(
         log.success and re.search(r"\b4 passed\b", log.result) and (
-            log.tool_name == "pytest_run"
-            or (log.tool_name == "shell" and "pytest" in str(log.arguments.get("command", "")))
+            _is_requested_pytest_run(log, rig.test_dir)
+            or (
+                log.tool_name == "shell"
+                and log.arguments.get("command") == pytest_command
+                and log.arguments.get("background") is False
+            )
         )
         for log in result.tool_logs[edits[-1] + 1:]
     ), "No successful pytest verification followed the final edit"
-    verify_python_reuse(rig.test_dir)
+    await verify_python_reuse(rig.test_dir)
     return result
 
 

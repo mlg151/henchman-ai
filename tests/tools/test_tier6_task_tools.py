@@ -8,6 +8,11 @@ from pathlib import Path
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def test_builtin_surface_includes_tier6_task_tools() -> None:
@@ -54,6 +59,7 @@ async def test_task_tools_manage_background_processes_and_persist_output(
     from henchman.advanced import TaskService
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

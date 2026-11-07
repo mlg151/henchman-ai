@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "henchman/contracts/runtime/stream-chunk/v1",
   "type": "object",
-  "required": ["content", "tool_calls", "finish_reason", "thinking", "usage"],
+  "required": ["content", "tool_calls", "finish_reason", "thinking", "usage", "usage_source"],
   "properties": {
     "content": { "type": ["string", "null"] },
     "tool_calls": {
@@ -30,7 +30,11 @@
       ]
     },
     "thinking": { "type": ["string", "null"] },
-    "usage": { "type": ["object", "null"] }
+    "usage": {
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "usage_source": {"type": "string", "enum": ["reported", "estimated", "unknown"]}
   },
   "additionalProperties": false
 }

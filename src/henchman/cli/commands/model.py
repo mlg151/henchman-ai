@@ -8,6 +8,7 @@ from typing import Any
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.provider_switch import switch_runtime_provider
 from henchman.config import load_settings
+from henchman.config.runtime import runtime_settings_state
 from henchman.config.schema import ProviderSettings
 from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
@@ -143,7 +144,10 @@ def _show_context_limits(ctx: CommandContext) -> None:
     """Show the selected session capacity and effective conversation budget."""
     settings = getattr(ctx.repl, "settings", None) if ctx.repl is not None else ctx.settings
     if settings is not None:
-        ctx.console.print(f"  Context length: {settings.context.max_tokens} tokens (session)")
+        scope = "session"
+        if ctx.repl is not None:
+            scope = runtime_settings_state(ctx.repl).snapshot().origins["context.max_tokens"].scope
+        ctx.console.print(f"  Context length: {settings.context.max_tokens} tokens ({scope})")
     if ctx.agent is not None:
         ctx.console.print(f"  Conversation budget: {ctx.agent.max_tokens} tokens")
 
@@ -176,6 +180,7 @@ def _show_provider_configuration(
 
 def _update_agent_provider(
     ctx: CommandContext, new_provider: Any, *, context_length: int | None = None,
+    provider_name: str | None = None, model_name: str | None = None,
 ) -> bool:
     """Update agent with new provider; return True on success."""
     console = ctx.console
@@ -186,6 +191,7 @@ def _update_agent_provider(
     if ctx.repl is not None:
         switch_runtime_provider(
             ctx.repl, new_provider, agent=ctx.agent, context_length=context_length,
+            provider_name=provider_name, model_name=model_name,
         )
     else:
         ctx.agent.set_provider(new_provider)
@@ -270,7 +276,10 @@ async def _set_provider(
         )
         _show_provider_configuration(ctx.console, new_provider, provider_name, model_name)
 
-        if not _update_agent_provider(ctx, new_provider, context_length=context_length):
+        if not _update_agent_provider(
+            ctx, new_provider, context_length=context_length,
+            provider_name=provider_name, model_name=model_name,
+        ):
             return
         _show_context_limits(ctx)
 

@@ -158,8 +158,10 @@ class ComponentInitializer:
             system_prompt=self.config.config.system_prompt,
             environment_context=self.config.environment_context,
             settings=self.config.settings,
+            settings_state=getattr(self.config.app, "settings_state", None),
             auto_approve_tools=(self.config.config.auto_approve_tools),
             question_handler=self.config.app._textual_question,
+            instruction_snapshot=self.config.config.instruction_snapshot,
         )
         # Store app reference in plugin manager if it has ui_instance attribute
         # This allows plugins to access the Textual UI if needed

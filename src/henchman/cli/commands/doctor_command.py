@@ -23,7 +23,7 @@ from henchman.cli.commands.doctor_tool_command import (
     render_doctor_tool_text,
 )
 from henchman.cli.system_info import HealthStatus, SystemInfo
-from henchman.config.repository import SettingsRepository
+from henchman.config.repository import SettingsRepository, SettingsScope
 
 RequiredToolNames = Iterable[str]
 SettingsPayload = dict[str, object]
@@ -32,7 +32,7 @@ SettingsPayload = dict[str, object]
 class SettingsRepositoryLike(Protocol):
     """Protocol for the read-only repository behavior used by doctor."""
 
-    def view(self, *, scope: object) -> SettingsPayload:
+    def view(self, *, scope: SettingsScope) -> SettingsPayload:
         """Return settings for a selected scope."""
 
 

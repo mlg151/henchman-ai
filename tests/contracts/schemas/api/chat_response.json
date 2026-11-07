@@ -2,36 +2,87 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "henchman/contracts/api/chat-response/v1",
   "type": "object",
-  "required": ["message", "usage", "finish_reason"],
+  "required": [
+    "message",
+    "usage",
+    "finish_reason",
+    "run_id",
+    "budget",
+    "accounting_lifetime"
+  ],
   "properties": {
     "message": {
       "type": "object",
-      "required": ["role", "content"],
+      "required": [
+        "role",
+        "content"
+      ],
       "properties": {
-        "role": { "type": "string", "enum": ["assistant"] },
-        "content": { "type": "string" },
+        "role": {
+          "type": "string",
+          "enum": [
+            "assistant"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
         "tool_calls": {
-          "type": ["array", "null"],
-          "items": { "type": "object" }
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object"
+          }
         },
         "tool_call_id": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
     },
     "usage": {
-      "type": ["object", "null"]
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "finish_reason": {
       "anyOf": [
         {
           "type": "string",
-          "enum": ["stop", "tool_calls", "length", "content_filter"]
+          "enum": [
+            "stop",
+            "tool_calls",
+            "length",
+            "content_filter"
+          ]
         },
         {
           "type": "null"
         }
+      ]
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "budget": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "accounting_lifetime": {
+      "type": "string",
+      "enum": [
+        "process"
       ]
     }
   },

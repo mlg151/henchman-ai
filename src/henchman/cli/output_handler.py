@@ -9,6 +9,9 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
+from henchman.utils.evidence_redaction import EvidenceRedactor
+
 if TYPE_CHECKING:
     from henchman.cli.session_manager import ReplSessionManager
     from henchman.cli.tool_manager import ToolManager
@@ -75,6 +78,11 @@ class OutputHandler:
         self.settings = settings
         self.rag_system = rag_system
         self.mcp_manager = mcp_manager
+
+    @property
+    def evidence_redactor(self) -> EvidenceRedactor:
+        """Use the active session's credential policy, including rotated keys."""
+        return runtime_evidence_redactor(self)
 
     def __getattr__(self: Self, name: str) -> Any:
         """Delegate unknown attribute access to the underlying renderer.
@@ -339,8 +347,7 @@ class OutputHandler:
         """
         self._start_rag_indexing()
 
-    @staticmethod
-    def _safe_create_task(coro: Any) -> asyncio.Task[Any]:
+    def _safe_create_task(self, coro: Any) -> asyncio.Task[Any]:
         """Create an asyncio task with error logging on failure.
 
         Args:
@@ -352,10 +359,13 @@ class OutputHandler:
         task = asyncio.create_task(coro)
 
         def _on_done(t: asyncio.Task[Any]) -> None:
-            if not t.cancelled() and t.exception():
+            if t.cancelled():
+                return
+            error = t.exception()
+            if error is not None:
                 logging.error(
                     "Background task failed: %s",
-                    t.exception(),
+                    runtime_exception_text(self, error, include_traceback=True),
                 )
 
         task.add_done_callback(_on_done)

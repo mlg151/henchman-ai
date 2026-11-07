@@ -11,6 +11,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
+from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
 from henchman.providers.base import Message, ToolCall
 
@@ -18,7 +19,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.config.context import ContextSnapshot
+    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
+    from henchman.providers.base import ModelProvider
+    from henchman.tools.registry import ToolRegistry
 
 
 try:
@@ -106,6 +111,9 @@ class ReplSessionManager:
         session_manager: SessionManager | None = None,
         *,
         auto_save: bool = True,
+        instruction_snapshot: ContextSnapshot | None = None,
+        settings: Settings | None = None,
+        provider: ModelProvider | None = None,
     ) -> None:
         """Initialize the REPL session manager.
 
@@ -113,15 +121,46 @@ class ReplSessionManager:
             session_manager: Core session manager for persistence.
                 If None, creates a default SessionManager.
             auto_save: Whether to auto-save sessions on exit.
+            instruction_snapshot: Optional instruction provenance captured
+                onto every attached session.
+            settings: Effective settings whose credentials are masked in evidence.
+            provider: Active provider whose key is masked in evidence.
         """
         self.session_manager = session_manager or SessionManager()
         self.session: Session | None = None
         self.auto_save = auto_save
+        self.instruction_snapshot = instruction_snapshot
+        self._tool_registry: ToolRegistry | None = None
+        self.register_credentials(settings=settings, provider=provider)
+
+    def register_credentials(
+        self, *, settings: Settings | None = None, provider: ModelProvider | None = None,
+    ) -> None:
+        """Keep configured and rotated keys out of session evidence."""
+        if settings is None and provider is None:
+            return
+        redactor = self.session_manager.evidence_redactor
+        if settings is not None:
+            redactor.register_config(settings.model_dump())
+        key = getattr(provider, "api_key", None)
+        if isinstance(key, str):
+            redactor.register_secret(key)
 
     @property
     def current(self: Self) -> Session | None:
         """Get the current session (alias for session attribute)."""
         return self.session
+
+    def bind_tool_registry(self: Self, registry: ToolRegistry) -> None:
+        """Bind the shared tool registry so session switches reset its grants.
+
+        Args:
+            registry: The registry whose approval grants are session-scoped.
+
+        Returns:
+            None
+        """
+        self._tool_registry = registry
 
     def set_session(
         self: Self,
@@ -140,8 +179,13 @@ class ReplSessionManager:
         Returns:
             None
         """
+        # Session boundary: user approvals never carry over into another session.
+        if self._tool_registry is not None:
+            self._tool_registry.clear_grants()
         self.session = session
         self.session_manager.set_current(session)
+        if self.instruction_snapshot is not None:
+            InstructionProvenanceService().capture(session, self.instruction_snapshot)
 
         if history_agent is not None:
             _sync_messages_to_agent(history_agent, session)
@@ -206,7 +250,7 @@ class ReplSessionManager:
         """
         return self.session_manager.create_session(project_hash, tag)
 
-    def load(self: Self, session_id: str) -> Session:
+    def load(self: Self, session_id: str, *, project_hash: str | None = None) -> Session:
         """Load a session from disk.
 
         Args:
@@ -222,7 +266,7 @@ class ReplSessionManager:
         if not session_id:
             msg = "session_id must not be empty"
             raise ValueError(msg)
-        return self.session_manager.load(session_id)
+        return self.session_manager.load(session_id, project_hash=project_hash)
 
     def load_by_tag(
         self: Self,

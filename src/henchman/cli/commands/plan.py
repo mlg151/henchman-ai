@@ -7,7 +7,12 @@ without modifying the codebase.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from henchman.cli.commands import Command, CommandContext
+
+if TYPE_CHECKING:
+    from henchman.core.session import Session
 
 PLAN_MODE_PROMPT = """
 ---
@@ -21,6 +26,10 @@ Focus on creating detailed implementation plans.
 """
 
 
+PLAN_MODE_ORIGINS: tuple[str, ...] = ("user", "model")
+"""Transition authorities that may open a plan-mode boundary."""
+
+
 def _toggle_plan_mode(ctx: CommandContext) -> bool:
     """Toggle plan mode on the active session and return the new state.
 
@@ -32,24 +41,56 @@ def _toggle_plan_mode(ctx: CommandContext) -> bool:
     """
     new_mode = not ctx.session.plan_mode  # type: ignore[union-attr]
     ctx.session.plan_mode = new_mode  # type: ignore[union-attr]
+    if new_mode:
+        # The /plan command is an authorized user transition.
+        ctx.session.plan_mode_origin = "user"  # type: ignore[union-attr]
     return new_mode
 
 
 def apply_plan_mode(
     *,
     enabled: bool,
-    session: object | None = None,
+    session: Session | None = None,
     tool_registry: object | None = None,
     agent: object | None = None,
-) -> None:
-    """Apply plan mode to the active session's tool registry and agent.
+    origin: str = "user",
+) -> bool:
+    """Apply a plan-mode transition to the session, registry, and agent.
+
+    A transition may only be *widening* (leaving plan mode) when the caller
+    holds authority over the active boundary: a user-imposed boundary can
+    only be lifted by an authorized user/runtime transition, never by a
+    model-callable tool.
 
     Args:
         enabled: Whether plan mode should be enabled.
         session: Optional session to mark with plan_mode flag.
         tool_registry: The tool registry to set plan mode on.
         agent: The agent to update with plan mode prompt.
+        origin: Authority performing the transition ("user" or "model").
+
+    Returns:
+        Whether plan mode is in effect after the transition attempt. A
+        rejected model exit returns True because the boundary stayed in
+        force.
+
+    Raises:
+        ValueError: If ``origin`` is not a recognized transition authority.
     """
+    if origin not in PLAN_MODE_ORIGINS:
+        msg = f"Unsupported plan mode origin '{origin}'"
+        raise ValueError(msg)
+
+    # A model-originated exit must not lift a user-imposed boundary.
+    if (
+        not enabled
+        and origin != "user"
+        and session is not None
+        and getattr(session, "plan_mode", False)
+        and getattr(session, "plan_mode_origin", "user") == "user"
+    ):
+        return True
+
     if tool_registry is not None:
         from henchman.tools.registry import ToolRegistry
 
@@ -58,6 +99,10 @@ def apply_plan_mode(
 
     # Mark the session with the plan_mode flag if it supports it
     if session is not None and hasattr(session, "plan_mode"):
+        if enabled and not getattr(session, "plan_mode", False):
+            # Only a disabled-to-enabled transition records the origin;
+            # re-entering an active user boundary must not demote it.
+            session.plan_mode_origin = origin
         session.plan_mode = enabled
 
     if agent is not None and hasattr(agent, "system_prompt"):
@@ -67,6 +112,8 @@ def apply_plan_mode(
                 agent.system_prompt = system_prompt + PLAN_MODE_PROMPT
             elif not enabled:
                 agent.system_prompt = system_prompt.replace(PLAN_MODE_PROMPT, "")
+
+    return enabled
 
 
 def _apply_plan_mode_to_tools(ctx: CommandContext, enabled: bool) -> None:

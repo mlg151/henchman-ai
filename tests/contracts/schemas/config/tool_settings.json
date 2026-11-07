@@ -3,7 +3,7 @@
   "title": "ToolSettings",
   "description": "Shape contract for the serialised ToolSettings model.",
   "type": "object",
-  "required": ["auto_approve_read", "shell_timeout", "sandbox"],
+  "required": ["auto_approve_read", "shell_timeout", "sandbox", "filesystem_read_roots", "filesystem_write_roots", "network_access"],
   "properties": {
     "auto_approve_read": {
       "type": "boolean",
@@ -14,6 +14,9 @@
       "description": "Default timeout for shell commands in seconds",
       "minimum": 0
     },
+    "filesystem_read_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+    "filesystem_write_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+    "network_access": { "type": "string", "enum": ["unrestricted", "disabled"] },
     "sandbox": {
       "type": "string",
       "enum": ["none", "docker"],

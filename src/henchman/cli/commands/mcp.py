@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
 from henchman.config import load_settings
+from henchman.config.runtime import runtime_settings_state
 
 if TYPE_CHECKING:
     from henchman.mcp.manager import McpManager
@@ -116,13 +117,17 @@ def _handle_mcp_logging_action(ctx: CommandContext, action: str) -> None:
         None
     """
     console = ctx.console
-    settings = ctx.repl.settings if ctx.repl and ctx.repl.settings else load_settings()
+    runtime = ctx.repl if ctx.repl is not None else ctx
+    if getattr(runtime, "settings", None) is None:
+        runtime.settings = load_settings()
+    state = runtime_settings_state(runtime)
+    settings = state.settings
 
     if action == "on":
-        settings.ui.mcp_logging = True
+        state.update({"ui": {"mcp_logging": True}})
         console.print("[green]\u2713 MCP logging enabled[/]")
     elif action == "off":
-        settings.ui.mcp_logging = False
+        state.update({"ui": {"mcp_logging": False}})
         console.print("[yellow]\u2713 MCP logging disabled[/]")
     elif action == "status":
         logging_status = "enabled" if settings.ui.mcp_logging else "disabled"

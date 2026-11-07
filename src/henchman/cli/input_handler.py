@@ -19,6 +19,7 @@ from prompt_toolkit.completion import WordCompleter
 
 from henchman.cli.commands.builtins import get_builtin_commands
 from henchman.cli.input import create_session, expand_at_references, is_slash_command
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -46,6 +47,7 @@ class InputHandler:
         history_file: Path | None = None,
         keybindings: dict[str, str] | None = None,
         tool_registry: ToolRegistry | None = None,
+        evidence_redactor: EvidenceRedactor | None = None,
     ) -> None:
         """Initialize the input handler.
 
@@ -55,12 +57,14 @@ class InputHandler:
             history_file: Path to history file.
             keybindings: Custom keybindings configuration.
             tool_registry: Optional tool registry for tool name completions.
+            evidence_redactor: Shared policy for persisted prompt history.
         """
         self.config = config
         self.renderer = renderer
         self.history_file = history_file or Path.home() / ".henchman_history"
         self.keybindings = keybindings
         self.tool_registry = tool_registry
+        self.evidence_redactor = evidence_redactor
         self.prompt_session: PromptSession[str] | None = None
 
     def initialize_prompt_session(
@@ -90,6 +94,7 @@ class InputHandler:
             bottom_toolbar=bottom_toolbar,
             keybindings=self.keybindings,
             completer=completer,
+            evidence_redactor=self.evidence_redactor,
         )
 
     async def get_input(self: Self) -> str:

@@ -10,6 +10,8 @@ from typing import Literal
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
+_STUB_SKIP = '@pytest.mark.skip(reason="TODO: implement this generated test")'
+
 # ---------------------------------------------------------------------------
 # Module-level AST helpers (extracted from TestGenTool to eliminate Feature
 # Envy — each helper accessed ``ast`` more times than ``self``).
@@ -132,6 +134,7 @@ def _generate_test_method(spec: MethodStubSpec) -> str:
     test_name = "init" if spec.method_name == "__init__" else spec.method_name
     prefix = "async " if spec.is_async else ""
     return (
+        f"    {_STUB_SKIP}\n"
         f"    {prefix}def test_{test_name}(self) -> None:\n"
         f'        """Test {spec.cls_name}.{spec.method_name}."""\n'
         f"        # TODO: Implement test for {spec.cls_name}.{spec.method_name}\n"
@@ -149,6 +152,7 @@ def _generate_test_init(cls_name: str) -> str:
         Indented test method source code.
     """
     return (
+        f"    {_STUB_SKIP}\n"
         "    def test_create(self) -> None:\n"
         f'        """Test {cls_name} creation."""\n'
         f"        # TODO: Implement test for {cls_name} creation\n"
@@ -157,7 +161,7 @@ def _generate_test_init(cls_name: str) -> str:
 
 
 def _make_test_body(func_name: str, args: list[str]) -> str:
-    """Generate a test body with a placeholder call.
+    """Generate an unfinished body without inventing inputs or expected behavior.
 
     Args:
         func_name: Function name.
@@ -166,10 +170,8 @@ def _make_test_body(func_name: str, args: list[str]) -> str:
     Returns:
         Test body code string.
     """
-    if args:
-        arg_strs = ", ".join(f"{a}=..." for a in args)
-        return f"result = {func_name}({arg_strs})\nassert result is not None"
-    return f"result = {func_name}()\nassert result is not None"
+    inputs = f"; provide meaningful inputs for {', '.join(args)}" if args else ""
+    return f"# TODO: Implement test for {func_name}{inputs}\npass"
 
 
 def _pascal(name: str) -> str:
@@ -266,8 +268,11 @@ def _generate_function_test_stub(sym: dict[str, object]) -> tuple[str, str]:
     prefix = "async " if is_async else ""
     args_value = sym.get("args", [])
     args_list = [str(a) for a in args_value] if isinstance(args_value, list) else []
-    test_body = _make_test_body(name, args_list)
-    stub = f'{prefix}def test_{name}() -> None:\n    """Test {name}."""\n    {test_body}\n'
+    test_body = textwrap.indent(_make_test_body(name, args_list), "    ")
+    stub = (
+        f'{_STUB_SKIP}\n{prefix}def test_{name}() -> None:\n'
+        f'    """Test {name}."""\n{test_body}\n'
+    )
     return stub, name
 
 
@@ -282,6 +287,7 @@ def _generate_class_test_stub(sym: dict[str, object]) -> tuple[str, str]:
     """
     cls_name = str(sym["name"])
     stub = (
+        f"{_STUB_SKIP}\n"
         f"def test_{cls_name.lower()}_creation() -> None:\n"
         f'    """Test {cls_name} creation."""\n'
         f"    pass  # TODO: implement test\n"
@@ -476,21 +482,19 @@ class TestGenTool(Tool):
         prefix = "async " if is_async else ""
         args_value = sym.get("args", [])
         args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
-        test_body = _make_test_body(name, args_list)
-        source = textwrap.dedent(
-            f"""\
-            class Test{_pascal(name)}:
-                \"\"\"Tests for {name}.\"\"\"
-
-                {prefix}def test_{name}_basic(self) -> None:
-                    \"\"\"Test basic {name} behavior.\"\"\"
-                    {test_body}
-
-                {prefix}def test_{name}_edge_cases(self) -> None:
-                    \"\"\"Test {name} edge cases.\"\"\"
-                    # TODO: Add edge case tests for {name}
-                    pass
-            """,
+        test_body = textwrap.indent(_make_test_body(name, args_list), "        ")
+        source = (
+            f'class Test{_pascal(name)}:\n'
+            f'    """Tests for {name}."""\n\n'
+            f'    {_STUB_SKIP}\n'
+            f'    {prefix}def test_{name}_basic(self) -> None:\n'
+            f'        """Test basic {name} behavior."""\n'
+            f'{test_body}\n\n'
+            f'    {_STUB_SKIP}\n'
+            f'    {prefix}def test_{name}_edge_cases(self) -> None:\n'
+            f'        """Test {name} edge cases."""\n'
+            f'        # TODO: Add edge case tests for {name}\n'
+            f'        pass\n'
         )
         return source, is_async, {name}
 

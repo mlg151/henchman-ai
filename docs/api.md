@@ -27,6 +27,68 @@ version:
 }
 ```
 
+## HTTP chat and task usage
+
+`POST /v1/chat/completions` starts an isolated process-owned run from a nonempty
+`messages` array ending in a user message. Optional `system_prompt` replaces
+system messages for that new run. The response includes a server-generated
+`run_id`, `accounting_lifetime: "process"` and a nullable `budget` aggregate.
+Concurrent root requests use separate agents and histories.
+
+```json
+{"messages": [{"role": "user", "content": "Explain this function"}]}
+```
+
+When the response requests tools, the caller executes them and submits exactly
+one result for each pending call, retaining the original `run_id`:
+
+```json
+{
+  "run_id": "<original run ID>",
+  "messages": [{"role": "tool", "tool_call_id": "<pending ID>", "content": "result"}]
+}
+```
+
+Continuation appends those results to the retained conversation and shares its
+consumed budget. A full transcript is accepted only if its prefix exactly matches
+the authoritative history. Completed or interrupted runs cannot be restarted by
+resubmitting their ID. Same-run concurrent requests return 409. Unknown, evicted,
+restarted or foreign caller IDs return 404 without creating a fresh budget.
+
+With authentication required, verified `X-API-Key` identity owns each run; raw
+keys are not stored in run records. With authentication disabled, all requests
+share one local authority. `GET /v1/chat/history?run_id=...` and
+`GET /v1/usage?run_id=...` use the same ownership rules. Omitting the ID selects
+that caller's latest retained run. `DELETE /v1/chat/history` hides that run's
+history view while retaining execution history, pending tools and accounting.
+
+`stream: true` or `POST /v1/chat/completions/stream` returns SSE. A `start` event
+identifies the run; content/tool events follow; `done` includes its final budget.
+Failures after headers appear as `error` events with status, run and budget
+information when available. Clients must inspect the event outcome, not only
+the HTTP status. Cancellation retains uncertain dispatched usage.
+
+The shared `usage` settings bound requests, aggregate tokens, elapsed time and
+optional estimated cost. `/v1/usage` returns the selected run's aggregate; costs
+are exact decimal strings separated by currency and provenance under
+`budget.money`. Legacy `total_cost` remains null and `daily_usage` empty; no
+universal rate or date breakdown is invented. `total_tokens` is null while
+dispatched usage is unknown. Unsupported unbounded provider extensions expose
+`budget: null`; configured caps/prices require an instrumented provider.
+
+The registry holds at most 1,024 process runs and evicts only completed runs.
+Active, interrupted and tool-waiting runs retain their authority; a full registry
+returns 503. This is process-local storage, without multi-worker or restart
+continuation. `usage.persistence: durable` returns 503 before dispatch until API
+session binding is implemented.
+
+Request-level `max_tokens` and `temperature` are currently unsupported: supplying
+either, including null, returns 422. Configure provider request defaults on the
+server. Unknown fields such as `model` or `tools` also return 422 instead of being
+silently ignored. Tool-result continuation cannot replace the system prompt.
+See [automatic accounting](providers.md#automatic-task-accounting) for reservation
+and billing limits.
+
 ## Core
 
 ### Agent
@@ -464,6 +526,21 @@ class Tool(ABC):
         """Execute the tool."""
 ```
 
+### Local schema validation
+
+`SchemaContract(schema).validate(value)` validates a detached 2020-12 contract
+without modifying the schema or value. `validate_tool_input(parameters, arguments)`
+provides the same check for tool inputs; failures raise `SchemaContractError`
+with a value-free diagnostic. See the [supported bounds and reference rules](standards.md#local-schema-contract-foundation).
+
+```python
+from henchman.tools.contracts import SchemaContract
+
+contract = SchemaContract({"type": "object", "properties": {"label": {"type": ["string", "null"]}}})
+contract.validate({})              # Omitted stays omitted.
+contract.validate({"label": None}) # Explicit null stays null.
+```
+
 ### ToolKind
 
 ```python
@@ -529,6 +606,7 @@ from henchman.config import (
     load_settings,
     Settings,
     ContextLoader,
+    ContextSnapshot,
     ContextSettings,
     ProviderSettings,
     ToolSettings,
@@ -547,9 +625,48 @@ from henchman.config import (
 ### load_settings
 
 ```python
-def load_settings() -> Settings:
+def load_settings(project_root: Path | None = None) -> Settings:
     """Load settings from all sources (defaults, user, workspace, env)."""
 ```
+
+### load_settings_snapshot
+
+```python
+from henchman.config.settings import load_settings_snapshot
+
+snapshot = load_settings_snapshot(project_root=Path.cwd())
+settings = snapshot.settings
+origin = snapshot.origins["providers.default"]
+```
+
+The loader returns validated `Settings` and a mapping from dotted leaf paths to
+`SettingOrigin(scope, source)` from the same load. Scopes are `default`, `global`,
+`project`, `file` for a selected `HENCHMAN_SETTINGS_PATH`, and `environment`.
+Sources identify the settings path or environment variable name; default sources
+are `None`. An overlay remains the origin even when its value equals the lower
+layer. A nonexistent explicit file retains the existing global/project fallback.
+`load_settings` delegates to this loader and returns only its settings.
+
+Snapshot values can contain credentials. Apply the existing configuration display
+redaction before showing or exporting them. Config get/view/list consume this
+inspection path; transient session overrides remain follow-up work for v0.4.2.
+
+### SettingsRepository.inspect
+
+```python
+from henchman.config.repository import SettingsRepository, SettingsScope
+
+entries = SettingsRepository(project_root=Path.cwd()).inspect()
+entry = entries["ui.theme"]
+# entry.value and entry.origin come from one merged snapshot.
+```
+
+The mapping contains dotted leaf keys with `SettingInspection(value, origin)`
+entries. An explicit `scope=SettingsScope.GLOBAL` or `SettingsScope.PROJECT`
+returns only that scope's persisted values and selected source file, without
+defaults or environment overrides. Project reads preserve the existing legacy
+fallback; writes still use canonical `.henchman`. Inspection does not write files.
+Apply display redaction before exposing values containing credentials.
 
 ### Settings
 
@@ -567,6 +684,17 @@ class Settings:
 ### ContextLoader
 
 ```python
+class ContextSnapshot:
+    sources: tuple[ContextSource, ...]
+    content: str
+
+    @property
+    def digest(self) -> str: ...        # SHA-256 of rendered content
+    @property
+    def truncated_sources(self) -> tuple[ContextSource, ...]: ...
+    def diagnostics(self) -> tuple[ContextSourceDiagnostic, ...]: ...
+    def to_dict(self, *, include_content: bool = False) -> dict: ...
+
 class ContextLoader:
     def __init__(
         self,
@@ -575,14 +703,21 @@ class ContextLoader:
         *,
         include_subdirs: bool = False,
         start_dir: Path | None = None,
+        max_source_chars: int | None = None,
     ) -> None:
         """Initialize context loader."""
-    
+
     def discover_files(self) -> list[Path]:
         """Discover context files."""
-    
+
     def load(self) -> str:
         """Load and concatenate context files."""
+
+    def load_snapshot(self) -> ContextSnapshot:
+        """Capture ordered sources, provenance and the rendered content."""
+
+    def load_for_path(self, target: Path) -> ContextSnapshot:
+        """Re-resolve instructions for another subtree; rejects outside targets."""
 ```
 
 Context discovery is repository-bounded. When `start_dir` is inside Git, ancestor discovery stops at the Git root; outside Git, it stops at `start_dir` itself and subdirectory discovery is disabled. Global context under `~/.henchman/` is collected separately.
@@ -956,6 +1091,12 @@ from henchman.mcp import (
 ```
 
 ### McpClient
+
+The current client uses the bounded SDK 1.x stdio interface.
+`protocol_version: str | None` reports negotiated protocol metadata while
+connected and clears on disconnect/failure. See the
+[tested compatibility profiles](standards.md#implemented-compatibility-foundation-v042-work)
+and remaining fidelity/migration gates.
 
 ```python
 class McpClient:

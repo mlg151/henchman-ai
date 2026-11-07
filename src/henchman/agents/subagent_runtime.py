@@ -13,9 +13,15 @@ from henchman.agents.metrics_reporter import MetricsReporter
 from henchman.agents.orchestrator_components import AgentValidator
 from henchman.agents.orchestrator_execution import ExecutionController, closing_event_stream
 from henchman.agents.orchestrator_tools import ToolController
-from henchman.agents.orchestrator_types import AgentLoopParams, CompletionRequirement, LoopState
+from henchman.agents.orchestrator_types import (
+    AgentLoopParams,
+    CompletionRequirement,
+    CompletionStatus,
+    LoopState,
+)
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
 from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
@@ -48,6 +54,18 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             )
         parent = acting_agent()
         registry = ScopedToolRegistry(parent.tool_registry, tools, inherit_auto_approve=True)
+        snapshot = getattr(orchestrator, "instruction_snapshot", None)
+        if parent.instruction_context is not None:
+            snapshot = parent.instruction_context.snapshot
+        if snapshot is not None and snapshot.sources:
+            from henchman.core.instruction_provenance import render_delegation_appendix
+
+            prompt = f"{prompt}\n\n{render_delegation_appendix(snapshot)}"
+        if registry.is_plan_mode_active:
+            from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+
+            if PLAN_MODE_PROMPT not in prompt:
+                prompt = f"{prompt}{PLAN_MODE_PROMPT}"
         agent = Agent(
             provider=parent.provider,
             tool_registry=registry,
@@ -61,8 +79,19 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             ),
             max_tokens=parent.max_tokens,
             context_window=parent.context_window,
+            auto_compact=parent.auto_compact,
+            intelligent_context=parent.intelligent_context,
+            importance_threshold=parent.importance_threshold,
+            cluster_similarity_threshold=parent.cluster_similarity_threshold,
+            adaptive_compression=parent.adaptive_compression,
+            summarize_dropped=parent.summarize_dropped,
+            max_protected_ratio=parent.max_protected_ratio,
             base_tool_iterations=parent.base_tool_iterations,
         )
+        if snapshot is not None:
+            from henchman.core.instruction_context import InstructionContext
+
+            InstructionContext.attach(agent, snapshot, orchestrator.pool.instruction_observer)
         facade = copy.copy(orchestrator)
         facade.tech_lead = agent
         facade.tool_registry = registry
@@ -150,7 +179,12 @@ async def run_with_notifications(
                 async with closing_event_stream(
                     orchestrator.execution_controller.run_agent_loop(params)
                 ) as stream:
-                    async for event in stream:
+                    while True:
+                        with manager.accounting_guard():
+                            try:
+                                event = await anext(stream)
+                            except StopAsyncIteration:
+                                break
                         yield event
             finally:
                 transcript.extend(params.agent.current_turn_messages)
@@ -187,6 +221,11 @@ async def run_with_notifications(
             params.input_text = notification_text(notifications)
             params.prior_tool_rounds = aggregate.tool_round_count
             params.prior_tool_calls = aggregate.tool_call_count
+    except BudgetControlError:
+        aggregate.failed = True
+        observed_state = True
+        orchestrator.last_completion_status = CompletionStatus.FAILED
+        raise
     finally:
         params.agent.current_turn_messages = transcript
         if observed_state:

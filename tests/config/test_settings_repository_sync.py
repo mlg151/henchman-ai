@@ -165,3 +165,58 @@ def test_sync_ui_settings_preserves_existing_file_on_validation_failure(
         )
 
     assert (project_settings_dir / "settings.yaml").read_text(encoding="utf-8") == before
+
+
+def test_imported_defaults_round_trip_and_override_global_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An imported default-valued UI preference still overrides the user scope."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    source_root = tmp_path / "source"
+    destination_root = tmp_path / "destination"
+    source_root.mkdir()
+    destination_root.mkdir()
+    source_ui: dict[str, object] = {
+        "output_mode": "rich",
+        "reduced_motion": False,
+        "detail_density": "normal",
+        "keyboard_mode": "standard",
+        "mouse_capture": True,
+        "layout": {"compact_tables": False},
+    }
+    _write_settings(source_root / ".henchman", {"ui": source_ui})
+    _write_settings(
+        tmp_path / "home" / ".henchman",
+        {
+            "ui": {
+                "output_mode": "quiet",
+                "reduced_motion": True,
+                "detail_density": "compact",
+                "keyboard_mode": "vim",
+                "mouse_capture": False,
+                "layout": {"compact_tables": True},
+            },
+        },
+    )
+    destination = SettingsRepository(project_root=destination_root)
+    destination.set("ui.theme", "light", scope=SettingsScope.PROJECT)
+    exported = SettingsRepository(project_root=source_root).export_settings(
+        scope=SettingsScope.PROJECT,
+    )
+
+    destination.import_settings(exported, scope=SettingsScope.PROJECT)
+
+    expected = {"ui": {**source_ui, "theme": "light"}}
+    assert destination.view(scope=SettingsScope.PROJECT) == expected
+    assert destination.export_settings(scope=SettingsScope.PROJECT) == expected
+    for key_path in (
+        "ui.output_mode",
+        "ui.reduced_motion",
+        "ui.detail_density",
+        "ui.keyboard_mode",
+        "ui.mouse_capture",
+        "ui.layout.compact_tables",
+    ):
+        assert destination.get(key_path) == destination.get(key_path, scope=SettingsScope.PROJECT)
+        assert destination.inspect()[key_path].origin.scope == "project"

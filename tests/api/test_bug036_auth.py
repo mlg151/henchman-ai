@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from tests.api.helpers import install_chat_runtime
+
 
 def _make_settings(require_auth: bool = False) -> MagicMock:
     """Create a mock settings object."""
@@ -51,7 +53,7 @@ def test_chat_completion_with_valid_key_succeeds() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         mock_state.metrics = {
             "requests_total": 0,
             "requests_successful": 0,
@@ -94,7 +96,7 @@ def test_chat_completion_with_invalid_key_returns_401() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         mock_state.metrics = {}
         auth_state.settings = _make_settings(require_auth=True)
         auth_state.api_keys = {"valid-key-123"}
@@ -126,7 +128,7 @@ def test_chat_stream_with_valid_key_succeeds() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
         auth_state.settings = _make_settings(require_auth=True)
         auth_state.api_keys = {"valid-key-123"}
@@ -154,7 +156,7 @@ def test_get_chat_history_with_valid_key_succeeds() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         auth_state.settings = _make_settings(require_auth=True)
         auth_state.api_keys = {"valid-key-123"}
 
@@ -181,7 +183,7 @@ def test_clear_chat_history_with_valid_key_succeeds() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         auth_state.settings = _make_settings(require_auth=True)
         auth_state.api_keys = {"valid-key-123"}
 

@@ -61,11 +61,11 @@ async def test_edit_uses_same_physical_lines_as_numbered_read(
     tmp_path: Path, separator: str
 ) -> None:
     path = tmp_path / "sample.txt"
-    path.write_text(f"before{separator}hidden\ntarget\nafter\n")
+    path.write_text(f"before{separator}hidden\ntarget\nafter\n", encoding="utf-8")
     result = await ReadFileTool().execute(path=str(path), line_numbers=True)
     assert result.content == f"1: before{separator}hidden\n2: target\n3: after\n"
     edited = await EditFileTool().execute(
         path=str(path), start_line=2, end_line=2, new_str="replacement"
     )
     assert edited.success
-    assert path.read_text() == f"before{separator}hidden\nreplacement\nafter\n"
+    assert path.read_text(encoding="utf-8") == f"before{separator}hidden\nreplacement\nafter\n"

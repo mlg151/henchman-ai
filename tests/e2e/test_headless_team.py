@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from rich.console import Console
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import bind_scripted_transport
 
 from henchman.advanced.plans import PlanExecutionService
 from henchman.agents.orchestrator import Orchestrator
@@ -89,12 +89,9 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         requests.append(copy.deepcopy(kwargs))
         assert len(requests) <= len(script), "Unexpected model call"
         call = script[len(requests) - 1]
-        return anthropic_response(call) if provider_name == "anthropic" else compatible_response(call)
+        return call
 
-    if provider_name == "anthropic":
-        monkeypatch.setattr(provider._client.messages, "stream", next_response)
-    else:
-        monkeypatch.setattr(provider._client.chat.completions, "create", AsyncMock(side_effect=next_response))
+    await bind_scripted_transport(provider, next_response)
     registry = ToolRegistry()
     verification = VerifyPlanExecutionTool()
     verification.bind_runtime(project_root=tmp_path)
@@ -135,8 +132,12 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
             ]
             events = [event_to_dict(event) for event in raw]
     finally:
+        await orch.aclose()
         await provider._client.close()
     assert len(requests) == len(script)
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == len(script)
+    assert snapshot.unknown_dispatched_requests == 0
     assert source.read_text() == "from math_helpers import add\n\n\ndef total(a, b):\n    return add(a, b)\n"
     assert helper.read_text() == "def add(a, b):\n    return a + b\n"
     results = [event for event in events if event["type"] == "tool_call_result"]
@@ -154,7 +155,8 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
     assert [entry.agent for entry in orch.ledger.delegations] == ["explorer", "engineer", "explorer"]
     assert all(entry.status.value == "completed" for entry in orch.ledger.delegations)
     assert approvals.count("delegate_task") == 3
-    assert approvals.count("shell") == 2
+    # The repeated identical pytest run reuses the first approval grant.
+    assert approvals.count("shell") == 1
     assert "edit_file" in approvals and "verify_plan_execution" in approvals
     assert [event["type"] for event in events].count("finished") == 1
     assert events[-1]["type"] == "finished"

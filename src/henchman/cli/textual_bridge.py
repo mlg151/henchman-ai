@@ -14,8 +14,11 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from rich.console import Console as RichConsole
+from rich.errors import MarkupError
+from rich.text import Text
 from textual.message import Message
 
+from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.textual_messages import (
     AgentContentMessage,
     AgentFinishedMessage,
@@ -27,10 +30,16 @@ from henchman.cli.textual_messages import (
     ToolConfirmationMessage,
 )
 from henchman.cli.textual_widgets import StatusBar
+from henchman.core.event_evidence import EventEvidenceRedactor
 from henchman.core.events import AgentEvent, EventType
+from henchman.providers.base import ToolCall
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Iterable
+
+    from rich.console import ConsoleOptions, RenderableType
+    from rich.segment import Segment
 
     from henchman.cli.textual_app import HenchmanTextualApp
 
@@ -49,6 +58,126 @@ except ImportError:  # pragma: no cover
     from typing import Self
 
 
+class _AnsiPlainText:
+    """Discard ANSI controls, retaining only bounded parser state across writes."""
+
+    def __init__(self) -> None:
+        self._state = "text"
+
+    def feed(self, value: str) -> str:
+        output = []
+        for char in value:
+            if self._state == "text":
+                if char == "\x1b":
+                    self._state = "escape"
+                elif char in ("\x9b", "\x9d"):
+                    self._state = "csi" if char == "\x9b" else "osc"
+                else:
+                    output.append(char)
+            elif self._state == "escape":
+                self._state = {"[": "csi", "]": "osc"}.get(char, "text")
+            elif self._state == "csi":
+                if "@" <= char <= "~":
+                    self._state = "text"
+            elif self._state == "osc":
+                if char in ("\x07", "\x9c"):
+                    self._state = "text"
+                elif char == "\x1b":
+                    self._state = "osc_escape"
+            else:
+                self._state = "text" if char == "\\" else "osc"
+        return "".join(output)
+
+
+class _EvidenceConsole(RichConsole):
+    """Project text before Rich can wrap, crop, or consume its markup."""
+
+    def __init__(self, policy: Callable[[], EvidenceRedactor], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._policy = policy
+        self._raw_stream: EvidenceStreamRedactor | None = None
+        self._visible_stream: EvidenceStreamRedactor | None = None
+        self._ansi = _AnsiPlainText()
+
+    @staticmethod
+    def _replace_text(original: Text, value: str) -> Text:
+        if value == original.plain:
+            return original
+        # A changed projection cannot reuse offsets into the original spans.
+        return Text(
+            value, style=original.style, justify=original.justify,
+            overflow=original.overflow, no_wrap=original.no_wrap,
+            end=original.end, tab_size=original.tab_size,
+        )
+
+    def render_str(self, text: str, **kwargs: Any) -> Text:
+        policy = self._policy()
+        safe = _AnsiPlainText().feed(policy.text(text))
+        rendered = self._render_projected_str(text, safe, kwargs)
+        return self._replace_text(rendered, policy.text(rendered.plain))
+
+    def _render_projected_str(self, original: str, safe: str, options: dict[str, Any]) -> Text:
+        try:
+            return super().render_str(safe, **options)
+        except MarkupError:
+            if safe == original:
+                raise
+            # Masking an opening tag can leave its closing tag unmatched.
+            # Preserve the safe evidence literally in that case.
+            return super().render_str(safe, **{**options, "markup": False})
+
+    def render(
+        self, renderable: RenderableType, options: ConsoleOptions | None = None,
+    ) -> Iterable[Segment]:
+        if isinstance(renderable, Text):
+            plain = _AnsiPlainText().feed(self._policy().text(renderable.plain))
+            renderable = self._replace_text(renderable, self._policy().text(plain))
+        yield from super().render(renderable, options)
+
+    def _stream_text(self, value: str | Text, options: dict[str, Any]) -> Text:
+        assert self._raw_stream is not None and self._visible_stream is not None
+        original = value.plain if isinstance(value, Text) else value
+        safe = self._ansi.feed(self._raw_stream.feed(original))
+        if isinstance(value, Text):
+            rendered = self._replace_text(value, safe)
+        else:
+            rendered = self._render_projected_str(original, safe, {
+                key: options[key] for key in ("markup", "highlight", "emoji", "justify")
+                if key in options
+            })
+        return self._replace_text(rendered, self._visible_stream.feed(rendered.plain))
+
+    def _finish_text(self) -> None:
+        if self._raw_stream is not None and self._visible_stream is not None:
+            pending = self._ansi.feed(self._raw_stream.finish())
+            pending = self._visible_stream.feed(pending) + self._visible_stream.finish()
+            if pending:
+                super().print(Text(pending), end="")
+        self._ansi = _AnsiPlainText()
+
+    def print(self, *objects: Any, **kwargs: Any) -> None:
+        policy = self._policy()
+        policy.register_config(objects)
+        if self._raw_stream is None or self._raw_stream.redactor is not policy:
+            self._finish_text()
+            self._raw_stream = EvidenceStreamRedactor(policy)
+            self._visible_stream = EvidenceStreamRedactor(policy)
+        if all(isinstance(value, (str, Text)) for value in objects):
+            options = kwargs.copy()
+            separator = options.pop("sep", " ")
+            ending = options.pop("end", "\n")
+            projected = []
+            for index, value in enumerate(objects):
+                if index:
+                    projected.append(self._stream_text(Text(separator), options))
+                projected.append(self._stream_text(value, options))
+            projected.append(self._stream_text(Text(ending), options))
+            super().print(*projected, sep="", end="", **options)
+        else:
+            self._finish_text()
+            super().print(*objects, **kwargs)
+
+
 class TuiConsoleAdapter:
     """Intercepts Rich Console output and forwards it to the chat pane.
 
@@ -63,8 +192,11 @@ class TuiConsoleAdapter:
             app: The Textual application.
         """
         self._app = app
+        self._evidence_stream: EvidenceStreamRedactor | None = None
+        self._ansi = _AnsiPlainText()
         self._buf = io.StringIO()
-        self._rich_console = RichConsole(
+        self._rich_console = _EvidenceConsole(
+            lambda: runtime_evidence_redactor(self._app),
             file=self._buf,
             force_terminal=True,
             no_color=False,
@@ -88,8 +220,21 @@ class TuiConsoleAdapter:
             None
         """
         text = self._buf.getvalue()
-        if text.strip():
-            self._app.post_message(CommandOutputMessage(text.strip()))
+        if text:
+            policy = runtime_evidence_redactor(self._app)
+            if self._evidence_stream is None or self._evidence_stream.redactor is not policy:
+                if self._evidence_stream is not None:
+                    pending = self._evidence_stream.finish()
+                    if pending:
+                        self._app.post_message(CommandOutputMessage(pending))
+                self._evidence_stream = EvidenceStreamRedactor(policy)
+            # Final guard for custom renderables and sensitive hyperlink targets.
+            plain = self._ansi.feed(text)
+            safe = self._evidence_stream.feed(plain)
+            shown = text if safe == plain and policy.text(text) == text else safe
+            shown = shown.rstrip("\r\n")
+            if shown:
+                self._app.post_message(CommandOutputMessage(shown))
         self._buf.seek(0)
         self._buf.truncate(0)
 
@@ -103,6 +248,7 @@ class TuiConsoleAdapter:
         Returns:
             None
         """
+        runtime_evidence_redactor(self._app).register_config(args)
         self._rich_console.print(*args, **kwargs)
         self.flush_to_chat()
 
@@ -247,6 +393,7 @@ class EventBridge:
         """
         self.app = app
         self._message_poster = MessagePoster(app)
+        self._evidence = EventEvidenceRedactor(runtime_evidence_redactor(app))
         self._handlers: dict[EventType, Callable[[AgentEvent], None]] = (
             self._build_handler_registry()
         )
@@ -267,19 +414,28 @@ class EventBridge:
         """
         try:
             async for event in event_stream:
-                self._dispatch(event)
+                for safe in self._evidence.project(event):
+                    if safe.type == EventType.TOOL_CALL_REQUEST and isinstance(event.data, ToolCall):
+                        safe.data = ToolCall(**safe.data)
+                    self._dispatch(safe)
         except Exception as exc:
             import traceback
 
-            details = traceback.format_exc()
+            for safe in self._evidence.flush():
+                self._dispatch(safe)
+            details = self._evidence.redactor.text(traceback.format_exc())
+            message = self._evidence.redactor.text(str(exc))
             # Escape triple backticks in traceback to prevent code fence breakout
             safe_details = details.replace("```", "` ` `")
-            self._message_poster.post(AgentStatusMessage(f"Stream error: {exc}"))
+            self._message_poster.post(AgentStatusMessage(f"Stream error: {message}"))
             self._message_poster.post(
                 AgentContentMessage(
-                    f"❌ Stream error: {exc}\n```\n{safe_details}\n```",
+                    f"❌ Stream error: {message}\n```\n{safe_details}\n```",
                 ),
             )
+        finally:
+            for safe in self._evidence.flush():
+                self._dispatch(safe)
 
     # -- internal helpers --
 

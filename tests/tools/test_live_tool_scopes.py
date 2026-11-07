@@ -40,6 +40,7 @@ def register_search(parent: ToolRegistry) -> ToolSearchTool:
 
 async def test_late_allowed_tools_appear_in_lookup_declarations_and_execution() -> None:
     parent = ToolRegistry()
+    parent.set_confirmation_handler(AsyncMock(return_value=True))
     allowed = ["late"]
     scoped = create_scoped_registry(parent, allowed)
     allowed.append("secret")
@@ -59,6 +60,7 @@ async def test_late_allowed_tools_appear_in_lookup_declarations_and_execution() 
 
 async def test_parent_removal_and_replacement_are_live_through_nested_scopes() -> None:
     parent = ToolRegistry()
+    parent.set_confirmation_handler(AsyncMock(return_value=True))
     original = NamedTool("operation", "original")
     parent.register(original)
     scoped = create_scoped_registry(parent, ["operation"])
@@ -79,6 +81,7 @@ async def test_parent_removal_and_replacement_are_live_through_nested_scopes() -
 
 async def test_extra_overrides_and_local_exclusions_win_over_parent_updates() -> None:
     parent = ToolRegistry()
+    parent.set_confirmation_handler(AsyncMock(return_value=True))
     parent.register(NamedTool("operation"))
     extra = NamedTool("operation", "extra")
     local_only = NamedTool("local_only")

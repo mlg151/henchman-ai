@@ -303,7 +303,9 @@ class BranchExecutor(SessionCommandExecutor):
             return
 
         try:
-            branch = manager.branch_session(session_id, branch_point, tag)
+            branch = manager.branch_session(
+                session_id, branch_point, tag, project_hash=self.op_context.project_hash
+            )
             manager.save(branch)
             self.op_context.print_success(f"Created branch: {branch.id}")
             if branch.tag:
@@ -382,7 +384,9 @@ class MergeExecutor(SessionCommandExecutor):
         session_ids, strategy, tag = self._parse_merge_arguments()
 
         try:
-            merged = manager.merge_sessions(session_ids, strategy, tag)
+            merged = manager.merge_sessions(
+                session_ids, strategy, tag, project_hash=self.op_context.project_hash
+            )
             manager.save(merged)
             self.op_context.print_success(f"Created merged session: {merged.id}")
             if merged.tag:
@@ -423,7 +427,9 @@ class TemplateSaveExecutor(SessionCommandExecutor):
             return
 
         try:
-            template = manager.save_template(session_id, name, description)
+            template = manager.save_template(
+                session_id, name, description, project_hash=self.op_context.project_hash
+            )
             self.op_context.print_success(f"Saved template: {template['name']}")
             self.op_context.print_info(f"ID: {template['id']}")
             if description:
@@ -458,7 +464,9 @@ class TemplateCreateExecutor(SessionCommandExecutor):
             return
 
         try:
-            session = manager.create_from_template(template_id, tag=tag)
+            session = manager.create_from_template(
+                template_id, tag=tag, project_hash=self.op_context.project_hash
+            )
             manager.save(session)
             self.op_context.print_success(f"Created session from template: {session.id}")
             if session.tag:
@@ -480,7 +488,7 @@ class TemplateListExecutor(SessionCommandExecutor):
         Returns:
             None
         """
-        templates = manager.list_templates()
+        templates = manager.list_templates(project_hash=self.op_context.project_hash)
 
         if not templates:
             self.op_context.print_info("No templates available")
@@ -524,9 +532,9 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
             return
 
         try:
-            manager.delete_template(template_id)
+            manager.delete_template(template_id, project_hash=self.op_context.project_hash)
             self.op_context.print_success(f"Deleted template: {template_id}")
-        except FileNotFoundError as e:
+        except (FileNotFoundError, ValueError) as e:
             self.op_context.print_error(str(e))
 
 
@@ -554,7 +562,9 @@ class ExportExecutor(SessionCommandExecutor):
             return
 
         try:
-            exported = manager.export_session(session_id, fmt)
+            exported = manager.export_session(
+                session_id, fmt, project_hash=self.op_context.project_hash
+            )
 
             ext = "json" if fmt == "json" else "md"
             output_file = Path.cwd() / f"session_{session_id}.{ext}"
@@ -597,7 +607,9 @@ class ImportExecutor(SessionCommandExecutor):
 
         try:
             data = file_path.read_text()
-            session = manager.import_session(data, fmt, tag)
+            session = manager.import_session(
+                data, fmt, tag, project_hash=self.op_context.project_hash
+            )
             manager.save(session)
 
             self.op_context.print_success(f"Imported session: {session.id}")
@@ -830,7 +842,7 @@ def display_session_entry(
         None
     """
     try:
-        session = manager.load(meta.id)
+        session = manager.load(meta.id, project_hash=op_context.project_hash)
         display_enhanced_session_info(op_context, meta, session, params)
     except (FileNotFoundError, ValueError, json.JSONDecodeError):
         display_basic_session_info(op_context, meta, params)

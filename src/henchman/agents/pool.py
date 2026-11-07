@@ -1,6 +1,6 @@
 """AgentPool manages the lifecycle and instantiation of agents in a team."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import partial
@@ -16,6 +16,7 @@ from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
     from henchman.agents.config import AgentConfig
+    from henchman.config.context import ContextSnapshot
     from henchman.core.eventbus import EventBus
     from henchman.providers.base import ModelProvider
     from henchman.providers.registry import ProviderRegistry
@@ -40,6 +41,7 @@ class ContextConfig:
         max_tokens: Explicit context budget, or None for model-derived limits.
         context_window: Hard requested capacity, separate from compaction budget.
         leader_system_prompt: Optional runtime override for the leader prompt.
+        auto_compact: Whether automatic request preparation may compact history.
     """
 
     environment_context: str | None = field(default=None)
@@ -50,6 +52,7 @@ class ContextConfig:
     max_tokens: int | None = None
     context_window: int | None = None
     leader_system_prompt: str | None = None
+    auto_compact: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +210,8 @@ class AgentPool:
                 adaptive_compression=adaptive_compression,
             )
         self.context_config = context_config
+        self.instruction_snapshot: ContextSnapshot | None = None
+        self.instruction_observer: Callable[[ContextSnapshot], None] | None = None
         self._agents: dict[str, Agent] = {}
         self._execution_claims: dict[int, _AgentClaim] = {}
 
@@ -285,9 +290,13 @@ class AgentPool:
     ) -> "ModelProvider":
         """Construct an isolated model override using the live provider connection."""
         # A model-only override inherits the live provider, including runtime switches.
-        provider_name = provider.name
-        if provider_name == "openai-compatible":
-            provider_name = "openai_compat"
+        configured_name = getattr(provider, "_accounting_provider_name", None)
+        if isinstance(configured_name, str) and configured_name.strip():
+            provider_name = configured_name
+        else:
+            provider_name = provider.name
+            if provider_name == "openai-compatible":
+                provider_name = "openai_compat"
         settings = self.provider_settings.model_copy(deep=True)
         configured = dict(getattr(settings, provider_name, {}))
         request_defaults = getattr(provider, "request_defaults", None)
@@ -419,6 +428,7 @@ class AgentPool:
             model=config.model,
             max_tokens=ctx.max_tokens if ctx.max_tokens is not None else 0,
             context_window=ctx.context_window,
+            auto_compact=ctx.auto_compact,
             identity=identity,
             intelligent_context=ctx.intelligent_context,
             importance_threshold=ctx.importance_threshold,
@@ -426,6 +436,10 @@ class AgentPool:
             adaptive_compression=ctx.adaptive_compression,
         )
 
+        if self.instruction_snapshot is not None:
+            from henchman.core.instruction_context import InstructionContext
+
+            InstructionContext.attach(agent, self.instruction_snapshot, self.instruction_observer)
         self._agents[role] = agent
         scoped_registry.bind_team_tool_resolver(
             partial(self.find_team_tool_roles, requester_role=role),

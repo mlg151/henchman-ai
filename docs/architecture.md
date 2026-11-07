@@ -317,7 +317,8 @@ REPL and Textual turns save after their streams close, including cancellation.
 `Agent.current_turn_messages` retains independent copies of the current turn's
 messages before context compaction. Session synchronization replaces only that
 turn's transcript, preserving earlier conversation, full tool results, tool-call
-arguments, reasoning, and marked partial responses. The model's compacted working
+arguments, reasoning, and marked partial responses, subject to evidence redaction.
+The model's compacted working
 context is separate from this persisted evidence.
 
 Resuming a session restores the configured agent's system prompt and the selected
@@ -325,6 +326,74 @@ session's messages. Summaries from the previously active conversation are discar
 Direct-role sessions restore to the selected specialist. These behaviors have
 offline runtime coverage through save/load and a subsequent agent request;
 interactive terminal rendering and live provider execution require separate checks.
+
+Disk sessions use storage version 1 with a SHA-256 payload integrity check. Saves
+flush a unique private temporary file, atomically replace the current JSON, and
+retain one verified prior copy in `<id>.json.bak`. POSIX saves also flush directory
+entries; Windows uses file flush and replacement without a directory-fsync claim.
+Native file locks serialize cooperating writers, and a loaded-byte revision token
+rejects stale updates (including attempts to resurrect a deleted session). Reload
+and reconcile on conflict; a portable import is not permission to overwrite an
+existing session. Legacy unversioned sessions migrate on their next save, retaining
+a redacted prior copy. Portable exports keep the established session JSON shape.
+
+`Session.to_dict()` projects evidence through the shared runtime `EvidenceRedactor`;
+it leaves live messages and execution inputs unchanged. Session managers attach
+the same policy to created, loaded, imported, branched, merged and templated
+sessions. Interactive startup registers settings/provider credentials and provider
+switching adds replacement keys without forgetting old ones. Markdown and playback
+render from the projected session, so credential fields outside a rendered section
+still mask their echoed values. Template metadata uses that policy too.
+Persistence learns marked credentials from both verified disk generations before
+projecting the new generation. Both copies are sanitized and integrity-checked
+before replacing them, including recovery with a missing or corrupt current file.
+The credential registry remains in memory and is excluded from serialization.
+`session_evidence.py` defines trusted structural projections: fixed field names,
+identities, timestamps, correlation fields, roles, lifecycle flags and provenance
+digests survive even when a short credential coincides with their spelling.
+Evidence text and free-form metadata remain subject to redaction. Memory kinds
+and sources are free-form values, while unexpected objects in identity slots
+fail validation. Storage metadata preserves only its version and digest fields;
+extra fields cannot exempt credentials in a retained backup.
+See [session evidence redaction](configuration.md#session-evidence-redaction) for
+the threat model, legacy-file behavior and remaining output/privacy boundaries.
+
+`EventEvidenceRedactor` projects headless JSON events without modifying execution
+events. It shares the active session credential policy and keeps separate
+`EvidenceStreamRedactor` buffers for each agent's content and reasoning. Known
+credential prefixes remain buffered across chunk boundaries; authentication values
+are discarded until the line ends. JSON's authoritative run completion flushes all
+channels before the terminal event, while cancellation flushes conservatively in
+runtime cleanup. Tool previews derive from sanitized full results, and trusted
+event identities and validated completion controls retain their protocol meaning.
+
+When the current copy is missing, malformed or fails its integrity check, loading
+uses a valid prior copy and emits a warning naming the session and possible lost
+recent changes; `Session.recovery_notice` retains that diagnostic for consumers.
+It does not repair the current copy until the caller saves. Unknown newer storage
+versions fail explicitly instead of rolling back to an older format. Both copies
+are removed on deletion. CLI startup reports unrecoverable storage and unsupported
+versions instead of silently creating a fresh conversation in place of the selected
+session; the original files and selection remain intact for recovery.
+The digest detects corruption, not malicious tampering;
+cooperative locking is not a filesystem isolation boundary. Forced termination
+can leave a private temporary file, which is never treated as a saved session.
+Temporary filenames identify their owning session; its next successful load, save
+or deletion removes abandoned save files under the same lock, including files
+left before the first commit. Other sessions' pending files are untouched.
+This storage recovery does not classify or replay interrupted external operations;
+the operational recovery report, goal/queue persistence and provider continuation
+qualification remain tracked in issue #23.
+
+`SessionContextService.build_snapshot()` is the single effective retention-policy
+report for a session: message/turn counts, `plan_mode`, stored-memory count, the
+persisted memory-extraction opt-out flag, and the number of turns currently held in
+compaction records. Every reporting surface consumes that snapshot or the same
+shared services it reads — the headless `context` command renders it directly, and
+the REPL `/session export` and Textual export path render memories and
+compaction-retained turns through the same `SessionMemoryService` and
+`SessionContextService` state — so UI and headless surfaces report the same
+effective policy.
 
 **Responsibilities**:
 - Save and load chat sessions

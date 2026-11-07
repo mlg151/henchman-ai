@@ -128,12 +128,12 @@ class TestJsonOutputRenderer:
         mock_console.print.assert_called_once()
         args = mock_console.print.call_args[0]
         output = json.loads(args[0])
-        assert len(output) == 3
         assert output[0]["type"] == "content"
         assert output[0]["data"] == "First"
         assert output[1]["type"] == "content"
-        assert output[1]["data"] == "Second"
-        assert output[2]["type"] == "finished"
+        # Redaction can hold an ambiguous suffix until the actual stream end.
+        assert "".join(event["data"] for event in output[1:-1]) == "Second"
+        assert output[-1]["type"] == "finished"
 
     def test_event_to_dict_with_object(self, renderer: JsonOutputRenderer) -> None:
         """Test converting an event with an object as data."""

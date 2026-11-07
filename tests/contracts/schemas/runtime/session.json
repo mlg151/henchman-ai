@@ -3,7 +3,7 @@
   "title": "Session",
   "description": "Shape contract for Session.to_dict().",
   "type": "object",
-  "required": ["id", "project_hash", "started", "last_updated", "plan_mode", "messages", "turn_summaries", "active_agents", "delegation_log", "template_parameters", "export_metadata"],
+  "required": ["id", "project_hash", "started", "last_updated", "plan_mode", "plan_mode_origin", "messages", "turn_summaries", "active_agents", "delegation_log", "template_parameters", "export_metadata"],
   "properties": {
     "id": { "type": "string", "description": "Unique session identifier" },
     "tag": { "type": ["string", "null"], "description": "Optional human-readable tag" },
@@ -11,6 +11,7 @@
     "started": { "type": "string", "description": "ISO-8601 start timestamp" },
     "last_updated": { "type": "string", "description": "ISO-8601 last update timestamp" },
     "plan_mode": { "type": "boolean", "description": "Whether the session is in Plan Mode" },
+    "plan_mode_origin": { "type": "string", "enum": ["user", "model"], "description": "Authority that opened the current plan mode" },
     "messages": {
       "type": "array",
       "description": "Conversation messages",
@@ -26,6 +27,7 @@
               "type": "object",
               "required": ["name", "arguments"],
               "properties": {
+                "id": { "type": ["string", "null"], "description": "Tool call ID pairing the call with its result" },
                 "name": { "type": "string" },
                 "arguments": { "type": "object", "additionalProperties": true }
               },
@@ -50,7 +52,40 @@
           "summary_text": { "type": "string", "description": "LLM-generated summary of the turn" },
           "files_modified": { "type": "array", "description": "List of files modified during the turn", "items": { "type": "string" } },
           "tool_count": { "type": "integer", "description": "Number of tool calls made" },
-          "timestamp": { "type": "string", "description": "ISO timestamp when turn completed" }
+          "timestamp": { "type": "string", "description": "ISO timestamp when turn completed" },
+          "kind": { "type": "string", "enum": ["turn", "compaction"], "description": "Record kind; legacy records default to 'turn'" },
+          "source_turns": { "type": "array", "description": "Absolute 1-based user-anchored turn numbers covered by the record", "items": { "type": "integer", "minimum": 1 } },
+          "retained_messages": {
+            "type": "array",
+            "description": "Original messages retained by a compaction record so its turns stay recoverable",
+            "items": {
+              "type": "object",
+              "required": ["role", "content"],
+              "properties": {
+                "role": { "type": "string", "enum": ["user", "assistant", "tool", "system"] },
+                "content": { "type": ["string", "null"] },
+                "tool_calls": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": "object",
+                    "required": ["name", "arguments"],
+                    "properties": {
+                      "id": { "type": ["string", "null"], "description": "Tool call ID pairing the call with its result" },
+                      "name": { "type": "string" },
+                      "arguments": { "type": "object", "additionalProperties": true }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "tool_call_id": { "type": ["string", "null"] },
+                "agent_id": { "type": ["string", "null"] },
+                "agent_role": { "type": ["string", "null"] },
+                "reasoning_content": { "type": ["string", "null"] },
+                "reasoning_details": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
         },
         "additionalProperties": false
       }
@@ -69,7 +104,31 @@
     "branch_point": { "type": ["integer", "null"], "description": "Message index where branch occurred", "minimum": 0 },
     "template_id": { "type": ["string", "null"], "description": "Template ID if created from template" },
     "template_parameters": { "type": "object", "description": "Template instantiation parameters", "additionalProperties": true },
-    "export_metadata": { "type": "object", "description": "Metadata for export/import operations", "additionalProperties": true }
+    "export_metadata": {
+      "type": "object",
+      "description": "Metadata for export/import operations",
+      "additionalProperties": true,
+      "properties": {
+        "session_memories": {
+          "type": "array",
+          "description": "Persisted per-session memory records",
+          "items": {
+            "type": "object",
+            "required": ["id", "content", "kind", "source", "created_at"],
+            "properties": {
+              "id": { "type": "string" },
+              "content": { "type": "string" },
+              "kind": { "type": "string" },
+              "source": { "type": "string" },
+              "created_at": { "type": "string" },
+              "message_index": { "type": ["integer", "null"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "memory_extraction_opt_out": { "type": "boolean", "description": "Persisted extraction/persistence opt-out flag" }
+      }
+    }
   },
   "additionalProperties": false
 }

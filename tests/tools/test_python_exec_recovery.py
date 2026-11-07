@@ -57,5 +57,5 @@ async def test_valid_source_runs_with_cwd_and_stdout(tmp_path: Path) -> None:
 
     assert result.success, result.content
     assert result.error is None
-    assert result.content == "recovered\n"
+    assert result.content.splitlines() == ["recovered"]
     assert (tmp_path / "result.txt").read_text(encoding="utf-8") == "recovered"

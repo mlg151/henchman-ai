@@ -81,6 +81,7 @@ async def test_continuation_reports_final_response_completion() -> None:
     assert events[-1].data == {
         "finish_reason": "stop",
         "usage": {"prompt_tokens": 10, "completion_tokens": 3, "total_tokens": 13},
+        "usage_source": "reported",
     }
 
 

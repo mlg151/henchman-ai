@@ -175,6 +175,42 @@ class TestSettingsContract:
             schema_name="config/settings",
         )
 
+    def test_usage_limits_and_price_catalog_preserve_exact_serialized_values(
+        self,
+        contract_suite: object,
+    ) -> None:
+        """Accounting config is separate from provider options and uses money strings."""
+        settings = Settings.model_validate(
+            {
+                "usage": {
+                    "limits": {
+                        "max_requests": 0,
+                        "max_tokens": 0,
+                        "max_seconds": 0,
+                        "max_cost": "0",
+                    },
+                    "prices": [
+                        {
+                            "provider": "ollama",
+                            "model": "local.model:v1",
+                            "input_per_1k": "0",
+                            "output_per_1k": "0.12345678901234567890123456789",
+                            "as_of": "2026-11-07",
+                        }
+                    ],
+                }
+            }
+        )
+        payload = settings.model_dump(mode="json")
+        assert payload["usage"]["limits"]["max_cost"] == "0"
+        assert payload["usage"]["prices"][0]["output_per_1k"] == "0.12345678901234567890123456789"
+        assert payload["usage"]["prices"][0]["cache_read_per_1k"] is None
+        assert_contract_matches(
+            contract_suite=contract_suite,  # type: ignore[arg-type]
+            payload=payload,
+            schema_name="config/settings",
+        )
+
     def test_settings_yaml_roundtrip_preserves_contract(
         self, contract_suite: object, full_settings: Settings, tmp_path: Path
     ) -> None:

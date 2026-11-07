@@ -9,6 +9,9 @@ from typing import Any
 from henchman.agents.orchestrator import Orchestrator
 from henchman.agents.orchestrator_execution import _close_stream
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_accounting import RunInvocation, budget_snapshot_payload
+from henchman.core.run_budget import BudgetControlError
+from henchman.providers.runtime_budget import RunBudgetScope
 
 
 @dataclass
@@ -54,9 +57,12 @@ def _finish_run(
     completion: dict[str, Any] | None,
     render_event: Callable[[AgentEvent], None],
     error: str | None = None,
+    budget: dict[str, Any] | None = None,
 ) -> bool:
     """Publish one terminal event without claiming whole-task verification."""
     metadata = dict(completion or {})
+    if budget is not None:
+        metadata["budget"] = budget
     status = metadata.get("status")
     successful = error is None and status in ("completed", "responded")
     if not successful:
@@ -77,6 +83,16 @@ def _finish_run(
     return successful
 
 
+def _budget_evidence(scope: RunBudgetScope | None) -> dict[str, Any] | None:
+    """Keep accounting evidence on failed runs without inventing missing totals."""
+    if not isinstance(scope, RunBudgetScope):
+        return None
+    try:
+        return budget_snapshot_payload(scope.ledger.snapshot())
+    except BudgetControlError as exc:
+        return {"run_id": scope.ledger.run_id, "accounting_error": str(exc)}
+
+
 async def run_orchestrator_json(
     orchestrator: Orchestrator,
     prompt: str,
@@ -86,11 +102,12 @@ async def run_orchestrator_json(
     """Reuse the configured team runtime and close it on every exit path."""
     role = agent_role or "tech_lead"
     outcome = _RenderedRun()
+    invocation = RunInvocation()
     try:
         stream = (
-            orchestrator.run_direct(agent_role, prompt)
+            orchestrator.run_direct(agent_role, prompt, invocation=invocation)
             if agent_role
-            else orchestrator.run(prompt)
+            else orchestrator.run(prompt, invocation=invocation)
         )
         await _forward_events(stream, role, render_event, outcome)
     except Exception as exc:
@@ -98,7 +115,9 @@ async def run_orchestrator_json(
             raise
         return _finish_run(
             role, outcome.completion, render_event, f"{type(exc).__name__}: {exc}",
+            budget=_budget_evidence(invocation.budget_scope),
         )
     finally:
-        await orchestrator.aclose()
-    return _finish_run(role, outcome.completion, render_event)
+        if invocation.claimed:
+            await orchestrator.aclose()
+    return _finish_run(role, outcome.completion, render_event, budget=_budget_evidence(invocation.budget_scope))

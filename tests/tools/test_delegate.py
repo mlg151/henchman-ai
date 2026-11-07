@@ -1,7 +1,12 @@
 import pytest
 
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.asyncio
@@ -18,6 +23,7 @@ async def test_delegate_task_tool_requires_orchestrator() -> None:
 async def test_registry_execution_cannot_claim_unperformed_delegation() -> None:
     registry = ToolRegistry()
     registry.register(DelegateTaskTool())
+    registry.set_confirmation_handler(_approve)
 
     result = await registry.execute("delegate_task", {
         "agent": "explorer", "task": "Explain testing",

@@ -3,6 +3,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.file_edit import EditFileTool
 from henchman.tools.builtins.file_read import ReadFileTool
@@ -173,20 +175,18 @@ class TestEditFileTool:
         assert "old_str" in params["properties"]
         assert "new_str" in params["properties"]
 
-    async def test_edit_file_success(self) -> None:
+    async def test_edit_file_success(self, tmp_path: Path) -> None:
         """Successfully edit a file with string replacement."""
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world")
-            f.flush()
-            result = await tool.execute(
-                path=f.name,
-                old_str="world",
-                new_str="universe",
-            )
-            assert result.success is True
-            assert Path(f.name).read_text() == "hello universe"
-        Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("hello world", encoding="utf-8")
+        result = await tool.execute(
+            path=str(path),
+            old_str="world",
+            new_str="universe",
+        )
+        assert result.success is True
+        assert path.read_text(encoding="utf-8") == "hello universe"
 
     async def test_edit_file_string_not_found(self) -> None:
         """Error when old_str not found in file."""
@@ -229,26 +229,24 @@ class TestEditFileTool:
         assert result.success is False
         assert result.error is not None
 
-    async def test_edit_line_range(self) -> None:
+    async def test_edit_line_range(self, tmp_path: Path) -> None:
         """Replace a range of lines by line number."""
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("line1\nline2\nline3\nline4\n")
-            f.flush()
-            result = await tool.execute(
-                path=f.name,
-                new_str="replaced",
-                start_line=2,
-                end_line=3,
-            )
-            assert result.success is True
-            content = Path(f.name).read_text()
-            assert "line1\n" in content
-            assert "replaced\n" in content
-            assert "line4\n" in content
-            assert "line2" not in content
-            assert "line3" not in content
-        Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("line1\nline2\nline3\nline4\n", encoding="utf-8")
+        result = await tool.execute(
+            path=str(path),
+            new_str="replaced",
+            start_line=2,
+            end_line=3,
+        )
+        assert result.success is True
+        content = path.read_text(encoding="utf-8")
+        assert "line1\n" in content
+        assert "replaced\n" in content
+        assert "line4\n" in content
+        assert "line2" not in content
+        assert "line3" not in content
 
     async def test_edit_line_range_invalid(self) -> None:
         """Error on invalid line range."""
@@ -375,93 +373,118 @@ class TestEditFileTool:
 class TestFileToolPermissionErrors:
     """Tests for permission error handling in file tools."""
 
-    async def test_read_file_permission_error(self) -> None:
+    async def test_read_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on read."""
-        import os
-        import stat
+        import anyio
+
+        path = tmp_path / "test.txt"
+        path.write_text("content", encoding="utf-8")
+
+        async def open_file_func(*_args: object, **_kwargs: object) -> None:
+            raise PermissionError("denied by test")
+
+        monkeypatch.setattr(anyio, "open_file", open_file_func)
 
         tool = ReadFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("content")
-            f.flush()
-            # Remove read permissions
-            os.chmod(f.name, 0o000)
-            try:
-                result = await tool.execute(path=f.name)
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR)
-                Path(f.name).unlink()
+        result = await tool.execute(path=str(path))
+        assert result.success is False
+        assert "permission" in result.error.lower()
 
-    async def test_write_file_permission_error(self) -> None:
+    async def test_write_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Handle permission denied on write."""
-        import os
-        import stat
+        path = tmp_path / "test.txt"
+        denied_paths: list[Path] = []
+
+        original_write_text = Path.write_text
+
+        def wrapper(
+            self_path: Path, data: str, encoding: str | None = None,
+            errors: str | None = None, newline: str | None = None,
+        ) -> int:
+            if self_path == path:
+                denied_paths.append(self_path)
+                raise PermissionError("denied by test")
+            return original_write_text(
+                self_path, data, encoding=encoding, errors=errors, newline=newline,
+            )
+
+        monkeypatch.setattr(Path, "write_text", wrapper)
 
         tool = WriteFileTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Make directory read-only
-            os.chmod(tmpdir, stat.S_IRUSR | stat.S_IXUSR)
-            try:
-                result = await tool.execute(
-                    path=str(Path(tmpdir) / "test.txt"),
-                    content="test",
-                )
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(tmpdir, stat.S_IRWXU)
+        result = await tool.execute(path=str(path), content="test")
 
-    async def test_edit_file_permission_error(self) -> None:
+        assert result.success is False
+        assert "permission" in result.error.lower()
+        assert path in denied_paths
+
+    async def test_edit_file_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on edit."""
-        import os
-        import stat
-
         tool = EditFileTool()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world")
-            f.flush()
-            # Remove write permissions
-            os.chmod(f.name, stat.S_IRUSR)
-            try:
-                result = await tool.execute(
-                    path=f.name,
-                    old_str="hello",
-                    new_str="hi",
-                )
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR)
-                Path(f.name).unlink()
+        path = tmp_path / "test_file.txt"
+        path.write_text("hello world", encoding="utf-8")
+
+        recorded_target: Path | None = None
+        recorded_content: str | None = None
+
+        def mock_atomic_write(path_arg: Path, content: str) -> None:
+            nonlocal recorded_target, recorded_content
+            recorded_target = path_arg
+            recorded_content = content
+            raise PermissionError("denied by test")
+
+        monkeypatch.setattr("henchman.tools.builtins.file_edit.atomic_write", mock_atomic_write)
+
+        result = await tool.execute(
+            path=str(path),
+            old_str="hello",
+            new_str="hi",
+        )
+        assert result.success is False
+        assert "permission" in result.error.lower()
+
+        assert recorded_target == path
+        assert recorded_content == "hi world"
+        assert path.read_bytes() == b"hello world"
 
 
 class TestLsToolEdgeCases:
     """Additional tests for ls tool."""
 
-    async def test_ls_permission_error(self) -> None:
+    async def test_ls_permission_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Handle permission denied on directory."""
-        import os
-        import stat
+        from collections.abc import Iterator
 
         from henchman.tools.builtins.ls import LsTool
 
         tool = LsTool()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a subdirectory and remove permissions
-            subdir = Path(tmpdir) / "restricted"
-            subdir.mkdir()
-            os.chmod(str(subdir), 0o000)
-            try:
-                result = await tool.execute(path=str(subdir))
-                assert result.success is False
-                assert "permission" in result.error.lower()
-            finally:
-                os.chmod(str(subdir), stat.S_IRWXU)
+        # Create a restricted directory
+        restricted_dir = tmp_path / "restricted"
+        restricted_dir.mkdir()
+
+        denied_target: list[Path] = []
+        original_iterdir = Path.iterdir
+
+        def wrapper(self_path: Path) -> Iterator[Path]:
+            if self_path == restricted_dir:
+                denied_target.append(self_path)
+                raise PermissionError("denied by test")
+            return original_iterdir(self_path)
+
+        monkeypatch.setattr(Path, "iterdir", wrapper)
+
+        result = await tool.execute(path=str(restricted_dir))
+        assert result.success is False
+        assert "permission" in result.error.lower()
+
+        assert restricted_dir in denied_target
 
 
 class TestGlobToolEdgeCases:
@@ -535,3 +558,54 @@ class TestWebFetchEdgeCases:
 
         assert result.success is False
         assert "aiohttp" in result.error.lower()
+
+
+class TestWriteFileToolEdgeCases:
+    """Additional tests for WriteFileTool."""
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "ascii_lf\n",
+            "ascii_crlf\r\n",
+            "snowman☃\n",
+        ],
+    )
+    async def test_write_file_tool_preserves_utf8_bytes_under_windows_defaults(
+        self, monkeypatch, tmp_path, content
+    ) -> None:
+        """Verify WriteFileTool.execute preserves UTF-8 bytes even if Path.write_text
+        defaults to Windows-like encoding/newline."""
+        from pathlib import Path
+
+        from henchman.tools.builtins.file_write import WriteFileTool
+
+        tool = WriteFileTool()
+        destination = tmp_path / "test_file.txt"
+
+        original_write_text = Path.write_text
+
+        def wrapper(self, data, encoding=None, errors=None, newline=None, **kwargs):
+            if self == destination:
+                actual_encoding = encoding if encoding is not None else "cp1252"
+                actual_newline = newline if newline is not None else "\r\n"
+                return original_write_text(
+                    self,
+                    data,
+                    encoding=actual_encoding,
+                    newline=actual_newline,
+                    errors=errors,
+                    **kwargs,
+                )
+            return original_write_text(
+                self, data, encoding=encoding, newline=newline, errors=errors, **kwargs
+            )
+
+        monkeypatch.setattr(Path, "write_text", wrapper)
+
+        try:
+            result = await tool.execute(path=str(destination), content=content)
+            assert result.success is True
+            assert destination.read_bytes() == content.encode("utf-8")
+        finally:
+            monkeypatch.setattr(Path, "write_text", original_write_text)

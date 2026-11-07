@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from henchman.api.auth import verify_api_key
+from henchman.api.auth import verified_chat_authority, verify_api_key
+from henchman.api.endpoints.chat import get_chat_runs
 from henchman.api.state import state
 from henchman.version import VERSION
 
@@ -33,8 +34,10 @@ class MetricsResponse(BaseModel):
 class UsageResponse(BaseModel):
     """Usage response model."""
 
-    total_tokens: int = Field(default=0)
-    total_cost: float = Field(default=0.0)
+    total_tokens: int | None = Field(default=0)
+    total_cost: str | None = None
+    budget: dict[str, Any] | None = None
+    accounting_lifetime: str = "process"
     daily_usage: dict[str, dict[str, int | float]] = Field(default_factory=dict)
 
 
@@ -133,41 +136,13 @@ async def get_metrics(
 
 @router.get("/usage", response_model=UsageResponse)
 async def get_usage(
-    _api_key: Annotated[str | None, Depends(verify_api_key)],
+    authority: Annotated[str, Depends(verified_chat_authority)],
+    run_id: str | None = None,
 ) -> UsageResponse:
-    """Get token usage and cost information.
-
-    Args:
-        _api_key: API key for authentication (provided via dependency injection).
-
-    Returns:
-        Usage and cost information.
-    """
-    # Use actual metrics from state if available
-    if state.metrics:
-        total_tokens = state.metrics.get("tokens_total", 0)
-        # Simple cost estimation: rough average of common model prices
-        # This is an approximation - actual cost depends on the model used
-        total_cost = total_tokens * 0.001 / 1000  # ~$0.001 per 1K tokens
-
-        # Create a simple daily usage structure
-        # Note: This shows cumulative usage, not broken down by actual date
-        daily_usage = {
-            "current_session": {
-                "tokens": total_tokens,
-                "cost": total_cost,
-            },
-        }
-
-        return UsageResponse(
-            total_tokens=total_tokens,
-            total_cost=total_cost,
-            daily_usage=daily_usage,
-        )
-
-    # Fallback to placeholder data
-    return UsageResponse(
-        total_tokens=0,
-        total_cost=0.0,
-        daily_usage={},
-    )
+    """Report the selected caller-owned run, with explicit unknown costs."""
+    run = get_chat_runs().find(authority, run_id)
+    budget = run.budget() if run is not None else None
+    total_tokens = None if run is not None else 0
+    if budget is not None and budget["unknown_dispatched_requests"] == 0:
+        total_tokens = budget["settled_tokens"]
+    return UsageResponse(total_tokens=total_tokens, budget=budget)

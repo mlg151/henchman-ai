@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import os
 import sys
@@ -17,6 +18,147 @@ from henchman.tools.utils import create_parameter_schema
 MAX_OUTPUT_CHARS = 100_000
 DEFAULT_TIMEOUT_SECONDS = 30
 
+_READ_ONLY_PYTHON_BUILTINS: frozenset[str] = frozenset(
+    {
+        "abs",
+        "all",
+        "any",
+        "bool",
+        "bytes",
+        "chr",
+        "dict",
+        "divmod",
+        "enumerate",
+        "float",
+        "frozenset",
+        "hash",
+        "int",
+        "isinstance",
+        "len",
+        "list",
+        "max",
+        "min",
+        "ord",
+        "print",
+        "pow",
+        "range",
+        "repr",
+        "reversed",
+        "round",
+        "set",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "type",
+        "zip",
+    }
+)
+"""Builtin callables that can run without observable side effects."""
+
+_READ_ONLY_PYTHON_NODES: tuple[type[ast.AST], ...] = (
+    ast.Module,
+    ast.Expr,
+    ast.Constant,
+    ast.Name,
+    ast.UnaryOp,
+    ast.BinOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.JoinedStr,
+    ast.FormattedValue,
+    ast.Starred,
+    ast.keyword,
+    ast.comprehension,
+    ast.List,
+    ast.Tuple,
+    ast.Set,
+    ast.Dict,
+    ast.ListComp,
+    ast.DictComp,
+    ast.SetComp,
+    ast.GeneratorExp,
+    ast.Call,
+    ast.Load,
+    ast.Store,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.MatMult,
+    ast.LShift,
+    ast.RShift,
+    ast.BitOr,
+    ast.BitXor,
+    ast.BitAnd,
+    ast.UAdd,
+    ast.USub,
+    ast.Not,
+    ast.Invert,
+    ast.And,
+    ast.Or,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+)
+"""AST node types that carry no binding, definition, or state mutation."""
+
+
+def _has_only_pure_names(node: ast.AST, bound: frozenset[str] = frozenset()) -> bool:
+    """Resolve comprehension names lexically; never expose unsafe builtins as values."""
+    if isinstance(node, ast.Name):
+        return node.id in _READ_ONLY_PYTHON_BUILTINS or node.id in bound
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+        local = bound
+        for generator in node.generators:
+            if not _has_only_pure_names(generator.iter, local):
+                return False
+            targets = frozenset(item.id for item in ast.walk(generator.target) if isinstance(item, ast.Name))
+            if targets & _READ_ONLY_PYTHON_BUILTINS:
+                return False
+            local |= targets
+            if not all(_has_only_pure_names(condition, local) for condition in generator.ifs):
+                return False
+        expressions = (node.key, node.value) if isinstance(node, ast.DictComp) else (node.elt,)
+        return all(_has_only_pure_names(expression, local) for expression in expressions)
+    return all(_has_only_pure_names(child, bound) for child in ast.iter_child_nodes(node))
+
+
+def is_read_only_python_source(code: str) -> bool:
+    """Return ``True`` when *code* only evaluates side-effect-free expressions.
+
+    The classification is AST-based and deliberately conservative: imports,
+    assignments, subscripts, attribute access, definitions, control flow, and
+    calls outside a small allowlist of pure builtins all retain the static
+    EXECUTE classification.
+    """
+    if not code.strip():
+        return False
+    try:
+        tree = ast.parse(code, mode="exec")
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, _READ_ONLY_PYTHON_NODES):
+            return False
+        if isinstance(node, ast.Call) and (
+            not isinstance(node.func, ast.Name)
+            or node.func.id not in _READ_ONLY_PYTHON_BUILTINS
+        ):
+            return False
+    return _has_only_pure_names(tree)
+
 
 @dataclass
 class ExecRequest:
@@ -25,6 +167,12 @@ class ExecRequest:
     code: str
     timeout: int = DEFAULT_TIMEOUT_SECONDS
     cwd: str | None = None
+
+
+def _python_argv(code: str, *, unbuffered: bool = False) -> list[str]:
+    """Prevent startup hooks from adding effects to classified pure expressions."""
+    flags = ["-I", "-S", "-X", "utf8"] if is_read_only_python_source(code) else []
+    return [sys.executable, *flags, *(["-u"] if unbuffered else []), "-c", code]
 
 
 async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
@@ -39,9 +187,7 @@ async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
     effective_timeout: float | None = None if request.timeout == 0 else float(request.timeout)
     try:
         process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-c",
-            request.code,
+            *_python_argv(request.code),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=request.cwd,
@@ -197,6 +343,19 @@ class PythonExecTool(Tool):
         """Tool kind - EXECUTE requires confirmation."""
         return ToolKind.EXECUTE
 
+    def execution_kind(self: PythonExecTool, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; pure expression snippets stay READ.
+
+        The static EXECUTE kind remains the catalog classification. A snippet
+        that only evaluates side-effect-free expressions is downgraded to READ
+        so Plan Mode keeps it available; anything the classifier cannot prove
+        read-only conservatively retains EXECUTE.
+        """
+        code = params.get("code")
+        if isinstance(code, str) and is_read_only_python_source(code):
+            return ToolKind.READ
+        return self.kind
+
     async def execute(  # type: ignore[override]
         self: PythonExecTool,
         code: str = "",
@@ -231,7 +390,7 @@ class PythonExecTool(Tool):
         if background:
             try:
                 record = await TaskService(self._project_root).start_task(
-                    argv=[sys.executable, "-u", "-c", code], cwd=cwd,
+                    argv=_python_argv(code, unbuffered=True), cwd=cwd,
                     env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                     timeout=float(timeout) if timeout else None,
                     title="python_exec", metadata={"tool": "python_exec"},

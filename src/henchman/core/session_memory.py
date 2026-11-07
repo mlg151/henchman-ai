@@ -10,6 +10,7 @@ from .session_data import Session
 from .session_helpers import _generate_id, _now_iso
 
 _MEMORY_METADATA_KEY = "session_memories"
+_EXTRACTION_OPT_OUT_KEY = "memory_extraction_opt_out"
 _MEMORY_KEYWORDS = (
     "always",
     "canonical",
@@ -61,12 +62,11 @@ def memory_from_dict(data: dict[str, Any]) -> SessionMemoryRecord:
 
 
 def _get_memory_payload(session: Session) -> list[dict[str, Any]]:
-    """Return the raw persisted session-memory payload."""
+    """Return the raw persisted session-memory payload without mutating the session."""
 
-    payload = session.export_metadata.setdefault(_MEMORY_METADATA_KEY, [])
+    payload = session.export_metadata.get(_MEMORY_METADATA_KEY)
     if isinstance(payload, list):
         return [entry for entry in payload if isinstance(entry, dict)]
-    session.export_metadata[_MEMORY_METADATA_KEY] = []
     return []
 
 
@@ -132,8 +132,69 @@ class SessionMemoryService:
         _set_memory_payload(session, remaining)
         return True
 
+    def edit_memory(
+        self,
+        session: Session,
+        memory_id: str,
+        *,
+        content: str | None = None,
+        kind: str | None = None,
+        source: str | None = None,
+    ) -> SessionMemoryRecord | None:
+        """Edit one memory by id, touching only the fields provided.
+
+        Returns the updated record, or ``None`` when no record matches
+        ``memory_id`` (in which case the store is left untouched).
+        """
+
+        records = self.list_memories(session)
+        updated: list[SessionMemoryRecord] = []
+        found: SessionMemoryRecord | None = None
+        for record in records:
+            if record.id == memory_id:
+                found = SessionMemoryRecord(
+                    id=record.id,
+                    content=content.strip() if content is not None else record.content,
+                    kind=kind if kind is not None else record.kind,
+                    source=source if source is not None else record.source,
+                    created_at=record.created_at,
+                    message_index=record.message_index,
+                )
+                updated.append(found)
+            else:
+                updated.append(record)
+        if found is None:
+            return None
+        _set_memory_payload(session, updated)
+        return found
+
+    def clear_memories(self, session: Session) -> int:
+        """Remove every stored memory; return how many were removed."""
+
+        records = self.list_memories(session)
+        _set_memory_payload(session, [])
+        return len(records)
+
+    def set_extraction_opt_out(self, session: Session, enabled: bool) -> None:
+        """Persist the extraction/persistence opt-out flag for one session."""
+
+        session.export_metadata[_EXTRACTION_OPT_OUT_KEY] = bool(enabled)
+
+    def extraction_opt_out(self, session: Session) -> bool:
+        """Return whether extraction persistence is opted out (default: off)."""
+
+        flag = session.export_metadata.get(_EXTRACTION_OPT_OUT_KEY)
+        return bool(flag) if isinstance(flag, bool) else False
+
     def extract_memories(self, session: Session) -> list[SessionMemoryRecord]:
-        """Extract new memory entries heuristically from existing session messages."""
+        """Extract new memory entries heuristically from existing session messages.
+
+        When the extraction opt-out flag is set, nothing is persisted and an
+        empty list is returned.
+        """
+
+        if self.extraction_opt_out(session):
+            return []
 
         existing = {
             record.content.casefold(): record

@@ -14,6 +14,7 @@ from henchman.cli.textual_app import (
     ToolMessage,
 )
 from henchman.cli.textual_messages import AgentThoughtMessage, ToolCallRequestMessage
+from henchman.config.schema import Settings
 from henchman.core.events import AgentEvent, EventType
 
 
@@ -30,7 +31,7 @@ class TestThinkingToolDisplay:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings

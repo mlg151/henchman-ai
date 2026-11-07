@@ -13,6 +13,11 @@ from henchman.agents.orchestrator import CompletionRequirement, CompletionStatus
 from henchman.cli.stream_event_handlers import _handle_agent_completed
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.fixture
@@ -62,6 +67,7 @@ class TestAssessCompletion:
         from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 0
         orchestrator._last_loop_success_count = 0
 
@@ -75,6 +81,7 @@ class TestAssessCompletion:
         from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 5
         orchestrator._last_loop_success_count = 5
 
@@ -88,6 +95,7 @@ class TestAssessCompletion:
         from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 0
         orchestrator._last_loop_success_count = 0
 
@@ -103,6 +111,7 @@ class TestAssessCompletion:
         from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 3
         orchestrator._last_loop_success_count = 3
 
@@ -116,6 +125,7 @@ class TestAssessCompletion:
     def test_missing_stall_failure_attr(self, mock_provider):
         """Agent without _stall_failure attribute defaults to checking tool count."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 2
         orchestrator._last_loop_success_count = 2
 
@@ -126,6 +136,7 @@ class TestAssessCompletion:
     def test_missing_stall_failure_no_tools(self, mock_provider):
         """Agent without _stall_failure attr and no tools → NO_WORK_DONE."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 0
         orchestrator._last_loop_success_count = 0
 
@@ -154,6 +165,7 @@ class TestRunCompletionStatus:
         mock_provider.chat_completion_stream.return_value = async_gen()
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events = []
         async for event in orchestrator.run(
@@ -197,6 +209,7 @@ class TestRunCompletionStatus:
         mock_provider.chat_completion_stream.side_effect = side_effect
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         # Register a mock tool so ls doesn't fail
         from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -257,6 +270,7 @@ class TestRunDirectCompletionStatus:
         mock_provider.chat_completion_stream.return_value = async_gen()
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events = []
         async for event in orchestrator.run_direct(
@@ -317,6 +331,7 @@ class TestDelegationCompletionStatus:
         mock_provider.chat_completion_stream.side_effect = side_effect
 
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events = []
         async for event in orchestrator.run("Find bugs"):
@@ -345,11 +360,13 @@ class TestOrchestratorInit:
     def test_initial_completion_status(self, mock_provider):
         """Orchestrator starts with COMPLETED as default status."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         assert orchestrator.last_completion_status == CompletionStatus.COMPLETED
 
     def test_initial_loop_tool_call_count(self, mock_provider):
         """Orchestrator starts with 0 loop tool call count."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         assert orchestrator._last_loop_tool_call_count == 0
         assert orchestrator._last_loop_success_count == 0
 
@@ -446,6 +463,7 @@ class TestAssessCompletionEdgeCases:
     def test_none_tool_call_count_is_zero(self, mock_provider):
         """None _last_loop_tool_call_count is treated as 0 (NO_WORK_DONE)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = None
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
@@ -453,6 +471,7 @@ class TestAssessCompletionEdgeCases:
     def test_bool_true_tool_call_count_is_one(self, mock_provider):
         """Boolean True _last_loop_tool_call_count is treated as 1 (COMPLETED)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = True
         orchestrator._last_loop_success_count = True
         agent = MagicMock(spec=[])
@@ -461,6 +480,7 @@ class TestAssessCompletionEdgeCases:
     def test_bool_false_tool_call_count_is_zero(self, mock_provider):
         """Boolean False _last_loop_tool_call_count is treated as 0 (NO_WORK_DONE)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = False
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
@@ -468,6 +488,7 @@ class TestAssessCompletionEdgeCases:
     def test_float_tool_call_count_coerced_to_int(self, mock_provider):
         """Float _last_loop_tool_call_count is converted to int."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = 3
         orchestrator._last_loop_success_count = 3.7
         agent = MagicMock(spec=[])
@@ -476,6 +497,7 @@ class TestAssessCompletionEdgeCases:
     def test_string_numeric_tool_call_count(self, mock_provider):
         """String numeric _last_loop_tool_call_count is parsed."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = "5"
         orchestrator._last_loop_success_count = "5"
         agent = MagicMock(spec=[])
@@ -484,6 +506,7 @@ class TestAssessCompletionEdgeCases:
     def test_empty_string_tool_call_count_is_zero(self, mock_provider):
         """Empty string _last_loop_tool_call_count is treated as 0."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = ""
         orchestrator._last_loop_success_count = ""
         agent = MagicMock(spec=[])
@@ -492,6 +515,7 @@ class TestAssessCompletionEdgeCases:
     def test_invalid_string_tool_call_count_raises(self, mock_provider):
         """Non-numeric string _last_loop_tool_call_count raises TypeError."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = "not_a_number"
         agent = MagicMock(spec=[])
         with pytest.raises(TypeError):
@@ -500,6 +524,7 @@ class TestAssessCompletionEdgeCases:
     def test_unknown_type_tool_call_count_raises(self, mock_provider):
         """Unknown type for _last_loop_tool_call_count raises TypeError."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = object()
         agent = MagicMock(spec=[])
         with pytest.raises(TypeError):
@@ -508,6 +533,7 @@ class TestAssessCompletionEdgeCases:
     def test_negative_tool_call_count_clamped_to_zero(self, mock_provider):
         """Negative _last_loop_tool_call_count is clamped to 0 (NO_WORK_DONE)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator.tool_registry.set_confirmation_handler(_approve)
         orchestrator._last_loop_tool_call_count = -3
         orchestrator._last_loop_success_count = -3
         agent = MagicMock(spec=[])

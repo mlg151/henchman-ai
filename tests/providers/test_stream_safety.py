@@ -133,7 +133,7 @@ async def test_fragmented_parallel_calls_dispatch_once_with_final_usage(stream_p
     ]
     assert len(context.history) == 1
     assert state.usage == usage
-    assert events[-1].data == {"finish_reason": "tool_calls", "usage": usage}
+    assert events[-1].data == {"finish_reason": "tool_calls", "usage": usage, "usage_source": "reported"}
 
 
 async def test_usage_only_chunk_survives_empty_choices(stream_provider):
@@ -144,7 +144,7 @@ async def test_usage_only_chunk_survives_empty_choices(stream_provider):
     )
     events, _, state = await collect_events(provider)
     assert state.usage == usage
-    assert events[-1].data == {"finish_reason": "stop", "usage": usage}
+    assert events[-1].data == {"finish_reason": "stop", "usage": usage, "usage_source": "reported"}
 
 
 async def test_text_on_finish_chunk_is_not_lost(stream_provider):

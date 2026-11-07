@@ -85,6 +85,8 @@ def _init_core(
     config: OrchestratorConfig,
 ) -> None:
     """Initialize core attributes, metrics, and controllers."""
+    from pathlib import Path
+
     from henchman.config.schema import Settings
     from henchman.tools.registry import ToolRegistry
 
@@ -93,6 +95,9 @@ def _init_core(
     orch.tool_registry = config.tool_registry if config.tool_registry is not None else ToolRegistry()
     orch.event_bus = config.event_bus or EventBus()
     orch.settings = config.settings or Settings()
+    orch.tool_registry.restrict_tool_settings(
+        orch.settings.tools, project_root=Path.cwd(),
+    )
     orch.environment_context = config.environment_context
     orch.metrics = OrchestratorMetrics()
     orch._reporter = MetricsReporter(orch.metrics)
@@ -161,5 +166,6 @@ def _create_pool(
             adaptive_compression=ctx.adaptive_compression,
             max_tokens=effective_context_budget(ctx.max_tokens, ctx.compaction_threshold),
             context_window=ctx.max_tokens,
+            auto_compact=ctx.auto_compact,
         ),
     )

@@ -8,7 +8,11 @@
     "tool_calls": { "type": ["array", "null"] },
     "finish_reason": { "type": ["string", "null"], "enum": ["stop", "tool_calls", "length", "content_filter", null] },
     "thinking": { "type": ["string", "null"] },
-    "usage": { "type": ["object", "null"] }
+    "usage": {
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "usage_source": {"type": "string", "enum": ["reported", "estimated", "unknown"]}
   },
-  "required": ["content", "finish_reason"]
+  "required": ["content", "finish_reason", "usage_source"]
 }

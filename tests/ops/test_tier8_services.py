@@ -97,6 +97,7 @@ def test_observability_services_record_analytics_telemetry_costs_and_diagnostics
         model="deepseek-chat",
         prompt_tokens=100,
         completion_tokens=50,
+        cost_per_1k_tokens=0.002,
     )
     diagnostics.record("proxy_configured", status="pass", details={"base_url": "https://proxy"})
 

@@ -188,3 +188,65 @@ def test_repository_unset_removes_values_and_cleans_empty_project_file(
     assert not (project_settings_dir / "settings.yaml").exists()
     assert project_settings_dir.exists()
     assert repository.view(scope=SettingsScope.PROJECT) == {}
+
+
+@pytest.mark.parametrize(
+    ("key_path", "global_value", "default_value"),
+    [
+        ("ui.output_mode", "quiet", "rich"),
+        ("ui.reduced_motion", True, False),
+        ("ui.mouse_capture", False, True),
+        ("ui.layout.compact_tables", True, False),
+        ("context.importance_threshold", 0.7, 0.5),
+    ],
+)
+def test_explicit_project_defaults_override_global_until_unset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    key_path: str,
+    global_value: object,
+    default_value: object,
+) -> None:
+    """A schema-default value remains an explicit override through later writes."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    project_root = tmp_path / "workspace"
+    project_root.mkdir()
+    repository = SettingsRepository(project_root=project_root)
+    repository.set(key_path, global_value, scope=SettingsScope.GLOBAL)
+    global_path = tmp_path / "home" / ".henchman" / "settings.yaml"
+    global_before = global_path.read_bytes()
+
+    repository.set(key_path, default_value, scope=SettingsScope.PROJECT)
+
+    assert repository.get(key_path, scope=SettingsScope.PROJECT) == default_value
+    assert repository.get(key_path) == default_value
+    assert repository.inspect()[key_path].origin.scope == "project"
+    assert repository.list(scope=SettingsScope.PROJECT) == [key_path]
+    repository.set("ui.theme", "light", scope=SettingsScope.PROJECT)
+    assert repository.get(key_path) == default_value
+    assert repository.unset("ui.theme", scope=SettingsScope.PROJECT) is True
+    assert repository.get(key_path, scope=SettingsScope.PROJECT) == default_value
+    assert global_path.read_bytes() == global_before
+
+    assert repository.unset(key_path, scope=SettingsScope.PROJECT) is True
+    assert repository.get(key_path) == global_value
+    assert repository.inspect()[key_path].origin.scope == "global"
+    assert not (project_root / ".henchman" / "settings.yaml").exists()
+
+
+@pytest.mark.parametrize("scope", [SettingsScope.GLOBAL, SettingsScope.PROJECT])
+def test_explicit_default_writes_do_not_materialize_unset_defaults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scope: SettingsScope,
+) -> None:
+    """Persist an explicit default without expanding the scope to every default."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    project_root = tmp_path / "workspace"
+    project_root.mkdir()
+    repository = SettingsRepository(project_root=project_root)
+
+    repository.set("ui.output_mode", "rich", scope=scope)
+
+    assert repository.view(scope=scope) == {"ui": {"output_mode": "rich"}}
+    assert repository.inspect(scope=scope)["ui.output_mode"].origin.scope == scope.value

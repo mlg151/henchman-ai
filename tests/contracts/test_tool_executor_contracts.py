@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
+from henchman.config.schema import Settings
 from henchman.providers.base import ToolCall
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
@@ -151,7 +152,7 @@ class TestToolExecutorContract:
             registry = ToolRegistry()
             registry.register(_EchoTool())
             registry.register(_WriteTool())
-            tool_manager = ToolManager(MagicMock())
+            tool_manager = ToolManager(Settings())
             tool_manager.registry = registry
         provider = provider or MagicMock()
         return ToolExecutor(
@@ -335,7 +336,7 @@ class TestToolExecutorContract:
 
         registry = ToolRegistry()
         registry.register(FailingTool())
-        tool_manager = ToolManager(MagicMock())
+        tool_manager = ToolManager(Settings())
         tool_manager._registry = registry
 
         executor = self._make_executor(output_handler=output, tool_manager=tool_manager)

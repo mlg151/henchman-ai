@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .session_data import Session
+from .session_data import Session, session_from_dict
 
 
 class SessionVcrService:
@@ -20,6 +20,9 @@ class SessionVcrService:
     def build_playback(self, session: Session) -> dict[str, Any]:
         """Build a JSON-serializable playback payload for one session."""
 
+        # Collect marked fields throughout the session before selecting events;
+        # a credential in metadata can also appear in a transcript echo.
+        session = session_from_dict(session.to_dict())
         events: list[dict[str, Any]] = []
         for index, message in enumerate(session.messages):
             events.append(

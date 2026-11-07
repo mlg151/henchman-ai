@@ -1,9 +1,26 @@
 {
   "type": "object",
-  "required": ["events", "total_cost"],
+  "required": ["events", "total_cost", "currency", "unknown_cost_events", "by_currency"],
   "properties": {
     "events": {"type": "integer", "minimum": 0},
-    "total_cost": {"type": "number", "minimum": 0}
+    "total_cost": {"type": ["number", "null"], "minimum": 0},
+    "currency": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+    "unknown_cost_events": {"type": "integer", "minimum": 0},
+    "by_currency": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Z]{3}$"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["estimated_cost", "reported_cost", "total_cost", "unknown_cost_events"],
+        "properties": {
+          "estimated_cost": {"type": ["number", "null"], "minimum": 0},
+          "reported_cost": {"type": ["number", "null"], "minimum": 0},
+          "total_cost": {"type": ["number", "null"], "minimum": 0},
+          "unknown_cost_events": {"type": "integer", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    }
   },
   "additionalProperties": false
 }
