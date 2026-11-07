@@ -543,6 +543,7 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
     initialize = TaskOutput.__init__
     close_fd = os.close
     readers = set()
+    captures: list[TaskOutput] = []
 
     class OutputProxy:
         def __init__(self, output):
@@ -562,6 +563,7 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
         initialize(self, path, policy)
         self._output = OutputProxy(self._output)
         readers.add(self._reader)
+        captures.append(self)
 
     def wrapped_close(fd):
         close_fd(fd)
@@ -573,7 +575,14 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
     monkeypatch.setattr(os, "close", wrapped_close)
     record = await service.start_task(argv=[sys.executable, "-u", "-c", "print('complete evidence')"])
     process = service._runtime.processes[record.task_id]
-    final = await service.wait_for_task(record.task_id, timeout=5)
+    try:
+        if fault != "short_write":
+            # Allow native interpreter startup before measuring fault cleanup.
+            # The old single five-second wait conflated those separate phases.
+            await asyncio.wait_for(asyncio.shield(captures[0].failure), timeout=15)
+        final = await service.wait_for_task(record.task_id, timeout=15 if fault == "short_write" else 5)
+    finally:
+        await service.stop_task(record.task_id)
     assert process.returncode is not None
     if fault == "short_write":
         assert final.status == "completed"
