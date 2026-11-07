@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Guarded OAuth manager operations** — Explicit status/login/refresh/logout
+  retain captured project authority, live settings and credential generations.
+  Teardown invalidates pending flows before transport cleanup; interactive login
+  and authenticated MCP transport remain pending.
+
 - **Usage provenance by model** — Interactive, API and headless reports retain
   unknown-priced attempts, reported/estimated/unknown observations and per-field
   request coverage, plus distinct configured rate snapshots. Evidence projection

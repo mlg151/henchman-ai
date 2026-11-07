@@ -6,7 +6,8 @@ import asyncio
 import copy
 import json
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from time import monotonic
@@ -31,6 +32,8 @@ if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.mcp.client import McpToolDefinition
     from henchman.mcp.context import ContextFamily, McpContextCatalog, McpContextResult
+    from henchman.mcp.oauth_manager import McpOAuthRuntime
+    from henchman.mcp.oauth_store import OAuthStatus
     from henchman.tools.registry import ToolRegistry
 
 
@@ -85,6 +88,7 @@ class McpManager:
         self._registries: WeakKeyDictionary[ToolRegistry, dict[str, dict[str, McpTool]]] = WeakKeyDictionary()
         self._access_guard: Callable[[], None] | None = None
         self._context_previews: dict[str, _ContextPreview] = {}
+        self._oauth_runtime: McpOAuthRuntime | None = None
         for config in self.configs.values():
             self._remember_environment(config.env)
 
@@ -94,6 +98,8 @@ class McpManager:
             self._remember_environment(config.env)
         self._evidence_policies.add(redactor)
         redactor.register_policy(self._evidence)
+        if self._oauth_runtime is not None:
+            self._oauth_runtime.register_evidence(redactor)
 
     def _remember_environment(
         self, environment: Mapping[str, str], resolved: Mapping[str, str] | None = None,
@@ -153,12 +159,69 @@ class McpManager:
                     raise ToolAccessError("MCP transport is unsupported under restricted filesystem/network policy")
 
         manager._access_guard = check_access
-        auth_service = McpAuthService(project_root)
+        captured_root = (project_root or Path.cwd()).resolve()
+        manager.bind_oauth_runtime(settings, project_root=captured_root)
+        auth_service = McpAuthService(captured_root)
         for server_name in configs:
             token = auth_service.get_token(server_name)
             if token:
                 manager.set_auth_token(server_name, token)
         return manager
+
+    def bind_oauth_runtime(self, settings: Settings, *, project_root: Path) -> None:
+        """Bind trusted embedding context once; never infer a later operation's cwd."""
+        from henchman.mcp.oauth import OAuthError
+        from henchman.mcp.oauth_manager import McpOAuthRuntime
+
+        if self._oauth_runtime is not None:
+            if not self._oauth_runtime.matches(settings, project_root):
+                raise OAuthError("OAuth runtime is already bound to another project or settings owner")
+            return
+        initial_tools = copy.deepcopy(settings.tools)
+        existing_guard = self._access_guard
+
+        def check_access() -> None:
+            from henchman.tools.access_policy import ToolAccessError, validate_tool_backend
+
+            if existing_guard is not None:
+                existing_guard()
+            for controls in (initial_tools, settings.tools):
+                validate_tool_backend(controls)
+                if (controls.network_access == "disabled" or controls.filesystem_read_roots is not None
+                    or controls.filesystem_write_roots is not None or controls.network_allowed_hosts is not None):
+                    raise ToolAccessError("MCP transport is unsupported under restricted filesystem/network policy")
+
+        self._oauth_runtime = McpOAuthRuntime(settings, project_root, check_access=check_access,
+            invalidate=self._invalidate, generation=lambda server: self._generations.get(server, 0), evidence=self._evidence)
+        for policy in self._evidence_policies:
+            self._oauth_runtime.register_evidence(policy)
+
+    def _require_oauth_runtime(self) -> McpOAuthRuntime:
+        from henchman.mcp.oauth import OAuthError
+
+        if self._oauth_runtime is None:
+            raise OAuthError("OAuth requires an explicitly bound trusted runtime")
+        return self._oauth_runtime
+
+    def oauth_status(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
+        """Inspect local OAuth state for live settings without connecting or writing."""
+        return self._require_oauth_runtime().status(server_name, authorize=authorize)
+
+    async def oauth_login(
+        self, server_name: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]],
+        challenge: str | None = None,
+    ) -> OAuthStatus:
+        """Request one explicit login; the caller owns its async browser opener."""
+        return await self._require_oauth_runtime().login(server_name, authorize=authorize,
+                                                       browser_opener=browser_opener, challenge=challenge)
+
+    async def oauth_refresh(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
+        """Request one refresh without implicit login, connection or RPC replay."""
+        return await self._require_oauth_runtime().refresh(server_name, authorize=authorize)
+
+    def oauth_logout(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
+        """Revoke the local credential generation without claiming remote logout."""
+        return self._require_oauth_runtime().logout(server_name, authorize=authorize)
 
     async def connect_all(self) -> None:
         """Attempt to connect every configured MCP server."""
@@ -280,16 +343,17 @@ class McpManager:
 
     async def disconnect_all(self) -> None:
         """Disconnect all active MCP clients."""
-        failures: list[BaseException] = []
-        for server_name in set(self.clients) | set(self._connecting):
-            try:
-                await self.disconnect_server(server_name)
-            except BaseException as error:
-                failures.append(error)
-        if len(failures) == 1:
-            raise failures[0]
-        if failures:
-            raise BaseExceptionGroup("MCP shutdown failures", failures)
+        with self._oauth_runtime.teardown() if self._oauth_runtime is not None else nullcontext():
+            failures: list[BaseException] = []
+            for server_name in set(self.clients) | set(self._connecting):
+                try:
+                    await self.disconnect_server(server_name)
+                except BaseException as error:
+                    failures.append(error)
+            if len(failures) == 1:
+                raise failures[0]
+            if failures:
+                raise BaseExceptionGroup("MCP shutdown failures", failures)
 
     async def disconnect_server(self, server_name: str) -> None:
         """Disconnect one active MCP client."""

@@ -22,7 +22,9 @@ conversation history; continuation is rejected before SDK normalization. Explici
 attachment consumes a current session-bound preview as saved user context while
 idle, preserving source evidence and untrusted roles across compaction. OAuth
 configuration, bounded discovery, generation-bound storage and explicit library
-callback/token flows are implemented; configured OAuth connections remain refused
+callback/token flows and explicitly guarded manager operations are implemented;
+manager teardown invalidates pending OAuth work before transport cleanup.
+Configured OAuth connections remain refused
 until interactive login and authenticated transport integration.
 Those flows and final native qualification remain open under #25.
 

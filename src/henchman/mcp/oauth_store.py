@@ -342,6 +342,21 @@ class OAuthCredentialStore:
         return OAuthStatus(record.state, record.generation, credentials.expires_at if credentials else None,
                            bool(credentials and credentials.refresh_token))
 
+    def bound_status(self, binding: OAuthBinding) -> tuple[OAuthStatus, OAuthAuthority | None]:
+        """Inspect one configuration from one read without rebinding or releasing tokens."""
+        self._server(binding.server)
+        payload = self._read()
+        record = payload.records.get(binding.server) if payload else None
+        if record is None or payload is None:
+            return OAuthStatus("missing", 0), None
+        if record.fingerprint != binding.fingerprint:
+            return OAuthStatus("configuration_changed", record.generation), None
+        authority = self._authority(payload, binding)
+        self._require(payload, authority)
+        credentials = record.credentials
+        return (OAuthStatus(record.state, record.generation, credentials.expires_at if credentials else None,
+                            bool(credentials and credentials.refresh_token)), authority)
+
     def credentials(self, authority: OAuthAuthority) -> OAuthCredentials | None:
         """Return a detached ready token only while its exact bound authority remains valid."""
         payload = self._read()

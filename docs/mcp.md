@@ -201,6 +201,23 @@ Login has a 300-second total deadline; token exchange has a 30-second deadline a
 discovery substitution or automatic retry. Missing expiry remains distinct from
 an already expired token. Logout or policy changes reject late publication.
 
+`McpManager.create_from_settings` binds OAuth to the captured project root and
+the live settings owner. Direct embedders can call `bind_oauth_runtime` once.
+The explicit `oauth_status`, `oauth_login`, `oauth_refresh` and `oauth_logout`
+methods require a trusted caller guard that returns `None` or raises; server
+tool trust does not grant login authority. Login also requires the caller's
+asynchronous browser opener. Network operations retain the initial policy and
+recheck live settings, policy and credential generations before effects and
+publication. Local status and logout remain available under network restrictions;
+logout also works after server configuration removal.
+
+Manager teardown invalidates pending OAuth operations before awaiting transport
+cleanup and blocks new login/refresh admission until cleanup settles. The caller
+still owns each flow's cancellation and deadline; teardown does not join those
+caller tasks. These manager APIs do not connect or replay MCP requests, and
+configured OAuth connections remain refused pending authenticated transport and
+interactive integration.
+
 Bind `register_evidence` before credential access. The retained store registers old
 and rotated credentials, plus credential fields from parsed responses, with bound
 evidence policies before credential validation or replacement; historical values
