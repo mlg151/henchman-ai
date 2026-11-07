@@ -66,13 +66,16 @@ async def local_server(
         yield server.sockets[0].getsockname()[1], received
     finally:
         server.close()
-        await server.wait_closed()
         for writer in tuple(writers):
             writer.close()
-        if tasks:
-            for task in tuple(tasks):
+        pending = tuple(tasks)
+        if pending:
+            for task in pending:
                 task.cancel()
-            await asyncio.gather(*tuple(tasks), return_exceptions=True)
+            await asyncio.gather(*pending, return_exceptions=True)
+        # Python 3.12 also waits for accepted connections here. Release our
+        # writers and blocked response handlers before joining the listener.
+        await server.wait_closed()
 
 
 def route_dns_to(monkeypatch, records: list[str]) -> list[str]:

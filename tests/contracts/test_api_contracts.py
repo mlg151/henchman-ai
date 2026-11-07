@@ -472,9 +472,9 @@ def test_chat_history_endpoint_matches_contract(tmp_path: Path) -> None:
 
     agent = _make_chat_agent()
     remote_state = _build_remote_state(tmp_path, agent=agent)
+    install_chat_runtime(remote_state, agent)
 
     with (
-        patch("henchman.api.server.state", remote_state),
         patch("henchman.api.endpoints.chat.state", remote_state),
         patch("henchman.api.auth.state", SimpleNamespace(settings=None)),
         TestClient(app) as client,
@@ -491,9 +491,9 @@ def test_clear_history_endpoint_matches_contract(tmp_path: Path) -> None:
 
     agent = _make_chat_agent()
     remote_state = _build_remote_state(tmp_path, agent=agent)
+    install_chat_runtime(remote_state, agent)
 
     with (
-        patch("henchman.api.server.state", remote_state),
         patch("henchman.api.endpoints.chat.state", remote_state),
         patch("henchman.api.auth.state", SimpleNamespace(settings=None)),
         TestClient(app) as client,

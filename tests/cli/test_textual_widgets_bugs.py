@@ -1,5 +1,6 @@
 """Tests for bugs in textual_widgets.py."""
 
+import asyncio
 from unittest.mock import MagicMock
 
 from textual.app import App
@@ -20,15 +21,23 @@ class TestChatPaneBugs:
         async with app.run_test() as pilot:
             await pilot.pause()
             pane = app.query_one(ChatPane)
+
+            async def after_layout():
+                refreshed = asyncio.Event()
+                pane.call_after_refresh(refreshed.set)
+                await asyncio.wait_for(refreshed.wait(), 2)
+
+            # Mounting content queues another layout after the message pump
+            # becomes idle. Wait for that refresh, not just pilot.pause().
             scroll = MagicMock(wraps=pane._scroll_to_bottom)
             pane._scroll_to_bottom = scroll
             pane.append_agent_chunk("agent1", "Hello")
             pane.append_agent_chunk("agent1", " World")
-            await pilot.pause()
+            await after_layout()
             scroll.assert_called_once()
             scroll.reset_mock()
             pane.append_agent_chunk("agent1", " again")
-            await pilot.pause()
+            await after_layout()
             scroll.assert_called_once()
 
     def test_bug5_finish_agent_stream_silent_failure(self):
