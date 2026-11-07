@@ -1255,6 +1255,39 @@ Credential redaction is limited to known or marked values and does not detect
 arbitrary secrets. Redacting output alone does not discard independently observed
 exit evidence; changes to proof-bearing content revoke current verification.
 
+#### Bounded repair library
+
+`VerificationRepairSession` coordinates an explicitly requested sequence of checks
+and repairs for Python embedders. `RepairRequest` pins one plan, exact editable
+files, protected criterion files, repair/repeated-diagnostic limits and a deadline.
+Every editable file must be a declared check input; pytest targets must be explicit
+protected files. Changes to plan specifications, required project checks, protected
+contents/modes or project identity stop the sequence for review.
+
+The trusted foreground repair adapter must call `admit_mutation` with deterministic
+targets before each edit and must join its work. Unknown targets, protected files
+and paths outside the request are refused. This admission is not a filesystem
+sandbox: arbitrary callbacks or commands can have other effects, and changes
+restored between observations are outside the content evidence. Runtime registry
+integration and automatic model repair are not enabled by this library.
+
+Each cycle retains a new persisted verification observation. Missing or stale
+checks, exhausted limits, cancellation, timeouts and persistence errors remain
+incomplete. Identical-diagnostic detection normalizes only recognized pytest
+elapsed summaries and numbered temporary-run paths; it is a repeat heuristic,
+not semantic failure equivalence. The total repair limit remains independent.
+Cancellation and deadline checks run again after synchronous persistence before
+another adapter call or returning a pass. Filesystem latency itself is not bounded:
+a late acknowledged pass is downgraded under the same run/spec ownership, retaining
+its observations. A briefly persisted pass remains historical check evidence;
+failure to persist the downgrade raises instead of returning success. Reporting
+failures do not replace the original cancellation.
+
+Plans retain bounded, credential-projected `last_repair` history. `scoped_pass`
+records the selected checks at that observation; `task_verified` stays false.
+Use current verification status to detect later input changes. Reading or restoring
+the report never resumes work or supplies permission for another attempt.
+
 #### Declared-input freshness
 
 The optional [`verification.checks` setting](configuration.md#required-project-checks)

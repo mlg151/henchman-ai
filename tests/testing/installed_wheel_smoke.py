@@ -192,6 +192,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_checkpoint_capture.py",
         "tests/advanced/test_checkpoint_correlation.py",
         "tests/advanced/test_verification_freshness.py",
+        "tests/advanced/test_verification_repair.py",
         "tests/advanced/test_verification_evidence.py",
         "tests/advanced/test_project_verification.py",
         "tests/config/test_verification_settings.py",

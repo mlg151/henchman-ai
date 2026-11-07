@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bounded repair library foundation** — Explicit plan/edit/criterion scope,
+  guarded attempt and repeat limits, cancellation and projected historical
+  reports. Scoped checks never certify the whole task; runtime/model integration
+  remains pending.
+
 - **Local usage reconciliation evidence** — A CPU-only request settled reported
   usage and retained it across restart, with both budget-limited follow-ups denied
   before HTTP and USD 0 spend. Earlier failed-request evidence remains unchanged.

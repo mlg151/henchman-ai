@@ -85,7 +85,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   tags. Read-only current status detects manual edits and separates historical
   pass, stale, unverified and incomplete checks. Explicit project checks now bind
   required assertions to new plans and revoke evidence after configuration changes.
-  Bounded repair and live evaluation remain open; see
+  A library repair coordinator now retains bounded observations under explicit
+  edit/criterion scope; runtime integration and live evaluation remain open. See
   [verification freshness](docs/tools.md#declared-input-freshness).
 
 - #21/#25 transport/schema foundations now include explicit resource/template/

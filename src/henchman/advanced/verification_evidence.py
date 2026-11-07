@@ -167,6 +167,7 @@ def project_report(report: dict[str, Any] | None, policy: EvidenceRedactor) -> d
 def project_record(record: PlanRecord, policy: EvidenceRedactor) -> PlanRecord:
     """Project a read/write snapshot and revoke credential-bearing replay."""
     from henchman.advanced.acceptance_checks import check_spec_digest
+    from henchman.advanced.verification_repair import project_repair_report
 
     # Keep the legacy serializer permissive, but exempt only validated identity
     # fields at the actual display/persistence boundary.
@@ -186,7 +187,11 @@ def project_record(record: PlanRecord, policy: EvidenceRedactor) -> PlanRecord:
     if unavailable is not None and report is not None:
         report.pop("input_evidence", None)
         report.update(freshness="unverified", current_checks_passed=False, proof_unavailable_reason="credential_redaction")
+    repair = project_repair_report(record.last_repair, policy)
+    if unavailable is not None and repair is not None:
+        repair.update(status="incomplete", reason="credential_sensitive")
     return replace(record, checks=checks, checks_unavailable=unavailable, last_verification=report,
+                   last_repair=repair,
                    title=policy.text(record.title), steps=tuple(replace(
                        step, text=policy.text(step.text), evidence=policy.text(step.evidence) if step.evidence is not None else None,
                    ) for step in record.steps))

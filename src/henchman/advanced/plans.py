@@ -150,6 +150,7 @@ class PlanRecord:
     last_verification: dict[str, object] | None = None
     checks_unavailable: dict[str, str] | None = None
     project_checks_digest: str | None = None
+    last_repair: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable representation."""
@@ -164,6 +165,7 @@ class PlanRecord:
             "last_verification": self.last_verification,
             "checks_unavailable": self.checks_unavailable,
             "project_checks_digest": self.project_checks_digest,
+            "last_repair": self.last_repair,
         }
 
     @classmethod
@@ -178,6 +180,13 @@ class PlanRecord:
         report = payload.get("last_verification")
         if report is not None and not isinstance(report, dict):
             raise ValueError("Invalid persisted verification report.")
+        repair = payload.get("last_repair")
+        if repair is not None:
+            from henchman.advanced.verification_repair import decode_repair_report
+
+            repair = decode_repair_report(repair).to_dict()
+            if repair["plan_id"] != payload.get("plan_id"):
+                raise ValueError("Repair evidence belongs to a different plan.")
         unavailable = payload.get("checks_unavailable")
         project_digest = payload.get("project_checks_digest")
         if project_digest is not None and (not isinstance(project_digest, str)
@@ -206,6 +215,7 @@ class PlanRecord:
             last_verification=report,
             checks_unavailable=unavailable,
             project_checks_digest=project_digest,
+            last_repair=repair,
         )
 
 
@@ -455,6 +465,63 @@ class PlanExecutionService:
         storage = resolve_project_settings_path(self._project_root) / "tungsten/checkpoints"
         if (storage.exists() or storage.is_symlink()) and CheckpointService(self._project_root).pending_restores():
             raise ValueError("Workspace restore is incomplete; recover it before running verification.")
+
+    def save_repair_report(self, plan_id: str, report: dict[str, object], *, start: bool = False) -> dict[str, object]:
+        """Persist bounded advisory repair evidence with exact run/spec ownership.
+
+        Explicitly starting another repair supersedes the older observer. Reading
+        this record never returns a permit or resumes a callback.
+        """
+        from henchman.advanced.verification_repair import (
+            decode_repair_report,
+            project_repair_report,
+        )
+
+        self._assert_no_pending_restore()
+        with FileLock(self._lock_path):
+            current = self._require_plan(plan_id)
+            safe = project_repair_report(report, self._policy)
+            assert safe is not None
+            incoming = decode_repair_report(safe)
+            if incoming.plan_id != plan_id:
+                raise ValueError("Repair evidence belongs to a different plan.")
+            previous = current.last_repair
+            if start:
+                if (incoming.status != "running" or incoming.repairs_started or incoming.observations
+                    or incoming.criteria_digest is not None or (previous or {}).get("run_id") == incoming.run_id):
+                    raise ValueError("A repair must begin without prior execution observations.")
+            else:
+                if previous is None or previous.get("run_id") != incoming.run_id:
+                    raise ValueError("Repair observation was superseded; inspect current state.")
+                fixed = ("plan_id", "plan_created_at", "spec_digest", "project_checks_digest", "edit_paths",
+                         "protected_paths", "max_repairs", "max_identical_failures", "timeout_seconds", "started_at")
+                if any(previous[key] != safe[key] for key in fixed):
+                    raise ValueError("Repair scope or budget changed after admission.")
+                old = decode_repair_report(previous)
+                if (incoming.repairs_started < old.repairs_started or incoming.repairs_started > old.repairs_started + 1
+                    or incoming.observations[:len(old.observations)] != old.observations
+                    or (old.criteria_digest is not None and incoming.criteria_digest != old.criteria_digest)
+                    or (old.status != "running" and incoming.status != "incomplete")):
+                    raise ValueError("Repair evidence cannot erase observations or resume terminal authority.")
+            if incoming.status != "incomplete" and (
+                current.checks_unavailable is not None or not current.checks
+                or incoming.plan_created_at != current.created_at or incoming.spec_digest != check_spec_digest(current.checks)
+                or incoming.project_checks_digest != current.project_checks_digest
+                or self._configuration_status(current) != "current"
+            ):
+                raise ValueError("Repair plan or required check authority changed.")
+            if incoming.status == "scoped_pass":
+                observed = current.last_verification
+                if (observed is None or observed.get("run_id") != incoming.observations[-1].verification_run_id
+                    or observed.get("current_checks_passed") is not True
+                    or observed.get("spec_digest") != incoming.spec_digest
+                    or not consistent_check_results(current.checks, observed)):
+                    raise ValueError("Repair pass lacks its final persisted check observation.")
+            self._records[plan_id] = replace(current, updated_at=_now_iso(), last_repair=incoming.to_dict())
+            self._persist_records()
+            result = self._records[plan_id].last_repair
+            assert result is not None
+            return result
 
     def invalidate_checks(self) -> None:
         """Retain observations but revoke their success and running-save authority."""
