@@ -228,6 +228,27 @@ ordinary configuration exports and restricted execution still require the work
 and qualification in issue #20. Existing configuration export semantics are
 described below.
 
+## Usage limits and explicit prices
+
+`usage.limits` accepts `max_requests`, `max_tokens`, `max_seconds`, `max_cost`
+and `currency` (default `USD`). Omitted limits are unlimited; zero is an explicit
+limit. Counts must be nonnegative integers, time must be finite and nonnegative,
+and money is stored as an exact decimal string.
+
+`usage.prices` is a list of entries keyed by exact `provider` configuration name
+and effective `model`. Each entry can set `input_per_1k`, `output_per_1k`,
+`cache_read_per_1k`, `cache_write_per_1k`, `currency`, `source` and `as_of`
+(`YYYY-MM-DD`). Rates use decimal strings. Duplicate provider/model pairs are
+rejected; missing entries or applicable rates remain unknown. No wildcard price,
+implicit local-free rate or currency conversion applies. Accounting configuration
+is separate from `providers.*` and is never sent as SDK request options.
+
+These settings currently supply the explicit Python
+[run budget scope](providers.md#explicit-run-budget-scopes). Automatic CLI/run
+scope creation, persistent accounting and remaining-budget displays are still
+being integrated under #24/#35; merely saving limits does not yet activate them.
+UI settings sync does not transfer the usage group.
+
 ## Local import/export sync
 
 `henchman config import` / `henchman config export` move a narrow **sync payload**

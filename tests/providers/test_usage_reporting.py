@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -16,7 +17,7 @@ from henchman.providers.deepseek import DeepSeekProvider
 from henchman.providers.ollama import OllamaProvider
 from henchman.providers.openai_compat import OpenAICompatibleProvider
 from henchman.providers.openrouter import OpenRouterProvider
-from henchman.providers.usage import UsageReport
+from henchman.providers.usage import TokenPricing, UsageReport
 from tests.providers.stream_helpers import SDKResponse
 from tests.providers.test_stream_safety import response_chunk
 
@@ -64,6 +65,21 @@ async def test_compatible_final_usage_preserves_cache_and_reasoning() -> None:
     }
     assert chunks[-1].usage_source == "reported"
     assert chunks[0].usage_source == "unknown"
+
+
+def test_configured_decimal_price_retains_precision_and_explicit_zero() -> None:
+    rate = Decimal("0.12345678901234567890123456789")
+    pricing = TokenPricing(input_per_1k=rate, output_per_1k=Decimal(0))
+    assert pricing.input_per_1k is rate
+    assert pricing.output_per_1k == 0
+    assert pricing.estimate(UsageReport(prompt_tokens=0, completion_tokens=10, source="reported")) == 0
+    assert TokenPricing.uniform(rate).cache_read_per_1k is rate
+
+
+@pytest.mark.parametrize("rate", [Decimal("NaN"), Decimal("sNaN"), Decimal("Infinity"), Decimal("-0.01"), True])
+def test_configured_decimal_price_rejects_invalid_values(rate) -> None:
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        TokenPricing.uniform(rate)
 
 
 def test_compatible_partial_usage_does_not_invent_missing_counts() -> None:

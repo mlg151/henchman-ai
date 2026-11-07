@@ -32,6 +32,7 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 
@@ -181,6 +182,8 @@ def _extract_reasoning_text(delta: Any) -> str | None:
 
 class OpenAICompatibleProvider(ModelProvider):
     """Base provider for OpenAI-compatible APIs."""
+
+    supports_run_budget = True
 
     def __init__(
         self: OpenAICompatibleProvider,
@@ -337,23 +340,33 @@ class OpenAICompatibleProvider(ModelProvider):
 
         messages = self._repair_message_sequence_if_needed(messages)
         params = self._build_request_params(messages, tools, kwargs)
-        response = await self._make_api_request(params)
-
-        primary_error: BaseException | None = None
-        try:
-            async with aclosing(self._process_stream_response(response)) as chunks:
-                async for chunk in chunks:
-                    yield chunk
-        except BaseException as exc:
-            primary_error = exc
-            raise
-        finally:
+        operation = prepare_budget_operation(
+            self, params, output_fields=("max_tokens", "max_completion_tokens"),
+        )
+        with budget_attempt(operation) as attempt:
+            if attempt is not None:
+                attempt.start()
+            response = (
+                await self._make_api_request(params, accounted=True)
+                if operation is not None else await self._make_api_request(params)
+            )
+            primary_error: BaseException | None = None
             try:
-                await response.close()
-            except Exception:
-                if primary_error is None:
-                    raise
-                logger.exception("Failed to close provider stream after an error")
+                async with aclosing(self._process_stream_response(response)) as chunks:
+                    async for chunk in chunks:
+                        if attempt is not None:
+                            attempt.observe(chunk)
+                        yield chunk
+            except BaseException as exc:
+                primary_error = exc
+                raise
+            finally:
+                try:
+                    await response.close()
+                except Exception:
+                    if primary_error is None:
+                        raise
+                    logger.exception("Failed to close provider stream after an error")
 
     def _repair_message_sequence_if_needed(
         self: OpenAICompatibleProvider,
@@ -412,6 +425,7 @@ class OpenAICompatibleProvider(ModelProvider):
     async def _make_api_request(
         self: OpenAICompatibleProvider,
         params: dict[str, Any],
+        *, accounted: bool = False,
     ) -> Any:
         """Make the API request with error handling for context too large errors.
 
@@ -425,8 +439,9 @@ class OpenAICompatibleProvider(ModelProvider):
             ContextTooLargeError: If the request is too large (413 error).
             APIStatusError: For other API errors.
         """
+        client = self._client.with_options(max_retries=0) if accounted else self._client
         try:
-            return await self._client.chat.completions.create(**params)
+            return await client.chat.completions.create(**params)
         except APIStatusError as e:
             if e.status_code == _HTTP_REQUEST_TOO_LARGE:
                 msg = (

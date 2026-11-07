@@ -46,8 +46,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   unsupported servers. Cost records distinguish configured estimates from
   reported billing, preserve zero rates and leave unknown costs unset. A standalone
   process-lifetime ledger now supplies atomic reservation/claim/reconciliation with
-  exact money arithmetic and conservative uncertain holds; live integration, shared
-  enforcement, aggregate run usage, retries and persisted reconciliation remain
+  exact money arithmetic and conservative uncertain holds. Explicit Python scopes
+  account compatible/Anthropic attempts and summaries using typed usage limits and
+  provider/model prices. Automatic run scopes, aggregate display and persisted reconciliation remain
   open; see [usage provenance](docs/providers.md#usage-and-cost-provenance).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers

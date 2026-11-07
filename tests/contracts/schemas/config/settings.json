@@ -3,7 +3,7 @@
   "title": "Settings",
   "description": "Shape contract for the root Settings model — consumer-facing config contract.",
   "type": "object",
-  "required": ["providers", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
+  "required": ["providers", "usage", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
   "properties": {
     "providers": {
       "type": "object",
@@ -20,6 +20,45 @@
         "together": { "type": "object", "additionalProperties": true },
         "groq": { "type": "object", "additionalProperties": true },
         "fireworks": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": "object",
+      "description": "Shared run limits and an explicit provider/effective-model price catalog; never SDK request options.",
+      "required": ["limits", "prices"],
+      "properties": {
+        "limits": {
+          "type": "object",
+          "required": ["currency", "max_requests", "max_tokens", "max_seconds", "max_cost"],
+          "properties": {
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+            "max_requests": { "type": ["integer", "null"], "minimum": 0 },
+            "max_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "max_seconds": { "type": ["number", "null"], "minimum": 0 },
+            "max_cost": { "type": ["string", "null"], "description": "Exact finite nonnegative decimal amount." }
+          },
+          "additionalProperties": false
+        },
+        "prices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["provider", "model", "input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k", "currency", "source", "as_of"],
+            "properties": {
+              "provider": { "type": "string", "minLength": 1 },
+              "model": { "type": "string", "minLength": 1 },
+              "input_per_1k": { "type": ["string", "null"] },
+              "output_per_1k": { "type": ["string", "null"] },
+              "cache_read_per_1k": { "type": ["string", "null"] },
+              "cache_write_per_1k": { "type": ["string", "null"] },
+              "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+              "source": { "type": "string", "minLength": 1 },
+              "as_of": { "type": ["string", "null"], "format": "date" }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },

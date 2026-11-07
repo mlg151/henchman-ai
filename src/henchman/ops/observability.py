@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Any
 
 from henchman.ops.store import OpsStore
@@ -155,6 +156,10 @@ class CostTrackingService:
             "reported" if reported_cost is not None
             else "estimated" if estimated_cost is not None else "unknown"
         )
+        pricing_metadata = (
+            {name: str(value) if isinstance(value, Decimal) else value for name, value in asdict(pricing).items()}
+            if pricing is not None else None
+        )
         self._store.record_ops_event(
             category="cost",
             event_type="model_usage",
@@ -168,7 +173,7 @@ class CostTrackingService:
                 "reported_cost": reported_cost,
                 "cost_source": cost_source,
                 "currency": effective_currency,
-                "pricing": asdict(pricing) if pricing is not None else None,
+                "pricing": pricing_metadata,
             },
         )
         return total_cost

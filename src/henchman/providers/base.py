@@ -105,6 +105,8 @@ class ModelProvider(ABC):
 
     _accounting_provider_name: str | None = None
     """Configured catalog identity, separate from shared adapter and SDK options."""
+    supports_run_budget: bool = False
+    """Whether the provider accounts for actual transport attempts in an active scope."""
 
     def required_tool_names(self) -> list[str]:
         """Return named schemas that must survive optional catalog reduction."""

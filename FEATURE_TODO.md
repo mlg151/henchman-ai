@@ -70,8 +70,9 @@ subsets, including Anthropic and compatible trailing usage snapshots. Explicit
 prices distinguish estimates from provider billing; unknown costs stay unknown
 and zero prices remain valid. A reviewed process-lifetime ledger now implements
 atomic reservations, single-dispatch claims and conservative reconciliation;
-it is not yet connected to live calls. Shared run budgets, retry accounting, event-level
-aggregation and persisted reconciliation remain open; see
+explicit Python scopes now connect it to compatible/Anthropic transport attempts
+and summary calls. Typed limits and exact provider/model prices are available;
+automatic CLI run scopes, event-level aggregation and persisted reconciliation remain open; see
 [usage provenance](docs/providers.md#usage-and-cost-provenance).
 The release gates below are not yet satisfied.
 

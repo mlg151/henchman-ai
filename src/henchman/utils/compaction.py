@@ -835,21 +835,37 @@ async def _generate_summary_with_provider(
     """
     formatted = format_func(messages)
     prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
+    from henchman.core.run_budget import BudgetExceeded
 
     try:
         summary_parts: list[str] = []
-        async for chunk in provider.chat_completion_stream(
+        stream = provider.chat_completion_stream(
             messages=[Message(role="user", content=prompt)],
             tools=None,
-        ):
-            if chunk.content:
-                summary_parts.append(chunk.content)
-            if chunk.finish_reason:
-                break
+        )
+        primary_error: BaseException | None = None
+        try:
+            async for chunk in stream:
+                if chunk.content:
+                    summary_parts.append(chunk.content)
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
+            close = getattr(stream, "aclose", None)
+            if close is not None:
+                try:
+                    await close()
+                except Exception:
+                    if primary_error is None:
+                        raise
+                    logger.warning("Summary cleanup failed after interruption", exc_info=True)
 
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
+    except BudgetExceeded:
+        raise
     except Exception:
         # Summarization failed, log warning and return None to fall back to simple dropping
         logger.warning("Summarization with provider failed: %s", exc_info=True)
@@ -1077,6 +1093,8 @@ async def _attempt_summarization(
         return result
 
     summarizer = MessageSummarizer(provider=provider)
+    from henchman.core.run_budget import BudgetExceeded
+
     try:
         summary = await summarizer.summarize(dropped_messages)
         if summary:
@@ -1087,6 +1105,8 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
+    except BudgetExceeded:
+        raise
     except Exception:
         # Summarization failed, continue with simple dropping
         logger.warning("Failed to summarize dropped messages during compaction: %s", exc_info=True)

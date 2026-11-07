@@ -7,9 +7,18 @@ Settings are loaded from YAML/JSON files and environment variables.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from datetime import date
+from decimal import Decimal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 
 class _SettingsModel(BaseModel):
@@ -115,6 +124,96 @@ class ProviderSettings(_SettingsModel):
     together: dict[str, object] = Field(default_factory=dict)
     groq: dict[str, object] = Field(default_factory=dict)
     fireworks: dict[str, object] = Field(default_factory=dict)
+
+
+_MoneyAmount = Annotated[Decimal, Field(ge=0, allow_inf_nan=False)]
+
+
+class _CurrencySettings(_SettingsModel):
+    """Accounting values carry an explicit currency without implicit conversion."""
+
+    currency: str = "USD"
+
+    @field_validator("currency")
+    @classmethod
+    def currency_is_uppercase_code(cls, value: str) -> str:
+        """Require a three-letter ASCII currency code."""
+        if len(value) != 3 or not value.isascii() or not value.isalpha() or not value.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        return value
+
+
+class RunBudgetSettings(_CurrencySettings):
+    """Shared admission limits; None is unlimited and zero remains a limit."""
+
+    max_requests: int | None = Field(default=None, ge=0, strict=True)
+    max_tokens: int | None = Field(default=None, ge=0, strict=True)
+    max_seconds: float | None = Field(default=None, ge=0, allow_inf_nan=False, strict=True)
+    max_cost: _MoneyAmount | None = None
+
+    @field_serializer("max_cost")
+    def serialize_max_cost(self, value: Decimal | None) -> str | None:
+        """Keep repository inspection and YAML/JSON writes lossless."""
+        return str(value) if value is not None else None
+
+
+class ModelPriceSettings(_CurrencySettings):
+    """Explicit price snapshot for one configured provider and effective model."""
+
+    provider: str
+    model: str
+    input_per_1k: _MoneyAmount | None = None
+    output_per_1k: _MoneyAmount | None = None
+    cache_read_per_1k: _MoneyAmount | None = None
+    cache_write_per_1k: _MoneyAmount | None = None
+    source: str = "configured"
+    as_of: date | None = None
+
+    @field_validator("provider", "model", "source")
+    @classmethod
+    def nonempty_exact_value(cls, value: str) -> str:
+        """Reject blank or padded identities instead of silently changing lookup."""
+        if not value or value != value.strip():
+            raise ValueError("value must be nonempty without surrounding whitespace")
+        return value
+
+    @field_validator("as_of", mode="before")
+    @classmethod
+    def price_date_is_explicit(cls, value: object) -> object:
+        """Accept a calendar date or ISO date text, never a numeric timestamp."""
+        if value is not None and type(value) not in (date, str):
+            raise ValueError("as_of must be a calendar date or ISO date string")
+        if isinstance(value, str):
+            date.fromisoformat(value)
+        return value
+
+    @field_serializer("input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k")
+    def serialize_rate(self, value: Decimal | None) -> str | None:
+        """Preserve decimal digits in every settings serialization mode."""
+        return str(value) if value is not None else None
+
+    @field_serializer("as_of")
+    def serialize_date(self, value: date | None) -> str | None:
+        """Keep Python-mode inspections directly JSON/YAML serializable."""
+        return value.isoformat() if value is not None else None
+
+
+class UsageSettings(_SettingsModel):
+    """Accounting configuration separate from provider SDK request options."""
+
+    limits: RunBudgetSettings = Field(default_factory=RunBudgetSettings)
+    prices: list[ModelPriceSettings] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def unique_price_identities(self) -> UsageSettings:
+        """Reject ambiguous catalog entries for the same provider and model."""
+        seen: set[tuple[str, str]] = set()
+        for price in self.prices:
+            identity = (price.provider, price.model)
+            if identity in seen:
+                raise ValueError(f"Duplicate price for provider/model {identity!r}")
+            seen.add(identity)
+        return self
 
 
 class ToolSettings(_SettingsModel):
@@ -612,6 +711,7 @@ class Settings(_SettingsModel):
 
     Attributes:
         providers: Provider configuration.
+        usage: Shared run limits and explicit provider/model prices.
         tools: Tool behavior configuration.
         ui: UI settings.
         context: Context management settings.
@@ -622,6 +722,7 @@ class Settings(_SettingsModel):
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
+    usage: UsageSettings = Field(default_factory=UsageSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
     ui: UISettings = Field(default_factory=UISettings)
     context: ContextSettings = Field(default_factory=ContextSettings)

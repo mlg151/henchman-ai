@@ -1,5 +1,6 @@
 """Cost observations never fabricate prices or conflate estimates with billing."""
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -113,6 +114,28 @@ def test_zero_reported_billing_is_distinct_from_a_zero_estimate(store: OpsStore)
     assert payload["estimated_cost"] is None
     assert payload["cost_source"] == "reported"
     assert service.summary()["total_cost"] == 0
+
+
+@pytest.mark.parametrize("reported_cost", [None, 0.0])
+def test_decimal_price_metadata_persists_exactly_without_relabeling_billing(
+    store: OpsStore, reported_cost: float | None,
+) -> None:
+    rate = Decimal("0.12345678901234567890123456789")
+    pricing = TokenPricing(input_per_1k=rate, output_per_1k=Decimal(0), source="configured:catalog")
+    service = CostTrackingService(store=store)
+    amount = service.record_usage(
+        provider="test", model="test", prompt_tokens=1000, completion_tokens=1,
+        pricing=pricing, reported_cost=reported_cost,
+    )
+    payload = store.list_ops_events("cost")[0]["payload"]
+    assert payload["pricing"]["input_per_1k"] == str(rate)
+    assert payload["pricing"]["output_per_1k"] == "0"
+    assert payload["pricing"]["cache_read_per_1k"] is None
+    assert payload["pricing"]["source"] == "configured:catalog"
+    assert payload["estimated_cost"] == float(rate)
+    assert payload["reported_cost"] == reported_cost
+    assert payload["cost_source"] == ("reported" if reported_cost is not None else "estimated")
+    assert amount == (reported_cost if reported_cost is not None else float(rate))
 
 
 @pytest.mark.parametrize("rate", [-1, float("nan"), float("inf"), True])

@@ -347,10 +347,10 @@ lookup; aliases sharing one adapter do not silently share a price catalog.
 Run-wide aggregation, shared budget enforcement, retry accounting and persisted
 reconciliation remain tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
-### Run ledger foundation
+### Explicit run budget scopes
 
-`henchman.core.run_budget.RunBudgetLedger` is an in-memory accounting component;
-live agents and provider transports do not enforce its limits yet. Integrators
+`henchman.core.run_budget.RunBudgetLedger` is an in-memory accounting component.
+Integrators
 reserve a `RequestEstimate`, claim it with `start(request_id)` immediately before
 dispatch, and reconcile cumulative `UsageReport` observations. Retries need new
 request IDs under the same operation ID. Atomic admission checks request, token,
@@ -364,11 +364,29 @@ stay separate. Missing or inconsistent final usage, newly applicable unpriced
 cache usage and unexpected currencies cannot release money for additional calls.
 Cost arithmetic and aggregation preserve exact finite decimal values regardless
 of the caller's decimal precision. Snapshots label accounting as `process` lifetime.
-This component does not persist or restore reservations, wrap SDK retries, impose
-provider output caps, or guarantee the bill for an already-started remote request.
-Live integration and durable reconciliation remain open under #24.
+The ledger alone does not persist or restore reservations or guarantee the bill
+for an already-started remote request. Durable reconciliation remains open under #24.
 `BudgetExceeded` propagates through agent preparation, streaming and legacy
 delegation instead of becoming a recoverable provider error or delegation retry.
+
+`henchman.providers.runtime_budget.use_run_budget(RunBudgetScope(...))` activates
+accounting for compatible and Anthropic provider streams consumed inside its
+scope. Use `run_budget_limits(settings)` and `model_pricing(settings, provider=...,
+model=...)` from `henchman.config.usage` to bind the typed configuration. Child
+tasks inherit the current scope; `current_run_budget()` captures it for later
+activation, and `scope.for_agent(id)` attributes requests to an actor without
+creating another ledger.
+
+Active scopes snapshot request parameters and prices before any awaited capacity
+check. They enforce the reserved output cap (default 4,096 only when absent),
+disable hidden SDK retries, and count actual dispatches. Compatible requests make
+one attempt; Anthropic's explicit rate-limit retries each claim another reservation
+under the same operation. Usage is settled only after normal stream exhaustion
+with a terminal reported snapshot. Cancellation and incomplete usage keep holds.
+Summary calls drain trailing usage and cannot swallow budget exhaustion. Supported
+adapters advertise `supports_run_budget`; uninstrumented custom providers are not
+automatically accounted by this explicit scope. Requests outside a scope retain
+their existing behavior. Automatic CLI/run scope creation remains open.
 
 ### Headless coding workflows
 

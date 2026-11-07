@@ -31,6 +31,7 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 from henchman.utils.ratelimit import AsyncRateLimiter
@@ -338,6 +339,7 @@ class _AnthropicStreamProcessor:
         self: _AnthropicStreamProcessor,
         params: dict[str, Any],
         input_tokens: int,
+        *, client: Any | None = None,
     ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API.
 
@@ -350,7 +352,8 @@ class _AnthropicStreamProcessor:
         """
         total_output_tokens = 0
         usage_counts: dict[str, int] = {}
-        async with _stream_context(self._provider._client.messages.stream(**params)) as stream:
+        client = client if client is not None else self._provider._client
+        async with _stream_context(client.messages.stream(**params)) as stream:
             pending_tool_calls: dict[str, dict[str, Any]] = {}
             current_tool_id: str | None = None
 
@@ -460,6 +463,8 @@ class AnthropicProvider(ModelProvider):
         >>> async for chunk in provider.chat_completion_stream(messages):
         ...     print(chunk.content, end="")
     """
+
+    supports_run_budget = True
 
     def __init__(
         self: AnthropicProvider,
@@ -646,14 +651,24 @@ class AnthropicProvider(ModelProvider):
     ) -> AsyncGenerator[StreamChunk]:
         """Stream with retry logic for rate limits."""
         retries = 0
+        operation = prepare_budget_operation(self, params)
+        client = self._client.with_options(max_retries=0) if operation is not None else None
 
         while True:
             try:
-                await self._rate_limiter.wait_for_capacity(input_tokens)
-
-                async with aclosing(self._process_stream(params, input_tokens)) as chunks:
-                    async for chunk in chunks:
-                        yield chunk
+                with budget_attempt(operation) as attempt:
+                    await self._rate_limiter.wait_for_capacity(input_tokens)
+                    if attempt is not None:
+                        attempt.start()
+                    stream = (
+                        self._process_stream(params, input_tokens, client=client)
+                        if client is not None else self._process_stream(params, input_tokens)
+                    )
+                    async with aclosing(stream) as chunks:
+                        async for chunk in chunks:
+                            if attempt is not None:
+                                attempt.observe(chunk)
+                            yield chunk
 
                 break  # Success, exit retry loop
 
@@ -667,8 +682,13 @@ class AnthropicProvider(ModelProvider):
         self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
+        *, client: Any | None = None,
     ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API."""
-        async with aclosing(self._stream_processor.process_stream(params, input_tokens)) as chunks:
+        stream = (
+            self._stream_processor.process_stream(params, input_tokens, client=client)
+            if client is not None else self._stream_processor.process_stream(params, input_tokens)
+        )
+        async with aclosing(stream) as chunks:
             async for chunk in chunks:
                 yield chunk

@@ -77,6 +77,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Explicit provider budget scopes** — Compatible and Anthropic transports now
+  account actual attempts inside a task-local Python scope, enforce reserved output
+  caps, suppress hidden SDK retries and retain uncertain consumption on interruption.
+  Detached request snapshots prevent mutation during awaited rate-limit checks from
+  changing the reserved model or cap. Summary calls retain trailing usage. Typed
+  `usage` settings preserve exact Decimal limits and provider/model price catalogs;
+  price metadata persists without conversion to float. Automatic CLI scope creation,
+  durable accounting and budget displays remain open under #24/#35.
+
 - **Observed interruption evidence** — Recovery evaluations now require completed
   tool work followed by a verified tool-limit cancellation. Provider failures,
   timeouts and zero-work stops cannot pass as intentional interruptions, and

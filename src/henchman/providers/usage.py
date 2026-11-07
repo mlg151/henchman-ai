@@ -9,6 +9,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 UsageSource = Literal["reported", "estimated", "unknown"]
+MoneyRate = Decimal | float | int
 
 
 def usage_field(value: Any, name: str) -> Any:
@@ -58,9 +59,13 @@ class UsageReport:
         return {name: value for name, value in asdict(self).items() if name != "source" and value is not None}
 
 
-def validate_money(value: float, name: str) -> None:
+def validate_money(value: MoneyRate, name: str) -> None:
     """Reject negative, nonfinite, boolean and nonnumeric monetary values."""
-    if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+    finite = (
+        value.is_finite() if isinstance(value, Decimal)
+        else type(value) is int or (type(value) is float and math.isfinite(value))
+    )
+    if not finite or value < 0:
         raise ValueError(f"{name} must be a finite nonnegative number")
 
 
@@ -68,10 +73,10 @@ def validate_money(value: float, name: str) -> None:
 class TokenPricing:
     """A configured price snapshot, never a provider billing observation."""
 
-    input_per_1k: float | None = None
-    output_per_1k: float | None = None
-    cache_read_per_1k: float | None = None
-    cache_write_per_1k: float | None = None
+    input_per_1k: MoneyRate | None = None
+    output_per_1k: MoneyRate | None = None
+    cache_read_per_1k: MoneyRate | None = None
+    cache_write_per_1k: MoneyRate | None = None
     currency: str = "USD"
     source: str = "configured"
     as_of: str | None = None
@@ -89,7 +94,7 @@ class TokenPricing:
             date.fromisoformat(self.as_of)
 
     @classmethod
-    def uniform(cls, rate: float) -> TokenPricing:
+    def uniform(cls, rate: MoneyRate) -> TokenPricing:
         """Preserve an explicitly configured legacy uniform rate, including zero."""
         return cls(rate, rate, rate, rate)
 
