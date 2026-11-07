@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from henchman.api.auth import verify_api_key
+from henchman.api.auth import verified_chat_authority
+from henchman.api.run_accounting import ApiChatRun, ApiChatRuns
 from henchman.api.state import state
 from henchman.core import Agent, AgentEvent, EventType
+from henchman.core.run_budget import BudgetAccountingError, BudgetControlError, BudgetExceeded
 from henchman.providers import Message, ToolCall
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -32,17 +36,36 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Chat completion request model."""
 
+    model_config = ConfigDict(extra="forbid")
+
     messages: list[ChatMessage] = Field(description="Conversation history", min_length=1)
+    run_id: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Original process run ID for tool-result continuation",
+    )
     stream: bool = Field(default=False, description="Whether to stream the response")
     max_tokens: int | None = Field(default=None, description="Maximum tokens to generate")
     temperature: float | None = Field(default=None, description="Sampling temperature")
     system_prompt: str | None = Field(default=None, description="System prompt override")
+
+    @model_validator(mode="after")
+    def reject_unsupported_options(self) -> ChatRequest:
+        supplied = self.model_fields_set.intersection({"max_tokens", "temperature"})
+        if supplied:
+            raise ValueError(
+                f"Unsupported request options: {', '.join(sorted(supplied))}; omit them and configure provider request defaults on the server"
+            )
+        return self
 
 
 class ChatResponse(BaseModel):
     """Chat completion response model."""
 
     message: ChatMessage = Field(description="Assistant message")
+    run_id: str | None = None
+    budget: dict[str, Any] | None = None
+    accounting_lifetime: str = "process"
     usage: dict[str, int] | None = Field(default=None, description="Token usage information")
     finish_reason: str | None = Field(default=None, description="Reason for completion")
 
@@ -129,7 +152,7 @@ def _process_agent_event(
         content_parts.append(event.data)
         return None, None
     if event.type == EventType.TOOL_CALL_REQUEST:
-        tool_calls.append(event.data)
+        tool_calls.append(asdict(event.data) if isinstance(event.data, ToolCall) else event.data)
         return None, None
     if event.type == EventType.FINISHED:
         # Extract finish reason from first valid FINISHED event
@@ -208,7 +231,9 @@ def _process_stream_event(
 
     if event.type == EventType.TOOL_CALL_REQUEST:
         chunk_type = "tool_call"
-        chunk_data = {"tool_call": event.data}
+        chunk_data = {
+            "tool_call": asdict(event.data) if isinstance(event.data, ToolCall) else event.data
+        }
         tool_calls_count += 1
     elif event.type == EventType.FINISHED:
         chunk_type = "finished"
@@ -294,166 +319,130 @@ async def get_agent() -> Agent:
     return state.agent
 
 
+def get_chat_runs() -> ApiChatRuns:
+    """Require the lifespan-owned process registry; no unaccounted fallback."""
+    if not isinstance(state.chat_runs, ApiChatRuns):
+        raise HTTPException(503, "Chat accounting runtime is unavailable")
+    return state.chat_runs
+
+
+def _request_messages(request: ChatRequest) -> list[Message]:
+    return [_convert_chat_message_to_internal(message) for message in request.messages]
+
+
+def _failure_payload(error: Exception, run: ApiChatRun | None) -> tuple[int, dict[str, Any]]:
+    policy = EvidenceRedactor()
+    if state.settings is not None:
+        policy.register_config(state.settings.model_dump())
+    code = 500
+    if isinstance(error, HTTPException):
+        code = error.status_code
+    elif isinstance(error, BudgetExceeded):
+        code = 429
+    elif isinstance(error, BudgetControlError):
+        code = 503
+    payload: dict[str, Any] = {"error": policy.text(str(error))}
+    if isinstance(error, (BudgetExceeded, BudgetAccountingError)):
+        payload["reason"] = error.reason
+    if run is not None:
+        payload.update(run_id=run.run_id, budget=run.budget(), accounting_lifetime="process")
+    return code, payload
+
+
 @router.post("/completions", response_model=ChatResponse)
 async def chat_completion(
     request: ChatRequest,
-    api_key_valid: Annotated[bool, Depends(verify_api_key)],
-    agent: Annotated[Agent, Depends(get_agent)],
-) -> ChatResponse:
-    """Create a chat completion.
-
-    Args:
-        request: Chat completion request.
-        api_key_valid: Whether the API key is valid (injected by auth dependency).
-        agent: Agent instance.
-
-    Returns:
-        Chat completion response.
-    """
-    if not api_key_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
-    # Set system prompt if provided
-    if request.system_prompt:
-        agent.system_prompt = request.system_prompt
-
-    # Extract last user message from conversation history
-    user_input = ""
-    last_user_index = -1
-    # Find the last user message in the conversation
-    for i in range(len(request.messages) - 1, -1, -1):
-        msg = request.messages[i]
-        if msg.role == "user":
-            user_input = msg.content
-            last_user_index = i
-            break
-
-    # Set up agent history from conversation
-    _setup_agent_history(agent, request.messages, last_user_index)
-
-    # Collect all events
+    authority: Annotated[str, Depends(verified_chat_authority)],
+) -> ChatResponse | StreamingResponse:
+    """Run a new turn or continue one caller-owned process budget."""
+    if request.stream:
+        return _stream_response(request, authority)
+    runs = get_chat_runs()
+    run: ApiChatRun | None = None
     content_parts: list[str] = []
     tool_calls: list[dict[str, Any]] = []
     finish_reason: str | None = None
     usage: dict[str, int] | None = None
-
-    # Valid finish reasons from FinishReason enum
-    valid_finish_reasons = {"stop", "tool_calls", "length", "content_filter"}
-
     try:
-        async for event in agent.run(user_input=user_input):
-            event_finish_reason, event_usage = _process_agent_event(
-                event,
-                content_parts,
-                tool_calls,
-                valid_finish_reasons,
-            )
-            if event_finish_reason is not None and finish_reason is None:
-                finish_reason = event_finish_reason
-                usage = event_usage
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating completion: {e!s}",
-        ) from e
-
-    # Build response
-    response_message = ChatMessage(
-        role="assistant",
-        content="".join(content_parts),
-        tool_calls=tool_calls or None,
-    )
-
-    # Update metrics
+        async with runs.execute(
+            authority,
+            _request_messages(request),
+            run_id=request.run_id,
+            system_prompt=request.system_prompt,
+        ) as (run, events):
+            async for event in events:
+                reason, event_usage = _process_agent_event(
+                    event,
+                    content_parts,
+                    tool_calls,
+                    {"stop", "tool_calls", "length", "content_filter"},
+                )
+                if reason is not None:
+                    finish_reason, usage = reason, event_usage
+    except HTTPException:
+        raise
+    except Exception as error:
+        code, payload = _failure_payload(error, run)
+        raise HTTPException(code, payload) from error
     _update_metrics(usage, tool_calls)
-
+    assert run is not None
     return ChatResponse(
-        message=response_message,
+        message=ChatMessage(
+            role="assistant", content="".join(content_parts), tool_calls=tool_calls or None
+        ),
         usage=usage,
         finish_reason=finish_reason,
+        run_id=run.run_id,
+        budget=run.budget(),
     )
 
 
-@router.post("/completions/stream")
-async def chat_completion_stream(
-    request: ChatRequest,
-    api_key_valid: Annotated[bool, Depends(verify_api_key)],
-    agent: Annotated[Agent, Depends(get_agent)],
-) -> StreamingResponse:
-    """Create a streaming chat completion.
-
-    Args:
-        request: Chat completion request.
-        api_key_valid: Whether the API key is valid (injected by auth dependency).
-        agent: Agent instance.
-
-    Returns:
-        Streaming response with SSE events.
-    """
-    if not api_key_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
-    # Set system prompt if provided
-    if request.system_prompt:
-        agent.system_prompt = request.system_prompt
-
-    # Extract last user message from conversation history
-    user_input = ""
-    last_user_index = -1
-    # Find the last user message in the conversation
-    for i in range(len(request.messages) - 1, -1, -1):
-        msg = request.messages[i]
-        if msg.role == "user":
-            user_input = msg.content
-            last_user_index = i
-            break
-
-    # Set up agent history from conversation
-    _setup_agent_history(agent, request.messages, last_user_index)
-
-    # Track metrics for streaming requests
-    if state.metrics:
-        state.metrics["requests_total"] = state.metrics.get("requests_total", 0) + 1
+def _stream_response(request: ChatRequest, authority: str) -> StreamingResponse:
+    runs = get_chat_runs()
+    messages = _request_messages(request)
+    runs.check_request(
+        authority, messages, run_id=request.run_id, system_prompt=request.system_prompt
+    )
 
     async def event_generator() -> AsyncIterator[str]:
-        """Generate SSE events from agent events."""
-        index = 0
-        tool_calls_count = 0
+        index, tool_count = 0, 0
+        run: ApiChatRun | None = None
+        if state.metrics:
+            state.metrics["requests_total"] = state.metrics.get("requests_total", 0) + 1
         try:
-            async for event in agent.run(user_input=user_input):
-                chunk_type, chunk_data, index, tool_calls_count = _process_stream_event(
-                    event,
-                    index,
-                    tool_calls_count,
+            async with runs.execute(
+                authority, messages, run_id=request.run_id, system_prompt=request.system_prompt
+            ) as (run, events):
+                start = ChatStreamChunk(
+                    type="start",
+                    data={"run_id": run.run_id, "accounting_lifetime": "process"},
+                    index=index,
                 )
-
-                chunk = ChatStreamChunk(
-                    type=chunk_type,
-                    data=chunk_data,
-                    index=index - 1,  # index was incremented in _process_stream_event
-                )
-
-                yield f"data: {chunk.model_dump_json()}\n\n"
-
-            # Update successful request and tool call metrics
-            _update_stream_metrics(tool_calls_count)
-
-            # Send final done event
-            done_chunk = ChatStreamChunk(
+                index += 1
+                yield f"data: {start.model_dump_json()}\n\n"
+                async for event in events:
+                    kind, data, index, tool_count = _process_stream_event(event, index, tool_count)
+                    chunk = ChatStreamChunk(type=kind, data=data, index=index - 1)
+                    yield f"data: {chunk.model_dump_json()}\n\n"
+            _update_stream_metrics(tool_count)
+            done = ChatStreamChunk(
                 type="done",
-                data={},
+                data={
+                    "run_id": run.run_id,
+                    "budget": run.budget(),
+                    "accounting_lifetime": "process",
+                },
                 index=index,
             )
-            yield f"data: {done_chunk.model_dump_json()}\n\n"
-
-        except Exception as e:
-            yield _handle_stream_error(e, index)
+            yield f"data: {done.model_dump_json()}\n\n"
+        except Exception as error:
+            code, payload = _failure_payload(error, run)
+            if state.metrics:
+                state.metrics["requests_failed"] = state.metrics.get("requests_failed", 0) + 1
+            chunk = ChatStreamChunk(
+                type="error", data={**payload, "status_code": code}, index=index
+            )
+            yield f"data: {chunk.model_dump_json()}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -466,66 +455,40 @@ async def chat_completion_stream(
     )
 
 
+@router.post("/completions/stream")
+async def chat_completion_stream(
+    request: ChatRequest,
+    authority: Annotated[str, Depends(verified_chat_authority)],
+) -> StreamingResponse:
+    """Stream one isolated turn; follow-ups retain their original budget."""
+    return _stream_response(request, authority)
+
+
 @router.get("/history")
 async def get_chat_history(
-    api_key_valid: Annotated[bool, Depends(verify_api_key)],
-    agent: Annotated[Agent, Depends(get_agent)],
-    limit: Annotated[
-        int, Query(ge=1, le=1000, description="Maximum number of messages to return"),
-    ] = 100,
+    authority: Annotated[str, Depends(verified_chat_authority)],
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    run_id: str | None = None,
 ) -> list[ChatMessage]:
-    """Get chat history.
-
-    Args:
-        api_key_valid: Whether the API key is valid (injected by auth dependency).
-        agent: Agent instance.
-        limit: Maximum number of messages to return.
-
-    Returns:
-        List of chat messages.
-    """
-    if not api_key_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
-    # Get messages from agent
-    messages = agent.get_messages_for_api()
-
-    # Convert to response format
+    """Read this caller's selected run, or their latest retained run."""
     return [
         ChatMessage(
-            role=msg.role,
-            content=msg.content or "",
-            tool_calls=msg.tool_calls,
-            tool_call_id=msg.tool_call_id,
+            role=message.role,
+            content=message.content or "",
+            tool_calls=[asdict(call) for call in message.tool_calls]
+            if message.tool_calls
+            else None,
+            tool_call_id=message.tool_call_id,
         )
-        for msg in messages[-limit:]
+        for message in get_chat_runs().history(authority, run_id)[-limit:]
     ]
 
 
 @router.delete("/history")
 async def clear_chat_history(
-    api_key_valid: Annotated[bool, Depends(verify_api_key)],
-    agent: Annotated[Agent, Depends(get_agent)],
+    authority: Annotated[str, Depends(verified_chat_authority)],
+    run_id: str | None = None,
 ) -> dict[str, str]:
-    """Clear chat history.
-
-    Args:
-        api_key_valid: Whether the API key is valid (injected by auth dependency).
-        agent: Agent instance.
-
-    Returns:
-        Success message.
-    """
-    if not api_key_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
-    # Clear agent messages
-    agent.messages.clear()
-
+    """Hide the history view while retaining continuation and budget authority."""
+    get_chat_runs().hide_history(authority, run_id)
     return {"message": "Chat history cleared"}

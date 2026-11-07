@@ -21,6 +21,7 @@ from henchman.core.events import AgentEvent, EventType
 from henchman.ops.rate_limits import RateLimiter
 from henchman.providers.base import Message
 from henchman.version import VERSION
+from tests.api.helpers import install_chat_runtime
 
 # ---------------------------------------------------------------------------
 # Helpers / Fixtures
@@ -201,7 +202,7 @@ class TestHealthEndpoints:
         """Patch global state for health tests."""
         with patch("henchman.api.endpoints.health.state") as mock_state:
             mock_state.settings = _make_settings()
-            mock_state.agent = _make_agent()
+            install_chat_runtime(mock_state, _make_agent())
             mock_state.metrics = {
                 "requests_total": 10,
                 "requests_successful": 8,
@@ -316,22 +317,24 @@ class TestHealthEndpoints:
         assert data["requests"]["total"] == 0
 
     def test_usage_with_tokens(self, patch_state: Any) -> None:
-        """Usage endpoint calculates cost from token metrics."""
+        """Legacy metric counters do not manufacture run usage or prices."""
         from henchman.api.server import app
 
         with (
             TestClient(app) as client,
             patch("henchman.api.endpoints.health.state", patch_state),
+            patch("henchman.api.endpoints.chat.state", patch_state),
         ):
             response = client.get("/v1/usage")
         assert response.status_code == 200
         data = response.json()
-        assert data["total_tokens"] == 1500
-        assert data["total_cost"] > 0
-        assert "current_session" in data["daily_usage"]
+        assert data["total_tokens"] == 0
+        assert data["total_cost"] is None
+        assert data["budget"] is None
+        assert data["daily_usage"] == {}
 
     def test_usage_no_metrics(self, patch_state: Any) -> None:
-        """Usage endpoint returns zeros when state.metrics is empty."""
+        """No run has zero consumption and no observed monetary charge."""
         patch_state.metrics = {}
 
         from henchman.api.server import app
@@ -339,12 +342,13 @@ class TestHealthEndpoints:
         with (
             TestClient(app) as client,
             patch("henchman.api.endpoints.health.state", patch_state),
+            patch("henchman.api.endpoints.chat.state", patch_state),
         ):
             response = client.get("/v1/usage")
         assert response.status_code == 200
         data = response.json()
         assert data["total_tokens"] == 0
-        assert data["total_cost"] == 0.0
+        assert data["total_cost"] is None
         assert data["daily_usage"] == {}
 
     def test_health_response_model(self) -> None:
@@ -366,7 +370,7 @@ class TestHealthEndpoints:
         """UsageResponse model has expected defaults."""
         u = UsageResponse()
         assert u.total_tokens == 0
-        assert u.total_cost == 0.0
+        assert u.total_cost is None
         assert u.daily_usage == {}
 
 
@@ -681,7 +685,7 @@ class TestGetAgent:
 
         mock_agent = _make_agent()
         with patch("henchman.api.endpoints.chat.state") as mock_state:
-            mock_state.agent = mock_agent
+            install_chat_runtime(mock_state, mock_agent)
             result = await get_agent()
         assert result is mock_agent
 
@@ -693,7 +697,7 @@ class TestGetAgent:
         from henchman.api.endpoints.chat import get_agent
 
         with patch("henchman.api.endpoints.chat.state") as mock_state:
-            mock_state.agent = None
+            install_chat_runtime(mock_state, None)
             with pytest.raises(HTTPException) as exc_info:
                 await get_agent()
         assert exc_info.value.status_code == 503
@@ -734,7 +738,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = mock_agent_with_events
+            install_chat_runtime(mock_state, mock_agent_with_events)
             mock_state.metrics = {
                 "requests_total": 0,
                 "requests_successful": 0,
@@ -765,7 +769,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = mock_agent_with_events
+            install_chat_runtime(mock_state, mock_agent_with_events)
             mock_state.metrics = {}
             auth_state.settings = None
 
@@ -789,7 +793,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = mock_agent_with_events
+            install_chat_runtime(mock_state, mock_agent_with_events)
             mock_state.metrics = {}
             auth_state.settings = None
 
@@ -801,7 +805,7 @@ class TestChatCompletion:
                     },
                 )
 
-        assert response.status_code == 200
+        assert response.status_code == 422
 
     def test_chat_completion_agent_error(self) -> None:
         """Chat completion returns 500 when agent raises exception."""
@@ -819,7 +823,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {}
             auth_state.settings = None
 
@@ -841,7 +845,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {}
             auth_state.settings = _make_settings(require_auth=True)
             auth_state.api_keys = {"good-key"}
@@ -889,7 +893,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = metrics
             auth_state.settings = None
 
@@ -920,7 +924,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {
                 "requests_total": 0,
                 "requests_successful": 0,
@@ -947,7 +951,7 @@ class TestChatCompletion:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = None
+            install_chat_runtime(mock_state, None)
             mock_state.metrics = {}
             auth_state.settings = None
 
@@ -984,7 +988,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
             auth_state.settings = None
 
@@ -1013,7 +1017,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
             auth_state.settings = None
 
@@ -1041,7 +1045,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
             auth_state.settings = None
 
@@ -1066,7 +1070,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {}
             auth_state.settings = _make_settings(require_auth=True)
             auth_state.api_keys = {"good-key"}
@@ -1088,7 +1092,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = None
+            install_chat_runtime(mock_state, None)
             mock_state.metrics = {}
             auth_state.settings = None
 
@@ -1116,7 +1120,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = {"requests_total": 0, "requests_failed": 0}
             auth_state.settings = None
 
@@ -1155,7 +1159,7 @@ class TestChatStream:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = metrics
             auth_state.settings = None
 
@@ -1187,7 +1191,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = None
 
             with TestClient(app) as client:
@@ -1208,7 +1212,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = None
 
             with TestClient(app) as client:
@@ -1232,7 +1236,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = None
 
             with TestClient(app) as client:
@@ -1252,7 +1256,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = _make_settings(require_auth=True)
             auth_state.api_keys = {"good-key"}
 
@@ -1265,7 +1269,7 @@ class TestChatHistory:
         assert response.status_code == 401
 
     def test_clear_history(self) -> None:
-        """Delete history clears agent messages."""
+        """Deleting the display view does not mutate execution history."""
         from henchman.api.server import app
 
         agent = MagicMock()
@@ -1276,7 +1280,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = None
 
             with TestClient(app) as client:
@@ -1285,7 +1289,7 @@ class TestChatHistory:
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Chat history cleared"
-        mock_messages.clear.assert_called_once()
+        mock_messages.clear.assert_not_called()
 
     def test_clear_history_unauthorized(self) -> None:
         """Delete history returns 401 when API key is invalid."""
@@ -1297,7 +1301,7 @@ class TestChatHistory:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             auth_state.settings = _make_settings(require_auth=True)
             auth_state.api_keys = {"good-key"}
 
@@ -1569,7 +1573,7 @@ class TestServer:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = metrics
             auth_state.settings = None
 
@@ -1601,7 +1605,7 @@ class TestChatStreamBranchCoverage:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = metrics
             auth_state.settings = None
 
@@ -1628,7 +1632,7 @@ class TestChatStreamBranchCoverage:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = metrics
             auth_state.settings = None
 
@@ -1660,7 +1664,7 @@ class TestChatStreamBranchCoverage:
             patch("henchman.api.endpoints.chat.state") as mock_state,
             patch("henchman.api.auth.state") as auth_state,
         ):
-            mock_state.agent = agent
+            install_chat_runtime(mock_state, agent)
             mock_state.metrics = None  # Falsy — exercises [421->424]
             auth_state.settings = None
 

@@ -27,6 +27,68 @@ version:
 }
 ```
 
+## HTTP chat and task usage
+
+`POST /v1/chat/completions` starts an isolated process-owned run from a nonempty
+`messages` array ending in a user message. Optional `system_prompt` replaces
+system messages for that new run. The response includes a server-generated
+`run_id`, `accounting_lifetime: "process"` and a nullable `budget` aggregate.
+Concurrent root requests use separate agents and histories.
+
+```json
+{"messages": [{"role": "user", "content": "Explain this function"}]}
+```
+
+When the response requests tools, the caller executes them and submits exactly
+one result for each pending call, retaining the original `run_id`:
+
+```json
+{
+  "run_id": "<original run ID>",
+  "messages": [{"role": "tool", "tool_call_id": "<pending ID>", "content": "result"}]
+}
+```
+
+Continuation appends those results to the retained conversation and shares its
+consumed budget. A full transcript is accepted only if its prefix exactly matches
+the authoritative history. Completed or interrupted runs cannot be restarted by
+resubmitting their ID. Same-run concurrent requests return 409. Unknown, evicted,
+restarted or foreign caller IDs return 404 without creating a fresh budget.
+
+With authentication required, verified `X-API-Key` identity owns each run; raw
+keys are not stored in run records. With authentication disabled, all requests
+share one local authority. `GET /v1/chat/history?run_id=...` and
+`GET /v1/usage?run_id=...` use the same ownership rules. Omitting the ID selects
+that caller's latest retained run. `DELETE /v1/chat/history` hides that run's
+history view while retaining execution history, pending tools and accounting.
+
+`stream: true` or `POST /v1/chat/completions/stream` returns SSE. A `start` event
+identifies the run; content/tool events follow; `done` includes its final budget.
+Failures after headers appear as `error` events with status, run and budget
+information when available. Clients must inspect the event outcome, not only
+the HTTP status. Cancellation retains uncertain dispatched usage.
+
+The shared `usage` settings bound requests, aggregate tokens, elapsed time and
+optional estimated cost. `/v1/usage` returns the selected run's aggregate; costs
+are exact decimal strings separated by currency and provenance under
+`budget.money`. Legacy `total_cost` remains null and `daily_usage` empty; no
+universal rate or date breakdown is invented. `total_tokens` is null while
+dispatched usage is unknown. Unsupported unbounded provider extensions expose
+`budget: null`; configured caps/prices require an instrumented provider.
+
+The registry holds at most 1,024 process runs and evicts only completed runs.
+Active, interrupted and tool-waiting runs retain their authority; a full registry
+returns 503. This is process-local storage, without multi-worker or restart
+continuation. `usage.persistence: durable` returns 503 before dispatch until API
+session binding is implemented.
+
+Request-level `max_tokens` and `temperature` are currently unsupported: supplying
+either, including null, returns 422. Configure provider request defaults on the
+server. Unknown fields such as `model` or `tools` also return 422 instead of being
+silently ignored. Tool-result continuation cannot replace the system prompt.
+See [automatic accounting](providers.md#automatic-task-accounting) for reservation
+and billing limits.
+
 ## Core
 
 ### Agent

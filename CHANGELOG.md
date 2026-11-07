@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Caller-owned API budgets** — Standalone HTTP chat uses isolated process runs
+  with continuation IDs, shared tool-follow-up budgets and caller-scoped history
+  and usage. SSE identifies each run and reports terminal accounting. Unsupported
+  request overrides and durable API accounting fail explicitly; unknown costs
+  remain null. History hiding and completed-run eviction never reset a retained
+  run balance.
+
 - **Configured tool controls** — Disabling automatic read approval now requires
   confirmation through primary and scoped registries, including preset allowlists,
   while preserving stronger custom confirmation. Unsupported Docker sandbox

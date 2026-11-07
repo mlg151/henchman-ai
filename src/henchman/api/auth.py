@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import APIKeyHeader
 
 from henchman.api.state import state
@@ -39,3 +40,15 @@ async def verify_api_key(
         return False
 
     return api_key in state.api_keys
+
+
+async def verified_chat_authority(
+    api_key: Annotated[str | None, Depends(api_key_header)] = None,
+) -> str:
+    """Bind process runs to verified keys, or one explicit local authority."""
+    if not await verify_api_key(api_key):
+        raise HTTPException(401, "Invalid API key")
+    if state.settings is not None and state.settings.api.require_auth:
+        assert api_key is not None
+        return "api-key:" + sha256(api_key.encode()).hexdigest()
+    return "unauthenticated-local"

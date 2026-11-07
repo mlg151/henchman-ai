@@ -81,7 +81,9 @@ and summary calls. Typed limits and exact provider/model prices are available;
 durable SQLite claims/reconciliation and session bindings now pass crash and
 concurrency tests. Public orchestrator/CLI runs now share scopes through delegates,
 summaries and continuations, with trusted goal transitions, durable session
-bindings and `/usage`/headless aggregates. Native/live qualification and remaining
+bindings and `/usage`/headless aggregates. Standalone API process runs now isolate
+caller histories and retain budgets through tool-result continuation; durable
+API binding fails explicitly. Native/live qualification and remaining
 UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
 REPL/Textual now retain a shared live settings snapshot with accurate session
