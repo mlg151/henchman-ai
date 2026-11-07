@@ -16,9 +16,10 @@ transcript workflow; this first implementation slice changes Textual only.
 | Keyboard history scrolling | Page Up/Down in the chat pane, or Alt+Page Up/Down from the composer, scrolls history without submitting or changing the draft. |
 | Submit | Enter and Ctrl+Enter submit the composer. Empty input does nothing. |
 | Newline/paste | Shift+Enter and Ctrl+J insert a newline. Bracketed multiline paste inserts one draft and does not submit its individual lines. |
+| Composer selection | F6 selects the current line and F7 selects all text. Application navigation keeps those editor bindings available. |
 | Escape in the composer | Requests cancellation during work; otherwise dismisses search. It does not erase the draft. |
 | Escape in an approval/question | Denies/dismisses that decision according to the existing prompt channel; it does not approve work. |
-| Return to a pending decision | F6 focuses the existing answer field or approval's No button. An unrelated overlay stays open; close it first to return. |
+| Return to a pending decision | F4 focuses the existing answer field or approval's No button. An unrelated overlay stays open; close it first to return. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
 | Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained for this slice. |
 
@@ -41,7 +42,7 @@ runtime boundaries.
 | Follow/hold, concurrent streams, resize, expanded history | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), three viewport sizes | Native wheel/scrollbar, tmux and SSH/mosh |
 | Submit, multiline paste, history and unsent draft | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [integration](../tests/cli/test_textual_integration.py), [input bindings](../tests/cli/test_input_bindings.py) | Actual terminal paste, host key conflicts and IME |
 | Long plans, wrapped links, selection/copy while approval is pending | [Question channel](../tests/cli/test_textual_question_channel.py), [direct evidence](../tests/cli/test_textual_direct_evidence.py); richer inspection remains pending | Clipboard/selection, keyboard and remote-safe copy/export |
-| Questions and approval lifetime | [Question channel](../tests/cli/test_textual_question_channel.py), [lifecycle and F6](../tests/cli/test_textual_activity_state.py) | Screen-reader question/rationale and focus announcements |
+| Questions and approval lifetime | [Question channel](../tests/cli/test_textual_question_channel.py), [lifecycle and F4](../tests/cli/test_textual_activity_state.py) | Screen-reader question/rationale and focus announcements |
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
 | Queued input and recovery | [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py); queue editing remains pending | Cancellation/resume disposition and draft-loss observation |
 | Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
@@ -99,7 +100,7 @@ cancellation take priority over queued decisions; cancellation remains visible
 until worker cleanup settles. Idle means foreground work has settled and makes
 no claim about verification. Agent prose cannot replace these lifecycle states.
 
-F6 returns focus to an actual pending decision without answering it, replacing
+F4 returns focus to an actual pending decision without answering it, replacing
 the draft or dismissing an unrelated overlay. The focusable status also offers
 Enter when a decision is available. Questions focus the answer field; approvals
 focus No. A cancelled prompt hidden by another dialog retires when that dialog

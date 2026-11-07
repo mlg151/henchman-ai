@@ -37,7 +37,7 @@ Read-only inspection preserves typed evidence and current credential projection;
 display outcomes never authorize execution or establish task acceptance.
 The separate [activity display](ui-interaction-contract.md#activity-status-and-pending-decisions)
 uses worker and prompt ownership to retain cancellation through cleanup and
-ignore stale callbacks. F6 focuses a pending decision without granting approval.
+ignore stale callbacks. F4 focuses a pending decision without granting approval.
 
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 

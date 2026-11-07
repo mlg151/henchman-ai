@@ -31,10 +31,10 @@ async def test_question_state_and_keyboard_action_use_existing_decision(app, siz
         await settle_layout(pilot)
         original = app.screen
         assert "Waiting for answer" in status(app)
-        assert "F6" in status(app)
-        assert "F6" in app.query_one(StatusBar).render_line(0).text
+        assert "F4" in status(app)
+        assert "F4" in app.query_one(StatusBar).render_line(0).text
         app.screen.query_one("#question-cancel", Button).focus()
-        await pilot.press("f6")
+        await pilot.press("f4")
         await settle_layout(pilot)
         assert app.screen is original and len(app.screen_stack) == 2
         assert app.focused is original.query_one(Input) and not question.done()
@@ -54,12 +54,12 @@ async def test_approval_action_does_not_approve_and_preserves_overlay(app):
         assert "Waiting for approval" in status(app)
         overlay = ModalScreen()
         await app.push_screen(overlay)
-        await pilot.press("f6")
+        await pilot.press("f4")
         await settle_layout(pilot)
         assert app.screen is overlay and not approval.done()
         await overlay.dismiss()
         await settle_layout(pilot)
-        await pilot.press("f6")
+        await pilot.press("f4")
         await settle_layout(pilot)
         assert app.screen is original and not approval.done()
         await pilot.press("n")
@@ -123,7 +123,7 @@ async def test_serial_prompt_queue_and_cancelled_overlay_never_advertise_expired
         await settle_layout(pilot)
         assert "Close the current dialog" in status(app)
         assert "Waiting for answer" not in status(app)
-        await pilot.press("f6")
+        await pilot.press("f4")
         assert app.screen is overlay and not second.done()
         await overlay.dismiss()
         await settle_layout(pilot)
@@ -145,7 +145,7 @@ async def test_stale_prompt_removal_cannot_clear_newer_question(app):
         stale()
         await settle_layout(pilot)
         assert "Waiting for answer" in status(app)
-        await pilot.press("f6")
+        await pilot.press("f4")
         assert app.screen is current and app.focused is current.query_one(Input)
         await pilot.press("escape")
         assert await second is None

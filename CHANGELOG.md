@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Textual activity and decision navigation** — Persistent foreground status
   distinguishes running, waiting, cancelling, closing and settled outcomes.
-  F6 focuses the existing question or approval without answering or replacing
+  F4 focuses the existing question or approval without answering or replacing
   drafts; stale callbacks cannot clear newer status. Sixteen mounted regressions
   cover prompt queues, cleanup, overlays and current credential projection.
   Native terminal and accessibility qualification remain open.

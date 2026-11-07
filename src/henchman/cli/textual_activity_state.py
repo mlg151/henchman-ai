@@ -95,7 +95,7 @@ class ActivityState:
             noun = "answer" if self._prompt_kind == "question" else "approval"
             label = f"Waiting for {noun}" if self._prompt_ready else "Opening decision dialog…"
             action = "Answer question" if self._prompt_kind == "question" else "Review approval"
-            return ActivitySnapshot(label + (f" · F6: {action}" if self._prompt_ready else "") + queued, self._prompt_ready)
+            return ActivitySnapshot(label + (f" · F4: {action}" if self._prompt_ready else "") + queued, self._prompt_ready)
         if self._prompt_retiring and self._queued:
             return ActivitySnapshot("Close the current dialog to continue" + queued, True)
         if self._queued:

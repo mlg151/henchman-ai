@@ -242,7 +242,7 @@ class HenchmanTextualApp(
         ),
         Binding("f1", "show_help", "Help", show=True),
         Binding("f8", "review_changes", "Review", show=True),
-        Binding("f6", "pending_decision", "Decision", show=True, priority=True),
+        Binding("f4", "pending_decision", "Decision", show=True, priority=True),
         Binding(
             "f2",
             "switch_provider",
