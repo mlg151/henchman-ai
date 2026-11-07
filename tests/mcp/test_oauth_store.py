@@ -186,12 +186,19 @@ def test_store_refuses_symlinks_without_touching_referent(tmp_path, target):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX mode guarantee")
-def test_credentials_are_private_and_never_stored_in_legacy_directory(tmp_path):
-    (tmp_path / ".hENCHMAN").mkdir()
-    ready(store(tmp_path))
+def test_credentials_are_private_and_use_canonical_write_path(tmp_path):
+    legacy = tmp_path / ".hENCHMAN"
+    canonical = tmp_path / ".henchman"
+    legacy.mkdir()
+    service = store(tmp_path)
     path = tmp_path / ".henchman/mcp/oauth.json"
+    assert service._path == path
+    ready(service)
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert list((tmp_path / ".hENCHMAN").iterdir()) == []
+    # Case-insensitive filesystems alias these spellings. The write path must
+    # still be canonical; distinct legacy directories must remain untouched.
+    if not legacy.samefile(canonical):
+        assert list(legacy.iterdir()) == []
 
 
 @pytest.mark.parametrize("corruption", ["version_bool", "oversized", "project", "ready_without_token"])
