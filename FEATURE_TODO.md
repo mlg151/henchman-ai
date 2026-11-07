@@ -42,8 +42,9 @@ including generated output paths, parsed patch files and formatter descendants.
 Changed instructions defer mutations until presented to the model; checks repeat
 after approval and formatter waits. Delegated agents retain private scoped text
 and bounded provenance. Directory lint fixes require explicit file targets;
-shell/Python embedded paths remain cwd-scoped. Final qualification remains open
-under #15 and #30; see [runtime refresh](docs/configuration.md#context-files-henchmanmd-and-agentsmd).
+shell/Python embedded paths remain cwd-scoped. Issue #15 passed native qualification
+on Python 3.11–3.14 across Linux/macOS/Windows ([CI evidence](https://github.com/mlg151/henchman-ai/actions/runs/42386583146));
+final release qualification remains under #30. See [runtime refresh](docs/configuration.md#context-files-henchmanmd-and-agentsmd).
 Session persistence under #23 now uses versioned atomic replacement, integrity
 checks, one recoverable prior copy and native locking with stale-writer rejection.
 Legacy files migrate on save; corrupted current files recover with explicit warnings.
