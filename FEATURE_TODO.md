@@ -54,6 +54,12 @@ marker-containing values, Bearer whitespace and legacy backup-only credentials
 are covered by additional regressions.
 Terminal output/errors/logs/metrics/handoffs, config-export secret references and
 restricted filesystem/network execution still require implementation and qualification.
+Provider usage under #24 now preserves reported/unknown provenance and cache
+subsets, including Anthropic and compatible trailing usage snapshots. Explicit
+prices distinguish estimates from provider billing; unknown costs stay unknown
+and zero prices remain valid. Shared run budgets, retry accounting, event-level
+aggregation and persisted reconciliation remain open; see
+[usage provenance](docs/providers.md#usage-and-cost-provenance).
 The release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Provider usage and explicit pricing** — Compatible and Anthropic adapters
+  preserve cumulative request usage, cache/reasoning subsets and availability
+  provenance. Compatible requests ask for usage by default, with an explicit
+  opt-out for unsupported endpoints. Cost records retain unknown values and
+  valid zero rates, separate estimates from reported billing, and keep currencies
+  distinct. Shared run budgets and aggregation remain open under
+  [#24](https://github.com/mlg151/henchman-ai/issues/24); see
+  [usage provenance](docs/providers.md#usage-and-cost-provenance).
+
 - **Recoverable session storage** — Versioned session saves now flush and atomically
   replace JSON with a SHA-256 integrity check and one known-good prior copy.
   Native writer locks and loaded-byte revision checks reject stale updates instead

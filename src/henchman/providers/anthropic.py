@@ -31,6 +31,7 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 from henchman.utils.ratelimit import AsyncRateLimiter
 from henchman.utils.tokens import TokenCounter
@@ -247,16 +248,47 @@ def _handle_content_block_delta_event(
     )
 
 
-def _build_stream_chunk(result: _EventProcessingResult) -> StreamChunk | None:
+def _build_stream_chunk(
+    result: _EventProcessingResult, usage: dict[str, int] | None = None,
+) -> StreamChunk | None:
     """Convert an _EventProcessingResult into a StreamChunk, or None if nothing to yield."""
-    if not result.should_yield:
+    if not result.should_yield and usage is None:
         return None
     return StreamChunk(
         content=result.content,
         tool_calls=result.tool_calls,
         finish_reason=result.finish_reason,
         thinking=result.thinking,
+        usage=usage,
     )
+
+
+def _update_usage(event: Any, counts: dict[str, int]) -> dict[str, int] | None:
+    """Normalize Anthropic cumulative counts, including all input cache subsets."""
+    if event.type == "message_start":
+        usage = usage_field(usage_field(event, "message"), "usage")
+    elif event.type == "message_delta":
+        usage = usage_field(event, "usage")
+    else:
+        return None
+    if usage is None:
+        return None
+    for name in ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
+        count = token_count(usage, name)
+        if count is not None:
+            counts[name] = count
+    prompt = counts.get("input_tokens")
+    cached = counts.get("cache_read_input_tokens")
+    created = counts.get("cache_creation_input_tokens")
+    if prompt is not None:
+        prompt += (cached or 0) + (created or 0)
+    return UsageReport(
+        prompt_tokens=prompt,
+        completion_tokens=counts.get("output_tokens"),
+        cached_tokens=cached,
+        cache_creation_tokens=created,
+        source="reported",
+    ).to_counts() or None
 
 
 def _raise_if_retries_exhausted(
@@ -317,11 +349,13 @@ class _AnthropicStreamProcessor:
             StreamChunk objects as the response is generated.
         """
         total_output_tokens = 0
+        usage_counts: dict[str, int] = {}
         async with _stream_context(self._provider._client.messages.stream(**params)) as stream:
             pending_tool_calls: dict[str, dict[str, Any]] = {}
             current_tool_id: str | None = None
 
             async for event in stream:
+                usage = _update_usage(event, usage_counts)
                 chunk = await self._process_event(
                     event,
                     pending_tool_calls,
@@ -337,7 +371,7 @@ class _AnthropicStreamProcessor:
                 if chunk_tokens_delta > 0:
                     total_output_tokens += chunk_tokens_delta
 
-                stream_chunk = _build_stream_chunk(chunk)
+                stream_chunk = _build_stream_chunk(chunk, usage)
                 if stream_chunk is not None:
                     yield stream_chunk
 

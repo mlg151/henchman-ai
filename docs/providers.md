@@ -312,6 +312,38 @@ The offline regression suites in `tests/providers/test_stream_safety.py` and
 `tests/providers/test_anthropic_stream_safety.py` exercise these boundaries.
 They do not certify live model quality or operating-system compatibility.
 
+### Usage and cost provenance
+
+`StreamChunk.usage` is a cumulative snapshot for one provider request, not a
+per-chunk increment or a complete run total. `usage_source` distinguishes
+`reported`, `estimated`, and `unknown`. Missing counts remain absent; explicit
+zero counts remain zero. Compatible adapters merge partial and trailing snapshots.
+Anthropic input counts include ordinary input plus cache reads and writes;
+its output count is cumulative. `cached_tokens` and `cache_creation_tokens` are
+subsets of `prompt_tokens`; `reasoning_tokens` is a subset of `completion_tokens`.
+Do not add those subsets to the totals again.
+
+Compatible requests ask for streaming usage by default. For servers that reject
+the optional field, configure `providers.<name>.stream_options: null` to omit it.
+An explicit `{"include_usage": false}` is also preserved. No automatic retry with
+different request options occurs. These fields are supported by the documented
+[OpenAI](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events),
+[DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/),
+[OpenRouter](https://openrouter.ai/docs/client-sdks/python/api-reference/chat), and
+[Ollama](https://docs.ollama.com/api/openai-compatibility) compatible interfaces.
+
+The Python `UsageReport` and `TokenPricing` records preserve nullable counts and
+explicit input/output/cache rates, currency, price source and date.
+`CostTrackingService.record_usage()` returns `float | None`: absent pricing stays
+unknown, a configured zero rate is valid, and configured estimates remain separate
+from explicitly supplied provider billing. Summaries keep currencies separate and
+mark totals incomplete when any recorded cost is unknown. Historical synthetic
+cost records lack trustworthy provenance and are treated as unknown.
+
+This is provider-boundary accounting. Agent-event provenance propagation,
+run-wide aggregation, shared budget enforcement, retry accounting and persisted
+reconciliation remain tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
+
 ### Headless coding workflows
 
 The `json`, `stream-json`, and `json-complete` CLI modes use the configured team

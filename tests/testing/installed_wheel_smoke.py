@@ -109,6 +109,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_request_capacity.py",
         "tests/providers/test_request_budget.py",
         "tests/providers/test_required_tool_schemas.py",
+        "tests/providers/test_usage_reporting.py",
+        "tests/ops/test_cost_provenance.py",
         "tests/agents/test_orchestrator_streaming.py",
         "tests/agents/test_pool_context_settings.py",
         "tests/agents/test_orchestrator_round_budget.py",

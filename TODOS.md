@@ -36,6 +36,14 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #24 provider usage and explicit pricing: compatible and Anthropic adapters
+  preserve cumulative request counts, cache subsets and availability provenance.
+  Compatible requests ask for usage by default with an explicit opt-out for
+  unsupported servers. Cost records distinguish configured estimates from
+  reported billing, preserve zero rates and leave unknown costs unset. Shared
+  enforcement, aggregate run usage, retries and persisted reconciliation remain
+  open; see [usage provenance](docs/providers.md#usage-and-cost-provenance).
+
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers
   now follow the current project's scope across root commands, REPL/Textual slash
   commands, context/memory access and session-derived exports/branches/templates.

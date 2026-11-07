@@ -32,6 +32,7 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 
 __all__ = ["OpenAICompatibleProvider"]
@@ -149,13 +150,24 @@ def _extract_usage_from_chunk(chunk: Any) -> dict[str, int] | None:
     Returns:
         Usage dictionary or None if not available.
     """
-    if hasattr(chunk, "usage") and chunk.usage:
-        return {
-            "prompt_tokens": chunk.usage.prompt_tokens,
-            "completion_tokens": chunk.usage.completion_tokens,
-            "total_tokens": chunk.usage.total_tokens,
-        }
-    return None
+    usage = usage_field(chunk, "usage")
+    if usage is None:
+        return None
+    input_details = usage_field(usage, "prompt_tokens_details")
+    output_details = usage_field(usage, "completion_tokens_details")
+    cached = token_count(input_details, "cached_tokens")
+    if cached is None:
+        cached = token_count(usage, "prompt_cache_hit_tokens")
+    report = UsageReport(
+        prompt_tokens=token_count(usage, "prompt_tokens"),
+        completion_tokens=token_count(usage, "completion_tokens"),
+        total_tokens=token_count(usage, "total_tokens"),
+        cached_tokens=cached,
+        cache_creation_tokens=token_count(input_details, "cache_write_tokens"),
+        reasoning_tokens=token_count(output_details, "reasoning_tokens"),
+        source="reported",
+    )
+    return report.to_counts() or None
 
 
 def _extract_reasoning_text(delta: Any) -> str | None:
@@ -385,8 +397,12 @@ class OpenAICompatibleProvider(ModelProvider):
             "model": options.pop("model", self.default_model),
             "messages": [_format_message(m) for m in messages],
             "stream": True,
+            "stream_options": {"include_usage": True},
             **options,
         }
+        if params["stream_options"] is None:
+            # An explicit null opts out for servers without this optional field.
+            params.pop("stream_options")
 
         if tools:
             params["tools"] = [_format_tool(t) for t in tools]
@@ -433,13 +449,19 @@ class OpenAICompatibleProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         pending_tool_calls: dict[int, dict[str, Any]] = {}
+        usage_counts: dict[str, int] = {}
 
         async for chunk in response:
             error = getattr(chunk, "error", None)
             if isinstance(error, dict) and error:
                 raise RuntimeError("Provider stream reported an error")
+            usage = _extract_usage_from_chunk(chunk)
+            if usage is not None:
+                usage_counts.update(usage)
+                if "total_tokens" not in usage and {"prompt_tokens", "completion_tokens"} <= usage_counts.keys():
+                    usage_counts["total_tokens"] = usage_counts["prompt_tokens"] + usage_counts["completion_tokens"]
+                usage = dict(usage_counts)
             if not chunk.choices:
-                usage = _extract_usage_from_chunk(chunk)
                 if usage is not None:
                     yield StreamChunk(usage=usage)
                 continue
@@ -467,7 +489,7 @@ class OpenAICompatibleProvider(ModelProvider):
                 tool_calls=tool_calls,
                 finish_reason=finish_reason,
                 thinking=thinking,
-                usage=_extract_usage_from_chunk(chunk),
+                usage=usage,
             )
 
     def _build_tool_calls_from_pending(
