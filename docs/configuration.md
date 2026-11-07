@@ -317,6 +317,38 @@ attempt. Revocation cannot undo bytes already sent. Trusted embedders using
 revocation applies to registry-dispatched calls. This boundary does not filter
 provider traffic or qualify MCP, shell, Python, search or custom network tools.
 
+## Required project checks
+
+Set `verification.checks` in `.henchman/settings.yaml` to include required checks
+in every newly created verification plan:
+
+```yaml
+verification:
+  checks:
+    - kind: pytest
+      path: tests/test_total.py
+      inputs: [src/total.py, tests/test_total.py, pyproject.toml]
+      requirement_ids: [REQ-total]
+    - kind: command
+      argv: [python, -m, ruff, check, src/total.py]
+      inputs: [src/total.py, pyproject.toml]
+      timeout: 60
+```
+
+The default is an empty list. The normal settings precedence applies; bound tools
+use the active runtime Settings snapshot, while a directly constructed service
+loads project settings. Apply or reload changed settings in an active session.
+Commands are explicit argv arrays and run only through the existing `verify`
+action and execution approval. No commands are guessed from project files.
+
+Configured checks are combined with caller checks and exact duplicates are
+removed, with a combined maximum of 20. The existing
+[check contract and limits](tools.md#declared-input-freshness) apply, including
+declared files for current command/pytest evidence. Baselines are captured by the
+service; config cannot supply them. Changing or removing configured checks makes
+earlier bound evidence stale. Newly required checks leave older unbound plans
+unverified. Create a new plan and review its checks before verifying again.
+
 ## Usage limits and explicit prices
 
 `usage.limits` accepts `max_requests`, `max_tokens`, `max_seconds`, `max_cost`

@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Required project verification checks** — Explicit `verification.checks` join
+  new plan assertions, retain exact requirement/input scope and invalidate current
+  evidence after configuration changes. Invalid post-run configuration retains
+  terminal observations; runtime credential rotation blocks newly sensitive checks.
+
 - **Restricted web fetch** — Exact canonical host lists intersect across scoped
   registries. Current authorization is checked at DNS, socket and header
   boundaries, with verified TLS and explicit refusal on unsupported transports.

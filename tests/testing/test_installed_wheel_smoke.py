@@ -196,6 +196,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/core/test_typed_tool_results.py",
         "tests/tools/test_restricted_web_fetch.py",
         "tests/config/test_network_host_settings.py",
+        "tests/config/test_verification_settings.py",
+        "tests/advanced/test_project_verification.py",
         "tests/core/test_workflow_state.py",
         "tests/core/test_session_workflow.py",
         "tests/ops/test_workflow_store.py",

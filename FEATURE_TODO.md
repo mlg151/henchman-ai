@@ -25,8 +25,9 @@ and final native qualification remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or
-unverified checks; historical results remain intact. This #16 foundation does
-not complete project check configuration, bounded repair or live acceptance.
+unverified checks; historical results remain intact. Explicit `verification.checks`
+now adds required assertions to new plans and revokes current evidence when the
+configuration changes. Bounded repair and live acceptance remain open under #16.
 Known credentials are now projected from verification evidence, with sensitive
 saved specifications unavailable for execution and explicit locked sanitation.
 

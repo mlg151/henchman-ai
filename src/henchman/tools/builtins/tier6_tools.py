@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from henchman.advanced import (
     CronScheduleService,
@@ -22,6 +22,9 @@ from henchman.advanced.tasks import (
 from henchman.lsp import LspService
 from henchman.mcp.auth import McpAuthService
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+
+if TYPE_CHECKING:
+    from henchman.config.schema import Settings
 
 _TASK_CREATE_PARAMETERS: dict[str, object] = {
     "type": "object",
@@ -275,11 +278,12 @@ class _Tier6ReplToolBase(Tool):
 class _Tier6PlanToolBase(Tool):
     """Shared runtime binding for plan verification tools."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, settings: Settings | None = None) -> None:
         """Initialize the plan execution service runtime."""
 
         self._project_root = Path.cwd()
-        self._plan_service = PlanExecutionService(project_root=self._project_root)
+        self._settings = settings
+        self._plan_service = PlanExecutionService(project_root=self._project_root, settings=settings)
         self._plan_binding_error: str | None = None
 
     def bind_runtime(self, *, project_root: Path | None = None, session_manager: object | None = None,
@@ -298,7 +302,8 @@ class _Tier6PlanToolBase(Tool):
         register = getattr(mcp_manager, "register_evidence", None)
         if callable(register):
             register(policy)
-        self._plan_service = PlanExecutionService(project_root=self._project_root, redactor=policy)
+        self._plan_service = PlanExecutionService(project_root=self._project_root, redactor=policy,
+                                                  settings=self._settings)
         self._plan_binding_error = None
         try:
             self._plan_service.sanitize_persisted_evidence()
@@ -897,7 +902,8 @@ class VerifyPlanExecutionTool(_Tier6PlanToolBase):
     def description(self) -> str:
         """Return the tool description."""
 
-        return ("Track reported plan steps and run immutable file, argv-command, or pytest checks. "
+        return ("Track reported plan steps and run immutable file, argv-command, or pytest checks, "
+                "including required project verification.checks when the plan is created. "
                 "Create checks before work; verify runs them. Passing checks do not establish task correctness.")
 
     @property

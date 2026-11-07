@@ -10,6 +10,7 @@ import tempfile
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from henchman.advanced.acceptance_checks import (
@@ -33,6 +34,9 @@ from henchman.config.paths import resolve_project_settings_path
 from henchman.config.repository import SettingsRepository
 from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.file_lock import FileLock
+
+if TYPE_CHECKING:
+    from henchman.config.schema import Settings
 
 _STEP_PREFIX_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
 
@@ -145,6 +149,7 @@ class PlanRecord:
     checks: tuple[CheckSpec, ...] = ()
     last_verification: dict[str, object] | None = None
     checks_unavailable: dict[str, str] | None = None
+    project_checks_digest: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable representation."""
@@ -158,6 +163,7 @@ class PlanRecord:
             "checks": [check.to_dict() for check in self.checks],
             "last_verification": self.last_verification,
             "checks_unavailable": self.checks_unavailable,
+            "project_checks_digest": self.project_checks_digest,
         }
 
     @classmethod
@@ -173,6 +179,10 @@ class PlanRecord:
         if report is not None and not isinstance(report, dict):
             raise ValueError("Invalid persisted verification report.")
         unavailable = payload.get("checks_unavailable")
+        project_digest = payload.get("project_checks_digest")
+        if project_digest is not None and (not isinstance(project_digest, str)
+                                          or re.fullmatch(r"[0-9a-f]{64}", project_digest) is None):
+            raise ValueError("Invalid project check configuration digest.")
         if unavailable is not None and (
             not isinstance(unavailable, dict) or set(unavailable) != {"reason", "spec_digest"}
             or unavailable.get("reason") != "credential_sensitive"
@@ -195,13 +205,15 @@ class PlanRecord:
             checks=tuple(CheckSpec.from_dict(check) for check in raw_checks),
             last_verification=report,
             checks_unavailable=unavailable,
+            project_checks_digest=project_digest,
         )
 
 
 class PlanExecutionService:
     """Manage project-local plan verification records."""
 
-    def __init__(self, project_root: Path | None = None, *, redactor: EvidenceRedactor | None = None) -> None:
+    def __init__(self, project_root: Path | None = None, *, redactor: EvidenceRedactor | None = None,
+                 settings: Settings | None = None) -> None:
         """Initialize the plan execution service for one project root."""
 
         self._project_root = (project_root or Path.cwd()).resolve()
@@ -210,9 +222,35 @@ class PlanExecutionService:
         self._lock_path = self._storage_dir / "verification.lock"
         self._records: dict[str, PlanRecord] = {}
         self._policy = redactor or EvidenceRedactor()
+        self._settings = settings
 
     def _refresh_policy(self) -> None:
         self._policy.register_policy(SettingsRepository(self._project_root).evidence_redactor())
+        self._refresh_runtime_policy()
+
+    def _refresh_runtime_policy(self) -> None:
+        """Learn injected credential changes at each verification boundary."""
+        if self._settings is not None:
+            self._policy.register_config(self._settings.model_dump())
+
+    def _configured_checks(self) -> tuple[CheckSpec, ...]:
+        """Read the held runtime settings, or the normal project settings loader."""
+        from henchman.config import load_settings
+
+        settings = self._settings if self._settings is not None else load_settings(project_root=self._project_root)
+        checks = settings.verification.checks
+        return parse_checks(checks) if checks else ()
+
+    def _configuration_status(self, record: PlanRecord) -> str:
+        checks = self._configured_checks()
+        digest = check_spec_digest(checks) if checks else None
+        if digest == record.project_checks_digest:
+            recorded = {replace(check, baseline_captured=False, baseline_sha256=None,
+                                baseline_error=None) for check in record.checks}
+            if not all(check in recorded for check in checks):
+                return "unbound"
+            return "current"
+        return "unbound" if record.project_checks_digest is None else "changed"
 
     def sanitize_persisted_evidence(self) -> None:
         """Explicitly scrub existing evidence under the normal writer lock.
@@ -244,9 +282,11 @@ class PlanExecutionService:
             msg = "At least one plan step is required."
             raise ValueError(msg)
         self._refresh_policy()
-        parsed = parse_checks(checks) if checks is not None else ()
+        configured = self._configured_checks()
+        supplied = parse_checks(checks) if checks is not None else ()
+        parsed = tuple(dict.fromkeys((*configured, *supplied)))
         require_safe_checks(parsed, self._policy)
-        with evidence_scope(self._policy):
+        with evidence_scope(self._policy, refresh=self._refresh_runtime_policy):
             prepared = prepare_checks(self._project_root, parsed) if parsed else ()
         now = _now_iso()
         record = PlanRecord(
@@ -255,6 +295,7 @@ class PlanExecutionService:
             created_at=now,
             updated_at=now,
             checks=prepared,
+            project_checks_digest=check_spec_digest(configured) if configured else None,
             steps=tuple(
                 PlanStepRecord(
                     index=index,
@@ -337,6 +378,8 @@ class PlanExecutionService:
             record = self._require_plan(plan_id)
             if record.checks_unavailable is not None:
                 raise ValueError(UNAVAILABLE)
+            if self._configuration_status(record) != "current":
+                raise ValueError("Project check configuration changed or was never bound; create a new plan and explicitly review its required checks.")
             if not record.checks:
                 raise ValueError("This plan has no acceptance checks.")
             pending: dict[str, object] = {
@@ -345,19 +388,26 @@ class PlanExecutionService:
             }
             self._records[plan_id] = replace(record, last_verification=pending)
             self._persist_records()
+        report: dict[str, object] = pending
         try:
-            with evidence_scope(self._policy):
+            with evidence_scope(self._policy, refresh=self._refresh_runtime_policy):
                 report = await run_checks(self._project_root, record.checks)
+            configuration_status = self._configuration_status(record)
+            report = dict(report, run_id=run_id, status="finished", task_verified=False,
+                          configuration_status=configuration_status)
+            if configuration_status != "current":
+                report.update(checks_passed=False, current_checks_passed=False)
         except (asyncio.CancelledError, Exception) as exc:
-            failed = dict(pending, status="cancelled" if isinstance(exc, asyncio.CancelledError)
-                          else "error", checked_at=_now_iso(), error=self._policy.text(str(exc))[:4096])
+            failed = dict(report, run_id=run_id,
+                          status="cancelled" if isinstance(exc, asyncio.CancelledError) else "error",
+                          checks_passed=False, current_checks_passed=False, task_verified=False,
+                          checked_at=_now_iso(), error=self._policy.text(str(exc))[:4096])
             try:
                 self._save_report(plan_id, record.checks, run_id, failed)
             except Exception:
                 exc.add_note("Could not save verification interruption; inspect verification storage.")
                 raise exc from None
             raise
-        report = dict(report, run_id=run_id, status="finished", task_verified=False)
         try:
             self._save_report(plan_id, record.checks, run_id, report)
         except Exception as error:
@@ -386,6 +436,11 @@ class PlanExecutionService:
         with FileLock(self._lock_path):
             current = self._require_plan(plan_id)
             if current.checks_unavailable is not None:
+                if ((current.last_verification or {}).get("run_id") == run_id
+                    and current.checks_unavailable["spec_digest"] == check_spec_digest(checks)):
+                    failed = dict(report, status="error", checks_passed=False,
+                                  current_checks_passed=False, task_verified=False, error=UNAVAILABLE)
+                    self._records[plan_id] = replace(current, updated_at=_now_iso(), last_verification=failed)
                 self._persist_records()
                 raise ValueError(UNAVAILABLE)
             if current.checks != checks or (current.last_verification or {}).get("run_id") != run_id:
@@ -453,8 +508,16 @@ class PlanExecutionService:
         requirements = sorted({identity for check in record.checks for identity in check.requirement_ids})
         status = "not_run"
         freshness = "unverified"
+        configuration_status = self._configuration_status(record)
         if record.checks_unavailable is not None:
             status = "unavailable"
+        elif configuration_status != "current":
+            status = "stale" if configuration_status == "changed" else "unverified"
+        elif report is not None and report.get("configuration_status") in {"changed", "unbound"}:
+            status = "stale"
+        elif (report is not None and report.get("status") == "finished"
+              and record.project_checks_digest is not None and report.get("configuration_status") != "current"):
+            status = "unverified"
         elif report is not None:
             saved_status = report.get("status")
             if saved_status in {"running", "cancelled", "error", "stale"}:
@@ -476,6 +539,8 @@ class PlanExecutionService:
             else:
                 status = "unverified"
         return {"plan_id": plan_id, "status": status, "freshness": freshness,
+                "configuration_status": configuration_status,
+                "project_checks_digest": record.project_checks_digest,
                 "current_checks_passed": status == "pass", "task_verified": False,
                 "run_id": report.get("run_id") if report else None,
                 "checked_at": report.get("checked_at") if report else None,

@@ -219,6 +219,25 @@ class UsageSettings(_SettingsModel):
         return self
 
 
+class VerificationSettings(_SettingsModel):
+    """Required checks copied into newly created project verification plans."""
+
+    checks: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
+
+    @field_validator("checks")
+    @classmethod
+    def validate_checks(cls, checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Reuse the executable assertion contract without capturing baselines."""
+        if checks:
+            from henchman.advanced.acceptance_checks import parse_checks
+
+            try:
+                parse_checks(checks)
+            except ValueError:
+                raise ValueError("Invalid configured verification checks") from None
+        return checks
+
+
 class OperationSettings(_SettingsModel):
     """Interrupted-operation recovery, independent of model usage accounting."""
 
@@ -771,6 +790,7 @@ class Settings(_SettingsModel):
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
     operations: OperationSettings = Field(default_factory=OperationSettings)
+    verification: VerificationSettings = Field(default_factory=VerificationSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
     ui: UISettings = Field(default_factory=UISettings)
     context: ContextSettings = Field(default_factory=ContextSettings)

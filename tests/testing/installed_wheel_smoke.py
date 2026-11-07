@@ -185,6 +185,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/advanced/test_checkpoint_correlation.py",
         "tests/advanced/test_verification_freshness.py",
         "tests/advanced/test_verification_evidence.py",
+        "tests/advanced/test_project_verification.py",
+        "tests/config/test_verification_settings.py",
         "tests/core/test_typed_tool_results.py",
         "tests/agents/test_operation_runtime.py",
         "tests/agents/test_primary_subagent_runtime.py",

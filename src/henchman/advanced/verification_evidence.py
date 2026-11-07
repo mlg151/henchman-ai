@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import codecs
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import replace
@@ -22,6 +22,7 @@ UNAVAILABLE = "Verification checks are unavailable because they contain credenti
 _FILES = object()
 _ERROR = object()
 _POLICY: ContextVar[EvidenceRedactor | None] = ContextVar("verification_evidence_policy", default=None)
+_REFRESH: ContextVar[Callable[[], None] | None] = ContextVar("verification_evidence_refresh", default=None)
 
 
 def _hash(value: object) -> bool:
@@ -56,6 +57,7 @@ _RESULT.update(check=_CHECK, sha256=_hash, started_at=_time, checked_at=_time,
                evidence=dict.fromkeys(("collect_only", "collected", "executed", "passed", "failed", "skipped", "exit_status")))
 _REPORT: dict[str, Any] = dict.fromkeys(("checks_passed", "current_checks_passed", "task_verified", "scope", "error", "proof_unavailable_reason"))
 _REPORT.update(run_id=_identity, observed_run_id=_identity, spec_digest=_hash, checked_at=_time,
+               configuration_status=lambda value: value in {"current", "changed", "unbound"},
                invalidated_at=_time, invalidation_reason=lambda value: value == "checkpoint_restore",
                status=lambda value: value in {"running", "finished", "cancelled", "error", "stale"},
                freshness=lambda value: value in {"current", "stale", "unverified"},
@@ -72,15 +74,21 @@ def refresh_policy(root: Path, policy: EvidenceRedactor) -> None:
     from henchman.config.repository import SettingsRepository
 
     policy.register_policy(SettingsRepository(root).evidence_redactor())
+    refresh = _REFRESH.get()
+    if refresh is not None:
+        refresh()
 
 
 @contextmanager
-def evidence_scope(policy: EvidenceRedactor) -> Iterator[None]:
+def evidence_scope(policy: EvidenceRedactor, *, refresh: Callable[[], None] | None = None) -> Iterator[None]:
     """Keep a shared policy on this coroutine's owned verification stack."""
     token = _POLICY.set(policy)
+    refresh_token = _REFRESH.set(refresh) if refresh is not None else None
     try:
         yield
     finally:
+        if refresh_token is not None:
+            _REFRESH.reset(refresh_token)
         _POLICY.reset(token)
 
 

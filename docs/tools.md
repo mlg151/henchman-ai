@@ -1215,6 +1215,17 @@ exit evidence; changes to proof-bearing content revoke current verification.
 
 #### Declared-input freshness
 
+The optional [`verification.checks` setting](configuration.md#required-project-checks)
+adds required assertions to new plans before caller checks. Exact duplicate
+specifications run once, and the same combined limits apply. The record's
+`project_checks_digest` binds the required configuration; status also checks that
+every required assertion is present, including its inputs, requirement tags,
+argv and time limit. Internally captured change baselines remain attached.
+`configuration_status` is `current`, `changed` or `unbound`. Changed configuration
+revokes current success and requires a newly reviewed plan. Changes during a run
+cannot establish current success; invalid post-run configuration retains completed
+observations with a terminal error. Checks never run merely because config changed.
+
 Checks may include `inputs`, a list of 1–256 distinct project-relative files, and
 up to 32 `requirement_ids` of 1–128 ASCII letters, digits or `_.:/-`. These IDs tag
 assertions; they do not establish user approval or requirements coverage. File

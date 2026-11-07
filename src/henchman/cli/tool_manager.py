@@ -63,7 +63,7 @@ class ToolManager:
         shell_timeout = (
             self.settings.tools.shell_timeout if self.settings else DEFAULT_SHELL_TIMEOUT
         )
-        tools = self._create_builtin_tools(shell_timeout, self._question_handler)
+        tools = self._create_builtin_tools(shell_timeout, self._question_handler, settings=self.settings)
         for tool in tools:
             # Bind runtime dependencies to tools that support it
             if hasattr(tool, "bind_runtime"):
@@ -112,12 +112,14 @@ class ToolManager:
     def _create_builtin_tools(
         shell_timeout: int,
         question_handler: "Callable[[str], Awaitable[str | None]] | None" = None,
+        *, settings: "Settings | None" = None,
     ) -> list:  # type: ignore[type-arg]
         """Instantiate every built-in tool and return them as a list.
 
         Args:
             shell_timeout: Timeout in seconds to pass to ShellTool.
             question_handler: Optional UI channel for real user answers.
+            settings: Held runtime settings for configured verification checks.
 
         Returns:
             List of instantiated tool objects.
@@ -243,7 +245,7 @@ class ToolManager:
             ToolSearchTool(),
             TracebackParseTool(),
             TungstenTool(),
-            VerifyPlanExecutionTool(),
+            VerifyPlanExecutionTool(settings=settings),
             WebFetchTool(),
             WebSearchTool(),
             WorkflowTool(),

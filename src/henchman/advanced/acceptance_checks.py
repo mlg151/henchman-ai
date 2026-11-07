@@ -442,6 +442,7 @@ async def _run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, ob
     for index, spec in enumerate(specs):
         refresh_policy(root, policy)
         check_before = await capture_inputs_async(root, paths, redactor=policy)
+        refresh_policy(root, policy)
         require_safe_checks(specs, policy)
         started_at = datetime.now(UTC).isoformat()
         try:
