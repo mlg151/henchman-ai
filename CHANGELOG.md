@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Private task evidence** — Background logs redact known credentials before
+  persistence and cap captured output at 1 MiB. Task indexes use private atomic
+  replacement, while eligible indexed legacy logs migrate with bounded reads.
+  Corrupt, linked and oversized evidence is preserved with explicit diagnostics;
+  capture/storage failures reap owned processes and settle waiters. Execution
+  arguments and environment values remain unchanged.
+
 - **Local tool schema contracts** — Added bounded JSON Schema 2020-12 validation
   with immutable schema snapshots, local references, missing/null preservation,
   scalar/array outputs and value-free failures. Unsupported resource scopes and

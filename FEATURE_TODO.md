@@ -64,7 +64,10 @@ execution inputs. REPL/Textual event streams, tool displays/approvals, Textual
 command output and direct chat/status/history displays now share that policy.
 Interactive failure logs project tracebacks without attaching raw exceptions.
 Config mutation responses and sync exports now redact credential echoes while
-retaining raw settings and runtime inputs. Other logs/UI panels/metrics/handoffs
+retaining raw settings and runtime inputs. Background task output now redacts
+before disk capture, bounds private logs and safely migrates eligible indexed
+legacy evidence with explicit diagnostics; see [background execution](docs/tools.md#background-execution).
+Other logs/UI panels/metrics/handoffs
 and broader restricted filesystem/network execution still require implementation
 and qualification.
 Approval scope now includes registration, project and physical target identity,

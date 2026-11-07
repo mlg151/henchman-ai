@@ -258,21 +258,16 @@ async def test_timeout_log_failure_still_reaps_process(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Writing a timeout diagnostic must never prevent process termination."""
-    from typing import IO, Any
+    from henchman.advanced import task_output
 
     service = TaskService(tmp_path)
     rejected_paths: list[Path] = []
-    original_open = Path.open
 
-    def wrapper(
-        path: Path, mode: str = "r", *args: Any, **kwargs: Any,
-    ) -> IO[Any]:
-        if mode == "a" and path.suffix == ".log" and path.parent == tmp_path / ".henchman" / "tasks":
-            rejected_paths.append(path)
-            raise PermissionError(f"Permission denied for {path}")
-        return original_open(path, mode, *args, **kwargs)
+    def reject_append(path: Path, _payload: bytes) -> None:
+        rejected_paths.append(path)
+        raise PermissionError(f"Permission denied for {path}")
 
-    monkeypatch.setattr(Path, "open", wrapper)
+    monkeypatch.setattr(task_output, "append_evidence", reject_append)
 
     record = await service.start_task(
         argv=[sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.1,

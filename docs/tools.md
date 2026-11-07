@@ -757,6 +757,23 @@ Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.
 
+New task output is decoded and redacted before persistence, with a 1 MiB capture
+limit and a visible truncation marker. Task metadata and private atomic index
+writes share the known-credential policy; raw command arguments and environment
+values still reach the child unchanged. Capture failures stop/reap the owned
+process and settle its waiter with an explicit failure. Output readers and
+timeout diagnostics reject linked or substituted files.
+
+Indexed legacy logs are migrated on load/read using private atomic replacement:
+up to 16 MiB of valid UTF-8 input is examined and at most 1 MiB is retained.
+Malformed, oversized, linked or changed originals remain untouched with an
+`evidence_migration_error` diagnostic; active captures are not replaced. Corrupt
+indexes are preserved for explicit repair instead of overwritten with empty
+history. Migration only covers indexed logs and registered credentials. POSIX
+uses directory descriptors; Windows checks file identities and reparse points
+without the same directory-descriptor guarantee. This evidence handling does not
+provide concurrent-writer arbitration or interrupted-operation recovery.
+
 Interactive chat accepts messages while work is underway and processes them in
 order at agent-turn boundaries. `/goal pause` is available during processing;
 it stops future goal turns, while the current turn can finish. Esc interrupts

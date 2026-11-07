@@ -51,6 +51,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - #20 config mutation responses and JSON/YAML sync exports now redact credential
   echoes, including shadowed/configured keys and freeform UI fields. Actual
   persisted/runtime values stay unchanged; sync redaction is explicitly lossy.
+  Background task logs now redact before persistence, cap output and migrate
+  eligible indexed legacy logs privately; corrupt/unsupported evidence stays
+  intact with diagnostics. See [background execution](docs/tools.md#background-execution).
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale
