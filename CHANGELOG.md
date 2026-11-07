@@ -77,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Native wheel accounting tests use the installed SDK's actual HTTP transport
+  types, covering both the locked Anthropic SDK and newer `httpx2` SDK releases.
+
 - **Explicit provider budget scopes** — Compatible and Anthropic transports now
   account actual attempts inside a task-local Python scope, enforce reserved output
   caps, suppress hidden SDK retries and retain uncertain consumption on interruption.

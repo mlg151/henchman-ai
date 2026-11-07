@@ -4,6 +4,8 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from decimal import Decimal
+from importlib import import_module
+from types import ModuleType
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -57,33 +59,41 @@ def native_body(*, usage: bool = True) -> bytes:
 
 
 class Transport:
-    def __init__(self, native: bool) -> None:
+    def __init__(self, native: bool, http: ModuleType = httpx) -> None:
         self.native = native
+        self.http = http
         self.requests: list[dict[str, Any]] = []
         self.statuses: list[int] = []
         self.usage = True
         self.wait = False
         self.started = asyncio.Event()
 
-    async def __call__(self, request: httpx.Request) -> httpx.Response:
+    async def __call__(self, request: Any) -> Any:
         self.requests.append(json.loads(request.content))
         self.started.set()
         if self.wait:
             await asyncio.Event().wait()
         status = self.statuses.pop(0) if self.statuses else 200
         if status != 200:
-            return httpx.Response(status, json={"error": {"type": "rate_limit_error", "message": "retry"}})
+            return self.http.Response(status, json={"error": {"type": "rate_limit_error", "message": "retry"}})
         body = native_body(usage=self.usage) if self.native else compatible_body(usage=self.usage)
-        return httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
+        return self.http.Response(200, content=body, headers={"content-type": "text/event-stream"})
 
 
 @pytest.fixture(params=["compatible", "anthropic"])
 async def sdk_transport(request: pytest.FixtureRequest) -> AsyncIterator[tuple[Any, Transport]]:
     native = request.param == "anthropic"
     provider = AnthropicProvider(api_key="test") if native else OpenAICompatibleProvider("test", "https://test.invalid", "test-model")
+    # Fresh wheel installs may use Anthropic's httpx2 SDK while the lock uses
+    # httpx. Match the client's actual transport types without pinning the SDK.
+    http_module = next(
+        cls.__module__.partition(".")[0] for cls in type(provider._client._client).__mro__
+        if cls.__module__.partition(".")[0] in {"httpx", "httpx2"}
+    )
+    http = import_module(http_module)
     await provider._client.close()
-    transport = Transport(native)
-    http_client = httpx.AsyncClient(transport=httpx.MockTransport(transport))
+    transport = Transport(native, http)
+    http_client = http.AsyncClient(transport=http.MockTransport(transport))
     factory = AsyncAnthropic if native else AsyncOpenAI
     provider._client = factory(api_key="test", base_url="https://test.invalid", http_client=http_client)
     if native:
