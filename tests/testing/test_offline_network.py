@@ -42,7 +42,9 @@ def test_default_guard_allows_owned_ephemeral_loopback_fixture():
 def test_default_guard_isolates_user_configuration_and_data(offline_network, tmp_path):
     assert offline_network is not None
     assert Path.home() == offline_network
-    assert offline_network.is_relative_to(tmp_path)
+    assert offline_network.parent == tmp_path.parent
+    assert offline_network != tmp_path
+    assert not list(tmp_path.iterdir())
     assert Path(os.environ["HOME"]) == offline_network
     assert Path(os.environ["USERPROFILE"]) == offline_network
     for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):

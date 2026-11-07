@@ -30,10 +30,10 @@ def _check_destination(host, port):
 
 
 @pytest.fixture(autouse=True)
-def offline_network(monkeypatch, tmp_path) -> Path:
+def offline_network(monkeypatch, tmp_path_factory) -> Path:
     """Isolate user files and block SDK traffic; allow owned loopback fixtures."""
-    test_home = tmp_path / ".isolated-home"
-    test_home.mkdir()
+    # Keep global user files outside the test's project/workspace fixture.
+    test_home = tmp_path_factory.mktemp("isolated-home")
     monkeypatch.setenv("HOME", str(test_home))
     monkeypatch.setenv("USERPROFILE", str(test_home))
     for key in ("HENCHMAN_SETTINGS_PATH", "HENCHMAN_PROVIDER", "HENCHMAN_MODEL"):
