@@ -3,6 +3,7 @@
 import ast
 import os
 import sysconfig
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from tests.testing.installed_wheel_smoke import (
     isolated_runtime_environment,
     smoke_environment,
     stage_workflow_tests,
+    verify_wheel_contents,
 )
 
 
@@ -23,6 +25,25 @@ def test_find_wheel_requires_one_unambiguous_artifact(tmp_path):
     (tmp_path / "other.whl").touch()
     with pytest.raises(ValueError, match="exactly one"):
         find_wheel(tmp_path)
+
+
+def test_same_version_stale_install_cannot_pass_artifact_verification(tmp_path):
+    wheel = tmp_path / "release.whl"
+    installation = tmp_path / "site-packages"
+    package = installation / "henchman"
+    package.mkdir(parents=True)
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("henchman/__init__.py", '__version__ = "0.4.1"\n')
+        archive.writestr("henchman/runtime.py", "release behavior\n")
+    (package / "__init__.py").write_text('__version__ = "0.4.1"\n')
+    (package / "runtime.py").write_text("old behavior\n")
+    with pytest.raises(RuntimeError, match="does not match"):
+        verify_wheel_contents(wheel, installation)
+    (package / "runtime.py").write_text("release behavior\n")
+    verify_wheel_contents(wheel, installation)
+    (package / "runtime.py").unlink()
+    with pytest.raises(RuntimeError, match="does not match"):
+        verify_wheel_contents(wheel, installation)
 
 
 def test_smoke_environment_selects_installed_interpreter_before_inherited_executables():

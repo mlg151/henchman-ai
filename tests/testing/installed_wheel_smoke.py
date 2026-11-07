@@ -13,6 +13,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import zipfile
 from pathlib import Path
 
 _ORIGIN_CHECK = '''from importlib.metadata import distribution
@@ -44,6 +45,26 @@ def find_wheel(directory: Path) -> Path:
     if len(wheels) != 1:
         raise ValueError(f"Expected exactly one wheel in {directory}, found {len(wheels)}")
     return wheels[0]
+
+
+def verify_wheel_contents(wheel: Path, installation: Path) -> None:
+    """Reject stale same-version installs before exercising their workflows."""
+    with zipfile.ZipFile(wheel) as archive:
+        names = [name for name in archive.namelist() if name.startswith("henchman/") and not name.endswith("/")]
+        if not names:
+            raise ValueError("Wheel contains no Henchman package files")
+        for name in names:
+            if ".." in Path(name).parts:
+                raise ValueError("Wheel contains an invalid package path")
+            try:
+                matches = (installation / name).read_bytes() == archive.read(name)
+            except OSError:
+                matches = False
+            if not matches:
+                raise RuntimeError(
+                    f"Installed package does not match artifact ({name}); use a fresh environment or force reinstall"
+                )
+    print(f"Verified exact wheel bytes for {len(names)} package files", flush=True)
 
 
 def smoke_environment(environment: dict[str, str]) -> dict[str, str]:
@@ -438,6 +459,7 @@ def main() -> None:
          "ruff>=0.4", "mypy>=1.10"],
         env=environment, check=True, timeout=900,
     )
+    verify_wheel_contents(wheel, Path(sysconfig.get_path("purelib")))
     with tempfile.TemporaryDirectory(prefix="henchman-wheel-smoke-") as scratch:
         directory = Path(scratch)
         environment = isolated_runtime_environment(environment, directory)
