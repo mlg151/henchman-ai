@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Tool approval freshness now includes registration, project and physical target
+  identity. Changes during approval, formatter waits or retry delays deny the
+  stale invocation; unchanged scoped registries still share grants. Filesystem
+  and network confinement remain open under #20.
+
 - Native wheel accounting tests use the installed SDK's actual HTTP transport
   types, covering both the locked Anthropic SDK and newer `httpx2` SDK releases.
 

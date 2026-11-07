@@ -1176,7 +1176,8 @@ verdict but never overrides the Plan Mode denial.
 ### Approval-reuse scoping
 
 When a user confirms a confirmation request, the approval is recorded as a
-session-scoped grant keyed to the exact approved scope: the tool name, the
+session-scoped grant keyed to the exact approved scope: the registered tool
+implementation, project identity, resolved physical targets, tool name, the
 effective operation effect, a canonical digest of the parameters, and the
 risk level. Repeated invocations with the identical scope are authorized
 without re-prompting. Any change — different tool, different arguments,
@@ -1189,7 +1190,12 @@ its parent see the same session grants) but are never shared across separate
 registries or persisted to disk. Activating a different session (for example
 `/chat resume`) clears the session's grants through
 `ToolRegistry.clear_grants()`, so an approval from one session never carries
-into another.
+over. Policy, registration, parameters and target identity are rechecked after
+approval, formatter waits and before retries. A changed invocation is denied and
+must be retried for fresh approval; replacing a target inode also requires a new
+grant. These checks do not confine filesystem/network access or prevent races
+inside a tool's own I/O. Custom dispatchers using `authorize()` must recheck any
+authority affected by their own later asynchronous work.
 
 ## Configuration
 

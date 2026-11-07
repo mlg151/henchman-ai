@@ -6,9 +6,9 @@ requirements resolve from one shared verdict so that every dispatch path
 registries) enforces the same effective policy.
 
 User-approved confirmations are remembered as session-scoped grants keyed to
-the exact approved invocation (tool, effective effect, parameters, risk), so
-repeated still-valid authorizations skip the prompt while any changed scope
-re-prompts.
+the registered implementation, effect, parameters, risk, project and physical
+targets, so repeated still-valid authorizations skip the prompt while changed
+scope requires fresh approval.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind
 
@@ -36,15 +37,25 @@ class GrantKey:
         params_digest: SHA-256 digest of the canonically serialized parameters,
             so any argument change invalidates the grant.
         risk_level: The confirmed risk level, so a risk change invalidates it.
+        scope_digest: Fingerprint of project identity and physical target scope.
+        tool_registration: Unique identity of the registered implementation.
     """
 
     tool_name: str
     effective_kind: str
     params_digest: str
     risk_level: str
+    scope_digest: str = ""
+    tool_registration: int = 0
 
 
-def grant_key_for(request: ConfirmationRequest, effective_kind: ToolKind) -> GrantKey:
+def grant_key_for(
+    request: ConfirmationRequest,
+    effective_kind: ToolKind,
+    *,
+    scope_digest: str = "",
+    tool_registration: int = 0,
+) -> GrantKey:
     """Derive the approval-grant key for one confirmation request.
 
     The key captures the approved scope exactly: tool identity, the effective
@@ -55,6 +66,8 @@ def grant_key_for(request: ConfirmationRequest, effective_kind: ToolKind) -> Gra
         request: The confirmation request that was (or will be) approved.
         effective_kind: The per-invocation operation effect used for the
             verdict that produced this request.
+        scope_digest: Captured project, physical-target and invocation scope.
+        tool_registration: Identity of the actual registered implementation.
 
     Returns:
         The GrantKey for this approved scope.
@@ -65,7 +78,72 @@ def grant_key_for(request: ConfirmationRequest, effective_kind: ToolKind) -> Gra
         effective_kind=effective_kind.value,
         params_digest=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         risk_level=request.risk_level,
+        scope_digest=scope_digest,
+        tool_registration=tool_registration,
     )
+
+
+def _path_identity(path: Path) -> tuple[object, ...]:
+    """Capture resolution and filesystem identity without reading file contents."""
+    resolved = path.resolve()
+    identities: list[tuple[str, int, int]] = []
+    # Missing creation targets retain their existing ancestor identity.
+    for candidate in (resolved, *resolved.parents):
+        try:
+            info = candidate.stat()
+        except FileNotFoundError:
+            continue
+        identities.append((str(candidate), info.st_dev, info.st_ino))
+        if len(identities) == 2:
+            break
+    return str(path.absolute()), str(resolved), tuple(identities)
+
+
+def invocation_scope_digest(tool: Tool, params: dict[str, object]) -> str:
+    """Fingerprint structured targets and project identity for approval freshness.
+
+    This is an authorization snapshot, not filesystem confinement. Shell/Python
+    source and opaque MCP arguments are not interpreted as mediated file paths.
+    Checks at actual filesystem/network operations remain separate boundaries.
+    """
+    cwd = Path.cwd()
+    paths = [cwd]
+    bound_root = getattr(tool, "_project_root", None)
+    if isinstance(bound_root, Path):
+        paths.append(bound_root)
+    if not tool.name.startswith("mcp_"):
+        for key in ("path", "cwd", "repo_path", "output_path", "scan_dir", "file_path", "directory"):
+            raw = params.get(key)
+            if isinstance(raw, (str, Path)) and raw:
+                path = Path(raw)
+                # Capture both interpretations: builtins differ on ~ expansion.
+                paths.extend((path, path.expanduser()))
+        raw_paths = params.get("paths")
+        if isinstance(raw_paths, list):
+            paths.extend(Path(raw) for raw in raw_paths if isinstance(raw, (str, Path)))
+    if tool.name == "patch_apply" and isinstance(params.get("patch"), str):
+        from henchman.tools.builtins.patch_apply import PatchParser
+
+        default_path = params.get("path")
+        changes = PatchParser(
+            str(params["patch"]), default_path if isinstance(default_path, str) else None,
+        ).parse()
+        paths.extend(Path(path) for path in changes)
+    project_identity: tuple[object, ...] | None = None
+    for directory in (cwd, *cwd.parents):
+        git_entry = directory / ".git"
+        if git_entry.exists():
+            info = git_entry.stat()
+            project_identity = (
+                _path_identity(directory), _path_identity(git_entry),
+                (info.st_size, info.st_mtime_ns) if git_entry.is_file() else None,
+            )
+            break
+    canonical = json.dumps(
+        (params, [_path_identity(path) for path in dict.fromkeys(paths)], project_identity),
+        sort_keys=True, default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class ApprovalGrantStore:
@@ -77,6 +155,12 @@ class ApprovalGrantStore:
 
     def __init__(self) -> None:
         self._grants: set[GrantKey] = set()
+        self._generation = 0
+
+    @property
+    def generation(self) -> int:
+        """Revocation epoch, including resets while an approval is pending."""
+        return self._generation
 
     def grant(self, key: GrantKey) -> None:
         """Record a user approval for the given scope."""
@@ -89,10 +173,12 @@ class ApprovalGrantStore:
     def revoke(self, key: GrantKey) -> None:
         """Invalidate one grant, if present."""
         self._grants.discard(key)
+        self._generation += 1
 
     def clear(self) -> None:
         """Invalidate every grant (session boundary)."""
         self._grants.clear()
+        self._generation += 1
 
     def all(self) -> list[GrantKey]:
         """Return the active grants in stable order."""

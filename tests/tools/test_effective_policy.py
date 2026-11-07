@@ -8,12 +8,16 @@ subagent registries — enforces the same effective policy.
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
+
 import pytest
 
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.policy import PolicyDecision, evaluate_effective_policy
 from henchman.tools.registry import ToolRegistry
 from henchman.tools.scoped_registry import ScopedToolRegistry
+from henchman.utils.retry import RetryConfig
 
 
 class _KindTool(Tool):
@@ -305,3 +309,126 @@ class TestExecutionGateParity:
         result = await registry.execute("read_x", {"value": "data"})
         assert result.success
         assert tool.executed == [{"value": "data"}]
+
+
+@pytest.mark.parametrize(
+    "change", ["plan", "plan_roundtrip", "handler", "remove", "replace", "session", "effect", "params"],
+)
+async def test_approval_cannot_authorize_a_changed_invocation(
+    change: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Concurrent changes while approval is pending invalidate that approval."""
+    monkeypatch.chdir(tmp_path)
+    parent = ToolRegistry()
+    tool = _KindTool("write_x", ToolKind.WRITE)
+    replacement = _KindTool("write_x", ToolKind.WRITE)
+    parent.register(tool)
+    registry = ScopedToolRegistry(parent, None)
+    entered, release = asyncio.Event(), asyncio.Event()
+    params: dict[str, object] = {"value": "original"}
+
+    async def approve(_request: ConfirmationRequest) -> bool:
+        entered.set()
+        await release.wait()
+        return True
+
+    parent.set_confirmation_handler(approve)
+    running = asyncio.create_task(registry.execute("write_x", params))
+    await asyncio.wait_for(entered.wait(), timeout=5)
+    if change == "plan":
+        parent.set_plan_mode(enabled=True)
+    elif change == "plan_roundtrip":
+        parent.set_plan_mode(enabled=True)
+        parent.set_plan_mode(enabled=False)
+    elif change == "handler":
+        async def deny(_request: ConfirmationRequest) -> bool:
+            return False
+        parent.set_confirmation_handler(deny)
+    elif change in {"remove", "replace"}:
+        parent.unregister("write_x")
+        if change == "replace":
+            parent.register(replacement)
+    elif change == "session":
+        parent.clear_grants()
+    elif change == "effect":
+        tool._effective_kind = ToolKind.EXECUTE
+    else:
+        params["value"] = "changed"
+    release.set()
+    result = await asyncio.wait_for(running, timeout=5)
+    assert not result.success
+    assert tool.executed == replacement.executed == []
+    assert parent.list_approval_grants() == []
+
+
+@pytest.mark.parametrize("change", ["plan", "remove", "replace", "revoke", "params"])
+async def test_dispatch_rechecks_authorization_after_formatter_lock(
+    change: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A queued write must not use stale authorization when the lock opens."""
+    monkeypatch.chdir(tmp_path)
+    registry = ToolRegistry()
+    tool = _KindTool("write_x", ToolKind.WRITE)
+    replacement = _KindTool("write_x", ToolKind.WRITE)
+    registry.register(tool)
+    approved = asyncio.Event()
+    params: dict[str, object] = {"value": "original"}
+
+    async def approve(_request: ConfirmationRequest) -> bool:
+        approved.set()
+        return True
+
+    registry.set_confirmation_handler(approve)
+    lock = registry._effective_formatter._lock
+    await lock.acquire()
+    running = asyncio.create_task(registry.execute("write_x", params))
+    try:
+        await asyncio.wait_for(approved.wait(), timeout=5)
+        if change == "plan":
+            registry.set_plan_mode(enabled=True)
+        elif change in {"remove", "replace"}:
+            registry.unregister("write_x")
+            if change == "replace":
+                registry.register(replacement)
+        elif change == "revoke":
+            registry.clear_grants()
+        else:
+            params["value"] = "changed"
+    finally:
+        lock.release()
+    result = await asyncio.wait_for(running, timeout=5)
+    assert not result.success
+    assert tool.executed == replacement.executed == []
+
+
+@pytest.mark.parametrize("change", ["plan", "remove", "replace", "revoke_auto"])
+async def test_network_retry_rechecks_current_authority(
+    change: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A network retry cannot run after the original authority was withdrawn."""
+    monkeypatch.chdir(tmp_path)
+    registry = ToolRegistry(RetryConfig(max_retries=1, base_delay=0, jitter=False))
+    replacement = _KindTool("network_x", ToolKind.NETWORK)
+
+    class InterruptedNetwork(_KindTool):
+        async def execute(self, **params: object) -> ToolResult:
+            self.executed.append(params)
+            if len(self.executed) == 1:
+                if change == "plan":
+                    registry.set_plan_mode(enabled=True)
+                elif change in {"remove", "replace"}:
+                    registry.unregister(self.name)
+                    if change == "replace":
+                        registry.register(replacement)
+                else:
+                    registry.remove_auto_approve_policy(self.name)
+                raise ConnectionError("retryable failure")
+            return ToolResult("stale retry executed")
+
+    tool = InterruptedNetwork("network_x", ToolKind.NETWORK)
+    registry.register(tool)
+    registry.add_auto_approve_policy(tool.name)
+    result = await registry.execute(tool.name, {})
+    assert not result.success
+    assert len(tool.executed) == 1
+    assert replacement.executed == []

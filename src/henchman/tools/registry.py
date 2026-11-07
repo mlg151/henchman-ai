@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from itertools import count
 from typing import TYPE_CHECKING
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
@@ -15,6 +16,7 @@ from henchman.tools.policy import (
     PolicyDecision,
     evaluate_effective_policy,
     grant_key_for,
+    invocation_scope_digest,
 )
 from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
@@ -30,6 +32,19 @@ ExecutionGuard = Callable[[Tool, dict[str, object]], ToolResult | None]
 # Maximum characters for tool output before truncation
 MAX_TOOL_OUTPUT = 50000
 MAX_DISCOVERED_TOOLS = 5
+_TOOL_REGISTRATIONS = count(1)
+
+
+@dataclass(frozen=True)
+class _Authorization:
+    """One invocation's authority captured before asynchronous work."""
+
+    tool: Tool
+    key: GrantKey
+    grants: ApprovalGrantStore
+    grant_generation: int
+    confirmation: ConfirmationRequest | None
+    policy_generation: tuple[tuple[int, int], ...]
 
 
 @dataclass
@@ -75,8 +90,10 @@ class ToolRegistry:
                          If None, uses defaults (3 retries, 1s base delay).
         """
         self._tools: dict[str, Tool] = {}
+        self._tool_registrations: dict[str, int] = {}
         self._local_confirmation_handler: ConfirmationHandler | None = None
         self._policy_parent: ToolRegistry | None = None
+        self._policy_generation = 0
         self._auto_approve_policies: set[str] = set()
         self._plan_mode: bool = False
         self._grants = ApprovalGrantStore()
@@ -93,6 +110,8 @@ class ToolRegistry:
         Checks repeat after awaited approval and immediately before dispatch;
         guards must not execute tools or consume one-use state themselves.
         """
+        if self._execution_guard is not guard:
+            self._policy_generation += 1
         self._execution_guard = guard
 
     @property
@@ -143,7 +162,17 @@ class ToolRegistry:
         Scope-local auto-approval remains explicit. A local read-only restriction
         also remains effective when the parent returns to execution mode.
         """
+        if self._policy_parent is not parent:
+            self._policy_generation += 1
         self._policy_parent = parent
+
+    @property
+    def _effective_policy_generation(self) -> tuple[tuple[int, int], ...]:
+        """Track policy changes across awaits, including temporary restrictions."""
+        local = ((id(self), self._policy_generation),)
+        if self._policy_parent is not None:
+            return local + self._policy_parent._effective_policy_generation
+        return local
 
     @property
     def _confirmation_handler(self) -> ConfirmationHandler | None:
@@ -191,6 +220,8 @@ class ToolRegistry:
         Returns:
             None
         """
+        if self._plan_mode != enabled:
+            self._policy_generation += 1
         self._plan_mode = enabled
 
     def register(self: ToolRegistry, tool: Tool) -> None:
@@ -209,6 +240,7 @@ class ToolRegistry:
             msg = f"Tool '{tool.name}' is already registered"
             raise ValueError(msg)
         self._tools[tool.name] = tool
+        self._tool_registrations[tool.name] = next(_TOOL_REGISTRATIONS)
 
     def unregister(self: ToolRegistry, name: str) -> None:
         """Remove a tool from the registry.
@@ -221,6 +253,7 @@ class ToolRegistry:
             None
         """
         self._tools.pop(name, None)
+        self._tool_registrations.pop(name, None)
 
     def get(self: ToolRegistry, name: str) -> Tool | None:
         """Get a tool by name.
@@ -271,6 +304,8 @@ class ToolRegistry:
         Returns:
             None
         """
+        if self._local_confirmation_handler is not handler:
+            self._policy_generation += 1
         self._local_confirmation_handler = handler
 
     def add_auto_approve_policy(self: ToolRegistry, tool_name: str) -> None:
@@ -285,6 +320,8 @@ class ToolRegistry:
         Returns:
             None
         """
+        if tool_name not in self._auto_approve_policies:
+            self._policy_generation += 1
         self._auto_approve_policies.add(tool_name)
 
     def remove_auto_approve_policy(self: ToolRegistry, tool_name: str) -> None:
@@ -296,6 +333,8 @@ class ToolRegistry:
         Returns:
             None
         """
+        if tool_name in self._auto_approve_policies:
+            self._policy_generation += 1
         self._auto_approve_policies.discard(tool_name)
 
     def list_auto_approve_policies(self: ToolRegistry) -> list[str]:
@@ -339,16 +378,20 @@ class ToolRegistry:
             auto_approved=self.is_auto_approved(name),
         )
 
-    async def authorize(self, name: str, params: dict[str, object]) -> Tool | ToolResult:
-        """Return the allowed registered tool or a denial, without executing it.
+    def _tool_registration(self, name: str, tool: Tool) -> int:
+        """Resolve the registration identity shared by parent and scoped views."""
+        if self._tools.get(name) is tool:
+            return self._tool_registrations[name]
+        if self._policy_parent is not None and self._policy_parent.get(name) is tool:
+            return self._policy_parent._tool_registration(name, tool)
+        # Scope-bound discovery proxies have no confirmation grant; identity is
+        # still compared by object reference before dispatch.
+        return 0
 
-        Orchestrated tools use this same check before their custom dispatch.
-        A still-valid user approval (same tool, effect, parameters, and risk)
-        is reused without re-prompting; any changed scope re-prompts. When
-        confirmation is required, no grant is active, and no confirmation
-        handler is available in the registry ancestry, the result is an
-        explicit needs-input denial (headless input is never fabricated).
-        """
+    def _capture_authorization(
+        self, name: str, params: dict[str, object],
+    ) -> _Authorization | ToolResult:
+        """Read current policy and capture its invocation scope without awaiting."""
         tool = self.get(name)
         if tool is None:
             return ToolResult(
@@ -370,16 +413,64 @@ class ToolRegistry:
                 error=decision.denial_reason,
             )
 
+        try:
+            scope = invocation_scope_digest(tool, params)
+        except (OSError, RuntimeError, ValueError) as exc:
+            message = f"Cannot resolve tool authorization scope: {sanitize_error_message(exc)}"
+            return ToolResult(content=message, success=False, error=message)
+        request = decision.confirmation or ConfirmationRequest(name, "", params, risk_level="")
+        grants = self._effective_grants
+        return _Authorization(
+            tool=tool,
+            key=grant_key_for(
+                request, decision.effective_kind, scope_digest=scope,
+                tool_registration=self._tool_registration(name, tool),
+            ),
+            grants=grants,
+            grant_generation=grants.generation,
+            confirmation=decision.confirmation,
+            policy_generation=self._effective_policy_generation,
+        )
+
+    def _revalidate_authorization(
+        self, authorization: _Authorization, params: dict[str, object], *, require_grant: bool = True,
+    ) -> ToolResult | None:
+        """Reject changed scope or withdrawn authority without prompting in a lock."""
+        current = self._capture_authorization(authorization.tool.name, params)
+        if isinstance(current, ToolResult):
+            return current
+        if (
+            current.tool is not authorization.tool
+            or current.key != authorization.key
+            or current.grants is not authorization.grants
+            or current.grant_generation != authorization.grant_generation
+            or current.policy_generation != authorization.policy_generation
+            or (
+                require_grant and current.confirmation is not None
+                and not current.grants.is_granted(current.key)
+            )
+        ):
+            message = "Tool authorization scope changed; retry the invocation for fresh approval"
+            return ToolResult(content=message, success=False, error=message)
+        return None
+
+    async def _authorize_invocation(
+        self, name: str, params: dict[str, object],
+    ) -> _Authorization | ToolResult:
+        """Approve one captured scope, retaining no grant when that scope changes."""
+        authorization = self._capture_authorization(name, params)
+        if isinstance(authorization, ToolResult):
+            return authorization
+        tool = authorization.tool
         if self._execution_guard is not None:
             deferred = self._execution_guard(tool, params)
             if deferred is not None:
                 return deferred
 
-        # Check if confirmation is needed
-        confirmation_request = decision.confirmation
+        confirmation_request = authorization.confirmation
         if confirmation_request is not None:
-            key = grant_key_for(confirmation_request, decision.effective_kind)
-            if not self._effective_grants.is_granted(key):
+            key = authorization.key
+            if not authorization.grants.is_granted(key):
                 handler = self._confirmation_handler
                 if handler:
                     approved = await handler(confirmation_request)
@@ -389,7 +480,10 @@ class ToolRegistry:
                             success=False,
                             error="Execution denied by user",
                         )
-                    self._effective_grants.grant(key)
+                    stale = self._revalidate_authorization(authorization, params, require_grant=False)
+                    if stale is not None:
+                        return stale
+                    authorization.grants.grant(key)
                     # Instructions may change while the user considers approval.
                     # Retain that approval if fresh context defers this attempt.
                     if self._execution_guard is not None:
@@ -409,7 +503,19 @@ class ToolRegistry:
                         error="Confirmation required but no confirmation handler is available",
                     )
 
-        return tool
+        stale = self._revalidate_authorization(authorization, params)
+        return stale if stale is not None else authorization
+
+    async def authorize(self, name: str, params: dict[str, object]) -> Tool | ToolResult:
+        """Return a currently authorized tool or denial without executing it.
+
+        Revalidate after awaited approval. Unchanged grants are shared across
+        registry ancestry; changed registrations, projects or physical targets
+        require fresh approval. Custom dispatchers must perform any additional
+        checks needed after their own subsequent asynchronous work.
+        """
+        authorization = await self._authorize_invocation(name, params)
+        return authorization if isinstance(authorization, ToolResult) else authorization.tool
 
     async def execute(self: ToolRegistry, name: str, params: dict[str, object]) -> ToolResult:
         """Execute a tool by name with the given parameters.
@@ -429,17 +535,24 @@ class ToolRegistry:
         Returns:
             A ToolResult containing the execution result or error.
         """
-        tool = await self.authorize(name, params)
-        if isinstance(tool, ToolResult):
-            return tool
+        authorization = await self._authorize_invocation(name, params)
+        if isinstance(authorization, ToolResult):
+            return authorization
+        tool = authorization.tool
 
         async def execute_once() -> ToolResult:
             # The formatter can await its mutation lock and filesystem snapshot
             # after authorization. Check again at the actual dispatch boundary.
+            stale = self._revalidate_authorization(authorization, params)
+            if stale is not None:
+                return stale
             if self._execution_guard is not None:
                 deferred = self._execution_guard(tool, params)
                 if deferred is not None:
                     return deferred
+            stale = self._revalidate_authorization(authorization, params)
+            if stale is not None:
+                return stale
             return await tool.execute(**params)
 
         async def execute_authorized() -> ToolResult:

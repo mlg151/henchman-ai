@@ -36,6 +36,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #20 authorization now rechecks policy, registration, project and physical
+  targets after approval, formatter waits and retry delays. This closes stale
+  grant reuse; filesystem/network mediation and custom-dispatch checks remain
+  open. See [approval scope](docs/tools.md#approval-reuse-scoping).
+
 - #14 configuration persistence now retains explicit default-valued overrides
   through set/import and subsequent edits; only unset removes them. Active runtime
   session origins and doctor inspection remain open alongside downstream controls.

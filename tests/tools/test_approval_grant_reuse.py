@@ -9,7 +9,15 @@ arguments, or risk levels.
 
 from __future__ import annotations
 
+import asyncio
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.builtins.file_write import WriteFileTool
 from henchman.tools.policy import ApprovalGrantStore, GrantKey, grant_key_for
 from henchman.tools.registry import ToolRegistry
 from henchman.tools.scoped_registry import ScopedToolRegistry
@@ -357,3 +365,124 @@ class TestGrantSessionScope:
         result = await registry.authorize("write_x", {"path": "/a"})
         assert isinstance(result, Tool)
         assert len(prompts) == 2  # Re-prompted after the session reset.
+
+
+def _symlink(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except OSError as exc:
+        pytest.skip(f"Symlinks unavailable on this platform: {exc}")
+
+
+async def test_retargeted_symlink_requires_new_approval(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    first, second, link = (tmp_path / name for name in ("first.txt", "second.txt", "link.txt"))
+    first.write_text("first", encoding="utf-8")
+    second.write_text("second", encoding="utf-8")
+    _symlink(link, first)
+    registry = ToolRegistry()
+    registry.register(WriteFileTool())
+    prompts: list[ConfirmationRequest] = []
+
+    async def approve_once(request: ConfirmationRequest) -> bool:
+        prompts.append(request)
+        return len(prompts) == 1
+
+    registry.set_confirmation_handler(approve_once)
+    params = {"path": str(link), "content": "approved"}
+    assert (await registry.execute("write_file", params)).success
+    link.unlink()
+    _symlink(link, second)
+    result = await registry.execute("write_file", params)
+    assert not result.success
+    assert len(prompts) == 2
+    assert second.read_text(encoding="utf-8") == "second"
+
+
+@pytest.mark.parametrize("during", ["approval", "formatter"])
+async def test_inflight_symlink_change_cannot_retarget_approved_write(
+    during: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    first, second, link = (tmp_path / name for name in ("first.txt", "second.txt", "link.txt"))
+    first.write_text("first", encoding="utf-8")
+    second.write_text("second", encoding="utf-8")
+    _symlink(link, first)
+    registry = ToolRegistry()
+    registry.register(WriteFileTool())
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def approve(_request: ConfirmationRequest) -> bool:
+        entered.set()
+        if during == "approval":
+            await release.wait()
+        return True
+
+    registry.set_confirmation_handler(approve)
+    lock = registry._effective_formatter._lock
+    if during == "formatter":
+        await lock.acquire()
+    running = asyncio.create_task(registry.execute("write_file", {"path": str(link), "content": "bad"}))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        link.unlink()
+        _symlink(link, second)
+    finally:
+        release.set()
+        if during == "formatter":
+            lock.release()
+    result = await asyncio.wait_for(running, timeout=5)
+    assert not result.success
+    assert first.read_text(encoding="utf-8") == "first"
+    assert second.read_text(encoding="utf-8") == "second"
+
+
+async def test_replacement_tool_does_not_reuse_old_grant() -> None:
+    parent = ToolRegistry()
+    parent.register(_KindTool("write_x", ToolKind.WRITE))
+    prompts: list[ConfirmationRequest] = []
+    parent.set_confirmation_handler(_approve_all(prompts))
+    child = ScopedToolRegistry(parent, None)
+    await child.authorize("write_x", {})
+    parent.unregister("write_x")
+    replacement = _KindTool("write_x", ToolKind.WRITE)
+    parent.register(replacement)
+    assert await child.authorize("write_x", {}) is replacement
+    assert len(prompts) == 2
+
+
+async def test_relative_path_grant_does_not_cross_git_worktrees(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if shutil.which("git") is None:
+        pytest.skip("Git is unavailable")
+    main, worktree = tmp_path / "main", tmp_path / "worktree"
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], capture_output=True, check=True)
+
+    git("init", "-q", str(main))
+    (main / "sample.txt").write_text("baseline", encoding="utf-8")
+    git("-C", str(main), "add", "sample.txt")
+    git("-C", str(main), "-c", "user.name=Policy Test", "-c", "user.email=test@example.invalid",
+        "commit", "-qm", "fixture")
+    git("-C", str(main), "worktree", "add", "-q", "--detach", str(worktree))
+    registry = ToolRegistry()
+    registry.register(WriteFileTool())
+    prompts: list[ConfirmationRequest] = []
+
+    async def approve_once(request: ConfirmationRequest) -> bool:
+        prompts.append(request)
+        return len(prompts) == 1
+
+    registry.set_confirmation_handler(approve_once)
+    params = {"path": "sample.txt", "content": "approved-for-main"}
+    monkeypatch.chdir(main)
+    assert (await registry.execute("write_file", params)).success
+    monkeypatch.chdir(worktree)
+    result = await registry.execute("write_file", params)
+    assert not result.success
+    assert len(prompts) == 2
+    assert (worktree / "sample.txt").read_text(encoding="utf-8") == "baseline"
