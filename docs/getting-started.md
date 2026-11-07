@@ -1,5 +1,19 @@
 # Getting Started
 
+## Textual input and reading history
+
+In the Textual UI, Enter or Ctrl+Enter submits a draft; Shift+Enter or Ctrl+J
+inserts a newline. Multiline paste stays in the composer until submission.
+Escape requests cancellation during work and preserves an unsent draft.
+
+Scrolling into history, searching or expanding a card holds the reading
+position while new output arrives. The navigation row shows new activity.
+Use **Return to live**, Alt+End, or End with the transcript focused to resume
+following. Alt+Page Up/Down scrolls history from the composer without changing
+the draft. If the terminal intercepts an extended key, Tab to the visible button.
+See the [interaction contract](ui-interaction-contract.md) for supported states
+and the remaining native/accessibility qualification.
+
 ## Prerequisites
 
 - **Python 3.11–3.14**: These are the currently supported and CI-tested Python versions

@@ -26,6 +26,7 @@ import sys
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
@@ -216,6 +217,9 @@ class HenchmanTextualApp(
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
         Binding("ctrl+f", "search", "Search", show=True),
+        Binding("alt+end", "follow_live", "Live", show=True),
+        Binding("alt+pageup", "history_page_up", "Read history", show=False),
+        Binding("alt+pagedown", "history_page_down", "Read history", show=False),
         Binding(
             "escape",
             "cancel_or_clear",
@@ -292,6 +296,9 @@ class HenchmanTextualApp(
         with TabbedContent():
             with TabPane("Chat", id="tab-chat"):
                 yield ChatPane(id="chat-pane")
+                with Horizontal(id="chat-navigation"):
+                    yield Static("Live", id="chat-follow-state")
+                    yield Button("Return to live", id="chat-return-live", disabled=True)
             with TabPane("Thinking", id="tab-thinking"):
                 yield ThinkingPane(id="thinking-pane")
             with TabPane("Tools", id="tab-tools"):
@@ -318,6 +325,32 @@ class HenchmanTextualApp(
         yield HenchmanTextArea(id="input", show_line_numbers=False)
         yield Footer()
         yield StatusBar(id="status-bar")
+
+    def action_follow_live(self) -> None:
+        """Return the transcript to live without moving composer focus."""
+        self.query_one(ChatPane).return_to_live()
+
+    def action_history_page_up(self) -> None:
+        """Read earlier output without changing the draft."""
+        self.query_one(ChatPane).scroll_page_up(animate=False)
+
+    def action_history_page_down(self) -> None:
+        """Read later history without implicitly resuming live output."""
+        self.query_one(ChatPane).scroll_page_down(animate=False)
+
+    @on(Button.Pressed, "#chat-return-live")
+    def _return_live_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_follow_live()
+
+    def on_chat_pane_follow_changed(self, event: ChatPane.FollowChanged) -> None:
+        """Keep reading state visible without replacing execution status."""
+        label = self.query_one("#chat-follow-state", Static)
+        text = "Live" if event.pane.follow_live else "Reading history"
+        if event.pane.new_activity:
+            text += " — New activity"
+        label.update(text)
+        self.query_one("#chat-return-live", Button).disabled = event.pane.follow_live
 
     def on_mount(self) -> None:
         """Initialize core components after DOM is ready.

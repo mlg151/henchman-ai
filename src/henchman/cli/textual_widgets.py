@@ -20,6 +20,7 @@ from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
 from textual.binding import Binding
 from textual.containers import VerticalScroll
+from textual.message import Message as TextualMessage
 from textual.reactive import reactive
 from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
@@ -288,11 +289,16 @@ class CollapsibleMessage(_BaseMessageWidget):
         Returns:
             None
         """
+        pane = next((parent for parent in self.ancestors if isinstance(parent, ChatPane)), None)
+        if pane is not None:
+            pane.hold_reading_position()
         self._is_expanded = not self._is_expanded
         if self._is_expanded:
             self.add_class("expanded")
         else:
             self.remove_class("expanded")
+        if pane is not None:
+            pane.refresh_reading_position()
 
     def on_click(self: Self, _event: events.Click) -> None:
         """Handle click events to toggle expansion.
@@ -382,15 +388,17 @@ class HenchmanTextArea(TextArea):
         Binding("ctrl+f", "app.search", "Search", show=False),
         Binding(
             "enter",
-            "app.action_submit_message",
+            "app.submit_message",
             "Submit Message",
             show=False,
+            priority=True,
         ),
         Binding("shift+enter", "newline", "Newline", show=False),
+        Binding("ctrl+j", "newline", "Newline", show=False),
         Binding(
             "escape",
-            "app.clear_search",
-            "Clear Search",
+            "app.cancel_or_clear",
+            "Cancel/Clear",
             show=False,
         ),
         Binding("up", "history_up", "History Up", show=False),
@@ -917,6 +925,13 @@ class ChatPane(VerticalScroll):
     _active: dict[str, ChatMessage]
     _active_thinking: dict[str, ThinkingMessage]
 
+    class FollowChanged(TextualMessage):
+        """The transcript's explicit follow/hold state changed."""
+
+        def __init__(self, pane: ChatPane) -> None:
+            super().__init__()
+            self.pane = pane
+
     def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize the chat pane.
 
@@ -930,12 +945,89 @@ class ChatPane(VerticalScroll):
         self.markup: bool = True
         self._active: dict[str, ChatMessage] = {}
         self._active_thinking: dict[str, ThinkingMessage] = {}
+        self.follow_live = True
+        self.new_activity = False
+        self._reading_anchor: tuple[Static, float] | None = None
+        self._viewport_refresh_pending = False
+        self._restoring_viewport = False
+
+    def _capture_reading_anchor(self) -> None:
+        if not self.is_mounted:
+            return
+        for child in self.children:
+            if isinstance(child, Static) and child.virtual_region.bottom > self.scroll_y:
+                self._reading_anchor = (child, self.scroll_y - child.virtual_region.y)
+                return
+
+    def hold_reading_position(self) -> None:
+        """Hold history until the user explicitly returns live."""
+        self.follow_live = False
+        self._capture_reading_anchor()
+        self.post_message(self.FollowChanged(self))
+
+    def release_anchor(self) -> None:
+        """Treat user scrolling and search navigation as an explicit hold."""
+        super().release_anchor()
+        if hasattr(self, "follow_live") and not self._restoring_viewport:
+            # A queued live refresh must not suppress the anchor update for a
+            # newer user scroll. Its callback will observe the held state.
+            self._viewport_refresh_pending = False
+            self.hold_reading_position()
+
+    def watch_scroll_y(self, old_value: float, new_value: float) -> None:
+        super().watch_scroll_y(old_value, new_value)
+        if (hasattr(self, "follow_live") and not self.follow_live
+                and not self._restoring_viewport and not self._viewport_refresh_pending):
+            self._capture_reading_anchor()
+
+    def return_to_live(self) -> None:
+        """Resume following without changing the draft or focus."""
+        self.follow_live = True
+        self.new_activity = False
+        self._reading_anchor = None
+        self.post_message(self.FollowChanged(self))
+        self.refresh_reading_position()
+
+    def action_scroll_end(self) -> None:
+        """End in the transcript explicitly resumes following."""
+        self.return_to_live()
+
+    def refresh_reading_position(self) -> None:
+        """Coalesce viewport updates after layout, preserving a held message."""
+        if self.is_mounted and not self._viewport_refresh_pending:
+            self._viewport_refresh_pending = True
+            self.call_after_refresh(self._restore_viewport)
+
+    def _restore_viewport(self) -> None:
+        self._viewport_refresh_pending = False
+        self._restoring_viewport = True
+        try:
+            if self.follow_live:
+                self._scroll_to_bottom()
+            elif self._reading_anchor is not None:
+                child, offset = self._reading_anchor
+                if child.parent is self:
+                    self.scroll_to(
+                        y=child.virtual_region.y + offset, animate=False,
+                        immediate=True, force=True, release_anchor=False,
+                    )
+        finally:
+            self._restoring_viewport = False
+
+    def on_resize(self) -> None:
+        """Retain the held message when earlier messages reflow."""
+        self.refresh_reading_position()
+
+    def _record_activity(self) -> None:
+        if not self.follow_live and not self.new_activity:
+            self.new_activity = True
+            self.post_message(self.FollowChanged(self))
+        self.refresh_reading_position()
 
     def _scroll_to_bottom(self: Self) -> None:
         """Scroll to the latest message."""
-        self.scroll_end(animate=False)
-        if self.children:
-            self.children[-1].scroll_visible(animate=False)
+        if self.follow_live:
+            self.scroll_end(animate=False, immediate=True)
 
     def _mount_widget(self: Self, widget: Static) -> None:
         """Mount a widget, falling back to direct append if not attached.
@@ -1043,7 +1135,7 @@ class ChatPane(VerticalScroll):
         if agent_name not in self._active:
             self.begin_agent_stream(agent_name)
         self._active[agent_name].append(chunk)
-        self._scroll_to_bottom()
+        self._record_activity()
 
     def finish_agent_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's streaming message as complete.
@@ -1061,6 +1153,7 @@ class ChatPane(VerticalScroll):
             _LOGGER.debug("Attempted to finish non-existent agent stream: %s", agent_name)
             return
         widget.finalize_as_markdown()
+        self.refresh_reading_position()
 
     def finish_thinking_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's thinking stream as complete.
@@ -1097,6 +1190,7 @@ class ChatPane(VerticalScroll):
         """
         widget = widget_class(*args, **kwargs)
         self._mount_widget(widget)
+        self._record_activity()
 
         if tracking_dict is not None and tracking_key is not None:
             tracking_dict[tracking_key] = widget
@@ -1146,6 +1240,7 @@ class ChatPane(VerticalScroll):
         if agent_name not in self._active_thinking:
             self.begin_thinking_stream(agent_name)
         self._active_thinking[agent_name].append(chunk)
+        self._record_activity()
 
     def _create_tool_message(
         self: Self,
@@ -1178,6 +1273,7 @@ class ChatPane(VerticalScroll):
         self._active = {}
         self._active_thinking = {}
         _perform_pane_operation(self.remove_children, self, "_clear")
+        self.return_to_live()
 
 
 # ------------------------------------------------------------------ #

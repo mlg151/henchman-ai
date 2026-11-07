@@ -128,6 +128,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Textual reading and input** — History scrolling, search and expanded cards
+  now hold position during streaming and show new activity with an explicit
+  return-to-live control. Enter submits, explicit newline keys retain multiline
+  drafts, and Escape reaches cancellation. Rendered UI-0.1 scenarios cover three
+  sizes; native accessibility and performance qualification remains open.
+
 - **Public run ownership** — Target reservations now span asynchronous setup and
   execution, preserving active work when overlapping calls are rejected. Leader
   accounting checks use its actual provider, including configured overrides.

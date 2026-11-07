@@ -32,7 +32,7 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 ### Tier 10: UI (Textual Enhancements)
 
 - Textual dialogs are implemented in the TUI, but generic help/discovery surfaces still classify them as undiscoverable in this variant.
-- [Terminal UI research](docs/terminal-ui-research.md) records coding-agent likes/dislikes and Python application examples. UI-0–UI-4 in [Tier 10](FEATURE_TODO.md#ui-quality-research-and-follow-through) are planned v0.4.2 subtasks #32–#36: establish the baseline, fix interaction reliability, improve work visibility/navigation, then qualify polish and native usability. They are native children of epic #11 and prerequisites for release #30; existing widgets do not establish usability.
+- [Terminal UI research](docs/terminal-ui-research.md) records coding-agent likes/dislikes and Python application examples. UI-0–UI-4 in [Tier 10](FEATURE_TODO.md#ui-quality-research-and-follow-through) are planned v0.4.2 subtasks #32–#36: establish the baseline, fix interaction reliability, improve work visibility/navigation, then qualify polish and native usability. They are native children of epic #11 and prerequisites for release #30; existing widgets do not establish usability. The first [UI-0.1 contract](docs/ui-interaction-contract.md) now records rendered baselines, follow/hold navigation and composer-key regressions. Native, assistive-technology and performance qualification remains open.
 
 ## Current focus
 

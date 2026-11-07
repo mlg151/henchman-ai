@@ -458,8 +458,12 @@ Completed: workspace tab with agent/memory/task/skill/team/settings/context surf
 
 The [terminal UI research](docs/terminal-ui-research.md) compares firsthand
 coding-agent feedback and Python terminal applications. Existing components
-remain implemented; all five interaction-quality phases below are planned native
-subtasks of the v0.4.2 epic. Release issue #30 is blocked by their completion.
+remain implemented; all five interaction-quality phases below are native subtasks
+of the v0.4.2 epic. The first [UI-0.1 contract](docs/ui-interaction-contract.md)
+now records rendered baselines and a deterministic harness. Textual follow/hold,
+new-activity navigation and composer submission/cancellation have rendered
+regressions; native/assistive-technology/performance evidence and the remaining
+controls stay open. Release issue #30 is blocked by the full phase criteria.
 
 - [x] Research coding-agent UI preferences/friction and Python application exemplars, with source dates, surface distinctions and historical-fix caveats.
 - [ ] [UI-0 / #32](https://github.com/mlg151/henchman-ai/issues/32): Establish reproducible interaction baselines, keyboard/state contracts and native terminal evidence.
