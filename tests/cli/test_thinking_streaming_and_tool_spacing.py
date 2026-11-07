@@ -118,50 +118,38 @@ class TestToolResultSpacing:
             f"Expected whitespace between emoji and 'Result:', got {between!r}"
         )
 
-    def test_tool_pane_result_has_space_after_arrow(self):
-        """The tool pane '← Result' should have space after arrow."""
-        from unittest.mock import MagicMock, patch
-
-        from henchman.cli.textual_app import HenchmanTextualApp
+    async def test_tool_pane_result_has_separate_label_and_output(self, tmp_path, monkeypatch):
+        """The shared evidence projection keeps a readable result label and body."""
         from henchman.cli.textual_messages import ToolCallResultMessage
+        from henchman.cli.textual_widgets import ChatPane, ToolPane
+        from tests.cli.ui_scenarios import InteractionApp, settle_layout
 
-        app = HenchmanTextualApp.__new__(HenchmanTextualApp)
+        monkeypatch.chdir(tmp_path)
+        app = InteractionApp(tmp_path)
+        async with app.run_test() as pilot:
+            app.post_message(ToolCallResultMessage({"result": "command succeeded", "success": True}))
+            await settle_layout(pilot)
+            pane = app.query_one(ToolPane)
+            assert pane._activity_store is app.query_one(ChatPane)._tool_activity
+            assert "1. Result output\ncommand succeeded" in pane._projection
+            assert "Outcome: Succeeded" in pane._projection
 
-        mock_pane = MagicMock()
-        mock_tool_pane = MagicMock()
-
-        with patch.object(app, "query_one") as mock_query:
-            mock_query.side_effect = [mock_pane, mock_tool_pane]
-
-            msg = ToolCallResultMessage("success")
-
-            app.on_tool_call_result_message(msg)
-
-            # Check the tool pane .write() call has space after ←
-            write_call = mock_tool_pane.write.call_args[0][0]
-            assert "← " in write_call, f"Missing space after ←: {write_call!r}"
-
-    def test_tool_result_chat_pane_formatting(self):
-        """Tool result in chat pane should use 'Result: ' prefix with space."""
-        from unittest.mock import MagicMock, patch
-
-        from henchman.cli.textual_app import HenchmanTextualApp
+    async def test_tool_result_chat_pane_formatting(self, tmp_path, monkeypatch):
+        """The compact result row separates status, tool and actor labels."""
         from henchman.cli.textual_messages import ToolCallResultMessage
+        from henchman.cli.textual_widgets import ToolMessage
+        from tests.cli.ui_scenarios import InteractionApp, settle_layout
 
-        app = HenchmanTextualApp.__new__(HenchmanTextualApp)
-
-        mock_pane = MagicMock()
-        mock_tool_pane = MagicMock()
-
-        with patch.object(app, "query_one") as mock_query:
-            mock_query.side_effect = [mock_pane, mock_tool_pane]
-
-            msg = ToolCallResultMessage("output data")
-
-            app.on_tool_call_result_message(msg)
-
-            # Check add_tool_message was called with "Result: " (with space)
-            call_args = mock_pane.add_tool_message.call_args[0][0]
-            assert call_args.startswith("Result: "), (
-                f"Expected 'Result: ' prefix, got: {call_args!r}"
-            )
+        monkeypatch.chdir(tmp_path)
+        app = InteractionApp(tmp_path)
+        async with app.run_test() as pilot:
+            app.post_message(ToolCallResultMessage(
+                {"tool_name": "shell", "result": "output data", "success": True}, "Worker",
+            ))
+            await settle_layout(pilot)
+            rows = list(app.query(ToolMessage))
+            assert len(rows) == 1
+            assert "Succeeded · shell · Worker" in str(rows[0].render())
+            assert "output data" not in str(rows[0].render())
+            rows[0].action_expand()
+            assert "1. Result output\noutput data" in str(rows[0].render())
