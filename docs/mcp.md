@@ -181,8 +181,7 @@ an exact HTTPS `issuer`, a pre-registered public `client_id`, an optional canoni
 `resource` URI (defaulting to the server endpoint), and up to 16 additional HTTPS
 `allowed_endpoint_origins`. The resource must contain the endpoint under the same
 origin and path. Configuring this group currently refuses connection explicitly:
-browser login, callback handling, token exchange and authenticated transport are
-not yet available.
+interactive login and authenticated MCP transport are not yet wired.
 
 The library's `discover_oauth` performs credential-free metadata discovery under
 a caller-supplied authorization guard. It checks exact issuer/resource identity,
@@ -191,6 +190,24 @@ a 10-second deadline and discovery a 30-second deadline; documents are limited
 to 64 KiB with bounded JSON structure. Redirects, cookies, inherited proxy/auth
 settings and compressed metadata are refused. One unambiguous Bearer challenge
 is supported; remote metadata cannot add approved origins.
+
+The library's explicit `login_oauth` and `refresh_oauth` flows use an owned literal
+loopback callback, S256 PKCE and generation-checked one-shot token exchange. Login
+requires an injected asynchronous browser opener and a current authorization guard;
+it does not launch a browser by default. The callback validates its exact host,
+path, state and issuer, consumes one code and joins accepted connections on cleanup.
+Login has a 300-second total deadline; token exchange has a 30-second deadline and
+64 KiB response limit. Refresh uses the persisted endpoint and scopes, without
+discovery substitution or automatic retry. Missing expiry remains distinct from
+an already expired token. Logout or policy changes reject late publication.
+
+Bind `register_evidence` before credential access. The retained store registers old
+and rotated credentials, plus credential fields from parsed responses, with bound
+evidence policies before credential validation or replacement; historical values
+remain in runtime memory only.
+Callback responses and flow errors omit credential values. Local TLS/browser
+fixtures exercise these library flows; they do not enable interactive login or
+qualify a remote authorization service.
 
 `McpAuthService.oauth_store()` uses a separate versioned
 `.henchman/mcp/oauth.json`; legacy stdio tokens are never promoted. Project/server/
@@ -205,7 +222,7 @@ and retained revocation tombstones. POSIX storage uses private files and pinned
 directory descriptors. Windows rejects existing reparse points and checks opened
 file identities; confidentiality depends on directory ACLs, and a concurrent
 parent-directory swap is not prevented. Filesystem rollback is outside this store's
-authority. Login and transport integration remain tracked under #25.
+authority. Interactive login and transport integration remain tracked under #25.
 
 ## Trust Levels
 

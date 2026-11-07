@@ -14,11 +14,13 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
+from weakref import WeakSet
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from henchman.config.paths import resolve_project_settings_path
 from henchman.mcp.oauth import OAuthBinding, OAuthError, bounded_oauth_json
+from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.file_lock import _set_file_lock
 
 MAX_OAUTH_STORE_BYTES = 1024 * 1024
@@ -121,6 +123,20 @@ class OAuthCredentialStore:
         self._path = self._directory / "oauth.json"
         self._project_hash = hashlib.sha256(os.fsencode(self._root)).hexdigest()
         self._clock = clock
+        self._evidence = EvidenceRedactor()
+        self._evidence_policies: WeakSet[EvidenceRedactor] = WeakSet()
+
+    def register_evidence(self, policy: EvidenceRedactor) -> None:
+        """Bind evidence before any read or mutation, retaining earlier learned credentials."""
+        self._evidence_policies.add(policy)
+        policy.register_policy(self._evidence)
+        self._read()
+
+    def remember_evidence(self, payload: object) -> None:
+        """Learn bounded credential-bearing input before validation or replacement."""
+        self._evidence.register_config(payload)
+        for policy in self._evidence_policies:
+            policy.register_policy(self._evidence)
 
     def _check_directories(self, *, create: bool = False) -> bool:
         for directory in (self._directory.parent, self._directory):
@@ -228,6 +244,7 @@ class OAuthCredentialStore:
             with os.fdopen(descriptor, "rb") as handle:
                 raw = handle.read(MAX_OAUTH_STORE_BYTES + 1)
             data = bounded_oauth_json(raw, limit=MAX_OAUTH_STORE_BYTES)
+            self.remember_evidence(data)
             if type(data.get("version")) is not int:
                 raise ValueError
             # JSON arrays encode the immutable scope tuple; all other fields stay strict.
@@ -338,6 +355,13 @@ class OAuthCredentialStore:
                 return None
         return credentials.model_copy(deep=True) if credentials is not None else None
 
+    def check_authority(self, authority: OAuthAuthority) -> None:
+        """Check a captured configuration generation without returning credential values."""
+        payload = self._read()
+        if payload is None:
+            raise OAuthStoreError("OAuth authority storage is missing")
+        self._require(payload, authority)
+
     def _begin(self, authority: OAuthAuthority, kind: Literal["login", "refresh"]) -> OAuthClaim:
         with self._locked() as directory_fd:
             payload = self._payload(directory_fd)
@@ -380,6 +404,7 @@ class OAuthCredentialStore:
 
     def complete(self, claim: OAuthClaim, credentials: OAuthCredentials) -> OAuthAuthority:
         """Commit once; logout, config changes and other completions invalidate old claims."""
+        self.remember_evidence(credentials.model_dump())
         try:
             credentials = OAuthCredentials.model_validate(credentials.model_dump())
             claim.authority.binding.check_destination(credentials.token_endpoint)

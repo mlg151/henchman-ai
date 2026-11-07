@@ -92,8 +92,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   prompt previews, with bounded retrieval and no history/instruction changes.
   Explicit idle-only attachment now preserves reviewed context as user data with
   process-local single-use handles and retained source evidence. OAuth now has
-  typed configuration, guarded discovery and separate generation-bound storage;
-  configured OAuth connections remain refused pending login/transport integration.
+  typed configuration, guarded discovery, separate generation-bound storage and
+  owned callback/token library flows. Configured OAuth connections remain refused
+  pending interactive login and authenticated transport integration.
   Remaining qualification gates are
   recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).

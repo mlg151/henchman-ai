@@ -52,6 +52,14 @@ async def test_native_discovery_is_credential_free_detached_and_does_not_dispatc
         assert peer.origin not in caplog.text and "private-cookie-canary" not in caplog.text
 
 
+async def test_metadata_header_bound_counts_wire_bytes_not_decoded_characters(trusted_tls):
+    async with OAuthPeer(trusted_tls) as peer:
+        peer.routes[peer.resource_path][2]["X-Large"] = "é" * (oauth.OAUTH_HEADER_BYTES // 2 + 1)
+        with pytest.raises(OAuthError, match="headers exceed"):
+            await discover_oauth(binding(peer), authorize=lambda: None)
+        assert len(peer.requests) == 1
+
+
 @pytest.mark.parametrize("mutation", ["resource", "issuer", "pkce", "response_types", "auth_methods", "malformed_pkce", "token_origin"])
 async def test_invalid_metadata_refuses_profile_without_token_or_authorize_request(trusted_tls, mutation):
     async with OAuthPeer(trusted_tls) as peer:

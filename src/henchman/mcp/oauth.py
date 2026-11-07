@@ -199,7 +199,7 @@ async def discover_oauth(
             authorize()
             response = await client.send(request, stream=True, follow_redirects=False)
             try:
-                if sum(len(key) + len(value) for key, value in response.headers.multi_items()) > OAUTH_HEADER_BYTES:
+                if sum(len(key) + len(value) for key, value in response.headers.raw) > OAUTH_HEADER_BYTES:
                     raise OAuthError("OAuth response headers exceed their bound")
                 if response.status_code in (404, 405):
                     return None

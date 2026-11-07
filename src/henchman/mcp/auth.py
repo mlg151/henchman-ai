@@ -24,12 +24,15 @@ class McpAuthService:
         self._project_root = (project_root or Path.cwd()).resolve()
         self._storage_dir = resolve_project_settings_path(self._project_root) / "mcp"
         self._auth_path = self._storage_dir / "auth.json"
+        self._oauth_store: OAuthCredentialStore | None = None
 
     def oauth_store(self) -> OAuthCredentialStore:
         """Return the separate issuer/resource-bound store; legacy tokens are never promoted."""
         from henchman.mcp.oauth_store import OAuthCredentialStore
 
-        return OAuthCredentialStore(self._project_root)
+        if self._oauth_store is None:
+            self._oauth_store = OAuthCredentialStore(self._project_root)
+        return self._oauth_store
 
     def set_token(self, server: str, token: str) -> None:
         """Persist or replace a token for one MCP server."""

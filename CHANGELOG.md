@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit OAuth library flows** — Owned loopback callbacks, S256 PKCE and
+  one-shot code/refresh exchange retain credential generations, bounded cleanup
+  and value-free diagnostics. Interactive login and authenticated MCP transport
+  remain pending; configuring OAuth still refuses connection.
+
 - **Interactive queue and goal recovery** — Both frontends retain accepted input,
   expose revision-checked queue controls and hold restored work for explicit user
   disposition. Goal completion requires current revision and bound-plan checks;
