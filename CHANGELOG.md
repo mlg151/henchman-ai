@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Baseline model identity** — Repeat-run reports now read compatible providers'
+  `default_model` before falling back to `model`. The
+  [first local development cohort](docs/evaluations/2026-11-07-local-baseline.md)
+  preserves its original missing model field and records the invocation separately:
+  all 22 planned attempts timed out, with no verified successes and no API charges.
+  Model and release qualification remain open under [#13](https://github.com/mlg151/henchman-ai/issues/13).
+
 - **Session evidence credentials** — Shared redaction now covers saved sessions
   and retained backups, JSON/Markdown exports, templates and new playback records,
   including compacted turns and stored memories. Interactive settings/provider keys,

@@ -303,6 +303,8 @@ def test_main_runs_declared_budget_and_reports_denominator(
     provider.set_tool_response(
         "write_file", {"path": "counter.py", "content": _INSTANCE_COUNTER}, "Refactored.",
     )
+    # Compatible providers expose the served name as default_model, not model.
+    provider.default_model = "configured-served-model"  # type: ignore[attr-defined]
     monkeypatch.setattr(baseline_runs, "get_eval_provider", lambda: provider)
     executed: list[str] = []
     real_runner = baseline_runs.run_case_repeated
@@ -326,6 +328,7 @@ def test_main_runs_declared_budget_and_reports_denominator(
     assert report["cohort"] == "local"
     assert report["requested"]["cases"] == ["counter-refactor"]
     assert report["requested"]["runs_per_case"] == 2
+    assert report["requested"]["model"] == "configured-served-model"
 
 
 def test_main_failing_runs_exit_nonzero_but_still_report(

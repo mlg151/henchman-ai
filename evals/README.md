@@ -451,3 +451,11 @@ that a particular profile ran: execution reports must record the actual
 corpus, bounded repeat-run reporting and hosted baseline qualification remain
 tracked in [issue #13](https://github.com/mlg151/henchman-ai/issues/13). Offline
 registry contracts establish evaluator behavior, not model task quality.
+
+The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
+retains all 22 attempts: all timed out at the declared 120-second turn limit, with
+no verified successes or reported token usage. Its invocation, raw report,
+zero-spend provenance and qualification limitations are retained together. A
+healthy HTTP endpoint did not establish inference readiness; bounded direct
+inference/tool-call checks are required before another full cohort. The runner
+now records compatible providers' `default_model`, falling back to `model`.

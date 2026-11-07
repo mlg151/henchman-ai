@@ -351,7 +351,7 @@ def main(argv: list[str]) -> int:
         "timeout": args.timeout,
         "max_iterations": args.max_iterations,
         "provider": provider.name,
-        "model": getattr(provider, "model", None),
+        "model": getattr(provider, "default_model", None) or getattr(provider, "model", None),
     }
     report = build_report(cohort=cohort, requested=requested, summary=summary, records=records)
     write_report(Path(args.report), report)
