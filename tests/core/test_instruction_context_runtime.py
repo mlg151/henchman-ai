@@ -342,6 +342,7 @@ async def test_raw_and_expanded_paths_follow_actual_file_tool_semantics(
     (literal / "AGENTS.md").write_text("LITERAL TILDE guidance", encoding="utf-8")
     (literal / "file.txt").write_text("literal data", encoding="utf-8")
     monkeypatch.setenv("HOME", str(project / "right"))
+    monkeypatch.setenv("USERPROFILE", str(project / "right"))
     agent = agent_with_context(project)
     await agent._prepare_stream_context()
 

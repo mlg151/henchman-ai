@@ -72,6 +72,7 @@ class TestEmptyMessageValidation:
         # Create a mock response
         mock_response = AsyncMock()
         mock_chunk = MagicMock()
+        mock_chunk.usage = None
         mock_chunk.choices = [MagicMock(delta=MagicMock(content="Hello"), finish_reason="stop")]
 
         async def mock_response_generator(_):
