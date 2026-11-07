@@ -623,6 +623,8 @@ it is allowed in the current tool scope.
 Invocation classification is per snippet: code that only evaluates
 side-effect-free expressions is classified `READ` (available in Plan Mode);
 anything else stays `EXECUTE`. See [Tool Kinds](#tool-kinds).
+Pure expressions run with Python's isolated and no-site flags, so working-directory
+and `PYTHONPATH` startup hooks cannot add effects to a read-only invocation.
 
 Before either execution mode, an isolated worker applies Black's in-memory
 string API with default settings to the snippet. It does not inspect the working
@@ -1151,11 +1153,13 @@ cannot be proven read-only retains the static kind:
 - `shell` downgrades side-effect-free single commands to `READ`: an allowlist of
   read-only programs, read-only `git` subcommands (`status`, `log`, `diff`,
   `show`), and `find` without mutating flags, with no chaining, redirection,
-  or substitution.
+  or substitution. `sort` remains `EXECUTE` because it can write output and
+  temporary files.
 - `python_exec` downgrades snippets that only evaluate side-effect-free
   expressions to `READ`: no imports, assignments, subscripts, attribute
   access, definitions, or control flow, and calls limited to a small allowlist
-  of pure builtins.
+  of pure builtins. Unsafe builtins cannot be loaded as values or aliased through
+  comprehension variables.
 - The `mcp` management tool downgrades its `status` and `discover` actions to
   `READ`; `mcp_auth` downgrades its `status` action to `READ`.
 - MCP server tools always carry the conservative `NETWORK` execution
@@ -1172,6 +1176,12 @@ and the orchestrated delegation path — consumes that same verdict, so
 late-registered tools and scoped subagent registries cannot bypass the
 boundary. Auto-approval suppresses the confirmation requirement in the
 verdict but never overrides the Plan Mode denial.
+
+Configured [restricted tool access](configuration.md#restricted-tool-access)
+also applies through this evaluator and the actual file operation. Only qualified
+implementations execute when restrictions are active; a tool's name or declared
+kind cannot grant access. A `shell_secure` invocation's requested security level
+must also satisfy the configured command, option and directory restrictions.
 
 ### Approval-reuse scoping
 

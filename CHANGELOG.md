@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Restricted tool access** — Typed read/write roots and network disabling bind
+  to project identity and intersect across registry ancestry. Qualified builtin
+  reads/writes use directory handles with symlink and hardlink checks; other tools
+  and unsupported platforms fail explicitly. Restricted writes bypass formatters.
+  Pure Python expressions isolate startup hooks and reject unsafe name aliases;
+  `sort` remains executable, and secure-shell arguments cannot widen configured
+  restrictions. Broader tool/network qualification remains open under #20.
+
 - **Durable accounting foundation** — SQLite run state commits dispatch claims
   before provider I/O, retains unknown consumption across crashes, and reconciles
   cumulative usage without double counting. Session bindings survive transcript

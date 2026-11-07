@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from itertools import count
 from typing import TYPE_CHECKING
 
+from henchman.tools.access_policy import (
+    ToolAccessPolicy,
+    current_access_policies,
+    use_access_policies,
+)
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.policy import (
@@ -94,6 +99,7 @@ class ToolRegistry:
         self._local_confirmation_handler: ConfirmationHandler | None = None
         self._policy_parent: ToolRegistry | None = None
         self._policy_generation = 0
+        self._access_policies: tuple[ToolAccessPolicy, ...] = ()
         self._auto_approve_policies: set[str] = set()
         self._plan_mode: bool = False
         self._grants = ApprovalGrantStore()
@@ -113,6 +119,24 @@ class ToolRegistry:
         if self._execution_guard is not guard:
             self._policy_generation += 1
         self._execution_guard = guard
+
+    def set_access_policy(self, policy: ToolAccessPolicy) -> None:
+        """Bind trusted runtime restrictions; local changes never widen ancestors."""
+        policies = (policy,) if policy.restricted else ()
+        if self._access_policies != policies:
+            self._policy_generation += 1
+        self._access_policies = policies
+
+    def restrict_access_policy(self, policy: ToolAccessPolicy) -> None:
+        """Intersect constructor/integration settings with every existing boundary."""
+        if policy.restricted and policy not in self._access_policies:
+            self._access_policies = (*self._access_policies, policy)
+            self._policy_generation += 1
+
+    @property
+    def _effective_access_policies(self) -> tuple[ToolAccessPolicy, ...]:
+        parent = self._policy_parent._effective_access_policies if self._policy_parent is not None else ()
+        return (*parent, *self._access_policies)
 
     @property
     def _effective_formatter(self) -> PythonAutoFormatter:
@@ -376,6 +400,7 @@ class ToolRegistry:
             params,
             plan_mode_active=self._effective_plan_mode,
             auto_approved=self.is_auto_approved(name),
+            access_policies=(*current_access_policies(), *self._effective_access_policies),
         )
 
     def _tool_registration(self, name: str, tool: Tool) -> int:
@@ -405,10 +430,13 @@ class ToolRegistry:
             params,
             plan_mode_active=self._effective_plan_mode,
             auto_approved=self.is_auto_approved(name),
+            access_policies=(*current_access_policies(), *self._effective_access_policies),
         )
         if not decision.allowed:
             return ToolResult(
-                content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
+                content=(f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle."
+                         if decision.denial_reason == "Tool disabled in Plan Mode"
+                         else decision.denial_reason or "Tool access denied"),
                 success=False,
                 error=decision.denial_reason,
             )
@@ -553,7 +581,8 @@ class ToolRegistry:
             stale = self._revalidate_authorization(authorization, params)
             if stale is not None:
                 return stale
-            return await tool.execute(**params)
+            with use_access_policies(self._effective_access_policies):
+                return await tool.execute(**params)
 
         async def execute_authorized() -> ToolResult:
             if (
@@ -568,7 +597,12 @@ class ToolRegistry:
 
         # Formatting completes before verification can consume the tool result.
         try:
-            result = await self._effective_formatter.run(tool, params, execute_authorized)
+            if self._effective_access_policies or current_access_policies():
+                # Black and workspace discovery are unmediated subprocess/I/O
+                # paths. Restricted operations use only their qualified body.
+                result = await execute_authorized()
+            else:
+                result = await self._effective_formatter.run(tool, params, execute_authorized)
         except Exception as exc:
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(

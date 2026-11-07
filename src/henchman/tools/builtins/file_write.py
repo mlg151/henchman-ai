@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from henchman.tools.access_policy import current_access_policies, open_restricted_file
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.security import (
     PathTraversalError,
@@ -20,9 +21,13 @@ def _write_content_to_path(path: str, content: str) -> ToolResult:
     Returns:
         ToolResult with success status (raises on security/permission error).
     """
-    file_path = validate_path(path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding="utf-8", newline="")
+    if current_access_policies():
+        with open_restricted_file(path, write=True) as handle:
+            handle.write(content)
+    else:
+        file_path = validate_path(path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8", newline="")
     return ToolResult(
         content=f"Successfully wrote {len(content)} bytes to {path}",
         success=True,

@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from henchman.tools.access_policy import ToolAccessPolicy
 from henchman.tools.base import ConfirmationRequest
 from henchman.tools.registry import ToolRegistry
 
@@ -38,6 +39,10 @@ class ToolManager:
         self.settings = settings
         self._question_handler = question_handler
         self.registry = ToolRegistry()
+        if settings is not None and (settings.tools.filesystem_read_roots is not None
+                                     or settings.tools.filesystem_write_roots is not None
+                                     or settings.tools.network_access != "unrestricted"):
+            self.registry.set_access_policy(ToolAccessPolicy.unbound())
         self.auto_approve = False
         self._confirmation_handler: Callable[[ConfirmationRequest], Awaitable[bool]] | None = None
         self._project_root: Path | None = None
@@ -86,6 +91,10 @@ class ToolManager:
             None
         """
         self._project_root = project_root
+        if self.settings is not None:
+            self.registry.set_access_policy(ToolAccessPolicy.from_settings(
+                self.settings.tools, project_root=project_root,
+            ))
         self._session_manager = session_manager
         self._mcp_manager = mcp_manager
 

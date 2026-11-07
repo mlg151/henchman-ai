@@ -85,7 +85,10 @@ def _init_core(
     config: OrchestratorConfig,
 ) -> None:
     """Initialize core attributes, metrics, and controllers."""
+    from pathlib import Path
+
     from henchman.config.schema import Settings
+    from henchman.tools.access_policy import ToolAccessPolicy
     from henchman.tools.registry import ToolRegistry
 
     orch.default_provider = default_provider
@@ -93,6 +96,9 @@ def _init_core(
     orch.tool_registry = config.tool_registry if config.tool_registry is not None else ToolRegistry()
     orch.event_bus = config.event_bus or EventBus()
     orch.settings = config.settings or Settings()
+    orch.tool_registry.restrict_access_policy(ToolAccessPolicy.from_settings(
+        orch.settings.tools, project_root=Path.cwd(),
+    ))
     orch.environment_context = config.environment_context
     orch.metrics = OrchestratorMetrics()
     orch._reporter = MetricsReporter(orch.metrics)

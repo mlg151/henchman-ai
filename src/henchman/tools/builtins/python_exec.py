@@ -115,6 +115,26 @@ _READ_ONLY_PYTHON_NODES: tuple[type[ast.AST], ...] = (
 """AST node types that carry no binding, definition, or state mutation."""
 
 
+def _has_only_pure_names(node: ast.AST, bound: frozenset[str] = frozenset()) -> bool:
+    """Resolve comprehension names lexically; never expose unsafe builtins as values."""
+    if isinstance(node, ast.Name):
+        return node.id in _READ_ONLY_PYTHON_BUILTINS or node.id in bound
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+        local = bound
+        for generator in node.generators:
+            if not _has_only_pure_names(generator.iter, local):
+                return False
+            targets = frozenset(item.id for item in ast.walk(generator.target) if isinstance(item, ast.Name))
+            if targets & _READ_ONLY_PYTHON_BUILTINS:
+                return False
+            local |= targets
+            if not all(_has_only_pure_names(condition, local) for condition in generator.ifs):
+                return False
+        expressions = (node.key, node.value) if isinstance(node, ast.DictComp) else (node.elt,)
+        return all(_has_only_pure_names(expression, local) for expression in expressions)
+    return all(_has_only_pure_names(child, bound) for child in ast.iter_child_nodes(node))
+
+
 def is_read_only_python_source(code: str) -> bool:
     """Return ``True`` when *code* only evaluates side-effect-free expressions.
 
@@ -137,7 +157,7 @@ def is_read_only_python_source(code: str) -> bool:
             or node.func.id not in _READ_ONLY_PYTHON_BUILTINS
         ):
             return False
-    return True
+    return _has_only_pure_names(tree)
 
 
 @dataclass
@@ -147,6 +167,12 @@ class ExecRequest:
     code: str
     timeout: int = DEFAULT_TIMEOUT_SECONDS
     cwd: str | None = None
+
+
+def _python_argv(code: str, *, unbuffered: bool = False) -> list[str]:
+    """Prevent startup hooks from adding effects to classified pure expressions."""
+    flags = ["-I", "-S", "-X", "utf8"] if is_read_only_python_source(code) else []
+    return [sys.executable, *flags, *(["-u"] if unbuffered else []), "-c", code]
 
 
 async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
@@ -161,9 +187,7 @@ async def _run_python_subprocess(request: ExecRequest) -> ToolResult:
     effective_timeout: float | None = None if request.timeout == 0 else float(request.timeout)
     try:
         process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-c",
-            request.code,
+            *_python_argv(request.code),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=request.cwd,
@@ -366,7 +390,7 @@ class PythonExecTool(Tool):
         if background:
             try:
                 record = await TaskService(self._project_root).start_task(
-                    argv=[sys.executable, "-u", "-c", code], cwd=cwd,
+                    argv=_python_argv(code, unbuffered=True), cwd=cwd,
                     env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                     timeout=float(timeout) if timeout else None,
                     title="python_exec", metadata={"tool": "python_exec"},

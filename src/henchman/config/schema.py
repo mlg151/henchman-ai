@@ -228,6 +228,17 @@ class ToolSettings(_SettingsModel):
     auto_approve_read: bool = True
     shell_timeout: int = Field(DEFAULT_SHELL_TIMEOUT, ge=1)
     sandbox: Literal["none", "docker"] = "none"
+    filesystem_read_roots: list[str] | None = None
+    filesystem_write_roots: list[str] | None = None
+    network_access: Literal["unrestricted", "disabled"] = "unrestricted"
+
+    @field_validator("filesystem_read_roots", "filesystem_write_roots")
+    @classmethod
+    def validate_filesystem_roots(cls, roots: list[str] | None) -> list[str] | None:
+        """Keep explicit empty denial lists and reject ambiguous root entries."""
+        if roots is not None and any(not root.strip() or "\0" in root for root in roots):
+            raise ValueError("Filesystem roots must be nonempty paths without null bytes")
+        return roots
 
 
 UI_OUTPUT_STYLES: list[str] = ["verbose", "concise", "minimal", "json"]

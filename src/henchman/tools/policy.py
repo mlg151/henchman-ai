@@ -18,6 +18,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from henchman.tools.access_policy import ToolAccessError, ToolAccessPolicy, validate_tool_access
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind
 
 #: Effective operation kinds that the Plan Mode boundary blocks.
@@ -214,6 +215,7 @@ def evaluate_effective_policy(
     *,
     plan_mode_active: bool,
     auto_approved: bool,
+    access_policies: tuple[ToolAccessPolicy, ...] = (),
 ) -> PolicyDecision:
     """Compute the effective policy for one invocation from a single source.
 
@@ -233,6 +235,10 @@ def evaluate_effective_policy(
         The PolicyDecision for this invocation.
     """
     effective_kind = tool.execution_kind(params)
+    try:
+        validate_tool_access(tool, params, access_policies)
+    except (OSError, RuntimeError, ValueError, ToolAccessError) as exc:
+        return PolicyDecision(False, str(exc), None, effective_kind)
     if plan_mode_active and effective_kind in PLAN_MODE_BLOCKED_KINDS:
         return PolicyDecision(
             allowed=False,

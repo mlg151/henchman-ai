@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable
 
+from henchman.tools.access_policy import current_access_policies, open_restricted_file
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 # Default maximum characters to return
@@ -97,6 +98,11 @@ async def _execute_read_file(config: ReadFileConfig) -> ToolResult:
     import anyio
 
     try:
+        if current_access_policies():
+            with open_restricted_file(config.path, write=False) as handle:
+                async with anyio.wrap_file(handle) as f:
+                    lines = await _read_lines_from_file(f, config)
+            return ToolResult(content="".join(lines), success=True)
         file_path = Path(config.path)
         if not file_path.exists():
             return ToolResult(

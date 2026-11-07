@@ -78,7 +78,6 @@ _READ_ONLY_SHELL_PROGRAMS: frozenset[str] = frozenset(
         "id",
         "diff",
         "cmp",
-        "sort",
         "uniq",
         "tr",
         "cut",

@@ -66,8 +66,11 @@ Interactive failure logs project tracebacks without attaching raw exceptions.
 Other logs/UI panels/metrics/handoffs, config-export secret references and
 restricted filesystem/network execution still require implementation and qualification.
 Approval scope now includes registration, project and physical target identity,
-with fresh checks after approval, formatter waits and retry delays. Actual I/O
-confinement and custom dispatcher boundaries remain open under #20.
+with fresh checks after approval, formatter waits and retry delays. Restricted
+root settings now mediate qualified builtin file reads/writes through directory
+handles, deny unqualified tools and fail closed on unsupported platforms.
+Network connection mediation, broader tool qualification and custom dispatcher
+boundaries remain open under #20; see [restricted access](docs/configuration.md#restricted-tool-access).
 Provider usage under #24 now preserves reported/unknown provenance and cache
 subsets, including Anthropic and compatible trailing usage snapshots. Explicit
 prices distinguish estimates from provider billing; unknown costs stay unknown

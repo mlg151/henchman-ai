@@ -38,8 +38,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale
-  grant reuse; filesystem/network mediation and custom-dispatch checks remain
-  open. See [approval scope](docs/tools.md#approval-reuse-scoping).
+  grant reuse. Typed restricted roots now mediate builtin file reads/writes on
+  supported platforms; any restriction denies all other, unqualified tools.
+  Network connection mediation and custom-dispatch checks remain open. See
+  [restricted tool access](docs/configuration.md#restricted-tool-access).
 
 - #14 configuration persistence now retains explicit default-valued overrides
   through set/import and subsequent edits; only unset removes them. REPL/Textual

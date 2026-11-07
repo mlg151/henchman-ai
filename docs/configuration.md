@@ -241,9 +241,38 @@ are projected before display conversion.
 
 This increment does not establish full privacy or OS isolation. Remaining
 subsystem and third-party logging, metrics, handoffs, additional command outputs,
-ordinary configuration exports and restricted execution still require the work
+ordinary configuration exports and broader restricted execution still require the work
 and qualification in issue #20. Existing configuration export semantics are
 described below.
+
+## Restricted tool access
+
+Trusted settings can restrict filesystem operations and disable network tools:
+
+```yaml
+tools:
+  filesystem_read_roots: ["."]
+  filesystem_write_roots: ["."]
+  network_access: disabled
+```
+
+Roots must already exist. Relative roots bind to the runtime project directory;
+absolute roots are also supported. `null` leaves that operation unrestricted;
+`[]` denies it. Configure both read and write roots to confine both operations.
+Scoped registries intersect their restrictions with all parent restrictions.
+Replacing the bound project or root requires trusted runtime rebinding.
+
+With any restriction enabled, only the qualified builtin `read_file` and
+`write_file` implementations currently execute. Other tools, including shell,
+Python, MCP, search and delegation tools, fail explicitly even when trusted or
+auto-approved. Restricted writes bypass automatic Python formatting. Reads and
+writes use directory-relative handles, reject symlink substitution and hardlink
+aliases, and check targets when opening them. Platforms without the required
+directory-handle primitives, including Windows, reject restricted file operations.
+
+This is mediated tool access, not OS isolation against hostile host processes or
+mount changes. `network_access: disabled` applies to tool dispatch, not model SDK
+traffic; host allowlists and network connection mediation remain separate work.
 
 ## Usage limits and explicit prices
 
