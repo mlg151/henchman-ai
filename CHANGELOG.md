@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Session workflow authority foundation** — Versioned goal/input records commit
+  queue intent before dispatch and retain restart uncertainty without replay.
+  Runtime-only permissions, credential projection and failed-save barriers are
+  covered independently; frontend queue wiring remains pending.
+
 - **Verification evidence privacy** — Known credentials are projected from plan
   evidence and bounded output before persistence. Sensitive executable checks are
   rejected or made explicitly unavailable after rotation; redacted substitutes

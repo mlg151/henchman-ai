@@ -101,6 +101,18 @@
       "description": "Agent roles active in this session",
       "items": { "type": "string" }
     },
+    "workflow": {
+      "type": "object",
+      "description": "Advisory workflow identity; restored references never grant dispatch permission.",
+      "required": ["version", "store_id", "project_hash", "session_id"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {"type": "integer", "enum": [1]},
+        "store_id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "project_hash": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "session_id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"}
+      }
+    },
     "operations": {
       "type": "object",
       "description": "Advisory tool-call correlation; the separate operation store remains authoritative.",

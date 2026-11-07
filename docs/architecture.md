@@ -413,8 +413,24 @@ left before the first commit. Other sessions' pending files are untouched.
 Storage recovery is separate from the [operation journal](operation-recovery.md),
 which classifies interrupted effects and requires explicit resolution of unknown
 outcomes. [Provider continuation envelopes](providers.md#provider-continuation)
-retain qualified opaque state separately from visible reasoning. Goal/queue
-persistence and final continuation qualification remain tracked in issue #23.
+retain qualified opaque state separately from visible reasoning.
+
+`SessionWorkflow` supplies versioned goal and queued-input authority for frontend
+adapters. With `operations.persistence: durable`, it uses the existing selected
+`ops.db` and a separate `session_workflow` schema namespace. It commits queued
+intent and an exclusive start before returning dispatch permission. Store identity,
+checksums and revision checks reject stale or incompatible state; a saved session
+reference is advisory. Read-only inspection never creates authority, and restoring
+an older session backup cannot replace an existing durable workflow.
+
+Dispatch eligibility, live unredacted input and goal continuation permission belong
+to the creating runtime and process. Restore, copying and fork cannot rearm them.
+Unowned starts remain uncertain until explicit disposition; they are never replayed.
+Known credentials are projected from stored evidence, with sensitive queued text
+unavailable on restore. A committed goal change survives a failed transcript save,
+which disables continuation without granting a new usage budget. State is bounded
+to 4 MiB and 1,024 inputs. This is the shared recovery foundation; GoalService,
+queue commands and frontend worker wiring remain pending under issue #23.
 
 `SessionContextService.build_snapshot()` is the single effective retention-policy
 report for a session: message/turn counts, `plan_mode`, stored-memory count, the

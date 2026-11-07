@@ -7,8 +7,9 @@ state including messages, turn summaries, and branching metadata.
 from __future__ import annotations
 
 import json
+from copy import copy, deepcopy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
@@ -21,6 +22,10 @@ from .session_models import (
     message_from_dict,
     turn_summary_from_dict,
 )
+from .workflow_state import WorkflowReference
+
+if TYPE_CHECKING:
+    from .session_workflow import SessionWorkflow
 
 # ---------------------------------------------------------------------------
 # Session dataclass
@@ -102,6 +107,8 @@ class Session:
     export_metadata: dict[str, Any] = field(default_factory=dict)
     accounting: SessionAccountingReference | None = None
     operations: SessionOperationState | None = None
+    workflow: WorkflowReference | None = None
+    _workflow_runtime: SessionWorkflow | None = field(default=None, init=False, repr=False, compare=False)
     # Disk concurrency/recovery state is deliberately absent from portable exports.
     _storage_token: str | None = field(default=None, init=False, repr=False, compare=False)
     _storage_path: str | None = field(default=None, init=False, repr=False, compare=False)
@@ -109,6 +116,19 @@ class Session:
     evidence_redactor: EvidenceRedactor = field(
         default_factory=EvidenceRedactor, init=False, repr=False, compare=False
     )
+
+    @property
+    def workflow_runtime(self) -> SessionWorkflow | None:
+        """Return an attached runtime owner; this value is never serialized."""
+        return self._workflow_runtime
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Session:
+        """Copy evidence and storage tokens without cloning execution ownership."""
+        duplicate = copy(self)
+        memo[id(self)] = duplicate
+        for name, value in vars(self).items():
+            setattr(duplicate, name, None if name == "_workflow_runtime" else deepcopy(value, memo))
+        return duplicate
 
     def to_dict(self: Session) -> dict[str, Any]:
         """Project redacted evidence without changing live execution messages.
@@ -135,6 +155,7 @@ class Session:
             "export_metadata": self.export_metadata,
             **({"accounting": self.accounting.to_dict()} if self.accounting is not None else {}),
             **({"operations": self.operations.to_dict()} if self.operations is not None else {}),
+            **({"workflow": self.workflow.model_dump(mode="json")} if self.workflow is not None else {}),
         }, self.evidence_redactor)
 
     def to_json(self: Session) -> str:
@@ -199,6 +220,7 @@ def session_from_dict(data: dict[str, Any]) -> Session:
         export_metadata=data.get("export_metadata", {}),
         accounting=SessionAccountingReference.from_dict(data["accounting"]) if data.get("accounting") is not None else None,
         operations=SessionOperationState.from_dict(data["operations"]) if data.get("operations") is not None else None,
+        workflow=WorkflowReference.model_validate(data["workflow"]) if data.get("workflow") is not None else None,
     )
 
 

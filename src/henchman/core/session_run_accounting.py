@@ -133,7 +133,11 @@ class SessionRunAccounting:
             saving = True
             save()
         except BaseException as exc:
-            if present:
+            if session._workflow_runtime is not None:
+                # Durable workflow authority may already have committed. A failed
+                # transcript save cannot roll it back or arm a fresh budget.
+                session._workflow_runtime.mark_save_failed(session)
+            elif present:
                 session.export_metadata["goal"] = previous
             else:
                 session.export_metadata.pop("goal", None)
