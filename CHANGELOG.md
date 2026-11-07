@@ -257,6 +257,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows task-store locks** — Synchronize buffered marker reads before native
+  byte-range unlock so task updates release the originally acquired lock byte.
+
 - **Textual reading and input** — History scrolling, search and expanded cards
   now hold position during streaming and show new activity with an explicit
   return-to-live control. Enter submits, explicit newline keys retain multiline
