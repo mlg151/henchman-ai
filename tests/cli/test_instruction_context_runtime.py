@@ -1,5 +1,6 @@
 """CLI runtime consumers carry refreshed instruction provenance and scope."""
 
+import subprocess
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -93,7 +94,9 @@ async def test_orchestrator_retries_scoped_writes_with_fresh_provider_requests(
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
     root = tmp_path / "project"
-    (root / ".git").mkdir(parents=True)
+    # Correlated writes now capture checkpoints, including Git's real ignore
+    # policy. A marker-only .git directory is not a valid repository.
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
     for name in ("left", "right"):
         (root / name).mkdir()
         (root / name / "AGENTS.md").write_text(f"{name.upper()} scoped rules", encoding="utf-8")
@@ -139,3 +142,11 @@ async def test_orchestrator_retries_scoped_writes_with_fresh_provider_requests(
     assert requests == 5
     assert runtime.orchestrator.last_completion_status == CompletionStatus.COMPLETED
     assert all((root / name / "file.txt").read_text() == "updated" for name in ("left", "right"))
+    from henchman.advanced.checkpoints import CheckpointService
+
+    checkpoints = CheckpointService(root)
+    records = checkpoints.list_checkpoints()
+    assert len(records) == 2
+    assert {file.path for record in records for file in checkpoints.review(record.checkpoint_id).files} == {
+        "left/file.txt", "right/file.txt",
+    }

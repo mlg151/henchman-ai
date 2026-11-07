@@ -195,6 +195,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/testing/test_interruption_recovery_scenario.py",
         "tests/core/test_typed_tool_results.py",
         "tests/contracts/schemas/runtime/message.json",
+        "tests/contracts/schemas/runtime/stream_chunk.json",
+        "tests/contracts/schemas/config/mcp_server_config.json",
     ]
 
     for path_str in paths:
