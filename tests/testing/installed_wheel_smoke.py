@@ -419,6 +419,7 @@ def main() -> None:
         )
         subprocess.run(
             [sys.executable, "-I", "-m", "pytest", "-p", "pytest_asyncio.plugin", "-q",
+             "--maxfail=10", "--tb=short",
              "tests/"],
             cwd=directory, env=environment, check=True, timeout=600,
         )
