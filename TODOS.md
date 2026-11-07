@@ -36,6 +36,14 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #23 storage foundation: session writes now use atomic replacement, versioned
+  integrity checks, a recoverable prior copy and cooperative native locks with
+  stale-writer rejection. Legacy sessions migrate on save; recovery warns about
+  possibly missing recent changes and never replays actions. Deletion removes both
+  copies. Fault, process-termination and concurrent-writer regressions are staged
+  in the native installed-wheel cohort; operational goal/queue recovery and
+  provider continuation qualification remain open. See [session storage](docs/architecture.md#sessionmanager).
+
 - The reviewed evaluation registry connects eleven independent scenarios to typed metadata and validated dispatch, including syntax repair, semantic bug repair, tool-failure recovery, Fibonacci implementation, package lifecycle and test/documentation delivery with wrong-result, early-exit and runtime-failure controls. The test/documentation case executes doctests, preserves the implementation AST and checks candidate tests against five semantic mutants. Independent Python checks isolate bytecode caches so current source determines the result. The bounded repeat-run machinery under [#13](https://github.com/mlg151/henchman-ai/issues/13) is delivered: every run is recorded (success, verification failure, timeout, runtime error), reports publish explicit planned-versus-executed denominators with p50/p95 latency and usage availability, per-run bounds are hard caps scoped per dispatch, local cohorts carry zero-cost provenance and hosted cohorts never fabricate cost, and reports are redacted and written atomically. Verifier timeouts now carry their budget in the recorded error text, and the success-path regressions name each run's outcome and error, so CI flakes are diagnosable from their failure messages. The first live local cohort, the twelve-case corpus freeze and budgeted hosted baselines in #13 remain incomplete.
 - Foundation [#12](https://github.com/mlg151/henchman-ai/issues/12) is complete at `55fd66b`: [all 20 CI jobs passed](https://github.com/mlg151/henchman-ai/actions/runs/41758021286), including all supported Python/native-wheel cohorts. Python 3.12 passed 8,374 tests with 93.12% coverage. Independent evaluation and final-artifact release gates remain open.
 - The typed terminal UI controls (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout.compact_tables`) ship under [#14](https://github.com/mlg151/henchman-ai/issues/14) with field-attributed validation and local import/export sync round-trips, and the shared discovery capability matrix now classifies them as TUI-scoped controls that generic discovery/help surfaces do not advertise as generic commands. Consumer alignment as the UI child features land and final runtime wiring remain open.

@@ -326,6 +326,28 @@ Direct-role sessions restore to the selected specialist. These behaviors have
 offline runtime coverage through save/load and a subsequent agent request;
 interactive terminal rendering and live provider execution require separate checks.
 
+Disk sessions use storage version 1 with a SHA-256 payload integrity check. Saves
+flush a unique private temporary file, atomically replace the current JSON, and
+retain one verified prior copy in `<id>.json.bak`. POSIX saves also flush directory
+entries; Windows uses file flush and replacement without a directory-fsync claim.
+Native file locks serialize cooperating writers, and a loaded-byte revision token
+rejects stale updates (including attempts to resurrect a deleted session). Reload
+and reconcile on conflict; a portable import is not permission to overwrite an
+existing session. Legacy unversioned sessions migrate on their next save, retaining
+the legacy prior copy. Portable exports keep the established session JSON shape.
+
+When the current copy is missing, malformed or fails its integrity check, loading
+uses a valid prior copy and emits a warning naming the session and possible lost
+recent changes; `Session.recovery_notice` retains that diagnostic for consumers.
+It does not repair the current copy until the caller saves. Unknown newer storage
+versions fail explicitly instead of rolling back to an older format. Both copies
+are removed on deletion. The digest detects corruption, not malicious tampering;
+cooperative locking is not a filesystem isolation boundary. Forced termination
+can leave an unused private `.tmp` file, which is never treated as a saved session.
+This storage recovery does not classify or replay interrupted external operations;
+the operational recovery report, goal/queue persistence and provider continuation
+qualification remain tracked in issue #23.
+
 `SessionContextService.build_snapshot()` is the single effective retention-policy
 report for a session: message/turn counts, `plan_mode`, stored-memory count, the
 persisted memory-extraction opt-out flag, and the number of turns currently held in

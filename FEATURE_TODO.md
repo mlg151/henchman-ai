@@ -35,6 +35,11 @@ outside-boundary targets before reading, sibling subtrees cannot leak
 instructions, and repository text cannot widen tool policy or approvals.
 Runtime consumers beyond dynamic subagents, truncation of team-prompt
 instruction blocks, and release qualification remain in progress under #15.
+Session persistence under #23 now uses versioned atomic replacement, integrity
+checks, one recoverable prior copy and native locking with stale-writer rejection.
+Legacy files migrate on save; corrupted current files recover with explicit warnings.
+Process-termination and simultaneous-writer regressions join the native installed
+wheel suite. Goal/queue/operation recovery and continuation qualification remain open.
 The release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

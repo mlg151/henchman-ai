@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Recoverable session storage** — Versioned session saves now flush and atomically
+  replace JSON with a SHA-256 integrity check and one known-good prior copy.
+  Native writer locks and loaded-byte revision checks reject stale updates instead
+  of silently losing changes. Legacy sessions migrate on save; damaged current
+  files recover from the prior copy with explicit warnings, newer formats fail
+  explicitly, and deletion removes both generations. Portable exports retain their
+  existing shape. Process-termination and simultaneous-writer tests cover the
+  storage foundation of [#23](https://github.com/mlg151/henchman-ai/issues/23);
+  interrupted-operation/queue recovery and live continuation remain in progress.
+
 - **Plan-mode transition authority** — Sessions now persist `plan_mode_origin` (`user` or `model`; legacy sessions default to the conservative `user`) recording which authority opened the current plan mode. A model-callable `exit_plan_mode` can only close planning the model itself opened — it cannot lift a user-imposed `/plan` boundary, and re-entering an active user boundary cannot demote it. Authorized user/runtime transitions (`/plan`) retain the right to widen execution rights out of either state; [#18](https://github.com/mlg151/henchman-ai/issues/18).
 - **Plan-mode resume and subagent boundary prompts** — Interactive and headless startup now re-apply a resumed session's persisted plan mode to the live tool registry and agent prompt, and re-applying preserves the persisted `plan_mode_origin` rather than recording a new transition. Dynamic background subagents inherit the active plan-mode boundary in their system prompt, and `ToolRegistry.is_plan_mode_active` exposes the effective (inherited) state for boundary queries; [#18](https://github.com/mlg151/henchman-ai/issues/18).
 - **Per-invocation plan-mode operation effects** — Plan Mode now classifies each invocation by its effective operation effect, not only the static catalog kind. `shell` classifies read-only commands (bounded read-only programs, `git status`/`log`/`diff`/`show`, `find` without mutating flags, no shell metacharacters) as `READ` and keeps everything else `EXECUTE`; `python_exec` accepts only pure expression-only sources built from constants, operators, and a small pure-builtin allowlist, keeping imports, assignments, subscripts, definitions, and control flow `EXECUTE`. Connected MCP server tools are always `NETWORK` even when their server is trusted, closing the plan-mode bypass while trusted auto-approval is unchanged, and `mcp` management `status`/`discover` plus `mcp_auth` `status` classify as `READ` while `connect`/`disconnect`/`set`/`clear` keep their existing kinds; [#18](https://github.com/mlg151/henchman-ai/issues/18).

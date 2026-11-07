@@ -64,6 +64,10 @@ class Session:
     template_id: str | None = None
     template_parameters: dict[str, Any] = field(default_factory=dict)
     export_metadata: dict[str, Any] = field(default_factory=dict)
+    # Disk concurrency/recovery state is deliberately absent from portable exports.
+    _storage_token: str | None = field(default=None, init=False, repr=False, compare=False)
+    _storage_path: str | None = field(default=None, init=False, repr=False, compare=False)
+    recovery_notice: str | None = field(default=None, init=False, compare=False)
 
     def to_dict(self: Session) -> dict[str, Any]:
         """Convert to dictionary.

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from henchman.core.session import SessionManager, SessionMessage
 from henchman.core.session_context import SessionContextService
 from henchman.core.session_memory import SessionMemoryService
@@ -122,7 +124,9 @@ def test_memory_state_does_not_leak_across_projects(tmp_path: Path) -> None:
     assert memory_service.list_memories(resolved_b) == []
 
 
-def test_resolve_active_session_falls_back_to_latest_session(tmp_path: Path) -> None:
+def test_resolve_active_session_falls_back_to_latest_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The latest project session should become current when no pointer exists."""
 
     workspace = tmp_path / "workspace"
@@ -131,17 +135,12 @@ def test_resolve_active_session_falls_back_to_latest_session(tmp_path: Path) -> 
     service = SessionContextService(manager)
 
     older = manager.create_session(project_hash=manager.compute_project_hash(workspace), tag="older")
-    manager.save(older)
+    # Pin the timestamp before persistence, preserving the storage integrity check.
+    with monkeypatch.context() as patch:
+        patch.setattr("henchman.core.session_helpers._now_iso", lambda: "2026-01-01T00:00:00+00:00")
+        manager.save(older)
     latest = manager.create_session(project_hash=manager.compute_project_hash(workspace), tag="latest")
     manager.save(latest)
-
-    # save() stamps last_updated with the current time, so pin the older
-    # session's persisted timestamp explicitly to keep the ordering
-    # deterministic (a same-instant tie would fall back to glob order).
-    older_path = manager.data_dir / f"{older.id}.json"
-    payload = json.loads(older_path.read_text(encoding="utf-8"))
-    payload["last_updated"] = "2026-01-01T00:00:00+00:00"
-    older_path.write_text(json.dumps(payload), encoding="utf-8")
 
     project_hash, resolved = service.resolve_active_session(workspace)
 

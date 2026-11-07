@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .session_data import Session, session_from_json
+from .session_data import Session
 from .session_helpers import (
     _generate_id,
     _now_iso,
@@ -17,6 +17,7 @@ from .session_helpers import (
     _try_load_metadata,
     compute_project_hash,
 )
+from .session_persistence import delete_session, load_session, session_path, session_paths
 
 if TYPE_CHECKING:
     from .session_models import SessionMetadata
@@ -106,7 +107,7 @@ class _SessionManagerBase:
         session_id: str,
     ) -> Path:
         """Get the file path for a session."""
-        return self.data_dir / f"{session_id}.json"
+        return session_path(self.data_dir, session_id)
 
     def create_session(
         self: _SessionManagerBase,
@@ -161,19 +162,19 @@ class _SessionManagerBase:
             ValueError: If session ID prefix is ambiguous.
         """
         path = self._get_session_path(session_id)
-        if path.exists():
-            return session_from_json(path.read_text())
+        if path.exists() or path.with_suffix(".json.bak").exists():
+            return load_session(path)
         if not self.data_dir.exists():
             msg = f"Session not found: {session_id}"
             raise FileNotFoundError(msg)
-        matches = list(self.data_dir.glob(f"{session_id}*.json"))
+        matches = session_paths(self.data_dir, session_id)
         if not matches:
             msg = f"Session not found: {session_id}"
             raise FileNotFoundError(msg)
         if len(matches) > 1:
             msg = f"Ambiguous session ID prefix: {session_id}"
             raise ValueError(msg)
-        return session_from_json(matches[0].read_text())
+        return load_session(matches[0])
 
     def load_by_tag(
         self: _SessionManagerBase,
@@ -212,7 +213,7 @@ class _SessionManagerBase:
         """
         if not self.data_dir.exists():
             return []
-        loaded = [_try_load_metadata(p, project_hash) for p in self.data_dir.glob("*.json")]
+        loaded = [_try_load_metadata(p, project_hash) for p in session_paths(self.data_dir)]
         sessions: list[Any] = [m for m in loaded if m is not None]
         sessions.sort(key=lambda s: s.last_updated, reverse=True)
         return sessions
@@ -227,10 +228,7 @@ class _SessionManagerBase:
             FileNotFoundError: If session doesn't exist.
         """
         path = self._get_session_path(session_id)
-        if not path.exists():
-            msg = f"Session not found: {session_id}"
-            raise FileNotFoundError(msg)
-        path.unlink()
+        delete_session(path)
 
     def compute_project_hash(
         self: _SessionManagerBase,
