@@ -454,6 +454,15 @@ Restored goals require explicit resumption under current policy, and model
 completion checks exact goal revision and current evidence from user-bound plans.
 Explicit user completion retains separate acknowledgement provenance.
 
+Textual F9 consumes an ephemeral `QueueControlView` from the same service. Edits,
+removal and reordering bind the observed workflow revision, session reference and
+local generation; only explicit Send grants local eligibility. The transaction
+runs in an owned worker with admission checks after acquiring SQLite's writer
+lock and immediately before commit. Guarded lock waits recheck cancellation at
+50-ms intervals within the existing 30-second contention bound. Cancellation joins
+the worker, preserves already committed truth and leaves work held. See the
+[queue interaction contract](ui-interaction-contract.md#saved-input-queue).
+
 `SessionContextService.build_snapshot()` is the single effective retention-policy
 report for a session: message/turn counts, `plan_mode`, stored-memory count, the
 persisted memory-extraction opt-out flag, and the number of turns currently held in

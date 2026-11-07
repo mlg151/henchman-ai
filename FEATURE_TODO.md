@@ -551,8 +551,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
   Compact correlated tool rows and bounded keyboard evidence inspection are
   implemented, alongside owned lifecycle status and F4 navigation to pending
-  questions/approvals. Native qualification and other controls remain open. See
-  [activity status](docs/ui-interaction-contract.md#activity-status-and-pending-decisions).
+  questions/approvals. F9 now inspects, edits, removes, reorders and explicitly
+  sends saved input through revision-bound shared workflow controls. Native
+  qualification and other controls remain open. See the
+  [queue contract](docs/ui-interaction-contract.md#saved-input-queue).
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
 

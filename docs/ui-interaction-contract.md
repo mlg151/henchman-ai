@@ -20,6 +20,7 @@ transcript workflow; this first implementation slice changes Textual only.
 | Escape in the composer | Requests cancellation during work; otherwise dismisses search. It does not erase the draft. |
 | Escape in an approval/question | Denies/dismisses that decision according to the existing prompt channel; it does not approve work. |
 | Return to a pending decision | F4 focuses the existing answer field or approval's No button. An unrelated overlay stays open; close it first to return. |
+| Saved input queue | F9 opens inspection and explicit edit, remove, reorder and Send controls. Opening or editing never grants dispatch permission. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
 | Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained for this slice. |
 
@@ -44,7 +45,7 @@ runtime boundaries.
 | Long plans, wrapped links, selection/copy while approval is pending | [Question channel](../tests/cli/test_textual_question_channel.py), [direct evidence](../tests/cli/test_textual_direct_evidence.py); richer inspection remains pending | Clipboard/selection, keyboard and remote-safe copy/export |
 | Questions and approval lifetime | [Question channel](../tests/cli/test_textual_question_channel.py), [lifecycle and F4](../tests/cli/test_textual_activity_state.py) | Screen-reader question/rationale and focus announcements |
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
-| Queued input and recovery | [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py); queue editing remains pending | Cancellation/resume disposition and draft-loss observation |
+| Queued input and recovery | [F9 queue controls](../tests/cli/test_textual_queue.py), [shared workflow](../tests/core/test_session_workflow.py), [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py) | Cancellation/resume disposition and draft-loss observation |
 | Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
 | Sessions, tasks and project boundaries | [Sessions](../tests/cli/test_textual_session_management.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); interactive inspectors remain pending | Find/resume the intended session, Back navigation |
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
@@ -109,6 +110,34 @@ action, and callbacks from older workers or prompts cannot clear newer status.
 The [mounted regressions](../tests/cli/test_textual_activity_state.py) cover these
 lifetimes at 80×24 and 120×40; native keys, assistive technology and performance
 remain unqualified under #34/#36.
+
+## Saved input queue
+
+F9 opens a snapshot of saved input without changing the composer draft or its
+selection. Enter inspects an input, Tab reaches its actions, F5 refreshes the
+snapshot, and Escape goes Back. Existing questions and approvals stay current;
+close an unrelated dialog before opening the queue. Narrow layouts show the list
+and detail in separate stages.
+
+Queued, held, dispatched, completed and uncertain input have distinct labels.
+Edit saves a complete replacement and leaves it held. Back from an edit offers
+Keep edit or Discard; it never submits the composer. Remove requires a separate
+confirmation and applies only before dispatch. Reorder also leaves changed input
+held. Only explicit Send permits a future turn. Goal continuation uses `/goal
+resume`; uncertain effects require inspection through the existing recovery
+controls. Completed input is not evidence that requirements passed.
+
+Every change binds the observed revision, session and current runtime. A changed
+session, storage wait, cancellation or intervening decision invalidates old
+controls. Back and shutdown join the owned storage worker. A completed commit
+remains visible even if cancellation arrives afterward, but it grants no dispatch
+permission. Read-only previews use current credential projection; masked evidence
+never becomes executable input, and unavailable original text requires a complete
+replacement. The screen requires Refresh after concurrent changes or errors.
+
+Mounted tests cover 80×24 and 120×40, draft/selection preservation, stale edits,
+credential rotation and cancellation around storage commits. Native terminal,
+accessibility and input-to-paint performance qualification remain open.
 
 ## Baseline and qualification boundary
 

@@ -1,7 +1,10 @@
 """User-owned workflow eligibility never survives reopening a session."""
 
+import asyncio
+import sqlite3
 from copy import deepcopy
 from dataclasses import replace
+from threading import Event
 
 import pytest
 
@@ -11,6 +14,256 @@ from henchman.core.session_data import Session, session_from_json
 from henchman.core.session_run_accounting import SessionRunAccounting
 from henchman.core.session_workflow import SessionWorkflow
 from henchman.core.workflow_state import WorkflowError
+
+
+@pytest.mark.parametrize("durable", [False, True])
+async def test_queue_control_view_observes_eligibility_without_rearming(tmp_path, durable):
+    runtime, _, _ = controller(tmp_path, durable=durable)
+    item = runtime.submit("next turn")
+    view = runtime.queue_view()
+    assert view.eligible == ((item.id, item.revision),)
+    runtime.hold_pending()
+    assert runtime.queue_view().eligible == ()
+    with pytest.raises(WorkflowError, match="queue_controls_changed"):
+        await runtime.control_queue(view, item.id, item.revision, "send")
+    held = runtime.queue_view()
+    sent = await runtime.control_queue(held, item.id, item.revision, "send")
+    dispatch = runtime.next_input()
+    assert dispatch.text == "next turn"
+    active = runtime.queue_view()
+    assert active.active_input_id == sent.id
+    assert active.report.state.inputs[0].state == "started"
+
+
+@pytest.mark.parametrize("action", ["send", "drop", "edit", "move"])
+async def test_queue_control_snapshot_cannot_mutate_another_revision_or_restored_session(tmp_path, action):
+    runtime, session, _ = controller(tmp_path)
+    item = runtime.submit("original")
+    runtime.hold_pending()
+    view = runtime.queue_view()
+    other, _, _ = controller(tmp_path, session=session_from_json(session.to_json()))
+    other.edit(item.id, item.revision, "external edit")
+    with pytest.raises(WorkflowError, match="revision_conflict"):
+        await runtime.control_queue(view, item.id, item.revision, action, text="replacement", position=0)
+    refreshed = runtime.queue_view()
+    runtime.attach(session, restored=True)
+    with pytest.raises(WorkflowError, match="queue_controls_changed"):
+        await runtime.control_queue(refreshed, item.id, refreshed.report.state.inputs[0].revision, action,
+                                    text="replacement", position=0)
+    assert runtime.queue_view().report.state.inputs[0].text == "external edit"
+    assert runtime.next_input() is None
+
+
+@pytest.mark.parametrize("cancel", [False, True], ids=["hold", "cancel-task"])
+async def test_queue_control_waiting_for_store_rechecks_and_joins_before_return(tmp_path, monkeypatch, cancel):
+    runtime, _, _ = controller(tmp_path)
+    item = runtime.submit("held work")
+    runtime.hold_pending()
+    view = runtime.queue_view()
+    binding = next(iter(runtime._bindings.values()))
+    entered = Event()
+    finished = Event()
+    original = binding.journal.store._change
+
+    def waiting(*args, **kwargs):
+        entered.set()
+        try:
+            return original(*args, **kwargs)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(binding.journal.store, "_change", waiting)
+    lock = sqlite3.connect(tmp_path / "ops.db")
+    lock.execute("BEGIN IMMEDIATE")
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "send"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(entered.wait, 3), 4)
+        if cancel:
+            task.cancel()
+        else:
+            runtime.hold_pending()
+        await asyncio.sleep(0)
+        if task.done():
+            assert finished.is_set(), "A cancelled control must join its storage worker"
+    finally:
+        lock.rollback()
+        lock.close()
+    with pytest.raises(asyncio.CancelledError if cancel else WorkflowError):
+        await asyncio.wait_for(task, 4)
+    assert runtime.queue_view().report.state.inputs[0].revision == item.revision
+    assert runtime.next_input() is None
+
+
+async def test_queue_edit_save_failure_retains_committed_text_but_no_permission(tmp_path):
+    runtime, _, _ = controller(tmp_path)
+    item = runtime.submit("old")
+    view = runtime.queue_view()
+    runtime.save_session = lambda _session: (_ for _ in ()).throw(OSError("disk full"))
+    with pytest.raises(WorkflowError, match="session_save_failed"):
+        await runtime.control_queue(view, item.id, item.revision, "edit", text="exact\nreplacement  text")
+    current = runtime.queue_view()
+    assert current.report.state.inputs[0].text == "exact\nreplacement  text"
+    assert not current.eligible and runtime.next_input() is None
+
+
+@pytest.mark.parametrize("stage,committed", [("before_commit", False), ("after_commit", True)])
+async def test_queue_cancel_at_commit_boundary_keeps_truth_and_never_rearms(tmp_path, stage, committed):
+    runtime, _, _ = controller(tmp_path)
+    item = runtime.submit("held")
+    runtime.hold_pending()
+    view = runtime.queue_view()
+    reached, release = Event(), Event()
+    store = next(iter(runtime._bindings.values())).journal.store
+
+    def checkpoint(value):
+        if value == f"queue_control:{stage}":
+            reached.set()
+            assert release.wait(5)
+
+    store._checkpoint = checkpoint
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "edit", text="committed replacement"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(reached.wait, 3), 4)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 4)
+    record = runtime.queue_view().report.state.inputs[0]
+    assert record.text == ("committed replacement" if committed else "held")
+    assert not runtime.queue_view().eligible and runtime.next_input() is None
+
+
+async def test_queue_cancellation_is_primary_when_postcommit_inspection_fails(tmp_path, monkeypatch):
+    runtime, _, _ = controller(tmp_path)
+    item = runtime.submit("held")
+    view = runtime.queue_view()
+    journal = next(iter(runtime._bindings.values())).journal
+    reached, release = Event(), Event()
+
+    def checkpoint(value):
+        if value == "queue_control:after_commit":
+            reached.set()
+            assert release.wait(5)
+
+    journal.store._checkpoint = checkpoint
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "send"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(reached.wait, 3), 4)
+        monkeypatch.setattr(journal, "snapshot", lambda: (_ for _ in ()).throw(WorkflowError("read failed")))
+        task.cancel()
+        await asyncio.sleep(0)
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 4)
+
+
+@pytest.mark.parametrize("restore", [False, True])
+async def test_committed_sensitive_edit_keeps_live_original_after_cancel_without_arming(tmp_path, restore):
+    runtime, session, _ = controller(tmp_path)
+    session.evidence_redactor.register_secret("replacement-secret")
+    item = runtime.submit("original")
+    view = runtime.queue_view()
+    reached, release = Event(), Event()
+    store = next(iter(runtime._bindings.values())).journal.store
+
+    def checkpoint(stage):
+        if stage == "queue_control:after_commit":
+            reached.set()
+            assert release.wait(5)
+
+    store._checkpoint = checkpoint
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "edit", text="use replacement-secret"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(reached.wait, 3), 4)
+        if restore:
+            runtime.attach(session, restored=True)
+        task.cancel()
+        await asyncio.sleep(0)
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 4)
+    store._checkpoint = lambda _stage: None
+    current = runtime.queue_view()
+    assert current.report.state.inputs[0].text is None
+    assert not current.eligible
+    if restore:
+        with pytest.raises(WorkflowError, match="input_payload_unavailable"):
+            await runtime.control_queue(current, item.id, current.report.state.inputs[0].revision, "send")
+    else:
+        await runtime.control_queue(current, item.id, current.report.state.inputs[0].revision, "send")
+        assert runtime.next_input().text == "use replacement-secret"
+
+
+async def test_queue_cancel_joins_while_external_store_lock_remains_held(tmp_path, monkeypatch):
+    runtime, _, _ = controller(tmp_path)
+    item = runtime.submit("held")
+    runtime.hold_pending()
+    view = runtime.queue_view()
+    store = next(iter(runtime._bindings.values())).journal.store
+    entered, finished = Event(), Event()
+    original = store._change
+
+    def waiting(*args, **kwargs):
+        entered.set()
+        try:
+            return original(*args, **kwargs)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(store, "_change", waiting)
+    lock = sqlite3.connect(tmp_path / "ops.db")
+    lock.execute("BEGIN IMMEDIATE")
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "send"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(entered.wait, 3), 4)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(asyncio.shield(task), 1)
+        assert finished.is_set(), "The storage worker must be joined, not abandoned"
+    finally:
+        lock.rollback()
+        lock.close()
+        await asyncio.gather(task, return_exceptions=True)
+    assert runtime.report().state.inputs[0].revision == item.revision
+
+
+@pytest.mark.parametrize("mutation", ["session_id", "project_hash", "workflow_reference"])
+async def test_queue_control_rechecks_mutated_session_identity_after_store_wait(tmp_path, monkeypatch, mutation):
+    runtime, session, _ = controller(tmp_path)
+    item = runtime.submit("original scope")
+    runtime.hold_pending()
+    view = runtime.queue_view()
+    journal = next(iter(runtime._bindings.values())).journal
+    entered = Event()
+    original_change = journal.store._change
+
+    def waiting(*args, **kwargs):
+        entered.set()
+        return original_change(*args, **kwargs)
+
+    monkeypatch.setattr(journal.store, "_change", waiting)
+    field = "id" if mutation == "session_id" else "workflow" if mutation == "workflow_reference" else mutation
+    original = getattr(session, field)
+    lock = sqlite3.connect(tmp_path / "ops.db")
+    lock.execute("BEGIN IMMEDIATE")
+    task = asyncio.create_task(runtime.control_queue(view, item.id, item.revision, "edit", text="wrong scope mutation"))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(entered.wait, 3), 4)
+        setattr(session, field, original.model_copy(update={"store_id": "changed-store"}) if field == "workflow" else "changed")
+        lock.rollback()
+        with pytest.raises(WorkflowError, match="queue_controls_changed"):
+            await asyncio.wait_for(task, 3)
+        assert journal.snapshot().inputs[0].text == "original scope"
+    finally:
+        lock.rollback()
+        lock.close()
+        await asyncio.gather(task, return_exceptions=True)
+        setattr(session, field, original)
 
 
 def controller(tmp_path, *, durable=True, session=None, save=None):

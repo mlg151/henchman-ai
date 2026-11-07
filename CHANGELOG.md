@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Textual saved input controls** — F9 inspects, edits, removes, reorders and
+  explicitly sends queued input while preserving the composer draft and selection.
+  Stale revisions, session changes and interrupted storage waits revoke controls;
+  committed changes remain visible and held after cancellation. Masked previews
+  never become execution input. Native terminal qualification remains open.
+
 - **OAuth discovery and token dispatch authority** — The pinned HTTP/1.1 guard
   now rechecks discovery and token exchange after TCP/TLS setup. It validates the
   actual destination, rejects unowned extensions and repeated header attempts,

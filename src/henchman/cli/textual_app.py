@@ -243,6 +243,7 @@ class HenchmanTextualApp(
         Binding("f1", "show_help", "Help", show=True),
         Binding("f8", "review_changes", "Review", show=True),
         Binding("f4", "pending_decision", "Decision", show=True, priority=True),
+        Binding("f9", "input_queue", "Queue", show=True, priority=True),
         Binding(
             "f2",
             "switch_provider",
@@ -341,6 +342,19 @@ class HenchmanTextualApp(
             self.notify("Close the current dialog using Back or Close to return to the pending decision.", markup=False)
         elif result == "none":
             self.notify("No decision is waiting for an answer.", markup=False)
+
+    def action_input_queue(self) -> None:
+        """Open saved input without replacing drafts or another decision."""
+        from henchman.cli.textual_queue import QueueScreen
+
+        if len(self.screen_stack) != 1 or self._tool_prompts._answer is not None:
+            self.notify("Close the current dialog first; F4 returns to a pending decision.", markup=False)
+            return
+        workflow = self._workflow()
+        if workflow is None:
+            self.notify("No workflow runtime is available for queue controls.", markup=False)
+            return
+        self.push_screen(QueueScreen(self, workflow))
 
     def action_review_changes(self) -> None:
         """Open file review without submitting or replacing the composer draft."""

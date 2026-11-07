@@ -1153,6 +1153,12 @@ class _InputHandlerMixin:
             if next_input is not None:
                 self.process_user_input(next_input, show_message=False)
 
+    def _schedule_queue_dispatch(self, runtime: Any) -> None:
+        """Wake only eligibility explicitly granted by the current queue control."""
+        if (runtime is self._workflow() and not self.is_processing and not idle_control_active(self)
+            and not getattr(self._tool_prompts, "_closed", False) and runtime.has_ready_input()):  # type: ignore[attr-defined]
+            self.process_user_input(None)
+
     @work(group="chat", exclusive=False)
     async def process_user_input(
         self: _InputHandlerMixin, user_input: str | None, *, show_message: bool = True,

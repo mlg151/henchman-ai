@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from threading import Event
 from typing import Literal
 from uuid import uuid4
 
@@ -23,6 +25,7 @@ from henchman.core.workflow_state import (
     WorkflowError,
     WorkflowGoal,
     WorkflowJournal,
+    WorkflowReference,
     WorkflowState,
 )
 from henchman.ops.workflow_store import StoredWorkflow, WorkflowStore
@@ -47,6 +50,20 @@ class WorkflowReport:
     failure_reason: str | None = None
 
 
+@dataclass(frozen=True)
+class QueueControlView:
+    """Ephemeral user-control snapshot, never a persisted dispatch permit."""
+
+    report: WorkflowReport
+    eligible: tuple[tuple[str, int], ...]
+    active_input_id: str | None
+    busy: bool
+    _runtime: object = field(repr=False)
+    _session: Session = field(repr=False)
+    _reference: WorkflowReference | None = field(repr=False)
+    _generation: int
+
+
 @dataclass
 class _Binding:
     session: Session
@@ -58,6 +75,7 @@ class _Binding:
     live_text: dict[str, str] = field(default_factory=dict)
     live_roles: dict[str, str] = field(default_factory=dict)
     live_goal: WorkflowGoal | None = None
+    live_identity: object = field(default_factory=object)
 
 
 class SessionWorkflow:
@@ -78,6 +96,8 @@ class SessionWorkflow:
         self.check_status = check_status
         self._origin_pid = os.getpid()
         self._bindings: dict[tuple[str, str], _Binding] = {}
+        self._queue_generation = 0
+        self._queue_control_busy = False
 
     def _session(self) -> Session:
         if os.getpid() != self._origin_pid:
@@ -145,6 +165,7 @@ class SessionWorkflow:
         """Select current authority; recovered eligibility is always empty."""
         if self._session() is not session:
             raise WorkflowError("session_changed")
+        self._queue_generation += 1
         key = self._key(session)
         existing = WorkflowStore.existing_reference(self.path, *key, reference=session.workflow)
         cached = self._bindings.get(key)
@@ -157,6 +178,7 @@ class SessionWorkflow:
             elif existing is not None or session.workflow is not None:
                 raise WorkflowError("durable_workflow_conflict")
             if cached.session is not session or restored:
+                cached.live_identity = object()
                 cached.eligible.clear()
                 cached.goal_enabled = False
                 cached.live_text.clear()
@@ -212,6 +234,7 @@ class SessionWorkflow:
         """A committed workflow change outlives a failed advisory transcript save."""
         binding = self._bindings.get(self._key(session))
         if binding is not None:
+            self._queue_generation += 1
             binding.failure = "session_save_failed"
             binding.eligible.clear()
             binding.goal_enabled = False
@@ -246,6 +269,156 @@ class SessionWorkflow:
                                   binding is None or not self._goal_permission(binding, state.goal) or binding.failure is not None
                                   or state.goal.policy != self._policy(session)),
                               binding.failure if binding is not None else None)
+
+    def queue_view(self) -> QueueControlView:
+        """Read current evidence and local eligibility without creating authority."""
+        session, generation = self._session(), self._queue_generation
+        reference = session.workflow
+        report = self.report()
+        binding = self._bindings.get(self._key(session))
+        eligible: tuple[tuple[str, int], ...] = ()
+        active = None
+        if binding is not None and binding.session is session:
+            eligible = tuple((item.id, item.revision) for item in report.state.inputs
+                             if item.state == "queued" and binding.eligible.get(item.id) == item.revision)
+            active = binding.active.input_id if binding.active is not None else None
+        if (generation != self._queue_generation or self.current() is not session or session.workflow != reference
+            or self._key(session) != (report.state.project_hash, report.state.session_id)):
+            raise WorkflowError("queue_controls_changed")
+        return QueueControlView(report, eligible, active, self._queue_control_busy, self, session, reference, generation)
+
+    async def control_queue(self, view: QueueControlView, input_id: str, revision: int,
+                            action: Literal["send", "edit", "drop", "move"], *,
+                            text: str | None = None, position: int | None = None,
+                            guard: Callable[[], None] | None = None) -> QueuedInput:
+        """Apply one explicit user decision, joining serialized storage on cancellation.
+
+        Only the transaction runs off-loop. Revocation is checked after obtaining
+        the storage lock and before commit, and again before local dispatch is
+        armed. A commit already completed remains real evidence but stays held.
+        """
+        if (view._runtime is not self or view._generation != self._queue_generation
+            or self._session() is not view._session or view._session.workflow_runtime is not self
+            or self._key(view._session) != (view.report.state.project_hash, view.report.state.session_id)
+            or view._session.workflow != view._reference):
+            raise WorkflowError("queue_controls_changed")
+        if self._queue_control_busy:
+            raise WorkflowError("queue_control_busy")
+        if action not in {"send", "edit", "drop", "move"}:
+            raise WorkflowError("invalid_queue_action")
+        binding = self._bindings.get(self._key(view._session))
+        if binding is None or binding.session is not view._session:
+            raise WorkflowError("queue_controls_changed")
+        if guard is not None:
+            guard()
+        self._queue_control_busy = True
+        self._queue_generation += 1
+        generation = self._queue_generation
+        live_identity = binding.live_identity
+        revoked = Event()
+        # No existing permission may dispatch this item during its transaction.
+        binding.eligible.pop(input_id, None)
+
+        def admitted() -> None:
+            if (revoked.is_set() or generation != self._queue_generation
+                or self._session() is not view._session or binding.session is not view._session
+                or view._session.workflow_runtime is not self
+                or self._key(view._session) != (view.report.state.project_hash, view.report.state.session_id)
+                or view._session.workflow != view._reference):
+                raise WorkflowError("queue_controls_changed")
+            if guard is not None:
+                guard()
+
+        def change(journal: WorkflowJournal) -> QueuedInput:
+            admitted()
+            if journal.snapshot().revision != view.report.state.revision:
+                raise WorkflowError("revision_conflict")
+            if action == "send":
+                current = journal._find(input_id, revision)
+                self._input_role(binding, current)
+                return journal.transfer_queued(input_id, revision, live_text=binding.live_text.get(input_id))
+            if action == "edit":
+                if text is None:
+                    raise WorkflowError("invalid_input_text")
+                return journal.edit(input_id, revision, text)
+            if action == "move":
+                if position is None:
+                    raise WorkflowError("invalid_queue_position")
+                return journal.move(input_id, revision, position)
+            return journal.drop(input_id, revision)
+
+        def transaction() -> QueuedInput:
+            journal = binding.journal
+            if isinstance(journal, StoredWorkflow):
+                return journal._call("queue_control", change, guard=admitted)
+            with journal._lock:
+                snapshot = journal.snapshot()
+                staged = WorkflowJournal(snapshot.project_hash, snapshot.session_id,
+                                         owner_id=journal.owner_id, state=snapshot, redactor=journal.redactor)
+                result = change(staged)
+                admitted()
+                journal.state = staged.state
+                return result
+
+        worker = asyncio.create_task(asyncio.to_thread(transaction))
+        cancelled: asyncio.CancelledError | None = None
+        primary: BaseException | None = None
+        try:
+            while not worker.done():
+                try:
+                    await asyncio.shield(worker)
+                except asyncio.CancelledError as error:
+                    cancelled = cancelled or error
+                    revoked.set()
+                except BaseException:
+                    break
+            if cancelled is not None:
+                try:
+                    committed = worker.result()
+                except BaseException:
+                    cancelled.add_note("Queue storage settled without granting dispatch permission")
+                else:
+                    if (action == "edit" and text is not None and binding.live_identity is live_identity
+                        and binding.session is view._session and committed.text_sha256 == hashlib.sha256(text.encode()).hexdigest()):
+                        # Keep the user's actual committed replacement only in
+                        # the original live binding; cancellation grants nothing.
+                        binding.live_text[input_id] = text
+                raise cancelled
+            result = worker.result()
+            admitted()
+            if action == "edit":
+                assert text is not None
+                binding.live_text[input_id] = text
+            elif action == "drop":
+                binding.live_text.pop(input_id, None)
+                binding.live_roles.pop(input_id, None)
+            self._save(binding)
+            admitted()
+            if action == "send":
+                binding.eligible[input_id] = result.revision
+            return result
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            revoked.set()
+            # Any shifted records also lose stale permissions. Reconcile raw
+            # caches after interrupted or uncertain commits without replay.
+            try:
+                state = binding.journal.snapshot()
+                records = {item.id: item for item in state.inputs}
+                binding.eligible = {key: value for key, value in binding.eligible.items()
+                                    if key in records and records[key].state == "queued" and records[key].revision == value}
+                binding.live_text = {key: value for key, value in binding.live_text.items()
+                                     if key in records and records[key].text_sha256 == hashlib.sha256(value.encode()).hexdigest()}
+            except Exception as cleanup:
+                binding.eligible.clear()
+                binding.live_text.clear()
+                if primary is None:
+                    raise
+                primary.add_note(f"Queue cache reconciliation also failed: {type(cleanup).__name__}")
+            finally:
+                self._queue_control_busy = False
 
     def submit(self, text: str, *, kind: InputKind = "message", role: str | None = None) -> QueuedInput:
         binding = self._binding()
@@ -325,6 +498,7 @@ class SessionWorkflow:
 
     def hold_pending(self) -> None:
         """Disarm continuation immediately; retain live ownership until joined."""
+        self._queue_generation += 1
         for binding in self._bindings.values():
             binding.eligible.clear()
             binding.goal_enabled = False
@@ -394,6 +568,7 @@ class SessionWorkflow:
 
     def interrupt(self) -> None:
         """Settle only after the frontend has cancelled and joined actual work."""
+        self._queue_generation += 1
         session = self._session()
         binding = self._bindings.get(self._key(session))
         if binding is None or binding.session is not session:

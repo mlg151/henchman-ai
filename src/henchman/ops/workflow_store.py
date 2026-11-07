@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sqlite3
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -161,15 +162,35 @@ class WorkflowStore:
         connection.commit()
 
     @contextmanager
-    def _transaction(self, operation: str, *, initialize: bool = False) -> Iterator[sqlite3.Connection]:
+    def _transaction(self, operation: str, *, initialize: bool = False,
+                     guard: Callable[[], None] | None = None) -> Iterator[sqlite3.Connection]:
         connection = None
         try:
-            connection = sqlite3.connect(f"{self.path.as_uri()}?mode=rw", uri=True, timeout=30)
-            connection.execute("BEGIN IMMEDIATE")
+            connection = sqlite3.connect(f"{self.path.as_uri()}?mode=rw", uri=True,
+                                         timeout=0.05 if guard is not None else 30)
+            if guard is None:
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                # Preserve the existing contention bound, but let an owned UI
+                # operation revoke admission while another writer holds SQLite.
+                deadline = time.monotonic() + 30
+                while True:
+                    guard()
+                    try:
+                        connection.execute("BEGIN IMMEDIATE")
+                        break
+                    except sqlite3.OperationalError as error:
+                        if (getattr(error, "sqlite_errorcode", None) != sqlite3.SQLITE_BUSY
+                            or time.monotonic() >= deadline):
+                            raise
             if not initialize:
                 self._validate(connection)
+            if guard is not None:
+                guard()
             yield connection
             self._checkpoint(f"{operation}:before_commit")
+            if guard is not None:
+                guard()
             self._commit(connection)
             self._checkpoint(f"{operation}:after_commit")
         except (sqlite3.Error, OSError) as exc:
@@ -194,8 +215,9 @@ class WorkflowStore:
                                    (project_hash, session_id, payload, hashlib.sha256(payload.encode()).hexdigest()))
         return StoredWorkflow(self, reference)
 
-    def _change(self, reference: WorkflowReference, operation: str, change: Callable[[WorkflowJournal], _T]) -> _T:
-        with self._transaction(operation) as connection:
+    def _change(self, reference: WorkflowReference, operation: str, change: Callable[[WorkflowJournal], _T],
+                *, guard: Callable[[], None] | None = None) -> _T:
+        with self._transaction(operation, guard=guard) as connection:
             if reference.store_id != self.store_id:
                 raise WorkflowError("store_identity_mismatch")
             state = self._load(connection, reference.project_hash, reference.session_id)
@@ -231,8 +253,9 @@ class StoredWorkflow:
         return WorkflowJournal(self.reference.project_hash, self.reference.session_id,
                                owner_id=self.owner_id, state=self.snapshot(), redactor=self.store.redactor).report()
 
-    def _call(self, method: str, change: Callable[[WorkflowJournal], _T]) -> _T:
-        return self.store._change(self.reference, method, change)
+    def _call(self, method: str, change: Callable[[WorkflowJournal], _T],
+              *, guard: Callable[[], None] | None = None) -> _T:
+        return self.store._change(self.reference, method, change, guard=guard)
 
     def enqueue(self, text: str, *, kind: InputKind = "message", role: str | None = None,
                 input_id: str | None = None, goal_id: str | None = None, goal_revision: int | None = None) -> QueuedInput:
