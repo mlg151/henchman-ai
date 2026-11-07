@@ -68,3 +68,22 @@ def test_bearer_whitespace_does_not_expose_token_echoes(spacing: str) -> None:
         "echo": "marked-secret-canary",
     })
     assert safe["echo"] == "[REDACTED]"
+
+
+def test_non_json_evidence_objects_are_projected_without_changing_inputs() -> None:
+    from pathlib import Path
+
+    path = Path("private-canary")
+    error = RuntimeError("transport private-canary")
+    payload = {"path": path, "error": error, "count": 3, "enabled": True, "missing": None}
+    safe = EvidenceRedactor(["private-canary"]).redact(payload)
+    assert safe == {"path": "[REDACTED]", "error": "transport [REDACTED]", "count": 3, "enabled": True, "missing": None}
+    assert payload["path"] is path and payload["error"] is error
+
+
+def test_marked_non_json_credential_registers_its_display_echo() -> None:
+    from pathlib import Path
+
+    payload = {"api_key": Path("marked-canary"), "echo": "marked-canary"}
+    safe = EvidenceRedactor().redact(payload)
+    assert safe["api_key"] == "[REDACTED]" and safe["echo"] == "[REDACTED]"

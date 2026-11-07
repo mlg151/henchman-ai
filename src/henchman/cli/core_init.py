@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.orchestrator import Orchestrator
+from henchman.cli.evidence import runtime_exception_text
 from henchman.cli.plugins import PluginManager
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
@@ -183,7 +184,7 @@ def initialize_mcp(context: CoreContext) -> None:
                     context.tool_registry.register(tool)
             except Exception as e:
                 # Log error but don't crash
-                print(f"Failed to connect to MCP servers: {e}")
+                print(f"Failed to connect to MCP servers: {runtime_exception_text(context, e)}")
 
         # Run in background and store reference for shutdown management
         task = asyncio.create_task(connect_mcp())

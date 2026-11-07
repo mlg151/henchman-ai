@@ -363,7 +363,7 @@ class TestHenchmanTextualApp:
         assert textual_app.core_context is original_core
         mock_initialize_core_components.assert_not_called()
         chat.add_error_message.assert_called_once_with(
-            "Failed to switch provider: Invalid provider configuration",
+            "Failed to switch provider: ValueError: Invalid provider configuration",
         )
 
     def test_on_tree_node_selected_implementation_fixed(
@@ -553,11 +553,11 @@ class TestHenchmanTextualApp:
         mock_loader.discover_files.assert_called_once()
 
         # Verify error was logged for context loading failure
-        mock_logger.error.assert_called_once_with("Failed to load context files: %s", error)
+        mock_logger.error.assert_called_once_with("Failed to load context files: %s", "ValueError: Context discovery failed")
 
         # Verify tree.root.add_leaf() was attempted (suppressed when it fails)
         mock_root.add_leaf.assert_called_once_with(
-            "Error loading context: Context discovery failed"
+            "Error loading context: ValueError: Context discovery failed"
         )
 
     @patch("builtins.open")
@@ -592,11 +592,11 @@ class TestHenchmanTextualApp:
         textual_app._persist_history_entry("test command")
 
         # Verify error was logged using module logger
-        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error1)
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", "PermissionError: Cannot write to file")
 
         # Verify error notification was shown to user
         mock_chat_pane.add_error_message.assert_called_once_with(
-            "Failed to save command history: Cannot write to file"
+            "Failed to save command history: PermissionError: Cannot write to file"
         )
 
         # Test 2: UI notification also fails (silently suppressed by contextlib.suppress)
@@ -611,4 +611,4 @@ class TestHenchmanTextualApp:
         textual_app._persist_history_entry("another command")
 
         # Verify the file-write error was logged
-        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error2)
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", "OSError: Disk full")

@@ -59,7 +59,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Headless JSON output now masks split credentials with separate agent/content
   buffers, sanitizes tool previews and flushes safely on failure/cancellation.
   Execution events and correlation/control fields retain their original meaning.
-  REPL/Textual, other output sinks, config secret references and restricted execution remain
+  REPL/Textual event streams, tool displays and approvals now share the policy;
+  Textual command output, direct chat/status/history displays and interactive
+  failure diagnostics are also projected before output. Other logs/UI panels,
+  metrics/handoffs, config secret references and restricted execution remain
   open. See [session project boundaries](docs/configuration.md#session-project-boundaries)
   and [redaction boundaries](docs/configuration.md#session-evidence-redaction).
 

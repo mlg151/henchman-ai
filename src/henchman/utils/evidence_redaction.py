@@ -85,8 +85,10 @@ class EvidenceRedactor:
         elif isinstance(value, (list, tuple)):
             for nested in value:
                 self._register_credential(nested)
-        else:
+        elif isinstance(value, Mapping):
             self.register_config(value)
+        elif value is not None and not isinstance(value, (bool, int, float)):
+            self.register_secret(str(value))
 
     def register_environment(self) -> None:
         """Refresh credential-named environment values without forgetting old ones."""
@@ -147,7 +149,9 @@ class EvidenceRedactor:
         if isinstance(value, (list, tuple)):
             item_schema = schema[0] if isinstance(schema, list) and len(schema) == 1 else None
             return [self._project(nested, item_schema) for nested in value]
-        return value
+        if value is None or isinstance(value, (bool, int, float)):
+            return value
+        return self._text(str(value))
 
 
 class EvidenceStreamRedactor:

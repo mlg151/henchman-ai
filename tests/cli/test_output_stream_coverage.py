@@ -269,7 +269,8 @@ class TestStreamEventHandlers:
         agent = self._make_agent()
         event = AgentEvent(type=EventType.CONTENT, data="hello world")
         dispatch_event(oh, event, state, agent, [])
-        oh.print_agent_content.assert_called_with("hello world")
+        dispatch_event(oh, AgentEvent(EventType.FINISHED, "stop"), state, agent, [])
+        assert "".join(call.args[0] for call in oh.print_agent_content.call_args_list) == "hello world"
 
     def test_dispatch_event_error(self) -> None:
         """Test dispatch_event for ERROR event."""

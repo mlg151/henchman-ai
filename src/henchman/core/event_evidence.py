@@ -36,6 +36,8 @@ _CONTROL_VALUES = {
 
 def event_data(value: Any) -> Any:
     """Extract an evidence object without assigning to the original event."""
+    if isinstance(value, BaseException):
+        return str(value)
     if hasattr(value, "__dict__"):
         return vars(value)
     return value
@@ -59,10 +61,13 @@ class EventEvidenceRedactor:
             stream = self._streams.setdefault(key, EvidenceStreamRedactor(self.redactor))
             data = stream.feed(data)
         else:
+            run_scope = isinstance(data, dict) and data.get("scope") == "run"
+            if event.type == EventType.AGENT_COMPLETED and run_scope:
+                output.extend(self.flush(interrupted=data.get("status") not in ("completed", "responded")))
             if event.type == EventType.FINISHED:
                 reason = data.get("finish_reason") if isinstance(data, dict) else data
                 output.extend(self.flush(
-                    None if self._finish_all else event.source_agent,
+                    None if self._finish_all or run_scope else event.source_agent,
                     interrupted=reason not in (None, "stop", "tool_calls"),
                 ))
             schema = {**_DATA_FIELDS, **dict.fromkeys(_EVENT_IDENTITIES.get(event.type, ()), PRESERVE_IDENTITY)}

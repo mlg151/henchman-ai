@@ -84,6 +84,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prices, cancellation and currency/precision boundaries. Live provider integration
   and durable accounting remain open under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
+- **Interactive evidence privacy** — REPL streams and Textual events share the
+  session credential registry, including split content/reasoning and tool displays.
+  Approvals use safe copies while execution keeps original arguments and answers.
+  Textual command output redacts before Rich wrapping/markup and handles split ANSI
+  controls; direct input echoes, status labels, context displays and newly written
+  REPL/Textual history entries use the same policy. Context previews redact before
+  truncating content, and workspace/tree labels retain raw lookup identities only
+  for execution. Ollama keeps its SDK placeholder separate from credential values.
+  Interactive failure logs retain safe stack
+  diagnostics without attaching raw exceptions. Further logging, metrics, handoff
+  and execution-policy work remains under [#20](https://github.com/mlg151/henchman-ai/issues/20).
+
 - **Generated test scaffolds** — Function and class templates now compile and
   format correctly. Explicit TODO skip markers keep unfinished stubs from
   executing placeholder calls or appearing as successful verification. Native

@@ -22,6 +22,7 @@ from rich.text import Text
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.command_processor import CommandProcessor
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.input_handler import InputHandler
 from henchman.cli.output_handler import OutputHandler, resolve_active_agent
 from henchman.cli.plugins import PluginManager
@@ -208,10 +209,12 @@ def _collect_event_content(
     event: AgentEvent,
     content_collector: list[str] | None,
     render_error: Callable[[str], None],
+    *,
+    redact_error: Callable[[Any], Any] | None = None,
 ) -> None:
     """Route an agent event to error display or content collection."""
     if event.type == EventType.ERROR:
-        render_error(str(event.data))
+        render_error(str(redact_error(event.data) if redact_error is not None else event.data))
     elif event.type == EventType.CONTENT and content_collector is not None and event.data:
         content_collector.append(event.data)
 
@@ -424,6 +427,7 @@ class Repl:
             history_file=history_file,
             keybindings=keybindings,
             tool_registry=self.tool_registry,
+            evidence_redactor=runtime_evidence_redactor(self),
         )
         self.input_handler.initialize_prompt_session(
             bottom_toolbar=lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)),
@@ -504,7 +508,7 @@ class Repl:
                     )
             except Exception as e:
                 # Always show errors, regardless of logging setting
-                self.renderer.error(f"Failed to connect to MCP servers: {e}")
+                self.renderer.error(f"Failed to connect to MCP servers: {runtime_exception_text(self, e)}")
 
     async def run(self: Self) -> None:
         """Run the main REPL loop.
@@ -674,8 +678,8 @@ class Repl:
         if not task.cancelled():
             error = task.exception()
             if error is not None:
-                logger.error("Interactive turn failed", exc_info=error)
-                self.renderer.error(f"Error: {error}")
+                logger.error("Interactive turn failed: %s", runtime_exception_text(self, error, include_traceback=True))
+                self.renderer.error(f"Error: {runtime_exception_text(self, error)}")
                 self._pause_goal()
         if self._pending_inputs:
             self._ensure_turn_worker()
@@ -855,8 +859,8 @@ class Repl:
         except Exception as e:
             stop_thinking()
             self._pause_goal()
-            logger.exception("Agent execution failed: %s", e)
-            self.renderer.error(f"Error: {e}")
+            logger.error("Agent execution failed: %s", runtime_exception_text(self, e, include_traceback=True))
+            self.renderer.error(f"Error: {runtime_exception_text(self, e)}")
         finally:
             stop_thinking()
             if monitor is not None and monitor_task is not None:
@@ -873,7 +877,11 @@ class Repl:
         DEPRECATED: Use ToolExecutor.process_agent_stream instead.
         This method is kept for backwards compatibility with tests.
         """
-        _collect_event_content(event, content_collector, self.renderer.error)
+        policy = runtime_evidence_redactor(self)
+        _collect_event_content(
+            event, content_collector, self.renderer.error,
+            redact_error=lambda value: policy.text(str(policy.redact(value))),
+        )
 
     async def _handle_tool_call(self: Self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.

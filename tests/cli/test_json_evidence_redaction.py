@@ -13,6 +13,23 @@ from henchman.utils.evidence_redaction import EvidenceRedactor
 
 
 @pytest.mark.parametrize("batch", [False, True])
+def test_exception_events_keep_a_safe_diagnostic_message(batch):
+    console = MagicMock()
+    renderer = JsonOutputRenderer(console, redactor=EvidenceRedactor(["private-canary"]))
+    error = RuntimeError("connection private-canary\nAuthorization: unrelated-canary")
+    event = AgentEvent(EventType.ERROR, error)
+    if batch:
+        renderer.render_final_json([event])
+        output = json.loads(console.print.call_args.args[0])[0]
+    else:
+        renderer.render(event)
+        output = json.loads(console.print.call_args.args[0])
+    assert output["data"] == "connection [REDACTED]\nAuthorization: [REDACTED]"
+    assert event.data is error
+    assert str(error) == "connection private-canary\nAuthorization: unrelated-canary"
+
+
+@pytest.mark.parametrize("batch", [False, True])
 def test_split_credentials_and_interleaved_agents_are_masked(batch: bool) -> None:
     console = MagicMock()
     renderer = JsonOutputRenderer(console, redactor=EvidenceRedactor(["private-canary"]))

@@ -197,10 +197,32 @@ masked through its next newline to bound retained whitespace. Complete JSON
 collects marked fields before projection; streaming cannot retract text emitted
 before a value was first identified as sensitive.
 
-This increment does not establish full privacy or OS isolation. REPL/Textual
-output, provider errors outside JSON events, logs, metrics, handoffs, ordinary configuration
-exports and restricted execution still require the remaining work and qualification
-in issue #20. Existing configuration export semantics are described below.
+REPL agent streams and Textual event messages now use the same per-agent
+projection, including tool arguments, results, completion and cancellation.
+Tool approvals display copies; the original arguments and user answers still
+reach execution. Textual command output redacts strings before Rich markup and
+line wrapping, retaining buffers across partial writes and ANSI controls.
+Direct Textual input echoes, public messages, context-file displays, status/search
+labels, context-tree labels, workspace panels and bridge descriptions use the
+same policy; raw lookup IDs and selected paths still reach their original services.
+Both REPL and Textual redact new command-history
+entries before writing. Live editable input and the underlying context file remain
+unchanged; old command histories are not rewritten. Context-file previews redact
+the complete content before truncation so a cut cannot expose part of a credential.
+Interactive worker, tool-cleanup and MCP failures format diagnostic tracebacks
+without locals, then redact them before passing text to the CLI logger or renderer.
+Plugin loading, slash-command errors, provider setup and session-resume failures
+also project their diagnostics before output. Textual export contents and success
+or failure messages use the active runtime policy.
+Exception chains, notes and stack locations remain available; raw exceptions are
+not attached to those log records. Non-JSON objects such as paths and exceptions
+are projected before display conversion.
+
+This increment does not establish full privacy or OS isolation. Remaining
+subsystem and third-party logging, metrics, handoffs, additional command outputs,
+ordinary configuration exports and restricted execution still require the work
+and qualification in issue #20. Existing configuration export semantics are
+described below.
 
 ## Local import/export sync
 

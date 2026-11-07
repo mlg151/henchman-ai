@@ -12,7 +12,6 @@ import contextlib
 import importlib
 import json
 import logging
-import traceback
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -29,6 +28,7 @@ from textual.widgets import (
 )
 
 from henchman.advanced import TaskService
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.output_handler import resolve_active_agent
 from henchman.cli.textual_config import (
     ComponentConfig,
@@ -82,6 +82,7 @@ if TYPE_CHECKING:
         ToolDeclaration,
     )
     from henchman.tools.base import ConfirmationRequest
+    from henchman.utils.evidence_redaction import EvidenceRedactor
 
 __all__ = [
     "_CommandPaletteMixin",
@@ -277,11 +278,12 @@ def _get_searchable_content(widget: Any) -> str:
     return str(content) if content else ""
 
 
-async def _read_context_file_content(path: Path) -> str:
+async def _read_context_file_content(path: Path, redactor: EvidenceRedactor | None = None) -> str:
     """Read a context file and return formatted display content.
 
     Args:
         path: Path to the file to read.
+        redactor: Optional display policy applied before truncating content.
 
     Returns:
         Formatted string with header and (possibly truncated) content.
@@ -290,13 +292,17 @@ async def _read_context_file_content(path: Path) -> str:
         stat = await asyncio.to_thread(path.stat)
         size_kb = stat.st_size / _FILE_SIZE_DIVISOR
     except OSError as exc:
-        return f"[bold]{path.name}[/bold] - Error getting file info: {exc}"
+        detail = redactor.text(str(exc)) if redactor else str(exc)
+        return f"[bold]{path.name}[/bold] - Error getting file info: {detail}"
 
     try:
         full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
     except (OSError, UnicodeDecodeError) as exc:
-        return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {exc}"
+        detail = redactor.text(str(exc)) if redactor else str(exc)
+        return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {detail}"
 
+    if redactor is not None:
+        full = redactor.text(full)
     content = full[:_CONTEXT_FILE_PREVIEW_LIMIT]
     truncated = len(full) > _CONTEXT_FILE_PREVIEW_LIMIT
     if truncated:
@@ -307,19 +313,23 @@ async def _read_context_file_content(path: Path) -> str:
     return f"{header}\n{content}"
 
 
-def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
+def _fill_context_tree(tree: Tree, runtime: Any = None) -> None:  # type: ignore[type-arg]
     """Discover and mount context files into a Tree widget.
 
     Args:
         tree: The Tree widget to populate.
+        runtime: Runtime supplying the shared credential policy, when available.
     """
+    owner = runtime if runtime is not None else tree
+    policy = runtime_evidence_redactor(owner)
     try:
         context_loader = _import_module("henchman.config.context").ContextLoader()
         files = context_loader.discover_files()
     except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to load context files: %s", exc)  # noqa: TRY400
+        detail = runtime_exception_text(owner, exc)
+        logger.error("Failed to load context files: %s", detail)  # noqa: TRY400
         with contextlib.suppress(Exception):
-            tree.root.add_leaf(f"Error loading context: {exc}")
+            tree.root.add_leaf(_safe_markup(f"Error loading context: {detail}"))
         return
 
     if not files:
@@ -329,9 +339,9 @@ def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
     for f in files:
         by_dir.setdefault(f.parent, []).append(f)
     for directory, dir_files in by_dir.items():
-        branch = tree.root.add(str(directory), expand=True)
+        branch = tree.root.add(_safe_markup(policy.text(str(directory))), expand=True)
         for p in dir_files:
-            branch.add_leaf(p.name, data=p)
+            branch.add_leaf(_safe_markup(policy.text(p.name)), data=p)
     tree.root.expand()
 
 
@@ -687,11 +697,12 @@ class _ProviderMixin:
         """
         version = _import_module("henchman").__version__
         provider = _active_display_provider(self)
-        self.sub_title = f"Henchman-AI v{version} - {provider.name if provider else 'unknown'}"
+        policy = runtime_evidence_redactor(self)
+        self.sub_title = policy.text(f"Henchman-AI v{version} - {provider.name if provider else 'unknown'}")
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
             chat.add_system_message(
-                f"Provider switched: [cyan]{old_name}[/] -> [cyan]{new_name}[/]",
+                policy.text(f"Provider switched: [cyan]{old_name}[/] -> [cyan]{new_name}[/]"),
             )
         self._update_status_bar()  # type: ignore[attr-defined]
 
@@ -702,10 +713,11 @@ class _ProviderMixin:
             exc: The exception that occurred.
         """
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        details = runtime_exception_text(self, exc)
         if chat is not None:
-            chat.add_error_message(f"Failed to switch provider: {exc}")
+            chat.add_error_message(f"Failed to switch provider: {details}")
             return
-        logger.exception("Failed to switch provider")
+        logger.error("Failed to switch provider: %s", runtime_exception_text(self, exc, include_traceback=True))
 
 
 # ------------------------------------------------------------------ #
@@ -736,7 +748,7 @@ class _StatusBarMixin:
         mcp = self._mcp_status_fragment()
         settings = self.settings  # type: ignore[attr-defined]
         mode = "Plan" if (settings and getattr(settings, "plan_mode", False)) else "Chat"
-        return f"{mode} | {provider}:{model} | Tools: {tools}{mcp}"
+        return runtime_evidence_redactor(self).text(f"{mode} | {provider}:{model} | Tools: {tools}{mcp}")
 
     def _count_tools(self: _StatusBarMixin) -> int:
         """Count registered tools.
@@ -808,12 +820,13 @@ class _HistoryMixin:
         )
         try:
             with open(hf, "a", encoding="utf-8") as fh:  # noqa: PTH123
-                fh.write(entry + "\n")
+                fh.write(runtime_evidence_redactor(self).text(entry) + "\n")
         except OSError as exc:
-            logger.error("Failed to persist history entry: %s", exc)  # noqa: TRY400
+            details = runtime_exception_text(self, exc)
+            logger.error("Failed to persist history entry: %s", details)  # noqa: TRY400
             with contextlib.suppress(Exception):
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-                chat.add_error_message(f"Failed to save command history: {exc}")
+                chat.add_error_message(f"Failed to save command history: {details}")
 
     def _navigate_history(self: _HistoryMixin, direction: int) -> None:
         """Navigate command history.
@@ -868,7 +881,9 @@ class _ContextTreeMixin:
         cfg = self.config  # type: ignore[attr-defined]
         ctx = " | Context loaded" if cfg.system_prompt else ""
         chat.add_system_message(
-            f"[bold]Henchman-AI[/bold] | {provider}:{model} | {tools} tools{mcp}{ctx}",
+            runtime_evidence_redactor(self).text(
+                f"[bold]Henchman-AI[/bold] | {provider}:{model} | {tools} tools{mcp}{ctx}",
+            ),
         )
         chat.add_system_message(
             "Type /help for commands. Press F1 for keybindings.",
@@ -893,7 +908,7 @@ class _ContextTreeMixin:
         tree = _query_one_or_none(self, "#context-tree", Tree)
         if tree is None:
             return
-        _fill_context_tree(tree)
+        _fill_context_tree(tree, self)
 
     @work
     async def on_tree_node_selected(
@@ -918,10 +933,11 @@ class _ContextTreeMixin:
             path: Path to the file to display.
         """
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        chat.add_system_message(f"[dim]Loading {path.name}...[/]")
+        policy = runtime_evidence_redactor(self)
+        chat.add_system_message(policy.text(f"[dim]Loading {path.name}...[/]"))
         try:
-            content_msg = await _read_context_file_content(path)
-            chat.add_system_message(content_msg)
+            content_msg = await _read_context_file_content(path, policy)
+            chat.add_system_message(policy.text(content_msg))
         except OSError as exc:
             self._handle_file_read_error(chat, exc, path)
 
@@ -939,7 +955,8 @@ class _ContextTreeMixin:
             path: Path that failed to read.
         """
         with contextlib.suppress(Exception):
-            chat.add_error_message(f"Cannot read {path}: {exc}")
+            details = runtime_exception_text(self, exc)
+            chat.add_error_message(runtime_evidence_redactor(self).text(f"Cannot read {path}: {details}"))
 
     def _apply_theme(self: _ContextTreeMixin) -> None:
         """Apply the current theme class to the screen."""
@@ -1025,7 +1042,7 @@ class _InputHandlerMixin:
     async def _process_live_command(self, text: str) -> None:
         """Allow goal controls during work without starting another agent turn."""
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        chat.add_user_message(text)
+        chat.add_user_message(runtime_evidence_redactor(self).text(text))
         await self._handle_command(text, chat)
         if not self.is_processing:
             next_input = self._next_turn_input()
@@ -1055,7 +1072,7 @@ class _InputHandlerMixin:
             next_input: str | None = user_input
             while next_input is not None:
                 if show_message:
-                    chat.add_user_message(next_input)
+                    chat.add_user_message(runtime_evidence_redactor(self).text(next_input))
                 await self._route_input(next_input, chat)
                 await asyncio.sleep(0.05)
                 show_message = bool(self._queued_inputs())
@@ -1068,12 +1085,12 @@ class _InputHandlerMixin:
                 chat.finish_agent_stream(name)
         except Exception as exc:  # noqa: BLE001
             self._pause_active_goal()
-            details = traceback.format_exc()
+            details = runtime_exception_text(self, exc, include_traceback=True)
             safe_details = details.replace("```", "` ` `")
             chat.add_error_message(
-                f"{exc}\n```\n{safe_details}\n```",
+                f"{runtime_exception_text(self, exc)}\n```\n{safe_details}\n```",
             )
-            bar.status_text = f"Error: {exc}"
+            bar.status_text = f"Error: {runtime_exception_text(self, exc)}"
             for name in list(chat._active):
                 chat.finish_agent_stream(name)
         finally:
@@ -1868,7 +1885,7 @@ class _SearchMixin:
             return
         if not self._search_mode:
             return
-        query = self._search_query
+        query = runtime_evidence_redactor(self).text(self._search_query)
         matches = self._search_matches
         if not query:
             bar.status_text = "Search: type query in input box, F3=next"
@@ -1920,7 +1937,7 @@ class _PublicAPIMixin:
         """
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is not None:
-            bar.status_text = message
+            bar.status_text = runtime_evidence_redactor(self).text(message)
             self._apply_bar_stats(bar, tokens, cost)
 
     def _apply_bar_stats(
@@ -1966,7 +1983,10 @@ class _PublicAPIMixin:
             role: Sender role.
             content: Message content.
         """
-        text = content if role in ("user", "assistant", "system") else f"[{role}] {content}"
+        policy = runtime_evidence_redactor(self)
+        text = policy.text(content)
+        if role not in ("user", "assistant", "system"):
+            text = f"[{policy.text(role)}] {text}"
         if role == "user":
             chat.add_user_message(text)
         else:
@@ -1991,7 +2011,7 @@ class _WorkspaceMixin:
 
         notifier = getattr(self, "notify", None)
         if callable(notifier):
-            notifier(message, severity=severity, markup=False)
+            notifier(runtime_evidence_redactor(self).text(message), severity=severity, markup=False)
 
     def _show_workspace_error(
         self: _WorkspaceMixin,
@@ -2000,7 +2020,8 @@ class _WorkspaceMixin:
     ) -> str:
         """Report a persisted workspace read failure and return its message."""
 
-        message = f"Failed to load {surface}: {exc}"
+        details = runtime_exception_text(self, exc)
+        message = runtime_evidence_redactor(self).text(f"Failed to load {surface}: {details}")
         self._notify_user(message, severity="error")
         return message
 
@@ -2020,6 +2041,7 @@ class _WorkspaceMixin:
 
     def _refresh_workspace_widgets(self: _WorkspaceMixin) -> None:
         """Refresh all workspace panels with current state."""
+        policy = runtime_evidence_redactor(self)
         summary = _query_one_or_none(self, "#agent-summary-panel", AgentSummaryPanel)
         memory = _query_one_or_none(self, "#memory-indicators", MemoryIndicator)
         tasks_widget = _query_one_or_none(self, "#task-list-widget", TaskListWidget)
@@ -2036,8 +2058,8 @@ class _WorkspaceMixin:
 
         if summary is not None:
             summary.update_summary(
-                provider_name=provider.name if provider else "",
-                model_name=_display_model(provider, ""),
+                provider_name=_safe_markup(policy.text(provider.name if provider else "")),
+                model_name=_safe_markup(policy.text(_display_model(provider, ""))),
                 mode="Plan" if plan_mode else "Chat",
                 active_agent="",
                 tools=0,
@@ -2057,7 +2079,10 @@ class _WorkspaceMixin:
                 service = TaskService()
                 task_list = service.list_tasks()
                 tasks_widget.set_tasks(
-                    [f"{t.task_id} [{t.status}] {t.title}" for t in task_list],
+                    [
+                        _safe_markup(f"{policy.text(t.task_id)} [{policy.text(str(t.status))}] {policy.text(t.title)}")
+                        for t in task_list
+                    ],
                 )
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("tasks", exc)
@@ -2067,7 +2092,7 @@ class _WorkspaceMixin:
             try:
                 catalog = SkillCatalog()
                 skill_list = catalog.list_skills()
-                skills.set_skills([s.name for s in skill_list])
+                skills.set_skills([_safe_markup(policy.text(s.name)) for s in skill_list])
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("skills", exc)
                 skills.set_skills([f"[red]{_safe_markup(message)}[/]"])
@@ -2077,7 +2102,7 @@ class _WorkspaceMixin:
                 ws_service = TeamWorkspaceService()
                 ws_list = ws_service.list_workspaces()
                 team.set_workspaces(
-                    [f"{w.name} ({len(w.members)} members)" for w in ws_list],
+                    [_safe_markup(f"{policy.text(w.name)} ({len(w.members)} members)") for w in ws_list],
                 )
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("teams", exc)
@@ -2097,9 +2122,9 @@ class _WorkspaceMixin:
                 else bool(getattr(config, "auto_approve_tools", False))
             )
             settings_panel.update_settings(
-                theme=getattr(ui_settings, "theme", "") if ui_settings else "",
+                theme=_safe_markup(policy.text(getattr(ui_settings, "theme", "") if ui_settings else "")),
                 auto_mode=auto_mode,
-                provider=provider.name if provider else "",
+                provider=_safe_markup(policy.text(provider.name if provider else "")),
                 mcp_servers=mcp_count,
             )
 
@@ -2109,6 +2134,7 @@ class _WorkspaceMixin:
         Returns:
             List of bridge entry description strings.
         """
+        policy = runtime_evidence_redactor(self)
         entries: list[str] = []
         ws_service = TeamWorkspaceService()
         bridge_service = BridgeSessionService()
@@ -2117,8 +2143,8 @@ class _WorkspaceMixin:
             bridges = bridge_service.list_bridges(workspace_id=ws.workspace_id)
             for b in bridges:
                 entries.append(
-                    f"{ws.name} / {b.bridge_id} ({b.status})"
-                    f" - {b.remote_session} by {b.created_by}",
+                    f"{policy.text(ws.name)} / {policy.text(b.bridge_id)} ({policy.text(str(b.status))})"
+                    f" - {policy.text(b.remote_session)} by {policy.text(b.created_by)}",
                 )
         return entries
 
@@ -2145,16 +2171,17 @@ class _WorkspaceMixin:
             return
 
         try:
-            output = export_as_markdown(current, include_metadata=True)
+            policy = runtime_evidence_redactor(self)
+            output = policy.text(export_as_markdown(current, include_metadata=True))
             output_path = Path.cwd() / f"session_{current.id}.md"
             output_path.write_text(output, encoding="utf-8")
             if chat is not None:
                 chat.add_system_message(
-                    f"[dim]Session exported to [cyan]{output_path}[/][/]",
+                    policy.text(f"[dim]Session exported to [cyan]{output_path}[/][/]"),
                 )
             self._notify_user(f"Session exported to {output_path}")
         except (OSError, TypeError, ValueError) as exc:
-            message = f"Failed to export session: {exc}"
+            message = f"Failed to export session: {runtime_exception_text(self, exc)}"
             if chat is not None:
                 chat.add_error_message(message)
             self._notify_user(message, severity="error")

@@ -61,8 +61,10 @@ are covered by additional regressions.
 Headless JSON output now shares the credential policy, masks split streamed
 values across independent agent channels, derives previews after redaction, and
 flushes pending evidence before completion or on interruption without changing
-execution inputs. REPL/Textual and the remaining sinks are still open.
-Terminal output/errors/logs/metrics/handoffs, config-export secret references and
+execution inputs. REPL/Textual event streams, tool displays/approvals, Textual
+command output and direct chat/status/history displays now share that policy.
+Interactive failure logs project tracebacks without attaching raw exceptions.
+Other logs/UI panels/metrics/handoffs, config-export secret references and
 restricted filesystem/network execution still require implementation and qualification.
 Provider usage under #24 now preserves reported/unknown provenance and cache
 subsets, including Anthropic and compatible trailing usage snapshots. Explicit

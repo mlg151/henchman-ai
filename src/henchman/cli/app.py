@@ -9,6 +9,7 @@ from contextlib import aclosing
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import anyio
@@ -16,6 +17,7 @@ import click
 from rich.console import Console
 
 from henchman.cli.chat_serve import discordbot_command
+from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.serve import serve_command
 from henchman.core.events import AgentEvent, EventType
@@ -114,7 +116,8 @@ def _get_provider(settings: Settings | None = None) -> ModelProvider:
         settings = load_settings()
         return cast("ModelProvider", create_provider(settings.providers))
     except Exception as exc:
-        raise click.ClickException(f"Unable to configure provider: {exc}") from exc
+        message = runtime_evidence_redactor(SimpleNamespace(settings=settings)).text(str(exc))
+        raise click.ClickException(f"Unable to configure provider: {message}") from exc
 
 
 def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> None:
@@ -180,7 +183,8 @@ def _prepare_runtime_context() -> RuntimeContext:
     try:
         settings = load_settings()
     except Exception as exc:
-        raise click.ClickException(f"Unable to configure provider: {exc}") from exc
+        message = runtime_evidence_redactor(SimpleNamespace()).text(str(exc))
+        raise click.ClickException(f"Unable to configure provider: {message}") from exc
     provider = _get_provider(settings=settings)
 
     # Load context from HENCHMAN.md files (portable AGENTS.md included)
@@ -288,7 +292,8 @@ def _setup_repl_session(repl: Any) -> None:
         except FileNotFoundError:
             pass
         except ValueError as exc:
-            raise click.ClickException(f"Cannot resume saved session: {exc}") from exc
+            message = runtime_evidence_redactor(repl).text(str(exc))
+            raise click.ClickException(f"Cannot resume saved session: {message}") from exc
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
 

@@ -69,7 +69,7 @@ class OllamaProvider(OpenAICompatibleProvider):
             actual_url = urlunsplit(parts._replace(path="/v1"))
 
         super().__init__(
-            api_key="ollama",  # Ollama doesn't need a real key
+            api_key="",  # Keep the SDK's placeholder separate from real credentials.
             base_url=actual_url,
             default_model=model,
             **request_defaults,

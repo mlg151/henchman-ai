@@ -19,6 +19,8 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.output.plain_text import PlainTextOutput
 from rich.prompt import Confirm, IntPrompt, Prompt
 
+from henchman.utils.evidence_redaction import EvidenceRedactor
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -176,11 +178,23 @@ def _register_custom_keybindings(bindings: KeyBindings, keybindings: dict[str, s
                 raise EOFError
 
 
+class EvidenceFileHistory(FileHistory):
+    """Redact persisted input while prompt-toolkit keeps its live editing buffer."""
+
+    def __init__(self, filename: str, redactor: EvidenceRedactor) -> None:
+        super().__init__(filename)
+        self._redactor = redactor
+
+    def store_string(self, string: str) -> None:
+        super().store_string(self._redactor.text(string))
+
+
 def create_session(
     history_file: Path | None = None,
     bottom_toolbar: Any = None,
     keybindings: dict[str, str] | None = None,
     completer: Any = None,
+    evidence_redactor: EvidenceRedactor | None = None,
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
@@ -189,6 +203,7 @@ def create_session(
         bottom_toolbar: Optional callback for bottom toolbar.
         keybindings: Dictionary of keybindings (key -> action).
         completer: Optional completer for tab completion.
+        evidence_redactor: Shared policy for the persisted history copy.
 
     Returns:
         Configured PromptSession.
@@ -213,7 +228,7 @@ def create_session(
     if keybindings:
         _register_custom_keybindings(bindings, keybindings)
 
-    history = FileHistory(str(history_file)) if history_file else None
+    history = EvidenceFileHistory(str(history_file), evidence_redactor or EvidenceRedactor()) if history_file else None
 
     output = None
     if sys.stdout is not None and not sys.stdout.isatty():

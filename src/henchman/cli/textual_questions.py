@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 
+from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.textual_screens import ConfirmToolScreen
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
 if TYPE_CHECKING:
     from textual.app import App, ComposeResult
@@ -110,6 +113,18 @@ class _ApprovalScreen(_PromptLifetime, ConfirmToolScreen):
         self._init_lifetime()
 
 
+def _approval_evidence(request: ConfirmationRequest, policy: EvidenceRedactor) -> ConfirmationRequest:
+    """Project all visible request fields, retaining only valid risk controls."""
+    safe = policy.redact({
+        "tool_name": request.tool_name, "description": request.description,
+        "params": request.params, "risk_level": request.risk_level,
+    }, schema={
+        "tool_name": None, "description": None, "params": None,
+        "risk_level": PRESERVE_IDENTITY if request.risk_level in ("low", "medium", "high") else None,
+    })
+    return replace(request, **safe)
+
+
 class ToolPromptChannel:
     """Keep one tool dialog active and cancel pending input during shutdown."""
 
@@ -122,12 +137,15 @@ class ToolPromptChannel:
 
     async def ask(self, question: str) -> str | None:
         """Wait for an answer through the Textual input widget."""
-        result = await self._show(QuestionScreen(question))
+        policy = runtime_evidence_redactor(self.app)
+        result = await self._show(QuestionScreen(policy.text(question)))
         return result if isinstance(result, str) else None
 
     async def confirm(self, request: ConfirmationRequest) -> bool:
         """Serialize approvals with questions and require explicit approval."""
-        return await self._show(_ApprovalScreen(request)) is True
+        policy = runtime_evidence_redactor(self.app)
+        safe = _approval_evidence(request, policy)
+        return await self._show(_ApprovalScreen(safe)) is True
 
     async def _show(self, screen: QuestionScreen | _ApprovalScreen) -> object:
         async with self._lock:
@@ -139,6 +157,13 @@ class ToolPromptChannel:
                 await self._screen.removed.wait()
             if self._closed:
                 raise asyncio.CancelledError
+            # A provider key can rotate while this prompt waits behind another
+            # dialog. Re-project immediately before mounting the visible copy.
+            policy = runtime_evidence_redactor(self.app)
+            if isinstance(screen, _ApprovalScreen):
+                screen._request = _approval_evidence(screen._request, policy)
+            else:
+                screen.question = policy.text(screen.question)
             future: asyncio.Future[object] = asyncio.get_running_loop().create_future()
             self._screen = screen
             self._answer = future
