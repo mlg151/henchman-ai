@@ -7,6 +7,7 @@ and that tools are properly discovered and wrapped.
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 
 import pytest
@@ -36,6 +37,8 @@ class TestSerenaMcpIntegration:
             trusted=True,
         )
 
+    @pytest.mark.skipif(os.environ.get("HENCHMAN_RUN_LIVE_MCP_TESTS") != "1",
+                        reason="Live uvx/network check requires HENCHMAN_RUN_LIVE_MCP_TESTS=1")
     def test_serena_command_exists(self) -> None:
         """Test that Serena command is available."""
         try:
@@ -52,6 +55,8 @@ class TestSerenaMcpIntegration:
 
     @pytest.mark.integration
     @pytest.mark.anyio
+    @pytest.mark.skipif(os.environ.get("HENCHMAN_RUN_LIVE_MCP_TESTS") != "1",
+                        reason="Live Serena server requires HENCHMAN_RUN_LIVE_MCP_TESTS=1")
     async def test_serena_mcp_connection(self, serena_config: McpServerConfig) -> None:
         """Test connecting to Serena MCP server (integration test).
 

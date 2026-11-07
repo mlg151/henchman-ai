@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
+from contextlib import suppress
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -15,6 +18,80 @@ from tests.mcp.http_fixture import HttpPeer
 
 def client_for(peer, **options):
     return McpClient("http-fixture", McpServerConfig(transport="streamable_http", url=peer.url, **options))
+
+
+@pytest.mark.parametrize("incomplete", [True, False])
+async def test_http_peer_teardown_joins_accepted_incomplete_or_stalled_requests(incomplete):
+    peer = await HttpPeer().__aenter__()
+    peer.behavior = "stall"
+    endpoint = urlsplit(peer.url)
+    reader, writer = await asyncio.open_connection(endpoint.hostname, endpoint.port)
+    closing = None
+    try:
+        if incomplete:
+            writer.write(b"POST /mcp HTTP/1.1\r\nContent-Length: 100\r\n")
+        else:
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {}}).encode()
+            writer.write(f"POST /mcp HTTP/1.1\r\nContent-Length: {len(body)}\r\n\r\n".encode() + body)
+        await writer.drain()
+        async with asyncio.timeout(2):
+            while not peer.tasks or (not incomplete and not peer.effects):
+                await asyncio.sleep(0)
+        owned = tuple(peer.tasks)
+        closing = asyncio.create_task(peer.__aexit__(None, None, None))
+        await asyncio.wait_for(asyncio.shield(closing), timeout=2)
+        assert all(task.done() for task in owned)
+        assert not peer.tasks
+        assert not peer.writers
+        # Aborting a socket with unread request bytes may close with TCP RST.
+        with suppress(ConnectionResetError):
+            assert await asyncio.wait_for(reader.read(), timeout=2) == b""
+    finally:
+        # Also settle the broken implementation when exercising the red case.
+        for task in tuple(peer.tasks):
+            task.cancel()
+        writer.close()
+        with suppress(ConnectionError):
+            await writer.wait_closed()
+        if closing is None:
+            closing = asyncio.create_task(peer.__aexit__(None, None, None))
+        await asyncio.wait_for(closing, timeout=2)
+
+
+async def test_http_peer_closes_an_accept_callback_queued_before_teardown(monkeypatch):
+    original = asyncio.start_server
+    connected = asyncio.Event()
+    delayed = {}
+
+    async def defer_callback(callback, *args, **kwargs):
+        delayed["callback"] = callback
+        def accepted(reader, writer):
+            delayed["connection"] = (reader, writer)
+            connected.set()
+        return await original(accepted, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "start_server", defer_callback)
+    peer = await HttpPeer().__aenter__()
+    endpoint = urlsplit(peer.url)
+    reader, writer = await asyncio.open_connection(endpoint.hostname, endpoint.port)
+    closing = None
+    try:
+        await asyncio.wait_for(connected.wait(), timeout=2)
+        closing = asyncio.create_task(peer.__aexit__(None, None, None))
+        await asyncio.sleep(0)
+        assert peer.closing
+        delayed["callback"](*delayed["connection"])
+        await asyncio.wait_for(asyncio.shield(closing), timeout=2)
+        with suppress(ConnectionResetError):
+            assert await asyncio.wait_for(reader.read(), timeout=2) == b""
+        assert not peer.tasks and not peer.writers and not peer.requests
+    finally:
+        writer.close()
+        with suppress(ConnectionError):
+            await writer.wait_closed()
+        if closing is None:
+            closing = asyncio.create_task(peer.__aexit__(None, None, None))
+        await asyncio.wait_for(closing, timeout=2)
 
 
 @pytest.mark.parametrize("version", ["2025-03-26", "2025-06-18", "2025-11-25", "2026-07-28"])

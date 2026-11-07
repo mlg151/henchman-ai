@@ -122,5 +122,10 @@ Sessions persist JSON in `~/.henchman/sessions/`, scoped by `project_hash`. MCP 
 ## Testing
 Pytest is offline by default: `tests/offline_network.py` rejects external DNS/TCP connections and existing local model ports, while allowing owned ephemeral loopback HTTP/TLS fixtures. The installed-wheel cohort uses the same guard. Each test receives temporary HOME/USERPROFILE/XDG directories and clears inherited Henchman settings-file/provider/model overrides; explicit fixtures may override these. Known inherited provider keys are replaced with test values. SDK adapter tests must use explicit HTTP mock transports, which survive SDK client copies; mock providers may yield `StreamChunk` directly. This Python guard does not sandbox subprocesses. Run any authorized live model qualification separately with explicit endpoints and bounded requests; an integration marker does not disable the guard.
 
+The live Serena version/server tests additionally require
+`HENCHMAN_RUN_LIVE_MCP_TESTS=1`; leave it unset for offline runs. This opt-in may
+launch `uvx` and fetch remote packages, so use it only for separately authorized
+live MCP qualification. Scripted MCP and owned loopback fixtures run by default.
+
 ## Development Workflow
 Test-Driven Development with strict quality gates: write tests first, implement minimum code to pass tests, then run `uv lock --check`, `ruff check src tests`, `mypy src`, `pytest --cov-fail-under=90`, `uv build`. Update docs and `FEATURE_TODO.md`/`TODOS.md` on user-facing changes; commit with a descriptive message. Prefer focused verification; reuse existing helpers and docs.

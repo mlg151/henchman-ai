@@ -197,6 +197,12 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/contracts/schemas/runtime/message.json",
         "tests/contracts/schemas/runtime/stream_chunk.json",
         "tests/contracts/schemas/config/mcp_server_config.json",
+        "tests/contracts/test_advanced_contracts.py",
+        "tests/contracts/schemas/advanced/task_record.json",
+        "tests/contracts/schemas/advanced/plan_record.json",
+        "tests/contracts/schemas/advanced/cron_schedule.json",
+        "tests/contracts/schemas/advanced/repl_session.json",
+        "tests/contracts/schemas/advanced/tungsten_snapshot.json",
     ]
 
     for path_str in paths:

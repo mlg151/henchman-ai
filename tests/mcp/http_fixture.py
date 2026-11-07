@@ -24,27 +24,57 @@ class HttpPeer:
             "type": "object", "properties": {"region": {"type": "string", "x-mcp-header": "region"}},
         }}]}}
         self.tasks = set()
+        self.writers = set()
+        self.closing = False
         self.server = None
         self.url = ""
 
     async def __aenter__(self):
-        self.server = await asyncio.start_server(self._handle, "127.0.0.1", 0, ssl=self.ssl_context)
+        self.server = await asyncio.start_server(self._accept, "127.0.0.1", 0, ssl=self.ssl_context)
         port = self.server.sockets[0].getsockname()[1]
         scheme = "https" if self.ssl_context is not None else "http"
         self.url = f"{scheme}://127.0.0.1:{port}/mcp"
         return self
 
     async def __aexit__(self, *_args):
+        self.closing = True
         self.server.close()
+        # Python 3.12+ waits for accepted transports as well as the listener.
+        # Settle owned connections first, including callbacks already queued.
+        await self._close_clients()
         await self.server.wait_closed()
-        for task in self.tasks:
-            task.cancel()
-        await asyncio.gather(*self.tasks, return_exceptions=True)
+        await self._close_clients()
+
+    def _accept(self, reader, writer):
+        self.writers.add(writer)
+        if self.closing:
+            # A connection_made callback can have been queued before close().
+            # Abort immediately so wait_closed never depends on its handler.
+            writer.close()
+            writer.transport.abort()
+            return
+        task = asyncio.create_task(self._handle(reader, writer))
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+
+    async def _close_clients(self):
+        while self.tasks or self.writers:
+            tasks, writers = tuple(self.tasks), tuple(self.writers)
+            for writer in writers:
+                writer.close()
+                writer.transport.abort()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            for writer in writers:
+                with suppress(ConnectionError):
+                    await writer.wait_closed()
+                self.writers.discard(writer)
 
     async def _handle(self, reader, writer):
-        task = asyncio.current_task()
-        self.tasks.add(task)
         try:
+            if self.closing:
+                return
             header_bytes = await reader.readuntil(b"\r\n\r\n")
             lines = header_bytes.decode("iso-8859-1").split("\r\n")
             verb, target, _ = lines[0].split(" ", 2)
@@ -164,7 +194,7 @@ class HttpPeer:
             writer.close()
             with suppress(ConnectionError):
                 await writer.wait_closed()
-            self.tasks.discard(task)
+            self.writers.discard(writer)
 
     @staticmethod
     async def _respond(writer, status, body, *, content_type="application/json", headers=None):
