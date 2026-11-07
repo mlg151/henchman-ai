@@ -423,6 +423,9 @@ is retained; a supplied different ledger cannot replace it. Agent tool-result
 continuations retain the original scope even when consumed outside the caller's
 context. Budget control failures propagate through background workers and stop
 further primary/delegate dispatch instead of becoming ordinary retry messages.
+Public runs reserve their actual target before asynchronous setup, so overlapping
+work cannot replace its history, status or accounting. Accounting capability
+checks use the configured leader or specialist provider.
 
 CLI, REPL and Textual bind scopes to their selected session. `usage.persistence`
 selects process or durable accounting; see [configuration](configuration.md#usage-limits-and-explicit-prices)

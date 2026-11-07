@@ -128,6 +128,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Public run ownership** — Target reservations now span asynchronous setup and
+  execution, preserving active work when overlapping calls are rejected. Leader
+  accounting checks use its actual provider, including configured overrides.
+
 - Test defaults now isolate user configuration/data directories as well as model
   network traffic, preventing ordinary tests from saving to the real user home.
 

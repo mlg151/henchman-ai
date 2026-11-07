@@ -131,46 +131,42 @@ class Orchestrator:
         An explicit/enclosing scope spans multiple public turns. Otherwise this
         call captures a fresh process-lifetime budget from the current settings.
         """
-        stream = self._run(user_input, completion_requirement=completion_requirement)
-        async with aclosing(self._accounted_run(stream, budget_scope, invocation=invocation)) as events:
+        async with aclosing(self._accounted_run(
+            user_input, budget_scope, completion_requirement=completion_requirement,
+            invocation=invocation,
+        )) as events:
             async for event in events:
                 yield event
 
     async def _run(
-        self, user_input: str, *, completion_requirement: CompletionRequirement,
+        self, params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
         """Run the orchestrator with user input.
 
         Args:
-            user_input: The user's input or task description.
-            completion_requirement: Accept a response or require successful actions.
+            params: Loop parameters owning the target's public-run reservation.
 
         Yields:
             AgentEvent: Stream of agent events including content, tool calls,
                 and completion status.
         """
-        params = AgentLoopParams(
-            agent=self.tech_lead, input_text=user_input,
-            completion_requirement=CompletionRequirement(completion_requirement),
+        prepare_run(self, params.input_text)
+        yield AgentEvent(
+            type=EventType.AGENT_STARTED,
+            data={"agent": "tech_lead"},
+            source_agent="orchestrator",
         )
-        with self.pool.claim_agent(self.tech_lead, owner=params):
-            prepare_run(self, user_input)
-            yield AgentEvent(
-                type=EventType.AGENT_STARTED,
-                data={"agent": "tech_lead"},
-                source_agent="orchestrator",
-            )
-            from henchman.agents.subagent_runtime import run_with_notifications
+        from henchman.agents.subagent_runtime import run_with_notifications
 
-            try:
-                async with aclosing(run_with_notifications(self, params)) as stream:
-                    async for event in stream:
-                        yield event
-            except BaseException:
-                await self.cancel_subagents()
-                raise
-            for event in finalize_run(self, self.tech_lead, "tech_lead"):
-                yield event
+        try:
+            async with aclosing(run_with_notifications(self, params)) as stream:
+                async for event in stream:
+                    yield event
+        except BaseException:
+            await self.cancel_subagents()
+            raise
+        for event in finalize_run(self, params.agent, "tech_lead"):
+            yield event
 
     async def cancel_subagents(self) -> None:
         """Cancel and join dynamic work while keeping the session reusable."""
@@ -195,87 +191,93 @@ class Orchestrator:
         invocation: RunInvocation | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Run one role with shared accounting, including its delegated work."""
-        stream = self._run_direct(role, user_input, completion_requirement=completion_requirement)
-        async with aclosing(self._accounted_run(stream, budget_scope, invocation=invocation, direct_role=role)) as events:
+        async with aclosing(self._accounted_run(
+            user_input, budget_scope, completion_requirement=completion_requirement,
+            invocation=invocation, direct_role=role,
+        )) as events:
             async for event in events:
                 yield event
 
     async def _accounted_run(
-        self, stream: AsyncIterator[AgentEvent], supplied: RunBudgetScope | None,
-        *, invocation: RunInvocation | None = None, direct_role: str | None = None,
+        self, user_input: str, supplied: RunBudgetScope | None,
+        *, completion_requirement: CompletionRequirement,
+        invocation: RunInvocation | None = None, direct_role: str | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Claim runtime ownership before creating or recovering accounting state."""
         with claim_public_run(self):
-            if invocation is not None:
-                if invocation.claimed:
-                    raise ValueError("Run invocation has already been claimed")
-                invocation.claimed = True
-            self.last_budget_scope = None
-            self.last_completion_status = CompletionStatus.FAILED
-            await self.subagents.prepare_for_run()
-            provider = self.default_provider if direct_role is None else self.pool.get_agent(direct_role).provider
-            managed = self.accounting_runtime if supplied is None and current_run_budget() is None else None
-            scope = (
-                managed.begin(provider) if managed is not None
-                else public_run_budget(self.settings, provider, supplied)
+            if invocation is not None and invocation.claimed:
+                raise ValueError("Run invocation has already been claimed")
+            agent = self.tech_lead if direct_role is None else self.pool.get_agent(direct_role)
+            params = AgentLoopParams(
+                agent=agent, input_text=user_input,
+                completion_requirement=CompletionRequirement(completion_requirement),
             )
-            self.last_budget_scope = scope
-            if invocation is not None:
-                invocation.budget_scope = scope
-            completed = False
-            try:
-                async with aclosing(primary_actor_events(budgeted_events(stream, scope))) as events:
-                    async for event in events:
-                        if (event.type == EventType.AGENT_COMPLETED
-                            and event.source_agent == "orchestrator" and isinstance(event.data, dict)
-                            and event.data.get("scope") == "run"):
-                            completed = event.data.get("status") in {"completed", "responded"}
-                        yield event
-            finally:
-                if managed is not None:
-                    managed.finish(scope, completed=completed, background_active=self.subagents.has_running_work())
+            # The same owner reenters as running=True in execution_controller.
+            # Keep this reservation across awaited setup and finalization.
+            with self.pool.claim_agent(agent, owner=params):
+                if invocation is not None:
+                    invocation.claimed = True
+                self.last_budget_scope = None
+                self.last_completion_status = CompletionStatus.FAILED
+                await self.subagents.prepare_for_run()
+                provider = agent.provider
+                managed = self.accounting_runtime if supplied is None and current_run_budget() is None else None
+                scope = (
+                    managed.begin(provider) if managed is not None
+                    else public_run_budget(self.settings, provider, supplied)
+                )
+                self.last_budget_scope = scope
+                if invocation is not None:
+                    invocation.budget_scope = scope
+                stream = self._run(params) if direct_role is None else self._run_direct(direct_role, params)
+                completed = False
+                try:
+                    async with aclosing(primary_actor_events(budgeted_events(stream, scope))) as events:
+                        async for event in events:
+                            if (event.type == EventType.AGENT_COMPLETED
+                                and event.source_agent == "orchestrator" and isinstance(event.data, dict)
+                                and event.data.get("scope") == "run"):
+                                completed = event.data.get("status") in {"completed", "responded"}
+                            yield event
+                finally:
+                    if managed is not None:
+                        managed.finish(scope, completed=completed, background_active=self.subagents.has_running_work())
 
     async def _run_direct(
-        self, role: str, user_input: str, *, completion_requirement: CompletionRequirement,
+        self, role: str, params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
         """Run a specific agent directly, bypassing the Tech Lead.
 
         Args:
             role: The role of the agent to run (e.g., "coder", "architect").
-            user_input: The user's input or task description.
-            completion_requirement: Accept a response or require successful actions.
+            params: Loop parameters owning the target's public-run reservation.
 
         Yields:
             AgentEvent: Stream of agent events including content, tool calls,
                 and completion status.
         """
-        requirement = CompletionRequirement(completion_requirement)
-        agent = self.pool.get_agent(role)
-        params = AgentLoopParams(
-            agent=agent, input_text=user_input, completion_requirement=requirement,
+        agent = params.agent
+        prepare_run(self, params.input_text)
+        yield AgentEvent(
+            type=EventType.AGENT_STARTED,
+            data={"agent": role},
+            source_agent="orchestrator",
         )
-        with self.pool.claim_agent(agent, owner=params):
-            prepare_run(self, user_input)
-            yield AgentEvent(
-                type=EventType.AGENT_STARTED,
-                data={"agent": role},
-                source_agent="orchestrator",
-            )
-            from henchman.agents.subagent_runtime import run_with_notifications
+        from henchman.agents.subagent_runtime import run_with_notifications
 
-            execution = (
-                run_with_notifications(self, params) if agent is self.tech_lead
-                else self.execution_controller.run_agent_loop(params)
-            )
-            try:
-                async with aclosing(execution) as stream:
-                    async for event in stream:
-                        yield event
-            except BaseException:
-                await self.cancel_subagents()
-                raise
-            for event in finalize_run(self, agent, role):
-                yield event
+        execution = (
+            run_with_notifications(self, params) if agent is self.tech_lead
+            else self.execution_controller.run_agent_loop(params)
+        )
+        try:
+            async with aclosing(execution) as stream:
+                async for event in stream:
+                    yield event
+        except BaseException:
+            await self.cancel_subagents()
+            raise
+        for event in finalize_run(self, agent, role):
+            yield event
 
     # ------------------------------------------------------------------
     # Public accessors
