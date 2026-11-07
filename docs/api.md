@@ -1077,6 +1077,12 @@ from henchman.mcp import (
 
 ### McpClient
 
+The current client uses the bounded SDK 1.x stdio interface.
+`protocol_version: str | None` reports negotiated protocol metadata while
+connected and clears on disconnect/failure. See the
+[tested compatibility profiles](standards.md#implemented-compatibility-foundation-v042-work)
+and remaining fidelity/migration gates.
+
 ```python
 class McpClient:
     def __init__(self, name: str, config: McpServerConfig) -> None:

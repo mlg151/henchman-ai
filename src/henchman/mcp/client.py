@@ -6,19 +6,26 @@ a connection to an MCP server.
 
 from __future__ import annotations
 
+import asyncio
+import codecs
 import io
+import os
 import re
 import sys
-from contextlib import AsyncExitStack, suppress
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
+import anyio
 from mcp.client.stdio import stdio_client
 
+from henchman.mcp.diagnostics import sdk_diagnostics
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 from mcp import ClientSession, StdioServerParameters
 
 if TYPE_CHECKING:
-    from typing import Self
+    from collections.abc import AsyncIterator
+    from typing import Self, TextIO
 
     from henchman.config.schema import McpServerConfig
 
@@ -117,6 +124,102 @@ class FilteredStream(io.StringIO):
         return len(text)
 
 
+def _pipe_chunk(reader: int) -> bytes | None:
+    """Read available pipe bytes without occupying an executor worker."""
+    if sys.platform == "win32":
+        # Python 3.11 lacks nonblocking Windows pipe support in os.set_blocking.
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        peek = kernel.PeekNamedPipe
+        peek.argtypes = [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+                         ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+                         ctypes.POINTER(wintypes.DWORD)]
+        peek.restype = wintypes.BOOL
+        available = wintypes.DWORD()
+        if not peek(msvcrt.get_osfhandle(reader), None, 0, None, ctypes.byref(available), None):
+            error = ctypes.get_last_error()
+            if error in (109, 232):  # Broken pipe / closing pipe.
+                return b""
+            raise ctypes.WinError(error)
+        return os.read(reader, min(available.value, 4096)) if available.value else None
+    try:
+        return os.read(reader, 4096)
+    except BlockingIOError:
+        return None
+
+
+@asynccontextmanager
+async def _stdio_stderr(config: McpServerConfig, *, verbose: bool) -> AsyncIterator[TextIO]:
+    """Supply a real process descriptor and drain redacted diagnostics in memory."""
+    reader, writer = os.pipe()
+    if os.name != "nt":
+        os.set_blocking(reader, False)
+    output = os.fdopen(writer, "wb", buffering=0)
+    policy = EvidenceRedactor()
+    policy.register_config(config.env)
+    projection = EvidenceStreamRedactor(policy)
+    closing_deadline: float | None = None
+
+    async def drain() -> None:
+        decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        pending = ""
+        discard_line: bool | None = None
+
+        def emit(text: str, *, final: bool = False) -> None:
+            nonlocal pending, discard_line
+            pending += text
+            while pending:
+                newline = pending.find("\n", 0, 8192)
+                if newline >= 0:
+                    size = newline + 1
+                elif len(pending) >= 8192:
+                    size = 8192
+                elif final:
+                    size = len(pending)
+                else:
+                    break
+                fragment = pending[:size]
+                if discard_line is None:
+                    discard_line = not verbose and _is_log_line(fragment)
+                if not discard_line and (verbose or fragment.strip() or not fragment.endswith("\n")):
+                    sys.stderr.write(fragment)
+                if fragment.endswith("\n"):
+                    discard_line = None
+                pending = pending[size:]
+
+        try:
+            loop = asyncio.get_running_loop()
+            while closing_deadline is None or loop.time() < closing_deadline:
+                chunk = _pipe_chunk(reader)
+                if chunk is None:
+                    if closing_deadline is not None:
+                        break
+                    await asyncio.sleep(0.01)
+                    continue
+                if not chunk:
+                    break
+                emit(projection.feed(decoder.decode(chunk)))
+                await asyncio.sleep(0)
+            emit(projection.feed(decoder.decode(b"", final=True)))
+            emit(projection.finish(interrupted=True), final=True)
+        finally:
+            os.close(reader)
+
+    task = asyncio.create_task(drain(), name="henchman-mcp-stderr")
+    try:
+        yield cast("TextIO", output)
+    finally:
+        # A descendant can retain stderr after the SDK's direct process exits.
+        # Flush available bytes with a bound instead of waiting for its EOF.
+        closing_deadline = asyncio.get_running_loop().time() + 0.1
+        output.close()
+        with anyio.CancelScope(shield=True):
+            await task
+
+
 @dataclass
 class McpToolResult:
     """Result from an MCP tool call.
@@ -169,6 +272,7 @@ class McpClient:
         self.config = config
         self.verbose = verbose
         self._session: ClientSession | None = None
+        self.protocol_version: str | None = None
         self._tools: list[McpToolDefinition] = []
         self._exit_stack: AsyncExitStack | None = None
 
@@ -190,12 +294,14 @@ class McpClient:
         stack: AsyncExitStack,
     ) -> ClientSession:
         """Enter stdio_client and ClientSession contexts, then initialize."""
-        errlog = FilteredStream(verbose=self.verbose)
-        read, write = await stack.enter_async_context(
-            stdio_client(self._build_server_params(), errlog=errlog),
-        )
-        session = await stack.enter_async_context(ClientSession(read, write))
-        await session.initialize()
+        with sdk_diagnostics(self.config.env):
+            errlog = await stack.enter_async_context(_stdio_stderr(self.config, verbose=self.verbose))
+            read, write = await stack.enter_async_context(
+                stdio_client(self._build_server_params(), errlog=errlog),
+            )
+            session = await stack.enter_async_context(ClientSession(read, write))
+            initialized = await session.initialize()
+            self.protocol_version = str(initialized.protocolVersion)
         return session
 
     async def connect(self: Self) -> None:  # pragma: no cover
@@ -217,10 +323,11 @@ class McpClient:
         try:
             self._session = await self._open_session(self._exit_stack)
             await self.discover_tools()
-        except Exception:
+        except BaseException:
             await self._exit_stack.aclose()
             self._exit_stack = None
             self._session = None
+            self.protocol_version = None
             raise
 
     async def disconnect(self: Self) -> None:
@@ -237,6 +344,7 @@ class McpClient:
                 await self._exit_stack.aclose()
             self._exit_stack = None
         self._session = None
+        self.protocol_version = None
         self._tools = []
 
     async def discover_tools(self: Self) -> list[McpToolDefinition]:

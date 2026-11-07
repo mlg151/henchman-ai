@@ -536,6 +536,13 @@ actual digests, original/captured sizes and truncation markers.
 
 ## MCP Server Configuration
 
+The current transport is stdio through SDK 1.x; see the
+[tested protocol profiles](standards.md#implemented-compatibility-foundation-v042-work).
+Verbose logging changes filtering, not credential redaction. Configured
+credential-named environment values are masked in process stderr and SDK
+malformed-stdout diagnostics. Descendants retaining stderr cannot indefinitely
+block diagnostic cleanup; this does not provide process isolation.
+
 Configure Model Context Protocol servers:
 
 ```yaml

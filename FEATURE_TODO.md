@@ -86,6 +86,10 @@ caller histories and retain budgets through tool-result continuation; durable
 API binding fails explicitly. Native/live qualification and remaining
 UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
+MCP stdio now uses a bounded SDK 1.x dependency and independent process fixtures
+for four legacy protocol profiles, with bounded redacted diagnostic draining.
+Native qualification and the remaining schema/discovery/result work stay open
+under #21; modern SDK/transport migration stays under #25.
 REPL/Textual now retain a shared live settings snapshot with accurate session
 origins for config/doctor inspection, provider switching and resume. Explicit file
 scopes remain independent, and theme/context shortcuts persist only named keys.

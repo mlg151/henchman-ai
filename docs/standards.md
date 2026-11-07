@@ -67,6 +67,29 @@ OpenAI strict tools require closed objects and all properties required, with nul
 
 ## Phased implementation roadmap
 
+### Implemented compatibility foundation (v0.4.2 work)
+
+The runtime now bounds its existing SDK interface to `mcp>=1.26,<2`, with
+`1.26.0` retained in the lockfile. The current stdio fixture profiles are
+`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`. Independent JSON-RPC
+subprocesses exercise initialization, discovery, calls, unsupported-version
+rejection, cancellation and shutdown through the actual SDK. These are legacy
+compatibility profiles, not implementation of the 2026 protocol revision. The
+SDK handles negotiation; `McpClient.protocol_version` exposes the negotiated
+version. See the [SDK release](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v1.26.0)
+and [2025 tool protocol](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
+
+Real process launch now uses a pipe instead of an in-memory stderr object.
+Diagnostics drain without shared executor workers or unbounded line buffers;
+shutdown does not wait indefinitely for descendants retaining stderr. Configured
+environment credentials are redacted from stderr and SDK malformed-stdout logs
+before output. This does not establish OS containment or complete third-party
+logging coverage. Native/fresh artifact qualification, canonical schemas,
+pagination, refresh and typed results remain under #21; SDK migration remains
+under #25. The original research gap table above stays pinned to its baseline.
+
+### Remaining phase gates
+
 All items below remain **implementation work**. Each phase should ship with focused tests and nearest-reference documentation; maintain roadmap state and changelog when behavior changes.
 
 - [ ] **P0 — Compatibility baseline and dependency bounds.** Record supported protocol/SDK versions, add a tested MCP major bound, and establish offline fixtures. Harmonize the effective settings model and legacy MCP config type when extending transport settings. **Exit:** locked and fresh installations import and pass existing checks; capability reporting identifies tested support rather than installed packages.

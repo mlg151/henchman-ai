@@ -36,6 +36,12 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #21 stdio foundation now uses a bounded SDK 1.x dependency and independent
+  subprocess fixtures for four legacy protocol profiles. Pipe startup, cancellation,
+  bounded diagnostic cleanup and known-credential projection are covered. Native
+  qualification, schemas, pagination and typed results remain open; see the
+  [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
+
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale
   grant reuse. Typed restricted roots now mediate builtin file reads/writes on

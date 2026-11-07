@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Real MCP stdio qualification** — Independent fixture processes exercise four
+  SDK 1.x protocol profiles, unknown-version rejection and cancellation. The SDK
+  dependency is bounded to `>=1.26,<2`. Real descriptor-based stderr draining
+  fixes subprocess startup, avoids shared-executor starvation, bounds shutdown
+  with inherited writers and redacts configured credentials in process/SDK
+  diagnostics. Native qualification and broader fidelity remain under #21.
+
 - **Caller-owned API budgets** — Standalone HTTP chat uses isolated process runs
   with continuation IDs, shared tool-follow-up budgets and caller-scoped history
   and usage. SSE identifies each run and reports terminal accounting. Unsupported
