@@ -128,6 +128,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Test defaults now isolate user configuration/data directories as well as model
+  network traffic, preventing ordinary tests from saving to the real user home.
+
 - **Config evidence redaction** — Text/JSON mutation responses and sync export
   files now redact credential echoes, including nested values, dynamic keys and
   validation errors. Persisted settings and runtime inputs stay unchanged;

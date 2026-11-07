@@ -4,6 +4,7 @@ import asyncio
 import ipaddress
 import os
 import socket
+from pathlib import Path
 
 import pytest
 
@@ -29,8 +30,21 @@ def _check_destination(host, port):
 
 
 @pytest.fixture(autouse=True)
-def offline_network(monkeypatch):
-    """Block accidental SDK traffic while allowing owned loopback HTTP/TLS fixtures."""
+def offline_network(monkeypatch, tmp_path) -> Path:
+    """Isolate user files and block SDK traffic; allow owned loopback fixtures."""
+    test_home = tmp_path / ".isolated-home"
+    test_home.mkdir()
+    monkeypatch.setenv("HOME", str(test_home))
+    monkeypatch.setenv("USERPROFILE", str(test_home))
+    for key in ("HENCHMAN_SETTINGS_PATH", "HENCHMAN_PROVIDER", "HENCHMAN_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    for key, relative in (
+        ("XDG_CONFIG_HOME", ".config"), ("XDG_DATA_HOME", ".local/share"),
+        ("XDG_CACHE_HOME", ".cache"),
+    ):
+        destination = test_home / relative
+        destination.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv(key, str(destination))
     original_resolve = socket.getaddrinfo
     original_connect = socket.socket.connect
     original_connect_ex = socket.socket.connect_ex
@@ -61,3 +75,4 @@ def offline_network(monkeypatch):
     for key in _PROVIDER_KEYS:
         if key in os.environ:
             monkeypatch.setenv(key, "offline-test-key")
+    return test_home

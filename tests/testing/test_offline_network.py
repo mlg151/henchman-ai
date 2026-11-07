@@ -1,7 +1,9 @@
 """Exercise the test guard before DNS, synchronous sockets and async transports."""
 
 import asyncio
+import os
 import socket
+from pathlib import Path
 
 import pytest
 
@@ -35,3 +37,13 @@ def test_default_guard_allows_owned_ephemeral_loopback_fixture():
         with connection:
             client.sendall(b"fixture")
             assert connection.recv(7) == b"fixture"
+
+
+def test_default_guard_isolates_user_configuration_and_data(offline_network, tmp_path):
+    assert offline_network is not None
+    assert Path.home() == offline_network
+    assert offline_network.is_relative_to(tmp_path)
+    assert Path(os.environ["HOME"]) == offline_network
+    assert Path(os.environ["USERPROFILE"]) == offline_network
+    for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
+        assert Path(os.environ[key]).is_relative_to(offline_network)
