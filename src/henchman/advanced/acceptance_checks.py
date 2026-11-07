@@ -17,6 +17,14 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from henchman.advanced.verification_evidence import (
+    current_policy,
+    evidence_scope,
+    output_text,
+    project_report,
+    refresh_policy,
+    require_safe_checks,
+)
 from henchman.advanced.verification_inputs import (
     MAX_INPUT_FILES,
     capture_inputs_async,
@@ -303,6 +311,8 @@ def _read_file(path: Path) -> bytes:
 def prepare_checks(root: Path, checks: tuple[CheckSpec, ...]) -> tuple[CheckSpec, ...]:
     """Capture file-change baselines from the project, never from model claims."""
     root = _project_root(root)
+    policy = current_policy()
+    refresh_policy(root, policy)
     prepared = []
     for spec in _checked_specs(checks):
         if spec.kind != "file_changed":
@@ -316,7 +326,7 @@ def prepare_checks(root: Path, checks: tuple[CheckSpec, ...]) -> tuple[CheckSpec
         except FileNotFoundError:
             pass
         except (OSError, ValueError) as exc:
-            error = str(exc)[:MAX_TEXT_LENGTH]
+            error = output_text(str(exc).encode(), truncated=False, policy=policy, limit=MAX_TEXT_LENGTH)
         prepared.append(
             replace(
                 spec,
@@ -372,8 +382,8 @@ async def _command_result(root: Path, spec: CheckSpec) -> dict[str, Any]:
     return {
         "passed": passed,
         "returncode": process.returncode,
-        "stdout": process.stdout.decode("utf-8", errors="replace"),
-        "stderr": process.stderr.decode("utf-8", errors="replace"),
+        "stdout": output_text(process.stdout, truncated=process.stdout_truncated, policy=current_policy(), limit=MAX_OUTPUT_BYTES),
+        "stderr": output_text(process.stderr, truncated=process.stderr_truncated, policy=current_policy(), limit=MAX_OUTPUT_BYTES),
         "stdout_truncated": process.stdout_truncated,
         "stderr_truncated": process.stderr_truncated,
         "error": None
@@ -410,15 +420,29 @@ async def _pytest_result(root: Path, spec: CheckSpec) -> dict[str, Any]:
 
 async def run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, object]:
     """Run sequential bounded checks and report observations without certification."""
+    policy = current_policy()
+    refresh_policy(root, policy)
+    with evidence_scope(policy):
+        result = await _run_checks(root, checks)
+    projected = project_report(result, policy)
+    assert projected is not None
+    return projected
+
+
+async def _run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, object]:
     root = _project_root(root)
     specs = _checked_specs(checks)
+    policy = current_policy()
+    require_safe_checks(specs, policy)
     digest = check_spec_digest(specs)
     paths, complete = check_input_paths(specs)
-    before = await capture_inputs_async(root, paths)
+    before = await capture_inputs_async(root, paths, redactor=policy)
     results = []
     observations = []
     for index, spec in enumerate(specs):
-        check_before = await capture_inputs_async(root, paths)
+        refresh_policy(root, policy)
+        check_before = await capture_inputs_async(root, paths, redactor=policy)
+        require_safe_checks(specs, policy)
         started_at = datetime.now(UTC).isoformat()
         try:
             if spec.kind == "command":
@@ -437,9 +461,9 @@ async def run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, obj
             state = "fail" if spec.kind.startswith("file_") and isinstance(exc, FileNotFoundError) else "error"
             if spec.kind in {"command", "pytest"} and isinstance(exc, FileNotFoundError):
                 state = "not_run"
-            result = {"passed": False, "status": state, "error": str(exc)[:MAX_TEXT_LENGTH]}
+            result = {"passed": False, "status": state, "error": policy.text(str(exc))[:MAX_TEXT_LENGTH]}
         result.setdefault("status", "pass" if result["passed"] else "fail")
-        check_after = await capture_inputs_async(root, paths)
+        check_after = await capture_inputs_async(root, paths, redactor=policy)
         observations.append({"before": fingerprint_identity(check_before), "after": fingerprint_identity(check_after)})
         results.append(
             {
@@ -450,7 +474,7 @@ async def run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, obj
                 **result,
             }
         )
-    after = await capture_inputs_async(root, paths)
+    after = await capture_inputs_async(root, paths, redactor=policy)
     snapshots = [fingerprint_identity(before), fingerprint_identity(after),
                  *(item[phase] for item in observations for phase in ("before", "after"))]
     available = all(snapshot["status"] == "available" for snapshot in snapshots)

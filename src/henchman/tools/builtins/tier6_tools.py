@@ -280,13 +280,30 @@ class _Tier6PlanToolBase(Tool):
 
         self._project_root = Path.cwd()
         self._plan_service = PlanExecutionService(project_root=self._project_root)
+        self._plan_binding_error: str | None = None
 
-    def bind_runtime(self, *, project_root: Path | None = None, **_: object) -> None:
+    def bind_runtime(self, *, project_root: Path | None = None, session_manager: object | None = None,
+                     mcp_manager: object | None = None, **_: object) -> None:
         """Bind project-local plan verification storage."""
 
         if project_root is not None:
             self._project_root = project_root.resolve()
-        self._plan_service = PlanExecutionService(project_root=self._project_root)
+        from henchman.utils.evidence_redaction import EvidenceRedactor
+        from henchman.utils.file_lock import LockTimeoutError
+
+        manager = getattr(session_manager, "session_manager", session_manager)
+        policy = getattr(manager, "evidence_redactor", None)
+        if not isinstance(policy, EvidenceRedactor):
+            policy = EvidenceRedactor()
+        register = getattr(mcp_manager, "register_evidence", None)
+        if callable(register):
+            register(policy)
+        self._plan_service = PlanExecutionService(project_root=self._project_root, redactor=policy)
+        self._plan_binding_error = None
+        try:
+            self._plan_service.sanitize_persisted_evidence()
+        except (OSError, ValueError, LockTimeoutError):
+            self._plan_binding_error = "Verification evidence sanitation failed; repair plan storage and rebind the verification tool."
 
 
 class _Tier6LspToolBase(Tool):
@@ -911,10 +928,15 @@ class VerifyPlanExecutionTool(_Tier6PlanToolBase):
 
     async def execute(self, **params: object) -> ToolResult:
         """Return explicit validation and persistence failures to the agent."""
+        from henchman.utils.file_lock import LockTimeoutError
+
+        if self._plan_binding_error is not None:
+            return ToolResult(content=self._plan_binding_error, success=False, error=self._plan_binding_error)
         try:
             return await self._execute_action(**params)
-        except (KeyError, ValueError, OSError) as exc:
-            return ToolResult(content=str(exc), success=False, error=str(exc))
+        except (KeyError, ValueError, OSError, LockTimeoutError) as exc:
+            detail = self._plan_service._policy.text(str(exc))[:4096]
+            return ToolResult(content=detail, success=False, error=detail)
 
     async def _execute_action(self, **params: object) -> ToolResult:
         """Execute one plan verification action."""

@@ -97,6 +97,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Background task logs now redact before persistence, cap output and migrate
   eligible indexed legacy logs privately; corrupt/unsupported evidence stays
   intact with diagnostics. See [background execution](docs/tools.md#background-execution).
+  Verification reports now share that policy; sensitive saved checks cannot be
+  replayed and read-only inspection remains separate from locked sanitation.
+  See [plan checks](docs/tools.md#plan-acceptance-checks).
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale

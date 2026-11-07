@@ -26,7 +26,8 @@ def fingerprint_identity(snapshot: dict[str, Any]) -> dict[str, Any]:
     return {key: snapshot[key] for key in ("status", "digest", "reason") if key in snapshot}
 
 
-def capture_inputs(root: Path, paths: tuple[str, ...], stop: threading.Event | None = None) -> dict[str, Any]:
+def capture_inputs(root: Path, paths: tuple[str, ...], stop: threading.Event | None = None,
+                   *, redactor: EvidenceRedactor | None = None) -> dict[str, Any]:
     """Read explicit supported files without storing contents or scanning directories.
 
     The existing checkpoint reader supplies no-follow and native Windows file
@@ -36,7 +37,7 @@ def capture_inputs(root: Path, paths: tuple[str, ...], stop: threading.Event | N
         return {"status": "unavailable", "reason": "Verification needs 1..256 explicit input files"}
     try:
         deadline = time.monotonic() + MAX_CAPTURE_SECONDS
-        workspace = WorkspaceFiles(root, EvidenceRedactor(), MAX_INPUT_FILE_BYTES, ())
+        workspace = WorkspaceFiles(root, redactor or EvidenceRedactor(), MAX_INPUT_FILE_BYTES, ())
         files: dict[str, Any] = {}
         consumed = 0
         for path in paths:
@@ -63,10 +64,10 @@ def capture_inputs(root: Path, paths: tuple[str, ...], stop: threading.Event | N
         return {"status": "unavailable", "reason": "Declared verification inputs could not be captured consistently"}
 
 
-async def capture_inputs_async(root: Path, paths: tuple[str, ...]) -> dict[str, Any]:
+async def capture_inputs_async(root: Path, paths: tuple[str, ...], *, redactor: EvidenceRedactor | None = None) -> dict[str, Any]:
     """Join the bounded reader before cancellation returns to its caller."""
     stop = threading.Event()
-    return await read_in_worker(lambda: capture_inputs(root, paths, stop), stop)
+    return await read_in_worker(lambda: capture_inputs(root, paths, stop, redactor=redactor), stop)
 
 
 async def read_in_worker(action: Callable[[], _T], stop: threading.Event | None = None) -> _T:
@@ -95,7 +96,8 @@ async def read_in_worker(action: Callable[[], _T], stop: threading.Event | None 
     return result
 
 
-def input_freshness(evidence: object, *, root: Path, paths: tuple[str, ...], complete: bool, count: int) -> str:
+def input_freshness(evidence: object, *, root: Path, paths: tuple[str, ...], complete: bool, count: int,
+                    redactor: EvidenceRedactor | None = None) -> str:
     """Compare validated historical bindings with current declared input contents."""
     if (not complete or not isinstance(evidence, dict) or type(evidence.get("version")) is not int or evidence.get("version") != 1
         or evidence.get("paths") != list(paths) or evidence.get("complete") is not True):
@@ -116,7 +118,7 @@ def input_freshness(evidence: object, *, root: Path, paths: tuple[str, ...], com
     final_identity = fingerprint_identity(after)
     if before != final_identity or any(item[phase] != final_identity for item in observations for phase in ("before", "after")):
         return "stale"
-    current = capture_inputs(root, paths)
+    current = capture_inputs(root, paths, redactor=redactor)
     if current.get("status") != "available":
         return "unverified"
     return "current" if current == after else "stale"

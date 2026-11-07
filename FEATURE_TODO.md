@@ -25,6 +25,8 @@ Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or
 unverified checks; historical results remain intact. This #16 foundation does
 not complete project check configuration, bounded repair or live acceptance.
+Known credentials are now projected from verification evidence, with sensitive
+saved specifications unavailable for execution and explicit locked sanitation.
 
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured

@@ -14,6 +14,10 @@ Plan verification keeps historical observations separate from current declared
 input fingerprints. Its read-only status API detects content changes without
 turning a reported step or selected check into task acceptance. See
 [verification freshness](tools.md#declared-input-freshness).
+Verification evidence projects known credentials separately from executable
+specifications. Sensitive specifications retain only an unavailable marker and
+original digest; read-only views do not write, while explicit sanitation and
+writer boundaries update retained evidence under the existing plan lock.
 
 [Background tasks](tools.md#background-execution) persist versioned intent before
 process creation. Locked per-record updates preserve concurrent observations;

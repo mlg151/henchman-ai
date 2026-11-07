@@ -1193,6 +1193,24 @@ without checks remain readable and require a new plan with checks before `verify
 If saving completed observations fails, verification reports the storage error
 and attempts to retain a small terminal failure record without rerunning checks.
 
+Verification evidence shares the runtime's configured-credential policy, including
+registered MCP credentials and earlier values after rotation. Titles, step evidence,
+captured output and errors are projected before persistence and display. New
+executable checks containing known credentials in arguments, paths, literal text,
+input declarations or requirement tags are rejected before baseline reads; use
+environment references in the invoked program instead of literal credentials.
+
+If rotation makes a saved specification sensitive, inspection returns empty
+executable checks and `checks_unavailable` with its original specification digest.
+The current status becomes `unavailable`; redacted display values are never executed.
+Read-only inspection does not rewrite old bytes. Runtime tool binding, verification
+and subsequent writes sanitize retained evidence under the writer lock; embedders
+can explicitly call `sanitize_persisted_evidence()`. A sanitation failure blocks
+this verification tool with a diagnostic and preserves the prior storage.
+Credential redaction is limited to known or marked values and does not detect
+arbitrary secrets. Redacting output alone does not discard independently observed
+exit evidence; changes to proof-bearing content revoke current verification.
+
 #### Declared-input freshness
 
 Checks may include `inputs`, a list of 1–256 distinct project-relative files, and
@@ -1214,7 +1232,7 @@ states and current status `incomplete`.
 
 `PlanExecutionService.verification_status(plan_id)` reads the current files and
 returns `pass`, `fail`, `stale`, `unverified`, `not_run`, `incomplete`, `running`,
-`cancelled` or `error`. It does not rewrite saved observations. Manual edits,
+`cancelled`, `error` or credential-sensitive `unavailable`. It does not rewrite saved observations. Manual edits,
 formatting and subagent changes to declared files are detected without relying on
 modification times. Restores also retain their existing explicit invalidation.
 Legacy reports without input evidence remain unverified until checks run again.

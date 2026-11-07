@@ -21,8 +21,17 @@ from henchman.advanced.acceptance_checks import (
     prepare_checks,
     run_checks,
 )
+from henchman.advanced.verification_evidence import (
+    UNAVAILABLE,
+    evidence_scope,
+    project_record,
+    project_report,
+    require_safe_checks,
+)
 from henchman.advanced.verification_inputs import input_freshness
 from henchman.config.paths import resolve_project_settings_path
+from henchman.config.repository import SettingsRepository
+from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.file_lock import FileLock
 
 _STEP_PREFIX_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
@@ -135,6 +144,7 @@ class PlanRecord:
     steps: tuple[PlanStepRecord, ...]
     checks: tuple[CheckSpec, ...] = ()
     last_verification: dict[str, object] | None = None
+    checks_unavailable: dict[str, str] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable representation."""
@@ -147,6 +157,7 @@ class PlanRecord:
             "steps": [step.to_dict() for step in self.steps],
             "checks": [check.to_dict() for check in self.checks],
             "last_verification": self.last_verification,
+            "checks_unavailable": self.checks_unavailable,
         }
 
     @classmethod
@@ -161,6 +172,14 @@ class PlanRecord:
         report = payload.get("last_verification")
         if report is not None and not isinstance(report, dict):
             raise ValueError("Invalid persisted verification report.")
+        unavailable = payload.get("checks_unavailable")
+        if unavailable is not None and (
+            not isinstance(unavailable, dict) or set(unavailable) != {"reason", "spec_digest"}
+            or unavailable.get("reason") != "credential_sensitive"
+            or not isinstance(unavailable.get("spec_digest"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", unavailable["spec_digest"]) is None or raw_checks
+        ):
+            raise ValueError("Invalid unavailable verification checks.")
         raw_steps = payload.get("steps", [])
         steps = (
             tuple(PlanStepRecord.from_dict(step) for step in raw_steps if isinstance(step, dict))
@@ -175,13 +194,14 @@ class PlanRecord:
             steps=steps,
             checks=tuple(CheckSpec.from_dict(check) for check in raw_checks),
             last_verification=report,
+            checks_unavailable=unavailable,
         )
 
 
 class PlanExecutionService:
     """Manage project-local plan verification records."""
 
-    def __init__(self, project_root: Path | None = None) -> None:
+    def __init__(self, project_root: Path | None = None, *, redactor: EvidenceRedactor | None = None) -> None:
         """Initialize the plan execution service for one project root."""
 
         self._project_root = (project_root or Path.cwd()).resolve()
@@ -189,6 +209,25 @@ class PlanExecutionService:
         self._index_path = self._storage_dir / "verification.json"
         self._lock_path = self._storage_dir / "verification.lock"
         self._records: dict[str, PlanRecord] = {}
+        self._policy = redactor or EvidenceRedactor()
+
+    def _refresh_policy(self) -> None:
+        self._policy.register_policy(SettingsRepository(self._project_root).evidence_redactor())
+
+    def sanitize_persisted_evidence(self) -> None:
+        """Explicitly scrub existing evidence under the normal writer lock.
+
+        Read-only inspection revokes unsafe replay in memory but leaves historical
+        bytes untouched until this operation or the next authorized write.
+        """
+        self._refresh_policy()
+        if not self._index_path.exists():
+            return
+        with FileLock(self._lock_path):
+            original = _read_json(self._index_path, default=[])
+            self._records = self._load_records()
+            if original != [record.to_dict() for record in sorted(self._records.values(), key=lambda item: item.created_at)]:
+                self._persist_records()
 
     def create_plan(
         self,
@@ -204,13 +243,18 @@ class PlanExecutionService:
         if not normalized_steps:
             msg = "At least one plan step is required."
             raise ValueError(msg)
+        self._refresh_policy()
+        parsed = parse_checks(checks) if checks is not None else ()
+        require_safe_checks(parsed, self._policy)
+        with evidence_scope(self._policy):
+            prepared = prepare_checks(self._project_root, parsed) if parsed else ()
         now = _now_iso()
         record = PlanRecord(
             plan_id=f"plan-{uuid4().hex[:12]}",
             title=title.strip() if isinstance(title, str) and title.strip() else "plan",
             created_at=now,
             updated_at=now,
-            checks=prepare_checks(self._project_root, parse_checks(checks)) if checks is not None else (),
+            checks=prepared,
             steps=tuple(
                 PlanStepRecord(
                     index=index,
@@ -224,9 +268,11 @@ class PlanExecutionService:
         )
         with FileLock(self._lock_path):
             self._records = self._load_records()
+            require_safe_checks(record.checks, self._policy)
+            record = project_record(record, self._policy)
             self._records[record.plan_id] = record
-            self._persist_records()
-        return record
+            self._persist_records(new_plan_id=record.plan_id)
+        return self._records[record.plan_id]
 
     def list_plans(self) -> list[PlanRecord]:
         """Return all tracked plan records."""
@@ -280,14 +326,17 @@ class PlanExecutionService:
             updated = replace(record, updated_at=_now_iso(), steps=updated_steps)
             self._records[plan_id] = updated
             self._persist_records()
-            return updated
+            return self._records[plan_id]
 
     async def verify_plan(self, plan_id: str) -> dict[str, object]:
         """Run recorded checks and persist historical observations, not task truth."""
+        self.sanitize_persisted_evidence()
         self._assert_no_pending_restore()
         run_id = uuid4().hex
         with FileLock(self._lock_path):
             record = self._require_plan(plan_id)
+            if record.checks_unavailable is not None:
+                raise ValueError(UNAVAILABLE)
             if not record.checks:
                 raise ValueError("This plan has no acceptance checks.")
             pending: dict[str, object] = {
@@ -297,15 +346,16 @@ class PlanExecutionService:
             self._records[plan_id] = replace(record, last_verification=pending)
             self._persist_records()
         try:
-            report = await run_checks(self._project_root, record.checks)
+            with evidence_scope(self._policy):
+                report = await run_checks(self._project_root, record.checks)
         except (asyncio.CancelledError, Exception) as exc:
             failed = dict(pending, status="cancelled" if isinstance(exc, asyncio.CancelledError)
-                          else "error", checked_at=_now_iso(), error=str(exc))
+                          else "error", checked_at=_now_iso(), error=self._policy.text(str(exc))[:4096])
             try:
                 self._save_report(plan_id, record.checks, run_id, failed)
-            except Exception as persistence_error:
-                exc.add_note(f"Could not save verification interruption: {persistence_error}")
-                raise exc from persistence_error
+            except Exception:
+                exc.add_note("Could not save verification interruption; inspect verification storage.")
+                raise exc from None
             raise
         report = dict(report, run_id=run_id, status="finished", task_verified=False)
         try:
@@ -318,10 +368,12 @@ class PlanExecutionService:
                           error="Verification results could not be persisted; correct storage before verifying again.")
             try:
                 self._save_report(plan_id, record.checks, run_id, failed)
-            except Exception as persistence_error:
-                error.add_note(f"Could not save verification persistence failure: {persistence_error}")
+            except Exception:
+                error.add_note("Could not save verification persistence failure; inspect verification storage.")
             raise
-        return report
+        safe = project_report(report, self._policy)
+        assert safe is not None
+        return safe
 
     def _save_report(
         self, plan_id: str, checks: tuple[CheckSpec, ...], run_id: str,
@@ -333,6 +385,9 @@ class PlanExecutionService:
         self._assert_no_pending_restore()
         with FileLock(self._lock_path):
             current = self._require_plan(plan_id)
+            if current.checks_unavailable is not None:
+                self._persist_records()
+                raise ValueError(UNAVAILABLE)
             if current.checks != checks or (current.last_verification or {}).get("run_id") != run_id:
                 raise ValueError("Verification was superseded or its checks changed; run verify again.")
             self._records[plan_id] = replace(current, updated_at=_now_iso(), last_verification=report)
@@ -398,7 +453,9 @@ class PlanExecutionService:
         requirements = sorted({identity for check in record.checks for identity in check.requirement_ids})
         status = "not_run"
         freshness = "unverified"
-        if report is not None:
+        if record.checks_unavailable is not None:
+            status = "unavailable"
+        elif report is not None:
             saved_status = report.get("status")
             if saved_status in {"running", "cancelled", "error", "stale"}:
                 status = str(saved_status)
@@ -408,7 +465,7 @@ class PlanExecutionService:
                     and report.get("spec_digest") == check_spec_digest(record.checks)
                     and consistent_check_results(record.checks, report)):
                     freshness = input_freshness(report.get("input_evidence"), root=self._project_root,
-                                                paths=paths, complete=complete, count=len(record.checks))
+                                                paths=paths, complete=complete, count=len(record.checks), redactor=self._policy)
                 status = ("pass" if report.get("checks_passed") is True else "fail") if freshness == "current" else freshness
                 results = report.get("results")
                 if isinstance(results, list) and any(
@@ -422,7 +479,7 @@ class PlanExecutionService:
                 "current_checks_passed": status == "pass", "task_verified": False,
                 "run_id": report.get("run_id") if report else None,
                 "checked_at": report.get("checked_at") if report else None,
-                "spec_digest": check_spec_digest(record.checks), "requirement_ids": requirements,
+                "spec_digest": record.checks_unavailable["spec_digest"] if record.checks_unavailable else check_spec_digest(record.checks), "requirement_ids": requirements,
                 "scope": "Only configured assertions over declared input files; task acceptance is not established."}
 
     def _require_plan(self, plan_id: str) -> PlanRecord:
@@ -437,6 +494,7 @@ class PlanExecutionService:
     def _load_records(self) -> dict[str, PlanRecord]:
         """Load persisted plan records from disk."""
 
+        self._refresh_policy()
         payload = _read_json(self._index_path, default=[])
         if not isinstance(payload, list):
             raise ValueError("Plan storage must contain a list.")
@@ -444,15 +502,19 @@ class PlanExecutionService:
         for item in payload:
             if not isinstance(item, dict):
                 raise ValueError("Invalid persisted plan record.")
-            record = PlanRecord.from_dict(item)
+            record = project_record(PlanRecord.from_dict(item), self._policy)
             if not record.plan_id or record.plan_id in records:
                 raise ValueError("Missing or duplicate persisted plan identifier.")
             records[record.plan_id] = record
         return records
 
-    def _persist_records(self) -> None:
+    def _persist_records(self, *, new_plan_id: str | None = None) -> None:
         """Persist the current plan records to project-local storage."""
 
+        self._refresh_policy()
+        if new_plan_id is not None:
+            require_safe_checks(self._records[new_plan_id].checks, self._policy)
+        self._records = {identity: project_record(record, self._policy) for identity, record in self._records.items()}
         payload = [
             record.to_dict()
             for record in sorted(self._records.values(), key=lambda item: item.created_at)
