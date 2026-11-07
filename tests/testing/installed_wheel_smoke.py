@@ -51,7 +51,31 @@ def smoke_environment(environment: dict[str, str]) -> dict[str, str]:
     result = dict(environment)
     result.pop("PYTHONPATH", None)
     result.pop("PYTHONHOME", None)
+    # Child tools invoking `python` must use this installed artifact environment,
+    # even when the wrapper was launched through another checkout's uv process.
+    result["PATH"] = os.pathsep.join(filter(None, (sysconfig.get_path("scripts"), result.get("PATH"))))
     result.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", NO_COLOR="1")
+    return result
+
+
+def isolated_runtime_environment(environment: dict[str, str], directory: Path) -> dict[str, str]:
+    """Exercise a fresh offline install independently of user config and caches."""
+    result = dict(environment)
+    for key in (
+        "HENCHMAN_SETTINGS_PATH", "HENCHMAN_PROVIDER", "HENCHMAN_MODEL",
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY",
+        "TOGETHER_API_KEY", "GROQ_API_KEY", "FIREWORKS_API_KEY", "HENCHMAN_API_KEY",
+    ):
+        result.pop(key, None)
+    for key, relative in (
+        ("HOME", "home"), ("USERPROFILE", "home"),
+        ("XDG_CONFIG_HOME", "home/.config"), ("XDG_DATA_HOME", "home/.local/share"),
+        ("XDG_CACHE_HOME", "home/.cache"), ("TIKTOKEN_CACHE_DIR", "token-cache"),
+        ("DATA_GYM_CACHE_DIR", "token-cache"),
+    ):
+        path = directory / relative
+        path.mkdir(parents=True, exist_ok=True)
+        result[key] = str(path)
     return result
 
 
@@ -413,6 +437,7 @@ def main() -> None:
     )
     with tempfile.TemporaryDirectory(prefix="henchman-wheel-smoke-") as scratch:
         directory = Path(scratch)
+        environment = isolated_runtime_environment(environment, directory)
         stage_workflow_tests(repository, directory)
         subprocess.run(
             [sys.executable, "-I", "-c", _ORIGIN_CHECK], cwd=directory,

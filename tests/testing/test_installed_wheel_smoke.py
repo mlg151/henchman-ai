@@ -1,10 +1,17 @@
 """Validate portable wheel smoke staging without installing or launching subprocesses."""
 
 import ast
+import os
+import sysconfig
 from pathlib import Path
 
 import pytest
-from tests.testing.installed_wheel_smoke import find_wheel, smoke_environment, stage_workflow_tests
+from tests.testing.installed_wheel_smoke import (
+    find_wheel,
+    isolated_runtime_environment,
+    smoke_environment,
+    stage_workflow_tests,
+)
 
 
 def test_find_wheel_requires_one_unambiguous_artifact(tmp_path):
@@ -18,14 +25,28 @@ def test_find_wheel_requires_one_unambiguous_artifact(tmp_path):
         find_wheel(tmp_path)
 
 
-def test_smoke_environment_removes_source_injection_and_preserves_executable_path():
+def test_smoke_environment_selects_installed_interpreter_before_inherited_executables():
     original = {"PYTHONPATH": "/checkout/src", "PYTHONHOME": "/other-python", "PATH": "executables"}
     isolated = smoke_environment(original)
     assert "PYTHONPATH" not in isolated
     assert "PYTHONHOME" not in isolated
-    assert isolated["PATH"] == "executables"
+    assert isolated["PATH"].split(os.pathsep) == [sysconfig.get_path("scripts"), "executables"]
     assert "PYTHONUTF8" not in isolated
     assert original["PYTHONPATH"] == "/checkout/src"
+
+
+def test_runtime_environment_has_empty_caches_and_no_user_provider_selection(tmp_path):
+    original = {"HOME": "/user", "TIKTOKEN_CACHE_DIR": "/warm-cache",
+                "HENCHMAN_SETTINGS_PATH": "/user/settings", "HENCHMAN_PROVIDER": "remote",
+                "HENCHMAN_MODEL": "inherited", "OPENAI_API_KEY": "private-value"}
+    isolated = isolated_runtime_environment(original, tmp_path)
+    for key in ("HOME", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "TIKTOKEN_CACHE_DIR", "DATA_GYM_CACHE_DIR"):
+        assert Path(isolated[key]).is_relative_to(tmp_path)
+        assert Path(isolated[key]).is_dir()
+    assert not list(Path(isolated["TIKTOKEN_CACHE_DIR"]).iterdir())
+    assert not any(key.startswith("HENCHMAN_") for key in isolated)
+    assert "OPENAI_API_KEY" not in isolated
+    assert original["HOME"] == "/user"
 
 
 @pytest.mark.parametrize("utf8_mode", ["0", "1"])
