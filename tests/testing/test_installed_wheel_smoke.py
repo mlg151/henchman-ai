@@ -1,5 +1,6 @@
 """Validate portable wheel smoke staging without installing or launching subprocesses."""
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -156,3 +157,26 @@ def test_stage_workflow_tests_includes_new_regression_files(
         path = repository / path_str
         assert path.exists(), f"Expected {path} to exist in repository"
         assert (tmp_path / path_str).read_bytes() == path.read_bytes()
+
+
+@pytest.mark.parametrize("include_package", [False, True])
+def test_staged_workflows_include_local_import_dependencies(tmp_path, include_package):
+    """Native collection must not depend on test helpers left in the checkout."""
+    repository = Path(__file__).resolve().parents[2]
+    stage_workflow_tests(repository, tmp_path, include_package=include_package)
+    missing = []
+    for staged in tmp_path.rglob("*.py"):
+        for node in ast.walk(ast.parse(staged.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                modules = [node.module, *(f"{node.module}.{alias.name}" for alias in node.names)]
+            else:
+                continue
+            for module in modules:
+                if module.split(".")[0] not in {"tests", "evals"}:
+                    continue
+                relative = Path(*module.split(".")).with_suffix(".py")
+                if (repository / relative).is_file() and not (tmp_path / relative).is_file():
+                    missing.append(f"{staged.relative_to(tmp_path)} imports unstaged {relative}")
+    assert not missing, "\n".join(sorted(set(missing)))

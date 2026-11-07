@@ -156,6 +156,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_automatic_run_accounting.py",
         "tests/agents/test_direct_run_accounting.py",
         "tests/agents/test_background_budget_control.py",
+        "tests/agents/test_background_subagents.py",
         "tests/agents/test_delegation_policies.py",
         "tests/providers/stream_helpers.py",
         "tests/providers/test_stream_safety.py",
