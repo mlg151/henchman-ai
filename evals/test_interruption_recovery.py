@@ -1,9 +1,10 @@
 """Evaluate recovery after an observed bounded-turn interruption.
 
-The first turn is bounded to a single tool round, so any first attempt that
-acts on the workspace is interrupted before it can finish. The recovery turn
-must resume from the persisted workspace, keep the provided tests untouched,
-and make the independent pytest oracle pass.
+The first turn is bounded to a single tool round. It must execute a tool round
+and then reach that limit with pending work cancelled by the runtime. Provider
+errors, timeouts and normal completion do not count as that interruption. The
+recovery turn must resume from the persisted workspace, keep the provided tests
+untouched, and make the independent pytest oracle pass.
 """
 
 from evals.helpers import EvalTestRig, run_pytest_evidence
@@ -51,7 +52,7 @@ async def run_interruption_recovery_scenario(rig: EvalTestRig) -> EvalResult:
     rig.create_file("orders.py", BROKEN_SOURCE)
     rig.create_file("test_orders.py", TEST_SOURCE)
 
-    # Bounded to one tool round: any acting first attempt is interrupted.
+    # Accept only observed work followed by the deliberate tool-limit stop.
     await rig.run(
         "orders.py is incomplete: order_total must round to the nearest cent. "
         "Make the provided tests in test_orders.py pass without modifying that "

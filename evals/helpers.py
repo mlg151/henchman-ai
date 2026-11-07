@@ -226,6 +226,39 @@ class MockProvider(ModelProvider):
             yield StreamChunk(tool_calls=response, finish_reason=FinishReason.TOOL_CALLS)
 
 
+def _observed_bounded_interruption(result: EvalResult, max_iterations: int) -> bool:
+    """Recognize a standalone tool limit from correlated execution evidence."""
+    reason = f"Tool iteration limit ({max_iterations}) reached"
+    if result.success or result.error != reason or result.diagnostics:
+        return False
+    errors = [
+        (index, event.data) for index, event in enumerate(result.events)
+        if event.type == EventType.ERROR
+    ]
+    if len(errors) != 1 or errors[0][1] != reason or not result.events:
+        return False
+    terminal = result.events[-1]
+    if (
+        terminal.type != EventType.FINISHED
+        or not isinstance(terminal.data, dict)
+        or terminal.data.get("finish_reason") != "error"
+    ):
+        return False
+    error_index = errors[0][0]
+    completed_work = any(
+        log.request_index is not None and log.result_index is not None
+        and log.request_index < log.result_index < error_index
+        for log in result.tool_logs
+    )
+    cancelled_pending = any(
+        log.request_index is not None and log.result_index is not None
+        and log.request_index < error_index < log.result_index
+        and not log.success and log.result == reason
+        for log in result.tool_logs
+    )
+    return completed_work and cancelled_pending
+
+
 class EvalTestRig:
     """Test rig for running behavioral evaluations.
 
@@ -297,6 +330,7 @@ class EvalTestRig:
         self._team_runtime: TeamEvalRuntime | None = None
         self._original_cwd: Path | None = None
         self._run_outcomes: list[tuple[bool, str | None]] = []
+        self._run_interruptions: list[bool] = []
         self._interruption_evidence: list[tuple[bool, str | None]] = []
 
     def _get_eval_system_prompt(self) -> str:
@@ -373,6 +407,8 @@ The current working directory contains test files for this evaluation."""
         self._tool_logs = []
         self._events = []
         self._run_outcomes = []
+        self._run_interruptions = []
+        self._interruption_evidence = []
 
         try:
             if self._profile == "team":
@@ -551,6 +587,7 @@ The current working directory contains test files for this evaluation."""
 
         outcome_index = len(self._run_outcomes)
         self._run_outcomes.append((False, "Evaluation did not complete"))
+        self._run_interruptions.append(False)
         if self._team_runtime is not None:
             result = await self._team_runtime.run(
                 prompt, max_iterations, effective_timeout, observe_event=observe_event,
@@ -619,6 +656,10 @@ The current working directory contains test files for this evaluation."""
             diagnostics=list(observations.diagnostics),
         )
         self._run_outcomes[outcome_index] = (result.success, result.error)
+        # Capture the classification before callers can mutate returned evidence.
+        self._run_interruptions[outcome_index] = _observed_bounded_interruption(
+            result, max_iterations,
+        )
         return result
 
     @property
@@ -646,24 +687,34 @@ The current working directory contains test files for this evaluation."""
     def consume_expected_interruption(self) -> tuple[bool, str | None]:
         """Consume the latest turn as an expected interruption, recording its evidence.
 
-        Scenarios that deliberately bound a turn use this to exclude the
-        interrupted outcome from the strict success gate while retaining it as
-        observable evidence.
+        Only a standalone tool-iteration limit after a completed tool round,
+        with an observed pending-tool cancellation, qualifies. Provider errors,
+        timeouts and unobserved external cancellation remain failed evidence;
+        they do not demonstrate this deliberate bounded interruption. Validation
+        happens before removing an outcome from the strict success gate.
 
         Returns:
             The consumed ``(success, error)`` outcome.
 
         Raises:
-            AssertionError: If no turn ran or the latest turn completed successfully.
+            AssertionError: If no turn ran or the latest turn was not a verified
+                bounded interruption. Rejection leaves all evidence intact.
         """
         if not self._run_outcomes:
             raise AssertionError("Evaluation did not run an agent turn")
-        evidence = self._run_outcomes.pop()
+        evidence = self._run_outcomes[-1]
         success, error = evidence
         if success:
             raise AssertionError(
                 "Expected an interrupted turn, but the latest turn completed successfully"
             )
+        if not self._run_interruptions[-1]:
+            raise AssertionError(
+                "Expected an interrupted turn with a completed tool round and "
+                f"observed limit cancellation; latest failure: {error}"
+            )
+        self._run_outcomes.pop()
+        self._run_interruptions.pop()
         self._interruption_evidence.append(evidence)
         return evidence
 

@@ -1,5 +1,6 @@
 """Actual execution contracts for the interruption/recovery evaluation (case 12)."""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -7,6 +8,7 @@ import pytest
 from evals.helpers import EvalTestRig, MockProvider
 from evals.models import EvalResult
 from evals.test_interruption_recovery import (
+    BROKEN_SOURCE,
     REPAIRED_SOURCE,
     TEST_SOURCE,
     run_interruption_recovery_scenario,
@@ -255,8 +257,173 @@ async def test_consume_expected_interruption_rejects_successful_turn() -> None:
     rig = EvalTestRig(provider=provider, profile="basic")
     try:
         rig.setup("interruption-consume-success")
-        await rig.run("Inspect the workspace.")
+        result = await rig.run("Inspect the workspace.")
         with pytest.raises(AssertionError, match="Expected an interrupted turn"):
+            rig.consume_expected_interruption()
+        assert rig.last_run_outcome == (result.success, result.error)
+        assert rig.interruption_evidence == []
+        rig.assert_successful_runs()
+    finally:
+        rig.cleanup()
+
+
+class FailOnceProvider(MockProvider):
+    """Fail one scripted request while leaving a valid recovery response queued."""
+
+    def __init__(
+        self, responses: list[str | list[ToolCall]], fail_at: int, error: str,
+    ) -> None:
+        super().__init__(responses)
+        self.fail_at = fail_at
+        self.error = error
+        self.requests = 0
+
+    async def chat_completion_stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamChunk, None]:
+        request = self.requests
+        self.requests += 1
+        if request == self.fail_at:
+            raise RuntimeError(self.error)
+        async for chunk in super().chat_completion_stream(
+            messages, tools, temperature, max_tokens, **kwargs,
+        ):
+            yield chunk
+
+
+@pytest.mark.parametrize("fail_at", [0, 1])
+@pytest.mark.parametrize(
+    "error", ["provider authentication failed", "network connection lost", "Tool iteration limit (1) reached"],
+)
+@pytest.mark.asyncio
+async def test_scenario_rejects_unrelated_failure_and_retains_failed_evidence(
+    fail_at: int, error: str,
+) -> None:
+    """A recoverable provider failure is not the deliberate tool-limit stop."""
+    responses: list[str | list[ToolCall]] = []
+    if fail_at:
+        responses.append(
+            [ToolCall(id="first-read", name="read_file", arguments={"path": "orders.py"})],
+        )
+    responses.extend([
+        [ToolCall(id="recovery-write", name="write_file", arguments={
+            "path": "orders.py", "content": REPAIRED_SOURCE,
+        })],
+        "Recovered successfully.",
+    ])
+    provider = FailOnceProvider(responses, fail_at, error)
+    rig = EvalTestRig(provider, profile="engineer", config=AgentConfig(max_tokens=20000))
+    try:
+        rig.setup("interruption-unrelated-failure")
+        with pytest.raises(AssertionError, match="Expected an interrupted turn"):
+            await run_interruption_recovery_scenario(rig)
+        assert provider.requests == fail_at + 1
+        assert rig.read_file("orders.py") == BROKEN_SOURCE
+        assert rig.interruption_evidence == []
+        outcome = rig.last_run_outcome
+        assert outcome is not None and not outcome[0] and error in (outcome[1] or "")
+        # Catching the rejection and subsequently succeeding cannot hide failure.
+        assert (await rig.run("Recover the implementation.")).success
+        with pytest.raises(AssertionError, match="Turn 1"):
+            rig.assert_successful_runs()
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_scenario_requires_work_before_bounded_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An environment cap of zero cannot stand in for interrupted workspace work."""
+    monkeypatch.setenv("EVAL_MAX_ITERATIONS", "0")
+    rig = EvalTestRig(
+        _provider(_happy_path_responses()), profile="engineer", config=AgentConfig(max_tokens=20000),
+    )
+    try:
+        rig.setup("interruption-without-work")
+        with pytest.raises(AssertionError, match="completed tool round"):
+            await run_interruption_recovery_scenario(rig)
+        assert rig.interruption_evidence == []
+        assert rig.last_run_outcome is not None and not rig.last_run_outcome[0]
+    finally:
+        rig.cleanup()
+
+
+class HeldProvider(MockProvider):
+    """Keep a scripted request open until timeout or external task cancellation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = asyncio.Event()
+
+    async def chat_completion_stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamChunk, None]:
+        self.entered.set()
+        await asyncio.Event().wait()
+        yield StreamChunk(content="Unreachable")
+
+
+@pytest.mark.parametrize("external_cancel", [False, True])
+@pytest.mark.asyncio
+async def test_timeout_or_external_cancellation_is_not_a_bounded_tool_stop(
+    external_cancel: bool,
+) -> None:
+    """An aborted request without observed tool-limit cancellation stays failed."""
+    provider = HeldProvider()
+    rig = EvalTestRig(provider)
+    try:
+        rig.setup("interruption-unobserved-cancellation")
+        if external_cancel:
+            task = asyncio.create_task(rig.run("Wait for a response."))
+            await asyncio.wait_for(provider.entered.wait(), timeout=5)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            result = await rig.run("Wait for a response.", timeout=0.01)
+            assert not result.success and "timed out" in (result.error or "")
+        before = rig.last_run_outcome
+        with pytest.raises(AssertionError, match="Expected an interrupted turn"):
+            rig.consume_expected_interruption()
+        assert rig.last_run_outcome == before
+        assert rig.interruption_evidence == []
+        with pytest.raises(AssertionError, match="Turn 1"):
+            rig.assert_successful_runs()
+    finally:
+        rig.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_interruption_classification_is_captured_and_reset_with_setup() -> None:
+    """Mutable result copies and a reused rig cannot alter accepted evidence."""
+    rig = EvalTestRig(_provider(_happy_path_responses()), profile="basic")
+    try:
+        rig.setup("interruption-snapshot")
+        rig.create_file("orders.py", BROKEN_SOURCE)
+        result = await rig.run("Inspect the module.", max_iterations=1)
+        original = (result.success, result.error)
+        result.events.clear()
+        result.tool_logs.clear()
+        result.success, result.error = True, None
+        assert rig.consume_expected_interruption() == original
+        assert rig.interruption_evidence == [original]
+        rig.cleanup()
+
+        rig.setup("interruption-new-workspace")
+        assert rig.last_run_outcome is None
+        assert rig.interruption_evidence == []
+        with pytest.raises(AssertionError, match="did not run an agent turn"):
             rig.consume_expected_interruption()
     finally:
         rig.cleanup()

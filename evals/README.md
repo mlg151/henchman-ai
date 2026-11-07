@@ -418,15 +418,17 @@ initial check, a sample-only constant repair and a real provider failure after a
 correct repair. Its five actual-tool and caller controls are staged in both
 native modes.
 
-The `interruption-recovery` case bounds the first turn to a single tool round,
-so any first attempt that acts on the workspace is interrupted before it can
-finish; the recovery turn must resume from the persisted workspace, leave the
-provided tests untouched, and pass an independent pytest oracle. The rig's
-`consume_expected_interruption()` records the interrupted turn as evidence and
-excludes it from `assert_successful_runs()`. The case rejects a first turn that
-completes normally, a recovery that leaves the oracle failing, tampered
-provided tests and a real provider failure during recovery. Its seven scenario
-controls and two dispatch controls are staged in both native modes.
+The `interruption-recovery` case requires an observed one-round tool limit after
+completed tool work, with correlated pending calls cancelled by the runtime.
+The recovery turn must resume in the same workspace, leave the provided tests
+untouched, and pass an independent pytest oracle. The rig captures interruption
+evidence when the run ends, before callers can alter returned events.
+`consume_expected_interruption()` excludes only that validated outcome from
+`assert_successful_runs()`. Provider errors, timeouts, a zero-work stop and normal
+completion do not qualify; rejected outcomes remain in the strict success gate.
+Seventeen scenario controls cover those boundaries, successful recovery, failing
+or tampered tests, and rig reset. The scenario and dispatch controls run in both
+native modes.
 
 `semantic-bug-fix` checks zero/nonzero division in independent bounded Python
 checks, preserves non-target AST, returns the original runtime result, rejects
