@@ -59,6 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Redaction edge cases** — Session/template projections preserve protocol fields,
+  project identity, tool correlation, memory/goal identities and instruction
+  provenance when credentials are short. Credentials containing `[REDACTED]`,
+  Bearer values with extra whitespace and credentials present only in an older
+  backup still mask their echoes. Extra storage metadata and free-form memory
+  kind/source values cannot bypass redaction. Seventeen additional regressions
+  cover these cases and malformed identity containers; [#20](https://github.com/mlg151/henchman-ai/issues/20).
+
 - **Local CPU diagnostic evidence** — Retained the installed Ornith 9B readiness
   checks, four failed syntax-repair attempts and one independently verified
   diagnostic, with model/profile provenance and a redacted tool trace. Temporary

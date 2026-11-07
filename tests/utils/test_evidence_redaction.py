@@ -49,3 +49,22 @@ def test_marked_credential_lists_and_header_token_echoes() -> None:
         "result": "first-key-canary second-key-canary header-token-canary",
     }
     assert redactor.redact(payload)["result"] == "[REDACTED] [REDACTED] [REDACTED]"
+
+
+@pytest.mark.parametrize("secret", ["secret-[REDACTED]-canary", "REDACTED]-canary"])
+def test_marker_inside_a_credential_does_not_make_it_public(secret: str) -> None:
+    redactor = EvidenceRedactor([secret, "RED"])
+    safe = redactor.text(f"Echo: {secret}")
+    assert secret not in safe
+    assert redactor.text("[REDACTED]") == "[REDACTED]"
+    assert redactor.text(safe) == safe
+
+
+@pytest.mark.parametrize("spacing", ["  ", "\t", " \t "])
+def test_bearer_whitespace_does_not_expose_token_echoes(spacing: str) -> None:
+    redactor = EvidenceRedactor()
+    safe = redactor.redact({
+        "Authorization": f"Bearer{spacing}marked-secret-canary",
+        "echo": "marked-secret-canary",
+    })
+    assert safe["echo"] == "[REDACTED]"

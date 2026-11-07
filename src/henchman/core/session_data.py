@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
+from .session_evidence import redact_session_payload
 from .session_models import (
     SessionMessage,
     SessionMetadata,
@@ -80,7 +81,7 @@ class Session:
         Returns:
             Dictionary representation.
         """
-        return cast(dict[str, Any], self.evidence_redactor.redact({
+        return redact_session_payload({
             "id": self.id,
             "tag": self.tag,
             "project_hash": self.project_hash,
@@ -97,7 +98,7 @@ class Session:
             "template_id": self.template_id,
             "template_parameters": self.template_parameters,
             "export_metadata": self.export_metadata,
-        }))
+        }, self.evidence_redactor)
 
     def to_json(self: Session) -> str:
         """Serialize to JSON string.

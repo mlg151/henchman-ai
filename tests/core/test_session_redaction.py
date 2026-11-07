@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from henchman.core.goals import GoalService
+from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import SessionManager, SessionMessage, TurnSummaryRecord
 from henchman.core.session_export import export_as_markdown
 from henchman.core.session_memory import SessionMemoryService
@@ -146,3 +148,110 @@ def test_retained_turns_memories_and_playback_share_marked_secrets(tmp_path: Pat
     assert secret not in path.read_text()
     assert secret not in export_as_markdown(session)
     assert session.turn_summaries[0].retained_messages[0].content == secret
+
+
+@pytest.mark.parametrize("secret", ["id", "a", "user", "started", "project_hash", "active", "digest"])
+def test_short_credentials_preserve_protocol_fields_and_identity(tmp_path: Path, secret: str) -> None:
+    manager = SessionManager(tmp_path, evidence_redactor=EvidenceRedactor([secret]))
+    session = manager.create_session("project-a")
+    message = SessionMessage(role="user", content=f"Echo: {secret}", tool_calls=[{
+        "id": "call-id", "name": "read_file", "arguments": {"password": secret},
+    }])
+    session.messages.append(message)
+    session.turn_summaries.append(TurnSummaryRecord(
+        turn_number=1, summary_text=f"Credential: {secret}", kind="compaction",
+        retained_messages=[message], source_turns=[1],
+    ))
+    memory = SessionMemoryService().add_memory(session, content=f"Echo: {secret}")
+    goal = GoalService().start(session, f"Echo: {secret}")
+    SessionMemoryService().set_extraction_opt_out(session, True)
+    session.export_metadata["instruction_sources"] = {
+        "version": 1, "captured_at": session.started, "digest": "a" * 64,
+        "sources": [{"path": "/repo/a/AGENTS.md", "scope": "/repo/a", "kind": "repository",
+                     "order": 0, "chars": 2, "original_chars": 2, "truncated": False,
+                     "sha256": "b" * 64}],
+    }
+    path = manager.save(session)
+    manager.save(session)
+    loaded = manager.load(session.id, project_hash="project-a")
+    assert loaded.id == session.id
+    assert loaded.started == session.started
+    assert loaded.messages[0].role == "user"
+    assert loaded.messages[0].content == "Echo: [REDACTED]"
+    assert loaded.messages[0].tool_calls[0]["id"] == "call-id"
+    assert loaded.messages[0].tool_calls[0]["name"] == "read_file"
+    assert loaded.turn_summaries[0].retained_messages[0].role == "user"
+    restored_memory = SessionMemoryService().list_memories(loaded)[0]
+    assert restored_memory.id == memory.id
+    assert restored_memory.content == "Echo: [REDACTED]"
+    assert SessionMemoryService().extraction_opt_out(loaded)
+    restored_goal = GoalService().get(loaded)
+    assert restored_goal.id == goal.id
+    assert restored_goal.status == "active"
+    assert restored_goal.objective == "Echo: [REDACTED]"
+    assert InstructionProvenanceService().get(loaded)["digest"] == "a" * 64
+    template = manager.save_template(session.id, "example")
+    assert template["session_data"]["id"] == session.id
+    derived = manager.create_from_template(template["id"], project_hash="project-a")
+    assert derived.project_hash == "project-a"
+    assert json.loads(path.with_suffix(".json.bak").read_text())["id"] == session.id
+
+
+def test_marker_containing_secret_is_removed_from_saved_echo(tmp_path: Path) -> None:
+    secret = "secret-[REDACTED]-canary"
+    manager = SessionManager(tmp_path, evidence_redactor=EvidenceRedactor([secret]))
+    session = manager.create_session("project")
+    session.messages.append(SessionMessage(role="user", content=secret))
+    assert secret not in manager.save(session).read_text()
+
+
+def test_backup_only_credential_masks_current_copy_echoes(tmp_path: Path) -> None:
+    manager = SessionManager(tmp_path)
+    session = manager.create_session("project")
+    payload = session.to_dict()
+    secret = "credential-found-only-in-old-backup"
+    payload["messages"] = [{"role": "user", "content": secret}]
+    path = tmp_path / f"{session.id}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    payload["export_metadata"] = {"password": secret}
+    path.with_suffix(".json.bak").write_text(json.dumps(payload), encoding="utf-8")
+    loaded = manager.load(session.id)
+    manager.save(loaded)
+    assert secret not in path.read_text()
+    assert secret not in path.with_suffix(".json.bak").read_text()
+
+
+def test_memory_kind_and_source_are_evidence_text(tmp_path: Path) -> None:
+    secret = "known-memory-source-canary"
+    manager = SessionManager(tmp_path, evidence_redactor=EvidenceRedactor([secret]))
+    session = manager.create_session("project")
+    memory = SessionMemoryService().add_memory(session, content="ordinary", kind=secret, source=secret)
+    assert secret not in session.to_json()
+    manager.save(session)
+    loaded = SessionMemoryService().list_memories(manager.load(session.id))[0]
+    assert loaded.id == memory.id
+    assert loaded.kind == loaded.source == "[REDACTED]"
+
+
+def test_extra_storage_metadata_cannot_bypass_backup_redaction(tmp_path: Path) -> None:
+    secret = "legacy-storage-metadata-canary"
+    manager = SessionManager(tmp_path)
+    session = manager.create_session("project")
+    path = manager.save(session)
+    payload = json.loads(path.read_text())
+    # Storage metadata is outside the payload checksum. Extra legacy fields
+    # are accepted on read, but cannot bypass the retained-copy policy.
+    payload["_storage"]["password"] = secret
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    manager.save(manager.load(session.id))
+    assert secret not in path.read_text()
+    assert secret not in path.with_suffix(".json.bak").read_text()
+
+
+def test_invalid_identity_container_is_not_persisted(tmp_path: Path) -> None:
+    manager = SessionManager(tmp_path)
+    session = manager.create_session("project")
+    session.active_agents = [{"api_key": "hidden-canary"}]  # type: ignore[list-item]
+    with pytest.raises(ValueError, match="Protocol identity"):
+        manager.save(session)
+    assert not (tmp_path / f"{session.id}.json").exists()

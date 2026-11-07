@@ -344,10 +344,17 @@ sessions. Interactive startup registers settings/provider credentials and provid
 switching adds replacement keys without forgetting old ones. Markdown and playback
 render from the projected session, so credential fields outside a rendered section
 still mask their echoed values. Template metadata uses that policy too.
-Persistence learns marked credentials from the verified retained generation before
+Persistence learns marked credentials from both verified disk generations before
 projecting the new generation. Both copies are sanitized and integrity-checked
 before replacing them, including recovery with a missing or corrupt current file.
 The credential registry remains in memory and is excluded from serialization.
+`session_evidence.py` defines trusted structural projections: fixed field names,
+identities, timestamps, correlation fields, roles, lifecycle flags and provenance
+digests survive even when a short credential coincides with their spelling.
+Evidence text and free-form metadata remain subject to redaction. Memory kinds
+and sources are free-form values, while unexpected objects in identity slots
+fail validation. Storage metadata preserves only its version and digest fields;
+extra fields cannot exempt credentials in a retained backup.
 See [session evidence redaction](configuration.md#session-evidence-redaction) for
 the threat model, legacy-file behavior and remaining output/privacy boundaries.
 

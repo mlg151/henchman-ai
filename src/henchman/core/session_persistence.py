@@ -19,6 +19,7 @@ from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.file_lock import FileLock
 
 from .session_data import Session, session_from_dict
+from .session_evidence import redact_session_payload
 
 
 class SessionStorageError(ValueError):
@@ -171,8 +172,14 @@ def persist_session(data_dir: Path, session: Session, *, timestamp: str) -> Path
                 "Session changed on disk; reload and reconcile before saving."
             )
         retained = _select_prior(current, prior, session)
-        if retained is not None:
-            session.evidence_redactor.register_config(json.loads(retained))
+        for generation in (current, prior):
+            if generation is None:
+                continue
+            try:
+                _decode(generation, session.id)
+            except SessionStorageError:
+                continue  # Unusable generations cannot supply trusted metadata.
+            session.evidence_redactor.register_config(json.loads(generation))
         # Learn legacy marked credentials before projecting current echoes.
         # A portable import/new object must not replace a recoverable session.
         payload = session.to_dict()
@@ -214,7 +221,7 @@ def _select_prior(current: bytes | None, prior: bytes | None, session: Session) 
 def _redact_stored_copy(raw: bytes, redactor: EvidenceRedactor) -> bytes:
     """Do not rotate legacy unredacted bytes into a new retained backup."""
     payload = json.loads(raw)
-    safe = redactor.redact(payload)
+    safe = redact_session_payload(payload, redactor)
     if safe == payload:
         return raw
     storage = safe.pop("_storage", None)

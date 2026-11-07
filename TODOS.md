@@ -43,7 +43,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   the native installed-wheel cohort. A shared credential policy now sanitizes
   session saves/backups, exports, templates and new playback records; configured
   interactive-provider keys and rotation are registered without mutating live
-  execution inputs. Fourteen redaction regressions join the native wheel cohort.
+  execution inputs. Thirty-one redaction regressions join the native wheel cohort,
+  including short credentials, marker-containing values and legacy backup-only
+  credentials while preserving protocol identities and structured session records.
   Other output sinks, config secret references and restricted execution remain
   open. See [session project boundaries](docs/configuration.md#session-project-boundaries)
   and [redaction boundaries](docs/configuration.md#session-evidence-redaction).

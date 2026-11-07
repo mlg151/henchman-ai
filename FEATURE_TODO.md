@@ -49,6 +49,9 @@ memory/context lookup and derived exports/branches/templates. Shared credential
 redaction now covers session persistence and retained backups, JSON/Markdown
 exports, templates and new playback recordings. Interactive runtimes register
 configured keys and provider rotation; live execution inputs stay unchanged.
+Structural session fields and identities remain usable with short credentials;
+marker-containing values, Bearer whitespace and legacy backup-only credentials
+are covered by additional regressions.
 Terminal output/errors/logs/metrics/handoffs, config-export secret references and
 restricted filesystem/network execution still require implementation and qualification.
 The release gates below are not yet satisfied.

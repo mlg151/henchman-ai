@@ -9,10 +9,13 @@ from __future__ import annotations
 import json
 import os
 import re
+from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from typing import Any
 
 REDACTED = "[REDACTED]"
+PRESERVE_IDENTITY = object()
+"""Trusted serializer schema marker for protocol identities, never evidence text."""
 _CREDENTIAL_FIELDS = frozenset({
     "api_key", "api_keys", "authorization", "proxy_authorization", "cookie", "set_cookie",
     "password", "passwd", "passphrase", "private_key", "secret", "token",
@@ -73,9 +76,9 @@ class EvidenceRedactor:
                 self.register_secret(os.environ.get(reference.group(1), ""))
             else:
                 self.register_secret(value)
-                scheme, separator, credential = value.partition(" ")
-                if separator and scheme.lower() in {"bearer", "basic"}:
-                    self.register_secret(credential)
+                parts = value.split(maxsplit=1)
+                if len(parts) == 2 and parts[0].lower() in {"bearer", "basic"}:
+                    self.register_secret(parts[1].strip())
         elif isinstance(value, (list, tuple)):
             for nested in value:
                 self._register_credential(nested)
@@ -98,28 +101,47 @@ class EvidenceRedactor:
             if self._pattern is None:
                 alternatives = sorted(self._secrets, key=len, reverse=True)
                 self._pattern = re.compile("|".join(re.escape(secret) for secret in alternatives))
-            value = REDACTED.join(
-                self._pattern.sub(lambda _: REDACTED, part) for part in value.split(REDACTED)
-            )
+            markers = [match.span() for match in re.finditer(re.escape(REDACTED), value)]
+            marker_starts = [start for start, _ in markers]
+
+            def replacement(match: re.Match[str]) -> str:
+                # Existing placeholders are stable, but a credential spanning
+                # their boundaries must still be matched as one complete value.
+                marker_index = bisect_right(marker_starts, match.start()) - 1
+                if marker_index >= 0 and match.end() <= markers[marker_index][1]:
+                    return match[0]
+                return REDACTED
+
+            value = self._pattern.sub(replacement, value)
         return _AUTH_LINE.sub(lambda match: f"{match[1]} {REDACTED}", value)
 
-    def redact(self, value: Any) -> Any:
-        """Return an independent safe JSON-shaped projection; originals stay intact."""
+    def redact(self, value: Any, *, schema: Any = None) -> Any:
+        """Project evidence; a trusted schema protects field names and identities."""
         self.register_environment()
         # Collect first so echoes before their marked field are also masked.
         self.register_config(value)
-        return self._project(value)
+        return self._project(value, schema)
 
-    def _project(self, value: Any) -> Any:
+    def _project(self, value: Any, schema: Any = None) -> Any:
+        if schema is PRESERVE_IDENTITY:
+            if value is None or isinstance(value, (str, int, float, bool)):
+                return value
+            if isinstance(value, (list, tuple)):
+                return [self._project(item, PRESERVE_IDENTITY) for item in value]
+            raise ValueError("Protocol identity must contain only scalar values")
         if isinstance(value, str):
             return self._text(value)
         if isinstance(value, Mapping):
+            fields = schema if isinstance(schema, Mapping) else {}
             return {
-                self._text(str(key)): REDACTED
-                if _credential_field(str(key)) and isinstance(nested, str) and nested
-                else self._project(nested)
+                str(key) if key in fields else self._text(str(key)):
+                self._project(nested, fields[key]) if key in fields else (
+                    REDACTED if _credential_field(str(key)) and isinstance(nested, str) and nested
+                    else self._project(nested)
+                )
                 for key, nested in value.items()
             }
         if isinstance(value, (list, tuple)):
-            return [self._project(nested) for nested in value]
+            item_schema = schema[0] if isinstance(schema, list) and len(schema) == 1 else None
+            return [self._project(nested, item_schema) for nested in value]
         return value

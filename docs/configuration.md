@@ -156,6 +156,11 @@ Token counts and ordinary dictionary `key` fields are not credential markers.
 The same policy covers summaries, compaction-retained messages, stored memories
 and nested session metadata. Template names, descriptions and parameters are
 included; backups are redacted before rotation or retention during recovery.
+Fixed field names, generated identities, timestamps, correlation IDs, provenance
+digests, roles and lifecycle flags retain their protocol meaning. Short credential
+values therefore cannot rename session keys or change the project identity.
+Memory text, kinds and sources remain evidence fields and are redacted.
+Unexpected structured objects in identity fields fail validation before saving.
 
 Credential-named environment variables are discovered automatically. REPL and
 Textual initialization also register credentials from effective settings and the
@@ -172,6 +177,9 @@ session contains the redacted evidence; it cannot restore removed secret values.
 Reading a legacy file does not rewrite it; its next save sanitizes the current
 and retained prior copy. Previously exported files and recordings are not scanned
 or rewritten automatically.
+Both valid disk generations supply marked credentials before a save, including a
+credential present only in the old backup. Literal redaction-marker text inside a
+credential and whitespace in recognized Bearer headers do not exempt its echoes.
 
 This increment does not establish full privacy or OS isolation. Terminal/JSON
 stream output, provider errors, logs, metrics, handoffs, ordinary configuration
