@@ -67,10 +67,17 @@ class TungstenSnapshotRecord:
     created_at: str
     files: tuple[TungstenFileRecord, ...]
 
+    @property
+    def restorable(self) -> bool:
+        """Legacy hash history has no original bytes and cannot restore files."""
+        return False
+
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable representation."""
 
         return {
+            "version": 1,
+            "restorable": False,
             "snapshot_id": self.snapshot_id,
             "name": self.name,
             "created_at": self.created_at,
