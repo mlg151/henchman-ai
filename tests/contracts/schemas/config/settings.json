@@ -141,7 +141,7 @@
       "description": "MCP server configurations keyed by server name",
       "additionalProperties": {
         "type": "object",
-        "required": ["transport", "command", "url", "args", "env", "trusted", "request_timeout_seconds", "negotiation_timeout_seconds", "catalog_timeout_seconds"],
+        "required": ["transport", "command", "url", "args", "env", "trusted", "request_timeout_seconds", "negotiation_timeout_seconds", "catalog_timeout_seconds", "oauth"],
         "properties": {
           "transport": { "enum": ["stdio", "streamable_http"] },
           "command": { "type": ["string", "null"] },
@@ -149,6 +149,17 @@
           "request_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
           "negotiation_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
           "catalog_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
+          "oauth": {
+            "type": ["object", "null"],
+            "required": ["issuer", "client_id", "resource", "allowed_endpoint_origins"],
+            "properties": {
+              "issuer": { "type": "string", "minLength": 1, "maxLength": 4096 },
+              "client_id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "resource": { "type": ["string", "null"], "maxLength": 4096 },
+              "allowed_endpoint_origins": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 4096 } }
+            },
+            "additionalProperties": false
+          },
           "args": { "type": "array", "items": { "type": "string" } },
           "env": { "type": "object", "additionalProperties": { "type": "string" } },
           "trusted": { "type": "boolean" }

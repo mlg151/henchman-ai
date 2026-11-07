@@ -21,7 +21,9 @@ prompt catalogs and previews now preserve untrusted source data without changing
 conversation history; continuation is rejected before SDK normalization. Explicit
 attachment consumes a current session-bound preview as saved user context while
 idle, preserving source evidence and untrusted roles across compaction. OAuth
-and final native qualification remain open under #25.
+configuration, bounded discovery and generation-bound storage are implemented;
+configured OAuth connections remain refused until login/token/transport integration.
+Those flows and final native qualification remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or

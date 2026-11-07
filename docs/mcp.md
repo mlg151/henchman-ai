@@ -174,6 +174,39 @@ Independent loopback HTTP/TLS fixtures cover the supported revisions, JSON/SSE,
 headers, cancellation, bounds and policy changes. These fixtures do not qualify remote production servers;
 final native artifact qualification remains pending.
 
+### OAuth configuration and storage foundation
+
+An optional `oauth` group is accepted only for Streamable HTTP servers. It binds
+an exact HTTPS `issuer`, a pre-registered public `client_id`, an optional canonical
+`resource` URI (defaulting to the server endpoint), and up to 16 additional HTTPS
+`allowed_endpoint_origins`. The resource must contain the endpoint under the same
+origin and path. Configuring this group currently refuses connection explicitly:
+browser login, callback handling, token exchange and authenticated transport are
+not yet available.
+
+The library's `discover_oauth` performs credential-free metadata discovery under
+a caller-supplied authorization guard. It checks exact issuer/resource identity,
+configured destination origins and S256/public-client support. Each request has
+a 10-second deadline and discovery a 30-second deadline; documents are limited
+to 64 KiB with bounded JSON structure. Redirects, cookies, inherited proxy/auth
+settings and compressed metadata are refused. One unambiguous Bearer challenge
+is supported; remote metadata cannot add approved origins.
+
+`McpAuthService.oauth_store()` uses a separate versioned
+`.henchman/mcp/oauth.json`; legacy stdio tokens are never promoted. Project/server/
+issuer/resource/client binding and persistent generations reject stale completions
+after logout or configuration changes. Login/refresh claims are committed before
+their authority is returned. A refresh claim removes the old token from reusable
+storage before returning it; an interrupted refresh requires login again. Status
+contains no token values. This foundation makes no remote logout/revocation claim.
+
+The store is plaintext, bounded to 1 MiB/128 server records, with atomic replacement
+and retained revocation tombstones. POSIX storage uses private files and pinned
+directory descriptors. Windows rejects existing reparse points and checks opened
+file identities; confidentiality depends on directory ACLs, and a concurrent
+parent-directory swap is not prevented. Filesystem rollback is outside this store's
+authority. Login and transport integration remain tracked under #25.
+
 ## Trust Levels
 
 ### Trusted Servers

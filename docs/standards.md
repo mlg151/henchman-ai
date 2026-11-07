@@ -94,6 +94,13 @@ dispatch. HTTPS or literal loopback HTTP is required; redirects, inherited auth,
 cookies, compression and automatic resumption are refused. HTTP authentication
 remains unsupported. See [HTTP behavior and qualification limits](mcp.md#streamable-http).
 
+Typed OAuth configuration, guarded metadata discovery and a separate versioned
+credential store now provide a foundation for the pre-registered public native
+client profile. Exact issuer/resource binding, persistent generations and
+one-use login/refresh claims have focused local tests. Configured OAuth still
+refuses connection until callback, token exchange and authenticated transport
+integration are implemented. See [OAuth foundation and storage limits](mcp.md#oauth-configuration-and-storage-foundation).
+
 Explicit resource/template/prompt catalogs and previews now share bounded
 single-dispatch requests over both transports. The raw result boundary rejects
 continuation state before legacy normalization can hide it. Descriptions and

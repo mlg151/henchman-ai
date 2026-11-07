@@ -458,6 +458,45 @@ class ContextSettings(_SettingsModel):
     adaptive_compression: bool = True
 
 
+class McpOAuthConfig(_SettingsModel):
+    """Nonsecret authority for the pre-registered public native-client profile."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    issuer: str = Field(min_length=1, max_length=4096, strict=True)
+    client_id: str = Field(min_length=1, max_length=1024, strict=True)
+    resource: str | None = None
+    allowed_endpoint_origins: list[str] = Field(default_factory=list, max_length=16)
+
+    @field_validator("issuer")
+    @classmethod
+    def validate_issuer(cls, value: str) -> str:
+        from henchman.config.mcp import validate_oauth_url
+
+        return validate_oauth_url(value)
+
+    @field_validator("client_id")
+    @classmethod
+    def validate_client_id(cls, value: str) -> str:
+        if not value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("OAuth client identifier is invalid")
+        return value
+
+    @field_validator("resource")
+    @classmethod
+    def validate_resource(cls, value: str | None) -> str | None:
+        from henchman.config.mcp import canonical_oauth_resource
+
+        return canonical_oauth_resource(value) if value is not None else None
+
+    @field_validator("allowed_endpoint_origins")
+    @classmethod
+    def validate_origins(cls, value: list[str]) -> list[str]:
+        from henchman.config.mcp import validate_oauth_origin
+
+        return list(dict.fromkeys(validate_oauth_origin(origin) for origin in value))
+
+
 class McpServerConfig(_SettingsModel):
     """Configuration for an MCP server.
 
@@ -468,12 +507,15 @@ class McpServerConfig(_SettingsModel):
         trusted: Whether to skip confirmation for this server's tools.
     """
 
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
     transport: Literal["stdio", "streamable_http"] = "stdio"
     command: str | None = Field(None, min_length=1)
     url: str | None = None
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     trusted: bool = False
+    oauth: McpOAuthConfig | None = None
     request_timeout_seconds: float = Field(30.0, gt=0, le=3600, strict=True)
     negotiation_timeout_seconds: float = Field(40.0, gt=0, le=3600, strict=True)
     catalog_timeout_seconds: float = Field(60.0, gt=0, le=3600, strict=True)
@@ -502,6 +544,8 @@ class McpServerConfig(_SettingsModel):
         from henchman.config.mcp import validate_mcp_endpoint
 
         if self.transport == "stdio":
+            if self.oauth is not None:
+                raise ValueError("OAuth configuration is supported only for MCP Streamable HTTP")
             if self.command is None or self.url is not None:
                 raise ValueError("MCP stdio requires command and does not accept url")
         else:

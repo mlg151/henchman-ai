@@ -250,7 +250,8 @@ class McpManager:
     @staticmethod
     def _config_identity(config: McpServerConfig) -> tuple[object, ...]:
         return (config.transport, config.command, tuple(config.args), config.url, config.trusted, dict(config.env),
-                config.request_timeout_seconds, config.negotiation_timeout_seconds, config.catalog_timeout_seconds)
+                config.request_timeout_seconds, config.negotiation_timeout_seconds, config.catalog_timeout_seconds,
+                copy.deepcopy(getattr(config, "oauth", None)))
 
     def _invalidate(self, server_name: str) -> None:
         self._context_previews = {key: item for key, item in self._context_previews.items()

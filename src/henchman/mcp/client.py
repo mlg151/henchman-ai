@@ -346,6 +346,8 @@ class McpClient:
 
     def _check_credentials(self) -> None:
         self._check_access()
+        if getattr(self.config, "oauth", None) is not None:
+            raise RuntimeError("MCP OAuth login and authenticated transport are not yet supported")
         if self._invalid_reason is not None:
             raise RuntimeError(self._invalid_reason)
         if self._dispatch_guard is not None:

@@ -7,8 +7,12 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from henchman.config.paths import resolve_project_settings_path
+
+if TYPE_CHECKING:
+    from henchman.mcp.oauth_store import OAuthCredentialStore
 
 
 class McpAuthService:
@@ -20,6 +24,12 @@ class McpAuthService:
         self._project_root = (project_root or Path.cwd()).resolve()
         self._storage_dir = resolve_project_settings_path(self._project_root) / "mcp"
         self._auth_path = self._storage_dir / "auth.json"
+
+    def oauth_store(self) -> OAuthCredentialStore:
+        """Return the separate issuer/resource-bound store; legacy tokens are never promoted."""
+        from henchman.mcp.oauth_store import OAuthCredentialStore
+
+        return OAuthCredentialStore(self._project_root)
 
     def set_token(self, server: str, token: str) -> None:
         """Persist or replace a token for one MCP server."""

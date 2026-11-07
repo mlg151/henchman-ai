@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP OAuth foundation** — HTTP-only authority configuration, bounded guarded
+  discovery and separate generation-bound credential storage. OAuth-configured
+  connections explicitly refuse until login and authenticated transport are wired.
+
 - **Required project verification checks** — Explicit `verification.checks` join
   new plan assertions, retain exact requirement/input scope and invalidate current
   evidence after configuration changes. Invalid post-run configuration retains

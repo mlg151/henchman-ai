@@ -29,6 +29,7 @@ class McpServerConfig:
     request_timeout_seconds: float = 30.0
     negotiation_timeout_seconds: float = 40.0
     catalog_timeout_seconds: float = 60.0
+    oauth: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Apply the shared typed settings contract to the compatibility adapter."""
