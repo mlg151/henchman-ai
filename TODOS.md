@@ -86,8 +86,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   pass, stale, unverified and incomplete checks. Explicit project checks now bind
   required assertions to new plans and revoke evidence after configuration changes.
   A library repair coordinator now retains bounded observations under explicit
-  edit/criterion scope; runtime integration and live evaluation remain open. See
-  [verification freshness](docs/tools.md#declared-input-freshness).
+  edit/criterion scope. Explicit `repair_direct` now binds checks and model attempts
+  to one public run, budget and operation journal with a foreground file-tool lease.
+  Interactive controls and live evaluation remain open. See
+  [bounded repair](docs/tools.md#bounded-repair-library).
 
 - #21/#25 transport/schema foundations now include explicit resource/template/
   prompt previews, with bounded retrieval and no history/instruction changes.

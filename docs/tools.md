@@ -1268,8 +1268,31 @@ The trusted foreground repair adapter must call `admit_mutation` with determinis
 targets before each edit and must join its work. Unknown targets, protected files
 and paths outside the request are refused. This admission is not a filesystem
 sandbox: arbitrary callbacks or commands can have other effects, and changes
-restored between observations are outside the content evidence. Runtime registry
-integration and automatic model repair are not enabled by this library.
+restored between observations are outside the content evidence.
+
+For an explicitly requested model repair, Python callers can use
+`await orchestrator.repair_direct(role, user_input, request, on_event=callback)`.
+The request must come from the trusted caller. One public run owns the initial
+checks, bounded repair attempts, final checks, usage budget and operation journal.
+The exact registered verification tool must already belong to that role and be
+bound to the held settings and project. No new tools or approvals are granted.
+
+The foreground repair lease permits only the captured builtin `read_file`,
+`edit_file` and `write_file` implementations within declared file scope. Protected
+criteria are readable but cannot be edited. Delegation, shell/Python execution,
+MCP calls and criteria/configuration changes require separate work. The original
+checks and automatic Black formatting use exact owned subprocess admissions;
+ordinary policy, approval, context refresh and checkpoint checks still apply.
+Child tasks and event callbacks cannot borrow this lease. Session, settings,
+provider or tool changes, unknown effects, cancellation and accounting/journal
+control errors stop the run before another model request.
+
+Controller checks retain their own correlated operation evidence in a separate
+`runtime:verification` conversation. They are not fabricated model responses and
+do not alter the primary provider's tool-call history. Each reported observation
+must match a newly persisted verification run. This API does not automatically
+repair ordinary chat requests; interactive repair controls and live-model
+effectiveness remain separate qualification work.
 
 Each cycle retains a new persisted verification observation. Missing or stale
 checks, exhausted limits, cancellation, timeouts and persistence errors remain

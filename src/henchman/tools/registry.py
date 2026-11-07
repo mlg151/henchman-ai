@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Awaitable, Callable
+from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from itertools import count
@@ -29,6 +30,7 @@ from henchman.tools.policy import (
     grant_key_for,
     invocation_scope_digest,
 )
+from henchman.tools.repair_scope import RepairControlError, current_repair
 from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
@@ -539,6 +541,9 @@ class ToolRegistry:
         if isinstance(authorization, ToolResult):
             return authorization
         tool = authorization.tool
+        repair = current_repair()
+        if repair is not None:
+            repair.paths(tool, params)
         if self._execution_guard is not None:
             deferred = self._execution_guard(tool, params)
             if deferred is not None:
@@ -646,9 +651,27 @@ class ToolRegistry:
         if isinstance(authorization, ToolResult):
             return authorization
         tool = authorization.tool
+        repair = current_repair()
         permit: DispatchPermit | None = None
         prepared = False
         capture: MutationCheckpoint | None = None
+        formatter_authorization: _Authorization | None = None
+
+        def check_repair_authorization() -> None:
+            assert repair is not None
+            repair.check_implementation(tool)
+            current = formatter_authorization or authorization
+            stale = self._revalidate_authorization(current, params, require_grant=formatter_authorization is None)
+            if (authorization.confirmation is not None
+                and not authorization.grants.is_granted(authorization.key)):
+                raise RepairControlError("Repair approval was withdrawn")
+            parent: ToolRegistry | None = self
+            while stale is None and parent is not None:
+                if parent._execution_guard is not None:
+                    stale = parent._execution_guard(tool, params)
+                parent = parent._policy_parent
+            if stale is not None or self._revalidate_authorization(current, params, require_grant=formatter_authorization is None) is not None:
+                raise RepairControlError("Repair tool approval, instructions or live policy changed")
         if operation is not None:
             previous = next((record for record in operation.run.journal.report().records
                              if record.operation_id == operation.binding.operation_id), None)
@@ -660,7 +683,7 @@ class ToolRegistry:
                 return tool_result_from_operation(previous.result)
 
         async def execute_once() -> ToolResult:
-            nonlocal permit, prepared
+            nonlocal permit, prepared, formatter_authorization
             try:
                 validate_tool_input(tool.parameters, params)
             except SchemaContractError as exc:
@@ -677,6 +700,9 @@ class ToolRegistry:
             stale = self._revalidate_authorization(authorization, params)
             if stale is not None:
                 return stale
+            if repair is not None:
+                await repair.admit(tool, params)
+                check_repair_authorization()
             if operation is not None:
                 record = operation.prepare(name, params, "read" if tool.execution_kind(params) == ToolKind.READ else "effectful")
                 if record.state == "completed" and record.result is not None:
@@ -684,6 +710,8 @@ class ToolRegistry:
                 prepared = True
                 assert capture is not None
                 await capture.begin()
+                if repair is not None:
+                    await repair.admit(tool, params)
                 # Capture awaits bounded filesystem work. Its scope conveys no
                 # authority: policy, tool identity, targets and guards must all
                 # still permit this invocation immediately before its effect.
@@ -698,6 +726,11 @@ class ToolRegistry:
                 permit = operation.start()
                 if permit is None:
                     raise OperationRecoveryError("operation_already_dispatched")
+            if repair is not None:
+                await asyncio.sleep(0)
+                repair.check()
+                check_repair_authorization()
+            if capture is not None and permit is not None:
                 capture.dispatched = True
             with use_access_policies(self._effective_access_policies):
                 from henchman.tools.builtins.web_fetch import WebFetchTool
@@ -724,7 +757,20 @@ class ToolRegistry:
 
                     with use_network_authorization(check_network_authorization):
                         return await tool.execute(**params)
-                return await tool.execute(**params)
+                result = await tool.execute(**params)
+                if repair is not None and capture is not None and capture.dispatched and capture.paths:
+                    # Qualified edit/write bodies can replace their file inode.
+                    # Capture that owned outcome before yielding; only formatting
+                    # may use it, and the original grant must remain live.
+                    observed = self._capture_authorization(tool.name, params)
+                    if isinstance(observed, ToolResult):
+                        raise RepairControlError("Repair authorization changed after its tool effect")
+                    key = replace(authorization.key, scope_digest=observed.key.scope_digest)
+                    if key != observed.key:
+                        raise RepairControlError("Repair authorization changed after its tool effect")
+                    formatter_authorization = replace(authorization, key=key)
+                    check_repair_authorization()
+                return result
 
         async def execute_authorized() -> ToolResult:
             if (
@@ -742,7 +788,7 @@ class ToolRegistry:
         try:
             capture = MutationCheckpoint(operation, tool, params,
                                          lambda: bool(self._effective_access_policies or current_access_policies()))
-            with use_checkpoint(capture):
+            with use_checkpoint(capture), repair.invocation(check_repair_authorization) if repair is not None else nullcontext():
                 try:
                     if self._effective_access_policies or current_access_policies():
                         # Black and workspace discovery are unmediated subprocess/I/O
@@ -757,9 +803,9 @@ class ToolRegistry:
         except BaseException as exc:
             if operation is not None and prepared:
                 operation.cancel_after_error(exc)
-                if permit is not None and isinstance(exc, Exception) and not isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)):
+                if permit is not None and isinstance(exc, Exception) and not isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)):
                     raise OperationRecoveryError("outcome_unknown") from exc
-            if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(exc, Exception):
+            if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)) or not isinstance(exc, Exception):
                 raise
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(
@@ -787,7 +833,7 @@ class ToolRegistry:
                 operation.complete(permit, projected)
             except BaseException as exc:
                 operation.cancel_after_error(exc)
-                if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(exc, Exception):
+                if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)) or not isinstance(exc, Exception):
                     raise
                 raise OperationRecoveryError("operation_result_unavailable") from exc
             return tool_result_from_operation(projected, display=result.display)
@@ -840,7 +886,7 @@ class ToolRegistry:
         failed = 0
 
         for i, result in enumerate(results_list):
-            if isinstance(result, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)):
+            if isinstance(result, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)):
                 raise result
             tool_name = calls[i][0]
             # Key is "{index}:{tool_name}" — the index prefix guarantees

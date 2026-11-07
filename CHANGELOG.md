@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit bounded model repair** — `Orchestrator.repair_direct` runs caller-bound
+  checks and repairs under one usage budget and operation journal. A foreground
+  lease restricts edits to declared files, preserves protected criteria and blocks
+  unsupported tools, delegation and stale authority. Controller checks retain
+  separate evidence without inventing provider history. Formatter control errors
+  stop continuation; scoped passes remain distinct from whole-task acceptance.
+
 - **Textual saved input controls** — F9 inspects, edits, removes, reorders and
   explicitly sends queued input while preserving the composer draft and selection.
   Stale revisions, session changes and interrupted storage waits revoke controls;

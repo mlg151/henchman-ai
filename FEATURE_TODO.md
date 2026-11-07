@@ -38,7 +38,9 @@ unverified checks; historical results remain intact. Explicit `verification.chec
 now adds required assertions to new plans and revokes current evidence when the
 configuration changes. A library repair coordinator now pins explicit edit and
 criterion scope, bounds attempts/repeated diagnostics and preserves incomplete
-outcomes. Registry/public-run integration and live acceptance remain open under #16.
+outcomes. Explicit `Orchestrator.repair_direct` now enforces that scope through
+the existing registry, one usage budget and correlated model/controller operations.
+Interactive controls and live acceptance remain open under #16.
 Known credentials are now projected from verification evidence, with sensitive
 saved specifications unavailable for execution and explicit locked sanitation.
 

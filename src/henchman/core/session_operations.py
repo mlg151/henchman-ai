@@ -26,7 +26,11 @@ from henchman.core.operation_recovery import (
     RecoveryReport,
     project_operation_result,
 )
-from henchman.core.runtime_operations import OperationInvocation, tool_result_from_operation
+from henchman.core.runtime_operations import (
+    OperationInvocation,
+    current_operation_call,
+    tool_result_from_operation,
+)
 from henchman.core.runtime_workflow import correlate_workflow
 from henchman.core.session_data import Session
 from henchman.core.session_models import SessionMessage
@@ -64,6 +68,94 @@ class OperationRun:
     session_start: int = 0
     _sources: list[tuple[Agent, list[Message], str | None]] = field(default_factory=list, repr=False)
     _primary_offsets: dict[int, int] = field(default_factory=dict, repr=False)
+    _session_key: tuple[str, str] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._session_key = (self.session.project_hash, self.session.id)
+
+    def _require_session(self) -> None:
+        cached = self.runtime._active.get(self._session_key)
+        if (self.runtime.current_session is not self.session
+            or (self.session.project_hash, self.session.id) != self._session_key
+            or cached is None or cached[0] is not self.session or cached[1] is not self.journal):
+            raise OperationRecoveryError("session_authority_changed")
+
+    def require_ready(self) -> None:
+        """Inspect authority without recovering, cancelling or observing any effect.
+
+        A dispatch may inspect its own queued/started record. No other pending
+        record is excused, including another locally owned started invocation.
+        """
+        self._require_session()
+        report = self.journal.report()
+        state = self.session.operations
+        if state is None:
+            raise OperationRecoveryError("missing_operation_history")
+        bindings = {item.operation_id: item for item in state.bindings}
+        records = {item.operation_id: item for item in report.records}
+        if set(records) != set(bindings):
+            raise OperationRecoveryError("transcript_behind_journal" if set(records) - set(bindings) else "missing_operation_history")
+        current = current_operation_call()
+        for operation_id, record in records.items():
+            binding = bindings[operation_id]
+            if binding.context != record.context:
+                raise OperationRecoveryError("operation_context_mismatch")
+            self.runtime._assistant(self.session, binding, record.tool_name)
+            if record.resolution is not None or record.state in {"completed", "cancelled"}:
+                continue
+            owned = (current is not None and current.run is self and current.binding == binding
+                     and operation_id not in report.blocking_operation_ids)
+            if owned and record.state == "queued":
+                continue
+            if owned and record.state == "started" and self.runtime._inflight.get(operation_id) is current:
+                continue
+            raise OperationRecoveryError("unresolved_operation")
+
+    def controller_call(self, name: str, params: dict[str, object]) -> OperationInvocation:
+        """Correlate a runtime verifier in separate, explicitly labelled evidence.
+
+        This creates no dispatch permission. The registry still approves, queues
+        and saves the exact binding before starting the ordinary journal record.
+        """
+        self.require_ready()
+        conversation_id = f"{self.run_id}:controller:{uuid4().hex}"
+        call = ToolCall(uuid4().hex, name, deepcopy(params))
+        message = SessionMessage("assistant", content="Runtime controller invocation; not a provider response.",
+                                 tool_calls=[asdict(call)], agent_role="runtime_controller")
+        state = self.session.operations
+        assert state is not None
+        self.session.operations = replace(state, conversations=(*state.conversations,
+            OperationConversation(conversation_id, (message,))))
+        return self.bind_call(call, agent_id="runtime:verification", assistant_index=0,
+                              conversation_id=conversation_id)
+
+    def settle_controller_call(self, invocation: OperationInvocation, *, primary: BaseException | None = None) -> None:
+        """Retain completed evidence or uncertain authority, even after late denial."""
+        try:
+            self._require_session()
+            binding = invocation.binding
+            if (invocation.run is not self or binding.context.agent_id != "runtime:verification"
+                or binding.conversation_id is None or not binding.conversation_id.startswith(f"{self.run_id}:controller:")):
+                raise OperationRecoveryError("operation_context_mismatch")
+            records = {item.operation_id: item for item in self.journal.report().records}
+            state = self.session.operations
+            assert state is not None
+            if binding.operation_id not in records:
+                if any(item.operation_id == binding.operation_id for item in state.bindings):
+                    raise OperationRecoveryError("missing_operation_history")
+                # Only uncommitted, never-prepared evidence may be discarded.
+                self.session.operations = replace(state, conversations=tuple(
+                    item for item in state.conversations if item.id != binding.conversation_id))
+                return
+            record = records[binding.operation_id]
+            if record.state not in {"completed", "cancelled"} and record.resolution is None:
+                raise OperationRecoveryError("unresolved_operation")
+            self.require_ready()
+            self.runtime._reconcile(self.session, self.journal)
+        except BaseException as cleanup:
+            if primary is None:
+                raise
+            primary.add_note(f"Controller operation settlement also failed: {type(cleanup).__name__}")
 
     def register_actor_credentials(self, agent: Agent) -> None:
         """Retain the actual actor's current credentials in shared evidence policy."""

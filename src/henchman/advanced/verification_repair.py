@@ -41,6 +41,7 @@ from henchman.advanced.verification_inputs import (
     capture_inputs_async,
     read_in_worker,
 )
+from henchman.tools.repair_scope import RepairControlError
 
 if TYPE_CHECKING:
     from henchman.advanced.plans import PlanExecutionService, PlanRecord
@@ -244,7 +245,7 @@ class RepairAttempt:
     observation: RepairObservation
 
 
-class _Stopped(Exception):
+class _Stopped(RepairControlError):
     def __init__(self, reason: Reason, detail: str) -> None:
         super().__init__(detail)
         self.reason = reason

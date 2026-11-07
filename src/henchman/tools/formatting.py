@@ -14,6 +14,7 @@ from threading import Event
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.checkpoint_capture import current_checkpoint
+from henchman.tools.repair_scope import RepairControlError, current_repair, owned_spawn
 from henchman.tools.subprocess_utils import run_bounded_subprocess
 from henchman.utils.source_files import iter_python_files
 
@@ -29,6 +30,16 @@ _FileIdentity = tuple[int, int, int, int, int]
 
 class FormattingError(Exception):
     """Tracking or Black could not complete within the formatter's bounds."""
+
+
+def _control_errors() -> tuple[type[Exception], ...]:
+    # Keep core/runtime imports lazy: tool registration also happens during
+    # core package initialization.
+    from henchman.core.operation_recovery import OperationRecoveryError
+    from henchman.core.run_budget import BudgetControlError
+    from henchman.providers.continuation import ProviderContinuationError
+
+    return OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError
 
 
 @dataclass
@@ -256,18 +267,28 @@ async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
     Standard project configuration is honored. This is formatting, not an OS
     sandbox or a guarantee that project-configured exclusions were formatted.
     """
+    repair = current_repair()
+    if repair is not None:
+        repair.check()
+        if any(not path.is_absolute() or not path.is_relative_to(repair.root) for path in paths):
+            repair.deny("Repair formatter targets escaped the explicit project scope")
+        await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in paths))
+        repair.check()
     stop = Event()
     try:
         async with asyncio.timeout(FORMAT_TIMEOUT):
             sources = await asyncio.to_thread(_expand_paths, paths, cwd, stop)
             for batch in _batches(sources):
                 _check_access()
-                result = await run_bounded_subprocess(
-                    [*_BLACK_COMMAND, *(str(path) for path in batch)],
-                    cwd=cwd,
-                    timeout=FORMAT_TIMEOUT,
-                    max_output_bytes=8192,
-                )
+                repair = current_repair()
+                if repair is not None:
+                    await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in batch))
+                    repair.check()
+                command = [*_BLACK_COMMAND, *(str(path) for path in batch)]
+                with owned_spawn(command, cwd):
+                    result = await run_bounded_subprocess(
+                        command, cwd=cwd, timeout=FORMAT_TIMEOUT, max_output_bytes=8192,
+                    )
                 if result.returncode != 0:
                     output = (result.stderr or result.stdout).decode("utf-8", errors="replace")
                     raise FormattingError(f"Black exited {result.returncode}: {output.strip()}")
@@ -355,12 +376,25 @@ class PythonAutoFormatter:
         try:
             return await self._execute_and_format(tool, params, execute, frame)
         finally:
+            primary = sys.exception()
+            preserve = primary is not None and (isinstance(primary, _control_errors()) or not isinstance(primary, Exception))
             try:
-                await _close_invocation(frame, cancel=True)
+                try:
+                    await _close_invocation(frame, cancel=True)
+                except BaseException:
+                    if not preserve:
+                        raise
+                    assert primary is not None
+                    primary.add_note("Formatter settlement also failed; original runtime interruption retained")
             finally:
                 try:
                     if owns_capture and capture is not None:
-                        await capture.finish(sys.exception())
+                        await capture.finish(primary or sys.exception())
+                except BaseException:
+                    if not preserve:
+                        raise
+                    assert primary is not None
+                    primary.add_note("Formatter checkpoint settlement also failed; original runtime interruption retained")
                 finally:
                     self._invocation.reset(token)
 
@@ -372,9 +406,13 @@ class PythonAutoFormatter:
         frame: _Invocation,
     ) -> ToolResult:
         capture = current_checkpoint()
+        controls = _control_errors()
         try:
             scopes: tuple[_Scope, ...]
-            if capture is not None and capture.restricted():
+            repair = current_repair()
+            if repair is not None:
+                scopes = tuple(_Scope(path, True) for path in repair.paths(tool, params) if path.suffix in _SUFFIXES)
+            elif capture is not None and capture.restricted():
                 # Policy may have changed while waiting for the mutation lock.
                 # Let dispatch return its current denial without raw discovery.
                 scopes = ()
@@ -384,24 +422,25 @@ class PythonAutoFormatter:
                 scope = _scope(tool, params)
                 scopes = (scope,) if scope is not None else ()
             snapshots = [(scope, await _take_snapshot(scope)) for scope in scopes]
+        except controls:
+            raise
         except Exception as exc:
             return _failure(None, exc)
         try:
             result = await execute()
+        except controls:
+            raise
         except Exception as original:
             await _close_invocation(frame)
             if snapshots and self._may_format():
                 try:
                     for scope, before in snapshots:
                         await _format_changed(scope, before)
+                except controls:
+                    # A control failure discovered after an ordinary body error
+                    # still stops dispatch. It is never a formatter diagnostic.
+                    raise
                 except Exception as formatting_error:
-                    from henchman.core.operation_recovery import OperationRecoveryError
-                    from henchman.core.run_budget import BudgetControlError
-                    from henchman.providers.continuation import ProviderContinuationError
-
-                    if isinstance(original, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)):
-                        original.add_note("Automatic Black formatting also failed after the tool control failure")
-                        raise original from None
                     raise FormattingError(
                         f"Automatic Black formatting failed: {formatting_error}; "
                         f"original tool failure: {original}"
@@ -413,6 +452,8 @@ class PythonAutoFormatter:
                 formatted = 0
                 for scope, before in snapshots:
                     formatted += await _format_changed(scope, before)
+            except controls:
+                raise
             except Exception as exc:
                 return _failure(result, exc)
             if formatted:

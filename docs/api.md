@@ -978,6 +978,23 @@ stall, and timeout outcomes. They establish execution evidence, not correctness:
 completion events include `task_verified: false` and runtime activity in `evidence`.
 See [completion semantics](architecture.md#overview).
 
+Explicit Python repair callers use:
+
+```python
+from henchman.advanced.verification_repair import RepairRequest
+
+report = await orchestrator.repair_direct(
+    role, user_input, request, on_event=handle_event,
+)
+```
+
+`request` is a caller-created `RepairRequest` with fixed plan, editable files,
+protected criteria and limits. `handle_event` is an optional async callback;
+`budget_scope` and `invocation` can bind existing runtime accounting. Initial and
+final checks share one public run, budget and operation journal with the repair
+attempts. A `scoped_pass` records the selected checks and retains
+`task_verified: false`. See the [scope and control contract](tools.md#bounded-repair-library).
+
 ### AgentPool
 
 ```python

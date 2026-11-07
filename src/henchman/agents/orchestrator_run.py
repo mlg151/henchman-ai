@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.ledger import TaskLedger
@@ -25,7 +26,19 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.agents.orchestrator_types import AgentLoopParams
     from henchman.core.agent import Agent
+    from henchman.core.session_operations import OperationRun
+
+
+@dataclass
+class RunAdmission:
+    """The single existing public invocation claim and its settlement outcome."""
+
+    params: AgentLoopParams
+    operation: OperationRun
+    budget: RunBudgetScope | None
+    completed: bool = False
 
 
 async def primary_actor_events(stream: AsyncIterator[AgentEvent]) -> AsyncGenerator[AgentEvent, None]:

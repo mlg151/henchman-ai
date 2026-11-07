@@ -7,7 +7,7 @@ re-exported here for backward compatibility.
 
 from __future__ import annotations
 
-from contextlib import aclosing
+from contextlib import aclosing, asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.delegation import DelegationRunner
@@ -25,7 +25,13 @@ from henchman.providers.runtime_budget import current_run_budget
 # Re-export symbols that external code imports from this module
 from .orchestrator_execution import _last_assistant_content
 from .orchestrator_init import OrchestratorConfig, init_orchestrator
-from .orchestrator_run import claim_public_run, finalize_run, prepare_run, primary_actor_events
+from .orchestrator_run import (
+    RunAdmission,
+    claim_public_run,
+    finalize_run,
+    prepare_run,
+    primary_actor_events,
+)
 from .orchestrator_timeout import TimeoutSummaryBuilder
 from .orchestrator_types import (
     COLON_STALL_NUDGE,
@@ -37,8 +43,10 @@ from .orchestrator_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+    from pathlib import Path
 
+    from henchman.advanced.verification_repair import RepairReport, RepairRequest
     from henchman.agents.ledger import TaskLedger
     from henchman.agents.metrics_reporter import MetricsReporter
     from henchman.agents.orchestrator_components import AgentValidator
@@ -211,9 +219,50 @@ class Orchestrator:
         invocation: RunInvocation | None = None, direct_role: str | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Claim runtime ownership before creating or recovering accounting state."""
+        async with self._admit_run(user_input, supplied, completion_requirement=completion_requirement,
+                                   invocation=invocation, direct_role=direct_role) as admitted:
+            stream = self._run(admitted.params) if direct_role is None else self._run_direct(direct_role, admitted.params)
+            async with aclosing(primary_actor_events(operated_events(budgeted_events(stream, admitted.budget), admitted.operation))) as events:
+                async for event in events:
+                    if (event.type == EventType.AGENT_COMPLETED
+                        and event.source_agent == "orchestrator" and isinstance(event.data, dict)
+                        and event.data.get("scope") == "run"):
+                        admitted.completed = event.data.get("status") in {"completed", "responded"}
+                    yield event
+
+    async def repair_direct(
+        self, role: str, user_input: str, request: RepairRequest, *,
+        on_event: Callable[[AgentEvent], Awaitable[None]] | None = None,
+        budget_scope: RunBudgetScope | None = None, invocation: RunInvocation | None = None,
+    ) -> RepairReport:
+        """Run explicit trusted repair criteria without delegation or replay authority.
+
+        The caller supplies scope; model output cannot create or replace it.
+        Event callbacks run outside the repair lease. A scoped pass remains
+        historical check evidence and never certifies whole-task correctness.
+        """
+        from .orchestrator_repair import repair_direct
+
+        return await repair_direct(self, role, user_input, request, on_event=on_event,
+                                   budget_scope=budget_scope, invocation=invocation)
+
+    @asynccontextmanager
+    async def _admit_run(
+        self, user_input: str, supplied: RunBudgetScope | None, *,
+        completion_requirement: CompletionRequirement, invocation: RunInvocation | None,
+        direct_role: str | None, idle_project: Path | None = None,
+    ) -> AsyncIterator[RunAdmission]:
+        """Keep ordinary and explicit repair runs inside the same ownership boundary."""
         with claim_public_run(self):
             if invocation is not None and invocation.claimed:
                 raise ValueError("Run invocation has already been claimed")
+            if idle_project is not None:
+                from henchman.advanced.tasks import TaskService
+                from henchman.tools.repair_scope import RepairControlError
+
+                if (self.subagents.has_running_work() or self.pool._execution_claims
+                    or TaskService.has_active_work(idle_project)):
+                    raise RepairControlError("Bounded repair requires an idle foreground runtime")
             agent = self.tech_lead if direct_role is None else self.pool.get_agent(direct_role)
             params = AgentLoopParams(
                 agent=agent, input_text=user_input,
@@ -241,36 +290,31 @@ class Orchestrator:
                 self.last_budget_scope = scope
                 if invocation is not None:
                     invocation.budget_scope = scope
-                stream = self._run(params) if direct_role is None else self._run_direct(direct_role, params)
-                completed = False
+                admitted = RunAdmission(params, operation_run, scope)
                 primary: BaseException | None = None
                 try:
                     correlate_workflow(operation_run.session, operation_run_id=operation_run.run_id,
                                        budget_run_id=scope.ledger.run_id if scope is not None else None)
-                    async with aclosing(primary_actor_events(operated_events(budgeted_events(stream, scope), operation_run))) as events:
-                        async for event in events:
-                            if (event.type == EventType.AGENT_COMPLETED
-                                and event.source_agent == "orchestrator" and isinstance(event.data, dict)
-                                and event.data.get("scope") == "run"):
-                                completed = event.data.get("status") in {"completed", "responded"}
-                            yield event
+                    yield admitted
                 except BaseException as exc:
                     primary = exc
                     raise
                 finally:
                     cleanup: list[BaseException] = []
                     try:
-                        self.operation_runtime.finish(operation_run, failed=not completed)
+                        operation_run.runtime.finish(operation_run, failed=not admitted.completed)
                     except BaseException as exc:
                         cleanup.append(exc)
                     try:
                         if managed is not None:
-                            managed.finish(scope, completed=completed and not cleanup,
+                            managed.finish(scope, completed=admitted.completed and not cleanup,
                                            background_active=self.subagents.has_running_work())
                     except BaseException as exc:
                         cleanup.append(exc)
                     if cleanup:
-                        controls = (OperationRecoveryError, BudgetControlError, ProviderContinuationError)
+                        from henchman.tools.repair_scope import RepairControlError
+
+                        controls = (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)
                         # Preserve original controls/cancellation while still
                         # settling both authorities. A cleanup control outranks
                         # an ordinary error so callers cannot retry through it.

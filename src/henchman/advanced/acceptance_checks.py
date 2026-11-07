@@ -372,12 +372,12 @@ def _file_result(root: Path, spec: CheckSpec) -> dict[str, Any]:
 
 
 async def _command_result(root: Path, spec: CheckSpec) -> dict[str, Any]:
-    process = await run_bounded_subprocess(
-        list(spec.argv),
-        cwd=root,
-        timeout=spec.timeout,
-        max_output_bytes=MAX_OUTPUT_BYTES,
-    )
+    from henchman.tools.repair_scope import owned_spawn
+
+    with owned_spawn(spec.argv, root):
+        process = await run_bounded_subprocess(
+            list(spec.argv), cwd=root, timeout=spec.timeout, max_output_bytes=MAX_OUTPUT_BYTES,
+        )
     passed = process.returncode == spec.expected_exit
     return {
         "passed": passed,
@@ -430,20 +430,25 @@ async def run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, obj
 
 
 async def _run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, object]:
+    from henchman.tools.repair_scope import check_verification
+
     root = _project_root(root)
     specs = _checked_specs(checks)
     policy = current_policy()
     require_safe_checks(specs, policy)
     digest = check_spec_digest(specs)
     paths, complete = check_input_paths(specs)
+    await check_verification(root, specs)
     before = await capture_inputs_async(root, paths, redactor=policy)
     results = []
     observations = []
     for index, spec in enumerate(specs):
+        await check_verification(root, specs)
         refresh_policy(root, policy)
         check_before = await capture_inputs_async(root, paths, redactor=policy)
         refresh_policy(root, policy)
         require_safe_checks(specs, policy)
+        await check_verification(root, specs)
         started_at = datetime.now(UTC).isoformat()
         try:
             if spec.kind == "command":
@@ -464,6 +469,7 @@ async def _run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, ob
                 state = "not_run"
             result = {"passed": False, "status": state, "error": policy.text(str(exc))[:MAX_TEXT_LENGTH]}
         result.setdefault("status", "pass" if result["passed"] else "fail")
+        await check_verification(root, specs)
         check_after = await capture_inputs_async(root, paths, redactor=policy)
         observations.append({"before": fingerprint_identity(check_before), "after": fingerprint_identity(check_after)})
         results.append(
@@ -475,6 +481,7 @@ async def _run_checks(root: Path, checks: tuple[CheckSpec, ...]) -> dict[str, ob
                 **result,
             }
         )
+    await check_verification(root, specs)
     after = await capture_inputs_async(root, paths, redactor=policy)
     snapshots = [fingerprint_identity(before), fingerprint_identity(after),
                  *(item[phase] for item in observations for phase in ("before", "after"))]

@@ -46,11 +46,12 @@ class OperationInvocation:
         from henchman.core.operation_recovery import OperationRecoveryError
         from henchman.core.run_budget import BudgetControlError
         from henchman.providers.continuation import ProviderContinuationError
+        from henchman.tools.repair_scope import RepairControlError
 
         try:
             self.cancel()
         except OperationRecoveryError as cleanup:
-            if isinstance(primary, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(primary, Exception):
+            if isinstance(primary, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)) or not isinstance(primary, Exception):
                 primary.add_note(f"Operation cleanup also failed: {cleanup.reason}")
                 return
             raise
@@ -63,6 +64,16 @@ _Event = TypeVar("_Event")
 
 def current_operation_run() -> OperationRun | None:
     return _RUN.get()
+
+
+@contextmanager
+def use_operation_run(run: OperationRun | None) -> Iterator[None]:
+    """Activate an owned controller call without fabricating a model event stream."""
+    token = _RUN.set(run)
+    try:
+        yield
+    finally:
+        _RUN.reset(token)
 
 
 async def operated_events(stream: AsyncIterator[_Event], run: OperationRun | None) -> AsyncGenerator[_Event, None]:
