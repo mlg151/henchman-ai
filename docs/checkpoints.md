@@ -2,8 +2,8 @@
 
 The content checkpoint service is a foundation for [#22](https://github.com/mlg151/henchman-ai/issues/22).
 It exposes a Python API and shared user commands with a POSIX restore backend.
-Runtime ownership capture, dedicated Textual navigation, verification invalidation
-wiring, and a Windows backend remain required. Existing Tungsten metadata snapshots are explicitly
+Runtime ownership capture, dedicated Textual navigation and a Windows backend
+remain required. Existing Tungsten metadata snapshots are explicitly
 versioned, non-restorable records; they cannot reconstruct file contents.
 
 ## User commands
@@ -82,8 +82,14 @@ An unresolved restore blocks later mutations and remains pinned for recovery;
 there is no unconditional overwrite or reset operation.
 
 `ReviewResult.changed_paths` and `invalidate_checks` identify affected evidence.
-Callers must invalidate their verification records; this service does not yet
-connect that signal to the runtime check store.
+Content-changing restore marks all existing plan verification reports stale before
+mutation and again when the attempt settles, preserving the original observations.
+This conservatively includes command checks whose file dependencies are unknown.
+Concurrent check completions cannot replace the invalidated result, and incomplete
+restores block new verification until recovered. Corrupt verification storage
+blocks restore before displacement. Accepting unchanged content leaves historical
+checks intact. External/embedder evidence stores must consume the result signal
+and invalidate their own records.
 
 An already-open writer may continue writing a displaced inode. Its original is
 retained in the private journal and located with `retained_originals(plan_id)`;

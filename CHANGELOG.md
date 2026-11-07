@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integration remain under #22. See
   [checkpoint limits and recovery](docs/checkpoints.md).
 
+- **Restore verification invalidation** — Content-changing checkpoint restores
+  retain previous check observations as stale, revoke concurrent check completion
+  authority and block verification while restore recovery is pending.
+
 - **Provider schema projections** — All five adapters now expand supported local
   references into detached request schemas while preserving optional/null meaning.
   Unsupported projections fail before transport, and input estimates use the same

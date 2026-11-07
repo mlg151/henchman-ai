@@ -275,6 +275,7 @@ class PlanExecutionService:
 
     async def verify_plan(self, plan_id: str) -> dict[str, object]:
         """Run recorded checks and persist historical observations, not task truth."""
+        self._assert_no_pending_restore()
         run_id = uuid4().hex
         with FileLock(self._lock_path):
             record = self._require_plan(plan_id)
@@ -306,12 +307,43 @@ class PlanExecutionService:
         report: dict[str, object],
     ) -> None:
         """Preserve concurrent step updates and reject superseded observations."""
+        # Acquire checkpoint authority before the plan lock: restores hold their
+        # checkpoint lock while invalidating plan observations in this order.
+        self._assert_no_pending_restore()
         with FileLock(self._lock_path):
             current = self._require_plan(plan_id)
             if current.checks != checks or (current.last_verification or {}).get("run_id") != run_id:
                 raise ValueError("Verification was superseded or its checks changed; run verify again.")
             self._records[plan_id] = replace(current, updated_at=_now_iso(), last_verification=report)
             self._persist_records()
+
+    def _assert_no_pending_restore(self) -> None:
+        """Refuse observations while a workspace restore is incomplete."""
+        from henchman.advanced.checkpoints import CheckpointService
+
+        storage = resolve_project_settings_path(self._project_root) / "tungsten/checkpoints"
+        if (storage.exists() or storage.is_symlink()) and CheckpointService(self._project_root).pending_restores():
+            raise ValueError("Workspace restore is incomplete; recover it before running verification.")
+
+    def invalidate_checks(self) -> None:
+        """Retain observations but revoke their success and running-save authority."""
+        if not self._index_path.exists():
+            return
+        with FileLock(self._lock_path):
+            self._records = self._load_records()
+            changed = False
+            for identity, record in self._records.items():
+                if record.last_verification is None:
+                    continue
+                previous = record.last_verification
+                report = dict(previous, status="stale", checks_passed=False, task_verified=False,
+                              observed_run_id=previous.get("observed_run_id", previous.get("run_id")),
+                              run_id=uuid4().hex, invalidated_at=_now_iso(),
+                              invalidation_reason="checkpoint_restore")
+                self._records[identity] = replace(record, updated_at=_now_iso(), last_verification=report)
+                changed = True
+            if changed:
+                self._persist_records()
 
     def render_status(self, plan_id: str) -> str:
         """Render a readable verification status report."""

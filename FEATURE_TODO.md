@@ -17,8 +17,9 @@ The [content checkpoint foundation](docs/checkpoints.md) now captures explicit
 before/after file scopes and supports revision-bound review, conflict-checked
 POSIX restore, interrupted-restore recovery and private bounded retention.
 CLI and interactive `/checkpoint` commands now share file/hunk review, preview,
-apply, recovery and retention. Runtime ownership capture, dedicated review
-navigation, verification invalidation and Windows restore remain incomplete under #22.
+apply, recovery and retention. Content-changing restores revoke plan-check success
+and concurrent-save authority; pending restores block verification. Runtime ownership
+capture, dedicated review navigation and Windows restore remain incomplete under #22.
 
 The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
 turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)

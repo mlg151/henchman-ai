@@ -288,10 +288,14 @@ class CheckpointService:
             needed = sum(len(FileState.from_dict(change[side]).content or b"")
                          for change in plan["changes"].values() for side in ("expected", "desired"))
             self._store.reserve(needed + 4096)
+            self._invalidate_checks(plan)
             plan["state"] = "prepared"
             self._save(plan, plan=True)
             self._fault("prepared")
-            return self._restore(plan, payload)
+            try:
+                return self._restore(plan, payload)
+            finally:
+                self._invalidate_checks(plan)
 
     def recover(self, plan_id: str) -> ReviewResult:
         """Resume a durable restore; conflicting user work remains untouched."""
@@ -308,7 +312,18 @@ class CheckpointService:
                 raise CheckpointConflict(reason="A different decision changed checkpoint recovery authority")
             self._validate_decision(plan, payload)
             self._check_plan_content(plan)
-            return self._restore(plan, payload)
+            self._invalidate_checks(plan)
+            try:
+                return self._restore(plan, payload)
+            finally:
+                self._invalidate_checks(plan)
+
+    def _invalidate_checks(self, plan: dict[str, Any]) -> None:
+        """Revoke checks before mutation and supersede concurrent observations."""
+        from henchman.advanced.plans import PlanExecutionService
+
+        if any(change["expected"] != change["desired"] for change in plan["changes"].values()):
+            PlanExecutionService(self._files.root).invalidate_checks()
 
     def _validate_decision(self, plan: dict[str, Any], payload: dict[str, Any]) -> None:
         if not plan["changes"].keys() <= payload["before"].keys():

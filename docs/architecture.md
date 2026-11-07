@@ -4,8 +4,9 @@
 
 The [checkpoint service](checkpoints.md) owns scoped content capture and durable
 conflict-checked POSIX restore. CLI, REPL and Textual command input share its user
-adapter. Automatic mutation ownership and verification invalidation remain
-separate integration work; conversation rewind does not restore workspace files.
+adapter. Restores invalidate plan verification and supersede in-flight check
+results; automatic mutation ownership remains separate integration work.
+Conversation rewind does not restore workspace files.
 
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 
