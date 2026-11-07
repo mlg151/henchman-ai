@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from unittest.mock import Mock
 
+import numpy as np
 import pytest
 
 from henchman.rag.chunker import Chunk
@@ -156,29 +158,46 @@ def test_embedding_provider_embed_query_contract() -> None:
         assert isinstance(v, float)
 
 
-def test_embedding_provider_double_embed_matches_dimensions() -> None:
-    """FastEmbedProvider embed vectors must match declared dimensions."""
+@pytest.fixture
+def fastembed_double(monkeypatch):
+    """Exercise the adapter with explicit model output, without downloading weights."""
+    model = Mock()
+    model.embed.side_effect = lambda texts: iter(np.ones(384) for _ in texts)
+    model.query_embed.side_effect = lambda _query: iter([np.ones(384)])
+    factory = Mock(return_value=model)
+    monkeypatch.setattr("fastembed.TextEmbedding", factory)
     provider = FastEmbedProvider()
+    factory.assert_called_once_with(model_name="BAAI/bge-small-en-v1.5")
+    return provider, model
+
+
+def test_embedding_provider_double_embed_matches_dimensions(fastembed_double) -> None:
+    """FastEmbedProvider embed vectors must match declared dimensions."""
+    provider, model = fastembed_double
     texts = ["test sentence"]
     embeddings = provider.embed(texts)
     assert len(embeddings) == 1
     assert len(embeddings[0]) == provider.dimensions
+    model.embed.assert_called_once_with(texts)
 
 
-def test_embedding_provider_double_embed_batch_size_matches_input() -> None:
+def test_embedding_provider_double_embed_batch_size_matches_input(fastembed_double) -> None:
     """embed() must return one vector per input text."""
-    provider = FastEmbedProvider()
+    provider, model = fastembed_double
     texts = ["one", "two", "three"]
     embeddings = provider.embed(texts)
     assert len(embeddings) == len(texts)
+    model.embed.assert_called_once_with(texts)
 
 
-def test_embedding_provider_double_embed_query_returns_single_vector() -> None:
+def test_embedding_provider_double_embed_query_returns_single_vector(fastembed_double) -> None:
     """embed_query() must return a single vector (not nested)."""
-    provider = FastEmbedProvider()
+    provider, model = fastembed_double
     result = provider.embed_query("test query")
     assert isinstance(result, list)
     assert len(result) == provider.dimensions
+    model.query_embed.assert_called_once_with("test query")
+    model.embed.assert_not_called()
 
 
 # ===========================================================================
