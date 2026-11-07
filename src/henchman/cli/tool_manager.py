@@ -45,6 +45,7 @@ class ToolManager:
             self.registry.set_read_confirmation_required(not settings.tools.auto_approve_read)
         if settings is not None and (settings.tools.filesystem_read_roots is not None
                                      or settings.tools.filesystem_write_roots is not None
+                                     or settings.tools.network_allowed_hosts is not None
                                      or settings.tools.network_access != "unrestricted"):
             self.registry.set_access_policy(ToolAccessPolicy.unbound())
         self.auto_approve = False

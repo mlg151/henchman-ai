@@ -272,8 +272,9 @@ absolute roots are also supported. `null` leaves that operation unrestricted;
 Scoped registries intersect their restrictions with all parent restrictions.
 Replacing the bound project or root requires trusted runtime rebinding.
 
-With any restriction enabled, only the qualified builtin `read_file` and
-`write_file` implementations currently execute. Other tools, including shell,
+With any restriction enabled, only the qualified builtin `read_file`,
+`write_file` and `web_fetch` implementations execute when their required backend
+capabilities are available. Other tools, including shell,
 Python, MCP, search and delegation tools, fail explicitly even when trusted or
 auto-approved. Restricted writes bypass automatic Python formatting. Reads and
 writes use directory-relative handles, reject symlink substitution and hardlink
@@ -282,9 +283,39 @@ directory-handle primitives, including Windows, reject restricted file operation
 
 This is mediated tool access, not OS isolation against hostile host processes or
 mount changes. `network_access: disabled` applies to tool dispatch, not model SDK
-traffic. Unrestricted `web_fetch` now checks resolved addresses, actual peers and
-redirects, but is not yet qualified for restricted registries. Host allowlists,
-other network tools and OS enforcement remain separate work.
+traffic. Other network tools and OS enforcement remain separate work.
+
+### Exact network host restrictions
+
+```yaml
+tools:
+  network_access: unrestricted
+  network_allowed_hosts: ["docs.example.com", "api.example.com"]
+```
+
+`network_allowed_hosts: null` adds no host filter; `[]` denies all destinations.
+The list accepts at most 128 distinct exact DNS/IDNA names or canonical IP
+addresses. Names normalize case and a single terminal DNS dot; duplicate
+normalized names, wildcard patterns, URLs, ports, userinfo, zones and ambiguous
+numeric aliases are rejected. A DNS name does not grant its subdomains, and an
+allowed IP address does not grant names that resolve to it. Parent policies
+intersect, and `network_access: disabled` takes precedence. Allowlisting never
+permits private, loopback or special IP destinations.
+
+Restricted `web_fetch` requires aiohttp's public `socket_factory` capability
+(available in 3.12+); older versions reject restricted fetch before DNS. The
+qualified implementation rechecks authority before/after DNS, before each numeric
+connection attempt, before sending headers and after awaited responses. Redirects
+receive their own checked connection. Live registry checks include project,
+ancestor policy, approval grants and the registered implementation. Revoked
+authorization stays revoked in inherited task contexts after the call finishes.
+
+The existing unrestricted aiohttp 3.9 path remains supported. It can block header
+dispatch after revocation but cannot prevent every already scheduled numeric TCP
+attempt. Revocation cannot undo bytes already sent. Trusted embedders using
+`use_access_policies` directly receive immutable policy checks; live registry
+revocation applies to registry-dispatched calls. This boundary does not filter
+provider traffic or qualify MCP, shell, Python, search or custom network tools.
 
 ## Usage limits and explicit prices
 

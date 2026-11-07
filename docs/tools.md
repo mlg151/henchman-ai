@@ -835,9 +835,11 @@ and cookies are disabled. Explicit initial URL authentication remains only on
 the same origin and is permanently removed after an origin change; redirects
 cannot introduce credentials.
 
-This boundary applies to this fetch implementation. It is not a firewall, model
-traffic policy or host allowlist. `web_fetch` remains unavailable when a
-[restricted tool policy](configuration.md#restricted-tool-access) is enabled.
+This implementation supports exact `tools.network_allowed_hosts` restrictions
+with live registry authorization checks on supported transports. Restricted
+fetches require aiohttp's public socket hook; unsupported versions refuse before
+DNS. See [host policy and revocation limits](configuration.md#exact-network-host-restrictions).
+This boundary does not filter model traffic or provide OS isolation.
 
 ```json
 {

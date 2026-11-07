@@ -20,6 +20,8 @@ from pydantic import (
     model_validator,
 )
 
+from henchman.utils.network_hosts import canonical_network_hosts
+
 
 class _SettingsModel(BaseModel):
     """Reject unknown fields in typed groups while preserving declared dictionaries."""
@@ -238,6 +240,14 @@ class ToolSettings(_SettingsModel):
     filesystem_read_roots: list[str] | None = None
     filesystem_write_roots: list[str] | None = None
     network_access: Literal["unrestricted", "disabled"] = "unrestricted"
+    network_allowed_hosts: list[str] | None = None
+
+    @field_validator("network_allowed_hosts")
+    @classmethod
+    def validate_network_hosts(cls, hosts: list[str] | None) -> list[str] | None:
+        """Keep null/empty policy meaning and canonicalize exact host names."""
+        result = canonical_network_hosts(hosts)
+        return list(result) if result is not None else None
 
     @field_validator("filesystem_read_roots", "filesystem_write_roots")
     @classmethod

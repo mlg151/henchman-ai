@@ -194,6 +194,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "evals/test_interruption_recovery.py",
         "tests/testing/test_interruption_recovery_scenario.py",
         "tests/core/test_typed_tool_results.py",
+        "tests/tools/test_restricted_web_fetch.py",
+        "tests/config/test_network_host_settings.py",
         "tests/core/test_workflow_state.py",
         "tests/core/test_session_workflow.py",
         "tests/ops/test_workflow_store.py",

@@ -3,7 +3,7 @@
   "title": "ToolSettings",
   "description": "Shape contract for the serialised ToolSettings model.",
   "type": "object",
-  "required": ["auto_approve_read", "shell_timeout", "sandbox", "filesystem_read_roots", "filesystem_write_roots", "network_access"],
+  "required": ["auto_approve_read", "shell_timeout", "sandbox", "filesystem_read_roots", "filesystem_write_roots", "network_access", "network_allowed_hosts"],
   "properties": {
     "auto_approve_read": {
       "type": "boolean",
@@ -17,6 +17,10 @@
     "filesystem_read_roots": { "type": ["array", "null"], "items": { "type": "string" } },
     "filesystem_write_roots": { "type": ["array", "null"], "items": { "type": "string" } },
     "network_access": { "type": "string", "enum": ["unrestricted", "disabled"] },
+    "network_allowed_hosts": {
+      "type": ["array", "null"], "maxItems": 128, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 253 }
+    },
     "sandbox": {
       "type": "string",
       "enum": ["none", "docker"],

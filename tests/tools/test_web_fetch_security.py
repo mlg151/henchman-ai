@@ -6,6 +6,7 @@ import inspect
 import socket
 import ssl
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
@@ -130,14 +131,32 @@ def route_public_connections_locally(monkeypatch) -> list[tuple]:
     """Redirect only a fixture's admitted numeric address to a real local socket."""
     loop = asyncio.get_running_loop()
     original = loop.sock_connect
+    original_create = loop.create_connection
+    legacy_route: ContextVar[bool] = ContextVar("fixture_numeric_route", default=False)
     connects: list[tuple] = []
 
     async def connect(sock, address):
+        if legacy_route.get() and address[0] == "127.0.0.1":
+            return await original(sock, address)
         connects.append(address)
         assert address[0] == "8.8.8.8", f"Unexpected test connection: {address}"
         await original(sock, ("127.0.0.1", address[1]))
 
+    async def create(protocol_factory, host=None, port=None, **kwargs):
+        # aiohttp 3.9 supplies numeric host/port to this public loop method;
+        # newer versions supply an already-connected socket. Route before the
+        # offline guard, retaining the explicit TLS server_hostname unchanged.
+        if host == "8.8.8.8":
+            connects.append((host, port))
+            token = legacy_route.set(True)
+            try:
+                return await original_create(protocol_factory, "127.0.0.1", port, **kwargs)
+            finally:
+                legacy_route.reset(token)
+        return await original_create(protocol_factory, host, port, **kwargs)
+
     monkeypatch.setattr(loop, "sock_connect", connect)
+    monkeypatch.setattr(loop, "create_connection", create)
     return connects
 
 
@@ -303,7 +322,7 @@ async def test_real_tls_keeps_original_sni_and_verifies_certificate_hostname(
     sni = []
     server_context.set_servername_callback(lambda _socket, name, _context: sni.append(name))
     original_session = web_fetch.public_http_session
-    monkeypatch.setattr(web_fetch, "public_http_session", lambda: original_session(ssl_context=client_context))
+    monkeypatch.setattr(web_fetch, "public_http_session", lambda **kwargs: original_session(ssl_context=client_context, **kwargs))
     async with local_server(ssl=server_context) as (port, received):
         result = await WebFetchTool().execute(url=f"https://{hostname}:{port}/secure")
     assert result.success is success, result.content
@@ -348,8 +367,8 @@ async def test_cancellation_and_timeout_close_owned_connections(monkeypatch, can
     original_session = web_fetch.public_http_session
 
     @contextlib.asynccontextmanager
-    async def capture():
-        async with original_session() as session:
+    async def capture(**kwargs):
+        async with original_session(**kwargs) as session:
             sessions.append(session)
             connectors.append(session.connector)
             yield session

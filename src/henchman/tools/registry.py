@@ -11,9 +11,11 @@ from itertools import count
 from typing import TYPE_CHECKING
 
 from henchman.tools.access_policy import (
+    ToolAccessError,
     ToolAccessPolicy,
     current_access_policies,
     use_access_policies,
+    use_network_authorization,
 )
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.checkpoint_capture import MutationCheckpoint, use_checkpoint
@@ -698,6 +700,30 @@ class ToolRegistry:
                     raise OperationRecoveryError("operation_already_dispatched")
                 capture.dispatched = True
             with use_access_policies(self._effective_access_policies):
+                from henchman.tools.builtins.web_fetch import WebFetchTool
+
+                if type(tool) is WebFetchTool and getattr(tool.execute, "__func__", None) is WebFetchTool.execute:
+                    implementation = getattr(tool.execute, "__func__", None)
+
+                    def check_network_authorization() -> None:
+                        # Admission evaluates static restrictions only. Calling
+                        # it here cannot recursively invoke this live lease.
+                        stale = self._revalidate_authorization(authorization, params)
+                        if stale is not None or getattr(tool.execute, "__func__", None) is not implementation:
+                            raise ToolAccessError("Network operation authorization changed; retry for fresh approval")
+                        registry: ToolRegistry | None = self
+                        while registry is not None:
+                            guard = registry._execution_guard
+                            if guard is not None and guard(tool, params) is not None:
+                                raise ToolAccessError("Network operation deferred by the current execution guard")
+                            registry = registry._policy_parent
+                        # A trusted repeatable guard can itself update policy.
+                        if (self._revalidate_authorization(authorization, params) is not None
+                            or getattr(tool.execute, "__func__", None) is not implementation):
+                            raise ToolAccessError("Network operation authorization changed; retry for fresh approval")
+
+                    with use_network_authorization(check_network_authorization):
+                        return await tool.execute(**params)
                 return await tool.execute(**params)
 
         async def execute_authorized() -> ToolResult:

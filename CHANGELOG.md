@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Restricted web fetch** — Exact canonical host lists intersect across scoped
+  registries. Current authorization is checked at DNS, socket and header
+  boundaries, with verified TLS and explicit refusal on unsupported transports.
+
 - **Session workflow authority foundation** — Versioned goal/input records commit
   queue intent before dispatch and retain restart uncertainty without replay.
   Runtime-only permissions, credential projection and failed-save barriers are

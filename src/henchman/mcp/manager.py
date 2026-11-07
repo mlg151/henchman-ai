@@ -149,7 +149,7 @@ class McpManager:
             for controls in (initial_tools, settings.tools):
                 validate_tool_backend(controls)
                 if (controls.network_access == "disabled" or controls.filesystem_read_roots is not None
-                    or controls.filesystem_write_roots is not None):
+                    or controls.filesystem_write_roots is not None or controls.network_allowed_hosts is not None):
                     raise ToolAccessError("MCP transport is unsupported under restricted filesystem/network policy")
 
         manager._access_guard = check_access

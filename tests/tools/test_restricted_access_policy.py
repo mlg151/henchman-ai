@@ -27,6 +27,7 @@ def restricted_registry(tmp_path, **settings):
 
 @pytest.mark.parametrize("setting", [
     {"filesystem_read_roots": []}, {"filesystem_write_roots": []}, {"network_access": "disabled"},
+    {"network_allowed_hosts": ["example.com"]},
 ])
 @pytest.mark.parametrize("name,params", [
     ("shell", {"command": "echo harmless", "background": False}),

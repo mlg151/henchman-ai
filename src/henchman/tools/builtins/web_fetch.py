@@ -9,6 +9,7 @@ from typing import ClassVar
 
 from aiohttp import ClientResponse
 
+from henchman.tools.access_policy import check_network_access
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.http_security import checked_http_url, public_http_session, request_origin
 from henchman.tools.security import (
@@ -84,14 +85,19 @@ async def _fetch_content_with_aiohttp(params: FetchParams) -> ToolResult:
             credentials = f"{url.user}:{url.password or ''}".encode("latin1")
             headers["Authorization"] = "Basic " + base64.b64encode(credentials).decode("ascii")
         url = url.with_user(None)
-        async with asyncio.timeout(params.timeout if params.timeout > 0 else None), public_http_session() as session:
+        async with asyncio.timeout(params.timeout if params.timeout > 0 else None):
             for redirect_count in range(_MAX_REDIRECTS + 1):
-                async with session.get(
+                assert url.raw_host is not None
+                check_network_access(url.raw_host)
+                async with public_http_session(authority=url) as session, session.get(
                     url, headers=headers, allow_redirects=False,
                     timeout=aiohttp.ClientTimeout(total=params.timeout),
                 ) as response:
+                    check_network_access(url.raw_host)
                     if response.status not in _REDIRECT_STATUSES or not response.headers.get("Location"):
-                        return await _process_fetch_response(response, params.max_length)
+                        result = await _process_fetch_response(response, params.max_length)
+                        check_network_access(url.raw_host)
+                        return result
                     if redirect_count == _MAX_REDIRECTS:
                         raise SSRFError("HTTP redirect limit exceeded")
                     from yarl import URL

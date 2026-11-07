@@ -1,8 +1,8 @@
 """Restricted tool access through qualified implementations and directory handles.
 
 This is a mediated filesystem boundary, not OS isolation. Unmediated tools are
-denied whenever any restriction is active. Network restrictions currently deny
-all network tools; they do not implement host filtering or isolate model traffic.
+denied whenever any restriction is active. Qualified HTTP fetches also enforce
+exact host restrictions; these controls do not isolate model/provider traffic.
 """
 
 from __future__ import annotations
@@ -10,12 +10,14 @@ from __future__ import annotations
 import os
 import stat
 import weakref
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Literal
+
+from henchman.utils.network_hosts import canonical_network_host, canonical_network_hosts
 
 if TYPE_CHECKING:
     from henchman.config.schema import ToolSettings
@@ -106,11 +108,16 @@ class ToolAccessPolicy:
     read_roots: tuple[_Directory, ...] | None = None
     write_roots: tuple[_Directory, ...] | None = None
     network_access: Literal["unrestricted", "disabled"] = "unrestricted"
+    network_allowed_hosts: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "network_allowed_hosts", canonical_network_hosts(self.network_allowed_hosts))
 
     @property
     def restricted(self) -> bool:
         """Whether any operation is subject to explicit restrictions."""
-        return self.read_roots is not None or self.write_roots is not None or self.network_access == "disabled"
+        return (self.read_roots is not None or self.write_roots is not None
+                or self.network_access == "disabled" or self.network_allowed_hosts is not None)
 
     @classmethod
     def unbound(cls) -> ToolAccessPolicy:
@@ -122,7 +129,7 @@ class ToolAccessPolicy:
         """Resolve configured roots once against the actual runtime project."""
         validate_tool_backend(settings)
         if (settings.filesystem_read_roots is None and settings.filesystem_write_roots is None
-            and settings.network_access == "unrestricted"):
+            and settings.network_access == "unrestricted" and settings.network_allowed_hosts is None):
             return cls()
         project = _Directory.bind(project_root)
 
@@ -133,7 +140,19 @@ class ToolAccessPolicy:
             return tuple(_Directory.bind(path if path.is_absolute() else project.resolved / path) for path in paths)
 
         return cls(project, _git_identity(project.resolved), bind(settings.filesystem_read_roots),
-                   bind(settings.filesystem_write_roots), settings.network_access)
+                   bind(settings.filesystem_write_roots), settings.network_access,
+                   tuple(settings.network_allowed_hosts) if settings.network_allowed_hosts is not None else None)
+
+    def check_network(self, host: str) -> None:
+        """Check one requested authority; DNS/peer public-address checks are separate."""
+        if not self.restricted:
+            return
+        if self.network_access == "disabled":
+            raise ToolAccessError("Network access is disabled by the effective tool policy")
+        self.check_project()
+        canonical = canonical_network_host(host)
+        if self.network_allowed_hosts is not None and canonical not in self.network_allowed_hosts:
+            raise ToolAccessError("Network host is not allowed by the effective tool policy")
 
     def check_project(self) -> None:
         """Reject project replacement rather than silently following a new root."""
@@ -158,6 +177,40 @@ class ToolAccessPolicy:
 
 
 _POLICIES: ContextVar[tuple[ToolAccessPolicy, ...]] = ContextVar("henchman_tool_access_policies", default=())
+
+
+@dataclass
+class _NetworkAuthorization:
+    check: Callable[[], None]
+    active: bool = True
+
+    def require_current(self) -> None:
+        if not self.active:
+            raise ToolAccessError("Network operation authorization is closed")
+        self.check()
+
+
+_NETWORK_AUTHORITY: ContextVar[tuple[_NetworkAuthorization, ...]] = ContextVar("henchman_network_authority", default=())
+
+
+@contextmanager
+def use_network_authorization(check: Callable[[], None]) -> Iterator[None]:
+    """Retain live guards in child contexts and revoke them on every exit."""
+    authority = _NetworkAuthorization(check)
+    token = _NETWORK_AUTHORITY.set((*_NETWORK_AUTHORITY.get(), authority))
+    try:
+        yield
+    finally:
+        authority.active = False
+        _NETWORK_AUTHORITY.reset(token)
+
+
+def check_network_access(host: str) -> None:
+    """Recheck live dispatch authority and every captured restriction without awaits."""
+    for authority in _NETWORK_AUTHORITY.get():
+        authority.require_current()
+    for policy in current_access_policies():
+        policy.check_network(host)
 
 
 def current_access_policies() -> tuple[ToolAccessPolicy, ...]:
@@ -187,11 +240,27 @@ def validate_tool_access(tool: Tool, params: dict[str, object], policies: tuple[
         return
     from henchman.tools.builtins.file_read import ReadFileTool
     from henchman.tools.builtins.file_write import WriteFileTool
+    from henchman.tools.builtins.web_fetch import WebFetchTool
 
-    if type(tool) not in (ReadFileTool, WriteFileTool):
+    if type(tool) not in (ReadFileTool, WriteFileTool, WebFetchTool):
         raise ToolAccessError(f"Tool '{tool.name}' is unsupported under restricted filesystem/network policy")
     if getattr(tool.execute, "__func__", None) is not type(tool).execute:
         raise ToolAccessError(f"Tool '{tool.name}' has an unsupported implementation under restricted policy")
+    if type(tool) is WebFetchTool:
+        from henchman.tools.http_security import checked_http_url, supports_network_socket_guard
+
+        raw_url = params.get("url")
+        if not isinstance(raw_url, str):
+            raise ToolAccessError("Restricted HTTP requires a string URL")
+        url = checked_http_url(raw_url)
+        assert url.raw_host is not None
+        # Admission is static: invoking live leases here would recurse through
+        # the registry's authorization revalidation at transport boundaries.
+        for policy in policies:
+            policy.check_network(url.raw_host)
+        if not supports_network_socket_guard():
+            raise ToolAccessError("Restricted HTTP requires aiohttp's public socket_factory capability")
+        return
     if not _SAFE_DIRECTORY_OPS:
         raise ToolAccessError("Restricted filesystem operations are unsupported on this platform")
     path = params.get("path")
