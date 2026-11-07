@@ -76,6 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Shared run ledger foundation** — An in-memory ledger atomically reserves and
+  claims request/token/time/optional-money capacity, separates reported usage and
+  billing from configured estimates, and retains uncertain started attempts on
+  cancellation. Exact decimal accounting prevents precision-dependent admission.
+  Thirty regressions cover concurrent claims, retries, partial/final usage, cache
+  prices, cancellation and currency/precision boundaries. Live provider integration
+  and durable accounting remain open under [#24](https://github.com/mlg151/henchman-ai/issues/24).
+
 - **Generated test scaffolds** — Function and class templates now compile and
   format correctly. Explicit TODO skip markers keep unfinished stubs from
   executing placeholder calls or appearing as successful verification. Native

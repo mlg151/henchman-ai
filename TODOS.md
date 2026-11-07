@@ -40,7 +40,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   preserve cumulative request counts, cache subsets and availability provenance.
   Compatible requests ask for usage by default with an explicit opt-out for
   unsupported servers. Cost records distinguish configured estimates from
-  reported billing, preserve zero rates and leave unknown costs unset. Shared
+  reported billing, preserve zero rates and leave unknown costs unset. A standalone
+  process-lifetime ledger now supplies atomic reservation/claim/reconciliation with
+  exact money arithmetic and conservative uncertain holds; live integration, shared
   enforcement, aggregate run usage, retries and persisted reconciliation remain
   open; see [usage provenance](docs/providers.md#usage-and-cost-provenance).
 

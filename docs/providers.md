@@ -344,6 +344,27 @@ This is provider-boundary accounting. Agent-event provenance propagation,
 run-wide aggregation, shared budget enforcement, retry accounting and persisted
 reconciliation remain tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
 
+### Run ledger foundation
+
+`henchman.core.run_budget.RunBudgetLedger` is an in-memory accounting component;
+live agents and provider transports do not enforce its limits yet. Integrators
+reserve a `RequestEstimate`, claim it with `start(request_id)` immediately before
+dispatch, and reconcile cumulative `UsageReport` observations. Retries need new
+request IDs under the same operation ID. Atomic admission checks request, token,
+elapsed-time and optional monetary limits across callers. Duplicate reservation
+IDs cannot claim a second dispatch. Cancellation releases an unstarted hold;
+started attempts keep uncertain usage reserved until a final report resolves it.
+
+Strict monetary admission requires known applicable rates in one currency.
+Configured zero rates remain valid; configured estimates and reported billing
+stay separate. Missing or inconsistent final usage, newly applicable unpriced
+cache usage and unexpected currencies cannot release money for additional calls.
+Cost arithmetic and aggregation preserve exact finite decimal values regardless
+of the caller's decimal precision. Snapshots label accounting as `process` lifetime.
+This component does not persist or restore reservations, wrap SDK retries, impose
+provider output caps, or guarantee the bill for an already-started remote request.
+Live integration and durable reconciliation remain open under #24.
+
 ### Headless coding workflows
 
 The `json`, `stream-json`, and `json-complete` CLI modes use the configured team
