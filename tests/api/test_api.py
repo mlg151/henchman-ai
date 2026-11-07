@@ -1371,7 +1371,7 @@ class TestServer:
         settings = Settings(api=ApiConfig(rate_limits={"default": "1/hour"}))
         settings.providers.deepseek["api_key"] = "test-key"
         registry = MagicMock()
-        registry.create.return_value = object()
+        registry.create.return_value = SimpleNamespace()
 
         with (
             patch("henchman.api.server.state", lifecycle_state),
