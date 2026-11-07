@@ -56,17 +56,18 @@ Reason = Literal["running", "checks_passed", "attempts_exhausted", "identical_fa
                  "persistence_error", "credential_sensitive"]
 _PYTEST_SUMMARY = re.compile(
     r"^(?:=+\s*)?(?P<counts>(?:\d+ (?:failed|passed|skipped|deselected|xfailed|xpassed|warnings?|errors?)(?:, )?)+|no tests ran)"
-    r" in \d+(?:\.\d+)?s(?: \(\d+:\d{2}(?::\d{2})?\))?(?:\s*=+)?$", re.MULTILINE,
+    r" in \d+(?:\.\d+)?s(?: \(\d+:\d{2}(?::\d{2})?\))?(?:\s*=+)?(?=\r?$)", re.MULTILINE,
 )
 _PYTEST_TEMP_RUN = re.compile(r"([\\/]+pytest-of-[^\\/\s'\"<>]+[\\/]+)pytest-\d+([\\/]+)")
 
 
 def _pytest_failure_text(text: str) -> str:
-    """Remove only known pytest elapsed-summary and numbered temp-run metadata.
+    """Remove known pytest elapsed-summary and numbered temp-run metadata.
 
     Assertion values, test identities, filenames and arbitrary command output
-    remain significant. This is a bounded diagnostic repeat heuristic, not an
-    equivalence proof about failures. Original projected diagnostics are retained.
+    remain significant, including original LF/CRLF framing. This is a bounded
+    diagnostic repeat heuristic, not an equivalence proof about failures.
+    Original projected diagnostics are retained.
     """
     text = _PYTEST_SUMMARY.sub(lambda match: match["counts"] + " in <elapsed>", text)
     return _PYTEST_TEMP_RUN.sub(lambda match: match[1] + "pytest-<run>" + match[2], text)

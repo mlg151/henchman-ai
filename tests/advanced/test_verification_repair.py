@@ -451,7 +451,8 @@ async def test_adapter_cannot_convert_external_cancellation_into_success(tmp_pat
 
 
 @pytest.mark.parametrize("kind", ["pytest", "command"])
-async def test_real_pytest_repeated_failure_ignores_only_runner_volatility(tmp_path, monkeypatch, kind):
+@pytest.mark.parametrize("line_ending", ["native", "crlf"])
+async def test_real_pytest_repeated_failure_ignores_only_runner_volatility(tmp_path, monkeypatch, kind, line_ending):
     import re
     import sys
     from dataclasses import replace
@@ -474,6 +475,10 @@ async def test_real_pytest_repeated_failure_ignores_only_runner_volatility(tmp_p
         # deterministic independently of scheduler speed and clock resolution.
         stdout, count = re.subn(rb" in \d+(?:\.\d+)?s", f" in {len(outputs) + 1}.00s".encode(), result.stdout)
         assert count == 1
+        if line_ending == "crlf":
+            # Windows subprocess pipes preserve CRLF even though pytest's
+            # source and timing fields are identical to their POSIX shape.
+            stdout = stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
         outputs.append(stdout)
         return replace(result, stdout=stdout)
 
@@ -487,6 +492,22 @@ async def test_real_pytest_repeated_failure_ignores_only_runner_volatility(tmp_p
     assert outputs[0] != outputs[1]
     assert report.observations[0].failure_digest == report.observations[1].failure_digest
     assert report.observations[0].diagnostics != report.observations[1].diagnostics
+
+
+@pytest.mark.parametrize("summary", ["1 failed in {elapsed}s", "=== 1 failed, 1 warning in {elapsed}s ==="])
+def test_pytest_crlf_summary_normalizes_timing_without_erasing_diagnostics(summary):
+    from henchman.advanced.verification_repair import _pytest_failure_text
+
+    failure = "test_required.py::test_required\r\nE AssertionError: expected 12, received 34\r\n"
+    first = failure + summary.format(elapsed="1.00") + "\r\n"
+    second = failure + summary.format(elapsed="2.00") + "\r\n"
+    normalized = _pytest_failure_text(first)
+    assert normalized == _pytest_failure_text(second)
+    assert normalized.startswith(failure) and normalized.endswith("\r\n")
+    for old, new in [("received 34", "received 35"), ("test_required.py", "test_other.py"), ("1 failed", "2 failed")]:
+        assert normalized != _pytest_failure_text(first.replace(old, new))
+    # An assertion containing summary-like text is not runner metadata.
+    assert _pytest_failure_text("E assert '1 failed in 1.00s'\r\n") != _pytest_failure_text("E assert '1 failed in 2.00s'\r\n")
 
 
 async def test_real_pytest_substantively_different_failure_has_distinct_identity(tmp_path):

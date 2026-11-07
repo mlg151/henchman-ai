@@ -1274,7 +1274,7 @@ integration and automatic model repair are not enabled by this library.
 Each cycle retains a new persisted verification observation. Missing or stale
 checks, exhausted limits, cancellation, timeouts and persistence errors remain
 incomplete. Identical-diagnostic detection normalizes only recognized pytest
-elapsed summaries and numbered temporary-run paths; it is a repeat heuristic,
+elapsed summaries with LF or CRLF endings and numbered temporary-run paths; it is a repeat heuristic,
 not semantic failure equivalence. The total repair limit remains independent.
 Cancellation and deadline checks run again after synchronous persistence before
 another adapter call or returning a pass. Filesystem latency itself is not bounded:

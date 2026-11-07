@@ -339,6 +339,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows repeated-failure detection** — Normalize pytest elapsed summaries
+  with CRLF endings so identical failures stop at the configured repeat limit.
+  Assertion values, test identities and failure counts remain significant.
+
 - **Comparable baseline latency** — Successful evaluations now report the
   complete scenario duration instead of only their final model turn. All
   outcomes include setup and owned cleanup; two controlled-clock regressions
