@@ -164,7 +164,7 @@ async def test_goal_continues_after_turn_and_prioritizes_user_steering(
         elif len(calls) == 3:
             goal = service.get(session)
             assert goal is not None
-            service.complete(session, goal_id=goal.id, summary="Verified completion")
+            service.complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Verified completion")
             complete.set()
 
     repl._run_agent = agent
@@ -175,12 +175,18 @@ async def test_goal_continues_after_turn_and_prioritizes_user_steering(
         await repl.process_input("steering")
         release.set()
         await asyncio.wait_for(complete.wait(), 1)
-        await asyncio.sleep(0)
+        # The agent signals completion before the parent worker settles its
+        # workflow input. Join that worker rather than assume one loop tick.
+        worker = repl._turn_worker
+        if worker is not None:
+            await asyncio.wait_for(asyncio.shield(worker), 1)
         assert len(calls) == 3
         assert calls[1] == "steering"
         assert "finish the task" in calls[0]
         assert "finish the task" in calls[2]
         assert repl._turn_worker is None or repl._turn_worker.done()
+        assert not session.workflow_runtime.has_active_dispatch()
+        assert all(item.state == "completed" for item in session.workflow_runtime.report().state.inputs)
     finally:
         runner.cancel()
         with pytest.raises(asyncio.CancelledError):

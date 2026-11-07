@@ -143,12 +143,27 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         runtime_tool_names=("python_exec", "task_get", "task_list", "task_output", "task_stop"),
     ),
     _CapabilitySpec(
+        name="input queue",
+        classification="runtime-dependent",
+        summary="Interactive /queue inspects accepted input and controls explicit dispatch.",
+        detail=(
+            "Bound REPL and Textual workers save accepted input before acknowledgement and start before dispatch. "
+            "/queue status|send|drop|edit|move|abandon uses exact input IDs and revisions; edits and moves stay held. "
+            "Restored input never auto-sends, and uncertain work requires explicit disposition without replay. "
+            "Generated goal input requires /goal resume. Process persistence is the default; durable workflow "
+            "uses operations.persistence and the selected session ops.db. Headless registration does not start a queue."
+        ),
+        aliases=("/queue", "accepted input", "queued input", "send queued message"),
+    ),
+    _CapabilitySpec(
         name="goal",
         classification="runtime-dependent",
         summary="Interactive /goal continues work until explicitly completed or paused.",
         detail=(
-            "Goals persist with the session. Interactive frontends schedule continuation; "
-            "goal_status records completion with a verification summary against the current goal identity. "
+            "Interactive frontends schedule process-owned continuation; restored goals require explicit /goal resume. "
+            "goal_status requires the current goal ID/revision and fresh checks for user-bound plans. "
+            "Policy changes require explicit acceptance; resuming never resets task usage. "
+            "User /goal complete is recorded as acknowledgement, separate from model check evidence. "
             "Headless tool registration alone does not start autonomous continuation."
         ),
         aliases=("/goal", "goal_status", "autonomous continuation"),

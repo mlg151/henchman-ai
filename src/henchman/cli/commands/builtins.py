@@ -16,6 +16,7 @@ from henchman.cli.commands.goal import GoalCommand
 from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
+from henchman.cli.commands.queue import QueueCommand
 from henchman.cli.commands.rag import RagCommand
 from henchman.cli.commands.recovery import RecoveryCommand
 from henchman.cli.commands.runtime_config import RuntimeConfigCommand, RuntimeDoctorCommand
@@ -375,6 +376,7 @@ def get_builtin_commands() -> list[Command]:
         RuntimeConfigCommand(),
         UsageCommand(),
         RecoveryCommand(),
+        QueueCommand(),
         CheckpointCommand(),
         RuntimeDoctorCommand(),
     ]

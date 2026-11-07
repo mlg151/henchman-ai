@@ -25,7 +25,7 @@ Identity = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_.:-]{1,128}$")
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 BoundedText = Annotated[str, StringConstraints(max_length=65536)]
 InputState = Literal["queued", "started", "completed", "cancelled", "outcome_unknown"]
-InputKind = Literal["message", "command", "direct"]
+InputKind = Literal["message", "command", "direct", "goal"]
 InputOutcome = Literal["success", "failure"]
 MAX_WORKFLOW_BYTES = 4 * 1024 * 1024
 
@@ -69,6 +69,7 @@ class WorkflowGoal(_Record):
     availability: Literal["complete", "redacted"] = "complete"
     status: Literal["active", "paused", "complete"] = "active"
     completion_summary: BoundedText = ""
+    completion_source: Literal["model", "user"] | None = None
     policy: GoalPolicy = Field(default_factory=GoalPolicy)
     checks: tuple[GoalCheckReference, ...] = Field(default=(), max_length=32)
 
@@ -78,6 +79,8 @@ class WorkflowGoal(_Record):
             raise ValueError("Invalid goal objective or duplicate check reference")
         if self.status == "complete" and not self.completion_summary.strip():
             raise ValueError("Completed goal requires a summary")
+        if self.status != "complete" and self.completion_source is not None:
+            raise ValueError("Only completed goals have a completion source")
         if self.availability == "complete" and self.objective_sha256 is not None and hashlib.sha256(self.objective.encode()).hexdigest() != self.objective_sha256:
             raise ValueError("Goal objective integrity failed")
         return self
@@ -89,6 +92,9 @@ class QueuedInput(_Record):
     order: int = Field(ge=0)
     kind: InputKind = "message"
     role: Identity | None = None
+    role_available: bool = True
+    goal_id: Identity | None = None
+    goal_revision: int | None = Field(default=None, ge=1)
     state: InputState = "queued"
     text: BoundedText | None
     text_sha256: Digest
@@ -101,13 +107,27 @@ class QueuedInput(_Record):
     outcome: InputOutcome | None = None
     resolution: Literal["abandoned"] | None = None
     resolution_note: BoundedText = ""
+    budget_run_ids: tuple[Identity, ...] = Field(default=(), max_length=256)
+    operation_run_ids: tuple[Identity, ...] = Field(default=(), max_length=256)
+    operation_ids: tuple[Identity, ...] = Field(default=(), max_length=1024)
 
     @model_validator(mode="after")
     def _consistent(self) -> QueuedInput:
+        for values in (self.budget_run_ids, self.operation_run_ids, self.operation_ids):
+            if len(values) != len(set(values)):
+                raise ValueError("Duplicate input correlation identity")
+        if self.claim_id is None and (self.budget_run_ids or self.operation_run_ids or self.operation_ids):
+            raise ValueError("Undispatched inputs cannot carry run correlation")
         if any(datetime.fromisoformat(value).tzinfo is None for value in (self.created_at, self.updated_at)):
             raise ValueError("Input timestamps require a timezone")
         if (self.kind == "direct") != (self.role is not None):
             raise ValueError("Direct inputs require an explicit role")
+        if not self.role_available and (self.kind != "direct" or self.availability != "redacted"):
+            raise ValueError("Unavailable role cannot be replayable")
+        if (self.kind == "goal") != (self.goal_id is not None and self.goal_revision is not None):
+            raise ValueError("Goal continuation requires its original goal revision")
+        if self.kind != "goal" and (self.goal_id is not None or self.goal_revision is not None):
+            raise ValueError("Only goal continuation may carry goal identity")
         if (self.availability == "complete") != (self.text is not None):
             raise ValueError("Unavailable input cannot carry executable text")
         if not self.preview.strip() or (self.text is not None and not self.text.strip()):
@@ -210,10 +230,13 @@ class WorkflowJournal:
         inputs = []
         for item in self.state.inputs:
             text = item.text
-            changed = text is not None and self.redactor.text(text) != text
+            role_changed = item.role is not None and self.redactor.text(item.role) != item.role
+            changed = role_changed or (text is not None and self.redactor.text(text) != text)
             inputs.append(item.model_copy(update={
                 "text": None if changed else text,
                 "availability": "redacted" if changed else item.availability,
+                "role": "unavailable-role" if role_changed else item.role,
+                "role_available": item.role_available and not role_changed,
                 "preview": self.redactor.text(item.preview),
                 "resolution_note": self.redactor.text(item.resolution_note),
             }))
@@ -258,11 +281,11 @@ class WorkflowJournal:
                 "availability": "complete" if projected == text else "redacted"}
 
     def enqueue(self, text: str, *, kind: InputKind = "message", role: str | None = None,
-                input_id: str | None = None) -> QueuedInput:
+                input_id: str | None = None, goal_id: str | None = None, goal_revision: int | None = None) -> QueuedInput:
         with self._lock:
             now = datetime.now(UTC).isoformat()
             record = QueuedInput.model_validate({"id": input_id or uuid4().hex, "order": max((item.order for item in self.state.inputs), default=-1) + 1,
-                                                 "kind": kind, "role": role, "owner_id": self.owner_id,
+                                                 "kind": kind, "role": role, "goal_id": goal_id, "goal_revision": goal_revision, "owner_id": self.owner_id,
                                                  "created_at": now, "updated_at": now, **self._text(text)})
             self._set(inputs=(*self.state.inputs, record))
             return record
@@ -272,7 +295,38 @@ class WorkflowJournal:
             item = self._find(input_id, revision)
             if item.state != "queued":
                 raise WorkflowError("input_not_queued")
+            if item.kind == "goal":
+                raise WorkflowError("goal_input_requires_resume")
+            if not item.role_available:
+                raise WorkflowError("input_role_unavailable")
             return self._replace(item, **self._text(text))
+
+    def move(self, input_id: str, revision: int, position: int) -> QueuedInput:
+        """Reorder queued entries atomically without touching dispatched history."""
+        with self._lock:
+            item = self._find(input_id, revision)
+            if item.state != "queued":
+                raise WorkflowError("input_not_queued")
+            pending = sorted((record for record in self.state.inputs if record.state == "queued"), key=lambda record: record.order)
+            if type(position) is not int or not 0 <= position < len(pending):
+                raise WorkflowError("invalid_queue_position")
+            orders = [record.order for record in pending]
+            pending.remove(item)
+            pending.insert(position, item)
+            now = datetime.now(UTC).isoformat()
+            updated = {record.id: record.model_copy(update={"order": order, "revision": record.revision + 1, "updated_at": now})
+                       for record, order in zip(pending, orders, strict=True) if record.order != order}
+            if updated:
+                self._set(inputs=tuple(updated.get(record.id, record) for record in self.state.inputs))
+            return updated.get(item.id, item)
+
+    def drop(self, input_id: str, revision: int) -> QueuedInput:
+        """Discard only an undispatched intent, with revision checking."""
+        with self._lock:
+            item = self._find(input_id, revision)
+            if item.state != "queued":
+                raise WorkflowError("input_not_queued")
+            return self._replace(item, state="cancelled")
 
     def transfer_queued(self, input_id: str, revision: int, *, live_text: str | None = None) -> QueuedInput:
         """User-only transfer; caller must separately arm a runtime dispatch."""
@@ -280,6 +334,8 @@ class WorkflowJournal:
             item = self._find(input_id, revision)
             if item.state != "queued":
                 raise WorkflowError("input_not_queued")
+            if item.kind == "goal":
+                raise WorkflowError("goal_input_requires_resume")
             if item.availability != "complete" and not (item.owner_id == self.owner_id and live_text is not None
                                                          and hashlib.sha256(live_text.encode()).hexdigest() == item.text_sha256):
                 raise WorkflowError("input_payload_unavailable")
@@ -292,6 +348,10 @@ class WorkflowJournal:
                 raise WorkflowError("input_not_queued")
             if item.owner_id != self.owner_id:
                 raise WorkflowError("input_owner_changed")
+            if item.kind == "goal":
+                goal = self.state.goal
+                if goal is None or goal.status != "active" or (goal.id, goal.revision) != (item.goal_id, item.goal_revision):
+                    raise WorkflowError("goal_revision_conflict")
             if any(other.state == "started" for other in self.state.inputs):
                 raise WorkflowError("workflow_dispatch_active")
             if any(other.state == "outcome_unknown" and other.resolution is None for other in self.state.inputs):
@@ -317,6 +377,31 @@ class WorkflowJournal:
             if item.state not in {"started", "outcome_unknown"} or item.resolution is not None:
                 raise WorkflowError("input_already_settled")
             return self._replace(item, state="completed", outcome=outcome)
+
+    def correlate(self, permit: InputPermit, *, budget_run_id: str | None = None,
+                  operation_run_id: str | None = None, operation_id: str | None = None) -> QueuedInput:
+        """Append bounded evidence, including late children, without granting work."""
+        with self._lock:
+            item = self._find(permit.input_id)
+            if (permit.project_hash, permit.session_id, permit.owner_id, permit.claim_id) != (
+                self.state.project_hash, self.state.session_id, item.owner_id, item.claim_id
+            ) or self.owner_id != permit.owner_id:
+                raise WorkflowError("input_owner_changed")
+            changes = {}
+            for field, value, limit in (("budget_run_ids", budget_run_id, 256),
+                                         ("operation_run_ids", operation_run_id, 256),
+                                         ("operation_ids", operation_id, 1024)):
+                values = getattr(item, field)
+                if value is not None and value not in values:
+                    if len(values) >= limit:
+                        raise WorkflowError("input_correlation_limit")
+                    changes[field] = (*values, value)
+            if not changes:
+                return item
+            try:
+                return self._replace(item, **changes)
+            except ValueError as exc:
+                raise WorkflowError("invalid_correlation_identity") from exc
 
     def cancel(self, input_id: str, revision: int) -> QueuedInput:
         with self._lock:

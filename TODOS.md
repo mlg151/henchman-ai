@@ -75,7 +75,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - #22/#23 now have Textual F8 checkpoint review and versioned background-task
   intent with conditional concurrent updates. Apply waits for idle local work;
   recovered task evidence cannot control a process or trigger replay. Native
-  qualification, trusted task disposition and goal/queue persistence remain open.
+  qualification and trusted task disposition remain open. Both interactive
+  frontends now use shared goal/queue authority, with revision-checked controls,
+  held restores and current evidence for user-bound goal checks.
   See [checkpoints](docs/checkpoints.md#textual-review) and
   [background tasks](docs/tools.md#background-execution).
 

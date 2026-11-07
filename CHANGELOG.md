@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Interactive queue and goal recovery** — Both frontends retain accepted input,
+  expose revision-checked queue controls and hold restored work for explicit user
+  disposition. Goal completion requires current revision and bound-plan checks;
+  user acknowledgement remains distinct. Cancellation joins owned work before
+  recording uncertainty, with real run/operation correlation and failed-save barriers.
+
 - **MCP OAuth foundation** — HTTP-only authority configuration, bounded guarded
   discovery and separate generation-bound credential storage. OAuth-configured
   connections explicitly refuse until login and authenticated transport are wired.
@@ -39,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session workflow authority foundation** — Versioned goal/input records commit
   queue intent before dispatch and retain restart uncertainty without replay.
   Runtime-only permissions, credential projection and failed-save barriers are
-  covered independently; frontend queue wiring remains pending.
+  covered independently and underpin the interactive queue and goal controls.
 
 - **Explicit MCP context attachment** — Reviewed resource/prompt captures can be
   saved as user messages without another retrieval or model turn. Session-bound

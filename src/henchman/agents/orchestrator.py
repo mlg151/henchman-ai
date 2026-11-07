@@ -18,6 +18,7 @@ from henchman.core.run_accounting import RunInvocation, public_run_budget
 from henchman.core.run_budget import BudgetControlError
 from henchman.core.runtime_accounting import budgeted_events
 from henchman.core.runtime_operations import operated_events
+from henchman.core.runtime_workflow import correlate_workflow
 from henchman.providers.continuation import ProviderContinuationError
 from henchman.providers.runtime_budget import current_run_budget
 
@@ -244,6 +245,8 @@ class Orchestrator:
                 completed = False
                 primary: BaseException | None = None
                 try:
+                    correlate_workflow(operation_run.session, operation_run_id=operation_run.run_id,
+                                       budget_run_id=scope.ledger.run_id if scope is not None else None)
                     async with aclosing(primary_actor_events(operated_events(budgeted_events(stream, scope), operation_run))) as events:
                         async for event in events:
                             if (event.type == EventType.AGENT_COMPLETED

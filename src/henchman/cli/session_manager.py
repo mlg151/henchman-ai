@@ -9,17 +9,17 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from dataclasses import asdict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
+from henchman.core.session_workflow import SessionWorkflow
 from henchman.providers.base import Message, ToolCall
 from henchman.providers.continuation import copy_continuation
 from henchman.utils.tool_results import tool_result_payload
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from henchman.agents.orchestrator import Orchestrator
     from henchman.config.context import ContextSnapshot
     from henchman.config.schema import Settings
@@ -139,6 +139,24 @@ class ReplSessionManager:
         self.instruction_snapshot = instruction_snapshot
         self._tool_registry: ToolRegistry | None = None
         self.register_credentials(settings=settings, provider=provider)
+        if settings is None:
+            from henchman.config.schema import Settings
+
+            settings = Settings()
+        self.workflow_runtime = SessionWorkflow(
+            settings, lambda: self.current, self._save_workflow_session,
+            self.session_manager.data_dir.parent / "ops.db", check_status=self._workflow_check_status,
+        )
+
+    def _save_workflow_session(self, session: Session) -> None:
+        self.session_manager.save(session)
+
+    def _workflow_check_status(self, plan_id: str) -> dict[str, object]:
+        from henchman.advanced.plans import PlanExecutionService
+
+        policy = self.current.evidence_redactor if self.current is not None else self.session_manager.evidence_redactor
+        return PlanExecutionService(Path.cwd(), settings=self.workflow_runtime.settings,
+                                    redactor=policy).verification_status(plan_id)
 
     def register_credentials(
         self, *, settings: Settings | None = None, provider: ModelProvider | None = None,
@@ -186,10 +204,16 @@ class ReplSessionManager:
         Returns:
             None
         """
+        previous = self.session
+        self.session = session
+        try:
+            self.workflow_runtime.attach(session)
+        except BaseException:
+            self.session = previous
+            raise
         # Session boundary: user approvals never carry over into another session.
         if self._tool_registry is not None:
             self._tool_registry.clear_grants()
-        self.session = session
         self.session_manager.set_current(session)
         if self.instruction_snapshot is not None:
             InstructionProvenanceService().capture(session, self.instruction_snapshot)

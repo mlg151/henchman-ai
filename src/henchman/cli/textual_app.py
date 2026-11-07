@@ -405,7 +405,11 @@ class HenchmanTextualApp(
             None
         """
         self._cleanup_confirm_futures()
-        self._queued_inputs().clear()
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.hold_pending()
+        else:
+            self._queued_inputs().clear()
         task = getattr(self, "current_agent_task", None)
         try:
             if task is not None and task is not asyncio.current_task():

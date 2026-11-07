@@ -5,6 +5,7 @@ from __future__ import annotations
 from henchman.cli.commands import Command, CommandContext
 from henchman.core.goals import GoalService, save_goal_session
 from henchman.core.run_budget import BudgetControlError
+from henchman.core.workflow_state import WorkflowError
 
 
 class GoalCommand(Command):
@@ -23,7 +24,7 @@ class GoalCommand(Command):
     @property
     def usage(self) -> str:
         """Show lifecycle controls and objective syntax."""
-        return "/goal [<objective>|set <objective>|status|pause|resume|complete|clear]"
+        return "/goal [<objective>|set <objective>|status|pause|resume [--accept-policy-change]|complete|clear|bind-plan <id>|unbind-plan <id>]"
 
     async def execute(self, ctx: CommandContext) -> None:
         """Update the goal; the interactive frontend schedules continuation."""
@@ -37,31 +38,38 @@ class GoalCommand(Command):
         args = ctx.args
         action = args[0].lower() if args else "status"
         controls = {"status", "pause", "resume", "complete", "clear"}
+        explicit_control = action in controls or action in {"bind-plan", "unbind-plan"}
 
         def update() -> None:
             if action == "set":
                 service.start(session, " ".join(args[1:]))
-            elif len(args) <= 1 and action in controls:
+            elif explicit_control:
+                if action == "resume":
+                    if args[1:] not in ([], ["--accept-policy-change"]):
+                        raise ValueError(self.usage)
+                    service.resume(session, accept_policy_change=bool(args[1:]))
+                    return
+                if action in {"bind-plan", "unbind-plan"}:
+                    if len(args) != 2 or session.workflow_runtime is None:
+                        raise ValueError("Plan binding requires the workflow runtime and one plan ID")
+                    method = session.workflow_runtime.bind_plan if action == "bind-plan" else session.workflow_runtime.unbind_plan
+                    method(args[1])
+                    return
+                if len(args) > 1:
+                    raise ValueError(self.usage)
                 if action == "pause":
                     service.pause(session)
-                elif action == "resume":
-                    service.resume(session)
                 elif action == "clear":
                     service.clear(session)
                 elif action == "complete":
-                    goal = service.get(session)
-                    if goal is None:
-                        raise ValueError("No goal is set")
-                    if goal.status == "paused":
-                        service.resume(session)
-                    service.complete(session, goal_id=goal.id, summary="Completed by user")
+                    service.acknowledge(session)
             else:
                 service.start(session, " ".join(args))
 
         try:
             orchestrator = getattr(ctx.repl, "orchestrator", None)
             accounting = getattr(orchestrator, "accounting_runtime", None)
-            replace_goal = action == "set" or action == "clear" or not (len(args) <= 1 and action in controls)
+            replace_goal = action == "set" or action == "clear" or not explicit_control
             if replace_goal and isinstance(accounting, SessionRunAccounting):
                 accounting.apply_user_goal_transition(
                     session, update=update,
@@ -75,6 +83,10 @@ class GoalCommand(Command):
             if goal is None:
                 ctx.console.print("No goal is set. Use /goal <objective> to start.")
             else:
-                ctx.console.print(f"Goal ({goal.status}): {goal.objective}", markup=False)
-        except (ValueError, BudgetControlError) as exc:
-            ctx.console.print(f"Goal error: {exc}", markup=False)
+                source = f", completion source: {goal.completion_source}" if goal.completion_source else ""
+                text = f"Goal ({goal.status}, revision {goal.revision}{source}): {goal.objective}"
+                ctx.console.print(session.evidence_redactor.text(text), markup=False, highlight=False)
+                if session.workflow_runtime is not None and session.workflow_runtime.report().goal_requires_resume:
+                    ctx.console.print("Goal continuation is held; explicitly /goal resume after reviewing current policy.", markup=False)
+        except (ValueError, BudgetControlError, WorkflowError) as exc:
+            ctx.console.print(session.evidence_redactor.text(f"Goal error: {exc}"), markup=False, highlight=False)

@@ -10,6 +10,7 @@ import contextlib
 import logging
 from collections import deque
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -32,11 +33,21 @@ from henchman.cli.stream_event_handlers import build_confirmation_message
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.cli.workflow import (
+    command_route,
+    command_starts_work,
+    execute_workflow_input,
+    frontend_has_active_work,
+    idle_command,
+    idle_control_active,
+)
 from henchman.config.runtime import RuntimeSettingsState
 from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
 from henchman.core.goals import GoalService, save_goal_session
+from henchman.core.session_workflow import SessionWorkflow, WorkflowDispatch
+from henchman.core.workflow_state import WorkflowError
 from henchman.mcp.manager import McpManager
 
 if TYPE_CHECKING:
@@ -638,12 +649,27 @@ class Repl:
             return True
 
         if is_command:
-            command_name = processed_input.split(maxsplit=1)[0].lower()
-            if self._interactive_loop_active and command_name in {
-                "/clear", "/chat", "/session", "/model", "/plan", "/mcp",
-                "/context", "/team", "/unlimited",
-            }:
-                self._pending_inputs.append(_QueuedInput(processed_input, command=True))
+            route = command_route(processed_input)
+            runtime = self._workflow()
+            if route == "idle":
+                if frontend_has_active_work(self):
+                    self.renderer.warning("This command requires idle work; repeat it after active work finishes.")
+                    return True
+                try:
+                    with idle_command(self):
+                        should_continue = await self.command_processor.handle_command(processed_input, resolve_active_agent(self), self)
+                except asyncio.CancelledError:
+                    if runtime is not None:
+                        runtime.hold_pending()
+                    raise
+                if should_continue and self._has_pending_input():
+                    self._ensure_turn_worker()
+                return should_continue
+            if self._interactive_loop_active and route == "queued":
+                if runtime is not None:
+                    runtime.submit(processed_input, kind="command")
+                else:
+                    self._pending_inputs.append(_QueuedInput(processed_input, command=True))
                 self._ensure_turn_worker()
                 return True
             # Goal controls and informational commands remain immediately available.
@@ -652,7 +678,7 @@ class Repl:
                 resolve_active_agent(self),
                 self,
             )
-            if should_continue and self._interactive_loop_active:
+            if should_continue and self._interactive_loop_active and command_starts_work(processed_input):
                 self._ensure_turn_worker()
             return should_continue
 
@@ -662,6 +688,15 @@ class Repl:
 
     async def submit_agent_input(self, user_input: str) -> None:
         """Queue interactive work; preserve awaited execution for direct callers."""
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.submit(user_input)
+            if self._interactive_loop_active:
+                self._ensure_turn_worker()
+                await asyncio.sleep(0)
+            else:
+                await self._drain_workflow_inputs(runtime, continue_goals=False)
+            return
         if not self._interactive_loop_active:
             await self._run_agent(user_input)
             return
@@ -669,13 +704,51 @@ class Repl:
         self._ensure_turn_worker()
         await asyncio.sleep(0)
 
+    def _workflow(self) -> SessionWorkflow | None:
+        session = self.session_manager.current
+        return session.workflow_runtime if session is not None else None
+
+    def _has_pending_input(self) -> bool:
+        runtime = self._workflow()
+        return runtime.has_ready_input() if runtime is not None else bool(self._pending_inputs)
+
+    async def _execute_workflow_dispatch(self, dispatch: WorkflowDispatch) -> bool:
+        self._workflow_task = asyncio.current_task()
+        self._workflow_turn_failed = False
+        try:
+            if dispatch.kind == "command":
+                if command_route(dispatch.text) != "queued":
+                    raise WorkflowError("control_requires_explicit_command")
+                self.running = await self.command_processor.handle_command(dispatch.text, resolve_active_agent(self), self)
+            elif dispatch.role is not None:
+                await self._run_agent_direct(dispatch.role, dispatch.text)
+            else:
+                await self._run_agent(dispatch.text)
+            return not self._workflow_turn_failed
+        finally:
+            self._workflow_task = None
+
+    async def _drain_workflow_inputs(self, runtime: SessionWorkflow, *, continue_goals: bool) -> None:
+        while True:
+            dispatch = runtime.next_input()
+            if dispatch is None and continue_goals and runtime.submit_goal() is not None:
+                dispatch = runtime.next_input()
+            if dispatch is None:
+                return
+            await execute_workflow_input(runtime, dispatch, partial(self._execute_workflow_dispatch, dispatch))
+            await asyncio.sleep(0)
+            if continue_goals and not self._interactive_loop_active:
+                return
+
     def _ensure_turn_worker(self) -> None:
         """Start at most one worker when user input or an active goal needs work."""
         if not self._interactive_loop_active:
             return
+        if idle_control_active(self):
+            return
         if self._turn_worker is not None and not self._turn_worker.done():
             return
-        if self._pending_inputs or GoalService().continuation_prompt(self.session_manager.current):
+        if self._has_pending_input() or GoalService().continuation_prompt(self.session_manager.current):
             self._turn_worker = asyncio.create_task(self._drain_agent_inputs())
             self._turn_worker.add_done_callback(self._turn_worker_finished)
 
@@ -689,11 +762,15 @@ class Repl:
                 logger.error("Interactive turn failed: %s", runtime_exception_text(self, error, include_traceback=True))
                 self.renderer.error(f"Error: {runtime_exception_text(self, error)}")
                 self._pause_goal()
-        if self._pending_inputs:
+        if self._has_pending_input():
             self._ensure_turn_worker()
 
     async def _drain_agent_inputs(self) -> None:
         """Run user messages before autonomous continuations, without overlapping turns."""
+        runtime = self._workflow()
+        if runtime is not None:
+            await self._drain_workflow_inputs(runtime, continue_goals=True)
+            return
         message: str | None
         while self._interactive_loop_active:
             await asyncio.sleep(0)
@@ -725,19 +802,30 @@ class Repl:
 
     def interrupt_agent(self) -> None:
         """Pause autonomous work and cancel the current interactive turn."""
-        self._pause_goal()
-        if self._turn_worker is not None and not self._turn_worker.done():
-            self._turn_worker.cancel()
-            self.renderer.warning("Interrupted; active goal paused.")
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.hold_pending()
+        try:
+            self._pause_goal()
+        except Exception as exc:
+            self.renderer.error(f"Goal pause could not be saved: {runtime_exception_text(self, exc)}")
+        finally:
+            if self._turn_worker is not None and not self._turn_worker.done():
+                self._turn_worker.cancel()
+                self.renderer.warning("Interrupt requested; pending work is held.")
 
     async def _stop_turn_worker(self) -> None:
         """Cancel and join in-flight work before shutdown or a session change."""
-        task = self._turn_worker
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
-            self._turn_worker = None
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.hold_pending()
+        tasks = (self._turn_worker, getattr(self, "_idle_control_task", None))
+        for task in tasks:
+            if isinstance(task, asyncio.Task) and task is not asyncio.current_task():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+        self._turn_worker = None
 
     async def _run_agent(self: Self, user_input: str) -> None:
         """Run the agent with user input.
@@ -775,8 +863,13 @@ class Repl:
         if (
             getattr(self, "_interactive_loop_active", False)
             and asyncio.current_task() is not self._turn_worker
+            and asyncio.current_task() is not getattr(self, "_workflow_task", None)
         ):
-            self._pending_inputs.append(_QueuedInput(user_input, role=role))
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.submit(user_input, kind="direct", role=role)
+            else:
+                self._pending_inputs.append(_QueuedInput(user_input, role=role))
             self._ensure_turn_worker()
             return
         agent = self.orchestrator.pool.get_agent(role)
@@ -804,6 +897,7 @@ class Repl:
         try:
             async for event in event_stream:
                 if event.type == EventType.ERROR:
+                    self._workflow_turn_failed = True
                     self._pause_goal()
                 yield event
         finally:
@@ -858,6 +952,9 @@ class Repl:
 
             if exit_req or stop_req:
                 self._pause_goal()
+                self._workflow_turn_failed = True
+                if asyncio.current_task() is getattr(self, "_workflow_task", None):
+                    raise asyncio.CancelledError
             if exit_req:
                 self.renderer.warning("\n[Exit requested by Ctrl+C]")
                 self.running = False
@@ -865,6 +962,7 @@ class Repl:
                 self.renderer.warning("\n[Interrupted by Esc]")
 
         except Exception as e:
+            self._workflow_turn_failed = True
             stop_thinking()
             self._pause_goal()
             logger.error("Agent execution failed: %s", runtime_exception_text(self, e, include_traceback=True))

@@ -799,24 +799,66 @@ uses directory descriptors; Windows checks file identities and reparse points
 without the same directory-descriptor guarantee. Persistent records never confer
 ownership of another process or authorize replay after interruption.
 
-Interactive chat accepts messages while work is underway and processes them in
-order at agent-turn boundaries. `/goal pause` is available during processing;
+Interactive chat accepts messages while work is underway and processes eligible
+inputs in order at agent-turn boundaries. Accepted input is retained before the
+composer clears or acknowledgement appears; an exclusive start is saved before
+dispatch. `/goal pause` is available during processing;
 it stops future goal turns, while the current turn can finish. Esc interrupts
 the active turn and pauses its goal. Background jobs remain independently
 controllable with `task_stop`.
+
+### Accepted input queue
+
+`/queue status` shows input IDs, revisions, state and a credential-projected preview.
+Queue controls use the displayed revision; stale controls fail instead of acting
+on newer input:
+
+| Command | Effect |
+|---------|--------|
+| `/queue send <id> <revision>` | Explicitly makes a supported queued input eligible. |
+| `/queue edit <id> <revision> <text>` | Replaces queued text and leaves its new revision held. |
+| `/queue move <id> <revision> <position>` | Reorders queued input using zero-based positions and leaves it held. |
+| `/queue drop <id> <revision>` | Discards queued intent without dispatch. |
+| `/queue abandon <id> <revision> <note>` | Records explicit disposition of uncertain input without replaying its effects. |
+
+Restored queues remain held. Interrupted started work is `outcome_unknown` until
+explicit disposition; inspect `/recovery` and background tasks separately because
+abandoning input does not resolve their effects. Generated goal input cannot be
+sent through queue controls: use `/goal resume` to authorize fresh continuation.
+Known credential-bearing input is unavailable for restored replay. Session changes,
+MCP attachment and checkpoint/recovery mutations require idle work; active work
+refuses these commands with retry guidance. Help, queue inspection and recovery
+inspection remain accessible while input dispatch is held.
+
+The default `operations.persistence: process` retains workflow only in its creating
+runtime. `durable` uses the selected session store's `ops.db`, independently of
+usage-accounting persistence. A restored session file supplies evidence, never
+dispatch permission. Failure to save intent or correlated run/operation IDs blocks
+the dependent dispatch. These records do not imply that a completed input achieved
+its objective or that unknown effects were undone.
 
 ### Goal completion
 
 `/goal <objective>` starts a session goal and keeps the interactive agent working
 across turns. `/goal status`, `/goal pause`, `/goal resume`, `/goal complete` and
 `/goal clear` manage its lifecycle. Use `/goal set <objective>` for objectives
-that would otherwise look like a control word. Goals persist with sessions.
+that would otherwise look like a control word. Restored goals require explicit
+`/goal resume`; if execution policy changed, review it and use
+`/goal resume --accept-policy-change`. Resumption retains the goal ID and task usage.
+
+`/goal bind-plan <plan_id>` binds an existing verification plan to the current goal;
+`/goal unbind-plan <plan_id>` removes that binding. These are user controls. Model
+completion requires every bound plan's recorded specification and current declared
+inputs to pass, including required project checks. They establish only those
+assertions, without certifying complete requirements coverage.
 
 The registered `goal_status` tool reads the current goal or completes it using
-its current `goal_id` and a verification summary. Replacing a goal invalidates
-old completion IDs. Agent completion is rejected while project jobs are queued,
+its current `goal_id`, `goal_revision` and a verification summary. Changing a goal
+invalidates old completion revisions. Agent completion is rejected while project jobs are queued,
 started, running, outcome-unknown, or have failed status persistence. The user can
-explicitly override completion with `/goal complete`; that is not verification proof.
+explicitly override completion with `/goal complete`; `completion_source: user`
+records acknowledgement. Model completion records `completion_source: model` and
+does not substitute for independent acceptance.
 Runtime errors and interrupted turns pause continuation. This is interactive
 session execution, separate from cron scheduling.
 

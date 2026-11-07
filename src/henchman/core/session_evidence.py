@@ -48,7 +48,7 @@ _PROVENANCE = {
 _METADATA = {
     "session_memories": [_MEMORY], "memory_extraction_opt_out": PRESERVE_IDENTITY,
     "goal": {"id": PRESERVE_IDENTITY, "status": PRESERVE_IDENTITY,
-             "objective": None, "completion_summary": None,
+             "objective": None, "completion_summary": None, "completion_source": PRESERVE_IDENTITY,
              "version": PRESERVE_IDENTITY, "revision": PRESERVE_IDENTITY,
              "objective_sha256": PRESERVE_IDENTITY, "availability": PRESERVE_IDENTITY,
              "policy": dict.fromkeys(("plan_mode", "plan_mode_origin", "tool_policy_digest", "instruction_digest"), PRESERVE_IDENTITY),

@@ -56,6 +56,7 @@ class _Binding:
     active: InputPermit | None = None
     failure: str | None = None
     live_text: dict[str, str] = field(default_factory=dict)
+    live_roles: dict[str, str] = field(default_factory=dict)
     live_goal: WorkflowGoal | None = None
 
 
@@ -101,8 +102,33 @@ class SessionWorkflow:
     def _goal_value(binding: _Binding, state: WorkflowState) -> WorkflowGoal | None:
         live, saved = binding.live_goal, state.goal
         if live is not None and saved is not None and (live.id, live.revision, live.objective_sha256) == (saved.id, saved.revision, saved.objective_sha256):
-            return live
+            # Only the original executable objective belongs to the live cache.
+            # A losing compare-and-swap may share the winner's revision, so its
+            # proposed checks, policy or lifecycle must never shadow authority.
+            return saved.model_copy(update={"objective": live.objective, "availability": live.availability})
+        if saved is not None:
+            objective = binding.session.evidence_redactor.text(saved.objective)
+            if objective != saved.objective:
+                return saved.model_copy(update={
+                    "objective": objective, "availability": "redacted",
+                    "objective_sha256": saved.objective_sha256 or hashlib.sha256(saved.objective.encode()).hexdigest(),
+                })
         return saved
+
+    @staticmethod
+    def _input_role(binding: _Binding, item: QueuedInput) -> str | None:
+        live = binding.live_roles.get(item.id)
+        if live is not None and item.owner_id == binding.journal.owner_id:
+            return live
+        if not item.role_available or (item.role is not None and binding.session.evidence_redactor.text(item.role) != item.role):
+            raise WorkflowError("input_payload_unavailable")
+        return item.role
+
+    @staticmethod
+    def _goal_permission(binding: _Binding, goal: WorkflowGoal | None) -> bool:
+        live = binding.live_goal
+        return bool(binding.goal_enabled and live is not None and goal is not None
+                    and (live.id, live.revision) == (goal.id, goal.revision))
 
     @classmethod
     def _publish(cls, binding: _Binding) -> None:
@@ -134,6 +160,7 @@ class SessionWorkflow:
                 cached.eligible.clear()
                 cached.goal_enabled = False
                 cached.live_text.clear()
+                cached.live_roles.clear()
                 cached.live_goal = None
             cached.session = session
             binding = cached
@@ -216,7 +243,7 @@ class SessionWorkflow:
         blocking = tuple(item.id for item in state.inputs if item.state == "outcome_unknown" and item.resolution is None)
         return WorkflowReport(state, "durable" if durable else "process", blocking,
                               state.goal is not None and state.goal.status == "active" and (
-                                  binding is None or not binding.goal_enabled or binding.failure is not None
+                                  binding is None or not self._goal_permission(binding, state.goal) or binding.failure is not None
                                   or state.goal.policy != self._policy(session)),
                               binding.failure if binding is not None else None)
 
@@ -226,6 +253,8 @@ class SessionWorkflow:
             raise WorkflowError(binding.failure)
         item = binding.journal.enqueue(text, kind=kind, role=role)
         binding.live_text[item.id] = text
+        if role is not None:
+            binding.live_roles[item.id] = role
         self._save(binding)
         if not self.report().blocking_input_ids:
             binding.eligible[item.id] = item.revision
@@ -233,10 +262,72 @@ class SessionWorkflow:
 
     def send(self, input_id: str, revision: int) -> QueuedInput:
         binding = self._binding()
+        current = next((item for item in binding.journal.snapshot().inputs
+                        if item.id == input_id and item.revision == revision), None)
+        if current is not None:
+            self._input_role(binding, current)
         item = binding.journal.transfer_queued(input_id, revision, live_text=binding.live_text.get(input_id))
         self._save(binding)
         binding.eligible[item.id] = item.revision
         return item
+
+    def submit_goal(self) -> QueuedInput | None:
+        from henchman.core.goals import GoalService
+
+        binding = self._binding()
+        text = GoalService().continuation_prompt(binding.session)
+        goal = self.goal()
+        if text is None or goal is None:
+            return None
+        item = binding.journal.enqueue(text, kind="goal", goal_id=goal.id, goal_revision=goal.revision)
+        binding.live_text[item.id] = text
+        self._save(binding)
+        binding.eligible[item.id] = item.revision
+        return item
+
+    def has_ready_input(self) -> bool:
+        binding = self._binding()
+        if binding.failure is not None or self.report().blocking_input_ids:
+            return False
+        goal = binding.journal.snapshot().goal
+        return any(binding.eligible.get(item.id) == item.revision and item.state == "queued"
+                   and (item.kind != "goal" or (goal is not None and self.goal_continuation_allowed()
+                                                and (goal.id, goal.revision) == (item.goal_id, item.goal_revision)))
+                   for item in binding.journal.snapshot().inputs)
+
+    def edit(self, input_id: str, revision: int, text: str) -> QueuedInput:
+        binding = self._binding()
+        item = binding.journal.edit(input_id, revision, text)
+        binding.eligible.pop(input_id, None)
+        binding.live_text[input_id] = text
+        self._save(binding)
+        return item
+
+    def drop(self, input_id: str, revision: int) -> QueuedInput:
+        binding = self._binding()
+        item = binding.journal.drop(input_id, revision)
+        binding.eligible.pop(input_id, None)
+        binding.live_text.pop(input_id, None)
+        binding.live_roles.pop(input_id, None)
+        self._save(binding)
+        return item
+
+    def move(self, input_id: str, revision: int, position: int) -> QueuedInput:
+        binding = self._binding()
+        item = binding.journal.move(input_id, revision, position)
+        binding.eligible.pop(input_id, None)
+        # Reordering never grants a new revision permission to execute. This
+        # also prevents a concurrent external edit from inheriting a grant.
+        binding.eligible = {record.id: record.revision for record in binding.journal.snapshot().inputs
+                            if binding.eligible.get(record.id) == record.revision and record.state == "queued"}
+        self._save(binding)
+        return item
+
+    def hold_pending(self) -> None:
+        """Disarm continuation immediately; retain live ownership until joined."""
+        for binding in self._bindings.values():
+            binding.eligible.clear()
+            binding.goal_enabled = False
 
     def next_input(self) -> WorkflowDispatch | None:
         binding = self._binding()
@@ -245,9 +336,15 @@ class SessionWorkflow:
         for item in sorted(binding.journal.snapshot().inputs, key=lambda item: item.order):
             if binding.eligible.get(item.id) != item.revision:
                 continue
+            if item.kind == "goal":
+                goal = binding.journal.snapshot().goal
+                if goal is None or not self.goal_continuation_allowed() or (goal.id, goal.revision) != (item.goal_id, item.goal_revision):
+                    binding.eligible.pop(item.id, None)
+                    continue
             binding.eligible.pop(item.id)
             text = binding.live_text.get(item.id, item.text)
             try:
+                role = self._input_role(binding, item)
                 permit = binding.journal.claim(item.id, item.revision, live_text=binding.live_text.get(item.id))
             except BaseException:
                 binding.eligible.clear()
@@ -255,7 +352,7 @@ class SessionWorkflow:
                 raise
             binding.active = permit
             assert text is not None
-            return WorkflowDispatch(permit, text, item.kind, item.role)
+            return WorkflowDispatch(permit, text, item.kind, role)
         return None
 
     def finish(self, dispatch: WorkflowDispatch, *, outcome: InputOutcome) -> None:
@@ -273,19 +370,60 @@ class SessionWorkflow:
         finally:
             binding.active = None
             binding.live_text.pop(dispatch.permit.input_id, None)
+            binding.live_roles.pop(dispatch.permit.input_id, None)
+
+    def correlate(self, dispatch: WorkflowDispatch, session: Session, *, budget_run_id: str | None = None,
+                  operation_run_id: str | None = None, operation_id: str | None = None) -> None:
+        """Link original work, even after settlement; never authorize dispatch.
+
+        Background tasks retain their original session and claim. Selection of
+        another frontend session does not reassign or revoke that evidence.
+        Persistence failure prevents the calling run or operation from starting.
+        """
+        if os.getpid() != self._origin_pid:
+            raise WorkflowError("process_authority_changed")
+        key = (dispatch.permit.project_hash, dispatch.permit.session_id)
+        binding = self._bindings.get(key)
+        if self._key(session) != key or binding is None or binding.session is not session:
+            raise WorkflowError("session_identity_mismatch")
+        if binding.failure is not None:
+            raise WorkflowError(binding.failure)
+        binding.journal.correlate(dispatch.permit, budget_run_id=budget_run_id,
+                                  operation_run_id=operation_run_id, operation_id=operation_id)
+        self._save(binding)
 
     def interrupt(self) -> None:
-        binding = self._binding()
+        """Settle only after the frontend has cancelled and joined actual work."""
+        session = self._session()
+        binding = self._bindings.get(self._key(session))
+        if binding is None or binding.session is not session:
+            raise WorkflowError("session_identity_mismatch")
         binding.eligible.clear()
         binding.goal_enabled = False
-        if binding.active is not None:
-            item = next(item for item in binding.journal.snapshot().inputs if item.id == binding.active.input_id)
-            binding.journal.cancel(item.id, item.revision)
+        try:
+            if binding.active is not None:
+                item = next(item for item in binding.journal.snapshot().inputs if item.id == binding.active.input_id)
+                binding.journal.cancel(item.id, item.revision)
+            self._save(binding)
+        except BaseException:
+            if binding.failure is None:
+                binding.failure = "interruption_settlement_failed"
+            raise
+        finally:
+            # Actual work is joined even if authority could not be written.
+            # report() then classifies the unacknowledged start as uncertain.
             binding.active = None
-        self._save(binding)
 
     def abandon(self, input_id: str, revision: int, note: str) -> QueuedInput:
         binding = self._binding()
+        current = next((item for item in binding.journal.snapshot().inputs if item.id == input_id), None)
+        if current is not None and current.state == "started" and current.owner_id == binding.journal.owner_id and binding.active is None:
+            if type(revision) is not int or current.revision != revision:
+                raise WorkflowError("revision_conflict")
+            if not isinstance(note, str) or not note.strip():
+                raise WorkflowError("invalid_resolution")
+            current = binding.journal.cancel(input_id, revision)
+            revision = current.revision
         item = binding.journal.abandon(input_id, revision, note)
         self._save(binding)
         return item
@@ -313,7 +451,8 @@ class SessionWorkflow:
     def goal_continuation_allowed(self) -> bool:
         binding = self._binding()
         goal = self._goal_value(binding, binding.journal.snapshot())
-        return bool(goal is not None and goal.status == "active" and binding.goal_enabled
+        return bool(goal is not None and goal.status == "active" and goal.availability == "complete"
+                    and self._goal_permission(binding, goal)
                     and binding.failure is None and not self.report().blocking_input_ids
                     and goal.policy == self._policy(binding.session))
 
@@ -333,6 +472,20 @@ class SessionWorkflow:
         binding.goal_enabled = True
         return updated
 
+    def pause_goal(self) -> WorkflowGoal:
+        binding = self._binding()
+        state = binding.journal.snapshot()
+        goal = self._goal_value(binding, state)
+        if goal is None or goal.status == "complete":
+            raise WorkflowError("goal_not_pausable")
+        updated = goal.model_copy(update={"revision": goal.revision + 1, "status": "paused"})
+        self._set_goal(binding, updated, expected_revision=state.revision)
+        return updated
+
+    def clear_goal(self) -> None:
+        binding = self._binding()
+        self._set_goal(binding, None, expected_revision=binding.journal.snapshot().revision)
+
     def bind_plan(self, plan_id: str) -> WorkflowGoal:
         binding = self._binding()
         state = binding.journal.snapshot()
@@ -344,16 +497,41 @@ class SessionWorkflow:
                                                        "observed_run_id": status.get("run_id")})
         checks = tuple(item for item in goal.checks if item.plan_id != plan_id) + (reference,)
         updated = WorkflowGoal.model_validate({**goal.model_dump(), "revision": goal.revision + 1, "checks": checks})
-        enabled = binding.goal_enabled
+        enabled = self._goal_permission(binding, goal)
         self._set_goal(binding, updated, expected_revision=state.revision)
         binding.goal_enabled = enabled
+        return updated
+
+    def unbind_plan(self, plan_id: str) -> WorkflowGoal:
+        binding = self._binding()
+        state = binding.journal.snapshot()
+        goal = self._goal_value(binding, state)
+        if goal is None or not any(item.plan_id == plan_id for item in goal.checks):
+            raise WorkflowError("goal_check_not_bound")
+        updated = goal.model_copy(update={"revision": goal.revision + 1,
+                                          "checks": tuple(item for item in goal.checks if item.plan_id != plan_id)})
+        enabled = self._goal_permission(binding, goal)
+        self._set_goal(binding, updated, expected_revision=state.revision)
+        binding.goal_enabled = enabled
+        return updated
+
+    def acknowledge_goal(self) -> WorkflowGoal:
+        """Record explicit user completion; it is not configured-check proof."""
+        binding = self._binding()
+        state = binding.journal.snapshot()
+        goal = self._goal_value(binding, state)
+        if goal is None:
+            raise WorkflowError("goal_not_set")
+        updated = goal.model_copy(update={"revision": goal.revision + 1, "status": "complete",
+                                          "completion_summary": "Completed by user", "completion_source": "user"})
+        self._set_goal(binding, updated, expected_revision=state.revision)
         return updated
 
     def complete_goal(self, goal_id: str, revision: int, summary: str) -> WorkflowGoal:
         binding = self._binding()
         state = binding.journal.snapshot()
         goal = self._goal_value(binding, state)
-        if goal is None or goal.id != goal_id or goal.revision != revision:
+        if goal is None or goal.id != goal_id or type(revision) is not int or goal.revision != revision:
             raise WorkflowError("goal_revision_conflict")
         if not self.goal_continuation_allowed():
             raise WorkflowError("goal_not_active")
@@ -364,7 +542,7 @@ class SessionWorkflow:
             if status.get("spec_digest") != reference.spec_digest or status.get("current_checks_passed") is not True:
                 raise WorkflowError("goal_checks_unverified")
         updated = WorkflowGoal.model_validate({**goal.model_dump(), "revision": goal.revision + 1,
-                                               "status": "complete", "completion_summary": summary.strip()})
+                                               "status": "complete", "completion_summary": summary.strip(), "completion_source": "model"})
         self._set_goal(binding, updated, expected_revision=state.revision)
         binding.goal_enabled = False
         return updated

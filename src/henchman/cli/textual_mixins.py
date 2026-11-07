@@ -53,6 +53,13 @@ from henchman.cli.textual_widgets import (
     ToolPane,
     _safe_markup,
 )
+from henchman.cli.workflow import (
+    command_route,
+    command_starts_work,
+    frontend_has_active_work,
+    idle_command,
+    idle_control_active,
+)
 from henchman.config.runtime import RuntimeSettingsState
 from henchman.core.goals import GoalService, save_goal_session
 from henchman.core.session_export import export_as_markdown
@@ -1015,17 +1022,45 @@ class _InputHandlerMixin:
         user_input = input_widget.text.strip()
         if not user_input:
             return
+        runtime = self._workflow()
+        route = command_route(user_input)
+        if route == "idle" and frontend_has_active_work(self):
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            chat.add_system_message("This command requires idle work; repeat it after active work finishes.")
+            return
+        live_command = route in {"control", "idle"}
+        if runtime is not None and not live_command:
+            try:
+                runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+            except Exception as exc:
+                chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+                chat.add_error_message(runtime_exception_text(self, exc))
+                return
         self.command_history.append(user_input)  # type: ignore[attr-defined]
         self.history_index = len(self.command_history)  # type: ignore[attr-defined]
         self._persist_history_entry(user_input)  # type: ignore[attr-defined]
         input_widget.load_text("")
-        if self.is_processing:
-            if user_input.split()[0] in {"/goal", "/quit"}:
-                self._process_live_command(user_input)
+        if route == "idle":
+            # Reserve the command's worker interval before another UI event can
+            # schedule model work. Its task claims no workflow input permit.
+            self.is_processing = True
+            self.process_user_input(user_input)
+            return
+        if route == "control":
+            self._process_live_command(user_input)
+            return
+        if runtime is not None:
+            if not self.is_processing and not idle_control_active(self):
+                self.is_processing = True
+                self.process_user_input(None)
             else:
-                self._queued_inputs().append(user_input)
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-                chat.add_system_message("Message queued for the next agent turn.")
+                chat.add_system_message("Message saved for the next agent turn.")
+            return
+        if self.is_processing:
+            self._queued_inputs().append(user_input)
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            chat.add_system_message("Message queued for the next agent turn.")
             return
         self.is_processing = True
         self.process_user_input(user_input)
@@ -1040,6 +1075,41 @@ class _InputHandlerMixin:
         """Resolve the current session without retaining stale session state."""
         ctx = self.core_context  # type: ignore[attr-defined]
         return ctx.session_manager.current if ctx and ctx.session_manager else None
+
+    def _workflow(self) -> Any:
+        from henchman.core.session_workflow import SessionWorkflow
+
+        session = self._goal_session()
+        runtime = session.workflow_runtime if session is not None else None
+        return runtime if isinstance(runtime, SessionWorkflow) else None
+
+    def _workflow_ready(self) -> bool:
+        runtime = self._workflow()
+        return bool(runtime is not None and (runtime.has_ready_input() or runtime.goal_continuation_allowed()))
+
+    async def _drain_workflow(self, runtime: Any, chat: ChatPane) -> None:
+        from henchman.cli.workflow import execute_workflow_input
+
+        while True:
+            dispatch = runtime.next_input()
+            if dispatch is None and runtime.submit_goal() is not None:
+                dispatch = runtime.next_input()
+            if dispatch is None:
+                return
+            if dispatch.kind != "goal":
+                chat.add_user_message(runtime_evidence_redactor(self).text(dispatch.text))
+
+            async def run(text: str = dispatch.text) -> bool:
+                if command_route(text) in {"control", "idle"}:
+                    from henchman.core.workflow_state import WorkflowError
+
+                    raise WorkflowError("control_requires_explicit_command")
+                self._workflow_turn_failed = False
+                await self._route_input(text, chat)
+                return not self._workflow_turn_failed
+
+            await execute_workflow_input(runtime, dispatch, run)
+            await asyncio.sleep(0.05)
 
     def _pause_active_goal(self) -> None:
         """Stop automatic continuation after cancellation or a runtime error."""
@@ -1059,18 +1129,28 @@ class _InputHandlerMixin:
 
     @work(group="goal-controls", exclusive=False)
     async def _process_live_command(self, text: str) -> None:
-        """Allow goal controls during work without starting another agent turn."""
+        """Run user controls while held, without acquiring dispatch permission."""
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         chat.add_user_message(runtime_evidence_redactor(self).text(text))
         await self._handle_command(text, chat)
-        if not self.is_processing:
-            next_input = self._next_turn_input()
+        self._schedule_after_control(text)
+
+    def _schedule_after_control(self, text: str) -> None:
+        if not command_starts_work(text):
+            return
+        if not self.is_processing and not idle_control_active(self):
+            if self._workflow() is not None:
+                runtime = self._workflow()
+                if runtime.has_ready_input() or (command_starts_work(text) and runtime.goal_continuation_allowed()):
+                    self.process_user_input(None)
+                return
+            next_input = self._next_turn_input() if self._queued_inputs() or command_starts_work(text) else None
             if next_input is not None:
                 self.process_user_input(next_input, show_message=False)
 
     @work(group="chat", exclusive=False)
     async def process_user_input(
-        self: _InputHandlerMixin, user_input: str, *, show_message: bool = True,
+        self: _InputHandlerMixin, user_input: str | None, *, show_message: bool = True,
     ) -> None:
         """Process user input: commands or agent chat.
 
@@ -1078,8 +1158,28 @@ class _InputHandlerMixin:
             user_input: Raw text the user submitted.
             show_message: Display human input; hide generated continuation instructions.
         """
+        runtime = self._workflow()
+        route = command_route(user_input) if user_input is not None else None
+        if route == "control":
+            assert user_input is not None
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            if show_message:
+                chat.add_user_message(runtime_evidence_redactor(self).text(user_input))
+            await self._handle_command(user_input, chat)
+            if (not command_starts_work(user_input) or getattr(self, "current_agent_task", None) is not None
+                or idle_control_active(self)):
+                return
+            user_input, route = None, None
         if getattr(self, "current_agent_task", None) is not None:
-            self._queued_inputs().append(user_input)
+            if user_input is not None:
+                if route == "idle":
+                    chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+                    chat.add_system_message("This command requires idle work; repeat it after active work finishes.")
+                    return
+                if runtime is not None:
+                    runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+                else:
+                    self._queued_inputs().append(user_input)
             return
         self.is_processing = True
         self.current_agent_task = asyncio.current_task()
@@ -1088,6 +1188,18 @@ class _InputHandlerMixin:
         bar.status_text = "Processing..."
 
         try:
+            if route == "idle":
+                assert user_input is not None
+                if show_message:
+                    chat.add_user_message(runtime_evidence_redactor(self).text(user_input))
+                with idle_command(self):
+                    await self._handle_command(user_input, chat)
+                return
+            if runtime is not None:
+                if user_input is not None:
+                    runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+                await self._drain_workflow(runtime, chat)
+                return
             next_input: str | None = user_input
             while next_input is not None:
                 if show_message:
@@ -1097,8 +1209,11 @@ class _InputHandlerMixin:
                 show_message = bool(self._queued_inputs())
                 next_input = self._next_turn_input()
         except asyncio.CancelledError:
+            if runtime is not None:
+                runtime.hold_pending()
             self._pause_active_goal()
-            self._queued_inputs().clear()
+            if runtime is None:
+                self._queued_inputs().clear()
             chat.add_system_message("[yellow]\u26a0 Cancelled by user (Esc)[/]")
             for name in list(chat._active):
                 chat.finish_agent_stream(name)
@@ -1117,7 +1232,11 @@ class _InputHandlerMixin:
             if hasattr(self, "current_agent_task"):
                 del self.current_agent_task
             self._update_status_bar()  # type: ignore[attr-defined]
-            if self._queued_inputs():
+            ready = (runtime.has_ready_input() if route == "idle" and runtime is not None else self._workflow_ready())
+            if runtime is not None and ready and not idle_control_active(self):
+                self.is_processing = True
+                self.process_user_input(None)
+            elif runtime is None and self._queued_inputs():
                 self.is_processing = True
                 self.process_user_input(self._queued_inputs().pop(0))
 
@@ -1130,6 +1249,7 @@ class _InputHandlerMixin:
         """
         handler = self.input_handler  # type: ignore[attr-defined]
         if not handler:
+            self._workflow_turn_failed = True
             self._pause_active_goal()
             chat.add_error_message("Input handler not initialized.")
             return
@@ -1189,6 +1309,7 @@ class _InputHandlerMixin:
         ctx = self.core_context  # type: ignore[attr-defined]
         orchestrator = ctx.orchestrator if ctx else None
         if not orchestrator:
+            self._workflow_turn_failed = True
             self._pause_active_goal()
             chat.add_error_message("Core components not initialized.")
             return
@@ -1211,6 +1332,7 @@ class _InputHandlerMixin:
 
             async for event in stream:
                 if event.type == EventType.ERROR:
+                    self._workflow_turn_failed = True
                     self._pause_active_goal()
                 yield event
 

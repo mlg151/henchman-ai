@@ -41,8 +41,10 @@ the completed attempt, not permission to replay its effects.
 The [operation journal](docs/operation-recovery.md) now commits correlated tool
 attempts before dispatch, binds public runtime/session recovery and exposes explicit
 revision-checked user resolution/retry. Versioned provider continuation now retains
-qualified opaque profiles and refuses incompatible replay; native/live acceptance,
-goal/queue persistence and further restart qualification remain under #23.
+qualified opaque profiles and refuses incompatible replay. Shared goal/queue
+authority now drives both interactive frontends, with explicit restored-input
+disposition, current-revision goal completion and correlated run/operation evidence.
+Native/live acceptance and further restart qualification remain under #23.
 Notification-driven primary turns now preserve ordered request/result correlation
 and text-only turns through child questions, parent replies and durable reload.
 Recovered running task records now expose unknown outcomes and refuse unowned

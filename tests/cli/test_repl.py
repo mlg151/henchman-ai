@@ -693,6 +693,9 @@ class TestSessionAutoSave:
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager
         repl.tool_executor.output_handler.session_manager = new_session_manager
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(repl.orchestrator, new_session_manager)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
@@ -799,6 +802,9 @@ class TestSessionAutoSave:
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager
         repl.tool_executor.output_handler.session_manager = new_session_manager
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(repl.orchestrator, new_session_manager)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 

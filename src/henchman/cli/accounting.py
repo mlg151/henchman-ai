@@ -17,6 +17,7 @@ def bind_session_accounting(orchestrator: Orchestrator, sessions: ReplSessionMan
     """Use the same controller for interactive, Textual and headless CLI turns."""
     if not isinstance(orchestrator, Orchestrator):
         return
+    sessions.workflow_runtime.settings = orchestrator.settings
 
     def save(session: Session) -> None:
         sessions.session_manager.save(session)

@@ -65,7 +65,7 @@ async def test_goal_continues_until_explicit_completion(app, monkeypatch):
         async def route(text, _chat):
             seen.append(text)
             if len(seen) == 2:
-                GoalService().complete(session, goal_id=goal.id, summary="Fixture verified")
+                GoalService().complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Fixture verified")
 
         monkeypatch.setattr(app, "_route_input", route)
         worker = app.process_user_input("Begin")
@@ -116,7 +116,7 @@ async def test_user_input_precedes_goal_continuation(app, monkeypatch):
                 started.set()
                 await release.wait()
             if len(seen) == 3:
-                GoalService().complete(session, goal_id=goal.id, summary="Verified")
+                GoalService().complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Verified")
 
         monkeypatch.setattr(app, "_route_input", route)
         worker = app.process_user_input("Begin")
@@ -174,7 +174,7 @@ async def test_goal_command_runs_real_provider_tool_completion(app):
                 goal = GoalService().get(session)
                 yield StreamChunk(
                     tool_calls=[ToolCall(id="goal-done", name="goal_status", arguments={
-                        "action": "complete", "goal_id": goal.id,
+                        "action": "complete", "goal_id": goal.id, "goal_revision": goal.revision,
                         "summary": "Fixture requirements checked",
                     })], finish_reason=FinishReason.TOOL_CALLS,
                 )

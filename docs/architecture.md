@@ -437,8 +437,14 @@ Unowned starts remain uncertain until explicit disposition; they are never repla
 Known credentials are projected from stored evidence, with sensitive queued text
 unavailable on restore. A committed goal change survives a failed transcript save,
 which disables continuation without granting a new usage budget. State is bounded
-to 4 MiB and 1,024 inputs. This is the shared recovery foundation; GoalService,
-queue commands and frontend worker wiring remain pending under issue #23.
+to 4 MiB and 1,024 inputs. `GoalService`, `/queue` controls and both interactive
+workers now share this authority. Workers cancel and join actual dispatched work
+before settling interruption. Task-local context correlates real budget runs and
+operation IDs before effects; late owned work can retain correlation without
+rearming settled input. Session selection cannot transfer an active input permit.
+Restored goals require explicit resumption under current policy, and model
+completion checks exact goal revision and current evidence from user-bound plans.
+Explicit user completion retains separate acknowledgement provenance.
 
 `SessionContextService.build_snapshot()` is the single effective retention-policy
 report for a session: message/turn counts, `plan_mode`, stored-memory count, the

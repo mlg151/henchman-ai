@@ -27,6 +27,7 @@ from henchman.core.operation_recovery import (
     project_operation_result,
 )
 from henchman.core.runtime_operations import OperationInvocation, tool_result_from_operation
+from henchman.core.runtime_workflow import correlate_workflow
 from henchman.core.session_data import Session
 from henchman.core.session_models import SessionMessage
 from henchman.ops.operation_store import OperationStore, PersistentOperationJournal
@@ -505,4 +506,5 @@ class SessionRunOperations:
             except BaseException:
                 session.operations = state
                 raise
+        correlate_workflow(session, operation_run_id=run.run_id, operation_id=record.operation_id)
         return record

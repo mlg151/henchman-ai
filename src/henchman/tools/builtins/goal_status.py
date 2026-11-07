@@ -9,6 +9,7 @@ from pathlib import Path
 from henchman.advanced.tasks import TaskService
 from henchman.core.goals import GoalService, save_goal_session
 from henchman.core.session_data import Session
+from henchman.core.workflow_state import WorkflowError
 from henchman.tools.base import Tool, ToolResult
 
 
@@ -38,7 +39,7 @@ class GoalStatusTool(Tool):
         """Explain the completion contract."""
         return (
             "Read the current goal or mark it complete only when all required work is "
-            "finished and verified. Supply the current goal_id and verification summary. "
+            "finished and verified. Supply the current goal_id, goal_revision and verification summary. "
             "Only the user can start, pause, resume, or replace a goal."
         )
 
@@ -50,6 +51,7 @@ class GoalStatusTool(Tool):
             "properties": {
                 "action": {"type": "string", "enum": ["status", "complete"]},
                 "goal_id": {"type": "string"},
+                "goal_revision": {"type": "integer", "minimum": 1},
                 "summary": {"type": "string"},
             },
             "required": ["action"],
@@ -75,11 +77,17 @@ class GoalStatusTool(Tool):
                 if unresolved:
                     ids = ", ".join(task.task_id for task in unresolved)
                     raise ValueError(f"Project background tasks remain unresolved: {ids}")
-                service.complete(session, goal_id=goal_id, summary=summary)
+                revision = params.get("goal_revision")
+                service.complete(session, goal_id=goal_id, summary=summary,
+                                 goal_revision=revision if type(revision) is int else None)
                 save_goal_session(self._session_manager, session)
             elif action != "status":
                 raise ValueError("action must be status or complete; lifecycle changes require /goal")
             goal = service.get(session)
             return ToolResult(content=json.dumps(asdict(goal) if goal else {"status": "unset"}))
         except ValueError as exc:
+            return ToolResult(content=str(exc), success=False, error=str(exc))
+        except WorkflowError as exc:
+            if exc.reason not in {"goal_revision_required", "goal_revision_conflict", "goal_not_active", "goal_checks_unverified"}:
+                raise
             return ToolResult(content=str(exc), success=False, error=str(exc))

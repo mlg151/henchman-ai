@@ -235,11 +235,18 @@ class StoredWorkflow:
         return self.store._change(self.reference, method, change)
 
     def enqueue(self, text: str, *, kind: InputKind = "message", role: str | None = None,
-                input_id: str | None = None) -> QueuedInput:
-        return self._call("enqueue", lambda journal: journal.enqueue(text, kind=kind, role=role, input_id=input_id))
+                input_id: str | None = None, goal_id: str | None = None, goal_revision: int | None = None) -> QueuedInput:
+        return self._call("enqueue", lambda journal: journal.enqueue(text, kind=kind, role=role, input_id=input_id,
+                                                                     goal_id=goal_id, goal_revision=goal_revision))
 
     def edit(self, input_id: str, revision: int, text: str) -> QueuedInput:
         return self._call("edit", lambda journal: journal.edit(input_id, revision, text))
+
+    def move(self, input_id: str, revision: int, position: int) -> QueuedInput:
+        return self._call("move", lambda journal: journal.move(input_id, revision, position))
+
+    def drop(self, input_id: str, revision: int) -> QueuedInput:
+        return self._call("drop", lambda journal: journal.drop(input_id, revision))
 
     def transfer_queued(self, input_id: str, revision: int, *, live_text: str | None = None) -> QueuedInput:
         return self._call("transfer_queued", lambda journal: journal.transfer_queued(input_id, revision, live_text=live_text))
@@ -249,6 +256,11 @@ class StoredWorkflow:
 
     def finish(self, permit: InputPermit, *, outcome: InputOutcome) -> QueuedInput:
         return self._call("finish", lambda journal: journal.finish(permit, outcome=outcome))
+
+    def correlate(self, permit: InputPermit, *, budget_run_id: str | None = None,
+                  operation_run_id: str | None = None, operation_id: str | None = None) -> QueuedInput:
+        return self._call("correlate", lambda journal: journal.correlate(
+            permit, budget_run_id=budget_run_id, operation_run_id=operation_run_id, operation_id=operation_id))
 
     def cancel(self, input_id: str, revision: int) -> QueuedInput:
         return self._call("cancel", lambda journal: journal.cancel(input_id, revision))

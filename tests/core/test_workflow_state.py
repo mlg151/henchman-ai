@@ -56,3 +56,17 @@ def test_extra_fields_and_duplicate_identities_are_not_silently_dropped():
     payload["automatic_replay_authorized"] = True
     with pytest.raises(WorkflowError, match="invalid_state"):
         decode_state(json.dumps(payload))
+
+
+def test_correlation_limit_is_explicit_and_duplicate_ids_do_not_consume_capacity():
+    journal = WorkflowJournal("project", "session")
+    item = journal.enqueue("request")
+    permit = journal.claim(item.id, item.revision)
+    for number in range(256):
+        journal.correlate(permit, budget_run_id=f"run-{number}")
+    before = journal.snapshot()
+    journal.correlate(permit, budget_run_id="run-0")
+    assert journal.snapshot() == before
+    with pytest.raises(WorkflowError, match="input_correlation_limit"):
+        journal.correlate(permit, budget_run_id="overflow")
+    assert journal.snapshot() == before
