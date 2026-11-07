@@ -76,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Generated test scaffolds** — Function and class templates now compile and
+  format correctly. Explicit TODO skip markers keep unfinished stubs from
+  executing placeholder calls or appearing as successful verification. Native
+  pytest regressions confirm the generated files collect as skipped tests.
+
 - **Multi-file patch targets** — Flush each parsed hunk before changing file
   headers, so patches retain their original file targets and instruction-scope
   discovery agrees with the files actually modified.

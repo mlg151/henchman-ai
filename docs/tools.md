@@ -508,6 +508,12 @@ Parse coverage report and show uncovered lines.
 
 Generate pytest test stubs from Python signatures.
 
+Both styles produce Python scaffolds that can be compiled, formatted and collected.
+Generated tests carry explicit `pytest.mark.skip` TODO markers. Implement meaningful
+inputs and assertions, then remove those markers. Creating or collecting these
+stubs does not verify the source behavior; unfinished stubs never count as passing
+checks and do not call application code with invented inputs.
+
 ```json
 {
   "name": "test_gen",

@@ -219,6 +219,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/core/test_instruction_context_runtime.py",
         "tests/cli/test_instruction_context_runtime.py",
         "tests/tools/test_patch_scope_boundaries.py",
+        "tests/tools/test_test_gen_templates.py",
         "tests/core/test_instruction_policy_boundary.py",
         "tests/agents/test_delegation_provenance.py",
         "tests/cli/test_session_manager_provenance.py",
