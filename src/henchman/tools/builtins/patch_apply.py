@@ -435,6 +435,13 @@ class PatchApplyTool(Tool):
         """Tool kind - WRITE because it modifies files."""
         return ToolKind.WRITE
 
+    def checkpoint_paths(self, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare only this invocation's explicit mutation targets."""
+        if params.get("dry_run", False):
+            return ()
+        parsed = _build_patch_params_from_kwargs(params)
+        return tuple(PatchParser(parsed.patch, parsed.path).parse())
+
     async def execute(
         self: PatchApplyTool,
         **kwargs: object,

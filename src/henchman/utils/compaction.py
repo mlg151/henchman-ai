@@ -523,6 +523,10 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
 
     # Check token count
     if TokenCounter.count_text(content) > limit:
+        if message.continuation is not None:
+            from henchman.providers.base import ContextTooLargeError
+
+            raise ContextTooLargeError("Required provider continuation cannot be truncated; start a new conversation.")
         truncated_content = TokenCounter.truncate_text(content, limit)
         new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
         if message.tool_result is not None:
@@ -849,6 +853,7 @@ async def _generate_summary_with_provider(
     prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
     from henchman.core.run_budget import BudgetControlError
     from henchman.core.runtime_accounting import require_accounted_provider
+    from henchman.providers.continuation import ProviderContinuationError
 
     try:
         require_accounted_provider(provider)
@@ -874,9 +879,9 @@ async def _generate_summary_with_provider(
                     if primary_error is None:
                         raise
                     if (
-                        isinstance(cleanup_error, BudgetControlError)
+                        isinstance(cleanup_error, (BudgetControlError, ProviderContinuationError))
                         and isinstance(primary_error, Exception)
-                        and not isinstance(primary_error, BudgetControlError)
+                        and not isinstance(primary_error, (BudgetControlError, ProviderContinuationError))
                     ):
                         # An ordinary summary failure must not hide failed accounting.
                         # Preserve an earlier control failure or explicit cancellation.
@@ -886,7 +891,7 @@ async def _generate_summary_with_provider(
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except BudgetControlError:
+    except (BudgetControlError, ProviderContinuationError):
         raise
     except Exception:
         # Summarization failed, log warning and return None to fall back to simple dropping
@@ -1118,6 +1123,7 @@ async def _attempt_summarization(
 
     summarizer = MessageSummarizer(provider=provider)
     from henchman.core.run_budget import BudgetControlError
+    from henchman.providers.continuation import ProviderContinuationError
 
     try:
         summary = await summarizer.summarize(dropped_messages)
@@ -1129,7 +1135,7 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except BudgetControlError:
+    except (BudgetControlError, ProviderContinuationError):
         raise
     except Exception:
         # Summarization failed, continue with simple dropping

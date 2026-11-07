@@ -308,10 +308,8 @@ Anthropic uses its native adapter.
   does not dispatch a tool twice.
 - Compatible text reasoning accepts both `reasoning_content` and OpenRouter's
   `reasoning` field, preferring nonempty `reasoning_content` when both appear.
-  Text is retained through tool turns and sent back using `reasoning_content`,
-  which OpenRouter accepts as an alias. This does not preserve structured or
-  encrypted `reasoning_details` blocks; models requiring those blocks need
-  additional adapter support. See [OpenRouter reasoning documentation](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
+  Visible reasoning remains separate from the [qualified continuation payload](#provider-continuation).
+  Displayed text is not implicitly sent back as signed or opaque provider state.
 - Closing a partial agent stream releases the nested provider stream immediately.
   Task cancellation propagates without emitting a completion event. Cleanup
   failures are logged without replacing cancellation or generator closure.
@@ -329,6 +327,38 @@ should explicitly close their stream, for example with `contextlib.aclosing`.
 The offline regression suites in `tests/providers/test_stream_safety.py` and
 `tests/providers/test_anthropic_stream_safety.py` exercise these boundaries.
 They do not certify live model quality or operating-system compatibility.
+
+### Provider continuation
+
+Assistant messages can carry a version-1 continuation envelope independently of
+visible text and reasoning. Supported adapter profiles retain these payloads:
+
+| Adapter | Retained continuation |
+| --- | --- |
+| Anthropic Messages | Ordered native thinking/signature, redacted-thinking, text and tool-use blocks |
+| OpenRouter Chat Completions | Ordered `reasoning_details` objects, including encrypted data |
+| DeepSeek Chat Completions | The documented `reasoning_content` wire text |
+
+The envelope binds to the configured provider alias, request model, endpoint and
+credential identity, and required reasoning settings. Endpoint and credential
+identity are retained as a digest. Its payload digest detects local changes;
+Henchman does not verify provider signatures or infer compatibility across models
+or accounts. Each profile uses its provider's documented continuation format;
+see [OpenRouter's preservation rules](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
+
+Saved sessions, exports, restored turns and merges retain the envelope. It is not
+rendered as chat content. If credential redaction changes its payload or binding
+labels, the saved envelope records unavailability and a digest rather than altered
+replay bytes. Missing signatures, incomplete streams, unavailable payloads and
+incompatible provider/model switches stop dispatch explicitly. Legacy reasoning
+fields are retained as evidence but do not establish a qualified continuation.
+
+Compaction preserves a required continuation exchange intact or reports that it
+cannot fit the available context. It does not summarize signed state into a new
+payload. Payloads are bounded to 4 MiB, depth 64 and 65,536 nodes. Actual-SDK offline
+transport fixtures verify preservation and rejection paths; they do not establish
+live provider acceptance for every model. General session and interrupted-effect
+handling are described in [operation recovery](operation-recovery.md).
 
 ### Usage and cost provenance
 

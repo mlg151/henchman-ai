@@ -20,7 +20,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -29,6 +29,7 @@ from henchman.advanced.checkpoint_codec import validate
 from henchman.advanced.checkpoint_files import WorkspaceFiles
 from henchman.advanced.checkpoint_models import (
     CheckpointConflict,
+    CheckpointOperation,
     CheckpointRecord,
     CheckpointReview,
     FileState,
@@ -83,13 +84,20 @@ class CheckpointService:
     def __init__(self, project_root: Path, *, redactor: EvidenceRedactor | None = None,
                  max_file_bytes: int = 1_048_576, max_storage_bytes: int = 67_108_864,
                  max_checkpoints: int = 20, max_age_seconds: float = 30 * 86400,
-                 exclusions: tuple[str, ...] = (), fault: Callable[[str], None] | None = None) -> None:
+                 exclusions: tuple[str, ...] = (), fault: Callable[[str], None] | None = None,
+                 _capture_guard: Callable[[], None] | None = None) -> None:
         if any(type(value) is not int or value <= 0 for value in (max_file_bytes, max_storage_bytes, max_checkpoints)):
             raise ValueError("Checkpoint limits must be positive integers")
         if not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
             raise ValueError("Checkpoint retention age must be positive")
+        # The automatic runtime may tighten tool policy while a filesystem
+        # worker is queued or running. Admission is rechecked between phases;
+        # this callback does not confer filesystem authority or OS isolation.
+        self._capture_guard = _capture_guard or (lambda: None)
+        self._capture_guard()
         self._policy = redactor if redactor is not None else EvidenceRedactor()
         self._files = WorkspaceFiles(project_root, self._policy, max_file_bytes, exclusions)
+        self._capture_guard()
         self._store = CheckpointStore(self._files.root, max_storage_bytes)
         self._max_checkpoints = max_checkpoints
         self._max_age_seconds = max_age_seconds
@@ -101,6 +109,7 @@ class CheckpointService:
         return self._store.path / ("plans" if plan else "") / f"{identity}.json"
 
     def _load(self, identity: str, *, plan: bool = False) -> dict[str, Any]:
+        self._capture_guard()
         self._files.check_root()
         payload = self._store.read(self._path(identity, plan=plan))
         try:
@@ -123,14 +132,19 @@ class CheckpointService:
         return "windows-private-acl-content-only" if self._files.windows is not None else "posix-mode"
 
     def _save(self, payload: dict[str, Any], *, plan: bool = False) -> None:
+        self._capture_guard()
         validate(payload, payload["id"], plan=plan, max_file_bytes=self._files.max_file_bytes)
         self._store.write(self._path(payload["id"], plan=plan), payload)
 
     def _record(self, payload: dict[str, Any]) -> CheckpointRecord:
-        return CheckpointRecord(payload["id"], self._policy.text(payload["actor"]), payload["created"], payload["state"], payload["revision"])
+        return CheckpointRecord(payload["id"], self._policy.text(payload["actor"]), payload["created"], payload["state"], payload["revision"],
+                                CheckpointOperation.from_dict(payload.get("operation")))
 
-    def begin(self, paths: Sequence[str], *, actor: str) -> CheckpointRecord:
+    def begin(self, paths: Sequence[str], *, actor: str, operation: CheckpointOperation | None = None) -> CheckpointRecord:
         """Capture a bounded explicit edit scope before agent execution."""
+        self._capture_guard()
+        if operation is not None and not isinstance(operation, CheckpointOperation):
+            raise ValueError("Invalid checkpoint operation correlation")
         names = sorted({self._files.path(path) for path in paths})
         self._validate_platform_paths(names)
         if not names or len(names) > 256:
@@ -138,26 +152,36 @@ class CheckpointService:
         with self._store.lock:
             self._assert_idle()
             self._prune(reserve=1)
-            states = {name: self._files.state(name).to_dict() for name in names}
+            states = self._capture_states(names)
             payload: dict[str, Any] = {"version": 1, "id": uuid4().hex, "project": self._files.identity,
                        "repository": self._files.repository,
                        "actor": self._policy.text(actor), "created": time.time(), "state": "capturing", "revision": 0,
                        "before": states, "after": {}, "decisions": {}, "accepted_hunks": {}}
+            if operation is not None:
+                payload["operation"] = asdict(operation)
             self._save(payload)
             return self._record(payload)
 
     def complete(self, checkpoint_id: str) -> CheckpointRecord:
         """Capture only the original scope after execution, including absence."""
+        self._capture_guard()
         with self._store.lock:
             self._assert_idle()
             payload = self._load(checkpoint_id)
             if payload["state"] != "capturing":
                 raise ValueError("Checkpoint capture is already complete")
-            payload["after"] = {name: self._files.state(name).to_dict() for name in payload["before"]}
+            payload["after"] = self._capture_states(payload["before"])
             payload["state"] = "ready"
             payload["revision"] += 1
             self._save(payload)
             return self._record(payload)
+
+    def _capture_states(self, names: Sequence[str] | Mapping[str, Any]) -> dict[str, Any]:
+        states = {}
+        for name in names:
+            self._capture_guard()
+            states[name] = self._files.state(name).to_dict()
+        return states
 
     def list_checkpoints(self) -> tuple[CheckpointRecord, ...]:
         with self._store.lock:
@@ -178,6 +202,7 @@ class CheckpointService:
         plans = self._plans()
         protected = {plan["checkpoint"] for plan in plans if plan["state"] == "prepared"}
         for record in records[:]:
+            self._capture_guard()
             if record["state"] == "capturing" or record["id"] in protected:
                 continue
             if len(records) + reserve <= self._max_checkpoints and time.time() - record["created"] <= self._max_age_seconds:
@@ -236,7 +261,8 @@ class CheckpointService:
             accepted = payload["accepted_hunks"].get(name, [])
             hunks = tuple(replace(hunk, accepted=_hunk_id(hunk) in accepted) for hunk in _hunks(before, after))
             files.append(ReviewFile(name, before, after, hunks, payload["decisions"].get(name, "pending")))
-        return CheckpointReview(payload["id"], payload["revision"], tuple(files), self.metadata_policy)
+        return CheckpointReview(payload["id"], payload["revision"], tuple(files), self.metadata_policy,
+                                CheckpointOperation.from_dict(payload.get("operation")))
 
     def preview(self, checkpoint_id: str, *, decision: str, paths: Sequence[str] | None = None,
                 hunks: Mapping[str, Sequence[int]] | None = None) -> ReviewPlan:

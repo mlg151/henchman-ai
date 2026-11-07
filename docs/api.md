@@ -409,6 +409,7 @@ class Message:
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
+    continuation: dict[str, Any] | None = None  # Non-rendered, versioned provider envelope
 ```
 
 ### StreamChunk
@@ -419,7 +420,12 @@ class StreamChunk:
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
     finish_reason: FinishReason | None = None
+    continuation: dict[str, Any] | None = None
 ```
+
+Continuation is separate from displayed reasoning. Adapters and session restore
+validate its profile, integrity and request binding before dispatch; see
+[provider continuation](providers.md#provider-continuation).
 
 ### FinishReason
 

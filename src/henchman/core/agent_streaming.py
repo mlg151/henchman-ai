@@ -23,6 +23,11 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+from henchman.providers.continuation import (
+    ProviderContinuationError,
+    validate_message_continuation,
+    validate_runtime_continuations,
+)
 from henchman.providers.usage import UsageSource
 
 if TYPE_CHECKING:
@@ -91,6 +96,7 @@ class StreamState:
     content_yielded: bool = False
     finish_reason: FinishReason | None = None
     usage_source: UsageSource = "unknown"
+    continuation: dict[str, Any] | None = None
 
     def create_assistant_message(
         self: StreamState,
@@ -110,6 +116,7 @@ class StreamState:
             content=self.content,
             tool_calls=calls or None,
             reasoning_content=self.thinking or None,
+            continuation=deepcopy(self.continuation),
         )
 
     def create_finished_data(self: StreamState) -> str | dict[str, Any]:
@@ -178,6 +185,10 @@ def _accumulate_chunk(chunk: StreamChunk, state: StreamState) -> None:
     if chunk.usage:
         state.usage = chunk.usage
         state.usage_source = chunk.usage_source or "unknown"
+    if chunk.continuation is not None:
+        from henchman.providers.continuation import copy_continuation
+
+        state.continuation = copy_continuation(chunk.continuation)
 
 
 def _handle_finish(
@@ -211,6 +222,7 @@ def _handle_finish(
             seen_ids.add(call.id)
     state.finish_reason = chunk.finish_reason
     assistant_msg = state.create_assistant_message(chunk.tool_calls)
+    validate_message_continuation(assistant_msg)
     record_message(history, assistant_msg, current_turn_messages)
     events: list[AgentEvent] = []
     stop_reasons = (FinishReason.STOP, FinishReason.LENGTH, FinishReason.CONTENT_FILTER)
@@ -264,15 +276,18 @@ async def generate_stream_events(
                 state.content_yielded = True
                 yield _make_event(EventType.CONTENT, chunk.content, ctx.source_agent)
             if chunk.finish_reason and state.finish_reason is None:
+                validate_runtime_continuations([state.create_assistant_message(chunk.tool_calls)], ctx.provider, ctx.request_options)
                 for event in _handle_finish(
                     chunk, state, ctx.history, ctx.source_agent, ctx.current_turn_messages,
                 ):
                     yield event
         if state.finish_reason is None:
             raise ValueError("Provider stream ended without a finish reason")
-    except (asyncio.CancelledError, GeneratorExit, BudgetControlError):
+    except (asyncio.CancelledError, GeneratorExit, BudgetControlError, ProviderContinuationError) as exc:
         interrupted = True
-        if state.finish_reason is None and (state.content or state.thinking):
+        if isinstance(exc, ProviderContinuationError) and exc.continuation is not None:
+            state.continuation = deepcopy(exc.continuation)
+        if state.finish_reason is None and (state.content or state.thinking or state.continuation):
             # Preserve what the user saw without committing an unfinished tool
             # request or representing a partial response as successful.
             content = f"{state.content}\n\n" if state.content else ""
@@ -280,6 +295,7 @@ async def generate_stream_events(
                 role="assistant",
                 content=content + "[Response interrupted.]",
                 reasoning_content=state.thinking or None,
+                continuation=deepcopy(state.continuation),
             ), ctx.current_turn_messages)
         raise
     except Exception as exc:

@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 from contextlib import aclosing, asynccontextmanager
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
@@ -25,6 +26,13 @@ from henchman.providers.base import (
     StreamChunk,
     ToolCall,
     ToolDeclaration,
+)
+from henchman.providers.continuation import (
+    ContinuationAccumulator,
+    ContinuationEnvelope,
+    ProviderContinuationError,
+    request_continuation_binding,
+    validate_continuations,
 )
 from henchman.providers.request_budget import (
     OutputBudget,
@@ -191,6 +199,9 @@ def _format_plain_message(message: Message) -> dict[str, Any]:
 def _format_message_by_role(message: Message) -> dict[str, Any] | None:
     """Select the correct formatter based on message role and content."""
     role = message.role
+    if message.continuation is not None:
+        envelope = ContinuationEnvelope.from_dict(message.continuation)
+        return {"role": role, "content": envelope.payload()}
     if role == "tool" and message.tool_call_id:
         return _format_tool_result(message)
     if role == "assistant" and message.tool_calls:
@@ -214,6 +225,10 @@ def _handle_content_block_start_event(
         return _EventProcessingResult(
             EventProcessingResultParams(current_tool_id=block_id),
         )
+    if block.type == "text":
+        return _EventProcessingResult(EventProcessingResultParams(content=block.text or None))
+    if block.type == "thinking":
+        return _EventProcessingResult(EventProcessingResultParams(thinking=block.thinking or None))
     return _EventProcessingResult(EventProcessingResultParams())
 
 
@@ -342,7 +357,7 @@ class _AnthropicStreamProcessor:
         self: _AnthropicStreamProcessor,
         params: dict[str, Any],
         input_tokens: int,
-        *, client: Any | None = None,
+        *, client: Any | None = None, binding: dict[str, str] | None = None,
     ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API.
 
@@ -356,30 +371,86 @@ class _AnthropicStreamProcessor:
         total_output_tokens = 0
         usage_counts: dict[str, int] = {}
         client = client if client is not None else self._provider._client
-        async with _stream_context(client.messages.stream(**params)) as stream:
-            pending_tool_calls: dict[str, dict[str, Any]] = {}
-            current_tool_id: str | None = None
+        binding = binding if binding is not None else request_continuation_binding(self._provider, params)
+        opaque = False
+        finished: StreamChunk | None = None
+        stopped = False
+        latest_usage: dict[str, int] | None = None
+        accumulator = ContinuationAccumulator()
+        try:
+            async with _stream_context(client.messages.stream(**params)) as stream:
+                pending_tool_calls: dict[str, dict[str, Any]] = {}
+                current_tool_id: str | None = None
 
-            async for event in stream:
-                usage = _update_usage(event, usage_counts)
-                chunk = await self._process_event(
-                    event,
-                    pending_tool_calls,
-                    current_tool_id,
-                    total_output_tokens,
-                )
+                async for event in stream:
+                    if finished is not None and event.type not in {"message_delta", "message_stop"}:
+                        raise ProviderContinuationError("continuation_after_finish",
+                            continuation=ContinuationEnvelope.unavailable(binding).to_dict() if binding else None)
+                    if event.type == "message_start":
+                        initial = getattr(event.message, "content", None)
+                        if isinstance(initial, list) and initial:
+                            raise ProviderContinuationError("unsupported_initial_content",
+                                continuation=ContinuationEnvelope.unavailable(binding).to_dict() if binding else None)
+                    stopped = stopped or event.type == "message_stop"
+                    if event.type == "content_block_start":
+                        kind = event.content_block.type
+                        if kind not in {"text", "tool_use", "thinking", "redacted_thinking"}:
+                            raise ProviderContinuationError("unsupported_continuation_block")
+                        if not opaque and kind in {"thinking", "redacted_thinking"} and binding is not None:
+                            yield StreamChunk(continuation=ContinuationEnvelope.unavailable(binding).to_dict())
+                        opaque = opaque or kind in {"thinking", "redacted_thinking"}
+                        if opaque:
+                            accumulator.add(event.content_block.model_dump(exclude_none=True))
+                    elif opaque and event.type == "content_block_delta":
+                        accumulator.add(event.delta.model_dump(exclude_none=True))
+                    usage = _update_usage(event, usage_counts)
+                    if usage is not None:
+                        latest_usage = usage
+                    chunk = await self._process_event(
+                        event,
+                        pending_tool_calls,
+                        current_tool_id,
+                        total_output_tokens,
+                    )
 
-                chunk_tool_id = chunk.current_tool_id
-                if chunk_tool_id is not None:
-                    current_tool_id = chunk_tool_id
+                    chunk_tool_id = chunk.current_tool_id
+                    if chunk_tool_id is not None:
+                        current_tool_id = chunk_tool_id
 
-                chunk_tokens_delta = chunk.total_output_tokens_delta
-                if chunk_tokens_delta > 0:
-                    total_output_tokens += chunk_tokens_delta
+                    chunk_tokens_delta = chunk.total_output_tokens_delta
+                    if chunk_tokens_delta > 0:
+                        total_output_tokens += chunk_tokens_delta
 
-                stream_chunk = _build_stream_chunk(chunk, usage)
-                if stream_chunk is not None:
-                    yield stream_chunk
+                    stream_chunk = _build_stream_chunk(chunk, usage)
+                    if stream_chunk is not None:
+                        if stream_chunk.finish_reason is not None:
+                            if finished is not None and stream_chunk.finish_reason != finished.finish_reason:
+                                raise ProviderContinuationError("inconsistent_stream_finish")
+                            if finished is None:
+                                finished = stream_chunk
+                        else:
+                            yield stream_chunk
+                if opaque:
+                    final_message = await stream.get_final_message()
+                    if finished is None or binding is None or not stopped:
+                        raise ProviderContinuationError("incomplete_continuation")
+                    blocks = [block.model_dump(exclude_none=True) for block in final_message.content]
+                    finished.continuation = ContinuationEnvelope.from_payload(binding, blocks).to_dict()
+                    if finished.finish_reason == FinishReason.TOOL_CALLS:
+                        finished.tool_calls = [ToolCall(block["id"], block["name"], block["input"]) for block in blocks if block["type"] == "tool_use"]
+                if finished is not None:
+                    if latest_usage is not None:
+                        finished.usage = latest_usage
+                        finished.usage_source = "reported"
+                    yield finished
+        except BaseException as exc:
+            if opaque and binding is not None:
+                unavailable = ContinuationEnvelope.unavailable(binding).to_dict()
+                if isinstance(exc, ProviderContinuationError):
+                    exc.continuation = unavailable
+                elif isinstance(exc, Exception):
+                    raise ProviderContinuationError("incomplete_continuation", continuation=unavailable) from None
+            raise
 
         rate_limiter = self._provider._rate_limiter
         await rate_limiter.add_usage(input_tokens + total_output_tokens)
@@ -584,6 +655,9 @@ class AnthropicProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         validate_messages(messages)
+        kwargs = deepcopy(kwargs)
+        effective_model = (kwargs.get("extra_body") or {}).get("model", kwargs.get("model", self.default_model))
+        validate_continuations(messages, self, model=effective_model)
 
         system_prompt, formatted_messages = self._format_messages(messages)
         messages = self._validate_and_repair_message_sequence(
@@ -599,6 +673,8 @@ class AnthropicProvider(ModelProvider):
             kwargs,
         )
 
+        binding = request_continuation_binding(self, params)
+        validate_continuations(messages, self, model=effective_model, request_binding=binding)
         input_tokens = TokenCounter.count_messages(messages, model=self.default_model)
 
         async with aclosing(self._stream_with_retry(params, input_tokens)) as chunks:
@@ -653,9 +729,11 @@ class AnthropicProvider(ModelProvider):
         input_tokens: int,
     ) -> AsyncGenerator[StreamChunk]:
         """Stream with retry logic for rate limits."""
+        params = deepcopy(params)
         retries = 0
         operation = prepare_budget_operation(self, params)
-        client = self._client.with_options(max_retries=0) if operation is not None else None
+        binding = request_continuation_binding(self, params)
+        client = self._client.with_options(max_retries=0) if operation is not None else self._client
 
         while True:
             try:
@@ -663,10 +741,7 @@ class AnthropicProvider(ModelProvider):
                     await self._rate_limiter.wait_for_capacity(input_tokens)
                     if attempt is not None:
                         attempt.start()
-                    stream = (
-                        self._process_stream(params, input_tokens, client=client)
-                        if client is not None else self._process_stream(params, input_tokens)
-                    )
+                    stream = self._process_stream(params, input_tokens, client=client, binding=binding)
                     async with aclosing(stream) as chunks:
                         async for chunk in chunks:
                             if attempt is not None:
@@ -685,13 +760,10 @@ class AnthropicProvider(ModelProvider):
         self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
-        *, client: Any | None = None,
+        *, client: Any | None = None, binding: dict[str, str] | None = None,
     ) -> AsyncGenerator[StreamChunk]:
         """Process the stream from Anthropic API."""
-        stream = (
-            self._stream_processor.process_stream(params, input_tokens, client=client)
-            if client is not None else self._stream_processor.process_stream(params, input_tokens)
-        )
+        stream = self._stream_processor.process_stream(params, input_tokens, client=client, binding=binding)
         async with aclosing(stream) as chunks:
             async for chunk in chunks:
                 yield chunk

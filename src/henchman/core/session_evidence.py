@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any, cast
 
+from henchman.providers.continuation import ContinuationEnvelope, project_continuation
 from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 from henchman.utils.tool_results import TOOL_RESULT_SCHEMA
 
@@ -18,6 +20,8 @@ _MESSAGE = {
     "content": None, "reasoning_content": None, "reasoning_details": None,
     "tool_calls": [_TOOL_CALL],
     "tool_result": TOOL_RESULT_SCHEMA,
+    "continuation": dict.fromkeys(("provider", "model", "profile", "scope_sha256", "payload_json",
+                                   "payload_sha256", "request_sha256", "status", "reason", "version"), PRESERVE_IDENTITY),
 }
 _SUMMARY = {
     "turn_number": PRESERVE_IDENTITY, "kind": PRESERVE_IDENTITY,
@@ -74,9 +78,34 @@ _TEMPLATE = {
 
 def redact_session_payload(data: dict[str, Any], redactor: EvidenceRedactor) -> dict[str, Any]:
     """Keep IDs, timestamps, roles and correlation fields usable after redaction."""
-    return cast(dict[str, Any], redactor.redact(data, schema=_SESSION))
+    return cast(dict[str, Any], redactor.redact(_project_continuations(data, redactor), schema=_SESSION))
 
 
 def redact_template_payload(data: dict[str, Any], redactor: EvidenceRedactor) -> dict[str, Any]:
     """Apply the session policy inside a template's structural envelope."""
-    return cast(dict[str, Any], redactor.redact(data, schema=_TEMPLATE))
+    projected = deepcopy(data)
+    redactor.register_config(data)
+    if isinstance(projected.get("session_data"), dict):
+        projected["session_data"] = _project_continuations(projected["session_data"], redactor)
+    return cast(dict[str, Any], redactor.redact(projected, schema=_TEMPLATE))
+
+
+def _project_continuations(data: dict[str, Any], redactor: EvidenceRedactor) -> dict[str, Any]:
+    """Learn all evidence first, then invalidate any signed payload it changes."""
+    projected = deepcopy(data)
+    messages = list(projected.get("messages", []))
+    for summary in projected.get("turn_summaries", []):
+        messages.extend(summary.get("retained_messages", []))
+    for conversation in (projected.get("operations") or {}).get("conversations", []):
+        messages.extend(conversation.get("messages", []))
+    redactor.register_config(data)
+    for message in messages:
+        value = message.get("continuation")
+        if value is not None:
+            envelope = ContinuationEnvelope.from_dict(value)
+            if envelope.status == "complete":
+                redactor.register_config(envelope.payload())
+    for message in messages:
+        if message.get("continuation") is not None:
+            message["continuation"] = project_continuation(message["continuation"], redactor)
+    return projected

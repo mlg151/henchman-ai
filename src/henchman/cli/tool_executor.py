@@ -23,6 +23,7 @@ from henchman.core.events import EventType
 from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_budget import BudgetControlError
 from henchman.providers.base import ToolCall
+from henchman.providers.continuation import ProviderContinuationError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -318,7 +319,7 @@ class ToolExecutor:
                 )
                 # Log any exceptions from individual parallel tool calls
                 for tc, result in zip(to_parallel, results, strict=True):
-                    if isinstance(result, (BudgetControlError, OperationRecoveryError)):
+                    if isinstance(result, (BudgetControlError, OperationRecoveryError, ProviderContinuationError)):
                         raise result
                     if isinstance(result, BaseException):
                         diagnostic = runtime_exception_text(self.output_handler, result, include_traceback=True)
@@ -330,7 +331,7 @@ class ToolExecutor:
                     responded_ids,
                     announced_ids,
                 )
-        except (BudgetControlError, OperationRecoveryError):
+        except (BudgetControlError, OperationRecoveryError, ProviderContinuationError):
             # Recovery must settle these outcomes; a synthetic cancellation
             # response would falsely describe an uncertain external effect.
             preserve_pending = True

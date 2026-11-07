@@ -277,9 +277,10 @@ class TestOpenAICompatibleProvider:
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
 
-            # Should only get one chunk (empty choices skipped)
-            assert len(chunks) == 1
-            assert chunks[0].content == "Hello"
+            # Empty choices are skipped; terminal fields wait for stream drain.
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Hello", None), (None, FinishReason.STOP),
+            ]
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_with_tool_calls(self) -> None:
@@ -568,7 +569,8 @@ class TestOpenAICompatibleProvider:
         formatted = provider._format_message(msg)
         assert formatted["role"] == "assistant"
         assert formatted["content"] == "Final answer"
-        assert formatted["reasoning_content"] == "Let me think..."
+        assert "reasoning_content" not in formatted
+        assert msg.reasoning_content == "Let me think..."
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_empty_messages_validation(self) -> None:
@@ -637,7 +639,9 @@ class TestOpenAICompatibleProvider:
             chunks = []
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
-            assert len(chunks) == 1
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Response", None), (None, FinishReason.STOP),
+            ]
 
             # Assistant messages can have empty content (tool calls only)
             messages = [
@@ -650,7 +654,9 @@ class TestOpenAICompatibleProvider:
             chunks = []
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
-            assert len(chunks) == 1
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Response", None), (None, FinishReason.STOP),
+            ]
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_message_sequence_repair(self) -> None:

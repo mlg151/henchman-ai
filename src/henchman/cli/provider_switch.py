@@ -86,6 +86,10 @@ def switch_runtime_provider(
                 context_settings.append(context)
         context = context_settings[0] if context_settings else ContextSettings()
         budget = effective_context_budget(context_length, context.compaction_threshold)
+    if active_agent is not None:
+        from henchman.providers.continuation import validate_runtime_continuations
+
+        validate_runtime_continuations(active_agent.messages, provider)
     if pool is not None:
         # Pool construction can fail; complete it before changing other references.
         pool.set_default_provider(provider)

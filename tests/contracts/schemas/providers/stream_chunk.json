@@ -12,6 +12,7 @@
       "type": ["object", "null"],
       "additionalProperties": {"type": "integer", "minimum": 0}
     },
+    "continuation": {"type": ["object", "null"], "required": ["version", "provider", "model", "profile", "scope_sha256", "request_sha256", "payload_json", "payload_sha256", "status", "reason"], "properties": {"version": {"type": "integer", "enum": [1]}, "provider": {"type": "string", "minLength": 1}, "model": {"type": "string", "minLength": 1}, "profile": {"type": "string", "enum": ["anthropic.messages.v1", "openrouter.reasoning_details.v1", "deepseek.reasoning_content.v1"]}, "scope_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "request_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "payload_json": {"type": ["string", "null"]}, "payload_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "status": {"type": "string", "enum": ["complete", "unavailable"]}, "reason": {"type": ["string", "null"], "enum": [null, "redacted_continuation", "incomplete_continuation", "compacted_continuation"]}}, "additionalProperties": false},
     "usage_source": {"type": "string", "enum": ["reported", "estimated", "unknown"]}
   },
   "required": ["content", "finish_reason", "usage_source"]

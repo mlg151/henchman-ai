@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from henchman.tools.access_policy import current_access_policies, open_restricted_file
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.security import (
@@ -73,6 +75,11 @@ class WriteFileTool(Tool):
     def kind(self: WriteFileTool) -> ToolKind:
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
+
+    def checkpoint_paths(self, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare only this invocation's explicit mutation targets."""
+        path = params.get("path")
+        return (str(Path(path).expanduser()),) if isinstance(path, str) and path else None
 
     async def execute(  # type: ignore[override]
         self: WriteFileTool,

@@ -184,13 +184,18 @@ def test_estimate_counts_input_wire_fields_without_provider_secrets(
         assert payload["tools"][0]["input_schema"] == tools[0].parameters
         # This adapter does not send reasoning_content on its wire format.
         assert "reasoning-marker" not in captured[0]
-    else:
+    elif kind == "custom":
         assert "reasoning-marker" in captured[0]
+    else:
+        assert "reasoning-marker" not in captured[0]
     assert (messages, tools) == before
 
 
 def test_large_tools_and_reasoning_increase_estimate() -> None:
-    provider = compatible()
+    from henchman.providers.continuation import ContinuationEnvelope
+    from henchman.providers.deepseek import DeepSeekProvider
+
+    provider = DeepSeekProvider(api_key="offline-test")
     plain = [Message("user", "hello")]
     base = provider.estimate_input_tokens(plain, None)
     tools = [
@@ -200,7 +205,8 @@ def test_large_tools_and_reasoning_increase_estimate() -> None:
     assert provider.estimate_input_tokens(plain, tools) > base + 100
     assert (
         provider.estimate_input_tokens(
-            [*plain, Message("assistant", "answer", reasoning_content="reason " * 300)], None
+            [*plain, Message("assistant", "answer", reasoning_content="reason " * 300,
+                             continuation=ContinuationEnvelope.create(provider, "reason " * 300).to_dict())], None
         )
         > base + 100
     )

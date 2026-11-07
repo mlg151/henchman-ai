@@ -18,6 +18,7 @@ from henchman.core.run_accounting import RunInvocation, public_run_budget
 from henchman.core.run_budget import BudgetControlError
 from henchman.core.runtime_accounting import budgeted_events
 from henchman.core.runtime_operations import operated_events
+from henchman.providers.continuation import ProviderContinuationError
 from henchman.providers.runtime_budget import current_run_budget
 
 # Re-export symbols that external code imports from this module
@@ -266,7 +267,7 @@ class Orchestrator:
                     except BaseException as exc:
                         cleanup.append(exc)
                     if cleanup:
-                        controls = (OperationRecoveryError, BudgetControlError)
+                        controls = (OperationRecoveryError, BudgetControlError, ProviderContinuationError)
                         # Preserve original controls/cancellation while still
                         # settling both authorities. A cleanup control outranks
                         # an ordinary error so callers cannot retry through it.

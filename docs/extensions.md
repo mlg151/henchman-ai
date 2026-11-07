@@ -182,6 +182,13 @@ formatting use the actual mode. The default returns `self.kind`. For example,
 `lint_check` is listed as READ but classifies `fix=True` as WRITE. An override of
 `needs_confirmation` remains responsible for its own confirmation behavior.
 
+A mutating tool may implement `checkpoint_paths(params) -> tuple[str, ...] | None`
+with a pure declaration of exact file targets, including both sides of a rename.
+The default `None` reports automatic capture as unavailable. Do not discover
+ownership by scanning directories or Git status. A declaration grants no access;
+the registry retains current authorization and captures only eligible project
+paths during a correlated operation run. See [automatic checkpoints](checkpoints.md#automatic-tool-capture).
+
 ### Adding Custom Commands
 
 ```python

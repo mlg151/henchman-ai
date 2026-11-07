@@ -133,6 +133,15 @@ def _count_single_message_tokens(msg: Message, encode: object) -> int:
     if content:
         total += len(encode(content))  # type: ignore[operator]
 
+    if msg.continuation is not None:
+        from henchman.providers.continuation import ContinuationEnvelope
+
+        envelope = ContinuationEnvelope.from_dict(msg.continuation)
+        # Conservative portable estimate: count opaque wire bytes in addition to
+        # visible fields. Native text/tool subsets may overlap this estimate.
+        if envelope.payload_json is not None:
+            total += len(encode(envelope.payload_json))  # type: ignore[operator]
+
     if msg.tool_calls:
         for tc in msg.tool_calls:
             total += len(encode(tc.name))  # type: ignore[operator]

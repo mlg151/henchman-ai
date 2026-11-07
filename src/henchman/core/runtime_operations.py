@@ -45,11 +45,12 @@ class OperationInvocation:
     def cancel_after_error(self, primary: BaseException) -> None:
         from henchman.core.operation_recovery import OperationRecoveryError
         from henchman.core.run_budget import BudgetControlError
+        from henchman.providers.continuation import ProviderContinuationError
 
         try:
             self.cancel()
         except OperationRecoveryError as cleanup:
-            if isinstance(primary, (OperationRecoveryError, BudgetControlError)) or not isinstance(primary, Exception):
+            if isinstance(primary, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(primary, Exception):
                 primary.add_note(f"Operation cleanup also failed: {cleanup.reason}")
                 return
             raise

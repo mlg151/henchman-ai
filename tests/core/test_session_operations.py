@@ -278,7 +278,9 @@ async def test_typed_result_replay_preserves_explicit_null_and_detached_projecte
     with use_operation_call(invocation):
         replay = await registry.execute(call.name, call.arguments)
     assert replay.structured_content_present and replay.structured_content is None
-    assert replay.metadata == {"trace": "[REDACTED]", "nested": {"stable": "original"}}
+    assert replay.metadata["trace"] == "[REDACTED]"
+    assert replay.metadata["nested"] == {"stable": "original"}
+    assert replay.metadata["henchman.checkpoint"]["status"] == "unavailable"
     assert "typed-credential" not in str(runtime.report())
     restored_session = session_from_dict(session.to_dict())
     _, _, _, restored, _, _ = setup(tmp_path, session=restored_session)

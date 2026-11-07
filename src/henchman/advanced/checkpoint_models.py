@@ -56,12 +56,36 @@ class FileState:
 
 
 @dataclass(frozen=True)
+class CheckpointOperation:
+    """Advisory dispatch correlation, never restore or retry authority."""
+
+    operation_id: str
+    run_id: str
+    agent_id: str
+    tool_name: str
+
+    def __post_init__(self) -> None:
+        for value in (self.operation_id, self.run_id, self.agent_id, self.tool_name):
+            if not isinstance(value, str) or not value or len(value) > 256 or any(ord(char) < 32 for char in value):
+                raise ValueError("Invalid checkpoint operation correlation")
+
+    @classmethod
+    def from_dict(cls, value: Any) -> CheckpointOperation | None:
+        if value is None:
+            return None
+        if not isinstance(value, dict) or set(value) != {"operation_id", "run_id", "agent_id", "tool_name"}:
+            raise ValueError("Invalid checkpoint operation correlation fields")
+        return cls(**value)
+
+
+@dataclass(frozen=True)
 class CheckpointRecord:
     checkpoint_id: str
     actor: str
     created_at: float
     state: str
     revision: int
+    operation: CheckpointOperation | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +132,7 @@ class CheckpointReview:
     revision: int
     files: tuple[ReviewFile, ...]
     metadata_policy: str = "posix-mode"
+    operation: CheckpointOperation | None = None
 
 
 @dataclass(frozen=True)

@@ -420,6 +420,7 @@ class TestAnthropicStreaming:
         mock_block_start = MagicMock()
         mock_block_start.type = "content_block_start"
         mock_block_start.content_block.type = "text"
+        mock_block_start.content_block.text = ""
 
         mock_text = MagicMock()
         mock_text.type = "content_block_delta"

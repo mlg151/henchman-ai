@@ -149,6 +149,15 @@ class Tool(ABC):
             )
         return None
 
+    def checkpoint_paths(self: Tool, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare every deterministic file mutation target; None means unknown.
+
+        Compute from parameters without filesystem discovery. Return an empty
+        tuple for an invocation with no file mutations. This declaration does
+        not grant filesystem access or promise restorability.
+        """
+        return None
+
     def execution_kind(self: Tool, params: dict[str, object]) -> ToolKind:
         """Classify this invocation for authorization and execution policies.
 

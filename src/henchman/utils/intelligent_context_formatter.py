@@ -109,6 +109,7 @@ class MessageSafetyEnforcer:
         if not content:
             return message
 
+        _require_mutable_message(message)
         final_content = self.truncator.truncate_with_semantic_preservation(content)
 
         if message.tool_result is not None:
@@ -154,6 +155,13 @@ class MessageSafetyEnforcer:
         return message
 
 
+def _require_mutable_message(message: Message) -> None:
+    if message.continuation is not None:
+        from henchman.providers.base import ContextTooLargeError
+
+        raise ContextTooLargeError("Required provider continuation cannot be truncated; start a new conversation.")
+
+
 def _create_truncated_message(message: Message, limit: int, safety_ratio: float) -> Message:
     """Create a truncated version of a message.
 
@@ -166,6 +174,7 @@ def _create_truncated_message(message: Message, limit: int, safety_ratio: float)
         New Message with truncated content.
 
     """
+    _require_mutable_message(message)
     content = (
         tool_message_content(message.content, message.tool_result)
         if message.role == "tool"

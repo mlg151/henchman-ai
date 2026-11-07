@@ -28,6 +28,11 @@ from henchman.core.runtime_accounting import (
 from henchman.core.tool_selection import prepare_agent_request
 from henchman.core.turn import TurnState
 from henchman.providers.base import Message, ModelProvider
+from henchman.providers.continuation import (
+    ProviderContinuationError,
+    validate_continuations,
+    validate_runtime_continuations,
+)
 from henchman.tools.registry import ToolRegistry
 from henchman.utils.tokens import TokenCounter, get_model_limit
 from henchman.utils.tool_results import tool_result_payload
@@ -448,6 +453,8 @@ class Agent:
     def set_provider(self, provider: ModelProvider, *, model: str | None = None) -> None:
         """Replace the provider and refresh model limits while retaining conversation state."""
         effective_model = model if model is not None else getattr(provider, "default_model", None)
+        validate_continuations(self.messages, provider, model=model)
+        validate_runtime_continuations(self.messages, provider)
         max_tokens = _resolve_max_tokens(self._config.max_tokens, effective_model)
         self.provider = provider
         self._config.model = effective_model
@@ -709,6 +716,7 @@ class Agent:
         require_accounted_provider(self.provider)
         if self.instruction_context is not None:
             self.instruction_context.prepare()
+        validate_runtime_continuations(self.messages, self.provider)
         source = self.identity.id if self.identity else None
         if self._config.context_window is not None:
             request = prepare_agent_request(
@@ -770,7 +778,7 @@ class Agent:
                     )
                     continue
                 break
-            except BudgetControlError:
+            except (BudgetControlError, ProviderContinuationError):
                 raise
             except Exception as exc:  # noqa: BLE001
                 yield self._emit(EventType.ERROR, f"Streaming failed: {exc}")

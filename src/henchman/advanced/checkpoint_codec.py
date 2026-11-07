@@ -7,7 +7,7 @@ import re
 from pathlib import PurePosixPath
 from typing import Any
 
-from henchman.advanced.checkpoint_models import FileState
+from henchman.advanced.checkpoint_models import CheckpointOperation, FileState
 
 
 def identifier(value: Any) -> bool:
@@ -30,7 +30,7 @@ def validate(payload: dict[str, Any], identity: str, *, plan: bool, max_file_byt
     common = {"version", "id", "project", "repository", "revision"}
     required = common | ({"checkpoint", "decision", "state", "changes", "applied", "changed", "hunks", "created"} if plan
                          else {"actor", "created", "state", "before", "after", "decisions", "accepted_hunks"})
-    allowed = required if plan else required | {"last_plan"}
+    allowed = required if plan else required | {"last_plan", "operation"}
     if not required <= payload.keys() or not payload.keys() <= allowed:
         raise ValueError("Invalid checkpoint record fields")
     if type(payload["version"]) is not int or payload["version"] != 1 or payload["id"] != identity or not identifier(identity):
@@ -54,6 +54,7 @@ def validate(payload: dict[str, Any], identity: str, *, plan: bool, max_file_byt
         return result
 
     if not plan:
+        CheckpointOperation.from_dict(payload.get("operation"))
         if payload["state"] not in {"capturing", "ready"} or not isinstance(payload["actor"], str) or len(payload["actor"]) > 4096:
             raise ValueError("Invalid checkpoint state or actor")
         before, after = payload["before"], payload["after"]

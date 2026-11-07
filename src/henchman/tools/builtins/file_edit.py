@@ -242,6 +242,13 @@ class EditFileTool(Tool):
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
+    def checkpoint_paths(self, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare only this invocation's explicit mutation targets."""
+        if params.get("dry_run", False):
+            return ()
+        path = params.get("path")
+        return (str(Path(path).expanduser()),) if isinstance(path, str) and path else None
+
     async def execute(
         self: EditFileTool,
         **kwargs: object,

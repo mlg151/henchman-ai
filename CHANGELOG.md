@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Operation-scoped automatic checkpoints** — Deterministic write/edit/patch/test
+  targets are captured before dispatch and after formatting, with correlated
+  advisory status and partial-failure evidence. Unknown or restricted scopes are
+  explicit; capture never expands tool authority or permits automatic replay.
+
+- **Provider continuation envelopes** — Versioned native Anthropic blocks,
+  OpenRouter reasoning details and DeepSeek reasoning text survive session
+  retention without being rendered as opaque chat content. Bound request identity,
+  explicit redaction/unavailability and stream-completion checks prevent unsafe
+  continuation or incompatible switching. Live-model qualification remains open.
+
 - **Background notification recovery correlation** — Resumed primary turns keep
   their original request/result positions and complete transcript across child
   questions, parent answers and durable reload, without repeating completed tools.

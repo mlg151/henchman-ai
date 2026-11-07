@@ -350,6 +350,11 @@ class TestGenTool(Tool):
         """Tool kind - WRITE because it generates files."""
         return ToolKind.WRITE
 
+    def checkpoint_paths(self, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare only this invocation's explicit mutation targets."""
+        path = params.get("output_path")
+        return (path,) if isinstance(path, str) and path else ()
+
     async def execute(  # type: ignore[override]
         self: TestGenTool,
         path: str = "",

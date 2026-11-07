@@ -28,6 +28,8 @@ _VALID_STRATEGIES = ("union", "intersection", "smart")
 def _message_hash(msg: SessionMessage) -> str:
     """Compute a content hash for deduplication."""
     raw = f"{msg.role}:{msg.content}:{msg.tool_calls!s}"
+    if msg.continuation is not None:
+        raw += ":" + json.dumps(msg.continuation, sort_keys=True, ensure_ascii=True, allow_nan=False)
     if msg.tool_result is not None:
         raw += ":" + json.dumps(msg.tool_result, sort_keys=True, ensure_ascii=True, allow_nan=False)
     return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()

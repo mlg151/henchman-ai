@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
 from henchman.providers.base import Message, ToolCall
+from henchman.providers.continuation import copy_continuation
 from henchman.utils.tool_results import tool_result_payload
 
 if TYPE_CHECKING:
@@ -81,6 +82,7 @@ def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
                 reasoning_details=session_msg.reasoning_details,
+                continuation=copy_continuation(session_msg.continuation),
                 tool_result=deepcopy(session_msg.tool_result),
             ),
         )

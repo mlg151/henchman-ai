@@ -15,6 +15,7 @@ from uuid import uuid4
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_budget import BudgetControlError
+from henchman.providers.continuation import ProviderContinuationError
 
 SubagentStatus = Literal["running", "idle", "waiting_for_input", "errored", "done"]
 _ACTOR: ContextVar[str | None] = ContextVar("henchman_subagent_actor", default=None)
@@ -123,7 +124,7 @@ class BackgroundSubagentManager:
         self._notifications: dict[str, asyncio.Queue[SubagentNotification]] = {}
         self._cancelling: set[str] = set()
         self._closed = False
-        self._accounting_error: BudgetControlError | OperationRecoveryError | None = None
+        self._accounting_error: BudgetControlError | OperationRecoveryError | ProviderContinuationError | None = None
         self._accounting_observers: dict[asyncio.Task[Any], int] = {}
         self._accounting_interrupts: set[asyncio.Task[Any]] = set()
 
@@ -163,7 +164,7 @@ class BackgroundSubagentManager:
                         self._accounting_interrupts.remove(task)
                         task.uncancel()
 
-    def _fail_accounting(self, error: BudgetControlError | OperationRecoveryError) -> None:
+    def _fail_accounting(self, error: BudgetControlError | OperationRecoveryError | ProviderContinuationError) -> None:
         """Latch the first failure and stop outstanding work without replacing it."""
         if self._accounting_error is None:
             self._accounting_error = error
@@ -466,7 +467,7 @@ class BackgroundSubagentManager:
             except asyncio.CancelledError:
                 conversation.record = replace(conversation.record, status="done", cancelled=True)
                 raise
-            except (BudgetControlError, OperationRecoveryError) as exc:
+            except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
                 self._discard_pending(conversation)
                 conversation.record = replace(
                     conversation.record, status="errored",

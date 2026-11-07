@@ -64,7 +64,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "CLI checkpoint and interactive /checkpoint share list/show/preview/apply/recover/discard/prune. "
             "Captured content is revision-bound; restore conflicts on intervening edits and invalidates plan checks. "
             "POSIX preserves supported modes; Windows NTFS uses an explicit private-ACL content-only policy "
-            "pending native qualification. Runtime capture and dedicated TUI navigation remain pending. "
+            "pending final native qualification. Runtime capture covers declared write/edit/patch/test targets; "
+            "unknown scopes are explicitly unavailable. Dedicated TUI navigation remains pending. "
             "Legacy hash snapshots are non-restorable."
         ),
         aliases=("/checkpoint", "checkpoint", "file review", "hunk review", "restore"),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass, replace
@@ -15,6 +16,7 @@ from henchman.tools.access_policy import (
     use_access_policies,
 )
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.checkpoint_capture import MutationCheckpoint, use_checkpoint
 from henchman.tools.contracts import SchemaContract, SchemaContractError, validate_tool_output
 from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.policy import (
@@ -626,6 +628,7 @@ class ToolRegistry:
             current_operation_call,
             tool_result_from_operation,
         )
+        from henchman.providers.continuation import ProviderContinuationError
         from henchman.tools.contracts import SchemaContractError, validate_tool_input
 
         operation = current_operation_call()
@@ -642,6 +645,8 @@ class ToolRegistry:
             return authorization
         tool = authorization.tool
         permit: DispatchPermit | None = None
+        prepared = False
+        capture: MutationCheckpoint | None = None
         if operation is not None:
             previous = next((record for record in operation.run.journal.report().records
                              if record.operation_id == operation.binding.operation_id), None)
@@ -653,7 +658,7 @@ class ToolRegistry:
                 return tool_result_from_operation(previous.result)
 
         async def execute_once() -> ToolResult:
-            nonlocal permit
+            nonlocal permit, prepared
             try:
                 validate_tool_input(tool.parameters, params)
             except SchemaContractError as exc:
@@ -674,9 +679,24 @@ class ToolRegistry:
                 record = operation.prepare(name, params, "read" if tool.execution_kind(params) == ToolKind.READ else "effectful")
                 if record.state == "completed" and record.result is not None:
                     return tool_result_from_operation(record.result)
+                prepared = True
+                assert capture is not None
+                await capture.begin()
+                # Capture awaits bounded filesystem work. Its scope conveys no
+                # authority: policy, tool identity, targets and guards must all
+                # still permit this invocation immediately before its effect.
+                stale = self._revalidate_authorization(authorization, params)
+                if stale is None and self._execution_guard is not None:
+                    stale = self._execution_guard(tool, params)
+                if stale is None:
+                    stale = self._revalidate_authorization(authorization, params)
+                if stale is not None:
+                    operation.cancel()
+                    return stale
                 permit = operation.start()
                 if permit is None:
                     raise OperationRecoveryError("operation_already_dispatched")
+                capture.dispatched = True
             with use_access_policies(self._effective_access_policies):
                 return await tool.execute(**params)
 
@@ -694,18 +714,26 @@ class ToolRegistry:
 
         # Formatting completes before verification can consume the tool result.
         try:
-            if self._effective_access_policies or current_access_policies():
-                # Black and workspace discovery are unmediated subprocess/I/O
-                # paths. Restricted operations use only their qualified body.
-                result = await execute_authorized()
-            else:
-                result = await self._effective_formatter.run(tool, params, execute_authorized)
+            capture = MutationCheckpoint(operation, tool, params,
+                                         lambda: bool(self._effective_access_policies or current_access_policies()))
+            with use_checkpoint(capture):
+                try:
+                    if self._effective_access_policies or current_access_policies():
+                        # Black and workspace discovery are unmediated subprocess/I/O
+                        # paths. Restricted operations use only their qualified body.
+                        result = await execute_authorized()
+                    else:
+                        result = await self._effective_formatter.run(tool, params, execute_authorized)
+                finally:
+                    # The shared formatter finalizes under its mutation lock.
+                    # Bypassed/custom formatters still join capture cleanup here.
+                    await capture.finish(sys.exception())
         except BaseException as exc:
-            if operation is not None and permit is not None:
+            if operation is not None and prepared:
                 operation.cancel_after_error(exc)
-                if isinstance(exc, Exception) and not isinstance(exc, (OperationRecoveryError, BudgetControlError)):
+                if permit is not None and isinstance(exc, Exception) and not isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)):
                     raise OperationRecoveryError("outcome_unknown") from exc
-            if isinstance(exc, (OperationRecoveryError, BudgetControlError)) or not isinstance(exc, Exception):
+            if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(exc, Exception):
                 raise
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(
@@ -721,6 +749,9 @@ class ToolRegistry:
             # never a retryable exception or unvalidated successful payload.
             result = ToolResult(content=str(exc), success=False, error=str(exc))
 
+        if capture is not None:
+            result = capture.project(result)
+
         if operation is not None and permit is not None:
             try:
                 projected = project_operation_result(result.content, result.success, result.error,
@@ -730,7 +761,7 @@ class ToolRegistry:
                 operation.complete(permit, projected)
             except BaseException as exc:
                 operation.cancel_after_error(exc)
-                if isinstance(exc, (OperationRecoveryError, BudgetControlError)) or not isinstance(exc, Exception):
+                if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)) or not isinstance(exc, Exception):
                     raise
                 raise OperationRecoveryError("operation_result_unavailable") from exc
             return tool_result_from_operation(projected, display=result.display)
@@ -768,6 +799,7 @@ class ToolRegistry:
         """
         from henchman.core.operation_recovery import OperationRecoveryError
         from henchman.core.run_budget import BudgetControlError
+        from henchman.providers.continuation import ProviderContinuationError
 
         if not calls:
             return BatchResult(results={}, successful=0, failed=0)
@@ -782,7 +814,7 @@ class ToolRegistry:
         failed = 0
 
         for i, result in enumerate(results_list):
-            if isinstance(result, (OperationRecoveryError, BudgetControlError)):
+            if isinstance(result, (OperationRecoveryError, BudgetControlError, ProviderContinuationError)):
                 raise result
             tool_name = calls[i][0]
             # Key is "{index}:{tool_name}" — the index prefix guarantees

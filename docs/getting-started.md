@@ -178,9 +178,10 @@ henchman chat --prompt "Review the Python code in @file.py"
 | `/chat resume <tag>` | Resume a session |
 
 `/chat resume` also accepts a full session ID. It restores assistant/tool history
-and retained provider text reasoning for continuation without printing that
-reasoning in the chat display. See [provider streaming limits](providers.md#streaming-reliability)
-for the distinction between text and structured reasoning support.
+and supported provider continuation envelopes without displaying opaque payloads.
+Incompatible or unavailable continuation stops dispatch explicitly. See
+[provider continuation](providers.md#provider-continuation) for supported profiles
+and the distinction from visible reasoning.
 
 Shell and Python tool calls run in the background by default. You can keep
 submitting messages while the agent works; they run in order at turn boundaries.

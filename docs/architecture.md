@@ -395,9 +395,11 @@ can leave a private temporary file, which is never treated as a saved session.
 Temporary filenames identify their owning session; its next successful load, save
 or deletion removes abandoned save files under the same lock, including files
 left before the first commit. Other sessions' pending files are untouched.
-This storage recovery does not classify or replay interrupted external operations;
-the operational recovery report, goal/queue persistence and provider continuation
-qualification remain tracked in issue #23.
+Storage recovery is separate from the [operation journal](operation-recovery.md),
+which classifies interrupted effects and requires explicit resolution of unknown
+outcomes. [Provider continuation envelopes](providers.md#provider-continuation)
+retain qualified opaque state separately from visible reasoning. Goal/queue
+persistence and final continuation qualification remain tracked in issue #23.
 
 `SessionContextService.build_snapshot()` is the single effective retention-policy
 report for a session: message/turn counts, `plan_mode`, stored-memory count, the

@@ -24,7 +24,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   authority to saved requests/results and exposes `/recovery` user decisions.
   Primary turns resumed by background notifications now retain ordered correlation
   across child questions, parent replies and durable reload.
-  Process mode remains the default; opaque provider continuation and background
+  Process mode remains the default. Versioned opaque continuation profiles are
+  implemented; native/live acceptance, goal/queue persistence and background
   task restart authority remain open under #23.
   Saved running task records are now reported as outcome-unknown without invented
   exit evidence; inspecting history does not establish child-process ownership.
@@ -34,7 +35,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   CLI and interactive `/checkpoint` share review/preview/apply/recovery/retention.
   Restore invalidates plan checks and supersedes in-flight observations.
   The Windows NTFS backend exposes a private-ACL content-only policy and awaits
-  native qualification. Runtime ownership and dedicated review navigation remain
+  native qualification. Runtime capture covers declared write/edit/patch/test
+  targets; unknown scopes are unavailable. Dedicated review navigation remains
   open under #22; legacy metadata snapshots are explicitly non-restorable.
 
 - Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.

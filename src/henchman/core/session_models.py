@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from henchman.providers.continuation import copy_continuation
 from henchman.utils.serialization import AsDictMixin
 from henchman.utils.tool_results import copy_tool_result_payload
 
@@ -39,6 +40,7 @@ class SessionMessage(AsDictMixin):
     reasoning_content: str | None = None
     reasoning_details: str | None = None
     tool_result: dict[str, Any] | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
 
     def to_dict(self: SessionMessage) -> dict[str, Any]:
         """Convert to dictionary, omitting ``None`` values.
@@ -61,6 +63,8 @@ class SessionMessage(AsDictMixin):
             data["reasoning_content"] = self.reasoning_content
         if self.reasoning_details is not None:
             data["reasoning_details"] = self.reasoning_details
+        if self.continuation is not None:
+            data["continuation"] = copy_continuation(self.continuation)
         if self.tool_result is not None:
             data["tool_result"] = copy_tool_result_payload(self.tool_result)
         return data
@@ -85,6 +89,7 @@ def message_from_dict(data: dict[str, Any]) -> SessionMessage:
         reasoning_content=data.get("reasoning_content"),
         reasoning_details=data.get("reasoning_details"),
         tool_result=copy_tool_result_payload(data.get("tool_result")),
+        continuation=copy_continuation(data.get("continuation")),
     )
 
 

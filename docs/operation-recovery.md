@@ -81,7 +81,8 @@ the journal have their own bounds. Missing structured output remains distinct fr
 explicit null, and error results retain failure status.
 
 This is the tool-operation and public-orchestration recovery increment for #23.
-Opaque provider continuation/signature compatibility, full background-process
+Qualified [provider continuation profiles](providers.md#provider-continuation) now
+retain opaque state and reject incompatible replay. Full background-process
 restart recovery, general orchestration retry and final native qualification
 remain separate gates. Stored PIDs or task records do not establish that this
 process owns a live child, and the journal does not reverse external side effects.

@@ -332,6 +332,10 @@ class AgentPool:
                     self._provider_with_model(provider, config.model) if config.model else provider
                 )
                 replacements.append((agent, replacement))
+        from henchman.providers.continuation import validate_runtime_continuations
+
+        for agent, replacement in replacements:
+            validate_runtime_continuations(agent.messages, replacement)
         self.default_provider = provider
         for agent, replacement in replacements:
             agent.set_provider(replacement)

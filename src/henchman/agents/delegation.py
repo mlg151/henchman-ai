@@ -18,6 +18,7 @@ from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_budget import BudgetControlError
+from henchman.providers.continuation import ProviderContinuationError
 
 from .orchestrator_anchoring import (
     _enrich_completion_from_report,
@@ -776,7 +777,7 @@ async def _execute_loop(
     try:
         async for event in agent_loop_result:
             yield event
-    except (BudgetControlError, OperationRecoveryError) as exc:
+    except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
         primary_error = exc
         raise
     except Exception as exc:
@@ -982,7 +983,7 @@ class DelegationRunner:
         try:
             async for event in stream:
                 yield event
-        except (BudgetControlError, OperationRecoveryError) as exc:
+        except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
             primary_error = exc
             raise
         except Exception as exc:  # noqa: BLE001

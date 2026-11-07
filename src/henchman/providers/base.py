@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -78,6 +78,7 @@ class Message:
     reasoning_content: str | None = None
     reasoning_details: str | None = None
     tool_result: dict[str, Any] | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
 
 
 @dataclass
@@ -92,6 +93,7 @@ class StreamChunk:
         None  # Token usage information (prompt_tokens, completion_tokens, total_tokens)
     )
     usage_source: UsageSource | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Distinguish missing usage from reported or explicitly estimated counts."""

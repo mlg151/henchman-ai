@@ -51,6 +51,9 @@ def prepare_request(
     Neither message bodies nor history are edited.
     Provider token estimates cannot guarantee a server's tokenizer/template count.
     """
+    from henchman.providers.continuation import validate_runtime_continuations
+
+    validate_runtime_continuations(messages, provider)
     if type(context_window) is not int or context_window <= 0:
         raise ValueError("Context window must be a positive integer")
     if not is_valid_message_sequence(messages):
