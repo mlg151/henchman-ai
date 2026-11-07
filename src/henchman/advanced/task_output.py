@@ -85,6 +85,7 @@ def open_evidence(path: Path, *, append: bool = False) -> Iterator[BinaryIO]:
 
 
 def _unchanged(original: os.stat_result, current: os.stat_result) -> bool:
+    """Compare snapshots obtained through the same OS metadata interface."""
     return os.path.samestat(original, current) and (
         original.st_size, original.st_mtime_ns, original.st_ctime_ns
     ) == (current.st_size, current.st_mtime_ns, current.st_ctime_ns)
@@ -94,7 +95,7 @@ def _unchanged(original: os.stat_result, current: os.stat_result) -> bool:
 def atomic_evidence(
     path: Path, *, expected: os.stat_result | None = None,
 ) -> Iterator[BinaryIO]:
-    """Replace evidence privately, preserving the original on any write failure."""
+    """Replace evidence privately; expected is a checked pathname-stat snapshot."""
     with _evidence_directory(path.parent) as directory_fd:
         temporary = path.with_name(f".{path.stem}-{uuid4().hex}.tmp")
         descriptor = os.open(_entry(temporary, directory_fd), os.O_WRONLY | os.O_CREAT | os.O_EXCL
@@ -162,13 +163,24 @@ def migrate_evidence(path: Path, policy: EvidenceRedactor) -> bool:
     """
     with open_evidence(path) as source:
         original = os.fstat(source.fileno())
+        # CPython Windows path stat/lstat retain birthtime in st_ctime, while
+        # fstat can report NTFS ChangeTime. Keep both complete comparisons in
+        # their own domains instead of dropping the change-time race check.
+        try:
+            with _evidence_directory(path.parent) as directory_fd:
+                original_path = _stat_entry(path, directory_fd)
+        except FileNotFoundError:
+            raise OSError("Task evidence disappeared before migration") from None
+        _ordinary_file(original_path)
+        if not os.path.samestat(original, original_path):
+            raise OSError("Task evidence changed before migration")
         if original.st_size > MAX_LEGACY_LOG_BYTES:
             raise OSError("Task log exceeds the 16 MiB automatic migration limit")
         decoder = codecs.getincrementaldecoder("utf-8")("strict")
         projection = EvidenceStreamRedactor(policy)
         written = consumed = 0
         truncated = False
-        with atomic_evidence(path, expected=original) as output:
+        with atomic_evidence(path, expected=original_path) as output:
             while chunk := source.read(4096):
                 consumed += len(chunk)
                 if consumed > MAX_LEGACY_LOG_BYTES:

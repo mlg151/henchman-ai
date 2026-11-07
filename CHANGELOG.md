@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Windows task evidence compatibility** — Log migration compares pathname
+  and open-handle metadata within their own timestamp conventions, preserving
+  identity and concurrent-change checks on Python 3.12 and later Windows builds.
+
 - **Correlated operation recovery** — Tool attempts commit dispatch authority
   before effects, reconcile completed observations without replay and block
   uncertain continuation. Optional durable storage is independent of usage

@@ -28,7 +28,10 @@ async def _output_contains(service: TaskService, task_id: str, text: str) -> Non
 
 
 @pytest.mark.anyio
-async def test_active_output_and_index_project_config_env_metadata_before_disk(tmp_path: Path) -> None:
+@pytest.mark.parametrize("stdio_encoding", ["utf-8", "cp1252"])
+async def test_active_output_and_index_project_config_env_metadata_before_disk(
+    tmp_path: Path, stdio_encoding: str,
+) -> None:
     configured, explicit, metadata = "configured-task-canary", "env-task-canary", "meta-task-canary"
     unknown_header = "unknown-header-task-canary"
     _settings(tmp_path, configured)
@@ -36,23 +39,26 @@ async def test_active_output_and_index_project_config_env_metadata_before_disk(t
     code = (
         "import os,sys,time; "
         "print('raw execution:',sys.argv[1]==os.environ['ACCESS_TOKEN'],flush=True); "
+        "print('stdio:',sys.stdout.encoding,flush=True); "
         f"os.write(1,{configured[:11]!r}.encode()); time.sleep(.05); "
         f"os.write(1,{(configured[11:] + chr(10))!r}.encode()); "
         "os.write(2,b'Authoriz'); time.sleep(.05); "
         f"os.write(2,{('ation: ' + unknown_header + chr(10))!r}.encode()); "
-        f"print(os.environ['ACCESS_TOKEN'],{metadata!r},'café 世界',flush=True); "
+        f"print(os.environ['ACCESS_TOKEN'],{metadata!r},flush=True); "
+        f"os.write(1,{('café 世界' + chr(10)).encode('utf-8')!r}); "
         "print('ready',flush=True); time.sleep(30)"
     )
     record = await service.start_task(
         argv=[sys.executable, "-u", "-c", code, explicit], title=f"task {configured}",
-        env={**os.environ, "ACCESS_TOKEN": explicit},
+        env={**os.environ, "ACCESS_TOKEN": explicit, "PYTHONIOENCODING": stdio_encoding},
         metadata={"access_token": metadata, "note": f"echo {metadata}"},
     )
     try:
         await _output_contains(service, record.task_id, "ready")
         assert service.get_task(record.task_id).status == "running"
-        output = record.output_path.read_text()
+        output = record.output_path.read_text(encoding="utf-8")
         assert "raw execution: True" in output
+        assert f"stdio: {stdio_encoding}" in output
         assert "café 世界" in output
         assert "[REDACTED]" in output
         index = service._index_path.read_text()
@@ -269,7 +275,7 @@ async def test_split_utf8_and_failed_traceback_are_projected_before_disk(tmp_pat
     )
     record = await service.start_task(argv=[sys.executable, "-c", code], metadata={"token": secret})
     final = await service.wait_for_task(record.task_id, timeout=5)
-    evidence = record.output_path.read_text()
+    evidence = record.output_path.read_text(encoding="utf-8")
     assert final.status == "failed"
     assert "café 世界" in evidence
     assert "Traceback" in evidence
