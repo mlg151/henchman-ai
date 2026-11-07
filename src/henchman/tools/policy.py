@@ -215,13 +215,14 @@ def evaluate_effective_policy(
     *,
     plan_mode_active: bool,
     auto_approved: bool,
+    require_read_confirmation: bool = False,
     access_policies: tuple[ToolAccessPolicy, ...] = (),
 ) -> PolicyDecision:
     """Compute the effective policy for one invocation from a single source.
 
     The Plan Mode gate applies to the per-invocation effective operation
-    effect, not the static catalog kind. Auto-approval suppresses the
-    confirmation requirement but never overrides the Plan Mode boundary.
+    effect, not the static catalog kind. Tool auto-approval cannot override
+    the Plan Mode boundary or a configured read-confirmation requirement.
 
     Args:
         tool: The registered tool being invoked.
@@ -246,9 +247,17 @@ def evaluate_effective_policy(
             confirmation=None,
             effective_kind=effective_kind,
         )
+    confirm_read = require_read_confirmation and effective_kind is ToolKind.READ
+    confirmation = tool.needs_confirmation(params) if (not auto_approved or confirm_read) else None
+    if confirm_read and confirmation is None:
+        # Preset allowlists cannot silently override the user's opt-out from
+        # automatic read approval. Preserve a tool's stronger custom request.
+        confirmation = ConfirmationRequest(
+            tool.name, f"Read using {tool.name}", params, risk_level="low",
+        )
     return PolicyDecision(
         allowed=True,
         denial_reason=None,
-        confirmation=None if auto_approved else tool.needs_confirmation(params),
+        confirmation=confirmation,
         effective_kind=effective_kind,
     )

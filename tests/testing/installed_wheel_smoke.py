@@ -144,6 +144,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_plan_mode_operation_effects.py",
         "tests/tools/test_effective_policy.py",
         "tests/tools/test_restricted_access_policy.py",
+        "tests/tools/test_configured_tool_controls.py",
         "tests/tools/test_restricted_execution_effects.py",
         "tests/config/test_tool_access_settings.py",
         "tests/tools/test_approval_grant_reuse.py",

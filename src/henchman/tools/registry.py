@@ -27,6 +27,9 @@ from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from henchman.config.schema import ToolSettings
     from henchman.providers.base import ToolDeclaration
 
 # Type alias for confirmation handler
@@ -100,6 +103,7 @@ class ToolRegistry:
         self._policy_parent: ToolRegistry | None = None
         self._policy_generation = 0
         self._access_policies: tuple[ToolAccessPolicy, ...] = ()
+        self._read_confirmation_required = False
         self._auto_approve_policies: set[str] = set()
         self._plan_mode: bool = False
         self._grants = ApprovalGrantStore()
@@ -132,6 +136,25 @@ class ToolRegistry:
         if policy.restricted and policy not in self._access_policies:
             self._access_policies = (*self._access_policies, policy)
             self._policy_generation += 1
+
+    def set_read_confirmation_required(self, required: bool) -> None:
+        """Set trusted local read approval policy without widening an ancestor."""
+        if self._read_confirmation_required != required:
+            self._policy_generation += 1
+        self._read_confirmation_required = required
+
+    def restrict_tool_settings(self, settings: ToolSettings, *, project_root: Path) -> None:
+        """Bind configured tool controls without weakening existing restrictions."""
+        policy = ToolAccessPolicy.from_settings(settings, project_root=project_root)
+        self.restrict_access_policy(policy)
+        if not settings.auto_approve_read:
+            self.set_read_confirmation_required(True)
+
+    @property
+    def _effective_read_confirmation(self) -> bool:
+        return self._read_confirmation_required or (
+            self._policy_parent is not None and self._policy_parent._effective_read_confirmation
+        )
 
     @property
     def _effective_access_policies(self) -> tuple[ToolAccessPolicy, ...]:
@@ -400,6 +423,7 @@ class ToolRegistry:
             params,
             plan_mode_active=self._effective_plan_mode,
             auto_approved=self.is_auto_approved(name),
+            require_read_confirmation=self._effective_read_confirmation,
             access_policies=(*current_access_policies(), *self._effective_access_policies),
         )
 
@@ -430,6 +454,7 @@ class ToolRegistry:
             params,
             plan_mode_active=self._effective_plan_mode,
             auto_approved=self.is_auto_approved(name),
+            require_read_confirmation=self._effective_read_confirmation,
             access_policies=(*current_access_policies(), *self._effective_access_policies),
         )
         if not decision.allowed:
@@ -551,7 +576,7 @@ class ToolRegistry:
         This method handles the full execution flow:
         1. Look up the tool
         2. Check Plan Mode restrictions
-        3. Check if confirmation is needed (unless auto-approved or READ tool)
+        3. Resolve configured read confirmation and tool-specific approvals
         4. Call confirmation handler if needed; an unavailable handler yields
            an explicit needs-input denial, never a silent approval
         5. Execute the tool if approved (with retries for NETWORK tools)

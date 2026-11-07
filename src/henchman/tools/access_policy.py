@@ -32,6 +32,15 @@ class ToolAccessError(PermissionError):
     """An invocation cannot uphold the configured restricted tool policy."""
 
 
+def validate_tool_backend(settings: ToolSettings) -> None:
+    """Refuse a requested execution backend that this runtime cannot enforce."""
+    if settings.sandbox != "none":
+        raise ToolAccessError(
+            f"tools.sandbox={settings.sandbox} is unsupported: this runtime provides no enforced sandbox backend. "
+            "Use a separately isolated runtime, or explicitly select tools.sandbox=none."
+        )
+
+
 @dataclass(frozen=True)
 class _Directory:
     declared: Path
@@ -111,6 +120,7 @@ class ToolAccessPolicy:
     @classmethod
     def from_settings(cls, settings: ToolSettings, *, project_root: Path) -> ToolAccessPolicy:
         """Resolve configured roots once against the actual runtime project."""
+        validate_tool_backend(settings)
         if (settings.filesystem_read_roots is None and settings.filesystem_write_roots is None
             and settings.network_access == "unrestricted"):
             return cls()

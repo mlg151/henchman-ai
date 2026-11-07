@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from henchman.tools.access_policy import ToolAccessPolicy
+from henchman.tools.access_policy import ToolAccessPolicy, validate_tool_backend
 from henchman.tools.base import ConfirmationRequest
 from henchman.tools.registry import ToolRegistry
 
@@ -39,6 +39,9 @@ class ToolManager:
         self.settings = settings
         self._question_handler = question_handler
         self.registry = ToolRegistry()
+        if settings is not None:
+            validate_tool_backend(settings.tools)
+            self.registry.set_read_confirmation_required(not settings.tools.auto_approve_read)
         if settings is not None and (settings.tools.filesystem_read_roots is not None
                                      or settings.tools.filesystem_write_roots is not None
                                      or settings.tools.network_access != "unrestricted"):

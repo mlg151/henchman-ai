@@ -85,7 +85,9 @@ The release gates below are not yet satisfied.
 REPL/Textual now retain a shared live settings snapshot with accurate session
 origins for config/doctor inspection, provider switching and resume. Explicit file
 scopes remain independent, and theme/context shortcuts persist only named keys.
-Remaining control consumers and native qualification stay tracked under #14.
+Read-confirmation policy now reaches primary/scoped registries; unsupported
+Docker sandbox requests fail explicitly. Remaining context/UI consumers, control
+transfer and native qualification stay tracked under #14.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.

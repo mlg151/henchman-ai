@@ -47,7 +47,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   through set/import and subsequent edits; only unset removes them. REPL/Textual
   now retain live values and session origins for `/config view|get`, `/doctor`,
   provider/context switching and resume. Theme/context persistence changes named
-  keys only. Downstream control consumers remain open; see
+  keys only. Read-confirmation controls now reach primary/scoped registries, and
+  unsupported Docker sandbox requests fail at setup. Context/UI consumers and
+  expanded nonsecret transfer remain open; see
   [effective settings](docs/configuration.md#inspecting-effective-settings).
 
 - #24 provider usage and explicit pricing: compatible and Anthropic adapters

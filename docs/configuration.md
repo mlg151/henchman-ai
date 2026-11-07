@@ -247,6 +247,12 @@ described below.
 
 ## Restricted tool access
 
+`tools.auto_approve_read: false` requires confirmation even for effective read-only
+operations in preset auto-approval lists. Parent requirements apply to scoped
+registries; explicit user approval and unchanged session grants still work.
+`tools.sandbox: docker` is rejected at runtime setup because this build has no
+enforced Docker backend. The default `none` remains supported.
+
 Trusted settings can restrict filesystem operations and disable network tools:
 
 ```yaml

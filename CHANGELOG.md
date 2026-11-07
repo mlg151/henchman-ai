@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Configured tool controls** — Disabling automatic read approval now requires
+  confirmation through primary and scoped registries, including preset allowlists,
+  while preserving stronger custom confirmation. Unsupported Docker sandbox
+  requests fail explicitly before tool dispatch instead of silently using the host.
+
 - **Exclusive atomic-write temporaries** — File replacement now writes through a
   private, uniquely created sibling descriptor, preserves regular file permissions
   and cleans up only its own temporary. Planted predictable temporary symlinks no
