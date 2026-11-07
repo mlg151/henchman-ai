@@ -133,7 +133,8 @@ def test_builtin_scope_matches_actual_parser_targets(tool, params, expected):
 async def test_literal_tilde_patch_scope_matches_actual_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "~").mkdir()
-    (tmp_path / "~/file").write_text("old\n")
+    target = tmp_path / "~/file"
+    target.write_bytes(b"old\n")
     tool = PatchApplyTool()
     params = {"path": "~/file", "patch": "@@ -1 +1 @@\n-old\n+new\n"}
     registry = await _registry(tool)
@@ -142,7 +143,9 @@ async def test_literal_tilde_patch_scope_matches_actual_file(tmp_path, monkeypat
     assert result.success, result.content
     record, = CheckpointService(tmp_path).list_checkpoints()
     file, = CheckpointService(tmp_path).review(record.checkpoint_id).files
-    assert file.path == "~/file" and file.before.content == b"old\n" and file.after.content == b"new\n"
+    assert file.path == "~/file" and file.before.content == b"old\n"
+    assert file.after.content == target.read_bytes()
+    assert target.read_text() == "new\n"
 
 
 async def test_write_expands_home_before_declaring_scope(tmp_path, monkeypatch):
@@ -654,7 +657,7 @@ async def test_invalid_partial_python_does_not_replace_primary_control_failure(t
             return ("partial.py",)
 
         async def execute(self, **params):
-            (tmp_path / "partial.py").write_text("def broken(\n")
+            (tmp_path / "partial.py").write_bytes(b"def broken(\n")
             raise error
 
     tool = PartialPython()
