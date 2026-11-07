@@ -105,8 +105,9 @@ Native qualification and the remaining schema/discovery/result work stay open
 under #21; modern SDK/transport migration stays under #25.
 The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
 now validates bounded 2020-12 contracts without coercion or remote reference
-retrieval. Runtime registration/output coverage, explicit provider projections
-and MCP fidelity remain in progress.
+retrieval. All five adapters share explicit versioned projections with preserved
+optional/null semantics and pre-transport diagnostics for unsupported constructs.
+Runtime registration/output coverage and MCP fidelity remain in progress.
 Automatic compaction now respects the configured disable flag across primary,
 specialist, dynamic child and API agents while retaining explicit hard-capacity
 checks. Broader context/UI consumption remains under #14.

@@ -33,6 +33,7 @@ from henchman.providers.request_budget import (
     validate_output_tokens,
 )
 from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
+from henchman.providers.schema_projections import project_tool_parameters
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 
@@ -52,14 +53,14 @@ class ProviderConfig:
     default_model: str
 
 
-def _format_tool(tool: ToolDeclaration) -> dict[str, Any]:
+def _format_tool(tool: ToolDeclaration, provider: str = "openai_compat") -> dict[str, Any]:
     """Format a tool declaration for the OpenAI API."""
     return {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters,
+            "parameters": project_tool_parameters(tool.parameters, provider),
         },
     }
 
@@ -270,7 +271,7 @@ class OpenAICompatibleProvider(ModelProvider):
         messages = self._repair_message_sequence_if_needed(messages)
         payload: dict[str, Any] = {"messages": [_format_message(message) for message in messages]}
         if tools:
-            payload["tools"] = [_format_tool(tool) for tool in tools]
+            payload["tools"] = [self._format_tool(tool) for tool in tools]
         for name in ("response_format", "tool_choice"):
             if name in options:
                 payload[name] = options[name]
@@ -291,7 +292,7 @@ class OpenAICompatibleProvider(ModelProvider):
         tool: ToolDeclaration,
     ) -> dict[str, Any]:
         """Format a tool declaration for the OpenAI API."""
-        return _format_tool(tool)
+        return _format_tool(tool, self.name)
 
     def _format_message(
         self: OpenAICompatibleProvider,
@@ -418,7 +419,7 @@ class OpenAICompatibleProvider(ModelProvider):
             params.pop("stream_options")
 
         if tools:
-            params["tools"] = [_format_tool(t) for t in tools]
+            params["tools"] = [self._format_tool(t) for t in tools]
 
         return params
 

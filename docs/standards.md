@@ -107,9 +107,28 @@ are rejected. `format` remains an annotation. Unsupported contracts produce
 value-free diagnostics instead of changing meaning or disclosing rejected input.
 The original schema snapshot remains separate from its validation copy.
 
-This foundation does not complete provider projections, MCP pagination/refresh,
-typed result preservation or runtime-wide registration/output validation. Those
-remain required for #21/P1.
+### Provider schema projections
+
+All five adapters now use versioned client profiles in
+`providers/schema_projections.py`: native Anthropic `input_schema` and compatible
+chat `function.parameters` for DeepSeek, Ollama, OpenRouter and `openai_compat`.
+Request construction and input estimation use the same detached projection.
+Local acyclic references are expanded with independent size/depth/work limits.
+Required lists and nullable types retain their canonical meaning. The adapters
+do not turn optional fields into required nullable fields or enable strict mode;
+Chat Completions' non-strict behavior is documented in the
+[official function-calling guide](https://developers.openai.com/api/docs/guides/function-calling#strict-mode).
+
+The shared conservative subset includes objects/properties, arrays/items, types,
+enums/constants, `anyOf`, additional-property rules, numeric/string/array/object
+constraints and annotations listed in the profile module. Recursive/dynamic
+references, assertion-bearing reference siblings, conditional/unevaluated schemas,
+unknown keywords and Boolean subschemas fail before transport. Original canonical
+schemas still govern local validation. These profiles are tested offline adapter
+contracts; they do not establish support by every remote endpoint or model.
+
+MCP pagination/refresh, typed result preservation and runtime-wide
+registration/output validation remain required for #21/P1.
 
 ### Remaining phase gates
 

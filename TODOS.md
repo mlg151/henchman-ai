@@ -45,8 +45,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   qualification, schemas, pagination and typed results remain open; see the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
   The [local schema foundation](docs/standards.md#local-schema-contract-foundation)
-  preserves missing/null semantics and bounds non-retrieving validation; runtime
-  integration, provider projections and MCP result fidelity remain in progress.
+  preserves missing/null semantics and bounds non-retrieving validation. Five
+  adapter profiles now project supported contracts explicitly; runtime integration
+  and MCP result fidelity remain in progress.
 
 - #20 config mutation responses and JSON/YAML sync exports now redact credential
   echoes, including shadowed/configured keys and freeform UI fields. Actual

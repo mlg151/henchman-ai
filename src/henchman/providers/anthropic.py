@@ -32,6 +32,7 @@ from henchman.providers.request_budget import (
     validate_output_tokens,
 )
 from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
+from henchman.providers.schema_projections import project_tool_parameters
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
 from henchman.utils.ratelimit import AsyncRateLimiter
@@ -142,7 +143,7 @@ def _format_tool_for_anthropic(tool: ToolDeclaration) -> dict[str, Any]:
     return {
         "name": tool.name,
         "description": tool.description,
-        "input_schema": tool.parameters,
+        "input_schema": project_tool_parameters(tool.parameters, "anthropic"),
     }
 
 

@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Provider schema projections** — All five adapters now expand supported local
+  references into detached request schemas while preserving optional/null meaning.
+  Unsupported projections fail before transport, and input estimates use the same
+  wire shape. Offline adapter/workflow tests cover these client profiles; remote
+  endpoint conformance remains independently qualified.
+
 - **Private task evidence** — Background logs redact known credentials before
   persistence and cap captured output at 1 MiB. Task indexes use private atomic
   replacement, while eligible indexed legacy logs migrate with bounded reads.
