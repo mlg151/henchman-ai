@@ -54,7 +54,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   execution inputs. Thirty-one redaction regressions join the native wheel cohort,
   including short credentials, marker-containing values and legacy backup-only
   credentials while preserving protocol identities and structured session records.
-  Other output sinks, config secret references and restricted execution remain
+  Headless JSON output now masks split credentials with separate agent/content
+  buffers, sanitizes tool previews and flushes safely on failure/cancellation.
+  Execution events and correlation/control fields retain their original meaning.
+  REPL/Textual, other output sinks, config secret references and restricted execution remain
   open. See [session project boundaries](docs/configuration.md#session-project-boundaries)
   and [redaction boundaries](docs/configuration.md#session-evidence-redaction).
 

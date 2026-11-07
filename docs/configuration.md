@@ -181,8 +181,24 @@ Both valid disk generations supply marked credentials before a save, including a
 credential present only in the old backup. Literal redaction-marker text inside a
 credential and whitespace in recognized Bearer headers do not exempt its echoes.
 
-This increment does not establish full privacy or OS isolation. Terminal/JSON
-stream output, provider errors, logs, metrics, handoffs, ordinary configuration
+Headless `json`, `stream-json` and `json-complete` output shares the session's
+credential registry. Content and reasoning have separate stream buffers for each
+agent, so a known value split across chunks remains private. Marked tool arguments
+register their credentials before display; execution still receives the original
+arguments. Tool previews are derived from redacted full results. Validated
+completion controls and generated correlation IDs retain their protocol meaning.
+JSON consumers must concatenate content chunks rather than rely on chunk sizes:
+an ambiguous suffix can be delayed until a later chunk or the terminal event.
+Successful completion resolves unmatched prefixes as ordinary text; failure or
+cancellation masks unresolved credential prefixes. Buffered output precedes the
+terminal event, and cancellation still propagates without claiming completion.
+An unfinished authentication-header prefix over 1,024 characters is conservatively
+masked through its next newline to bound retained whitespace. Complete JSON
+collects marked fields before projection; streaming cannot retract text emitted
+before a value was first identified as sensitive.
+
+This increment does not establish full privacy or OS isolation. REPL/Textual
+output, provider errors outside JSON events, logs, metrics, handoffs, ordinary configuration
 exports and restricted execution still require the remaining work and qualification
 in issue #20. Existing configuration export semantics are described below.
 

@@ -68,6 +68,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Private headless JSON evidence** — JSON modes share the active session's
+  credential registry, redact values split across content/reasoning chunks and
+  keep agent channels separate. Previews are truncated after redaction, validated
+  completion controls and correlation IDs stay usable, and interruption flushes
+  pending evidence safely. Raw execution inputs remain unchanged. Thirty-eight
+  regressions cover stream boundaries, marker overlaps, Unicode headers, rotation,
+  cancellation and protocol identities; terminal/TUI/logging coverage remains
+  open under [#20](https://github.com/mlg151/henchman-ai/issues/20).
+
 - **Redaction edge cases** — Session/template projections preserve protocol fields,
   project identity, tool correlation, memory/goal identities and instruction
   provenance when credentials are short. Credentials containing `[REDACTED]`,

@@ -358,6 +358,15 @@ extra fields cannot exempt credentials in a retained backup.
 See [session evidence redaction](configuration.md#session-evidence-redaction) for
 the threat model, legacy-file behavior and remaining output/privacy boundaries.
 
+`EventEvidenceRedactor` projects headless JSON events without modifying execution
+events. It shares the active session credential policy and keeps separate
+`EvidenceStreamRedactor` buffers for each agent's content and reasoning. Known
+credential prefixes remain buffered across chunk boundaries; authentication values
+are discarded until the line ends. JSON's authoritative run completion flushes all
+channels before the terminal event, while cancellation flushes conservatively in
+runtime cleanup. Tool previews derive from sanitized full results, and trusted
+event identities and validated completion controls retain their protocol meaning.
+
 When the current copy is missing, malformed or fails its integrity check, loading
 uses a valid prior copy and emits a warning naming the session and possible lost
 recent changes; `Session.recovery_notice` retains that diagnostic for consumers.

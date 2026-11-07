@@ -229,6 +229,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_session_redaction.py",
         "tests/core/test_session_redaction.py",
         "tests/utils/test_evidence_redaction.py",
+        "tests/utils/test_evidence_stream_redaction.py",
+        "tests/cli/test_json_evidence_redaction.py",
         "tests/core/test_session_tier2_services.py",
         "tests/cli/test_session_context_command.py",
         "tests/contracts/conftest.py",

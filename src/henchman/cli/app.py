@@ -525,6 +525,11 @@ async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
     if repl.rag_system:
         await repl.rag_system.index_async()
 
+    from henchman.cli.session_manager import ReplSessionManager
+
+    manager = getattr(repl, "session_manager", None)
+    if isinstance(manager, ReplSessionManager):
+        return JsonOutputRenderer(console, redactor=manager.session_manager.evidence_redactor)
     return JsonOutputRenderer(console)
 
 
@@ -671,6 +676,7 @@ async def _run_headless_json_format(
         prompt: The prompt to process.
         render_mode: Either "stream-json" (line-delimited) or "json" (batch).
     """
+    json_renderer = None
     try:
         json_renderer = await _initialize_json_processing(repl)
         render_fn = (
@@ -679,7 +685,11 @@ async def _run_headless_json_format(
         if not await _run_headless_json_mode(repl, prompt, render_fn, agent_role):
             raise click.ClickException("Agent execution failed; see JSON error event")
     finally:
-        await _close_headless_repl(repl)
+        try:
+            if json_renderer is not None:
+                json_renderer.flush()
+        finally:
+            await _close_headless_repl(repl)
 
 
 async def _run_headless_json_complete(

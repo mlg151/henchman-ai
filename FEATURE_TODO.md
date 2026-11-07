@@ -52,6 +52,10 @@ configured keys and provider rotation; live execution inputs stay unchanged.
 Structural session fields and identities remain usable with short credentials;
 marker-containing values, Bearer whitespace and legacy backup-only credentials
 are covered by additional regressions.
+Headless JSON output now shares the credential policy, masks split streamed
+values across independent agent channels, derives previews after redaction, and
+flushes pending evidence before completion or on interruption without changing
+execution inputs. REPL/Textual and the remaining sinks are still open.
 Terminal output/errors/logs/metrics/handoffs, config-export secret references and
 restricted filesystem/network execution still require implementation and qualification.
 Provider usage under #24 now preserves reported/unknown provenance and cache

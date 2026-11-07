@@ -24,6 +24,9 @@ _AUTH_LINE = re.compile(
     r"(?im)^(\s*(?:authorization|proxy-authorization|cookie|set-cookie)\s*:)\s*[^\r\n]*"
 )
 _REFERENCE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_AUTH_NAMES = ("authorization", "proxy-authorization", "cookie", "set-cookie")
+_STREAM_AUTH = re.compile(r"(?:authorization|proxy-authorization|cookie|set-cookie)[^\S\r\n]*:", re.I)
+_MAX_HEADER_PREFIX = 1024
 
 
 def _credential_field(name: str) -> bool:
@@ -145,3 +148,140 @@ class EvidenceRedactor:
             item_schema = schema[0] if isinstance(schema, list) and len(schema) == 1 else None
             return [self._project(nested, item_schema) for nested in value]
         return value
+
+
+class EvidenceStreamRedactor:
+    """Mask credentials across chunks while immediately releasing safe text.
+
+    A possible credential prefix is held until it can be resolved. Closing a
+    stream masks an unresolved prefix, including on cancellation. Header values
+    are discarded as they arrive; they cannot grow the pending text buffer.
+    Instances belong to one logical content/thought channel, sharing a policy.
+    """
+
+    def __init__(self, redactor: EvidenceRedactor) -> None:
+        self.redactor = redactor
+        self._pending = ""
+        self._line_start = True
+        self._header_value = False
+
+    def feed(self, text: str) -> str:
+        """Return the safe prefix of newly received text without changing it."""
+        self._pending += text
+        return self._drain(final=False, interrupted=False)
+
+    def finish(self, *, interrupted: bool = True) -> str:
+        """Flush safely at an actual stream boundary, including interruption."""
+        result = self._drain(final=True, interrupted=interrupted)
+        self._line_start = True
+        self._header_value = False
+        return result
+
+    def _drain(self, *, final: bool, interrupted: bool) -> str:
+        self.redactor.register_environment()
+        secrets = sorted(self.redactor._secrets, key=len, reverse=True)
+        tokens = [*secrets, REDACTED]
+        output: list[str] = []
+        value = self._pending
+        position = 0
+        special = re.compile("[" + re.escape("\r\n[" + "".join(secret[0] for secret in secrets)) + "]")
+
+        def consume(length: int) -> None:
+            nonlocal position
+            part = value[position:position + length]
+            last_newline = max(part.rfind("\r"), part.rfind("\n"))
+            if last_newline >= 0:
+                self._line_start = not part[last_newline + 1:].strip()
+            elif self._line_start and part.strip():
+                self._line_start = False
+            position += length
+
+        def is_prefix(token: str, start: int) -> bool:
+            # Copy only a bounded candidate suffix, never the remaining large
+            # output on every character. This keeps scanning linear in length.
+            return len(value) - start < len(token) and token.startswith(value[start:])
+
+        while position < len(value):
+            if self._header_value:
+                newline = re.compile(r"[\r\n]").search(value, position)
+                position = newline.start() if newline else len(value)
+                if newline is None:
+                    break
+                self._header_value = False
+                continue
+            # A complete shorter secret must wait if a longer one is still
+            # possible, otherwise its remainder could be published separately.
+            possible = any(is_prefix(token, position) for token in tokens)
+            if possible and not final:
+                break
+            if self._line_start:
+                header = _STREAM_AUTH.match(value, position)
+                if header is not None:
+                    safe_header = self.redactor._text(header[0])
+                    output.append(safe_header if safe_header.endswith(REDACTED) else safe_header + " " + REDACTED)
+                    consume(header.end() - position)
+                    self._header_value = True
+                    continue
+                possible_header = any(
+                    name.startswith(value[position:].lower())
+                    if len(value) - position <= len(name) else (
+                        value[position:position + len(name)].lower() == name
+                        and re.fullmatch(r"[^\S\r\n]+", value[position + len(name):]) is not None
+                    )
+                    for name in _AUTH_NAMES
+                )
+                if not final and possible_header:
+                    if len(value) - position > _MAX_HEADER_PREFIX:
+                        # An unbounded pre-colon whitespace stream must not
+                        # grow retained output or force repeated full rescans.
+                        # Conservatively mask this overlong candidate line.
+                        output.append(REDACTED)
+                        consume(len(value) - position)
+                        self._header_value = True
+                        continue
+                    break
+            matched = next((secret for secret in secrets if value.startswith(secret, position)), None)
+            if value.startswith(REDACTED, position) and (matched is None or len(matched) <= len(REDACTED)):
+                crossings = [
+                    (offset, value.startswith(secret, position + offset))
+                    for offset in range(1, len(REDACTED)) for secret in secrets
+                    if (
+                        len(secret) > len(REDACTED) - offset
+                        and (value.startswith(secret, position + offset) or is_prefix(secret, position + offset))
+                    )
+                ]
+                complete = next((offset for offset, found in crossings if found), None)
+                if complete is not None:
+                    output.append(value[position:position + complete])
+                    consume(complete)
+                    continue
+                if crossings:
+                    if not final:
+                        break
+                    if interrupted:
+                        output.append(value[position:position + crossings[0][0]] + REDACTED)
+                        consume(len(value) - position)
+                        continue
+                output.append(REDACTED)
+                consume(len(REDACTED))
+                continue
+            if matched is not None:
+                output.append(REDACTED)
+                consume(len(matched))
+                continue
+            if interrupted and any(is_prefix(secret, position) for secret in secrets):
+                output.append(REDACTED)
+                consume(len(value) - position)
+                continue
+            # At line starts, consume whitespace separately so header names
+            # following indentation are still recognized. Otherwise batch text
+            # up to the next possible credential/marker/newline boundary.
+            if value[position] in "\r\n" or (self._line_start and value[position].isspace()):
+                end = position + 1
+            else:
+                next_special = special.search(value, position + 1)
+                end = next_special.start() if next_special else len(value)
+            output.append(value[position:end])
+            consume(end - position)
+        self._pending = value[position:]
+        return "".join(output)
