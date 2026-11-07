@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING, Any
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console import ThemeManager
 from henchman.cli.console_helpers import ConsoleHelper
+from henchman.cli.evidence import runtime_exception_text
+from henchman.config.repository import SettingsRepository, SettingsScope
+from henchman.config.runtime import runtime_settings_state
 
 if TYPE_CHECKING:
     from henchman.cli.repl import Repl
@@ -90,14 +93,12 @@ def _persist_theme_settings(ctx: CommandContext, theme_name: str) -> None:
     console = ctx.console
     if ctx.repl and hasattr(ctx.repl, "settings") and ctx.repl.settings:
         try:
-            ctx.repl.settings.ui.theme = theme_name
-
-            from henchman.config.settings import save_settings
-
-            save_settings(ctx.repl.settings)
+            runtime_settings_state(ctx.repl).update({"ui": {"theme": theme_name}})
+            SettingsRepository().set("ui.theme", theme_name, scope=SettingsScope.GLOBAL)
             console.print("[dim]Theme saved to settings[/]")
         except Exception as e:
-            console.print(f"[red]Warning:[/] Failed to save settings: {e}")
+            message = runtime_exception_text(ctx.repl, e)
+            console.print(f"Warning: Failed to save settings: {message}", markup=False)
 
 
 def _preview_theme(ctx: CommandContext, args: list[str], console: Any) -> None:

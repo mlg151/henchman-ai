@@ -44,6 +44,19 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="live configuration",
+        classification="runtime-wired",
+        summary="REPL and Textual inspect active settings and origins through /config and /doctor.",
+        detail=(
+            "/config view|get KEY reads the retained live snapshot by default; explicit "
+            "--scope global|project reads persisted file values. /doctor uses the same live "
+            "state. Standalone CLI commands read a fresh startup snapshot. Provider/model "
+            "switches retain conversation history and update session origins; file-only "
+            "import/export and canonical .henchman writes remain unchanged."
+        ),
+        aliases=("/config", "/doctor", "settings origins", "session overrides"),
+    ),
+    _CapabilitySpec(
         name="background subagents",
         classification="runtime-dependent",
         summary="The primary coding agent can launch dynamic background conversations.",

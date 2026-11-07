@@ -16,6 +16,7 @@ from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
 from henchman.cli.commands.rag import RagCommand
+from henchman.cli.commands.runtime_config import RuntimeConfigCommand, RuntimeDoctorCommand
 from henchman.cli.commands.session import SessionCommand
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.theme import ThemeCommand
@@ -368,4 +369,6 @@ def get_builtin_commands() -> list[Command]:
         ThemeCommand(),
         UnlimitedCommand(),
         ContextCommand(),
+        RuntimeConfigCommand(),
+        RuntimeDoctorCommand(),
     ]

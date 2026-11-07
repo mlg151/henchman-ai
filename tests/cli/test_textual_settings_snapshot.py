@@ -7,7 +7,7 @@ import henchman.config as config_module
 import henchman.providers.factory
 from henchman.cli.textual_mixins import _ProviderMixin
 from henchman.config.schema import ProviderSettings, Settings
-from henchman.config.settings import ConfigError
+from henchman.config.settings import ConfigError, SettingOrigin, SettingsSnapshot
 
 
 def test_direct_tui_loads_one_settings_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -15,10 +15,13 @@ def test_direct_tui_loads_one_settings_snapshot(monkeypatch: pytest.MonkeyPatch)
     first_settings = Settings(providers=ProviderSettings(deepseek={"model": "first-model"}))
     later_settings = Settings(providers=ProviderSettings(deepseek={"model": "later-model"}))
 
-    def mock_load_settings() -> Settings:
+    def mock_load_settings() -> SettingsSnapshot:
         nonlocal load_count
         load_count += 1
-        return first_settings if load_count == 1 else later_settings
+        return SettingsSnapshot(
+            first_settings if load_count == 1 else later_settings,
+            {"providers.deepseek.model": SettingOrigin("project", "startup/settings.yaml")},
+        )
 
     fake_provider = SimpleNamespace(name="deepseek", model="first-model")
     captured_provider_settings: ProviderSettings | None = None
@@ -30,7 +33,7 @@ def test_direct_tui_loads_one_settings_snapshot(monkeypatch: pytest.MonkeyPatch)
         captured_provider_settings = provider_settings
         return fake_provider
 
-    monkeypatch.setattr(config_module, "load_settings", mock_load_settings)
+    monkeypatch.setattr(config_module, "load_settings_snapshot", mock_load_settings)
     monkeypatch.setattr(
         henchman.providers.factory, "create_configured_provider", mock_create_configured_provider
     )
@@ -45,6 +48,7 @@ def test_direct_tui_loads_one_settings_snapshot(monkeypatch: pytest.MonkeyPatch)
     assert runtime.settings is first_settings
     assert captured_provider_settings is first_settings.providers
     assert runtime.provider is fake_provider
+    assert runtime.settings_state.snapshot().origins["providers.deepseek.model"].scope == "project"
 
 
 def test_resolve_provider_from_env_raises_config_error_on_invalid_config(
@@ -53,7 +57,7 @@ def test_resolve_provider_from_env_raises_config_error_on_invalid_config(
     loader = Mock()
     factory = Mock()
 
-    monkeypatch.setattr(config_module, "load_settings", loader)
+    monkeypatch.setattr(config_module, "load_settings_snapshot", loader)
     monkeypatch.setattr(henchman.providers.factory, "create_configured_provider", factory)
 
     loader.side_effect = ConfigError("invalid test settings")

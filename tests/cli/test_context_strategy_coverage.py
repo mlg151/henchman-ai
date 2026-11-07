@@ -21,6 +21,7 @@ from henchman.cli.commands.context import (
     _show_stats,
     _update_context_setting,
 )
+from henchman.config.repository import SettingsScope
 from henchman.config.schema import ContextSettings
 from henchman.core.session import Session
 
@@ -191,7 +192,7 @@ class TestStrategyManager:
         mock_settings.context.max_tokens = 128000
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await manager.manage_strategy(ctx, ["set", "max_tokens", "200000"])
         ctx.console.print.assert_called()
@@ -228,11 +229,13 @@ class TestModuleLevelContextHelpers:
         mock_settings.context.max_tokens = 128000
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings") as mock_save,
+            patch("henchman.cli.commands.context.SettingsRepository") as mock_save,
         ):
             update = ContextSettingUpdate("max_tokens", 200000, "200000")
             await _update_context_setting(ctx, update)
-        mock_save.assert_called_once_with(mock_settings)
+        mock_save.return_value.set.assert_called_once_with(
+            "context.max_tokens", 200000, scope=SettingsScope.GLOBAL,
+        )
         ctx.console.print.assert_called()
 
     async def test_handle_adaptive_on(self, ctx: CommandContext) -> None:
@@ -241,7 +244,7 @@ class TestModuleLevelContextHelpers:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await _handle_adaptive_parameter(ctx, "on")
         ctx.console.print.assert_called()
@@ -252,7 +255,7 @@ class TestModuleLevelContextHelpers:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await _handle_adaptive_parameter(ctx, "off")
         ctx.console.print.assert_called()
@@ -268,11 +271,12 @@ class TestModuleLevelContextHelpers:
         mock_settings.context.intelligent_context = False
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings") as mock_save,
+            patch("henchman.cli.commands.context.SettingsRepository") as mock_save,
         ):
             await _enable_intelligent_context(ctx)
-        mock_save.assert_called_once()
-        assert mock_settings.context.intelligent_context is True
+        mock_save.return_value.set.assert_called_once_with(
+            "context.intelligent_context", True, scope=SettingsScope.GLOBAL,
+        )
 
     async def test_enable_intelligent_context_when_already_enabled(
         self, ctx: CommandContext
@@ -282,12 +286,12 @@ class TestModuleLevelContextHelpers:
         mock_settings.context.intelligent_context = True
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings") as mock_save,
+            patch("henchman.cli.commands.context.SettingsRepository") as mock_save,
         ):
             await _enable_intelligent_context(ctx)
-        mock_save.assert_not_called()
-        calls = [str(c) for c in ctx.console.print.call_args_list]
-        assert any("already enabled" in c for c in calls)
+        mock_save.return_value.set.assert_called_once_with(
+            "context.intelligent_context", True, scope=SettingsScope.GLOBAL,
+        )
 
     async def test_disable_intelligent_context_when_enabled(self, ctx: CommandContext) -> None:
         """Test _disable_intelligent_context when enabled."""
@@ -295,11 +299,12 @@ class TestModuleLevelContextHelpers:
         mock_settings.context.intelligent_context = True
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings") as mock_save,
+            patch("henchman.cli.commands.context.SettingsRepository") as mock_save,
         ):
             await _disable_intelligent_context(ctx)
-        mock_save.assert_called_once()
-        assert mock_settings.context.intelligent_context is False
+        mock_save.return_value.set.assert_called_once_with(
+            "context.intelligent_context", False, scope=SettingsScope.GLOBAL,
+        )
 
     async def test_disable_intelligent_context_when_already_disabled(
         self, ctx: CommandContext
@@ -309,12 +314,12 @@ class TestModuleLevelContextHelpers:
         mock_settings.context.intelligent_context = False
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings") as mock_save,
+            patch("henchman.cli.commands.context.SettingsRepository") as mock_save,
         ):
             await _disable_intelligent_context(ctx)
-        mock_save.assert_not_called()
-        calls = [str(c) for c in ctx.console.print.call_args_list]
-        assert any("already disabled" in c for c in calls)
+        mock_save.return_value.set.assert_called_once_with(
+            "context.intelligent_context", False, scope=SettingsScope.GLOBAL,
+        )
 
     async def test_show_stats_no_agent(self) -> None:
         """Test _show_stats without agent."""
@@ -448,7 +453,7 @@ class TestContextCommandStrategyCoverage:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await cmd.execute(ctx)
         ctx.console.print.assert_called()
@@ -462,7 +467,7 @@ class TestContextCommandStrategyCoverage:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await cmd.execute(ctx)
         ctx.console.print.assert_called()
@@ -476,7 +481,7 @@ class TestContextCommandStrategyCoverage:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await cmd.execute(ctx)
         ctx.console.print.assert_called()
@@ -499,7 +504,7 @@ class TestContextCommandStrategyCoverage:
         mock_settings.context = MagicMock()
         with (
             patch("henchman.cli.commands.context.load_settings", return_value=mock_settings),
-            patch("henchman.cli.commands.context.save_settings"),
+            patch("henchman.cli.commands.context.SettingsRepository"),
         ):
             await cmd.execute(ctx)
         ctx.console.print.assert_called()

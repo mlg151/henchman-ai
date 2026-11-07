@@ -15,7 +15,7 @@ Settings are loaded in this order (later overrides earlier):
 ## Inspecting effective settings
 
 `henchman config get KEY` (also `config view`) reports the effective value and
-its `resolved_scope`: `default`, `global`, `project`, `file`, or `environment`.
+its `resolved_scope`: `default`, `global`, `project`, `file`, `environment`, or `session`.
 `henchman config list` reports the same origin labels for its sorted leaf keys.
 Each command reads values and origins from one settings snapshot. A higher
 priority layer remains the origin even when it supplies the same value. Group-valued
@@ -57,8 +57,25 @@ assert snapshot.settings.tools.shell_timeout == 30
 assert snapshot.origins["tools.shell_timeout"].scope == "session"
 ```
 
-This API does not add session CLI flags or write scopes. Remaining CLI/REPL,
-resume and subagent consumers are still being aligned with the shared contract.
+REPL and Textual retain the startup snapshot and record validated session changes
+in that same state. `/config view KEY` and `/config get KEY` inspect live values
+and origins; `/doctor` uses that state for configuration diagnostics. Explicit
+`--scope global|project` still inspects the selected file. Editing a file or
+environment variable does not silently change an already running session.
+Standalone CLI config/doctor invocations read a fresh startup snapshot.
+
+Provider/model switches update live selection and context origins after provider
+preflight succeeds, preserving history and cached/future specialist settings.
+Constructor-supplied model defaults retain default provenance; an explicitly
+injected provider is a session choice. Resuming a conversation keeps the active
+runtime settings. A fresh process uses its new startup snapshot rather than
+replaying saved credentials or policy overrides.
+
+`/theme` persists only `ui.theme` globally and records the active session change.
+`/mcp logging` is transient. `/context status` shows live values, while context
+setters persist only their named global keys for new sessions. These shortcuts
+never save the entire merged environment/session configuration. No writable
+session scope or settings service is introduced.
 
 An existing file selected by `HENCHMAN_SETTINGS_PATH` replaces normal user/project
 file discovery; environment provider/model overrides still apply afterward. If

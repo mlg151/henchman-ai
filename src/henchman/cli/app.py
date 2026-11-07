@@ -20,6 +20,7 @@ from henchman.cli.chat_serve import discordbot_command
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.serve import serve_command
+from henchman.config.runtime import RuntimeSettingsState
 from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
 
@@ -93,6 +94,7 @@ class RuntimeContext:
     system_prompt: str
     env_block: str
     instruction_snapshot: Any | None = None
+    settings_state: RuntimeSettingsState | None = None
 
 
 def _get_provider(settings: Settings | None = None) -> ModelProvider:
@@ -170,10 +172,10 @@ def _prepare_runtime_context() -> RuntimeContext:
     Returns:
         A RuntimeContext instance.
     """
-    context_loader_class, load_settings = _import_attrs(
+    context_loader_class, load_settings_snapshot = _import_attrs(
         "henchman.config",
         "ContextLoader",
-        "load_settings",
+        "load_settings_snapshot",
     )
     format_environment_block, gather_environment = _import_attrs(
         "henchman.config.environment",
@@ -181,11 +183,15 @@ def _prepare_runtime_context() -> RuntimeContext:
         "gather_environment",
     )
     try:
-        settings = load_settings()
+        settings_state = RuntimeSettingsState(load_settings_snapshot())
+        settings = settings_state.settings
     except Exception as exc:
         message = runtime_evidence_redactor(SimpleNamespace()).text(str(exc))
         raise click.ClickException(f"Unable to configure provider: {message}") from exc
     provider = _get_provider(settings=settings)
+    from henchman.cli.provider_switch import capture_startup_provider_settings
+
+    capture_startup_provider_settings(settings_state, provider)
 
     # Load context from HENCHMAN.md files (portable AGENTS.md included)
     context_loader = context_loader_class()
@@ -202,6 +208,7 @@ def _prepare_runtime_context() -> RuntimeContext:
         system_prompt=system_prompt,
         env_block=env_block,
         instruction_snapshot=instruction_snapshot,
+        settings_state=settings_state,
     )
 
 
@@ -266,6 +273,7 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
         console=console,
         config=repl_config,
         settings=ctx.settings,
+        settings_state=ctx.settings_state,
         environment_context=ctx.env_block,
         renderer=renderer,
     )
@@ -413,6 +421,7 @@ def _run_textual_tui(config: RunConfig) -> None:
         provider=ctx.provider,
         config=textual_config,
         settings=ctx.settings,
+        settings_state=ctx.settings_state,
         environment_context=ctx.env_block,
     )
 

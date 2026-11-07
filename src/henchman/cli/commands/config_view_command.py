@@ -11,6 +11,7 @@ import yaml
 
 from henchman.cli.commands.config_redaction import redact_config_value_for_display
 from henchman.config.repository import SettingsRepository, SettingsScope
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 _SCOPE_CHOICES: Final[tuple[str, ...]] = tuple(scope.value for scope in SettingsScope)
 _MISSING_KEY_ERROR_CODE: Final[str] = "HMN_CFG_KEY_NOT_FOUND"
@@ -126,7 +127,7 @@ def _create_read_command(
     def read_command(key_path: str, scope_value: str) -> None:
         repository = SettingsRepository(project_root=project_root)
         requested_scope = SettingsScope(scope_value)
-        payload = _build_value_payload(
+        payload = build_config_value_payload(
             repository=repository,
             key_path=key_path,
             scope=requested_scope,
@@ -136,11 +137,12 @@ def _create_read_command(
     return read_command
 
 
-def _build_value_payload(
+def build_config_value_payload(
     *,
     repository: SettingsRepository,
     key_path: str,
     scope: SettingsScope,
+    redactor: EvidenceRedactor | None = None,
 ) -> ConfigValuePayload:
     """Build a structured payload for a single config key lookup."""
     inspections = repository.inspect(scope=scope, include_groups=True)
@@ -148,9 +150,11 @@ def _build_value_payload(
         raise _missing_key_exception(key_path=key_path, scope=scope)
 
     entry = inspections[key_path]
+    policy = redactor or EvidenceRedactor()
+    policy.register_config({key: item.value for key, item in inspections.items() if "." not in key})
     return ConfigValuePayload(
         key=key_path,
-        value=redact_config_value_for_display(key_path=key_path, value=entry.value),
+        value=redact_config_value_for_display(key_path=key_path, value=policy.redact(entry.value)),
         requested_scope=scope.value,
         resolved_scope=entry.origin.scope,
     )
@@ -192,6 +196,7 @@ __all__ = [
     "ConfigListEntry",
     "ConfigListPayload",
     "ConfigValuePayload",
+    "build_config_value_payload",
     "create_config_get_command",
     "create_config_list_command",
     "create_config_view_command",

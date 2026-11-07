@@ -168,7 +168,8 @@ def test_failed_settings_load_masks_environment_credentials_and_keeps_cause(
 ) -> None:
     monkeypatch.setenv("HENCHMAN_FAILURE_TEST_TOKEN", "environment-canary")
     failure = ValueError("invalid environment-canary")
-    monkeypatch.setattr("henchman.config.load_settings", MagicMock(side_effect=failure))
+    loader_name = "load_settings_snapshot" if entrypoint is _prepare_runtime_context else "load_settings"
+    monkeypatch.setattr(f"henchman.config.{loader_name}", MagicMock(side_effect=failure))
     with pytest.raises(click.ClickException) as raised:
         entrypoint()
     assert "environment-canary" not in str(raised.value)

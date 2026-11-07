@@ -13,6 +13,8 @@ from henchman.cli.textual_app import (
     ThinkingPane,
     ToolPane,
 )
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 
 
 class TestHenchmanTextualApp:
@@ -28,7 +30,7 @@ class TestHenchmanTextualApp:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -193,6 +195,7 @@ class TestHenchmanTextualApp:
             system_prompt=textual_app.config.system_prompt,
             environment_context=textual_app.environment_context,
             settings=mock_settings,
+            settings_state=textual_app.settings_state,
             auto_approve_tools=textual_app.config.auto_approve_tools,
             question_handler=textual_app._textual_question,
             instruction_snapshot=textual_app.config.instruction_snapshot,
@@ -452,7 +455,7 @@ class TestHenchmanTextualApp:
         assert "… (truncated)" in call_args, "Large file should be truncated"
 
     @patch("henchman.cli.app._get_provider")
-    @patch("henchman.config.load_settings")
+    @patch("henchman.config.load_settings_snapshot")
     @patch("henchman.cli.textual_config.TextualConfig")
     @patch("henchman.config.environment.format_environment_block")
     @patch("henchman.config.environment.gather_environment")
@@ -482,7 +485,7 @@ class TestHenchmanTextualApp:
 
         # Test 2: TextualConfig() raises exception - should be handled
         mock_load_settings.reset_mock(side_effect=True)
-        mock_load_settings.return_value = MagicMock()
+        mock_load_settings.return_value = RuntimeSettingsState.from_settings(Settings()).snapshot()
         mock_textual_config.side_effect = TypeError("Invalid config")
 
         # This should NOT crash

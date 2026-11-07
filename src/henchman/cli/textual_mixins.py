@@ -30,6 +30,7 @@ from textual.widgets import (
 from henchman.advanced import TaskService
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.output_handler import resolve_active_agent
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.textual_config import (
     ComponentConfig,
     ComponentInitializer,
@@ -52,6 +53,7 @@ from henchman.cli.textual_widgets import (
     ToolPane,
     _safe_markup,
 )
+from henchman.config.runtime import RuntimeSettingsState
 from henchman.core.goals import GoalService, save_goal_session
 from henchman.core.session_export import export_as_markdown
 from henchman.providers.base import ModelProvider, StreamChunk
@@ -435,6 +437,7 @@ class _InitMixin:
         config: TextualConfig | None,
         settings: Settings | None,
         env_ctx: str | None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Resolve provider, config, and settings.
 
@@ -444,15 +447,22 @@ class _InitMixin:
             settings: Optional application settings.
             env_ctx: Optional environment context.
         """
+        if settings_state is not None:
+            self.settings_state = settings_state
+            settings = settings_state.settings
+        elif settings is not None:
+            self.settings_state = RuntimeSettingsState.from_settings(settings)
         if provider is not None:
             self.provider = provider
             self.config = config or TextualConfig()
             self.settings = (
                 settings if settings is not None else self._load_settings_safe()  # type: ignore[attr-defined]
             )
+            if settings_state is None:
+                capture_startup_provider_settings(self.settings_state, provider, injected=True)
             self.environment_context = env_ctx
             return
-        self._resolve_provider_from_env(settings=settings)  # type: ignore[attr-defined]
+        self._resolve_provider_from_env(settings=settings, settings_state=settings_state)  # type: ignore[attr-defined]
 
     def _init_state(self: _InitMixin) -> None:
         """Initialize mutable UI state fields."""
@@ -590,10 +600,19 @@ class _ProviderMixin:
 
     def _resolve_provider_from_env(
         self: _ProviderMixin, settings: Settings | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the provider from supplied settings or one configuration load."""
-        self.settings = settings if settings is not None else self._load_settings_safe()
+        if settings_state is not None:
+            self.settings_state = settings_state
+            self.settings = settings_state.settings
+        elif settings is not None:
+            self.settings_state = RuntimeSettingsState.from_settings(settings)
+            self.settings = settings
+        else:
+            self.settings = self._load_settings_safe()
         self.provider = self._load_provider_safe(settings=self.settings)
+        capture_startup_provider_settings(self.settings_state, self.provider)
         self.config = self._create_config_safe()
         self.environment_context = self._gather_env_safe()
 
@@ -619,8 +638,7 @@ class _ProviderMixin:
             )
             return _NullProvider()
 
-    @staticmethod
-    def _load_settings_safe() -> Settings:
+    def _load_settings_safe(self) -> Settings:
         """Load settings.
 
         Returns:
@@ -630,7 +648,8 @@ class _ProviderMixin:
             ConfigError: If settings fail to load.
         """
         settings_module = _import_module("henchman.config")
-        return cast("Settings", settings_module.load_settings())
+        self.settings_state = RuntimeSettingsState(settings_module.load_settings_snapshot())
+        return self.settings_state.settings
 
     @staticmethod
     def _create_config_safe() -> TextualConfig:
@@ -678,7 +697,7 @@ class _ProviderMixin:
         old_name = active_provider.name if active_provider else "unknown"
         try:
             new = create_configured_provider(self.settings.providers, provider_name=provider_name)
-            switch_runtime_provider(self, new, agent=active_agent)
+            switch_runtime_provider(self, new, agent=active_agent, provider_name=provider_name)
         except Exception as exc:  # noqa: BLE001
             self._show_provider_error(exc)
             return

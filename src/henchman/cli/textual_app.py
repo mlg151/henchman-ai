@@ -118,6 +118,7 @@ from henchman.cli.textual_widgets import (
 )
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.config.runtime import RuntimeSettingsState
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -256,6 +257,7 @@ class HenchmanTextualApp(
         settings: Settings | None = None,
         environment_context: str | None = None,
         driver_class: type[Any] | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the Textual TUI.
 
@@ -272,6 +274,7 @@ class HenchmanTextualApp(
             config,
             settings,
             environment_context,
+            settings_state,
         )
         self._init_state()
 
@@ -406,6 +409,7 @@ def run_textual_app(
     config: TextualConfig | None = None,
     settings: Settings | None = None,
     environment_context: str | None = None,
+    settings_state: RuntimeSettingsState | None = None,
 ) -> None:
     """Launch the Textual TUI.
 
@@ -428,6 +432,7 @@ def run_textual_app(
         provider=provider,
         config=config,
         settings=settings,
+        settings_state=settings_state,
         environment_context=environment_context,
         driver_class=driver_class,
     )

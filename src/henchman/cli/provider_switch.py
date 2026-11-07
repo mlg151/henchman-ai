@@ -5,10 +5,41 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from henchman.cli.session_manager import ReplSessionManager
+from henchman.config.runtime import RuntimeSettingsState, runtime_settings_state
+from henchman.config.settings import SettingOrigin
 
 if TYPE_CHECKING:
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
+
+
+def capture_startup_provider_settings(
+    state: RuntimeSettingsState, provider: ModelProvider, *, injected: bool = False,
+) -> None:
+    """Include constructor defaults or explicit injected selection in inspection."""
+    name = getattr(provider, "_accounting_provider_name", None)
+    if not isinstance(name, str):
+        name = provider.name
+    if not isinstance(name, str):
+        return
+    if not injected and name != state.settings.providers.default:
+        # A fallback (for example the TUI null provider) is not a user override.
+        return
+    actual_model = getattr(provider, "default_model", None)
+    selection: dict[str, Any] = {}
+    origin = SettingOrigin("session" if injected else "default")
+    if injected:
+        selection["default"] = name
+    configured = getattr(state.settings.providers, name, None)
+    if (
+        isinstance(configured, dict) and isinstance(actual_model, str)
+        and (injected or configured.get("model") != actual_model)
+    ):
+        selection[name] = {"model": actual_model}
+        if not injected and configured.get("default_model") == actual_model:
+            origin = state.snapshot().origins.get(f"providers.{name}.default_model", origin)
+    if selection:
+        state.update({"providers": selection}, origin=origin)
 
 
 def switch_runtime_provider(
@@ -17,19 +48,37 @@ def switch_runtime_provider(
     *,
     agent: Agent | None = None,
     context_length: int | None = None,
+    provider_name: str | None = None,
+    model_name: str | None = None,
 ) -> None:
     """Install a constructed provider while retaining sessions, tools, and history."""
+    if context_length is not None:
+        from henchman.core.agent import validate_context_limit
+
+        validate_context_limit(context_length)
     orchestrator = getattr(runtime, "orchestrator", None)
     pool = getattr(orchestrator, "pool", None)
     active_agent = agent if agent is not None else getattr(runtime, "agent", None)
+    state = runtime_settings_state(runtime)
+    name = provider_name or getattr(provider, "_accounting_provider_name", None) or provider.name
+    overrides: dict[str, Any] = {"providers": {"default": name}}
+    actual_model = getattr(provider, "default_model", None)
+    configured = getattr(state.settings.providers, name, None)
+    # Custom registered providers may not declare a typed options group. Their
+    # configured identity remains inspectable without inventing schema keys.
+    if (
+        isinstance(configured, dict) and isinstance(actual_model, str)
+        and (model_name is not None or configured.get("model") != actual_model)
+    ):
+        overrides["providers"][name] = {"model": actual_model}
+    if context_length is not None:
+        overrides["context"] = {"max_tokens": context_length}
+    prepared = state.prepare(overrides)
     context_settings = []
     budget = None
     if context_length is not None:
         from henchman.agents.pool import effective_context_budget
         from henchman.config.schema import ContextSettings
-        from henchman.core.agent import validate_context_limit
-
-        validate_context_limit(context_length)
         for owner in (runtime, orchestrator):
             settings = getattr(owner, "settings", None)
             context = getattr(settings, "context", None)
@@ -62,3 +111,4 @@ def switch_runtime_provider(
         component = getattr(runtime, name, None)
         if component is not None:
             component.provider = provider
+    state.commit(prepared)

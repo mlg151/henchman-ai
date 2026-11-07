@@ -11,6 +11,7 @@ from henchman.cli.textual_app import (
     HenchmanTextualApp,
     TextualConfig,
 )
+from henchman.config.schema import Settings
 
 
 class TestEscapeCancellation:
@@ -26,7 +27,7 @@ class TestEscapeCancellation:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -78,7 +79,7 @@ class TestEscapeCancellation:
         """Test that cancel_or_clear cancels agent task when is_processing is True."""
         # Create app with mocks
         mock_provider = MagicMock()
-        mock_settings = MagicMock()
+        mock_settings = Settings()
         mock_settings.ui.theme = "dark"
         mock_settings.ui.keybindings = {}
 
@@ -115,7 +116,7 @@ class TestEscapeCancellation:
         """Test that cancel_or_clear clears search when not processing."""
         # Create app with mocks
         mock_provider = MagicMock()
-        mock_settings = MagicMock()
+        mock_settings = Settings()
         mock_settings.ui.theme = "dark"
         mock_settings.ui.keybindings = {}
 
@@ -146,7 +147,7 @@ class TestEscapeCancellation:
         """Test that cancel_or_clear handles missing task gracefully."""
         # Create app with mocks
         mock_provider = MagicMock()
-        mock_settings = MagicMock()
+        mock_settings = Settings()
         mock_settings.ui.theme = "dark"
         mock_settings.ui.keybindings = {}
 
@@ -185,7 +186,7 @@ class TestEscapeCancellation:
 
         # Create app
         mock_provider = MagicMock()
-        mock_settings = MagicMock()
+        mock_settings = Settings()
         mock_settings.ui.theme = "dark"
         mock_settings.ui.keybindings = {}
 

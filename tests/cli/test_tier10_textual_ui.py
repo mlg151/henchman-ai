@@ -32,7 +32,7 @@ from henchman.cli.textual_widgets import (
     TaskListWidget,
     TeamPanel,
 )
-from henchman.config.schema import Settings
+from henchman.config.schema import McpServerConfig, Settings
 from henchman.core.session_data import Session
 from henchman.core.session_models import SessionMessage
 from henchman.team import BridgeSessionService, TeamWorkspaceService
@@ -226,11 +226,10 @@ class TestTier10AppWiring:
         provider.name = "deepseek"
         provider.model = "deepseek-chat"
 
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
-        settings.plan_mode = False
-        settings.mcp_servers = {"filesystem": MagicMock()}
+        settings.mcp_servers = {"filesystem": McpServerConfig(command="echo")}
         settings.providers.default = "deepseek"
 
         return HenchmanTextualApp(
@@ -536,7 +535,7 @@ class TestTier10AppWiring:
         memory.update_counts.assert_called_once_with(
             session_messages=4,
             history_entries=2,
-            context_loaded=True,
+            context_loaded=False,
         )
         tasks.set_tasks.assert_called_once()
         skills.set_skills.assert_called_once_with(["qa", "design-review"])

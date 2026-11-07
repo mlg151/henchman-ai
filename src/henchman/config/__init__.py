@@ -19,7 +19,7 @@ from henchman.config.schema import (
     ToolSettings,
     UISettings,
 )
-from henchman.config.settings import ConfigError, deep_merge, load_settings
+from henchman.config.settings import ConfigError, deep_merge, load_settings, load_settings_snapshot
 
 __all__ = [
     "DEFAULT_FILENAMES",
@@ -39,4 +39,5 @@ __all__ = [
     "format_environment_block",
     "gather_environment",
     "load_settings",
+    "load_settings_snapshot",
 ]

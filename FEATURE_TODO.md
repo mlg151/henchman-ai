@@ -78,6 +78,10 @@ and summary calls. Typed limits and exact provider/model prices are available;
 automatic CLI run scopes, event-level aggregation and persisted reconciliation remain open; see
 [usage provenance](docs/providers.md#usage-and-cost-provenance).
 The release gates below are not yet satisfied.
+REPL/Textual now retain a shared live settings snapshot with accurate session
+origins for config/doctor inspection, provider switching and resume. Explicit file
+scopes remain independent, and theme/context shortcuts persist only named keys.
+Remaining control consumers and native qualification stay tracked under #14.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.

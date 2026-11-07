@@ -42,8 +42,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   open. See [approval scope](docs/tools.md#approval-reuse-scoping).
 
 - #14 configuration persistence now retains explicit default-valued overrides
-  through set/import and subsequent edits; only unset removes them. Active runtime
-  session origins and doctor inspection remain open alongside downstream controls.
+  through set/import and subsequent edits; only unset removes them. REPL/Textual
+  now retain live values and session origins for `/config view|get`, `/doctor`,
+  provider/context switching and resume. Theme/context persistence changes named
+  keys only. Downstream control consumers remain open; see
+  [effective settings](docs/configuration.md#inspecting-effective-settings).
 
 - #24 provider usage and explicit pricing: compatible and Anthropic adapters
   preserve cumulative request counts, cache subsets and availability provenance.

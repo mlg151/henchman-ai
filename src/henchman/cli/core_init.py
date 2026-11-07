@@ -13,8 +13,11 @@ from typing import TYPE_CHECKING, Any
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.evidence import runtime_exception_text
 from henchman.cli.plugins import PluginManager
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.mcp.manager import McpManager
 
@@ -23,7 +26,6 @@ if TYPE_CHECKING:
 
     from henchman.cli.tool_executor import ToolExecutor
     from henchman.config.context import ContextSnapshot
-    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
     from henchman.tools.registry import ToolRegistry
@@ -59,6 +61,7 @@ class CoreContext:
     session_manager: ReplSessionManager
     tool_executor: ToolExecutor | None = None  # UI-specific, initialized separately
     settings: Settings | None = None
+    settings_state: RuntimeSettingsState | None = None
     instruction_snapshot: ContextSnapshot | None = None
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
 
@@ -72,6 +75,7 @@ def create_core_context(
     auto_approve_tools: bool = False,
     question_handler: Callable[[str], Awaitable[str | None]] | None = None,
     instruction_snapshot: ContextSnapshot | None = None,
+    settings_state: RuntimeSettingsState | None = None,
 ) -> CoreContext:
     """Create core components shared between UI implementations.
 
@@ -91,6 +95,10 @@ def create_core_context(
     Returns:
         Initialized CoreContext with all core components.
     """
+    if settings_state is None:
+        settings_state = RuntimeSettingsState.from_settings(settings or Settings())
+        capture_startup_provider_settings(settings_state, provider, injected=True)
+    settings = settings_state.settings
     # Initialize MCP manager if servers are configured
     mcp_manager: McpManager | None = None
     if settings and settings.mcp_servers:
@@ -158,6 +166,7 @@ def create_core_context(
         session_manager=session_manager,
         settings=settings,
         instruction_snapshot=instruction_snapshot,
+        settings_state=settings_state,
     )
 
 

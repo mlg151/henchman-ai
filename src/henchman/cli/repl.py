@@ -26,11 +26,14 @@ from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_t
 from henchman.cli.input_handler import InputHandler
 from henchman.cli.output_handler import OutputHandler, resolve_active_agent
 from henchman.cli.plugins import PluginManager
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.stream_event_handlers import build_confirmation_message
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
 from henchman.core.goals import GoalService, save_goal_session
@@ -42,7 +45,6 @@ if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
 
     from henchman.cli.input import KeyMonitor
-    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.events import AgentEvent
     from henchman.core.session import Session
@@ -239,6 +241,7 @@ class Repl:
         settings: Settings | None = None,
         environment_context: str | None = None,
         renderer: UIRenderer | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -253,7 +256,11 @@ class Repl:
         self.provider = provider
         self.console = console or Console()
         self.config = config or ReplConfig()
-        self.settings = settings
+        self.settings_state = settings_state or RuntimeSettingsState.from_settings(settings or Settings())
+        if settings_state is None:
+            capture_startup_provider_settings(self.settings_state, provider, injected=True)
+        self.settings = self.settings_state.settings
+        settings = self.settings
         self.event_bus = EventBus()
         self.running = False
         self.rag_system: object | None = None

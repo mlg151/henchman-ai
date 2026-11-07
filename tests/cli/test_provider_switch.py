@@ -203,7 +203,8 @@ async def test_slash_cloud_switch_preserves_config_and_sends_selected_model(monk
     assert runtime.provider.api_key == "saved-key"
     assert runtime.provider.base_url == "http://localhost:19877/v1"
     assert runtime.agent.model == "selected-model"
-    assert runtime.settings.providers.openai_compat["model"] == "saved-model"
+    assert runtime.settings.providers.openai_compat["model"] == "selected-model"
+    assert runtime.settings_state.snapshot().origins["providers.openai_compat.model"].scope == "session"
 
     async def response():
         for chunk in []:

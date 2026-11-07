@@ -319,16 +319,9 @@ class TestReplCoverage:
 
         provider = MagicMock()
         provider.name = "deepseek"
-        settings = MagicMock()
-        settings.mcp_servers = None
-        settings.ui.mcp_logging = False
-        settings.ui.accessible_mode = False
-        settings.ui.style_overrides = None
-        settings.ui.layout = None
-        settings.context = MagicMock()
-        settings.context.intelligent_context = False
-        settings.tools = MagicMock()
-        settings.tools.auto_approve_read = True
+        from henchman.config.schema import Settings
+
+        settings = Settings()
 
         with (
             patch("henchman.cli.repl.PluginManager"),

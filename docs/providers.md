@@ -83,6 +83,9 @@ The configured compaction threshold determines the effective conversation budget
 future specialists receive that budget, including specialists with their own
 provider/model selections. Omitting the option preserves the current context
 policy. `/model` shows the configured length and effective conversation budget.
+It also reports the actual recorded setting origin. `/config get
+providers.default`, `/config get context.max_tokens` and `/doctor` inspect the
+same active snapshot in REPL and Textual.
 The change takes effect for subsequent requests without discarding conversation
 history. It is session-local; use `henchman config set context.max_tokens 32768
 --scope project` to change the saved startup setting.

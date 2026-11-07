@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -23,7 +23,7 @@ from henchman.config.paths import (
     resolve_project_settings_path,
 )
 from henchman.config.schema import Settings
-from henchman.config.settings import SettingOrigin, load_settings_snapshot
+from henchman.config.settings import SettingOrigin, SettingsSnapshot, load_settings_snapshot
 
 _SETTINGS_FILENAME = "settings.yaml"
 _SUPPORTED_SETTINGS_FILENAMES = ("settings.yaml", "settings.yml", "settings.json")
@@ -60,7 +60,10 @@ class SettingsScope(StrEnum):
 class SettingsRepository:
     """Read and write validated Henchman settings by key path."""
 
-    def __init__(self, project_root: Path | None = None) -> None:
+    def __init__(
+        self, project_root: Path | None = None, *,
+        snapshot_provider: Callable[[], SettingsSnapshot] | None = None,
+    ) -> None:
         """Initialize the repository for a project workspace.
 
         Args:
@@ -68,6 +71,7 @@ class SettingsRepository:
                 When omitted, the current working directory is used.
         """
         self._project_root = project_root
+        self._snapshot_provider = snapshot_provider
 
     def view(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
         """Return settings for a selected scope.
@@ -81,6 +85,8 @@ class SettingsRepository:
             persisted values from that scope.
         """
         if scope is SettingsScope.MERGED:
+            if self._snapshot_provider is not None:
+                return self._snapshot_provider().settings.model_dump(mode="python")
             return load_settings(project_root=self._project_root).model_dump(mode="python")
         if scope is SettingsScope.GLOBAL:
             return _clone_mapping(self._read_settings_directory(self._user_settings_directory()))
@@ -102,7 +108,10 @@ class SettingsRepository:
             Leaf inspections, plus actual parent mappings when requested.
         """
         if scope is SettingsScope.MERGED:
-            snapshot = load_settings_snapshot(project_root=self._project_root)
+            snapshot = (
+                self._snapshot_provider() if self._snapshot_provider is not None
+                else load_settings_snapshot(project_root=self._project_root)
+            )
             settings_dict = snapshot.settings.model_dump(mode="python")
             origins_dict = snapshot.origins
             entries = {

@@ -5,6 +5,7 @@ import pytest
 
 from henchman.cli.textual_mixins import _InitMixin, _ProviderMixin
 from henchman.config.schema import ProviderSettings, Settings
+from henchman.config.settings import SettingsSnapshot
 
 
 class _Runtime(_InitMixin, _ProviderMixin):
@@ -29,13 +30,13 @@ def test_tui_injected_settings(
     supplied = Settings(providers=ProviderSettings(deepseek={"model": "supplied"}))
     ambient = Settings(providers=ProviderSettings(deepseek={"model": "ambient"}))
 
-    loader = Mock(return_value=ambient)
+    loader = Mock(return_value=SettingsSnapshot(ambient, {}))
     configured = SimpleNamespace(name="deepseek")
     factory = Mock(return_value=configured)
     injected = SimpleNamespace(name="injected")
 
     # Monkeypatch actual config_module.load_settings
-    monkeypatch.setattr("henchman.config.load_settings", loader)
+    monkeypatch.setattr("henchman.config.load_settings_snapshot", loader)
     # Monkeypatch henchman.providers.factory.create_configured_provider
     monkeypatch.setattr("henchman.providers.factory.create_configured_provider", factory)
 
