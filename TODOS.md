@@ -150,7 +150,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   mode. Explicit user goal transitions authorize replacement;
   transcript metadata cannot refund consumption. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)
   confirms failed-request/unknown-hold retention and pre-HTTP denial after restart.
-  Successful live final-usage reconciliation, native qualification and remaining
+  A separate [CPU request](docs/evaluations/2026-11-07-cpu-budget-reconciliation.md)
+  now qualifies successful final-usage settlement and restart retention for one
+  local request at USD 0 spend. Final artifact/native qualification and remaining
   UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers

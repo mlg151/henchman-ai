@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Local usage reconciliation evidence** — A CPU-only request settled reported
+  usage and retained it across restart, with both budget-limited follow-ups denied
+  before HTTP and USD 0 spend. Earlier failed-request evidence remains unchanged.
+
 - **Guarded OAuth manager operations** — Explicit status/login/refresh/logout
   retain captured project authority, live settings and credential generations.
   Teardown invalidates pending flows before transport cleanup; interactive login

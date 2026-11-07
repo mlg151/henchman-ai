@@ -159,7 +159,9 @@ unknown-priced attempts, without changing holds. Standalone API process runs now
 caller histories and retain budgets through tool-result continuation; durable
 API binding fails explicitly. A [local budget probe](docs/evaluations/2026-11-07-local-budget-qualification.md)
 retained one failed request and unknown token hold across restart, with both
-follow-ups denied before HTTP. Successful live final-usage reconciliation, native
+follow-ups denied before HTTP. A separate [CPU request](docs/evaluations/2026-11-07-cpu-budget-reconciliation.md)
+settled 29 reported tokens, released its hold and retained usage through restart;
+both follow-ups were denied before HTTP at USD 0 spend. Final artifact/native
 qualification and remaining UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
 MCP/schema foundations and their remaining #21/#25 qualification gates are
