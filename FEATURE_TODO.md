@@ -27,7 +27,7 @@ remain in progress.
 The [first local development cohort](docs/evaluations/2026-11-07-local-baseline.md)
 completed all 22 planned attempts with 22 timeouts and no verified successes.
 The raw report is retained; inference readiness and successful model qualification
-remain open, with no paid model calls used.
+remain open, with no paid model calls used. A [CPU follow-up](docs/evaluations/2026-11-07-cpu-readiness.md) retains four failed syntax attempts and one independently verified diagnostic; it does not establish general CPU-profile qualification.
 The portable `AGENTS.md` increment is integrated: default discovery includes
 `AGENTS.md` after Henchman's own filenames, physical-path deduplication rejects
 aliases escaping the global/repository boundary, and immutable instruction

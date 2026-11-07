@@ -459,3 +459,10 @@ zero-spend provenance and qualification limitations are retained together. A
 healthy HTTP endpoint did not establish inference readiness; bounded direct
 inference/tool-call checks are required before another full cohort. The runner
 now records compatible providers' `default_model`, falling back to `model`.
+
+The [CPU readiness follow-up](../docs/evaluations/2026-11-07-cpu-readiness.md)
+retains four failed syntax-repair attempts and one independently verified
+diagnostic using the installed Ornith 9B model. It records context mismatches,
+effective profiles, model manifest digests and limitations; the temporary CPU
+profile was removed afterward. This is a small development check, not general
+model or 16-GB-machine qualification.

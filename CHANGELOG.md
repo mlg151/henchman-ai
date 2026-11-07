@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Local CPU diagnostic evidence** — Retained the installed Ornith 9B readiness
+  checks, four failed syntax-repair attempts and one independently verified
+  diagnostic, with model/profile provenance and a redacted tool trace. Temporary
+  model-profile cleanup preserved the user's base model. These zero-API-spend
+  observations do not complete model or release qualification; see the
+  [CPU follow-up](docs/evaluations/2026-11-07-cpu-readiness.md).
+
 - **Baseline model identity** — Repeat-run reports now read compatible providers'
   `default_model` before falling back to `model`. The
   [first local development cohort](docs/evaluations/2026-11-07-local-baseline.md)

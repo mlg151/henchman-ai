@@ -1,0 +1,71 @@
+{
+  "budget": {
+    "executed_runs": 1,
+    "planned_runs": 1
+  },
+  "cohort": "local",
+  "cost": {
+    "amount_usd": 0.0,
+    "billing": "none",
+    "source": "local"
+  },
+  "generated_at": "2026-11-07T14:23:16.203078+00:00",
+  "kind": "baseline_repeat_runs",
+  "requested": {
+    "cases": [
+      "syntax-fix"
+    ],
+    "max_iterations": 10,
+    "model": "henchman-eval-cpu-ornith15-20261107",
+    "provider": "openai-compatible",
+    "runs_per_case": 1,
+    "timeout": 300.0
+  },
+  "runs": [
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 117740.51479698392,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 9366,
+      "tokens_out": 180
+    }
+  ],
+  "summary": {
+    "cases": {
+      "syntax-fix": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 1,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 1,
+        "successes": 1
+      }
+    },
+    "failures": 0,
+    "latency_ms": {
+      "max": 117740.51479698392,
+      "min": 117740.51479698392,
+      "p50": 117740.51479698392,
+      "p95": 117740.51479698392
+    },
+    "outcome_counts": {
+      "runtime_error": 0,
+      "success": 1,
+      "timeout": 0,
+      "verification_failure": 0
+    },
+    "successes": 1,
+    "total_runs": 1,
+    "usage": {
+      "available": true,
+      "tokens_in": 9366,
+      "tokens_out": 180
+    }
+  }
+}
