@@ -151,11 +151,12 @@ async def test_textual_unmount_joins_children_before_mcp_and_session_save():
         _cleanup_confirm_futures=lambda: order.append("questions"),
         _queued_inputs=lambda: [],
         _pause_active_goal=lambda: None,
+        _workflow=lambda: SimpleNamespace(hold_pending=lambda: order.append("hold")),
     )
     try:
         await HenchmanTextualApp.on_unmount(tui)
         assert work.task.done()
-        assert order == ["questions", "disconnect", "save"]
+        assert order == ["questions", "hold", "disconnect", "save"]
     finally:
         await work.close()
 
