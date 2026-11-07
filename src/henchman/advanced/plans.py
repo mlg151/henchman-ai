@@ -12,7 +12,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from henchman.advanced.acceptance_checks import CheckSpec, parse_checks, prepare_checks, run_checks
+from henchman.advanced.acceptance_checks import (
+    CheckSpec,
+    check_input_paths,
+    check_spec_digest,
+    consistent_check_results,
+    parse_checks,
+    prepare_checks,
+    run_checks,
+)
+from henchman.advanced.verification_inputs import input_freshness
 from henchman.config.paths import resolve_project_settings_path
 from henchman.utils.file_lock import FileLock
 
@@ -299,7 +308,19 @@ class PlanExecutionService:
                 raise exc from persistence_error
             raise
         report = dict(report, run_id=run_id, status="finished", task_verified=False)
-        self._save_report(plan_id, record.checks, run_id, report)
+        try:
+            self._save_report(plan_id, record.checks, run_id, report)
+        except Exception as error:
+            # A bounded report may outgrow the remaining index capacity. Retain
+            # a small terminal failure when possible instead of leaving running
+            # authority behind; never rerun the checks to repair persistence.
+            failed = dict(pending, status="error", checked_at=_now_iso(),
+                          error="Verification results could not be persisted; correct storage before verifying again.")
+            try:
+                self._save_report(plan_id, record.checks, run_id, failed)
+            except Exception as persistence_error:
+                error.add_note(f"Could not save verification persistence failure: {persistence_error}")
+            raise
         return report
 
     def _save_report(
@@ -361,8 +382,48 @@ class PlanExecutionService:
             if report else "Acceptance checks have not run."
         )
         checks = json.dumps([check.to_dict() for check in record.checks], sort_keys=True)
+        current = self.verification_status(plan_id)
         return (f"Reported step progress:\n{progress}\nRecorded checks: {checks}\n{outcome}\n"
+                f"Current declared-input checks: {current['status']}. "
                 "Task verification is not established.")
+
+    def verification_status(self, plan_id: str) -> dict[str, object]:
+        """Inspect declared-input freshness without changing historical observations.
+
+        A current pass concerns only the configured assertions and explicitly
+        declared contents. It does not certify requirement coverage or a task.
+        """
+        record = self._require_plan(plan_id)
+        report = record.last_verification
+        requirements = sorted({identity for check in record.checks for identity in check.requirement_ids})
+        status = "not_run"
+        freshness = "unverified"
+        if report is not None:
+            saved_status = report.get("status")
+            if saved_status in {"running", "cancelled", "error", "stale"}:
+                status = str(saved_status)
+            elif saved_status == "finished":
+                paths, complete = check_input_paths(record.checks)
+                if (report.get("freshness") in {"current", "stale"}
+                    and report.get("spec_digest") == check_spec_digest(record.checks)
+                    and consistent_check_results(record.checks, report)):
+                    freshness = input_freshness(report.get("input_evidence"), root=self._project_root,
+                                                paths=paths, complete=complete, count=len(record.checks))
+                status = ("pass" if report.get("checks_passed") is True else "fail") if freshness == "current" else freshness
+                results = report.get("results")
+                if isinstance(results, list) and any(
+                    isinstance(result, dict) and result.get("status") in {"not_run", "timeout", "error"}
+                    for result in results
+                ):
+                    status = "incomplete"
+            else:
+                status = "unverified"
+        return {"plan_id": plan_id, "status": status, "freshness": freshness,
+                "current_checks_passed": status == "pass", "task_verified": False,
+                "run_id": report.get("run_id") if report else None,
+                "checked_at": report.get("checked_at") if report else None,
+                "spec_digest": check_spec_digest(record.checks), "requirement_ids": requirements,
+                "scope": "Only configured assertions over declared input files; task acceptance is not established."}
 
     def _require_plan(self, plan_id: str) -> PlanRecord:
         """Return one plan record or raise when absent."""

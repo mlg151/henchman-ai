@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Declared-input verification freshness** — Immutable checks accept explicit
+  file inputs and requirement tags. Before/after content fingerprints and read-only
+  status inspection detect stale results, including manual edits and formatting.
+  Historical passes, unavailable checks and task acceptance remain distinct.
+
 - **Bounded Streamable HTTP MCP** — Shared typed transport configuration, verified
   TLS, JSON/SSE responses and atomic modern parameter-header maps support four
   protocol revisions. Dispatch and cleanup recheck policy; redirects, inherited

@@ -19,6 +19,11 @@ privacy refusal. Bounded unauthenticated Streamable HTTP now covers four
 revisions with JSON/SSE and policy-checked cleanup; OAuth/resource/prompt
 integration and final native qualification remain open under #25.
 
+Configured plan checks now retain explicit input fingerprints and requirement
+tags. A read-only status API detects later edits and reports stale, incomplete or
+unverified checks; historical results remain intact. This #16 foundation does
+not complete project check configuration, bounded repair or live acceptance.
+
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured
 results before recording completion. Invalid output is a failed observation of

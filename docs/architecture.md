@@ -9,6 +9,11 @@ adapter. Restores invalidate plan verification and supersede in-flight check
 results; automatic mutation ownership remains separate integration work.
 Conversation rewind does not restore workspace files.
 
+Plan verification keeps historical observations separate from current declared
+input fingerprints. Its read-only status API detects content changes without
+turning a reported step or selected check into task acceptance. See
+[verification freshness](tools.md#declared-input-freshness).
+
 The [operation journal](operation-recovery.md) commits tool-attempt authority
 before dispatch and reconciles completed observations without repeating effects.
 It binds assistant/tool correlation across primary and separate specialist turns;

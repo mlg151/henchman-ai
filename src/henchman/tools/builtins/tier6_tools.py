@@ -93,7 +93,13 @@ _REPL_PARAMETERS: dict[str, object] = {
 _CHECK_SCHEMAS: list[dict[str, object]] = [
     {
         "type": "object", "additionalProperties": False,
-        "properties": {"kind": {"const": kind}, **properties},
+        "properties": {
+            "kind": {"const": kind}, **properties,
+            "inputs": {"type": "array", "items": {"type": "string"},
+                       "minItems": 1, "maxItems": 256, "uniqueItems": True},
+            "requirement_ids": {"type": "array", "items": {"type": "string", "pattern": r"^[A-Za-z0-9_.:/-]{1,128}$"},
+                                "maxItems": 32, "uniqueItems": True},
+        },
         "required": ["kind", *required],
     }
     for kind, properties, required in (

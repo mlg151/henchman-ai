@@ -1129,8 +1129,10 @@ creation; create a new plan to revise the assertions.
     {"kind": "file_exists", "path": "src/invoices.py"},
     {"kind": "file_contains", "path": "src/invoices.py", "text": "calculate_total"},
     {"kind": "file_changed", "path": "src/invoices.py"},
-    {"kind": "pytest", "path": "tests/test_invoices.py", "timeout": 60},
-    {"kind": "command", "argv": ["ruff", "check", "src/invoices.py"], "expected_exit": 0, "timeout": 60}
+    {"kind": "pytest", "path": "tests/test_invoices.py", "timeout": 60,
+     "inputs": ["src/invoices.py", "tests/test_invoices.py", "pyproject.toml"], "requirement_ids": ["REQ-total"]},
+    {"kind": "command", "argv": ["ruff", "check", "src/invoices.py"], "expected_exit": 0, "timeout": 60,
+     "inputs": ["src/invoices.py", "pyproject.toml"]}
   ]
 }
 ```
@@ -1155,11 +1157,13 @@ runtime's normal execution approval policy. The confirmation request includes th
 recorded checks and commands; `status` also displays their specifications.
 
 A plan can record 1–20 checks, which run sequentially. File-content reads are
-limited to 1 MiB; `file_exists` only reads metadata. Captured stdout and stderr each
+limited to 1 MiB; the `file_exists` assertion reads metadata, while its separate
+freshness observation reads eligible content. Captured stdout and stderr each
 retain at most 64 KiB and report truncation. Command and pytest timeouts default
 to 60 seconds and accept integers from 1 to 300. Each command accepts up to 64
 arguments and 16 KiB of UTF-8 argument text. Paths and literal text are bounded to
-4,096 characters. These limits bound observations; they do not establish a total
+4,096 characters. The full check specification, including captured baselines,
+is limited to 512 KiB of canonical JSON. These limits bound observations; they do not establish a total
 application memory budget or verify operation on the target 16 GB laptop with CPU operation and optional GPU acceleration.
 
 Reports include `checks_passed`, per-check observations, timestamps, and a
@@ -1170,10 +1174,46 @@ complete requirements coverage. The tool does not establish that criteria were
 approved by a user. Select checks that reflect the task and review their scope.
 
 Records live in `.henchman/plans/verification.json`. `status` shows reported step
-progress and the latest historical verification state. Saved results do not
-establish the current workspace state; run `verify` again after changes. Legacy
-plans without checks remain readable and require a new plan with checks before
-using `verify`.
+progress, historical observations and current declared-input status. Legacy plans
+without checks remain readable and require a new plan with checks before `verify`.
+If saving completed observations fails, verification reports the storage error
+and attempts to retain a small terminal failure record without rerunning checks.
+
+#### Declared-input freshness
+
+Checks may include `inputs`, a list of 1–256 distinct project-relative files, and
+up to 32 `requirement_ids` of 1–128 ASCII letters, digits or `_.:/-`. These IDs tag
+assertions; they do not establish user approval or requirements coverage. File
+assertions always include their target. Commands and pytest need explicit `inputs`
+to establish current content evidence; include relevant source, tests and config.
+Directories, globs and transitive dependencies are not inferred. An incomplete
+scope cannot establish that all inputs affecting a command were unchanged.
+
+The service fingerprints declared supported contents and modes around each check
+and the full sequence, and binds file assertions to the bytes read. If they differ, `checks_passed` is false and `freshness`
+is `stale`, while individual historical results remain available. Otherwise
+`current_checks_passed` is true only when every check passed and every check has
+available declared-input evidence. Unscoped or unsupported inputs produce
+`unverified`; a passing command exit may still be retained as a historical result.
+Missing executables and timeouts have explicit per-check `not_run` and `timeout`
+states and current status `incomplete`.
+
+`PlanExecutionService.verification_status(plan_id)` reads the current files and
+returns `pass`, `fail`, `stale`, `unverified`, `not_run`, `incomplete`, `running`,
+`cancelled` or `error`. It does not rewrite saved observations. Manual edits,
+formatting and subagent changes to declared files are detected without relying on
+modification times. Restores also retain their existing explicit invalidation.
+Legacy reports without input evidence remain unverified until checks run again.
+
+Input observation uses the checkpoint reader's supported file subset: regular
+UTF-8 text or explicit absence, with no symlink traversal or ignored/private
+content capture. It stores hashes and metadata, never input bytes. A run permits
+at most 256 input files, 1 MiB per file and 16 MiB in total; each snapshot stops
+between files after five seconds, with a Git ignore query bounded to two seconds.
+Cancellation joins input and file-assertion readers. These are before/after observations, not a
+filesystem lock: a later write can invalidate them, and transient changes restored
+between observations are not detected. This reports configured check evidence;
+it does not certify task correctness, environment identity or unlisted dependencies.
 
 ## Tool Kinds
 
