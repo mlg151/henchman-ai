@@ -2,10 +2,9 @@
 
 import copy
 import json
-from unittest.mock import AsyncMock
 
 import pytest
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import bind_scripted_transport
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import AgentConfig, ProviderSettings, Settings
@@ -91,16 +90,9 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
         if index == 3:
             assert "named pytest_run tool" in json.dumps(kwargs["messages"][-1])
         call = script[index]
-        return (
-            anthropic_response(call) if provider_name == "anthropic" else compatible_response(call)
-        )
+        return call
 
-    if provider_name == "anthropic":
-        monkeypatch.setattr(provider._client.messages, "stream", respond)
-    else:
-        monkeypatch.setattr(
-            provider._client.chat.completions, "create", AsyncMock(side_effect=respond)
-        )
+    await bind_scripted_transport(provider, respond)
     registry = ToolRegistry()
     search = ToolSearchTool()
     search.bind_runtime(tool_registry=registry)
@@ -122,6 +114,7 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     try:
         events = [event async for event in orch.run("Use pytest_run to verify test_total.py.")]
     finally:
+        await orch.aclose()
         await provider._client.close()
 
     results = {
@@ -132,6 +125,9 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     assert not results["local"].data["success"]
     assert results["team"].data["success"]
     assert len(requests) == len(script)
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == len(script)
+    assert snapshot.unknown_dispatched_requests == 0
     observed = results["required-check"]
     assert observed.source_agent == "engineer"
     assert observed.data["success"] is passing

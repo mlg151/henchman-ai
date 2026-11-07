@@ -2,10 +2,9 @@
 
 import copy
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import ScriptedCall, bind_scripted_transport
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import ProviderSettings, Settings
@@ -21,7 +20,7 @@ from henchman.tools.registry import ToolRegistry
 @pytest.mark.parametrize("name", ["openrouter", "openai_compat", "deepseek", "ollama", "anthropic"])
 @pytest.mark.parametrize("explicit_provider", [True, False], ids=["saved-provider", "live-model-only"])
 async def test_actual_leader_request_honors_role_configuration(
-    monkeypatch: pytest.MonkeyPatch, name: str, explicit_provider: bool,
+    name: str, explicit_provider: bool,
 ) -> None:
     options: dict[str, Any] = {"model": "default-model", "max_tokens": 1024}
     if name != "ollama":
@@ -54,24 +53,25 @@ async def test_actual_leader_request_honors_role_configuration(
     assert isinstance(default, AnthropicProvider | OpenAICompatibleProvider)
     requests: list[dict[str, Any]] = []
 
-    def respond(**kwargs: Any) -> Any:
+    def respond(**kwargs: Any) -> ScriptedCall:
         requests.append(copy.deepcopy(kwargs))
         assert len(requests) == 1, "Unexpected extra leader request"
-        return anthropic_response(None) if name == "anthropic" else compatible_response(None)  # type: ignore[no-untyped-call]
+        return None
 
-    if isinstance(provider, AnthropicProvider):
-        monkeypatch.setattr(provider._client.messages, "stream", respond)
-    else:
-        monkeypatch.setattr(provider._client.chat.completions, "create", AsyncMock(side_effect=respond))
+    await bind_scripted_transport(provider, respond)
     try:
         events = [event async for event in orch.run("Describe the current status.")]
     finally:
+        await orch.aclose()
         await provider._client.close()
         await default._client.close()
 
     assert not any(event.type == EventType.ERROR for event in events), events
     assert any(event.type == EventType.CONTENT for event in events)
     assert len(requests) == 1
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == 1
+    assert snapshot.unknown_dispatched_requests == 0
     request = requests[0]
     assert request["model"] == "configured-leader-model"
     assert request["max_tokens"] == 1024

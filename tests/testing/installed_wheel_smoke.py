@@ -61,6 +61,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/offline_network.py",
         "tests/testing/test_offline_network.py",
         "tests/e2e/test_coding_loop.py",
+        "tests/e2e/provider_transport.py",
         "tests/e2e/test_leader_requests.py",
         "tests/e2e/test_team_verification_routing.py",
         "tests/e2e/test_team_mission_context.py",
