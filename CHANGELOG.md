@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Exclusive atomic-write temporaries** — File replacement now writes through a
+  private, uniquely created sibling descriptor, preserves regular file permissions
+  and cleans up only its own temporary. Planted predictable temporary symlinks no
+  longer overwrite unrelated files; destination symlinks are replaced without
+  modifying their referents.
+
 - **Restricted tool access** — Typed read/write roots and network disabling bind
   to project identity and intersect across registry ancestry. Qualified builtin
   reads/writes use directory handles with symlink and hardlink checks; other tools

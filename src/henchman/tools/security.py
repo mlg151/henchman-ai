@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import stat
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import ParseResult, urlparse
@@ -366,7 +368,11 @@ def atomic_write(
     mode: str = "w",
     encoding: str = "utf-8",
 ) -> None:
-    """Write content to a file atomically to prevent TOCTOU race conditions.
+    """Replace a file atomically using an exclusively created, private temporary.
+
+    The complete new contents become visible at replacement. This protects
+    against preplanted predictable temporary paths; it is not confinement from
+    independent processes that can modify the destination directory.
 
     Args:
         path: Path to write to.
@@ -380,22 +386,44 @@ def atomic_write(
     Raises:
         OSError: If file operation fails.
     """
-    path_obj = Path(path)
+    path_obj = Path(path).absolute()
 
     # Check write permissions on existing file before attempting write
     if path_obj.exists() and not os.access(str(path_obj), os.W_OK):
         msg = f"Permission denied: {path_obj}"
         raise PermissionError(msg)
 
-    temp_path = path_obj.with_suffix(f"{path_obj.suffix}.tmp")
+    try:
+        existing = path_obj.lstat()
+    except FileNotFoundError:
+        permissions = None
+    else:
+        # Preserve ordinary regular-file permissions, without copying set-id
+        # bits or following a destination symlink to an unrelated file.
+        permissions = stat.S_IMODE(existing.st_mode) & 0o777 if stat.S_ISREG(existing.st_mode) else None
+
+    descriptor, temp_name = tempfile.mkstemp(
+        prefix=f".{path_obj.name[:32]}-", suffix=".tmp", dir=path_obj.parent,
+    )
+    temp_path = Path(temp_name)
 
     try:
-        with temp_path.open(mode, encoding=encoding, newline="") as f:
-            f.write(content)
-        temp_path.replace(path_obj)
+        try:
+            # Keep descriptor ownership here even if fdopen/encoding fails.
+            with os.fdopen(descriptor, mode, encoding=encoding, newline="", closefd=False) as handle:
+                handle.write(content)
+                handle.flush()
+                if permissions is not None:
+                    if hasattr(os, "fchmod"):
+                        os.fchmod(descriptor, permissions)
+                    else:
+                        os.chmod(temp_path, permissions)
+                os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        os.replace(temp_path, path_obj)
     finally:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
+        temp_path.unlink(missing_ok=True)
 
 
 def atomic_read(path: str | Path, mode: str = "r", encoding: str = "utf-8") -> str:

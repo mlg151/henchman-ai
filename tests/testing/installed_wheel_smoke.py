@@ -153,6 +153,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_subagent_plan_mode_prompt.py",
         "tests/tools/test_file_tools.py",
         "tests/tools/test_atomic_text_portability.py",
+        "tests/tools/test_atomic_write_security.py",
         "tests/tools/test_text_file_roundtrip.py",
         "tests/tools/test_numbered_file_read.py",
         "tests/tools/test_edit_recovery.py",
