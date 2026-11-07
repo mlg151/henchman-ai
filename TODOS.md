@@ -36,6 +36,13 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #20 session lookup boundaries: full IDs, prefixes and stale current pointers
+  now follow the current project's scope across root commands, REPL/Textual slash
+  commands, context/memory access and session-derived exports/branches/templates.
+  Existing templates use their embedded session identity. Canary regressions join
+  the native installed-wheel cohort; credential redaction and restricted execution
+  remain open. See [session project boundaries](docs/configuration.md#session-project-boundaries).
+
 - #23 storage foundation: session writes now use atomic replacement, versioned
   integrity checks, a recoverable prior copy and cooperative native locks with
   stale-writer rejection. Legacy sessions migrate on save; recovery warns about

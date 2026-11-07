@@ -53,6 +53,8 @@ class SessionManager(_SessionManagerBase):
         session_id: SessionId,
         branch_point: int,
         tag: TagStr = None,
+        *,
+        project_hash: str | None = None,
     ) -> Session:
         """Create a branch from an existing session.
 
@@ -71,7 +73,7 @@ class SessionManager(_SessionManagerBase):
 
         See :func:`session_branch.branch_session` for details.
         """
-        parent = self.load(session_id)
+        parent = self.load(session_id, project_hash=project_hash)
         meta = _BranchMeta(
             new_id=_generate_id(),
             now=_now_iso(),
@@ -84,6 +86,8 @@ class SessionManager(_SessionManagerBase):
         session_ids: list[str],
         strategy: str = "union",
         tag: TagStr = None,
+        *,
+        project_hash: str | None = None,
     ) -> Session:
         """Merge multiple sessions.
 
@@ -104,7 +108,7 @@ class SessionManager(_SessionManagerBase):
         if len(session_ids) < _MIN_SESSIONS_FOR_MERGE:
             msg = "At least 2 sessions required for merging"
             raise ValueError(msg)
-        sessions = [self.load(sid) for sid in session_ids]
+        sessions = [self.load(sid, project_hash=project_hash) for sid in session_ids]
         now = _now_iso()
         merged = Session(
             id=_generate_id(),
@@ -122,6 +126,7 @@ class SessionManager(_SessionManagerBase):
         format: FormatStr = "json",
         *,
         include_metadata: bool = True,
+        project_hash: str | None = None,
     ) -> str:
         """Export a session to string.
 
@@ -139,7 +144,7 @@ class SessionManager(_SessionManagerBase):
 
         See :func:`session_export.export_as_markdown` for details.
         """
-        session = self.load(session_id)
+        session = self.load(session_id, project_hash=project_hash)
         if format == "json":
             return session.to_json()
         if format == "markdown":
@@ -155,6 +160,8 @@ class SessionManager(_SessionManagerBase):
         data: str,
         format: FormatStr = "json",
         tag: TagStr = None,
+        *,
+        project_hash: str | None = None,
     ) -> Session:
         """Import a session from string.
 
@@ -162,6 +169,7 @@ class SessionManager(_SessionManagerBase):
             data: The session data as a string.
             format: The format of the session data ("json" or "markdown").
             tag: Optional tag to assign to the imported session.
+            project_hash: Destination project for an explicitly imported copy.
 
         Returns:
             The imported Session object.
@@ -171,6 +179,8 @@ class SessionManager(_SessionManagerBase):
         if format == "json":
             session = session_from_json(data)
             import_json_session(session, tag, _generate_id(), _now_iso())
+            if project_hash is not None:
+                session.project_hash = project_hash
             return session
         if format == "markdown":
             msg = "Markdown import not fully implemented. Use JSON."
@@ -184,6 +194,8 @@ class SessionManager(_SessionManagerBase):
         name: str,
         description: str = "",
         parameters: dict[str, str] | None = None,
+        *,
+        project_hash: str | None = None,
     ) -> dict[str, Any]:
         """Save a session as a template.
 
@@ -198,7 +210,7 @@ class SessionManager(_SessionManagerBase):
 
         See :func:`session_templates.save_template` for details.
         """
-        session = self.load(session_id)
+        session = self.load(session_id, project_hash=project_hash)
         tid = f"template_{_generate_id()}"
         info = _TemplateInfo(name, description, parameters)
         io = _TemplateIO(self.data_dir / "templates", tid, _now_iso())
@@ -212,6 +224,8 @@ class SessionManager(_SessionManagerBase):
         template_id: SessionId,
         parameters: dict[str, Any] | None = None,
         tag: TagStr = None,
+        *,
+        project_hash: str | None = None,
     ) -> Session:
         """Create a session from a template.
 
@@ -230,9 +244,11 @@ class SessionManager(_SessionManagerBase):
             _generate_id(),
             _now_iso(),
         )
-        return create_from_template(template_id, io, parameters, tag)
+        return create_from_template(template_id, io, parameters, tag, project_hash=project_hash)
 
-    def list_templates(self: SessionManager) -> list[dict[str, Any]]:
+    def list_templates(
+        self: SessionManager, *, project_hash: str | None = None
+    ) -> list[dict[str, Any]]:
         """List available templates.
 
         See :func:`session_templates.list_templates` for details.
@@ -240,11 +256,13 @@ class SessionManager(_SessionManagerBase):
         Returns:
             List of template metadata dictionaries.
         """
-        return list_templates(self.data_dir / "templates")
+        return list_templates(self.data_dir / "templates", project_hash=project_hash)
 
     def delete_template(
         self: SessionManager,
         template_id: SessionId,
+        *,
+        project_hash: str | None = None,
     ) -> None:
         """Delete a template.
 
@@ -256,7 +274,7 @@ class SessionManager(_SessionManagerBase):
         Returns:
             None
         """
-        delete_template(self.data_dir / "templates", template_id)
+        delete_template(self.data_dir / "templates", template_id, project_hash=project_hash)
 
 
 __all__ = [

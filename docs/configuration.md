@@ -124,6 +124,28 @@ provider options, UI keybindings, and style dictionaries remain customizable.
 Remove previously ignored keys including `tools.auto_approve`,
 `session.auto_save` and `session.sessions_dir` from existing files.
 
+## Session project boundaries
+
+Session selection uses the resolved working-directory identity. `resume`,
+`session switch/delete`, `/chat resume`, and `/session` export, branch, merge and
+template operations enforce the current project for tags, full IDs and prefixes.
+A stale current-session pointer cannot activate another project's transcript or
+memory; context lookup falls back only to sessions in the current project.
+Prefix collisions in another project do not make a local selector ambiguous.
+Existing templates are scoped using the project identity embedded in their saved
+session, so they need no migration to acquire this check.
+
+`session list --all-projects` remains an explicit administrative metadata listing;
+it does not authorize reading or modifying those sessions from this project.
+Run the command from the owning directory to access a session there. Explicit
+file import/export is still the way to transfer a user-managed copy. The `/session
+import` command creates a new ID in the destination project and leaves the source
+session unchanged. Low-level Python session APIs accept `project_hash=` for scoped access and retain unscoped
+administrative access when it is omitted. These are application access checks,
+not OS isolation: processes with filesystem access can still read saved files.
+Credential redaction and restricted shell/network enforcement remain tracked
+separately under issue #20.
+
 ## Local import/export sync
 
 `henchman config import` / `henchman config export` move a narrow **sync payload**

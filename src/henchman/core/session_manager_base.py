@@ -148,11 +148,15 @@ class _SessionManagerBase:
     # Load and lookup
     # ------------------------------------------------------------------
 
-    def load(self: _SessionManagerBase, session_id: str) -> Session:
+    def load(
+        self: _SessionManagerBase, session_id: str, *, project_hash: str | None = None
+    ) -> Session:
         """Load a session from disk.
 
         Args:
             session_id: ID or ID prefix of session to load.
+            project_hash: Restrict selection and returned content to this project.
+                Omit only for explicitly unscoped administrative access.
 
         Returns:
             Loaded Session instance.
@@ -163,18 +167,28 @@ class _SessionManagerBase:
         """
         path = self._get_session_path(session_id)
         if path.exists() or path.with_suffix(".json.bak").exists():
-            return load_session(path)
+            return self._load_scoped(path, project_hash)
         if not self.data_dir.exists():
             msg = f"Session not found: {session_id}"
             raise FileNotFoundError(msg)
         matches = session_paths(self.data_dir, session_id)
+        if project_hash is not None:
+            matches = [p for p in matches if _try_load_metadata(p, project_hash) is not None]
         if not matches:
-            msg = f"Session not found: {session_id}"
+            scope = " in current project" if project_hash is not None else ""
+            msg = f"Session not found{scope}: {session_id}"
             raise FileNotFoundError(msg)
         if len(matches) > 1:
             msg = f"Ambiguous session ID prefix: {session_id}"
             raise ValueError(msg)
-        return load_session(matches[0])
+        return self._load_scoped(matches[0], project_hash)
+
+    def _load_scoped(self, path: Path, project_hash: str | None) -> Session:
+        """Check the final loaded identity, including after prefix resolution."""
+        session = load_session(path)
+        if project_hash is not None and session.project_hash != project_hash:
+            raise FileNotFoundError("Session not found in current project.")
+        return session
 
     def load_by_tag(
         self: _SessionManagerBase,
@@ -192,7 +206,7 @@ class _SessionManagerBase:
         """
         for meta in self.list_sessions(project_hash):
             if meta.tag == tag:
-                return self.load(meta.id)
+                return self.load(meta.id, project_hash=project_hash)
         return None
 
     # ------------------------------------------------------------------

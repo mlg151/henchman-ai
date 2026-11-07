@@ -282,7 +282,7 @@ def _setup_repl_session(repl: Any) -> None:
     current_session_id = getattr(core_manager, "get_project_current", lambda _: None)(project_hash)
     if current_session_id:
         try:
-            session = core_manager.load(current_session_id)
+            session = core_manager.load(current_session_id, project_hash=project_hash)
             repl.set_session(session)
             return
         except (FileNotFoundError, ValueError):

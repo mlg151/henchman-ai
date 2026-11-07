@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from .session_data import Session, session_from_dict
+from .session_persistence import session_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -70,7 +71,7 @@ def save_template(
         "created_at": io.now,
     }
     io.templates_dir.mkdir(parents=True, exist_ok=True)
-    path = io.templates_dir / f"{template_id}.json"
+    path = session_path(io.templates_dir, template_id)
     path.write_text(json.dumps(template_data, indent=2))
     return template_data
 
@@ -80,6 +81,8 @@ def create_from_template(
     io: _TemplateIO,
     parameters: dict[str, Any] | None = None,
     tag: str | None = None,
+    *,
+    project_hash: str | None = None,
 ) -> Session:
     """Create a new session from a saved template.
 
@@ -95,12 +98,14 @@ def create_from_template(
     Raises:
         FileNotFoundError: If template doesn't exist.
     """
-    path = io.templates_dir / f"{template_id}.json"
+    path = session_path(io.templates_dir, template_id)
     if not path.exists():
         msg = f"Template not found: {template_id}"
         raise FileNotFoundError(msg)
 
     template_data = json.loads(path.read_text())
+    if not _matches_project(template_data, project_hash):
+        raise FileNotFoundError("Template not found in current project.")
     session_data: Any = template_data["session_data"]
 
     if parameters:
@@ -111,6 +116,9 @@ def create_from_template(
         session_data = json.loads(session_json)
 
     session = session_from_dict(session_data)
+    if project_hash is not None:
+        # Parameter substitution must not change the verified project identity.
+        session.project_hash = project_hash
     session.id = io.new_id
     session.started = io.now
     session.last_updated = io.now
@@ -125,11 +133,23 @@ def create_from_template(
 # ---------------------------------------------------------------------------
 
 
-def _try_load_template(path: Path) -> dict[str, Any] | None:
+def _matches_project(data: Any, project_hash: str | None) -> bool:
+    """Read scope from the original saved session, including legacy templates."""
+    if not isinstance(data, dict):
+        return False
+    if project_hash is None:
+        return True
+    session_data = data.get("session_data")
+    return isinstance(session_data, dict) and session_data.get("project_hash") == project_hash
+
+
+def _try_load_template(path: Path, project_hash: str | None = None) -> dict[str, Any] | None:
     """Try to load template metadata from a file, or None on failure."""
     try:
         data = json.loads(path.read_text())
     except (json.JSONDecodeError, KeyError):
+        return None
+    if not _matches_project(data, project_hash):
         return None
     return {
         "id": data.get("id"),
@@ -140,7 +160,9 @@ def _try_load_template(path: Path) -> dict[str, Any] | None:
     }
 
 
-def list_templates(templates_dir: Path) -> list[dict[str, Any]]:
+def list_templates(
+    templates_dir: Path, *, project_hash: str | None = None
+) -> list[dict[str, Any]]:
     """List available templates.
 
     Args:
@@ -151,11 +173,13 @@ def list_templates(templates_dir: Path) -> list[dict[str, Any]]:
     """
     if not templates_dir.exists():
         return []
-    loaded = [_try_load_template(p) for p in templates_dir.glob("*.json")]
+    loaded = [_try_load_template(p, project_hash) for p in templates_dir.glob("*.json")]
     return [t for t in loaded if t is not None]
 
 
-def delete_template(templates_dir: Path, template_id: str) -> None:
+def delete_template(
+    templates_dir: Path, template_id: str, *, project_hash: str | None = None
+) -> None:
     """Delete a template.
 
     Args:
@@ -168,8 +192,10 @@ def delete_template(templates_dir: Path, template_id: str) -> None:
     Returns:
         None
     """
-    path = templates_dir / f"{template_id}.json"
+    path = session_path(templates_dir, template_id)
     if not path.exists():
         msg = f"Template not found: {template_id}"
         raise FileNotFoundError(msg)
+    if project_hash is not None and _try_load_template(path, project_hash) is None:
+        raise FileNotFoundError("Template not found in current project.")
     path.unlink()

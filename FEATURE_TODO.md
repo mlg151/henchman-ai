@@ -40,6 +40,9 @@ checks, one recoverable prior copy and native locking with stale-writer rejectio
 Legacy files migrate on save; corrupted current files recover with explicit warnings.
 Process-termination and simultaneous-writer regressions join the native installed
 wheel suite. Goal/queue/operation recovery and continuation qualification remain open.
+The #20 session-selector boundary now covers full IDs, prefixes, current pointers,
+memory/context lookup and derived exports/branches/templates. Credential redaction
+and restricted filesystem/network execution still require implementation and qualification.
 The release gates below are not yet satisfied.
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

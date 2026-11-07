@@ -230,7 +230,7 @@ class SessionContextService:
 
         if current_session_id is not None:
             try:
-                session = self._manager.load(current_session_id)
+                session = self._manager.load(current_session_id, project_hash=project_hash)
             except FileNotFoundError:
                 self._manager.clear_project_current(project_hash)
             else:
@@ -242,7 +242,7 @@ class SessionContextService:
             msg = "No saved sessions for the current project."
             raise ValueError(msg)
 
-        session = self._manager.load(sessions[0].id)
+        session = self._manager.load(sessions[0].id, project_hash=project_hash)
         self._manager.set_project_current(project_hash, session.id)
         self._manager.set_current(session)
         return project_hash, session
@@ -410,7 +410,9 @@ class SessionContextService:
             raise ValueError(msg)
 
         branch_point = len(prefix) + len(_flatten(turns[:turn_number]))
-        return self._manager.branch_session(session.id, branch_point, tag=tag)
+        return self._manager.branch_session(
+            session.id, branch_point, tag=tag, project_hash=session.project_hash
+        )
 
 
 __all__ = [

@@ -316,7 +316,7 @@ class ChatCommand(BaseCommand):
         session = manager.load_by_tag(tag_or_id, project_hash)
         if session is None:
             with contextlib.suppress(ValueError, FileNotFoundError):
-                session = manager.load(tag_or_id)
+                session = manager.load(tag_or_id, project_hash=project_hash)
 
         return session
 

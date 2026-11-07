@@ -230,7 +230,7 @@ class ReplSessionManager:
         """
         return self.session_manager.create_session(project_hash, tag)
 
-    def load(self: Self, session_id: str) -> Session:
+    def load(self: Self, session_id: str, *, project_hash: str | None = None) -> Session:
         """Load a session from disk.
 
         Args:
@@ -246,7 +246,7 @@ class ReplSessionManager:
         if not session_id:
             msg = "session_id must not be empty"
             raise ValueError(msg)
-        return self.session_manager.load(session_id)
+        return self.session_manager.load(session_id, project_hash=project_hash)
 
     def load_by_tag(
         self: Self,
