@@ -173,7 +173,10 @@ class WindowsApi:
             access |= _DELETE | _WRITE_DAC
         if writable:
             access |= _WRITE
-        sharing = share if share is not None else (0 if exclusive else 1)
+        # Directory writes must remain shareable: replacing a child opens its
+        # parent for write access. Withhold DELETE to pin the directory itself.
+        default_share = 0 if exclusive else (3 if directory else 1)
+        sharing = share if share is not None else default_share
         # OPEN_REPARSE_POINT operates on the final object, never its target.
         flags = 0x00200000 | (0x02000000 if directory else 0)
         with self.private_security() as descriptor:

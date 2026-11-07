@@ -344,5 +344,24 @@ def test_directory_guard_requests_data_access_for_windows_share_enforcement(tmp_
     with api.open(tmp_path, directory=True):
         access, share = accesses[0]
         assert access & 0x1  # FILE_LIST_DIRECTORY / FILE_READ_DATA
+        assert share & 0x2  # FILE_SHARE_WRITE: replacing children needs parent write access
         assert not share & 0x4  # FILE_SHARE_DELETE
     assert closed == [123]
+
+
+@native
+def test_native_directory_guard_allows_child_replacement_but_denies_parent_rename(tmp_path):
+    from henchman.advanced.checkpoint_windows import windows_api
+
+    directory = tmp_path / "held"
+    directory.mkdir()
+    target = directory / "target"
+    target.write_bytes(b"old")
+    with windows_api().open(directory, directory=True):
+        temporary = directory / "new"
+        temporary.write_bytes(b"complete new bytes")
+        os.replace(temporary, target)
+        assert target.read_bytes() == b"complete new bytes"
+        with pytest.raises(OSError):
+            directory.rename(tmp_path / "moved")
+    assert directory.exists() and not (tmp_path / "moved").exists()
