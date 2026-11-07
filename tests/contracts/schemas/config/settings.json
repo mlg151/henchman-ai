@@ -26,8 +26,9 @@
     "usage": {
       "type": "object",
       "description": "Shared run limits and an explicit provider/effective-model price catalog; never SDK request options.",
-      "required": ["limits", "prices"],
+      "required": ["limits", "prices", "persistence"],
       "properties": {
+        "persistence": { "type": "string", "enum": ["process", "durable"] },
         "limits": {
           "type": "object",
           "required": ["currency", "max_requests", "max_tokens", "max_seconds", "max_cost"],
@@ -65,11 +66,14 @@
     "tools": {
       "type": "object",
       "description": "Tool behavior configuration",
-      "required": ["auto_approve_read", "shell_timeout", "sandbox"],
+      "required": ["auto_approve_read", "shell_timeout", "sandbox", "filesystem_read_roots", "filesystem_write_roots", "network_access"],
       "properties": {
         "auto_approve_read": { "type": "boolean" },
         "shell_timeout": { "type": "integer", "minimum": 0 },
-        "sandbox": { "type": "string", "enum": ["none", "docker"] }
+        "sandbox": { "type": "string", "enum": ["none", "docker"] },
+        "filesystem_read_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+        "filesystem_write_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+        "network_access": { "type": "string", "enum": ["unrestricted", "disabled"] }
       },
       "additionalProperties": false
     },

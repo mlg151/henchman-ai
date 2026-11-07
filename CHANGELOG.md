@@ -128,6 +128,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Serialized settings contracts now include filesystem/network controls and
+  accounting persistence, preserving null versus empty root lists.
+
 - **Specialist price identity** — Model-only agent overrides retain the configured
   provider alias through initial construction and runtime switches. An unrelated
   compatible-adapter price entry can no longer substitute for the actual
