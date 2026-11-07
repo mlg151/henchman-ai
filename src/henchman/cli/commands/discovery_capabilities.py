@@ -181,7 +181,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         detail=(
             "Treat MCP as live only when the runtime exposes both mcp and mcp_auth "
             "tools; status output must report auth presence without printing tokens. "
-            "Explicit refresh replaces the connected tool catalog without expanding scoped allowlists."
+            "Explicit refresh replaces the connected tool catalog without expanding scoped allowlists. "
+            "Pinned SDK 2.3.0 supports tested legacy and 2026-07-28 stdio with bounded frames and "
+            "single-dispatch tool calls. Active SDK telemetry is refused; HTTP/OAuth/resources/prompts remain pending."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

@@ -4,11 +4,11 @@ Henchman-AI supports the Model Context Protocol (MCP) for connecting to external
 
 MCP is classified as runtime-wired only when both the `mcp` and `mcp_auth` tools are registered. A configuration entry or installed MCP dependency alone does not make the surface live; use help or doctor to inspect the current runtime classification. Auth status reporting indicates whether credentials are present without printing their values.
 
-The [standards adoption RFC](standards.md#mcp-adoption-details) compares this
-existing client with MCP revision 2026-07-28 and proposes an SDK migration,
-modern transports, richer results, resources, and prompts. Those additions
-remain roadmap work; the current stdio client is not evidence of conformance
-to that revision.
+The stdio client uses the exactly pinned MCP SDK 2.3.0 and tests revisions
+2024-11-05, 2025-03-26, 2025-06-18, 2025-11-25 and 2026-07-28. It negotiates modern
+discovery or legacy initialization through the SDK. Streamable HTTP, OAuth,
+resources and prompts remain [roadmap work](standards.md#mcp-adoption-details).
+This tested stdio subset is not a claim of complete protocol conformance.
 
 ## What is MCP?
 
@@ -94,7 +94,32 @@ The native stdio connection owns its SDK contexts in one lifecycle task, so
 startup, calls and shutdown may originate from different application tasks.
 Failed or cancelled startup and shutdown join owned transport cleanup. This is
 part of the [stdio compatibility foundation](standards.md#implemented-compatibility-foundation-v042-work);
-modern transports, pagination and richer results remain separate roadmap work.
+modern transports and resource/prompt retrieval remain separate roadmap work.
+
+### Stdio wire limits and telemetry
+
+UTF-8 stdio frames are limited to 1 MiB before decoding or parsing. The canonical
+depth/node limits also apply; oversized, deeply nested or unterminated frames end
+the connection. Malformed individual JSON lines produce value-free diagnostics and
+may be followed by valid messages. Each native request has a 30-second outer
+deadline including transport handoff; negotiation has a 40-second total deadline.
+A complete catalog walk has a 60-second deadline and remains capped at 32 pages.
+These deadlines include waits before the SDK's response timer starts.
+After cancellation, the pinned SDK may spend up to five additional seconds
+settling its courtesy cancellation write; bounded process shutdown follows.
+The exact SDK pin qualifies private process/shutdown helpers
+used by this bounded framing adapter.
+
+Tool dispatch uses one typed request. It does not enter SDK automatic header
+mismatch replay or multi-round input continuation; `input_required` is explicitly
+unsupported. An ambiguous transport failure reports that the outcome may be
+unknown. It does not establish that effects were undone.
+
+SDK 2.3 has no public telemetry-off switch. A configured tracer provider or active
+outbound trace/baggage propagation therefore blocks connection and dispatch with
+an explicit diagnostic. Henchman leaves application-global tracing state intact.
+Known credentials remain projected from server stderr and SDK diagnostics. See the
+[pinned SDK implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v2.3.0/src/mcp/shared/_otel.py).
 
 ## Trust Levels
 
@@ -147,9 +172,10 @@ Error results remain errors rather than being checked as successful output.
 
 The native result and `ToolResult` preserve content blocks, structured content,
 presence separately from null, and metadata. Text compatibility output labels
-non-text blocks. SDK 1.x permits object-or-null `structuredContent`; scalar and
-array wire forms fail explicitly even though the canonical local validator can
-validate them. Results accept at most 256 blocks within the payload bound.
+non-text blocks. Modern revision 2026-07-28 retains scalar, array and null
+structured output. Legacy revisions retain their narrower wire schema/result
+restrictions and fail explicitly on unsupported forms. Results accept at most
+256 blocks within the payload bound.
 Agent, CLI/headless, chat and session paths now retain these typed fields. All five
 builtin provider adapters send an explicit JSON text projection; image/audio data
 and binary resource blobs are described rather than sent as binary. Original
@@ -157,8 +183,8 @@ typed data remains in raw agent history and redacted saved history where those
 consumers retain it. Context truncation identifies omitted payloads and their
 digests even when a text result remains. Exports, VCR, merge and restored sessions
 preserve typed meaning. API caller-supplied continuation inputs remain text-only.
-These are accepted-payload bounds: the SDK parses a complete stdio line first,
-so they do not bound memory used while parsing a hostile oversized wire message.
+The native stdio adapter also enforces the pre-parse wire bound described above.
+Custom injected clients must qualify their own transport bounds.
 
 ### List Servers
 

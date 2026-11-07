@@ -183,6 +183,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/api/test_bug036_auth.py",
         "tests/api/test_bug038_sse_header.py",
         "tests/mcp/test_stdio_profiles.py",
+        "tests/mcp/test_protocol_compat.py",
         "tests/mcp/test_auth_storage.py",
         "tests/mcp/test_credential_lifecycle.py",
         "tests/mcp/test_evidence_binding.py",

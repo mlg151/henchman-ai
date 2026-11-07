@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import anyio
-from mcp.client.stdio import stdio_client
 from pydantic import ValidationError
 
 from henchman.mcp.credentials import reference_values, resolve_environment
@@ -28,13 +27,14 @@ from henchman.mcp.diagnostics import sdk_diagnostics
 from henchman.tools.contracts import SchemaContract, SchemaContractError
 from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 from henchman.utils.pipe_output import pipe_chunk as _pipe_chunk
-from mcp import ClientSession, StdioServerParameters, types
+from mcp import StdioServerParameters
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from typing import Self, TextIO
 
     from henchman.config.schema import McpServerConfig
+    from henchman.mcp.protocol import McpProtocolSession
 
 
 @runtime_checkable
@@ -72,18 +72,6 @@ MAX_DISCOVERY_TOOLS = 1024
 MAX_CATALOG_BYTES = 4 * 1024 * 1024
 MAX_RESULT_BLOCKS = 256
 _JSON_PAYLOAD = SchemaContract(True)
-
-
-class _ContractClientSession(ClientSession):
-    """Keep SDK transport/negotiation while replacing its unsafe schema path.
-
-    SDK 1.26 uses bare jsonschema.validate here, which can retrieve remote refs
-    and include rejected values in exceptions. McpClient owns bounded local
-    contracts captured from the complete catalog instead.
-    """
-
-    async def _validate_tool_result(self, name: str, result: types.CallToolResult) -> None:
-        del name, result
 
 
 def _sdk_payload(value: Any) -> dict[str, Any]:
@@ -303,7 +291,7 @@ class McpClient:
         self.name = name
         self.config = config
         self.verbose = verbose
-        self._session: ClientSession | None = None
+        self._session: McpProtocolSession | None = None
         self.protocol_version: str | None = None
         self._tools: list[McpToolDefinition] = []
         self._exit_stack: AsyncExitStack | None = None
@@ -320,7 +308,7 @@ class McpClient:
     @property
     def is_connected(self: Self) -> bool:
         """Check if connected to server."""
-        if self._session is None:
+        if self._session is None or not getattr(self._session, "is_connected", True):
             return False
         try:
             self._check_credentials()
@@ -367,8 +355,10 @@ class McpClient:
     async def _open_session(  # pragma: no cover
         self: Self,
         stack: AsyncExitStack,
-    ) -> ClientSession:
-        """Enter stdio_client and ClientSession contexts, then initialize."""
+    ) -> McpProtocolSession:
+        """Enter the bounded stdio transport and negotiate the pinned SDK."""
+        from henchman.mcp.protocol import open_stdio_session
+
         params = self._build_server_params()
         diagnostic_config = copy.copy(self.config)
         diagnostic_config.env = dict(params.env or {})
@@ -377,12 +367,7 @@ class McpClient:
             errlog = await stack.enter_async_context(
                 _stdio_stderr(diagnostic_config, verbose=self.verbose, secrets=secrets)
             )
-            read, write = await stack.enter_async_context(
-                stdio_client(params, errlog=errlog),
-            )
-            session = await stack.enter_async_context(_ContractClientSession(read, write))
-            initialized = await session.initialize()
-            self.protocol_version = str(initialized.protocolVersion)
+            session, self.protocol_version = await open_stdio_session(stack, params, errlog)
         return session
 
     async def connect(self: Self) -> None:  # pragma: no cover
@@ -394,6 +379,9 @@ class McpClient:
         Returns:
             None
         """
+        from henchman.mcp.protocol import require_private_sdk
+
+        require_private_sdk()
         async with self._lifecycle_lock:
             if self.is_connected:
                 return
@@ -512,6 +500,16 @@ class McpClient:
 
     async def prepare_tools(self) -> list[McpToolDefinition]:
         """Stage a complete bounded catalog without changing published authority."""
+        from henchman.mcp.protocol import CATALOG_TIMEOUT_SECONDS
+
+        try:
+            with anyio.fail_after(CATALOG_TIMEOUT_SECONDS):
+                return await self._prepare_tools()
+        except TimeoutError:
+            raise RuntimeError("MCP catalog discovery deadline exceeded; previous catalog retained") from None
+
+    async def _prepare_tools(self) -> list[McpToolDefinition]:
+        """Walk the catalog under prepare_tools' single operation deadline."""
         self._check_credentials()
         session = self._session
         if session is None:
@@ -604,9 +602,11 @@ class McpClient:
         try:
             result = await self._session.call_tool(name, captured)
         except ValidationError:
-            # SDK 1.x supports object-or-null structuredContent, not scalar or
-            # array wire forms. Never forward Pydantic's rejected input values.
-            raise SchemaContractError("mcp_result_shape_object_or_null_required") from None
+            # The SDK validates against the negotiated revision. Older wire
+            # contracts permit object-or-null structuredContent only.
+            reason = ("mcp_result_shape" if self.protocol_version == "2026-07-28"
+                      else "mcp_result_shape_object_or_null_required")
+            raise SchemaContractError(reason) from None
         payload = _sdk_payload(result)
         blocks = payload.get("content", [])
         if len(blocks) > MAX_RESULT_BLOCKS:

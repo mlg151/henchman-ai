@@ -13,6 +13,10 @@ annotations and typed results through provider text projection and session
 retention while invalidating stale handles and keeping scoped allowlists. Broader
 [contract/transport qualification](docs/mcp.md#refresh-a-connected-catalog) remains
 under #21/#25.
+The exact SDK 2.3.0 pin now supports bounded native stdio across four legacy
+revisions and 2026-07-28, with no implicit mutating replay and explicit telemetry
+privacy refusal. HTTP/OAuth/resource/prompt integration and native qualification
+remain open under #25.
 
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured

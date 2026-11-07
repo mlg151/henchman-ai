@@ -1111,7 +1111,8 @@ from henchman.mcp import (
 
 ### McpClient
 
-The current client uses the bounded SDK 1.x stdio interface.
+The current client uses the exactly pinned SDK 2.3.0 through a bounded stdio
+adapter with single-dispatch tool requests. See [wire and telemetry limits](mcp.md#stdio-wire-limits-and-telemetry).
 `protocol_version: str | None` reports negotiated protocol metadata while
 connected and clears on disconnect/failure. See the
 [tested compatibility profiles](standards.md#implemented-compatibility-foundation-v042-work)

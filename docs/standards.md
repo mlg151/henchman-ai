@@ -69,24 +69,23 @@ OpenAI strict tools require closed objects and all properties required, with nul
 
 ### Implemented compatibility foundation (v0.4.2 work)
 
-The runtime now bounds its existing SDK interface to `mcp>=1.26,<2`, with
-`1.26.0` retained in the lockfile. The current stdio fixture profiles are
-`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`. Independent JSON-RPC
-subprocesses exercise initialization, discovery, calls, unsupported-version
-rejection, cancellation and shutdown through the actual SDK. These are legacy
-compatibility profiles, not implementation of the 2026 protocol revision. The
-SDK handles negotiation; `McpClient.protocol_version` exposes the negotiated
-version. See the [SDK release](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v1.26.0)
-and [2025 tool protocol](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
+The runtime pins `mcp==2.3.0` and tests native stdio revisions `2024-11-05`,
+`2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28`. Independent JSON-RPC
+subprocesses exercise legacy initialization, modern discovery, tool calls,
+unsupported-version rejection, cancellation and shutdown through the actual SDK.
+The SDK handles negotiation; `McpClient.protocol_version` exposes the negotiated
+version. The exact pin qualifies private process/shutdown helpers reused by the
+bounded frame adapter. See the [SDK release](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.3.0)
+and [modern versioning](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning).
 
 Real process launch now uses a pipe instead of an in-memory stderr object.
 Diagnostics drain without shared executor workers or unbounded line buffers;
 shutdown does not wait indefinitely for descendants retaining stderr. Configured
 environment credentials are redacted from stderr and SDK malformed-stdout logs
 before output. This does not establish OS containment or complete third-party
-logging coverage. Native/fresh artifact qualification, canonical schemas,
-pagination, refresh and typed results remain under #21; SDK migration remains
-under #25. The original research gap table above stays pinned to its baseline.
+logging coverage. Native/fresh artifact qualification remains under #21/#25;
+HTTP/OAuth/resource/prompt integration remains under #25. The original research
+gap table above stays pinned to its baseline.
 
 ### Local schema contract foundation
 
@@ -129,7 +128,7 @@ contracts; they do not establish support by every remote endpoint or model.
 
 ### MCP catalog and result foundation
 
-The native SDK 1.x client now stages bounded paginated catalogs, validates local
+The native SDK client now stages bounded paginated catalogs, validates local
 input/output contracts and preserves detached output schemas, annotations,
 content blocks, structured-content presence/null and result metadata. Explicit
 `/mcp refresh <server>` and management-tool refresh replace owned registry entries
@@ -137,8 +136,8 @@ without expanding scoped agent allowlists; stale wrappers and confirmation grant
 are invalidated. Native fixture processes cover refresh, collisions, cancellation,
 malformed catalogs and structured errors. See [MCP bounds and compatibility](mcp.md#refresh-a-connected-catalog).
 
-SDK 1.x structured output is object-or-null; scalar/array wire forms are rejected
-explicitly. Typed results now propagate through agents, events, CLI/chat,
+SDK 2.3.0 supports the tested modern scalar/array/null output forms; legacy
+revision restrictions remain explicit. Typed results propagate through agents, events, CLI/chat,
 provider text projections and session retention/export/restore. Binary blocks are
 summarized explicitly on provider wires; active-context omission retains a visible
 digest marker. Registry publication compiles input and optional output contracts
@@ -149,7 +148,10 @@ distinct from explicit null. Invalid result evidence becomes a value-free failed
 observation after dispatch and never triggers an automatic replay. Tool failures
 need not satisfy a success-output schema. Final qualification remains required
 for #21/P1. Modern transport,
-resources/prompts and preparse wire bounds remain separate #25 work.
+resources/prompts remain separate #25 work. Native stdio now bounds raw frames
+before decoding/parsing, rejects unsupported multi-round input results without
+automatic replay, and blocks dispatch when SDK telemetry cannot remain private.
+See [wire limits](mcp.md#stdio-wire-limits-and-telemetry).
 
 ### Remaining phase gates
 

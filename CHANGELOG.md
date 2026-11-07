@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Modern and legacy bounded MCP stdio** — SDK 2.3.0 is exactly pinned and
+  tested against five protocol revisions through 2026-07-28. Raw frames are
+  bounded before parsing; tool calls avoid implicit replay and reject unsupported
+  input continuation. Active SDK telemetry blocks dispatch with a diagnostic.
+  HTTP, OAuth and resource/prompt retrieval remain separate integration work.
+
 - **Truthful background-task restart state** — Saved running jobs load as
   `outcome_unknown` without an invented stop time or exit result. Retained output
   remains inspectable; persisted PIDs never authorize stopping or waiting on an
@@ -58,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP catalog and result fidelity** — Bounded pagination, atomic explicit
   refresh, input/output validation and detached typed results preserve catalog
   meaning. Refresh invalidates stale tool handles and approval grants while
-  retaining agent scopes. SDK 1.x output-shape and parsing limits are explicit.
+  retaining agent scopes. Legacy output-shape and current parsing limits are explicit.
 
 - **Content checkpoint foundation** — Explicit before/after file capture,
   revision-bound file/hunk review, conflict-checked POSIX restore and durable

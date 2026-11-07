@@ -29,6 +29,16 @@ for line in sys.stdin:
     with open(state_path,encoding='utf-8') as source:
         state=json.load(source)
     method=request['method']
+    version=state.get('protocolVersion','2025-11-25')
+    if method=='server/discover':
+        if version=='2026-07-28':
+            print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':{
+                'supportedVersions':[version],'capabilities':{'tools':{}},
+                'resultType':'complete','ttlMs':0,'cacheScope':'private'}}),flush=True)
+            continue
+        print(json.dumps({'jsonrpc':'2.0','id':request['id'],
+                          'error':{'code':-32601,'message':'Method not found'}}),flush=True)
+        continue
     if method=='initialize':
         result={'protocolVersion':'2025-11-25','capabilities':{'tools':{'listChanged':True}},
                 'serverInfo':{'name':'independent-catalog-fixture','version':'1'}}
@@ -42,6 +52,10 @@ for line in sys.stdin:
                 {'content':[{'type':'text','text':'called'}],'isError':False})
     else:
         raise RuntimeError(method)
+    if version=='2026-07-28':
+        result.setdefault('resultType','complete')
+        if method=='tools/list':
+            result.update({'ttlMs':0,'cacheScope':'private'})
     print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':result}),flush=True)
 '''
 
@@ -282,7 +296,8 @@ async def test_nested_local_contract_null_output_and_error_fidelity(tmp_path: Pa
                            "properties": {"values": {"type": "array", "items": {"$ref": "#/$defs/item"}}},
                            "required": ["values"]}
     tool["annotations"] = {"readOnlyHint": True}
-    fixture = Fixture(tmp_path, state(tool, results={"typed": {"content": [], "structuredContent": None}}))
+    fixture = Fixture(tmp_path, {**state(tool, results={"typed": {"content": [], "structuredContent": None}}),
+                                 "protocolVersion": "2026-07-28"})
     try:
         await fixture.client.connect()
         wrapper = McpTool(fixture.client.get_tools()[0], fixture.client, "fixture")
@@ -292,8 +307,9 @@ async def test_nested_local_contract_null_output_and_error_fidelity(tmp_path: Pa
         with pytest.raises(SchemaContractError):
             await wrapper.execute(values=[123])
         assert len(fixture.requests("tools/call")) == 1
-        fixture.write(state(tool, results={"typed": {"content": [{"type": "text", "text": "server failed"}],
-                                                      "structuredContent": {"diagnostic": True}, "isError": True}}))
+        fixture.write({**state(tool, results={"typed": {"content": [{"type": "text", "text": "server failed"}],
+                                                      "structuredContent": {"diagnostic": True}, "isError": True}}),
+                       "protocolVersion": "2026-07-28"})
         result = await wrapper.execute(values=[])
         assert not result.success and result.error == "server failed"
         assert result.content_blocks[0] == {"type": "text", "text": "server failed"}

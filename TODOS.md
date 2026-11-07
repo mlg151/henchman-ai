@@ -17,6 +17,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   [compatibility limits](docs/mcp.md#refresh-a-connected-catalog).
   Registry-wide schema compilation and output validation now cover local tools
   and extensions, including approval-time schema changes and completed failures.
+  SDK 2.3.0 adds bounded modern/legacy stdio and rejects implicit replay or active
+  telemetry; HTTP/OAuth/context retrieval and native qualification remain open.
 
 - [Operation recovery](docs/operation-recovery.md) now binds durable dispatch
   authority to saved requests/results and exposes `/recovery` user decisions.

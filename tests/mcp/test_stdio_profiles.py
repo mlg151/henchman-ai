@@ -29,6 +29,10 @@ for line in sys.stdin:
     if "id" not in request:
         continue
     method = request["method"]
+    if method == "server/discover":
+        print(json.dumps({"jsonrpc": "2.0", "id": request["id"],
+                          "error": {"code": -32601, "message": "Method not found"}}), flush=True)
+        continue
     if method == "initialize":
         if log == "stall":
             continue
@@ -75,7 +79,7 @@ async def test_stdio_profiles_negotiate_discover_call_and_close(tmp_path, versio
     assert not client.get_tools()
     requests = [json.loads(line) for line in transcript.read_text().splitlines()]
     assert [item["method"] for item in requests] == [
-        "initialize", "notifications/initialized", "tools/list", "tools/call",
+        "server/discover", "initialize", "notifications/initialized", "tools/list", "tools/call",
     ]
 
 
@@ -86,7 +90,9 @@ async def test_unknown_stdio_protocol_fails_without_discovery(tmp_path):
             await client.connect()
     assert not client.is_connected
     assert client._exit_stack is None
-    assert [json.loads(line)["method"] for line in transcript.read_text().splitlines()] == ["initialize"]
+    assert [json.loads(line)["method"] for line in transcript.read_text().splitlines()] == [
+        "server/discover", "initialize",
+    ]
 
 
 @pytest.mark.parametrize("verbose", [False, True])
@@ -260,4 +266,4 @@ async def test_malformed_stdout_redacts_sdk_formatted_logs_and_exception_records
     for record in records:
         assert "stdio-private-canary" not in formatter.format(record)
         assert record.exc_info is None
-    assert "ValidationError" in caplog.text and "Traceback" in caplog.text
+    assert "mcp_wire_frame_shape" in caplog.text

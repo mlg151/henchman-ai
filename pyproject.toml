@@ -43,7 +43,7 @@ dependencies = [
     "anyio>=4.0",
     "click>=8.0",
     "pyyaml>=6.0",
-    "mcp>=1.26,<2",
+    "mcp==2.3.0",  # Bounded stdio adapter qualifies pinned SDK process helpers.
     "jsonschema>=4.23,<5",
     "referencing>=0.35,<1",
     "aiohttp>=3.9",

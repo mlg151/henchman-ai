@@ -25,6 +25,10 @@ for line in sys.stdin:
     request = json.loads(line)
     if "id" not in request:
         continue
+    if request["method"] == "server/discover":
+        print(json.dumps({"jsonrpc": "2.0", "id": request["id"],
+                          "error": {"code": -32601, "message": "Method not found"}}), flush=True)
+        continue
     if request["method"] == "initialize":
         if os.environ.get("STARTUP_STALL"):
             continue

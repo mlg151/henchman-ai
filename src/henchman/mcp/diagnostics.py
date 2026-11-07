@@ -32,7 +32,11 @@ class _ScopedDiagnostics(logging.Filter):
 
 # Logger filters run before every handler, including inherited root handlers.
 # The filter carries no credentials; each SDK reader task inherits its own scope.
-logging.getLogger("mcp.client.stdio").addFilter(_ScopedDiagnostics())
+for _logger_name in (
+    "mcp.client.stdio", "mcp.client.client", "mcp.shared.jsonrpc_dispatcher",
+    "client",  # SDK 2.3 ClientSession deliberately uses this unqualified name.
+):
+    logging.getLogger(_logger_name).addFilter(_ScopedDiagnostics())
 
 
 @contextmanager
