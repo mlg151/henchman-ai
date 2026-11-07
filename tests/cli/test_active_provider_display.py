@@ -188,7 +188,7 @@ async def direct_runtime(providers):
 
     from henchman.agents.orchestrator import Orchestrator
     from henchman.cli.command_processor import CommandProcessor
-    from henchman.cli.repl import ReplConfig
+    from henchman.cli.repl import Repl, ReplConfig
     from henchman.cli.session_manager import ReplSessionManager
     from henchman.config.schema import Settings
 
@@ -217,8 +217,10 @@ async def direct_runtime(providers):
         orchestrator=orch, agent=leader, command_processor=processor,
         core_context=SimpleNamespace(agent=leader, orchestrator=orch),
         output_handler=handler, renderer=handler.renderer, tool_registry=orch.tool_registry,
+        session_manager=handler.session_manager,
         _tui_adapter=None, _interactive_loop_active=False,
     )
+    obj._workflow = MethodType(Repl._workflow, obj)
     try:
         yield obj, actor, leader, sink
     finally:
