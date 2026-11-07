@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Runtime-only permissions, credential projection and failed-save barriers are
   covered independently; frontend queue wiring remains pending.
 
+- **Explicit MCP context attachment** — Reviewed resource/prompt captures can be
+  saved as user messages without another retrieval or model turn. Session-bound
+  single-use handles, idle checks and untrusted compaction preserve source evidence.
+
 - **Verification evidence privacy** — Known credentials are projected from plan
   evidence and bounded output before persistence. Sensitive executable checks are
   rejected or made explicitly unavailable after rotation; redacted substitutes

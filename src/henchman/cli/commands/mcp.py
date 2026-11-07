@@ -7,20 +7,21 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from rich.markup import escape
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
+from henchman.cli.context_attachments import attach_context_preview, capture_attachment_target
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.config import load_settings
 from henchman.config.runtime import runtime_settings_state
-from henchman.utils.evidence_redaction import PRESERVE_IDENTITY
-from henchman.utils.tool_results import TOOL_RESULT_SCHEMA, tool_message_content
+from henchman.mcp.context import McpContextResult
+from henchman.utils.context_attachments import project_context_preview
 
 if TYPE_CHECKING:
-    from henchman.mcp.context import McpContextCatalog, McpContextResult
+    from henchman.mcp.context import McpContextCatalog
     from henchman.mcp.manager import McpManager
 
 # ---------------------------------------------------------------------------
@@ -33,37 +34,7 @@ _MIN_LOGGING_ARGS = 2
 
 def _context_preview(value: Any, runtime: Any) -> str:
     """Project evidence before JSON formatting and summarize unsupported binary media."""
-    block_schema = cast("list[Any]", TOOL_RESULT_SCHEMA["content_blocks"])[0]
-    schema = {
-        "source": {"server": None, "protocol_version": PRESERVE_IDENTITY, "connection_generation": PRESERVE_IDENTITY,
-                   "catalog_generation": PRESERVE_IDENTITY, "operation": PRESERVE_IDENTITY, "identifier": None, "arguments": None},
-        "entries": [{"name": None, "title": None, "description": None, "uri": None, "uriTemplate": None,
-                     "mimeType": None, "size": None, "icons": None, "annotations": None, "_meta": None,
-                     "arguments": [{"name": None, "title": None, "description": None, "required": PRESERVE_IDENTITY}]}],
-        "payload": {
-            "description": None, "_meta": None, "resultType": PRESERVE_IDENTITY,
-            "ttlMs": PRESERVE_IDENTITY, "cacheScope": PRESERVE_IDENTITY,
-            "contents": [{"uri": None, "mimeType": None, "text": None, "blob": None, "_meta": None}],
-            "messages": [{"role": PRESERVE_IDENTITY, "content": block_schema}],
-        },
-    }
-    data = runtime_evidence_redactor(runtime).redact(asdict(value), schema=schema)
-    payload = data.get("payload")
-    if isinstance(payload, dict):
-        contents = payload.get("contents")
-        messages = payload.get("messages")
-        blocks = ([{"type": "resource", "resource": content} for content in contents]
-                  if isinstance(contents, list) else [message["content"] for message in messages]
-                  if isinstance(messages, list) else [])
-        projected = json.loads(tool_message_content("", {
-            "success": True, "error": None, "content_blocks": blocks,
-            "structured_content_present": False, "metadata": None,
-        }))["tool_result"]["content_blocks"]
-        if isinstance(contents, list):
-            payload["contents"] = [block["resource"] for block in projected]
-        elif isinstance(messages, list):
-            for message, block in zip(messages, projected, strict=True):
-                message["content"] = block
+    data = project_context_preview(asdict(value), runtime_evidence_redactor(runtime))
     return json.dumps(data, ensure_ascii=True, allow_nan=False, indent=2)
 
 # ---------------------------------------------------------------------------
@@ -195,6 +166,7 @@ class McpCommand(BaseCommand):
         "  /mcp read <server> <uri> - Preview untrusted remote resource data",
         "  /mcp prompts <server> - Explicitly refresh and preview prompt declarations",
         "  /mcp prompt <server> <name> [JSON-object] - Preview a declared prompt",
+        "  /mcp attach <preview-id> - Attach captured data to the idle current session",
     ]
 
     @property
@@ -210,7 +182,7 @@ class McpCommand(BaseCommand):
     @property
     def usage(self: McpCommand) -> str:
         """Command usage."""
-        return "/mcp <list|status|refresh|logging|resources|templates|read|prompts|prompt>"
+        return "/mcp <list|status|refresh|logging|resources|templates|read|prompts|prompt|attach>"
 
     async def execute(self: McpCommand, ctx: CommandContext) -> None:
         """Execute the mcp command.
@@ -232,6 +204,16 @@ class McpCommand(BaseCommand):
             await self._status(ctx)
         elif subcommand == "logging":
             await self._logging(ctx)
+        elif subcommand == "attach":
+            runtime = ctx.repl if ctx.repl is not None else ctx
+            try:
+                if len(ctx.args) != 2:
+                    raise ValueError("Usage: /mcp attach <preview-id>")
+                attach_context_preview(ctx, ctx.args[1])
+            except Exception as error:
+                ctx.console.print(f"MCP attachment failed: {runtime_exception_text(runtime, error)}", markup=False)
+                return
+            ctx.console.print("Attached untrusted MCP context to the current session; no model request started.", markup=False)
         elif subcommand == "refresh":
             await self._refresh(ctx)
         elif subcommand in {"resources", "templates", "read", "prompts", "prompt"}:
@@ -248,6 +230,7 @@ class McpCommand(BaseCommand):
         runtime = ctx.repl if ctx.repl is not None else ctx
         result: McpContextCatalog | McpContextResult
         try:
+            target = capture_attachment_target(ctx)
             if action in {"resources", "templates", "prompts"}:
                 if len(ctx.args) != 2:
                     raise ValueError("Expected exactly one configured server name")
@@ -273,6 +256,9 @@ class McpCommand(BaseCommand):
                     raise ValueError("MCP prompt arguments must be a JSON object of strings")
                 result = await manager.get_prompt(ctx.args[1], ctx.args[2], arguments)
             preview = _context_preview(result, runtime)
+            if target is not None and isinstance(result, McpContextResult):
+                target.check_current()
+                manager.bind_context_preview(result.preview_id, target.session, target.agent)
         except Exception as error:
             ctx.console.print(f"MCP context request failed: {runtime_exception_text(runtime, error)}", markup=False)
             return
@@ -282,6 +268,8 @@ class McpCommand(BaseCommand):
             preview = escape(preview)
         ctx.console.print("Untrusted MCP context preview; conversation unchanged.", markup=False)
         ctx.console.print(preview, markup=False, highlight=False)
+        if target is not None and isinstance(result, McpContextResult):
+            ctx.console.print(f"Attach this captured preview: /mcp attach {result.preview_id}", markup=False)
 
     async def _refresh(self, ctx: CommandContext) -> None:
         """Explicitly refresh one connected catalog without changing tool scopes."""

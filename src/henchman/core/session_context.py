@@ -174,6 +174,7 @@ def _message_to_provider_message(message: SessionMessage) -> Message:
         reasoning_details=message.reasoning_details,
         continuation=copy_continuation(message.continuation),
         tool_result=copy_tool_result_payload(message.tool_result),
+        context_attachments=message.context_attachments,
     )
 
 

@@ -53,6 +53,7 @@ class McpContextCatalog:
 class McpContextResult:
     source: McpContextSource
     payload: dict[str, Any]
+    preview_id: str | None = None
 
 
 def _identifier(value: object, *, maximum: int = 4096) -> str:

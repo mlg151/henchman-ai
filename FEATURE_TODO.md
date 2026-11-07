@@ -18,8 +18,10 @@ revisions and 2026-07-28, with no implicit mutating replay and explicit telemetr
 privacy refusal. Bounded unauthenticated Streamable HTTP now covers four
 revisions with JSON/SSE and policy-checked cleanup. Explicit resource/template/
 prompt catalogs and previews now preserve untrusted source data without changing
-conversation history; continuation is rejected before SDK normalization. OAuth,
-context attachment and final native qualification remain open under #25.
+conversation history; continuation is rejected before SDK normalization. Explicit
+attachment consumes a current session-bound preview as saved user context while
+idle, preserving source evidence and untrusted roles across compaction. OAuth
+and final native qualification remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or

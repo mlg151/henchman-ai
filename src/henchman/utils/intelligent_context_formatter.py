@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from henchman.utils.context_attachments import context_attachment_omission
 from henchman.utils.intelligent_context_extractor import ContentExtractor
 from henchman.utils.intelligent_context_types import (
     IntelligentContextConstants,
@@ -114,10 +115,14 @@ class MessageSafetyEnforcer:
 
         if message.tool_result is not None:
             final_content += "\n[Typed result payload omitted from this active message.]"
+        attachments = message.context_attachments
+        if attachments is not None:
+            final_content, attachments = context_attachment_omission(attachments)
         return replace(
             message,
             content=final_content,
             tool_result=compact_tool_payload(message.tool_result),
+            context_attachments=attachments,
         )
 
     def _enforce_message_safety_limit(self: MessageSafetyEnforcer, message: Message) -> Message:
@@ -189,10 +194,15 @@ def _create_truncated_message(message: Message, limit: int, safety_ratio: float)
 
     if message.tool_result is not None:
         info += "; typed result payload omitted from this active message"
+    attachments = message.context_attachments
+    content = f"{truncated}\n... {info}"
+    if attachments is not None:
+        content, attachments = context_attachment_omission(attachments)
     return replace(
         message,
-        content=f"{truncated}\n... {info}",
+        content=content,
         tool_result=compact_tool_payload(message.tool_result),
+        context_attachments=attachments,
     )
 
 

@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any, cast
 
 from henchman.providers.continuation import ContinuationEnvelope, project_continuation
+from henchman.utils.context_attachments import CONTEXT_ATTACHMENT_EVIDENCE_SCHEMA
 from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 from henchman.utils.tool_results import TOOL_RESULT_SCHEMA
 
@@ -20,6 +21,7 @@ _MESSAGE = {
     "content": None, "reasoning_content": None, "reasoning_details": None,
     "tool_calls": [_TOOL_CALL],
     "tool_result": TOOL_RESULT_SCHEMA,
+    "context_attachments": [CONTEXT_ATTACHMENT_EVIDENCE_SCHEMA],
     "continuation": dict.fromkeys(("provider", "model", "profile", "scope_sha256", "payload_json",
                                    "payload_sha256", "request_sha256", "status", "reason", "version"), PRESERVE_IDENTITY),
 }

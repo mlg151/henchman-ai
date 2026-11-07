@@ -396,6 +396,14 @@ channels before the terminal event, while cancellation flushes conservatively in
 runtime cleanup. Tool previews derive from sanitized full results, and trusted
 event identities and validated completion controls retain their protocol meaning.
 
+MCP context attachment uses the same session evidence projection. An explicit
+command consumes a bounded process-local preview tied to the requesting session
+and agent. A detached session candidate is saved before either live history is
+appended; the existing transcript and continuation envelopes stay intact. Typed
+source metadata is retained as evidence, while prompt roles and summaries stay
+ordinary untrusted user data. Imported preview IDs never grant execution rights.
+See [attachment behavior](mcp.md#attach-a-reviewed-context-result).
+
 When the current copy is missing, malformed or fails its integrity check, loading
 uses a valid prior copy and emits a warning naming the session and possible lost
 recent changes; `Session.recovery_notice` retains that diagnostic for consumers.

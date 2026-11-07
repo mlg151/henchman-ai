@@ -8,8 +8,8 @@ The client pins MCP SDK 2.3.0 and tests stdio revisions 2024-11-05, 2025-03-26,
 2025-06-18, 2025-11-25 and 2026-07-28. Streamable HTTP supports the latter four
 revisions with JSON and SSE responses through an owned bounded transport. The SDK
 negotiates modern discovery or legacy initialization. Explicit resource and prompt
-previews are available in interactive frontends; OAuth and conversation attachment
-remain [roadmap work](standards.md#mcp-adoption-details). These tested subsets do
+previews and explicit session attachment are available in interactive frontends;
+OAuth remains [roadmap work](standards.md#mcp-adoption-details). These tested subsets do
 not establish complete protocol conformance.
 
 ## What is MCP?
@@ -226,7 +226,7 @@ generation and retrieval arguments. Native typed content remains available to
 the API caller; interactive output redacts registered credentials, summarizes
 binary media and renders markup literally. Prompt roles are displayed as data.
 Preview does not append messages, change instructions, invoke a model, or attach
-content to a session. Conversation attachment and OAuth remain pending.
+content to a session. Attaching a reviewed result is a separate explicit action.
 
 Catalogs retain at most 32 pages, 1,024 entries and 4 MiB, with the configured
 catalog deadline including lock waits (default 60 seconds). Results retain at
@@ -234,6 +234,35 @@ most 256 blocks and pass the 1 MiB contract bound; requests use the configured
 deadline (default 30 seconds). Invalid pages preserve the previous catalog.
 Retrieval rechecks connection, credentials and access policy, without implicit
 connection, refresh, subscriptions, completion or multi-round replay.
+
+### Attach a reviewed context result
+
+When a resource or prompt preview belongs to the current interactive session,
+the command shows `/mcp attach <preview_id>`. Run that command to append the
+captured text and metadata as an ordinary user message. It saves the session
+before updating live history and does not retrieve the result again or start a
+model turn. Prompt roles remain quoted source data; binary media remains an
+explicit summary. Existing assistant signatures and tool exchanges are preserved.
+
+Attachment requires idle execution, settled tool/delegation work and no incomplete
+tool exchange. Pause any active goal and resolve workflow recovery before attachment.
+The handle belongs to the exact session and agent that requested the preview;
+switching either during retrieval cannot redirect the result into another session.
+Reconnection, catalog refresh, credential/configuration changes and policy
+revocation invalidate the capture. Retrieve a fresh preview after those changes.
+
+The manager retains at most 16 preview handles and 4 MiB of captured data for ten
+minutes. A successful attachment consumes its handle. An ordinary save failure
+leaves it available for retry; an uncertain commit is subject to the existing
+session conflict check and cannot append a duplicate. Handles are process-local;
+identifiers retained in imported or restored messages confer no attachment rights.
+
+Session retention, branch/merge and playback preserve typed source evidence.
+Compaction keeps attachment-derived summaries in user messages and marks omitted
+payloads, arguments and oversized source identifiers. Repeated summaries retain
+at most eight source records plus an omission digest when more records were
+present. Captured digests identify earlier evidence; they do not certify the
+server's statements or grant instruction authority.
 
 ### Refresh a connected catalog
 

@@ -84,7 +84,7 @@ shutdown does not wait indefinitely for descendants retaining stderr. Configured
 environment credentials are redacted from stderr and SDK malformed-stdout logs
 before output. This does not establish OS containment or complete third-party
 logging coverage. Native/fresh artifact qualification remains under #21/#25;
-OAuth and conversation attachment remain under #25. The original research
+OAuth remains under #25. The original research
 gap table above stays pinned to its baseline.
 
 An owned Streamable HTTP adapter now supports the four revisions from 2025-03-26
@@ -98,7 +98,10 @@ Explicit resource/template/prompt catalogs and previews now share bounded
 single-dispatch requests over both transports. The raw result boundary rejects
 continuation state before legacy normalization can hide it. Descriptions and
 retrieved content remain untrusted data with detached provenance; previews never
-change conversation or instruction state. See [context previews](mcp.md#resource-and-prompt-previews).
+change conversation or instruction state. A separate explicit attachment consumes
+a session-bound preview as user data, with idle checks, save-before-append and
+untrusted compaction. See [context previews](mcp.md#resource-and-prompt-previews)
+and [attachment](mcp.md#attach-a-reviewed-context-result).
 
 ### Local schema contract foundation
 
@@ -160,8 +163,8 @@ structured output is validated against the dispatch snapshot, with absent output
 distinct from explicit null. Invalid result evidence becomes a value-free failed
 observation after dispatch and never triggers an automatic replay. Tool failures
 need not satisfy a success-output schema. Final qualification remains required
-for #21/P1. OAuth and conversation attachment remain separate #25 work.
-Explicit resource/prompt previews are available. Native stdio now bounds raw frames
+for #21/P1. OAuth remains separate #25 work.
+Explicit resource/prompt previews and attachment are available. Native stdio now bounds raw frames
 before decoding/parsing, rejects unsupported multi-round input results without
 automatic replay, and blocks dispatch when SDK telemetry cannot remain private.
 See [wire limits](mcp.md#stdio-wire-limits-and-telemetry).

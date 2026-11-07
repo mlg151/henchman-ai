@@ -190,7 +190,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "single-dispatch tool calls. Bounded unauthenticated Streamable HTTP supports JSON/SSE from "
             "2025-03-26 through 2026-07-28. Interactive resources/templates/prompts/read/prompt commands "
             "explicitly preview bounded untrusted context without changing conversation history. "
-            "Active SDK telemetry is refused; OAuth and context attachment remain pending."
+            "Explicit attach consumes a session-bound preview as untrusted user context while idle, "
+            "without a new retrieval or model turn. Active SDK telemetry is refused; OAuth remains pending."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

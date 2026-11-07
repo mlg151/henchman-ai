@@ -79,6 +79,13 @@ class Message:
     reasoning_details: str | None = None
     tool_result: dict[str, Any] | None = None
     continuation: dict[str, Any] | None = field(default=None, repr=False)
+    context_attachments: list[dict[str, Any]] | None = None
+
+    def __post_init__(self) -> None:
+        if self.context_attachments is not None:
+            from henchman.utils.context_attachments import copy_context_attachments
+
+            self.context_attachments = copy_context_attachments(self.context_attachments, role=self.role)
 
 
 @dataclass

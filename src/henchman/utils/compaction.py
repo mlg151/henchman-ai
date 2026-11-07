@@ -11,6 +11,11 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from henchman.providers.base import Message
+from henchman.utils.context_attachments import (
+    context_attachment_content,
+    context_attachment_omission,
+    merge_context_attachments,
+)
 from henchman.utils.tokens import TokenCounter
 from henchman.utils.tool_results import compact_tool_payload, tool_message_content
 
@@ -309,8 +314,12 @@ def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Mes
         new_content = content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
     if message.tool_result is not None:
         new_content += "\n[Typed result payload omitted from this active message.]"
+    attachments = message.context_attachments
+    if attachments is not None:
+        new_content, attachments = context_attachment_omission(attachments)
     return replace(
-        message, content=new_content, tool_result=compact_tool_payload(message.tool_result)
+        message, content=new_content, tool_result=compact_tool_payload(message.tool_result),
+        context_attachments=attachments,
     )
 
 
@@ -531,8 +540,12 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
         new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
         if message.tool_result is not None:
             new_content += "\n[Typed result payload omitted from this active message.]"
+        attachments = message.context_attachments
+        if attachments is not None:
+            new_content, attachments = context_attachment_omission(attachments)
         return replace(
-            message, content=new_content, tool_result=compact_tool_payload(message.tool_result)
+            message, content=new_content, tool_result=compact_tool_payload(message.tool_result),
+            context_attachments=attachments,
         )
 
     return message
@@ -1131,7 +1144,12 @@ async def _attempt_summarization(
             # Insert summary after system messages
             system_msgs = [m for m in result.messages if m.role == "system"]
             non_system = [m for m in result.messages if m.role != "system"]
-            summary_msg = summarizer.create_summary_message(summary)
+            attachments = merge_context_attachments(message.context_attachments for message in dropped_messages)
+            if attachments:
+                summary_msg = Message("user", context_attachment_content(attachments, summary=summary),
+                                      context_attachments=attachments)
+            else:
+                summary_msg = summarizer.create_summary_message(summary)
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary

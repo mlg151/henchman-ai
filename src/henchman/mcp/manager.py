@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import logging
 from collections.abc import Callable, Mapping
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
+from time import monotonic
 from typing import TYPE_CHECKING
+from uuid import uuid4
 from weakref import WeakKeyDictionary, WeakSet
 
 from henchman.config.schema import McpServerConfig
@@ -19,15 +23,29 @@ from henchman.utils.evidence_redaction import EvidenceRedactor
 
 logger = logging.getLogger(__name__)
 _NativeMcpClient = McpClient
+MAX_CONTEXT_PREVIEWS = 16
+MAX_CONTEXT_PREVIEW_BYTES = 4 * 1024 * 1024
+CONTEXT_PREVIEW_TTL_SECONDS = 600.0
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.mcp.client import McpToolDefinition
-    from henchman.mcp.context import McpContextCatalog, McpContextResult
+    from henchman.mcp.context import ContextFamily, McpContextCatalog, McpContextResult
     from henchman.tools.registry import ToolRegistry
 
 
 ClientFactory = Callable[[str, McpServerConfig, bool], McpClientProtocol]
+
+
+@dataclass
+class _ContextPreview:
+    client: McpClient
+    result: McpContextResult
+    captured_at: float
+    size: int
+    session: object | None = None
+    agent: object | None = None
+    claimed: bool = False
 
 
 def _create_mcp_client(
@@ -66,6 +84,7 @@ class McpManager:
         self._catalog_generations: dict[str, int] = {}
         self._registries: WeakKeyDictionary[ToolRegistry, dict[str, dict[str, McpTool]]] = WeakKeyDictionary()
         self._access_guard: Callable[[], None] | None = None
+        self._context_previews: dict[str, _ContextPreview] = {}
         for config in self.configs.values():
             self._remember_environment(config.env)
 
@@ -234,6 +253,8 @@ class McpManager:
                 config.request_timeout_seconds, config.negotiation_timeout_seconds, config.catalog_timeout_seconds)
 
     def _invalidate(self, server_name: str) -> None:
+        self._context_previews = {key: item for key, item in self._context_previews.items()
+                                  if item.result.source.server != server_name}
         self._generations[server_name] = self._generations.get(server_name, 0) + 1
         client = self.clients.get(server_name)
         if isinstance(client, _NativeMcpClient):
@@ -408,11 +429,79 @@ class McpManager:
 
     async def read_resource(self, server_name: str, uri: str) -> McpContextResult:
         """Retrieve data from an explicitly selected server and opaque URI."""
-        return await self._context_client(server_name).read_resource(uri)
+        client = self._context_client(server_name)
+        return self._capture_context_preview(client, await client.read_resource(uri))
 
     async def get_prompt(self, server_name: str, name: str, arguments: dict[str, str]) -> McpContextResult:
         """Retrieve a previously discovered prompt as untrusted data."""
-        return await self._context_client(server_name).get_prompt(name, arguments)
+        client = self._context_client(server_name)
+        return self._capture_context_preview(client, await client.get_prompt(name, arguments))
+
+    def _check_context_preview(self, preview: _ContextPreview) -> None:
+        source = preview.result.source
+        client = self._context_client(source.server)
+        family: ContextFamily = "resources" if source.operation == "resources/read" else "prompts"
+        if (client is not preview.client or source.connection_generation != client.connection_generation
+            or source.catalog_generation != client._context.generations.get(family, 0)):
+            raise ValueError("MCP preview is stale; explicitly retrieve a new preview")
+        client._check_credentials()
+
+    def _expire_context_previews(self) -> None:
+        now = monotonic()
+        self._context_previews = {key: item for key, item in self._context_previews.items()
+                                  if item.claimed or now - item.captured_at < CONTEXT_PREVIEW_TTL_SECONDS}
+
+    def _capture_context_preview(self, client: McpClient, result: McpContextResult) -> McpContextResult:
+        self._expire_context_previews()
+        captured = replace(copy.deepcopy(result), preview_id=uuid4().hex)
+        size = len(json.dumps(asdict(captured), ensure_ascii=True, allow_nan=False).encode("utf-8"))
+        if size > MAX_CONTEXT_PREVIEW_BYTES:
+            raise ValueError("MCP preview exceeds the retained preview byte limit")
+        preview = _ContextPreview(client, captured, monotonic(), size)
+        self._check_context_preview(preview)
+        while (len(self._context_previews) >= MAX_CONTEXT_PREVIEWS
+               or sum(item.size for item in self._context_previews.values()) + size > MAX_CONTEXT_PREVIEW_BYTES):
+            evict = next((key for key, item in self._context_previews.items() if not item.claimed), None)
+            if evict is None:
+                raise ValueError("MCP preview capacity is busy; retry the explicit retrieval later")
+            del self._context_previews[evict]
+        assert captured.preview_id is not None
+        self._context_previews[captured.preview_id] = preview
+        return copy.deepcopy(captured)
+
+    def _context_preview(self, identity: str | None) -> _ContextPreview:
+        self._expire_context_previews()
+        preview = self._context_previews.get(identity) if isinstance(identity, str) else None
+        if preview is None or preview.claimed:
+            raise ValueError("MCP preview is unknown, expired, consumed or busy; retrieve a new preview")
+        self._check_context_preview(preview)
+        return preview
+
+    def bind_context_preview(self, identity: str | None, session: object, agent: object) -> None:
+        """Bind a displayed capture to one exact live session and history owner."""
+        preview = self._context_preview(identity)
+        if session is None or agent is None:
+            raise ValueError("MCP preview requires a current session and agent")
+        if preview.session is not None and (preview.session is not session or preview.agent is not agent):
+            raise ValueError("MCP preview belongs to another session or agent")
+        preview.session, preview.agent = session, agent
+
+    def commit_context_preview(
+        self, identity: str | None, session: object, agent: object,
+        append: Callable[[McpContextResult], None],
+    ) -> None:
+        """Commit synchronously once; a failed append leaves the handle usable."""
+        preview = self._context_preview(identity)
+        if preview.session is None or preview.agent is None or preview.session is not session or preview.agent is not agent:
+            raise ValueError("MCP preview belongs to another session or agent")
+        preview.claimed = True
+        try:
+            append(copy.deepcopy(preview.result))
+        except BaseException:
+            preview.claimed = False
+            raise
+        assert identity is not None
+        self._context_previews.pop(identity, None)
 
     def is_trusted(self, server_name: str) -> bool:
         """Check whether a configured server is trusted.

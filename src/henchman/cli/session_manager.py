@@ -7,7 +7,7 @@ session creation/loading, and session state tracking.
 
 from __future__ import annotations
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
@@ -84,6 +84,7 @@ def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
                 reasoning_details=session_msg.reasoning_details,
                 continuation=copy_continuation(session_msg.continuation),
                 tool_result=deepcopy(session_msg.tool_result),
+                context_attachments=deepcopy(session_msg.context_attachments),
             ),
         )
 
@@ -221,6 +222,33 @@ class ReplSessionManager:
             return
 
         self.session_manager.save(self.session)
+
+    def append_context_attachment(self, agent: Agent, message: Message, *, expected_session: Session) -> None:
+        """Save a detached candidate before appending to the existing live histories."""
+        from henchman.utils.context_attachments import copy_context_attachments
+
+        if self.session is not expected_session:
+            raise ValueError("The active session changed; retrieve a new MCP preview")
+        records = copy_context_attachments(message.context_attachments, role=message.role)
+        if not records or message.tool_calls or message.tool_call_id or message.continuation:
+            raise ValueError("MCP attachment must be ordinary user context")
+        candidate = copy(expected_session)
+        entry = SessionMessage(**deepcopy(asdict(message)))
+        candidate.messages = [*expected_session.messages, entry]
+        self.session_manager.save(candidate)
+        # Saving may discover older credentials in the retained backup. Publish
+        # the same final evidence projection to both live histories.
+        from henchman.core.session_evidence import redact_session_payload
+        from henchman.core.session_models import message_from_dict
+
+        projected = redact_session_payload({"messages": [entry.to_dict()]}, self.session_manager.evidence_redactor)
+        entry = message_from_dict(projected["messages"][0])
+        expected_session.messages.append(entry)
+        expected_session.last_updated = candidate.last_updated
+        expected_session._storage_token = candidate._storage_token
+        expected_session._storage_path = candidate._storage_path
+        agent.messages.append(Message(role="user", content=entry.content,
+                                      context_attachments=deepcopy(entry.context_attachments)))
 
     def sync_agent_turn(self: Self, agent: Agent, *, session_start: int) -> None:
         """Persist the current agent turn without replacing older transcript.
