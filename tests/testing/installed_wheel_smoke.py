@@ -315,6 +315,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_textual_question_channel.py",
         "tests/cli/ui_scenarios.py",
         "tests/cli/test_textual_interaction_contract.py",
+        "tests/cli/test_textual_tool_activity.py",
         "tests/cli/test_textual_widgets_bugs.py",
         "tests/cli/test_textual_phase1.py",
         "tests/cli/test_textual_phase3.py",

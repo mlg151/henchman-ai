@@ -541,6 +541,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
 - [ ] [UI-0 / #32](https://github.com/mlg151/henchman-ai/issues/32): Establish reproducible interaction baselines, keyboard/state contracts and native terminal evidence.
 - [ ] [UI-1 / #33](https://github.com/mlg151/henchman-ai/issues/33): Preserve reading position, copy/export, drafts, configurable mouse capture/scrolling and predictable input/cancellation; validate quiet accessible output.
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
+  Compact correlated tool rows and bounded keyboard evidence inspection are
+  implemented; pending-decision navigation and lifecycle status remain open. See
+  [tool observations](docs/ui-interaction-contract.md#tool-observations-and-inspection).
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
 

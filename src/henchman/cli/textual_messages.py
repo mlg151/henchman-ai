@@ -23,6 +23,7 @@ class _AgentPayloadMessage(Message):
         self: _AgentPayloadMessage,
         _payload: Any,
         source_agent: str | None = None,
+        *, stream_id: str | None = None,
     ) -> None:
         """Initialize.
 
@@ -33,6 +34,7 @@ class _AgentPayloadMessage(Message):
         super().__init__()
         self._payload = _payload
         self.source_agent = source_agent
+        self.stream_id = stream_id
 
     @property
     def _str_payload(self: _AgentPayloadMessage) -> str:
@@ -84,6 +86,13 @@ class ToolConfirmationMessage(_AgentPayloadMessage):
         """The confirmation request data."""
         conf_req: ConfirmationRequest = cast("ConfirmationRequest", self._payload)
         return conf_req
+
+
+class ToolActivityClosedMessage(_AgentPayloadMessage):
+    """The display stream closed; unanswered calls have no observed final result."""
+
+    def __init__(self, stream_id: str) -> None:
+        super().__init__(None, stream_id=stream_id)
 
 
 class AgentStatusMessage(_AgentPayloadMessage):

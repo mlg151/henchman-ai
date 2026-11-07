@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from uuid import uuid4
 
 from rich.console import Console as RichConsole
 from rich.errors import MarkupError
@@ -25,6 +26,7 @@ from henchman.cli.textual_messages import (
     AgentStatusMessage,
     AgentThoughtMessage,
     CommandOutputMessage,
+    ToolActivityClosedMessage,
     ToolCallRequestMessage,
     ToolCallResultMessage,
     ToolConfirmationMessage,
@@ -278,6 +280,8 @@ def _build_message_from_event(
     if not event.data:
         return None
     data = transform_data(event.data) if transform_data else event.data
+    if message_class is ToolCallResultMessage:
+        return ToolCallResultMessage(data, event.source_agent)
     data_str = f"{prefix}{data}" if prefix else str(data)
     msg_class = cast("type[Any]", message_class)
     return cast(Message, msg_class(data_str, event.source_agent))
@@ -323,6 +327,8 @@ class MessagePoster:
             app: Target Textual application.
         """
         self.app = app
+        self.stream_id = uuid4().hex
+        self.has_tool_activity = False
 
     def post(self: Self, message: Message) -> None:
         """Post a message to the Textual app.
@@ -333,6 +339,9 @@ class MessagePoster:
         Returns:
             None
         """
+        if isinstance(message, (ToolCallRequestMessage, ToolCallResultMessage)):
+            message.stream_id = self.stream_id
+            self.has_tool_activity = True
         self.app.post_message(message)
 
     def post_message(
@@ -412,6 +421,8 @@ class EventBridge:
         Returns:
             None
         """
+        self._message_poster.stream_id = uuid4().hex
+        self._message_poster.has_tool_activity = False
         try:
             async for event in event_stream:
                 for safe in self._evidence.project(event):
@@ -436,6 +447,8 @@ class EventBridge:
         finally:
             for safe in self._evidence.flush():
                 self._dispatch(safe)
+            if self._message_poster.has_tool_activity:
+                self._message_poster.post(ToolActivityClosedMessage(self._message_poster.stream_id))
 
     # -- internal helpers --
 

@@ -43,7 +43,7 @@ runtime boundaries.
 | Questions and approval lifetime | [Question channel](../tests/cli/test_textual_question_channel.py) | Screen-reader question/rationale and focus announcements |
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
 | Queued input and recovery | [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py); queue editing remains pending | Cancellation/resume disposition and draft-loss observation |
-| Failure, large output, tool evidence and identity | [Tool boxes](../tests/cli/test_textual_tool_boxes.py), [completion](../tests/cli/test_completion_rendering.py); complete tool inspection remains pending | Find a failed check and explain its actual evidence |
+| Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
 | Sessions, tasks and project boundaries | [Sessions](../tests/cli/test_textual_session_management.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); interactive inspectors remain pending | Find/resume the intended session, Back navigation |
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
@@ -55,6 +55,40 @@ messages reflow. Exact character anchoring within one rewrapped long message is
 not yet implemented. Full approval inspection, external-editor composition,
 clipboard behavior and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
+
+## Tool observations and inspection
+
+Textual groups observed requests and results by call and agent within each
+forwarded stream. Each call has a compact keyboard-focusable row. Enter opens a
+read-only inspector; Space expands the row. Escape or Back returns to the row
+while preserving the composer draft and held reading position.
+
+Rows distinguish Requested, Succeeded, Failed, Unknown and Interrupted. Only an
+explicit boolean result establishes success or failure; missing or malformed
+outcomes remain Unknown. Repeated requests/results sharing an identity retain
+their evidence and become Unknown. Results without call identity stay separate;
+missing requests never acquire guessed arguments or timing. Stream closure marks
+unanswered requests Interrupted, with possible effects still uncertain.
+
+The inspector retains arguments, multiline output and typed result evidence.
+Elapsed time measures request observation to result observation, including waits;
+it is not actual execution duration. Tool success does not establish requirements
+acceptance. Runtime retry counts and actual dispatch timing remain unavailable.
+
+Display evidence is limited to 32 KiB per entry, 64 KiB and 16 entries per call,
+and 2 MiB across retained call payloads. Clipping and eviction show omissions;
+correlation and compact rows remain available after payload eviction. The Tools
+tab uses the same bounded store and current credential projection, showing at
+most 64 recent calls, 64 KiB of evidence frames and 1,000 logical body lines, with
+visible omissions. Inspection
+rechecks known credentials, including rotation while open. These are display
+limits; session persistence and runtime control keep their own contracts.
+
+The mounted tests cover 80×24 and 120×40 layouts, interleaved agents, repeated
+identities, long output, credential rotation, retention, resize and draft/focus.
+Pending-decision navigation and lifecycle status remain separate work under #34.
+These tests provide no native terminal, clipboard or assistive-technology
+qualification.
 
 ## Baseline and qualification boundary
 

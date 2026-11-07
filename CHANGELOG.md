@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Textual tool evidence inspection** — Compact correlated rows, keyboard
+  inspection and bounded multiline/typed evidence preserve explicit unknown and
+  interrupted outcomes, draft/focus and credential projection. Omitted evidence
+  is visible; tool success does not certify task acceptance.
+
 - **Bounded repair library foundation** — Explicit plan/edit/criterion scope,
   guarded attempt and repeat limits, cancellation and projected historical
   reports. Scoped checks never certify the whole task; runtime/model integration

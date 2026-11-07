@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Self, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
+from rich.text import Text
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.message import Message as TextualMessage
@@ -25,10 +26,14 @@ from textual.reactive import reactive
 from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
 
+from henchman.cli.evidence import runtime_evidence_redactor
+from henchman.cli.textual_tool_activity import ToolActivity, ToolActivityStore, ToolEvidenceScreen
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from textual import events
+    from textual.geometry import Region
 
     from henchman.cli.textual_app import HenchmanTextualApp
 
@@ -689,10 +694,16 @@ class ToolMessage(CollapsibleMessage):
     }
     """
 
+    can_focus = True
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("enter", "inspect", "Inspect evidence"), ("space", "expand", "Expand"),
+    ]
+
     def __init__(
         self: Self,
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
+        activity: ToolActivity | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -715,6 +726,7 @@ class ToolMessage(CollapsibleMessage):
         super().__init__(**kwargs)
         self.add_class("tool-message")
         self._thought = thought
+        self.activity = activity
         self._tool_call = tool_call
         self._content_text = self._thought
         self._result_text: str = ""
@@ -723,6 +735,19 @@ class ToolMessage(CollapsibleMessage):
         self._body = _CollapsibleContent()
         self._body.add_class("tool")
         self._update_renderable()
+
+    def action_expand(self) -> None:
+        self.toggle_expansion()
+
+    def action_inspect(self) -> None:
+        if self.activity is not None:
+            self._update_renderable()
+            pane = next((parent for parent in self.ancestors if isinstance(parent, ChatPane)), None)
+            if pane is not None:
+                pane.hold_reading_position()
+            self.app.push_screen(ToolEvidenceScreen(self.activity))
+        else:
+            self.toggle_expansion()
 
     def _parse_tool_arguments(self: Self) -> dict[str, Any] | str | None:
         """Parse tool arguments from string to object if possible.
@@ -791,6 +816,9 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted header text.
         """
+        if self.activity is not None:
+            text = self.activity.summary(runtime_evidence_redactor(self.app))
+            return _safe_markup(text) if apply_markup else text
         if self._tool_call and hasattr(self._tool_call, "name"):
             compact = self._format_compact_args()
             name = self._tool_call.name
@@ -837,6 +865,8 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             List of body content parts.
         """
+        if self.activity is not None:
+            return [self.activity.evidence(runtime_evidence_redactor(self.app))]
         parts: list[str] = []
 
         # Add tool arguments if available
@@ -880,6 +910,10 @@ class ToolMessage(CollapsibleMessage):
     def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
         self.header.update(self._get_header_text())
+        if self.activity is not None:
+            self.header.styles.height = 1
+            self.header.styles.text_wrap = "nowrap"
+            self.header.styles.text_overflow = "ellipsis"
         self._body.update(self._get_body_content())
 
     def _get_render_header(self: Self) -> str:
@@ -945,6 +979,8 @@ class ChatPane(VerticalScroll):
         self.markup: bool = True
         self._active: dict[str, ChatMessage] = {}
         self._active_thinking: dict[str, ThinkingMessage] = {}
+        self._tool_activity = ToolActivityStore()
+        self._tool_rows: dict[str, ToolMessage] = {}
         self.follow_live = True
         self.new_activity = False
         self._reading_anchor: tuple[Static, float] | None = None
@@ -1253,6 +1289,24 @@ class ChatPane(VerticalScroll):
 
     add_tool_message = functools.partialmethod(_create_tool_message, ToolMessage)
 
+    def record_tool_activity(self, message: Any, *, request: bool) -> ToolMessage:
+        policy = runtime_evidence_redactor(self.app)
+        record = self._tool_activity.observe(message, policy, request=request)
+        if record.key not in self._tool_rows:
+            self._tool_rows[record.key] = self._add_message_widget(ToolMessage, activity=record)
+        self.refresh_tool_activity()
+        self._record_activity()
+        return self._tool_rows[record.key]
+
+    def refresh_tool_activity(self) -> None:
+        for key in self._tool_activity.changed:
+            self._tool_rows[key]._update_renderable()
+
+    def close_tool_activity(self, stream_id: str) -> None:
+        self._tool_activity.close(stream_id)
+        self.refresh_tool_activity()
+        self._record_activity()
+
     def clear_thinking_messages(self: Self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane.
 
@@ -1272,6 +1326,11 @@ class ChatPane(VerticalScroll):
         """
         self._active = {}
         self._active_thinking = {}
+        self._tool_activity.clear()
+        self._tool_rows = {}
+        if self.is_mounted:
+            for pane in self.app.query(ToolPane):
+                pane.bind_activity(self._tool_activity)
         _perform_pane_operation(self.remove_children, self, "_clear")
         self.return_to_live()
 
@@ -1317,9 +1376,58 @@ class ThinkingPane(_TitledPane):
 
 
 class ToolPane(_TitledPane):
-    """Pane for tool call/result display."""
+    """Bounded current projection of the transcript's shared tool evidence."""
 
     _DEFAULT_BORDER_TITLE: str = "Tools"
+
+    def __init__(self, **kwargs: Any) -> None:
+        self._activity_store: ToolActivityStore | None = None
+        self._minimum_revision = 0
+        self._projection = ""
+        self._projecting = False
+        kwargs.setdefault("max_lines", 4096)
+        super().__init__(**kwargs)
+
+    def bind_activity(self, store: ToolActivityStore) -> None:
+        if self._activity_store is not store:
+            self._minimum_revision = 0
+        self._activity_store = store
+        self.refresh()
+
+    def on_mount(self) -> None:
+        self.set_interval(0.5, self._refresh_visible_projection)
+
+    def _refresh_visible_projection(self) -> None:
+        if self.is_on_screen:
+            self.refresh()
+
+    def _sync_projection(self) -> None:
+        if self._projecting or self._activity_store is None or not self.is_mounted:
+            return
+        text = self._activity_store.tool_view(runtime_evidence_redactor(self.app), self._minimum_revision)
+        if text == self._projection:
+            return
+        self._projection = text
+        self._projecting = True
+        offset = self.scroll_offset
+        try:
+            super().clear()
+            if text:
+                super().write(Text(text), scroll_end=False)
+            self.scroll_to(x=offset.x, y=offset.y, animate=False, immediate=True)
+        finally:
+            self._projecting = False
+
+    def refresh(self, *regions: Region, repaint: bool = True, layout: bool = False, recompose: bool = False) -> Self:
+        self._sync_projection()
+        return super().refresh(*regions, repaint=repaint, layout=layout, recompose=recompose)
+
+    def clear(self) -> Self:
+        if not self._projecting:
+            if self._activity_store is not None:
+                self._minimum_revision = self._activity_store.revision + 1
+            self._projection = ""
+        return super().clear()
 
 
 # ------------------------------------------------------------------ #

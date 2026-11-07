@@ -80,6 +80,7 @@ if TYPE_CHECKING:
         AgentThoughtMessage,
         CommandOutputMessage,
         SwitchProviderMessage,
+        ToolActivityClosedMessage,
         ToolCallRequestMessage,
         ToolCallResultMessage,
         ToolConfirmationMessage,
@@ -1595,20 +1596,12 @@ class _MessageHandlerMixin:
         Args:
             message: Tool call request data.
         """
-        tc = message.tool_call
-        args_str = self._format_tool_args(tc)
-        tool_description = f"{tc.name}: {args_str}" if args_str else tc.name
-
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        pane.add_tool_message(tool_description, tc)
+        pane.record_tool_activity(message, request=True)
 
         tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
         if tool_pane is not None:
-            full_args = self._format_full_tool_args(tc)
-            tool_pane.write(
-                f"[yellow]\u25b6 {_safe_markup(tc.name)}[/]\n[dim]{_safe_markup(full_args)}[/]",
-            )
-            tool_pane.scroll_end(animate=False)
+            tool_pane.bind_activity(pane._tool_activity)
 
     @staticmethod
     def _format_tool_args(tool_call: Any) -> str:
@@ -1657,15 +1650,17 @@ class _MessageHandlerMixin:
         Args:
             message: Tool execution result.
         """
-        result_str = self._format_tool_result(message.result)
-
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        pane.add_tool_message(f"Result: {result_str}")
+        pane.record_tool_activity(message, request=False)
 
         tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
         if tool_pane is not None:
-            tool_pane.write(f"[green]\u2190 {_safe_markup(result_str)}[/]")
-            tool_pane.scroll_end(animate=False)
+            tool_pane.bind_activity(pane._tool_activity)
+
+    def on_tool_activity_closed_message(self, message: ToolActivityClosedMessage) -> None:
+        pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        if message.stream_id is not None:
+            pane.close_tool_activity(message.stream_id)
 
     @staticmethod
     def _format_tool_result(result: Any) -> str:
@@ -1679,11 +1674,11 @@ class _MessageHandlerMixin:
         """
         if isinstance(result, dict):
             content = str(result.get("result", result))
-            success = result.get("success", True)
+            success = result.get("success")
             display = content[:_TOOL_RESULT_TRUNCATE_LIMIT]
             if len(content) > _TOOL_RESULT_TRUNCATE_LIMIT:
                 display += "\u2026"
-            label = "\u2713" if success else "\u2717"
+            label = "\u2713" if success is True else "\u2717" if success is False else "?"
             return f"{label} {display}"
         content = str(result)
         display = content[:_TOOL_RESULT_TRUNCATE_LIMIT]
