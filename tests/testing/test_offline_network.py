@@ -3,15 +3,22 @@
 import asyncio
 import os
 import socket
+import subprocess
 from pathlib import Path
 
 import pytest
 
 
-@pytest.mark.parametrize("host,port", [
-    ("api.anthropic.com", 443), ("8.8.8.8", 443),
-    ("127.0.0.1", 8081), ("localhost", 11434), ("::1", 11435),
-])
+@pytest.mark.parametrize(
+    "host,port",
+    [
+        ("api.anthropic.com", 443),
+        ("8.8.8.8", 443),
+        ("127.0.0.1", 8081),
+        ("localhost", 11434),
+        ("::1", 11435),
+    ],
+)
 def test_default_guard_rejects_external_resolution_and_model_services(host, port):
     with pytest.raises(RuntimeError, match="Offline test blocked"):
         socket.getaddrinfo(host, port)
@@ -49,3 +56,17 @@ def test_default_guard_isolates_user_configuration_and_data(offline_network, tmp
     assert Path(os.environ["USERPROFILE"]) == offline_network
     for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
         assert Path(os.environ[key]).is_relative_to(offline_network)
+
+
+def test_home_isolation_preserves_explicit_offline_build_cache(offline_network):
+    import shutil
+
+    uv = shutil.which("uv")
+    assert uv is not None
+    assert "UV_CACHE_DIR" in os.environ
+    expected = Path(os.environ["UV_CACHE_DIR"])
+    result = subprocess.run(
+        [uv, "--no-config", "cache", "dir"], capture_output=True, text=True, check=True, timeout=5
+    )
+    assert Path(result.stdout.strip()) == expected
+    assert not expected.is_relative_to(offline_network)

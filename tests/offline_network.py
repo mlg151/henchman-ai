@@ -3,7 +3,9 @@
 import asyncio
 import ipaddress
 import os
+import shutil
 import socket
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -30,10 +32,15 @@ def _check_destination(host, port):
 
 
 @pytest.fixture(autouse=True)
-def offline_network(monkeypatch, tmp_path_factory) -> Path:
+def offline_network(monkeypatch, tmp_path_factory, offline_build_cache) -> Path:
     """Isolate user files and block SDK traffic; allow owned loopback fixtures."""
     # Keep global user files outside the test's project/workspace fixture.
     test_home = tmp_path_factory.mktemp("isolated-home")
+    # Offline packaging scenarios deliberately require a pre-populated build
+    # backend cache. Keep that explicit dependency while isolating user files;
+    # tests can still replace it to prove cold-cache failure without downloads.
+    if offline_build_cache is not None:
+        monkeypatch.setenv("UV_CACHE_DIR", offline_build_cache)
     monkeypatch.setenv("HOME", str(test_home))
     monkeypatch.setenv("USERPROFILE", str(test_home))
     for key in ("HENCHMAN_SETTINGS_PATH", "HENCHMAN_PROVIDER", "HENCHMAN_MODEL"):
@@ -76,3 +83,14 @@ def offline_network(monkeypatch, tmp_path_factory) -> Path:
         if key in os.environ:
             monkeypatch.setenv(key, "offline-test-key")
     return test_home
+
+
+@pytest.fixture(scope="session")
+def offline_build_cache() -> str | None:
+    """Resolve uv's cache before HOME/XDG isolation, without fetching anything."""
+    uv = shutil.which("uv")
+    if uv is None:
+        return None
+    result = subprocess.run([uv, "--no-config", "cache", "dir"], capture_output=True,
+                            text=True, check=True, timeout=5)
+    return str(Path(result.stdout.strip()).resolve())
