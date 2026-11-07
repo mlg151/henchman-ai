@@ -343,7 +343,10 @@ It does not repair the current copy until the caller saves. Unknown newer storag
 versions fail explicitly instead of rolling back to an older format. Both copies
 are removed on deletion. The digest detects corruption, not malicious tampering;
 cooperative locking is not a filesystem isolation boundary. Forced termination
-can leave an unused private `.tmp` file, which is never treated as a saved session.
+can leave a private temporary file, which is never treated as a saved session.
+Temporary filenames identify their owning session; its next successful load, save
+or deletion removes abandoned save files under the same lock, including files
+left before the first commit. Other sessions' pending files are untouched.
 This storage recovery does not classify or replay interrupted external operations;
 the operational recovery report, goal/queue persistence and provider continuation
 qualification remain tracked in issue #23.

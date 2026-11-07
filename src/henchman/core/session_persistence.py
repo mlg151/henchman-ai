@@ -114,7 +114,17 @@ def _load_locked(path: Path) -> Session:
 def load_session(path: Path) -> Session:
     """Read current or prior state under the same lock used by writers."""
     with FileLock(path.with_suffix(".lock")):
-        return _load_locked(path)
+        session = _load_locked(path)
+        _cleanup_temporary(path)
+        return session
+
+
+def _cleanup_temporary(path: Path) -> bool:
+    """Remove only this session's abandoned save files while holding its lock."""
+    abandoned = list(path.parent.glob(f".{path.name}.*.tmp"))
+    for temporary in abandoned:
+        temporary.unlink(missing_ok=True)
+    return bool(abandoned)
 
 
 def _sync_directory(directory: Path) -> None:
@@ -131,7 +141,9 @@ def _replace_bytes(path: Path, raw: bytes) -> None:
     """Flush a private unique temporary file before same-directory replacement."""
     temporary: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as target:
+        with tempfile.NamedTemporaryFile(
+            dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
+        ) as target:
             temporary = target.name
             target.write(raw)
             target.flush()
@@ -163,6 +175,7 @@ def persist_session(data_dir: Path, session: Session, *, timestamp: str) -> Path
         payload["_storage"] = {"version": 1, "sha256": _digest(_canonical(payload))}
         raw = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
         _decode(raw, session.id)  # Validate before touching either committed copy.
+        _cleanup_temporary(path)
         if current is not None:
             try:
                 _decode(current, session.id)
@@ -186,7 +199,8 @@ def delete_session(path: Path) -> None:
     """Delete both generations under the writer lock, keeping its inode stable."""
     with FileLock(path.with_suffix(".lock")):
         backup = path.with_suffix(".json.bak")
-        if not path.exists() and not backup.exists():
+        removed_temporary = _cleanup_temporary(path)
+        if not path.exists() and not backup.exists() and not removed_temporary:
             raise FileNotFoundError(f"Session not found: {path.stem}")
         backup.unlink(missing_ok=True)
         path.unlink(missing_ok=True)

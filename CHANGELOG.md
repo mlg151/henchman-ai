@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing shape. Process-termination and simultaneous-writer tests cover the
   storage foundation of [#23](https://github.com/mlg151/henchman-ai/issues/23);
   interrupted-operation/queue recovery and live continuation remain in progress.
+  Recovery, save and deletion clean up that session's abandoned temporary files
+  so a terminated save does not leave unmanaged transcript copies behind.
 
 - **Plan-mode transition authority** — Sessions now persist `plan_mode_origin` (`user` or `model`; legacy sessions default to the conservative `user`) recording which authority opened the current plan mode. A model-callable `exit_plan_mode` can only close planning the model itself opened — it cannot lift a user-imposed `/plan` boundary, and re-entering an active user boundary cannot demote it. Authorized user/runtime transitions (`/plan`) retain the right to widen execution rights out of either state; [#18](https://github.com/mlg151/henchman-ai/issues/18).
 - **Plan-mode resume and subagent boundary prompts** — Interactive and headless startup now re-apply a resumed session's persisted plan mode to the live tool registry and agent prompt, and re-applying preserves the persisted `plan_mode_origin` rather than recording a new transition. Dynamic background subagents inherit the active plan-mode boundary in their system prompt, and `ToolRegistry.is_plan_mode_active` exposes the effective (inherited) state for boundary queries; [#18](https://github.com/mlg151/henchman-ai/issues/18).

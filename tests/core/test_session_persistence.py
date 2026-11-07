@@ -205,12 +205,28 @@ manager.save(session)
         process.wait(timeout=10)
         loaded = manager.load(session.id)
         assert loaded.tag == ("after" if after_replace else "before")
+        assert not list(tmp_path.glob("*.tmp")), "Recovery must remove abandoned save bytes"
         # Native locks are released by process death, so subsequent saves work.
         manager.save(loaded)
     finally:
         if process.poll() is None:
             process.kill()
         process.wait(timeout=10)
+
+
+def test_delete_cleans_only_this_sessions_abandoned_save_bytes(tmp_path: Path) -> None:
+    manager = SessionManager(tmp_path)
+    session = manager.create_session("project")
+    path = manager.save(session)
+    temporary = tmp_path / f".{path.name}.interrupted.tmp"
+    prior_temporary = tmp_path / f".{path.name}.bak.interrupted.tmp"
+    unrelated = tmp_path / ".unrelated.json.interrupted.tmp"
+    for item in (temporary, prior_temporary, unrelated):
+        item.write_text("private pending transcript", encoding="utf-8")
+    manager.delete(session.id)
+    assert not temporary.exists()
+    assert not prior_temporary.exists()
+    assert unrelated.exists()
 
 
 def test_simultaneous_process_writers_reject_one_stale_update(tmp_path: Path) -> None:
