@@ -9,9 +9,15 @@ for context estimates and RAG chunking. Native artifact tests isolate user setti
 interpreter lookup and empty token caches; final hosted qualification remains required.
 
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
-annotations and typed client/wrapper results while invalidating stale handles and
-keeping scoped allowlists. [Result propagation](docs/mcp.md#refresh-a-connected-catalog)
-through provider/session paths and broader #21/#25 qualification remain pending.
+annotations and typed results through provider text projection and session
+retention while invalidating stale handles and keeping scoped allowlists. Broader
+[contract/transport qualification](docs/mcp.md#refresh-a-connected-catalog) remains
+under #21/#25.
+
+The [operation journal](docs/operation-recovery.md) now commits correlated tool
+attempts before dispatch, binds public runtime/session recovery and exposes explicit
+revision-checked user resolution/retry. Provider opaque continuation and background
+process restart authority remain incomplete under #23.
 
 The [content checkpoint foundation](docs/checkpoints.md) now captures explicit
 before/after file scopes and supports revision-bound review, conflict-checked

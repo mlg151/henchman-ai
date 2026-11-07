@@ -255,7 +255,12 @@ def _handle_tool_call_result(
             output_handler,
             state,
         )
-    output_handler.session_manager.record_tool_result(tc_id, result_text)
+    from henchman.utils.tool_results import tool_result_from_payload
+
+    typed = result_data.get("tool_result")
+    output_handler.session_manager.record_tool_result(
+        tc_id, tool_result_from_payload(result_text, typed) if typed is not None else result_text,
+    )
 
 
 def _handle_agent_routing(

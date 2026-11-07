@@ -92,8 +92,8 @@ class _FakeAgent:
         self.unlimited_mode = False
         self._tool_results: dict[str, str] = {}
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
-        self._tool_results[tool_call_id] = result
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
+        self._tool_results[tool_call_id] = result if isinstance(result, str) else result.content
 
     async def continue_with_tool_results(self):
         if False:

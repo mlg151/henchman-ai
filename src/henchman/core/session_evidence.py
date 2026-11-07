@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
+from henchman.utils.tool_results import TOOL_RESULT_SCHEMA
 
 _TOOL_CALL = {
     "id": PRESERVE_IDENTITY, "name": PRESERVE_IDENTITY, "type": PRESERVE_IDENTITY,
@@ -16,6 +17,7 @@ _MESSAGE = {
     "agent_id": PRESERVE_IDENTITY, "agent_role": PRESERVE_IDENTITY,
     "content": None, "reasoning_content": None, "reasoning_details": None,
     "tool_calls": [_TOOL_CALL],
+    "tool_result": TOOL_RESULT_SCHEMA,
 }
 _SUMMARY = {
     "turn_number": PRESERVE_IDENTITY, "kind": PRESERVE_IDENTITY,
@@ -55,6 +57,12 @@ _SESSION = {
     "_storage": {"version": PRESERVE_IDENTITY, "sha256": PRESERVE_IDENTITY},
     "accounting": {"store_id": PRESERVE_IDENTITY, "active_run_id": PRESERVE_IDENTITY,
                    "run_ids": PRESERVE_IDENTITY, "active_owner_key": PRESERVE_IDENTITY},
+    "operations": {"persistence": PRESERVE_IDENTITY, "observed_ids": PRESERVE_IDENTITY,
+                   "reference": {"store_id": PRESERVE_IDENTITY, "project_hash": PRESERVE_IDENTITY,
+                                 "session_id": PRESERVE_IDENTITY, "version": PRESERVE_IDENTITY},
+                   "conversations": [{"id": PRESERVE_IDENTITY, "messages": [_MESSAGE]}],
+                   "bindings": [{"operation_id": PRESERVE_IDENTITY, "assistant_index": PRESERVE_IDENTITY, "conversation_id": PRESERVE_IDENTITY,
+                                 "context": dict.fromkeys(("project_hash", "session_id", "run_id", "turn_id", "agent_id", "tool_call_id"), PRESERVE_IDENTITY)}]},
     "tag": None, "messages": [_MESSAGE], "turn_summaries": [_SUMMARY],
     "delegation_log": None, "template_parameters": None, "export_metadata": _METADATA,
 }

@@ -166,15 +166,17 @@ def _format_assistant_tool_call_message(message: Message) -> dict[str, Any]:
 
 def _format_tool_result(message: Message) -> dict[str, Any]:
     """Build the Anthropic API payload for a tool result message."""
+    from henchman.utils.tool_results import tool_message_content
+
+    block: dict[str, Any] = {
+        "type": "tool_result", "tool_use_id": message.tool_call_id,
+        "content": tool_message_content(message.content, message.tool_result),
+    }
+    if message.tool_result is not None and "success" in message.tool_result:
+        block["is_error"] = not message.tool_result["success"]
     return {
         "role": "user",
-        "content": [
-            {
-                "type": "tool_result",
-                "tool_use_id": message.tool_call_id,
-                "content": message.content or "",
-            },
-        ],
+        "content": [block],
     }
 
 

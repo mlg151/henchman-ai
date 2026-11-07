@@ -30,6 +30,7 @@ from henchman.core.turn import TurnState
 from henchman.providers.base import Message, ModelProvider
 from henchman.tools.registry import ToolRegistry
 from henchman.utils.tokens import TokenCounter, get_model_limit
+from henchman.utils.tool_results import tool_result_payload
 from henchman.utils.validation import (
     is_valid_message_sequence,
     repair_message_sequence,
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
     from henchman.agents.identity import AgentIdentity
     from henchman.core.instruction_context import InstructionContext
     from henchman.providers.runtime_budget import RunBudgetScope
+    from henchman.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -588,7 +590,7 @@ class Agent:
         )
         return result
 
-    def submit_tool_result(self: Agent, tool_call_id: str, result: str) -> None:
+    def submit_tool_result(self: Agent, tool_call_id: str, result: str | ToolResult) -> None:
         """Submit a tool result to continue the conversation.
 
         Args:
@@ -600,7 +602,9 @@ class Agent:
         """
         record_message(
             self.messages,
-            Message(role="tool", content=result, tool_call_id=tool_call_id),
+            Message(role="tool", content=result if isinstance(result, str) else result.content,
+                    tool_call_id=tool_call_id,
+                    tool_result=None if isinstance(result, str) else tool_result_payload(result)),
             self.current_turn_messages,
         )
 

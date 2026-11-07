@@ -36,7 +36,10 @@
           },
           "tool_call_id": { "type": ["string", "null"] },
           "agent_id": { "type": ["string", "null"] },
-          "reasoning_content": { "type": ["string", "null"] }
+          "reasoning_content": { "type": ["string", "null"] },
+          "reasoning_details": { "type": ["string", "null"] },
+          "agent_role": { "type": ["string", "null"] },
+          "tool_result": { "type": ["object", "null"], "description": "Validated typed result evidence, including structured presence, metadata, and explicit truncation provenance." }
         },
         "additionalProperties": false
       }
@@ -81,7 +84,8 @@
                 "agent_id": { "type": ["string", "null"] },
                 "agent_role": { "type": ["string", "null"] },
                 "reasoning_content": { "type": ["string", "null"] },
-                "reasoning_details": { "type": ["string", "null"] }
+                "reasoning_details": { "type": ["string", "null"] },
+                "tool_result": { "type": ["object", "null"], "description": "Typed result evidence retained with the original message, including structured presence and metadata." }
               },
               "additionalProperties": false
             }
@@ -94,6 +98,88 @@
       "type": "array",
       "description": "Agent roles active in this session",
       "items": { "type": "string" }
+    },
+    "operations": {
+      "type": "object",
+      "description": "Advisory tool-call correlation; the separate operation store remains authoritative.",
+      "required": ["persistence", "reference", "bindings", "observed_ids", "conversations"],
+      "additionalProperties": false,
+      "properties": {
+        "persistence": { "type": "string", "enum": ["process", "durable"] },
+        "reference": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["store_id", "project_hash", "session_id", "version"],
+              "additionalProperties": false,
+              "properties": {
+                "store_id": { "type": "string" },
+                "project_hash": { "type": "string" },
+                "session_id": { "type": "string" },
+                "version": { "type": "integer", "const": 1 }
+              }
+            }
+          ]
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["operation_id", "context", "assistant_index", "conversation_id"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_id": { "type": "string" },
+              "assistant_index": { "type": "integer", "minimum": 0 },
+              "conversation_id": { "type": ["string", "null"] },
+              "context": {
+                "type": "object",
+                "required": ["project_hash", "session_id", "run_id", "turn_id", "agent_id", "tool_call_id"],
+                "additionalProperties": false,
+                "properties": {
+                  "project_hash": { "type": "string" },
+                  "session_id": { "type": "string" },
+                  "run_id": { "type": "string" },
+                  "turn_id": { "type": "string" },
+                  "agent_id": { "type": "string" },
+                  "tool_call_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "observed_ids": { "type": "array", "items": { "type": "string" } },
+        "conversations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "messages"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["role"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "role": { "type": "string", "enum": ["user", "assistant", "tool", "system"] },
+                    "content": { "type": ["string", "null"] },
+                    "tool_calls": { "type": ["array", "null"], "items": { "type": "object", "additionalProperties": true } },
+                    "tool_call_id": { "type": ["string", "null"] },
+                    "agent_id": { "type": ["string", "null"] },
+                    "agent_role": { "type": ["string", "null"] },
+                    "reasoning_content": { "type": ["string", "null"] },
+                    "reasoning_details": { "type": ["string", "null"] },
+                    "tool_result": { "type": ["object", "null"], "description": "Validated typed result evidence, preserving structured missing versus null and explicit truncation provenance." }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "delegation_log": {
       "type": "array",

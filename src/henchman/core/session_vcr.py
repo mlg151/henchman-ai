@@ -34,6 +34,7 @@ class SessionVcrService:
                     "tool_call_id": message.tool_call_id,
                     "tool_calls": message.tool_calls or [],
                     "agent_id": message.agent_id,
+                    **({"tool_result": message.tool_result} if message.tool_result is not None else {}),
                 },
             )
         for index, summary in enumerate(session.turn_summaries):

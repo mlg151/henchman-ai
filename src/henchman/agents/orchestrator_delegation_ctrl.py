@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.operation_recovery import OperationRecoveryError, project_operation_result
+from henchman.core.runtime_operations import current_operation_run, tool_result_from_operation
 
 from .ledger import DelegationStatus
 from .orchestrator_components import OrchestratorComponent
@@ -28,7 +30,7 @@ from .orchestrator_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
     from henchman.core.agent import Agent
     from henchman.providers.base import ToolCall
@@ -131,6 +133,25 @@ class DelegationController(OrchestratorComponent):
         tc_args = tool_call.arguments
         target = tc_args.get("agent", "")
         task = tc_args.get("task", "")
+        run = current_operation_run()
+        invocation = run.capture_call(agent, tool_call) if run is not None else None
+        permit = None
+        if invocation is not None:
+            operation = invocation.prepare(tool_call.name, tc_args, "effectful")
+            if operation.state == "completed" and operation.result is not None:
+                agent.submit_tool_result(tool_call.id, tool_result_from_operation(operation.result))
+                yield create_tool_result_event(agent, tool_call, operation.result.content, success=operation.result.success)
+                return
+            permit = invocation.start()
+            if permit is None:
+                raise OperationRecoveryError("operation_already_dispatched")
+
+        def on_result(content: str, success: bool) -> str:
+            if invocation is None or permit is None:
+                return content
+            projected = project_operation_result(content, success, redactor=invocation.run.session.evidence_redactor)
+            invocation.complete(permit, projected)
+            return projected.content
 
         self.metrics.delegation_count += 1
         if target in self.metrics.delegation_by_type:
@@ -154,10 +175,13 @@ class DelegationController(OrchestratorComponent):
         )
         try:
             yield create_delegation_event(agent, target, task)
-            async with closing_event_stream(self._run_delegation(params)) as events:
+            stream = self._run_delegation(params, on_result=on_result) if invocation is not None else self._run_delegation(params)
+            async with closing_event_stream(stream) as events:
                 async for event in events:
                     yield event
-        except BaseException:
+        except BaseException as exc:
+            if invocation is not None and permit is not None:
+                invocation.cancel_after_error(exc)
             record = params.ledger_record
             if ledger and record and record.status == DelegationStatus.PENDING:
                 ledger.fail_delegation(record, "Delegation interrupted before completion.")
@@ -170,6 +194,7 @@ class DelegationController(OrchestratorComponent):
     async def _run_delegation(
         self: DelegationController,
         params: DelegationExecutionParams,
+        *, on_result: Callable[[str, bool], str] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute delegation and yield result event.
 
@@ -223,6 +248,8 @@ class DelegationController(OrchestratorComponent):
         if ledger:
             submitted = f"{final_result}\n\n{ledger.render()}"
 
+        if on_result is not None:
+            submitted = on_result(submitted, final_state.succeeded)
         agent.submit_tool_result(tool_call.id, submitted)
         event = create_tool_result_event(
             agent, tool_call, submitted, success=final_state.succeeded,

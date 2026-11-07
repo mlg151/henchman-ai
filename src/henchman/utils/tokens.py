@@ -127,8 +127,11 @@ def _count_single_message_tokens(msg: Message, encode: object) -> int:
     total = TOKENS_PER_MESSAGE
     total += len(encode(msg.role))  # type: ignore[operator]
 
-    if msg.content:
-        total += len(encode(msg.content))  # type: ignore[operator]
+    from henchman.utils.tool_results import tool_message_content
+
+    content = tool_message_content(msg.content, msg.tool_result) if msg.role == "tool" else msg.content
+    if content:
+        total += len(encode(content))  # type: ignore[operator]
 
     if msg.tool_calls:
         for tc in msg.tool_calls:

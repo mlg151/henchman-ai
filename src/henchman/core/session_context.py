@@ -9,6 +9,7 @@ from typing import Any
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
+from henchman.utils.tool_results import copy_tool_result_payload
 
 from .session_data import Session
 from .session_export import export_as_markdown
@@ -170,6 +171,7 @@ def _message_to_provider_message(message: SessionMessage) -> Message:
         tool_call_id=message.tool_call_id,
         reasoning_content=message.reasoning_content,
         reasoning_details=message.reasoning_details,
+        tool_result=copy_tool_result_payload(message.tool_result),
     )
 
 

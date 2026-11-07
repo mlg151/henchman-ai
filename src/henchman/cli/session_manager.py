@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
 from henchman.providers.base import Message, ToolCall
+from henchman.utils.tool_results import tool_result_payload
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
+    from henchman.tools.base import ToolResult
     from henchman.tools.registry import ToolRegistry
 
 
@@ -78,6 +80,8 @@ def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
+                reasoning_details=session_msg.reasoning_details,
+                tool_result=deepcopy(session_msg.tool_result),
             ),
         )
 
@@ -384,7 +388,7 @@ class ReplSessionManager:
                 ),
             )
 
-    def record_tool_result(self: Self, tool_call_id: str, content: str) -> None:
+    def record_tool_result(self: Self, tool_call_id: str, content: str | ToolResult) -> None:
         """Record a tool result to the current session.
 
         Args:
@@ -396,5 +400,7 @@ class ReplSessionManager:
         """
         if self.session is not None:
             self.session.messages.append(
-                SessionMessage(role="tool", content=content, tool_call_id=tool_call_id),
+                SessionMessage(role="tool", content=content if isinstance(content, str) else content.content,
+                               tool_call_id=tool_call_id,
+                               tool_result=None if isinstance(content, str) else tool_result_payload(content)),
             )

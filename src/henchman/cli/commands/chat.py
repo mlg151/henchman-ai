@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.providers.base import Message, ToolCall
+from henchman.utils.tool_results import copy_tool_result_payload
 
 if TYPE_CHECKING:
     from henchman.core.session import Session, SessionManager
@@ -156,6 +157,8 @@ def _restore_agent_history_from_session(ctx: CommandContext, session: Session) -
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
+                reasoning_details=session_msg.reasoning_details,
+                tool_result=copy_tool_result_payload(session_msg.tool_result),
             ),
         )
 

@@ -1,5 +1,9 @@
 # Configuration
 
+Interrupted tool effects use the separate `operations.persistence` setting
+(`process` by default, optionally `durable`). See [operation recovery](operation-recovery.md)
+for authority, storage and explicit user decisions; usage persistence is independent.
+
 Henchman-AI uses hierarchical configuration with settings files and environment variables.
 
 ## Configuration Hierarchy

@@ -20,6 +20,8 @@ from henchman.cli.stream_event_handlers import (
     handle_post_stream_processing,
 )
 from henchman.core.events import EventType
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
 from henchman.providers.base import ToolCall
 
 if TYPE_CHECKING:
@@ -128,8 +130,8 @@ class ToolExecutor:
             arguments=tc_args,
             result=result,
         )
-        agent.submit_tool_result(tc_id, result.content)
-        self.output_handler.session_manager.record_tool_result(tc_id, result.content)
+        agent.submit_tool_result(tc_id, result)
+        self.output_handler.session_manager.record_tool_result(tc_id, result)
         if result.success:
             _display_tool_result(self.output_handler, result.content, True)
         else:
@@ -299,6 +301,7 @@ class ToolExecutor:
         to_parallel, to_sequential = self._split_tools_by_confirmation_requirement(
             valid_tool_calls, agent.tool_registry,
         )
+        preserve_pending = False
         try:
             if to_parallel:
                 results = await asyncio.gather(
@@ -315,6 +318,8 @@ class ToolExecutor:
                 )
                 # Log any exceptions from individual parallel tool calls
                 for tc, result in zip(to_parallel, results, strict=True):
+                    if isinstance(result, (BudgetControlError, OperationRecoveryError)):
+                        raise result
                     if isinstance(result, BaseException):
                         diagnostic = runtime_exception_text(self.output_handler, result, include_traceback=True)
                         logger.warning("%s", policy.text(f"Parallel tool call {tc.id} ({tc.name}) failed: {diagnostic}"))
@@ -325,12 +330,18 @@ class ToolExecutor:
                     responded_ids,
                     announced_ids,
                 )
+        except (BudgetControlError, OperationRecoveryError):
+            # Recovery must settle these outcomes; a synthetic cancellation
+            # response would falsely describe an uncertain external effect.
+            preserve_pending = True
+            raise
         finally:
-            self._ensure_all_tool_calls_have_response(
-                valid_tool_calls,
-                responded_ids,
-                agent,
-            )
+            if not preserve_pending:
+                self._ensure_all_tool_calls_have_response(
+                    valid_tool_calls,
+                    responded_ids,
+                    agent,
+                )
 
         self.output_handler.show_turn_status(agent, self.base_tool_iterations)
         self.output_handler.print_newline()

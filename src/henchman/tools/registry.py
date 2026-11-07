@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, replace
 from itertools import count
 from typing import TYPE_CHECKING
 
@@ -567,6 +568,14 @@ class ToolRegistry:
         require fresh approval. Custom dispatchers must perform any additional
         checks needed after their own subsequent asynchronous work.
         """
+        from henchman.tools.contracts import SchemaContractError, validate_tool_input
+
+        candidate = self.get(name)
+        if candidate is not None:
+            try:
+                validate_tool_input(candidate.parameters, params)
+            except SchemaContractError as exc:
+                return ToolResult(content=str(exc), success=False, error=str(exc))
         authorization = await self._authorize_invocation(name, params)
         return authorization if isinstance(authorization, ToolResult) else authorization.tool
 
@@ -588,12 +597,48 @@ class ToolRegistry:
         Returns:
             A ToolResult containing the execution result or error.
         """
+        from henchman.core.operation_recovery import (
+            DispatchPermit,
+            OperationRecoveryError,
+            project_operation_result,
+        )
+        from henchman.core.run_budget import BudgetControlError
+        from henchman.core.runtime_operations import (
+            current_operation_call,
+            tool_result_from_operation,
+        )
+        from henchman.tools.contracts import SchemaContractError, validate_tool_input
+
+        operation = current_operation_call()
+        if operation is not None:
+            params = deepcopy(params)
+        candidate = self.get(name)
+        if candidate is not None:
+            try:
+                validate_tool_input(candidate.parameters, params)
+            except SchemaContractError as exc:
+                return ToolResult(content=str(exc), success=False, error=str(exc))
         authorization = await self._authorize_invocation(name, params)
         if isinstance(authorization, ToolResult):
             return authorization
         tool = authorization.tool
+        permit: DispatchPermit | None = None
+        if operation is not None:
+            previous = next((record for record in operation.run.journal.report().records
+                             if record.operation_id == operation.binding.operation_id), None)
+            if previous is not None and previous.state == "completed":
+                # A replayed observation must skip formatter mutation as well as
+                # the tool body. Revalidate its captured definition first.
+                previous = operation.prepare(name, params, "read" if tool.execution_kind(params) == ToolKind.READ else "effectful")
+                assert previous.result is not None
+                return tool_result_from_operation(previous.result)
 
         async def execute_once() -> ToolResult:
+            nonlocal permit
+            try:
+                validate_tool_input(tool.parameters, params)
+            except SchemaContractError as exc:
+                return ToolResult(content=str(exc), success=False, error=str(exc))
             # The formatter can await its mutation lock and filesystem snapshot
             # after authorization. Check again at the actual dispatch boundary.
             stale = self._revalidate_authorization(authorization, params)
@@ -606,12 +651,20 @@ class ToolRegistry:
             stale = self._revalidate_authorization(authorization, params)
             if stale is not None:
                 return stale
+            if operation is not None:
+                record = operation.prepare(name, params, "read" if tool.execution_kind(params) == ToolKind.READ else "effectful")
+                if record.state == "completed" and record.result is not None:
+                    return tool_result_from_operation(record.result)
+                permit = operation.start()
+                if permit is None:
+                    raise OperationRecoveryError("operation_already_dispatched")
             with use_access_policies(self._effective_access_policies):
                 return await tool.execute(**params)
 
         async def execute_authorized() -> ToolResult:
             if (
                 tool.execution_kind(params) == ToolKind.NETWORK
+                and operation is None
                 and self._retry_config.max_retries > 0
             ):
                 return await retry_async(
@@ -628,7 +681,13 @@ class ToolRegistry:
                 result = await execute_authorized()
             else:
                 result = await self._effective_formatter.run(tool, params, execute_authorized)
-        except Exception as exc:
+        except BaseException as exc:
+            if operation is not None and permit is not None:
+                operation.cancel_after_error(exc)
+                if isinstance(exc, Exception) and not isinstance(exc, (OperationRecoveryError, BudgetControlError)):
+                    raise OperationRecoveryError("outcome_unknown") from exc
+            if isinstance(exc, (OperationRecoveryError, BudgetControlError)) or not isinstance(exc, Exception):
+                raise
             sanitized_error = sanitize_error_message(exc)
             return ToolResult(
                 content=f"Error executing tool '{name}': {sanitized_error}",
@@ -636,16 +695,25 @@ class ToolRegistry:
                 error=sanitized_error,
             )
 
+        if operation is not None and permit is not None:
+            try:
+                projected = project_operation_result(result.content, result.success, result.error,
+                                                     redactor=operation.run.session.evidence_redactor,
+                                                     content_blocks=result.content_blocks, structured_content=result.structured_content,
+                                                     structured_content_present=result.structured_content_present, metadata=result.metadata)
+                operation.complete(permit, projected)
+            except BaseException as exc:
+                operation.cancel_after_error(exc)
+                if isinstance(exc, (OperationRecoveryError, BudgetControlError)) or not isinstance(exc, Exception):
+                    raise
+                raise OperationRecoveryError("operation_result_unavailable") from exc
+            return tool_result_from_operation(projected, display=result.display)
+
         # Truncate large outputs to prevent context overflow
         if result.content and len(result.content) > MAX_TOOL_OUTPUT:
             truncated_content = result.content[:MAX_TOOL_OUTPUT]
             truncated_content += f"\n\n[... truncated after {MAX_TOOL_OUTPUT} chars]"
-            result = ToolResult(
-                content=truncated_content,
-                success=result.success,
-                display=result.display,
-                error=result.error,
-            )
+            result = replace(result, content=truncated_content)
 
         return result
 
@@ -672,6 +740,9 @@ class ToolRegistry:
             ... ])
             >>> print(f"Completed: {results.successful} succeeded, {results.failed} failed")
         """
+        from henchman.core.operation_recovery import OperationRecoveryError
+        from henchman.core.run_budget import BudgetControlError
+
         if not calls:
             return BatchResult(results={}, successful=0, failed=0)
 
@@ -685,6 +756,8 @@ class ToolRegistry:
         failed = 0
 
         for i, result in enumerate(results_list):
+            if isinstance(result, (OperationRecoveryError, BudgetControlError)):
+                raise result
             tool_name = calls[i][0]
             # Key is "{index}:{tool_name}" — the index prefix guarantees
             # uniqueness even when the same tool appears multiple times, and

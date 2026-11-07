@@ -150,7 +150,13 @@ presence separately from null, and metadata. Text compatibility output labels
 non-text blocks. SDK 1.x permits object-or-null `structuredContent`; scalar and
 array wire forms fail explicitly even though the canonical local validator can
 validate them. Results accept at most 256 blocks within the payload bound.
-Provider/session propagation remains a separate integration gate under #21.
+Agent, CLI/headless, chat and session paths now retain these typed fields. All five
+builtin provider adapters send an explicit JSON text projection; image/audio data
+and binary resource blobs are described rather than sent as binary. Original
+typed data remains in raw agent history and redacted saved history where those
+consumers retain it. Context truncation identifies omitted payloads and their
+digests even when a text result remains. Exports, VCR, merge and restored sessions
+preserve typed meaning. API caller-supplied continuation inputs remain text-only.
 These are accepted-payload bounds: the SDK parses a complete stdio line first,
 so they do not bound memory used while parsing a hostile oversized wire message.
 

@@ -174,6 +174,20 @@ async def test_cancelled_nested_run_releases_parent_and_child_for_reuse() -> Non
         await task
     validate_message_sequence(orch.tech_lead.messages)
     validate_message_sequence(explorer.messages)
+    from henchman.core.operation_recovery import OperationRecoveryError
+
+    # Pool ownership is released, while recovery still requires the user to
+    # acknowledge a dispatched delegation whose final result was interrupted.
+    with pytest.raises(OperationRecoveryError, match="unresolved_operation"):
+        _ = [event async for event in orch.run("Unacknowledged retry")]
+    assert len(parent.requests) == len(child.requests) == 1
+    assert orch.operation_runtime is not None
+    for record in orch.operation_runtime.report().records:
+        if record.state == "outcome_unknown":
+            orch.operation_runtime.resolve_user(
+                record.operation_id, record.revision, decision="abandon",
+                note="User abandons interrupted delegation after the child was joined",
+            )
     parent.steps = [delegate("explorer", "reused"), response()]
     events = [event async for event in orch.run("Retry after cancellation")]
     result = next(event for event in events if (

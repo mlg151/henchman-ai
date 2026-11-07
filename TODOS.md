@@ -11,8 +11,15 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - MCP client/wrapper fidelity now includes bounded paginated catalogs, local
   input/output validation and typed results. Explicit refresh updates owned
   registry entries and invalidates stale handles without widening agent scopes.
-  Provider/session propagation and modern transport remain #21/#25 work; see
+  Provider text projections, events, chat and session retention preserve typed
+  evidence with explicit binary/omission limits. Modern transport and final
+  contract qualification remain #21/#25 work; see
   [compatibility limits](docs/mcp.md#refresh-a-connected-catalog).
+
+- [Operation recovery](docs/operation-recovery.md) now binds durable dispatch
+  authority to saved requests/results and exposes `/recovery` user decisions.
+  Process mode remains the default; opaque provider continuation and background
+  task restart authority remain open under #23.
 
 - [Content checkpoints](docs/checkpoints.md) now provide a tested standalone
   POSIX capture/review/restore service with private retention and crash recovery.

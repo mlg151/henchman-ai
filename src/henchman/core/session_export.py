@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+from henchman.utils.tool_results import tool_message_content
+
 from .session_memory import SessionMemoryService
 
 if TYPE_CHECKING:
@@ -59,8 +61,9 @@ def _render_message(index: int, msg: SessionMessage) -> list[str]:
     lines = [f"### Turn {index + 1}: {msg.role}", ""]
     if msg.agent_id:
         lines.append(f"*Agent: {msg.agent_id}*  ")
-    if msg.content:
-        lines.extend([_escape_angle_brackets(msg.content), ""])
+    content = tool_message_content(msg.content, msg.tool_result) if msg.role == "tool" else msg.content
+    if content:
+        lines.extend([_escape_angle_brackets(content), ""])
     if msg.tool_calls:
         lines.append("**Tool Calls:**")
         for tc in msg.tool_calls:
@@ -107,8 +110,9 @@ def _render_summaries(summaries: list[TurnSummaryRecord]) -> list[str]:
 def _render_retained_message(msg: SessionMessage) -> list[str]:
     """Render one message retained by a compaction record as Markdown lines."""
     lines = [f"#### {msg.role}", ""]
-    if msg.content:
-        lines.extend([_escape_angle_brackets(msg.content), ""])
+    content = tool_message_content(msg.content, msg.tool_result) if msg.role == "tool" else msg.content
+    if content:
+        lines.extend([_escape_angle_brackets(content), ""])
     if msg.tool_calls:
         lines.append("**Tool Calls:**")
         for tc in msg.tool_calls:

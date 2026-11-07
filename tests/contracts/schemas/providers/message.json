@@ -11,7 +11,9 @@
       "items": { "$ref": "tool_call" }
     },
     "tool_call_id": { "type": ["string", "null"] },
-    "reasoning_content": { "type": ["string", "null"] }
+    "reasoning_content": { "type": ["string", "null"] },
+    "reasoning_details": { "type": ["string", "null"] },
+    "tool_result": { "type": ["object", "null"], "description": "Optional typed tool evidence; provider adapters render an explicit portable text projection." }
   },
   "required": ["role"]
 }

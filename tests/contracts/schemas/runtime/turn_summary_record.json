@@ -62,7 +62,8 @@
           "agent_id": { "type": ["string", "null"] },
           "agent_role": { "type": ["string", "null"] },
           "reasoning_content": { "type": ["string", "null"] },
-          "reasoning_details": { "type": ["string", "null"] }
+          "reasoning_details": { "type": ["string", "null"] },
+          "tool_result": { "type": ["object", "null"], "description": "Typed result evidence retained with the original message, including structured presence and metadata." }
         },
         "additionalProperties": false
       }

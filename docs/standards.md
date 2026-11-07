@@ -138,8 +138,11 @@ are invalidated. Native fixture processes cover refresh, collisions, cancellatio
 malformed catalogs and structured errors. See [MCP bounds and compatibility](mcp.md#refresh-a-connected-catalog).
 
 SDK 1.x structured output is object-or-null; scalar/array wire forms are rejected
-explicitly. Provider/session propagation of typed results and runtime-wide
-registration/output validation remain required for #21/P1. Modern transport,
+explicitly. Typed results now propagate through agents, events, CLI/chat,
+provider text projections and session retention/export/restore. Binary blocks are
+summarized explicitly on provider wires; active-context omission retains a visible
+digest marker. Runtime-wide registration/output validation and final qualification
+remain required for #21/P1. Modern transport,
 resources/prompts and preparse wire bounds remain separate #25 work.
 
 ### Remaining phase gates

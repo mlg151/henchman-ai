@@ -3,8 +3,14 @@
   "title": "Settings",
   "description": "Shape contract for the root Settings model — consumer-facing config contract.",
   "type": "object",
-  "required": ["providers", "usage", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
+  "required": ["providers", "usage", "operations", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
   "properties": {
+    "operations": {
+      "type": "object",
+      "required": ["persistence"],
+      "properties": {"persistence": {"type": "string", "enum": ["process", "durable"]}},
+      "additionalProperties": false
+    },
     "providers": {
       "type": "object",
       "description": "Provider configuration",

@@ -561,18 +561,18 @@ async def _process_tool_calls(
         render_func: Function to render events.
         collect_events: Optional list to collect events (for json-complete mode).
     """
+    from henchman.utils.tool_results import tool_result_event_data
+
     while pending_tool_calls:
         tool_call = pending_tool_calls[0]
         result = await repl.agent.tool_registry.execute(tool_call.name, tool_call.arguments)
-        repl.agent.submit_tool_result(tool_call.id, result.content)
+        repl.agent.submit_tool_result(tool_call.id, result)
         pending_tool_calls.pop(0)
         turn = getattr(repl.agent, "turn", None)
         if turn is not None:
             turn.record_tool_call(tool_call.id, tool_call.name, tool_call.arguments, result)
-        event = AgentEvent(type=EventType.TOOL_CALL_RESULT, data={
-            "tool_call_id": tool_call.id, "tool_name": tool_call.name,
-            "result": result.content, "success": result.success,
-        })
+        event = AgentEvent(type=EventType.TOOL_CALL_RESULT,
+                           data=tool_result_event_data(tool_call.id, tool_call.name, result))
         (collect_events.append if collect_events is not None else render_func)(event)
 
 

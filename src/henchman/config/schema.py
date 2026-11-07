@@ -217,6 +217,12 @@ class UsageSettings(_SettingsModel):
         return self
 
 
+class OperationSettings(_SettingsModel):
+    """Interrupted-operation recovery, independent of model usage accounting."""
+
+    persistence: Literal["process", "durable"] = "process"
+
+
 class ToolSettings(_SettingsModel):
     """Settings for tool behavior.
 
@@ -735,6 +741,7 @@ class Settings(_SettingsModel):
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
+    operations: OperationSettings = Field(default_factory=OperationSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
     ui: UISettings = Field(default_factory=UISettings)
     context: ContextSettings = Field(default_factory=ContextSettings)

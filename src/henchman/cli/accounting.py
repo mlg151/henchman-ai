@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from henchman.agents.orchestrator import Orchestrator
+from henchman.core.session_operations import SessionRunOperations
 from henchman.core.session_run_accounting import SessionRunAccounting
 
 if TYPE_CHECKING:
@@ -21,6 +22,10 @@ def bind_session_accounting(orchestrator: Orchestrator, sessions: ReplSessionMan
         sessions.session_manager.save(session)
 
     orchestrator.accounting_runtime = SessionRunAccounting(
+        orchestrator.settings, lambda: sessions.current, save,
+        sessions.session_manager.data_dir.parent / "ops.db",
+    )
+    orchestrator.operation_runtime = SessionRunOperations(
         orchestrator.settings, lambda: sessions.current, save,
         sessions.session_manager.data_dir.parent / "ops.db",
     )

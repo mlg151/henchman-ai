@@ -9,14 +9,23 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from henchman.chat.base import ChatMessage, ChatPlatform
 from henchman.core.events import EventType
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
 from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
 from henchman.providers.utils import get_api_key_for_provider
+from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.tool_results import (
+    TOOL_RESULT_SCHEMA,
+    tool_message_content,
+    tool_result_payload,
+)
 
 if TYPE_CHECKING:
     from henchman.chat.base import ChatBot
     from henchman.config import Settings
     from henchman.core import Agent
+    from henchman.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +53,7 @@ class _ChatAgent(Protocol):
         """Continue after tool results have been submitted."""
         ...
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
         """Submit the result of a tool call."""
         ...
 
@@ -61,7 +70,7 @@ class _FallbackChatAgent:
 
     def __init__(self, tool_registry: object = None) -> None:
         self.tool_registry = tool_registry if tool_registry is not None else {}
-        self._tool_results: dict[str, str] = {}
+        self._tool_results: dict[str, str | ToolResult] = {}
 
     async def run(self, user_input: str) -> AsyncIterator[Any]:
         """Run is a no-op for the fallback agent."""
@@ -73,7 +82,7 @@ class _FallbackChatAgent:
         return
         yield  # pragma: no cover
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
         """Record a tool result."""
         self._tool_results[tool_call_id] = result
 
@@ -102,6 +111,7 @@ class ChatManager:
             settings: Henchman-AI settings loaded from configuration.
         """
         self._settings = settings
+        self._evidence_redactor = EvidenceRedactor()
         self._bots: dict[ChatPlatform, ChatBot] = {}
         self._user_agents: dict[str, Agent] = {}  # user_id -> Agent
         self._user_histories: dict[str, list[dict[str, Any]]] = {}  # user_id -> messages
@@ -376,7 +386,14 @@ class ChatManager:
                     result = await agent.tool_registry.execute(tool_name, tool_args)
 
                     # Truncate very long results for display
-                    result_content = result.content
+                    policy = self._evidence_redactor
+                    policy.register_config(self._settings.model_dump())
+                    payload = tool_result_payload(result)
+                    policy.register_config(payload)
+                    result_content = tool_message_content(
+                        policy.text(result.content),
+                        policy.redact(payload, schema=TOOL_RESULT_SCHEMA),
+                    )
                     if len(result_content) > 1500:
                         display_result = result_content[:1500] + "\n... (truncated)"
                     else:
@@ -388,8 +405,10 @@ class ChatManager:
                     )
 
                     # Submit result back to the agent
-                    agent.submit_tool_result(tool_id, result.content)
+                    agent.submit_tool_result(tool_id, result)
 
+                except (BudgetControlError, OperationRecoveryError):
+                    raise
                 except Exception as tool_err:
                     logger.exception(
                         "Tool execution failed: %s for user %s", tool_name, user_id

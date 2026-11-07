@@ -7,11 +7,12 @@ older messages, with optional summarization of dropped content.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
+from henchman.utils.tool_results import compact_tool_payload, tool_message_content
 
 logger = logging.getLogger(__name__)
 
@@ -292,21 +293,24 @@ def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Mes
     Returns:
         Truncated message.
     """
-    if not message.content:
+    content = (
+        tool_message_content(message.content, message.tool_result)
+        if message.role == "tool"
+        else message.content
+    )
+    if not content:
         return message
 
     chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
-    if chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT:
-        new_content = message.content[: len(message.content) - chars_to_trim]
+    if chars_to_trim < len(content) - MIN_TRUNCATED_CONTENT:
+        new_content = content[: len(content) - chars_to_trim]
         new_content += "\n[... truncated to fit context limit ...]"
     else:
-        new_content = message.content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
-
-    return Message(
-        role=message.role,
-        content=new_content,
-        tool_calls=message.tool_calls,
-        tool_call_id=message.tool_call_id,
+        new_content = content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
+    if message.tool_result is not None:
+        new_content += "\n[Typed result payload omitted from this active message.]"
+    return replace(
+        message, content=new_content, tool_result=compact_tool_payload(message.tool_result)
     )
 
 
@@ -338,12 +342,14 @@ def _truncate_protected_zone_messages(
             result.append(msg)
             continue
 
-        content = msg.content
+        content = tool_message_content(msg.content, msg.tool_result)
         if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
             truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
             # Calculate actual token reduction instead of estimating from characters
             original_tokens = TokenCounter.count_text(content)
-            truncated_tokens = TokenCounter.count_text(truncated_msg.content or "")
+            truncated_tokens = TokenCounter.count_text(
+                tool_message_content(truncated_msg.content, truncated_msg.tool_result)
+            )
             trimmed_tokens = original_tokens - truncated_tokens
             # Ensure non-negative (should always be, but guard against edge cases)
             if trimmed_tokens > 0:
@@ -503,22 +509,26 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
     Returns:
         Safe message (possibly truncated).
     """
-    if not message.content:
+    content = (
+        tool_message_content(message.content, message.tool_result)
+        if message.role == "tool"
+        else message.content
+    )
+    if not content:
         return message
 
     # Quick character check optimization
-    if len(message.content) < limit:
+    if len(content) < limit:
         return message
 
     # Check token count
-    if TokenCounter.count_text(message.content) > limit:
-        truncated_content = TokenCounter.truncate_text(message.content, limit)
+    if TokenCounter.count_text(content) > limit:
+        truncated_content = TokenCounter.truncate_text(content, limit)
         new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-        return Message(
-            role=message.role,
-            content=new_content,
-            tool_calls=message.tool_calls,
-            tool_call_id=message.tool_call_id,
+        if message.tool_result is not None:
+            new_content += "\n[Typed result payload omitted from this active message.]"
+        return replace(
+            message, content=new_content, tool_result=compact_tool_payload(message.tool_result)
         )
 
     return message
@@ -718,11 +728,9 @@ class ContextCompactor(_ContextCompactorHelpersMixin):
         Returns:
             Compacted messages that fit within max_tokens.
         """
-        protected_msgs, unprotected_msgs = (
-            self.protected_zone_manager.separate_protected_messages(
-                messages,
-                protect_from_index,
-            )
+        protected_msgs, unprotected_msgs = self.protected_zone_manager.separate_protected_messages(
+            messages,
+            protect_from_index,
         )
         protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(
             protected_msgs,
@@ -808,7 +816,11 @@ def _format_messages_for_summary_content(messages: list[Message]) -> str:
         if msg.role == "system":
             continue  # Skip system messages
         prefix = msg.role.upper()
-        content = msg.content or ""
+        content = (
+            tool_message_content(msg.content, msg.tool_result)
+            if msg.role == "tool"
+            else (msg.content or "")
+        )
         if msg.tool_calls:
             tool_names = [tc.name for tc in msg.tool_calls]
             content += f" [Called tools: {', '.join(tool_names)}]"
@@ -1001,6 +1013,8 @@ async def compact_messages(params: CompactionParams) -> CompactionResult:
         max_protected_ratio=params.max_protected_ratio,
     )
     return await _compact_with_summarization_impl(params.messages, params.max_tokens, config)
+
+
 async def compact_with_summarization(
     messages: list[Message],
     max_tokens: TokenLimit,

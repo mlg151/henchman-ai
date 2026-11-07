@@ -8,6 +8,13 @@ adapter. Restores invalidate plan verification and supersede in-flight check
 results; automatic mutation ownership remains separate integration work.
 Conversation rewind does not restore workspace files.
 
+The [operation journal](operation-recovery.md) commits tool-attempt authority
+before dispatch and reconciles completed observations without repeating effects.
+It binds assistant/tool correlation across primary and separate specialist turns;
+unknown outcomes block continuation until an explicit user resolution. Its
+process/durable lifetime is independent of model usage accounting. Typed tool
+evidence travels through events and sessions with bounded, explicit projections.
+
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 
 This architecture includes both shipped runtime paths and narrower integration seams. The shared discovery capability matrix is authoritative: local skills are local-only; integration blueprints (including Slack) are export-only; `schedule_cron` is metadata-only; remote agent/plugin installs are unavailable; the GitHub webhook helper is docs-only; and Tier 10 dialogs are intentionally absent from generic discovery even though they ship inside `henchman chat --tui`.

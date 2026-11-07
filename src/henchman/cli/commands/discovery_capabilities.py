@@ -44,6 +44,19 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="operation recovery",
+        classification="runtime-dependent",
+        summary="/recovery inspects interrupted tool attempts and accepts explicit user decisions.",
+        detail=(
+            "A bound runtime reports correlated operation states and revision-checked complete/abandon decisions. "
+            "Supported regular-tool retries require intact saved inputs and current policy/approval; "
+            "orchestration-only delegate retries are unavailable. Unknown effects block continuation. "
+            "operations.persistence selects process or durable authority independently of usage accounting. "
+            "This does not restore workspace files, provider signatures or background process ownership."
+        ),
+        aliases=("/recovery", "operations.persistence", "interrupted operation", "explicit retry"),
+    ),
+    _CapabilitySpec(
         name="content checkpoints",
         classification="runtime-wired",
         summary="User checkpoint commands review captured file/hunk changes and preview decisions.",

@@ -36,6 +36,9 @@
       "type": ["string", "null"],
       "description": "Agent identifier if this message was produced by an agent"
     },
+    "tool_result": { "type": ["object", "null"], "description": "Optional validated typed result evidence, preserving structured missing versus null and explicit truncation provenance." },
+    "agent_role": { "type": ["string", "null"] },
+    "reasoning_details": { "type": ["string", "null"] },
     "reasoning_content": {
       "type": ["string", "null"],
       "description": "Thinking/reasoning content from the model"

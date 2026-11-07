@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Correlated operation recovery** — Tool attempts commit dispatch authority
+  before effects, reconcile completed observations without replay and block
+  uncertain continuation. Optional durable storage is independent of usage
+  accounting; `/recovery` exposes revision-checked user resolution and one
+  policy-checked retry for supported tools. Specialist history stays scoped to
+  each actual turn. Provider continuation and task restart work remain under #23.
+
+- **Typed tool evidence pipeline** — Structured results, content blocks and
+  metadata survive agent/events, provider text projection, chat, session persistence,
+  export, merge and compaction retention. Missing/null/error states remain distinct;
+  binary wire limitations and active-context omission are explicit. Recovery
+  evidence uses separate bounds without implying full payload replay.
+
 - **Offline tokenizer resources** — Fresh installs count tokens and chunk RAG
   text using packaged, hash-verified cl100k/o200k vocabularies with upstream MIT
   attribution. No cache or tokenizer download is required. Unsupported legacy
@@ -31,8 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP catalog and result fidelity** — Bounded pagination, atomic explicit
   refresh, input/output validation and detached typed results preserve catalog
   meaning. Refresh invalidates stale tool handles and approval grants while
-  retaining agent scopes. SDK 1.x output-shape and parsing limits are explicit;
-  provider/session result propagation remains under #21.
+  retaining agent scopes. SDK 1.x output-shape and parsing limits are explicit.
 
 - **Content checkpoint foundation** — Explicit before/after file capture,
   revision-bound file/hunk review, conflict-checked POSIX restore and durable

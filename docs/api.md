@@ -6,6 +6,13 @@ The [content checkpoint API and commands](checkpoints.md) provide scoped capture
 review and recoverable POSIX restore; automatic capture and dedicated UI navigation
 remain pending.
 
+`Agent.submit_tool_result` accepts either a legacy string or `ToolResult`.
+`Message.tool_result` and `SessionMessage.tool_result` optionally retain detached
+typed evidence, including success/error, content blocks, structured output presence
+separately from null, and metadata. Provider adapters project this to explicit
+portable text; binary transport is not implied. See [MCP result behavior](mcp.md#refresh-a-connected-catalog)
+and [operation recovery](operation-recovery.md) for persistence and replay limits.
+
 ## HTTP service health
 
 The FastAPI service exposes two operational endpoints under `/v1`:

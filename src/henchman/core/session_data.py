@@ -12,6 +12,7 @@ from typing import Any
 
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
+from .operation_bindings import SessionOperationState
 from .session_evidence import redact_session_payload
 from .session_models import (
     SessionMessage,
@@ -100,6 +101,7 @@ class Session:
     template_parameters: dict[str, Any] = field(default_factory=dict)
     export_metadata: dict[str, Any] = field(default_factory=dict)
     accounting: SessionAccountingReference | None = None
+    operations: SessionOperationState | None = None
     # Disk concurrency/recovery state is deliberately absent from portable exports.
     _storage_token: str | None = field(default=None, init=False, repr=False, compare=False)
     _storage_path: str | None = field(default=None, init=False, repr=False, compare=False)
@@ -132,6 +134,7 @@ class Session:
             "template_parameters": self.template_parameters,
             "export_metadata": self.export_metadata,
             **({"accounting": self.accounting.to_dict()} if self.accounting is not None else {}),
+            **({"operations": self.operations.to_dict()} if self.operations is not None else {}),
         }, self.evidence_redactor)
 
     def to_json(self: Session) -> str:
@@ -195,6 +198,7 @@ def session_from_dict(data: dict[str, Any]) -> Session:
         template_parameters=data.get("template_parameters", {}),
         export_metadata=data.get("export_metadata", {}),
         accounting=SessionAccountingReference.from_dict(data["accounting"]) if data.get("accounting") is not None else None,
+        operations=SessionOperationState.from_dict(data["operations"]) if data.get("operations") is not None else None,
     )
 
 

@@ -10,6 +10,7 @@ from henchman.utils.evidence_redaction import (
     EvidenceRedactor,
     EvidenceStreamRedactor,
 )
+from henchman.utils.tool_results import TOOL_RESULT_SCHEMA
 
 _DATA_FIELDS: dict[str, Any] = dict.fromkeys((
     "arguments", "result", "preview", "content", "message", "error", "code", "task", "status",
@@ -27,6 +28,7 @@ _EVENT_IDENTITIES = {
     EventType.AGENT_COMPLETED: ("agent", "agent_id"),
 }
 _DATA_FIELDS["usage"] = dict.fromkeys(("prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens", "cache_creation_tokens", "reasoning_tokens"))
+_DATA_FIELDS["tool_result"] = TOOL_RESULT_SCHEMA
 _CONTROL_VALUES = {
     "finish_reason": {"stop", "tool_calls", "length", "content_filter", "error", "interrupted", "cancelled"},
     "status": {"completed", "responded", "failed", "no_work_done", "stalled", "timed_out", "cancelled"},

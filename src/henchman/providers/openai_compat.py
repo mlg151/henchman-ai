@@ -90,9 +90,12 @@ def _format_tool_call_for_message(tc: ToolCall) -> dict[str, Any]:
 
 def _format_message(message: Message) -> dict[str, Any]:
     """Format a message for the OpenAI API."""
+    from henchman.utils.tool_results import tool_message_content
+
     result: dict[str, Any] = {
         "role": message.role,
-        "content": message.content,
+        "content": tool_message_content(message.content, message.tool_result)
+        if message.role == "tool" and message.tool_result is not None else message.content,
     }
     if message.reasoning_content:
         result["reasoning_content"] = message.reasoning_content

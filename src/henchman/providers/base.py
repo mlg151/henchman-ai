@@ -77,6 +77,7 @@ class Message:
     tool_call_id: str | None = None
     reasoning_content: str | None = None
     reasoning_details: str | None = None
+    tool_result: dict[str, Any] | None = None
 
 
 @dataclass

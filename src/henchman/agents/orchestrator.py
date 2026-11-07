@@ -13,8 +13,11 @@ from typing import TYPE_CHECKING, Any
 from henchman.agents.delegation import DelegationRunner
 from henchman.agents.metrics import OrchestratorMetrics
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_accounting import RunInvocation, public_run_budget
+from henchman.core.run_budget import BudgetControlError
 from henchman.core.runtime_accounting import budgeted_events
+from henchman.core.runtime_operations import operated_events
 from henchman.providers.runtime_budget import current_run_budget
 
 # Re-export symbols that external code imports from this module
@@ -45,6 +48,7 @@ if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.eventbus import EventBus
+    from henchman.core.session_operations import SessionRunOperations
     from henchman.core.session_run_accounting import SessionRunAccounting
     from henchman.providers.base import ModelProvider
     from henchman.providers.registry import ProviderRegistry
@@ -112,6 +116,7 @@ class Orchestrator:
         self._public_run_active = False
         self.last_budget_scope: RunBudgetScope | None = None
         self.accounting_runtime: SessionRunAccounting | None = None
+        self.operation_runtime: SessionRunOperations | None = None
         init_orchestrator(self, default_provider, config, **kwargs)
 
     # ------------------------------------------------------------------
@@ -220,6 +225,11 @@ class Orchestrator:
                 self.last_budget_scope = None
                 self.last_completion_status = CompletionStatus.FAILED
                 await self.subagents.prepare_for_run()
+                if self.operation_runtime is None:
+                    from henchman.core.session_operations import SessionRunOperations
+
+                    self.operation_runtime = SessionRunOperations.for_process(self.settings)
+                operation_run = self.operation_runtime.begin(agent=agent, user_input=user_input)
                 provider = agent.provider
                 managed = self.accounting_runtime if supplied is None and current_run_budget() is None else None
                 scope = (
@@ -231,17 +241,42 @@ class Orchestrator:
                     invocation.budget_scope = scope
                 stream = self._run(params) if direct_role is None else self._run_direct(direct_role, params)
                 completed = False
+                primary: BaseException | None = None
                 try:
-                    async with aclosing(primary_actor_events(budgeted_events(stream, scope))) as events:
+                    async with aclosing(primary_actor_events(operated_events(budgeted_events(stream, scope), operation_run))) as events:
                         async for event in events:
                             if (event.type == EventType.AGENT_COMPLETED
                                 and event.source_agent == "orchestrator" and isinstance(event.data, dict)
                                 and event.data.get("scope") == "run"):
                                 completed = event.data.get("status") in {"completed", "responded"}
                             yield event
+                except BaseException as exc:
+                    primary = exc
+                    raise
                 finally:
-                    if managed is not None:
-                        managed.finish(scope, completed=completed, background_active=self.subagents.has_running_work())
+                    cleanup: list[BaseException] = []
+                    try:
+                        self.operation_runtime.finish(operation_run, failed=not completed)
+                    except BaseException as exc:
+                        cleanup.append(exc)
+                    try:
+                        if managed is not None:
+                            managed.finish(scope, completed=completed and not cleanup,
+                                           background_active=self.subagents.has_running_work())
+                    except BaseException as exc:
+                        cleanup.append(exc)
+                    if cleanup:
+                        controls = (OperationRecoveryError, BudgetControlError)
+                        # Preserve original controls/cancellation while still
+                        # settling both authorities. A cleanup control outranks
+                        # an ordinary error so callers cannot retry through it.
+                        if primary is not None and (isinstance(primary, controls) or not isinstance(primary, Exception)):
+                            primary.add_note("Runtime recovery/accounting cleanup also failed")
+                        else:
+                            error = next((item for item in cleanup if isinstance(item, controls)), cleanup[0])
+                            if primary is None or isinstance(error, controls):
+                                raise error
+                            primary.add_note("Runtime recovery/accounting cleanup also failed")
 
     async def _run_direct(
         self, role: str, params: AgentLoopParams,
