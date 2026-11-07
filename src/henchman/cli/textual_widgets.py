@@ -1439,8 +1439,18 @@ class StatusBar(Static):
     """One-line status bar at the bottom of the screen."""
 
     status_text: reactive[str] = reactive("Ready")
+    activity_text: reactive[str] = reactive("")
+    notice_text: reactive[str] = reactive("")
+    context_text: reactive[str] = reactive("")
+    decision_action: reactive[bool] = reactive(False)
     tokens: reactive[int] = reactive(0)
     cost: reactive[float] = reactive(0.0)
+    can_focus = True
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("enter", "pending_decision", "Decision")]
+
+    def action_pending_decision(self) -> None:
+        if self.decision_action:
+            self.app.action_pending_decision()  # type: ignore[attr-defined]
 
     def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize.
@@ -1457,7 +1467,15 @@ class StatusBar(Static):
         Returns:
             Formatted Rich markup string.
         """
-        parts = [f"[bold cyan]{self.status_text}[/]"]
+        label = _safe_markup(self.activity_text) if self.activity_text else self.status_text
+        parts = [f"[bold cyan]{label}[/]"]
+        policy = runtime_evidence_redactor(self.app) if self.is_mounted else None
+        if self.activity_text and self.notice_text:
+            notice = policy.text(self.notice_text) if policy else self.notice_text
+            parts.append(_safe_markup(notice))
+        if self.activity_text and self.context_text:
+            context = policy.text(self.context_text) if policy else self.context_text
+            parts.append(f"[dim]{_safe_markup(context)}[/]")
         if self.tokens > 0:
             parts.append(f"[dim]{self.tokens:,} tokens[/]")
         if self.cost > 0:

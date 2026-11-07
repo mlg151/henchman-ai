@@ -242,6 +242,7 @@ class HenchmanTextualApp(
         ),
         Binding("f1", "show_help", "Help", show=True),
         Binding("f8", "review_changes", "Review", show=True),
+        Binding("f6", "pending_decision", "Decision", show=True, priority=True),
         Binding(
             "f2",
             "switch_provider",
@@ -333,6 +334,14 @@ class HenchmanTextualApp(
         """Return the transcript to live without moving composer focus."""
         self.query_one(ChatPane).return_to_live()
 
+    def action_pending_decision(self) -> None:
+        """Return focus to the actual decision without resolving it."""
+        result = self._tool_prompts.focus_pending()
+        if result == "obscured":
+            self.notify("Close the current dialog using Back or Close to return to the pending decision.", markup=False)
+        elif result == "none":
+            self.notify("No decision is waiting for an answer.", markup=False)
+
     def action_review_changes(self) -> None:
         """Open file review without submitting or replacing the composer draft."""
         from henchman.cli.textual_checkpoints import CheckpointReviewScreen
@@ -397,6 +406,9 @@ class HenchmanTextualApp(
         self._refresh_workspace_widgets()
         self.call_after_refresh(input_widget.focus)
         self._activate_chat_tab()
+        from henchman.cli.textual_activity_state import refresh_activity
+
+        refresh_activity(self)
 
     async def on_unmount(self) -> None:
         """Clean up resources when the app is unmounted.
@@ -404,6 +416,9 @@ class HenchmanTextualApp(
         Returns:
             None
         """
+        from henchman.cli.textual_activity_state import activity_for
+
+        activity_for(self).shutdown()
         self._cleanup_confirm_futures()
         runtime = self._workflow()
         if runtime is not None:

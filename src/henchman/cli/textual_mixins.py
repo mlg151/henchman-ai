@@ -31,6 +31,7 @@ from henchman.advanced import TaskService
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.output_handler import resolve_active_agent
 from henchman.cli.provider_switch import capture_startup_provider_settings
+from henchman.cli.textual_activity_state import Outcome, activity_for, refresh_activity
 from henchman.cli.textual_config import (
     ComponentConfig,
     ComponentInitializer,
@@ -501,6 +502,7 @@ class _InitMixin:
     def _init_confirm_state(self: _InitMixin) -> None:
         """Initialize the shared question and tool-approval channel."""
         self._tool_prompts = ToolPromptChannel(cast("App[Any]", self))
+        activity_for(self)
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
         """Initialize proxy compatibility stub attributes."""
@@ -761,6 +763,8 @@ class _StatusBarMixin:
         if bar is None:
             return
         bar.status_text = self._build_status_text()
+        bar.context_text = bar.status_text
+        refresh_activity(self)
 
     def _build_status_text(self: _StatusBarMixin) -> str:
         """Assemble the status bar text.
@@ -1184,6 +1188,9 @@ class _InputHandlerMixin:
             return
         self.is_processing = True
         self.current_agent_task = asyncio.current_task()
+        activity_owner = activity_for(self).begin()
+        self._activity_worker_owner = activity_owner
+        outcome: Outcome = "idle"
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         bar.status_text = "Processing..."
@@ -1210,6 +1217,7 @@ class _InputHandlerMixin:
                 show_message = bool(self._queued_inputs())
                 next_input = self._next_turn_input()
         except asyncio.CancelledError:
+            outcome = "cancelled"
             if runtime is not None:
                 runtime.hold_pending()
             self._pause_active_goal()
@@ -1219,6 +1227,7 @@ class _InputHandlerMixin:
             for name in list(chat._active):
                 chat.finish_agent_stream(name)
         except Exception as exc:  # noqa: BLE001
+            outcome = "failed"
             self._pause_active_goal()
             details = runtime_exception_text(self, exc, include_traceback=True)
             safe_details = details.replace("```", "` ` `")
@@ -1232,6 +1241,9 @@ class _InputHandlerMixin:
             self.is_processing = False
             if hasattr(self, "current_agent_task"):
                 del self.current_agent_task
+            activity_for(self).finish(activity_owner, outcome)
+            if getattr(self, "_activity_worker_owner", None) is activity_owner:
+                del self._activity_worker_owner
             self._update_status_bar()  # type: ignore[attr-defined]
             ready = (runtime.has_ready_input() if route == "idle" and runtime is not None else self._workflow_ready())
             if runtime is not None and ready and not idle_control_active(self):
@@ -1327,14 +1339,22 @@ class _InputHandlerMixin:
             stream = orchestrator.run(text)
 
         previous_turn = agent._turn_number
+        activity_owner = getattr(self, "_activity_worker_owner", None)
 
         async def checked_stream() -> AsyncIterator[AgentEvent]:
             from henchman.core.events import EventType
 
             async for event in stream:
                 if event.type == EventType.ERROR:
+                    if activity_owner is not None:
+                        activity_for(self).record_failure(activity_owner)
                     self._workflow_turn_failed = True
                     self._pause_active_goal()
+                elif (event.type == EventType.AGENT_COMPLETED and isinstance(event.data, dict)
+                      and event.data.get("scope") == "run"
+                      and event.data.get("status") in {"failed", "stalled", "timed_out", "no_work_done"}
+                      and activity_owner is not None):
+                    activity_for(self).record_failure(activity_owner)
                 yield event
 
         try:
@@ -1805,6 +1825,7 @@ class _PaneActionMixin:
         self.query_one(css_id, pane_cls).clear()  # type: ignore[attr-defined]
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         bar.status_text = status
+        bar.notice_text = status
 
 
 # ------------------------------------------------------------------ #
@@ -1828,10 +1849,14 @@ class _SearchMixin:
         self._search_mode = True
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         bar.status_text = "Search: type in input box then press F3"
+        bar.notice_text = bar.status_text
 
     def action_cancel_or_clear(self: _SearchMixin) -> None:
         """Cancel processing or clear search."""
         if self.is_processing and hasattr(self, "current_agent_task"):  # type: ignore[attr-defined]
+            owner = getattr(self, "_activity_worker_owner", None)
+            if owner is not None:
+                activity_for(self).cancel(owner)
             task = self.current_agent_task
             if task is not None:
                 task.cancel()
@@ -1850,6 +1875,7 @@ class _SearchMixin:
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is not None:
             bar.status_text = "Ready"
+            bar.notice_text = ""
 
     def action_search_next(self: _SearchMixin) -> None:
         """Move to the next search match."""
@@ -2031,6 +2057,7 @@ class _SearchMixin:
             cur = self._current_match_index + 1
             tot = len(matches)
             bar.status_text = f"Match {cur}/{tot} for '{query}' - F3=next  Shift+F3=prev  Esc=clear"
+        bar.notice_text = bar.status_text
 
 
 # ------------------------------------------------------------------ #

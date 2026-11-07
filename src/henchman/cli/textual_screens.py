@@ -237,6 +237,7 @@ class HelpScreen(ModalScreen[None]):
             Label(""),
             Label("[bold]App[/bold]"),
             Label("  Ctrl+Q / Ctrl+C    Quit"),
+            Label("  F6                Return to pending question or approval"),
             Label("  F8                Review captured file changes"),
             Label("  Ctrl+Shift+T       Clear thinking messages in chat"),
             Label("  Ctrl+Shift+Y       Clear tool messages in chat"),
