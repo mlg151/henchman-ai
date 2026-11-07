@@ -36,6 +36,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Current focus
 
+- #14 configuration persistence now retains explicit default-valued overrides
+  through set/import and subsequent edits; only unset removes them. Active runtime
+  session origins and doctor inspection remain open alongside downstream controls.
+
 - #24 provider usage and explicit pricing: compatible and Anthropic adapters
   preserve cumulative request counts, cache subsets and availability provenance.
   Compatible requests ask for usage by default with an explicit opt-out for

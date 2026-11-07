@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Explicit default settings** — Saving or importing a value equal to its
+  built-in default now retains the explicit override and its origin. Higher-priority
+  project defaults no longer disappear in favor of different global values;
+  `unset` removes an override. Eight regressions cover precedence and round trips.
+
 - **Budget stop propagation** — Agent and legacy delegation loops preserve
   `BudgetExceeded` without wrapping it into retryable errors. Completion events
   retain usage provenance, and configured provider aliases retain their identity

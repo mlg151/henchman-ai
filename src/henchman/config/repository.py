@@ -243,7 +243,8 @@ class SettingsRepository:
         """Validate and persist a scope document."""
         validated_payload = Settings.model_validate(payload).model_dump(
             mode="python",
-            exclude_defaults=True,
+            # Explicit defaults can override a lower-priority settings scope.
+            exclude_unset=True,
         )
         serialized_payload = _prune_empty_mappings(validated_payload)
         settings_directory = self._settings_directory_for_scope(scope)

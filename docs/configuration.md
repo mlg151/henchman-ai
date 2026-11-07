@@ -33,6 +33,10 @@ The default merged scope includes environment overrides. Explicit `--scope globa
 or `--scope project` reads only values persisted in that file scope, so an
 `HENCHMAN_MODEL` override does not replace the explicitly requested file value.
 Existing secret masking applies to displayed values.
+Explicitly saved values remain in their selected scope even when they equal a
+built-in default. For example, project `ui.output_mode: rich` overrides global
+`quiet`; `config unset ui.output_mode --scope project` removes that override.
+File-based settings imports preserve these explicit defaults too.
 
 CLI runtime preparation loads settings once and uses that same settings object
 to construct its provider. Direct TUI startup reuses supplied settings or loads
