@@ -22,6 +22,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   authority to saved requests/results and exposes `/recovery` user decisions.
   Process mode remains the default; opaque provider continuation and background
   task restart authority remain open under #23.
+  Saved running task records are now reported as outcome-unknown without invented
+  exit evidence; inspecting history does not establish child-process ownership.
 
 - [Content checkpoints](docs/checkpoints.md) now provide a tested standalone
   POSIX capture/review/restore service with private retention and crash recovery.

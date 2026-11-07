@@ -128,6 +128,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_background_execution.py",
         "tests/tools/test_task_evidence.py",
         "tests/tools/test_task_evidence_identity.py",
+        "tests/advanced/test_task_restart.py",
         "tests/advanced/test_checkpoints.py",
         "tests/advanced/test_checkpoint_verification.py",
         "tests/advanced/test_checkpoint_windows.py",

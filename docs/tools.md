@@ -761,6 +761,13 @@ Windows currently terminates the direct subprocess.
 Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.
+When a fresh runtime loads a record last saved as `running`, it reports
+`outcome_unknown` and preserves the observed timestamps and exit-code evidence.
+It does not invent a stop time or infer ownership from the saved PID. `task_get`
+and `task_list(status="outcome_unknown")` expose these records; `task_output`
+continues to expose eligible retained evidence. `task_stop` and waiting refuse
+unowned processes. Inspect external process state before explicitly starting new
+work; no command is replayed from the saved argv.
 
 New task output is decoded and redacted before persistence, with a 1 MiB capture
 limit and a visible truncation marker. Task metadata and private atomic index

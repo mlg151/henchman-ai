@@ -14,6 +14,7 @@ from henchman.advanced import (
     TaskService,
     TungstenService,
 )
+from henchman.advanced.tasks import TASK_STATUS_OUTCOME_UNKNOWN, TaskOwnershipError
 from henchman.lsp import LspService
 from henchman.mcp.auth import McpAuthService
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
@@ -184,6 +185,8 @@ def _render_task(record: TaskRecord) -> str:
     return (
         f"{record.task_id} [{record.status}] {record.title} "
         f"(cwd={record.cwd}, rc={record.return_code})"
+        + (" Process not owned by this runtime; inspect external state before new work."
+           if record.status == TASK_STATUS_OUTCOME_UNKNOWN else "")
         + (f" Error: {record.metadata['error']}" if record.metadata.get("error") else "")
     )
 
@@ -499,7 +502,7 @@ class TaskStopTool(_Tier6TaskToolBase):
 
         try:
             record = await self._task_service.stop_task(_require_task_id(params))
-        except KeyError as exc:
+        except (KeyError, TaskOwnershipError) as exc:
             return ToolResult(content=str(exc), success=False, error=str(exc))
         return ToolResult(content=f"Stopped task {_render_task(record)}")
 

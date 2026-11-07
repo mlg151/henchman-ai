@@ -31,6 +31,7 @@ TASK_STATUS_RUNNING = "running"
 TASK_STATUS_COMPLETED = "completed"
 TASK_STATUS_FAILED = "failed"
 TASK_STATUS_STOPPED = "stopped"
+TASK_STATUS_OUTCOME_UNKNOWN = "outcome_unknown"
 _FINAL_TASK_STATUSES = {
     TASK_STATUS_COMPLETED,
     TASK_STATUS_FAILED,
@@ -38,6 +39,10 @@ _FINAL_TASK_STATUSES = {
 }
 _TERMINATE_TIMEOUT_SECONDS = 1.0
 _MAX_INDEX_BYTES = 8 * 1024 * 1024
+
+
+class TaskOwnershipError(RuntimeError):
+    """Stored process evidence cannot authorize control of an unowned process."""
 
 
 def _now_iso() -> str:
@@ -87,7 +92,7 @@ def _read_json(path: Path, *, default: object) -> object:
         required = {"title", "argv", "cwd", "status", "created_at", "started_at", "finished_at",
                     "output_path", "pid", "return_code", "metadata"}
         if not required <= item.keys() or not isinstance(item.get("status"), str) or (
-            item["status"] not in _FINAL_TASK_STATUSES | {TASK_STATUS_RUNNING}
+            item["status"] not in _FINAL_TASK_STATUSES | {TASK_STATUS_RUNNING, TASK_STATUS_OUTCOME_UNKNOWN}
         ):
             raise ValueError("Task index has an invalid record; preserve it for explicit repair")
         valid = all(isinstance(item[key], str) for key in ("title", "cwd", "output_path"))
@@ -435,10 +440,10 @@ class TaskService:
 
         process = self._runtime.processes.get(task_id)
         if process is None:
-            updated = replace(record, status=TASK_STATUS_STOPPED, finished_at=_now_iso())
-            self._runtime.records[task_id] = updated
-            self._persist_runtime()
-            return updated
+            raise TaskOwnershipError(
+                f"Task {task_id} is not owned by this runtime; its outcome is unknown. "
+                "Inspect external process state and captured output before starting new work."
+            )
 
         self._runtime.records[task_id] = replace(record, status=TASK_STATUS_STOPPED)
         # Stop the process even when storage has become unwritable. The monitor
@@ -458,6 +463,10 @@ class TaskService:
 
         waiter = self._runtime.waiters.get(task_id)
         if waiter is None:
+            if record.status == TASK_STATUS_OUTCOME_UNKNOWN:
+                raise TaskOwnershipError(
+                    f"Task {task_id} is not owned by this runtime; waiting cannot establish its outcome."
+                )
             msg = f"Task {task_id} is missing a runtime waiter."
             raise RuntimeError(msg)
         return await asyncio.wait_for(asyncio.shield(waiter), timeout=timeout)
@@ -485,8 +494,7 @@ class TaskService:
             if record.status == TASK_STATUS_RUNNING:
                 record = replace(
                     record,
-                    status=TASK_STATUS_STOPPED,
-                    finished_at=record.finished_at or _now_iso(),
+                    status=TASK_STATUS_OUTCOME_UNKNOWN,
                 )
             self._runtime.records[record.task_id] = record
             self._migrate_log(record)

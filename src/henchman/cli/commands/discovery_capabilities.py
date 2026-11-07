@@ -114,7 +114,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         summary="Shell commands return tracked background task IDs by default; redirects are supported.",
         detail=(
             "Multiple jobs run concurrently and remain inspectable with task_get, task_list, "
-            "task_output, and task_stop while the application is running. Set background=false "
+            "task_output, and task_stop while the application is running. Recovered running records "
+            "are outcome_unknown; saved PIDs do not grant process ownership. Set background=false "
             "for foreground execution and completed output. A successful launch is not a "
             "successful command result. Application shutdown stops unfinished jobs; saved "
             "task records and output do not imply detached execution survives shutdown."
@@ -128,7 +129,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         summary="Python snippets return tracked background task IDs by default.",
         detail=(
             "Multiple Python and shell jobs share project-local task tracking. Use task_get, "
-            "task_list, task_output, and task_stop while the application is running. Set "
+            "task_list, task_output, and task_stop while the application is running. Restarted runtimes "
+            "report saved running jobs as outcome_unknown without replay or process control. Set "
             "background=false for foreground execution and completed output. A successful "
             "launch does not establish a successful result. Application shutdown stops "
             "unfinished jobs; persisted task metadata and logs are not detached execution."

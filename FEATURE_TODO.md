@@ -23,6 +23,8 @@ The [operation journal](docs/operation-recovery.md) now commits correlated tool
 attempts before dispatch, binds public runtime/session recovery and exposes explicit
 revision-checked user resolution/retry. Provider opaque continuation and background
 process restart authority remain incomplete under #23.
+Recovered running task records now expose unknown outcomes and refuse unowned
+process control; detached process recovery and replay remain unsupported.
 
 The [content checkpoint foundation](docs/checkpoints.md) now captures explicit
 before/after file scopes and supports revision-bound review, conflict-checked

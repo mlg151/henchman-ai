@@ -82,3 +82,7 @@ Opaque provider continuation/signature compatibility, full background-process
 restart recovery, general orchestration retry and final native qualification
 remain separate gates. Stored PIDs or task records do not establish that this
 process owns a live child, and the journal does not reverse external side effects.
+Background task records last saved as running now load as `outcome_unknown`,
+without invented stop/exit evidence. Their output remains inspectable, while
+stop/wait operations refuse control without an owned child. See
+[background task lifetime](tools.md#background-execution).

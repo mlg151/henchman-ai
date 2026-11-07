@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Truthful background-task restart state** — Saved running jobs load as
+  `outcome_unknown` without an invented stop time or exit result. Retained output
+  remains inspectable; persisted PIDs never authorize stopping or waiting on an
+  unowned process, and saved commands are never automatically relaunched.
+
 - **Registry-wide tool contracts** — Registration rejects invalid schemas before
   discovery, approval binds immutable schema snapshots, and declared successful
   structured outputs are checked locally. Missing/null remain distinct; invalid
