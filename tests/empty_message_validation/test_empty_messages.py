@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from henchman.core.agent import Agent
-from henchman.providers.base import Message
+from henchman.providers.base import FinishReason, Message, StreamChunk
 from henchman.providers.openai_compat import OpenAICompatibleProvider
 
 
@@ -103,7 +103,7 @@ class TestEmptyMessageValidation:
 
         # Mock the provider's chat_completion_stream to be an async generator
         async def mock_stream_generator(*_args, **_kwargs):
-            yield MagicMock(content="Test response", finish_reason="stop")
+            yield StreamChunk(content="Test response", finish_reason=FinishReason.STOP)
 
         mock_provider.chat_completion_stream = mock_stream_generator
 
@@ -128,7 +128,7 @@ class TestEmptyMessageValidation:
         async def tracking_stream(*_args, **_kwargs):
             nonlocal call_count
             call_count += 1
-            yield MagicMock(content="Test response", finish_reason="stop")
+            yield StreamChunk(content="Test response", finish_reason=FinishReason.STOP)
 
         mock_provider.chat_completion_stream = tracking_stream
 
