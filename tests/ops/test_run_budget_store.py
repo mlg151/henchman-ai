@@ -116,39 +116,68 @@ def test_owner_is_immutable_and_bound_with_run_creation(tmp_path: Path) -> None:
     assert store.session_binding("p", "s").active_run_id == "r"
 
 
-def test_independent_processes_contend_for_one_dispatch(tmp_path: Path) -> None:
+@pytest.mark.parametrize("held_transaction", [False, True])
+def test_independent_processes_contend_for_one_dispatch(tmp_path: Path, held_transaction: bool) -> None:
     path = tmp_path / "ops.db"
     store = RunBudgetStore(path)
     ledger = store.create_run(run_id="run", limits=BudgetLimits(max_requests=1))
     script = """
-import sys,time
+import sqlite3,sys,time
 from pathlib import Path
-from henchman.core.run_budget import BudgetExceeded,RequestEstimate
+from henchman.core.run_budget import BudgetAccountingError,BudgetExceeded,RequestEstimate
 from henchman.ops.run_budget_store import RunBudgetStore
-path,store_id,name=sys.argv[1:]
+path,store_id,name,held=sys.argv[1:]
 root=Path(path).parent
-ledger=RunBudgetStore(Path(path)).resume_run('run',store_id=store_id)
+def checkpoint(boundary):
+    if held=='True' and name=='0' and boundary=='reserve:before_commit':
+        (root/'holding').touch()
+        while not (root/'release').exists(): time.sleep(.01)
+ledger=RunBudgetStore(Path(path),checkpoint=checkpoint).resume_run('run',store_id=store_id)
 (root/('ready-'+name)).touch()
 while not (root/'go').exists(): time.sleep(.01)
+if held=='True' and name=='1':
+    while not (root/'holding').exists(): time.sleep(.01)
 try:
     request=ledger.reserve(RequestEstimate(1,1),request_id=name)
     result=ledger.start(request.request_id)
 except BudgetExceeded:
     result=False
+except BudgetAccountingError as error:
+    cause=error.__cause__
+    code=getattr(cause,'sqlite_errorcode',None)
+    if (error.reason!='store_unavailable' or not isinstance(cause,sqlite3.OperationalError)
+        or not isinstance(code,int) or code & 255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED)):
+        raise
+    result=False
+    (root/('busy-'+name)).touch()
+if result:
+    (root/('effect-'+name)).write_text('admitted effect')
 (root/('result-'+name)).write_text(str(result))
 """
-    processes = [subprocess.Popen([sys.executable, "-c", script, str(path), store.store_id, str(i)]) for i in range(2)]
+    processes = [subprocess.Popen([sys.executable, "-c", script, str(path), store.store_id, str(i), str(held_transaction)]) for i in range(2)]
     try:
         deadline = time.monotonic() + 20
         while not all((tmp_path / f"ready-{i}").exists() for i in range(2)):
             assert time.monotonic() < deadline and all(p.poll() is None for p in processes)
             time.sleep(.01)
         (tmp_path / "go").touch()
+        if held_transaction:
+            # Release the owner only after its competitor has exhausted the
+            # real SQLite busy timeout. No wall-clock sleep decides the race.
+            assert processes[1].wait(timeout=20) == 0
+            (tmp_path / "release").touch()
         for process in processes:
             assert process.wait(timeout=20) == 0
-        assert sorted((tmp_path / f"result-{i}").read_text() for i in range(2)) == ["False", "True"]
+        outcomes = [(tmp_path / f"result-{i}").read_text() for i in range(2)]
+        assert sorted(outcomes) == ["False", "True"]
+        for i, outcome in enumerate(outcomes):
+            assert (tmp_path / f"effect-{i}").exists() is (outcome == "True")
+        if held_transaction:
+            assert (tmp_path / "busy-1").exists()
+            assert outcomes == ["True", "False"]
         assert ledger.snapshot().consumed_requests == 1
     finally:
+        (tmp_path / "release").touch()
         for process in processes:
             if process.poll() is None:
                 process.kill()
