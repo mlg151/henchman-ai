@@ -1,0 +1,50 @@
+{
+  "python": "3.11.15",
+  "textual": "8.0.0",
+  "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+  "widget_module": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source/src/henchman/cli/textual_widgets.py",
+  "arms": [
+    {
+      "generation": null,
+      "evicted": 872,
+      "evicted_alive_before_cleanup": 872,
+      "retained_alive_before_cleanup": 128,
+      "collections": 0,
+      "collected_objects": 0,
+      "alive_after_cleanup": 0
+    },
+    {
+      "generation": 0,
+      "evicted": 872,
+      "evicted_alive_before_cleanup": 840,
+      "retained_alive_before_cleanup": 128,
+      "collections": 27,
+      "collected_objects": 1792,
+      "alive_after_cleanup": 0
+    },
+    {
+      "generation": 1,
+      "evicted": 872,
+      "evicted_alive_before_cleanup": 840,
+      "retained_alive_before_cleanup": 128,
+      "collections": 27,
+      "collected_objects": 1792,
+      "alive_after_cleanup": 0
+    },
+    {
+      "generation": 2,
+      "evicted": 872,
+      "evicted_alive_before_cleanup": 8,
+      "retained_alive_before_cleanup": 128,
+      "collections": 27,
+      "collected_objects": 48384,
+      "alive_after_cleanup": 0
+    }
+  ],
+  "limitations": [
+    "Synthetic unmounted widgets, not a running transcript",
+    "Automatic GC disabled; sequential arms in one process",
+    "Explicit collection runs global finalizers and is not a proposed production policy",
+    "No latency, native display, model or user evidence"
+  ]
+}

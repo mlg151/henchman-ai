@@ -39,6 +39,9 @@ their role in normal-operation pauses.
 The [synthetic widget-cycle diagnostic](widget_cycle_diagnostic_v1/README.md)
 isolates three Textual style references on unmounted chat widgets. Its weak
 proxy experiment changes identity semantics and is not a production fix.
+A separate [GC-batch screening](widget_gc_batch_v1/README.md) retained most
+evicted synthetic widgets under generation-0/1 batches. Full collections
+reduced their lifetime but were not tested as a responsive or safe policy.
 
 The offline [repository reuse oracle prototype](repository_reuse_oracle_v1/README.md)
 checks small fixtures and rejects copied helper logic with an injected call

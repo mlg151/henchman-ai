@@ -722,6 +722,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   A [synthetic widget-cycle probe](evals/widget_cycle_diagnostic_v1/README.md)
   isolates three style back-references on unmounted chat widgets; the weak-proxy
   experiment changes identity and is not a qualified fix.
+  [GC-batch screening](evals/widget_gc_batch_v1/README.md) did not clear most
+  evicted synthetic widgets with generation-0/1 batches; process-wide full
+  collections remain unqualified for latency and safety.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).
