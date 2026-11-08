@@ -21,6 +21,7 @@ transcript workflow; this first implementation slice changes Textual only.
 | Escape in an approval/question | Denies/dismisses that decision according to the existing prompt channel; it does not approve work. |
 | Return to a pending decision | F4 focuses the existing answer field or approval's No button. An unrelated overlay stays open; close it first to return. |
 | Saved input queue | F9 opens inspection and explicit edit, remove, reorder and Send controls. Opening or editing never grants dispatch permission. |
+| Context and usage | The Context tab opens a read-only snapshot. F5 explicitly refreshes; Escape/Back restores focus without changing the composer or session. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
 | Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained for this slice. |
 
@@ -72,7 +73,7 @@ runtime boundaries.
 | Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
 | Sessions, tasks and project boundaries | [Sessions](../tests/cli/test_textual_session_management.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); interactive inspectors remain pending | Find/resume the intended session, Back navigation |
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
-| Provider/context/budget truth | [Provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
+| Provider/context/budget truth | [Context inspector](../tests/cli/test_textual_context.py), [provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
 | Width, theme, Unicode and long paths | 80×24, 120×40 and 160×50 in the [new harness](../tests/cli/ui_scenarios.py) | Light/dark/no-color native contrast and focused narrow layout |
 | Quiet output, reduced motion, keyboard mode, mouse preference | [Plain/quiet rendering](../tests/cli/test_textual_output_modes.py), [typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) and [reduced-motion lifecycle](../tests/cli/test_textual_motion_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
 
@@ -84,6 +85,35 @@ Exact character anchoring within one rewrapped long message is
 not yet implemented. Full approval inspection, external-editor composition,
 clipboard behavior and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
+
+## Context and usage inspection
+
+Open **Context → Context and usage** to inspect the selected project session.
+Context, Retention and Usage are separate views with capture and read-completion
+times. F5/Refresh reads the current selection explicitly; a changed session,
+provider, effective model or accounting owner invalidates the previous snapshot.
+Back/Escape returns to the previous focused control, preserving the composer
+draft and selection. Close any pending decision or other dialog first.
+
+The inspector reads the shared session-context and session-accounting services.
+It separates configured request capacity and conversation budget from estimated
+session-history tokens, and separates observed token counts, held estimates and
+reported billing. Missing usage, prices and disk-save acknowledgement remain
+unavailable. Usage names models observed on actual requests, which may differ
+from the current selection. Cache/reasoning counts are subsets of total tokens.
+Retention reports compaction and memory-extraction policy without displaying
+retained content, reasoning or opaque continuation payloads.
+
+Each section is limited to 64 KiB and 128 detail rows with visible omissions.
+Session-copy admission is limited to 2 MiB of strings, 25,000 nodes and depth 24;
+oversized evidence produces unavailable retention estimates rather than partial
+counts. Per-model summaries stop above 4,096 request records while shared totals
+remain available. These are display/admission limits, not hard latency or memory
+guarantees for the underlying shared accounting read. Credential rotation is
+rechecked before display. Back and shutdown join outstanding reads. Inspection
+does not select, save, compact or resume a session, prepare a provider request,
+or verify a task. Broader session/task navigation and native accessibility remain
+separate work.
 
 ## Tool observations and inspection
 

@@ -334,7 +334,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         detail=(
             "Tier 10 dialogs are implemented inside `henchman chat --tui`, but "
             "they remain runtime-undiscoverable in generic command/help discovery "
-            "unless a first-class exposed surface is added."
+            "unless a first-class exposed surface is added. The Context tab's "
+            "Context and usage inspector reads a bounded selected-session snapshot "
+            "with explicit Refresh and unknown/estimated/reported distinctions; "
+            "it does not save, compact or resume a session."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
     ),

@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Context and usage inspection** — Textual's Context tab now opens a bounded
+  read-only view of the selected session's context, retention and run accounting.
+  Explicit Refresh rejects stale selections, rechecks credential rotation and
+  preserves drafts/focus. Unknown, estimated and reported values remain distinct.
+
 - **Lower-level diagnostic privacy** — Provider/stream cleanup and delegation
   failure logs now project credentials before traceback formatting while retaining
   original errors and cancellation. Operational event SQLite writes and legacy

@@ -637,6 +637,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   qualification and other controls remain open. See the
   [queue contract](docs/ui-interaction-contract.md#saved-input-queue).
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
+  The Context tab now provides bounded read-only context, retention and usage
+  inspection with explicit Refresh, current credential projection and preserved
+  drafts/focus. Session/task navigation and native qualification remain open;
+  see the [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)

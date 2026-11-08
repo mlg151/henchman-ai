@@ -19,6 +19,11 @@ the draft. If the terminal intercepts an extended key, Tab to the visible button
 See the [interaction contract](ui-interaction-contract.md) for supported states
 and the remaining native/accessibility qualification.
 
+In Textual, open **Context → Context and usage** for the selected session's
+context estimate, retention policy and run usage. Refresh explicitly with F5;
+Back/Escape preserves your draft. Unknown costs and save acknowledgement stay
+unavailable. See the [inspection contract](ui-interaction-contract.md#context-and-usage-inspection).
+
 ## Plain or quiet output
 
 Set `henchman config set ui.output_mode plain --scope global`, then start a new

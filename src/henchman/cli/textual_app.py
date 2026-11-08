@@ -345,6 +345,7 @@ class HenchmanTextualApp(
             with TabPane("Tools", id="tab-tools"):
                 yield ToolPane(id="tool-pane")
             with TabPane("Context", id="tab-context"):
+                yield Button("Context and usage", id="context-inspect")
                 yield Tree("Context Files", id="context-tree")
             with TabPane("Workspace", id="tab-workspace"):
                 yield VerticalScroll(
@@ -395,6 +396,26 @@ class HenchmanTextualApp(
             self.notify("No workflow runtime is available for queue controls.", markup=False)
             return
         self.push_screen(QueueScreen(self, workflow))
+
+    def action_context_inspector(self) -> None:
+        """Inspect the current session without replacing drafts or decisions."""
+        from henchman.cli.textual_context import ContextScreen
+
+        if len(self.screen_stack) != 1 or self._tool_prompts._answer is not None:
+            self.notify("Close the current dialog first; F4 returns to a pending decision.", markup=False)
+            return
+        focused = self.focused
+
+        def restore_focus(_result: None) -> None:
+            if focused is not None and focused.is_mounted:
+                focused.focus()
+
+        self.push_screen(ContextScreen(self), restore_focus)
+
+    @on(Button.Pressed, "#context-inspect")
+    def _context_inspect_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_context_inspector()
 
     def action_review_changes(self) -> None:
         """Open file review without submitting or replacing the composer draft."""
