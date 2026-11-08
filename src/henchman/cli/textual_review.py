@@ -424,6 +424,12 @@ class DecisionReviewScreen(ModalScreen[None]):
         self._policy.register_policy(_current_policy(self.runtime))
         return exception_text(error, self._policy)
 
+    def _export_status(self, text: str) -> None:
+        if self._review_closing or not self.is_mounted:
+            return
+        with contextlib.suppress(NoMatches):
+            self.query_one("#review-status", Static).update(text)
+
     def compose(self) -> ComposeResult:
         with Vertical(id="review-dialog"):
             yield Static("Pending decision · read-only review", markup=False, id="review-title")
@@ -451,22 +457,20 @@ class DecisionReviewScreen(ModalScreen[None]):
     def refresh_evidence(self) -> None:
         if self._review_closing or not self.is_mounted:
             return
-        try:
+        # Textual can remove children before the screen reports unmounted.
+        with contextlib.suppress(NoMatches):
             area = self.query_one(TextArea)
-        except NoMatches:
-            # Textual can remove children before the screen reports unmounted.
-            return
-        text = self._text()
-        if text != area.text:
-            area.load_text(text)
-        if not self._valid():
-            self.query_one("#review-status", Static).update(
-                "Decision or runtime changed. Close this snapshot; no answer was sent."
-            )
-        for name in ("review-copy", "review-export-text", "review-export-markdown"):
-            self.query_one("#" + name, Button).disabled = not self._valid() or (
-                self._export_task is not None and not self._export_task.done()
-            )
+            text = self._text()
+            if text != area.text:
+                area.load_text(text)
+            if not self._valid():
+                self.query_one("#review-status", Static).update(
+                    "Decision or runtime changed. Close this snapshot; no answer was sent."
+                )
+            for name in ("review-copy", "review-export-text", "review-export-markdown"):
+                self.query_one("#" + name, Button).disabled = not self._valid() or (
+                    self._export_task is not None and not self._export_task.done()
+                )
 
     def copy_evidence(self, *, selection: bool = False) -> None:
         area = self.query_one(TextArea)
@@ -501,13 +505,11 @@ class DecisionReviewScreen(ModalScreen[None]):
                     lambda: export_review(self.snapshot, self._text, format_name, self._valid)
                 )
                 self._policy.register_policy(_current_policy(self.runtime))
-                self.query_one("#review-status", Static).update(
-                    self._policy.text(f"Exported private review to {path}")
-                )
+                self._export_status(self._policy.text(f"Exported private review to {path}"))
             except asyncio.CancelledError:
                 raise
             except Exception as error:
-                self.query_one("#review-status", Static).update(self._error(error))
+                self._export_status(self._error(error))
             finally:
                 if self.is_mounted and not self._review_closing:
                     self.refresh_evidence()

@@ -312,6 +312,41 @@ async def test_export_completion_does_not_refresh_closing_screen(app, tmp_path, 
             await asyncio.gather(task, return_exceptions=True)
 
 
+async def test_export_completion_tolerates_removed_status_widget(app, tmp_path, monkeypatch):
+    from textual.css.query import NoMatches
+
+    from henchman.cli import textual_review
+
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed(*_args):
+        entered.set()
+        assert release.wait(5)
+        return tmp_path / "published"
+
+    monkeypatch.setattr(textual_review, "export_review", delayed)
+    async with app.run_test(size=(80, 24)) as pilot:
+        task, _origin, review = await open_review(app, pilot, ConfirmationRequest("fixture", "Inspect"))
+        original = review.query_one
+        try:
+            review._export("text")
+            assert await asyncio.to_thread(entered.wait, 2)
+
+            def missing_status(selector, *args, **kwargs):
+                if selector == "#review-status":
+                    raise NoMatches("removed during teardown")
+                return original(selector, *args, **kwargs)
+
+            monkeypatch.setattr(review, "query_one", missing_status)
+            release.set()
+            await asyncio.wait_for(review._export_task, 5)
+        finally:
+            monkeypatch.setattr(review, "query_one", original)
+            release.set()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
 def snapshot_at(root: Path) -> ReviewSnapshot:
     info = root.stat()
     return ReviewSnapshot("safe snapshot", root.resolve(), (info.st_dev, info.st_ino))
