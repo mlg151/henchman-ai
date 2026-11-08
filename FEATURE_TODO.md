@@ -691,6 +691,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   interrupt controls, broader navigation and native qualification remain open;
   see the [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
+  The [240-observation VTE baseline](docs/evaluations/2026-11-08-vte-latency-v1.md)
+  records three failed long-history cancellation p95 criteria. Input p95 met its
+  target in all six scenarios. Software-display results do not qualify physical
+  terminals or assistive technology; the performance failure remains open.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).

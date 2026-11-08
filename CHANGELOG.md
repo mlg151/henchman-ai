@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and future screening limits. Native paint latency, assistive technology and
   whole-app model memory remain unqualified.
 
+- **Native VTE latency baseline** — A frozen software-display cohort retains all
+  240 input/cancellation observations and the exact executed harness. Input p95
+  met 100 ms in all six scenarios; cancellation p95 failed 250 ms in all three
+  1,000-message scenarios. Physical terminal and accessibility qualification
+  remain open; see the dated evaluation report for measurement limits.
+
 - **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
   copying a selection. Credential or evidence changes require reselection,
   preserving masked text, draft/focus and chronological observations.

@@ -74,6 +74,14 @@ model. The [interaction tests](../tests/cli/test_textual_interaction_contract.py
 widget tree and key dispatch. Existing checks remain authoritative for their
 runtime boundaries.
 
+The [native VTE baseline](evaluations/2026-11-08-vte-latency-v1.md) retains 240
+fixed observations on an owned Xvfb software display. All six input p95 values
+met the proposed 100 ms target. Cancellation p95 with 1,000 retained messages was
+373–534 ms, exceeding 250 ms in all three viewport sizes; the 40-message cases
+met that target. Command launch, X11 delivery and pixel sampling are included.
+This failed baseline supplies neither physical-terminal nor accessibility
+qualification, and a later candidate must preserve its measurement ordering.
+
 | Concern | Automated fixture/test | Required additional validation |
 |---|---|---|
 | Follow/hold, concurrent streams, resize, expanded history | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), three viewport sizes | Native wheel/scrollbar, tmux and SSH/mosh |
