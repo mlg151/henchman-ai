@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Stable held transcript position** — Reading anchors now use the row Textual
+  actually displays, including fractional focus scrolling. Deferred no-op
+  navigation preserves that anchor through streaming and resize; actual user
+  navigation still takes precedence and return-to-live preserves draft/focus.
+
 - **Neovim subprocess pilot** — An explicit export supplies a Neovim 0.12.6
   Linux client for new/resumed runs, selected saved files, correlated decisions,
   cancellation and read-only checkpoint review. Dirty buffers are refused or

@@ -180,6 +180,69 @@ async def test_all_tool_states_remain_labelled_without_inventing_success(tmp_pat
 
 
 @pytest.mark.parametrize("density", DENSITIES)
+@pytest.mark.parametrize("queued_scrolls", [1, 2])
+@pytest.mark.parametrize("scroll_fraction", [0, -0.25])
+async def test_deferred_noop_scroll_retains_anchor_across_pending_reflow(tmp_path, density, queued_scrolls, scroll_fraction):
+    """Textual releases an anchor twice for a deferred scroll, around layout."""
+    app = DensityApp(tmp_path, Settings(ui={"detail_density": density}))
+    async with app.run_test(size=(120, 40)) as pilot:
+        chat = app.query_one(ChatPane)
+        populate_history(chat)
+        chat.begin_agent_stream("earlier")
+        request(app)
+        await settle_layout(pilot)
+        card = app.query_one(ToolMessage)
+        populate_history(chat)
+        await settle_layout(pilot)
+        scrolled = asyncio.Event()
+        card.scroll_visible(top=True, animate=False, on_complete=scrolled.set)
+        await asyncio.wait_for(scrolled.wait(), 5)
+        await settle_layout(pilot)
+        # Textual's focus animation can leave a fractional scroll position;
+        # displayed rows use round(scroll_y), so both values show this card.
+        chat.scroll_to(y=card.virtual_region.y + scroll_fraction, animate=False, immediate=True)
+        await settle_layout(pilot)
+        offset = card.region.y - chat.content_region.y
+        assert offset == 0
+        assert chat._reading_anchor[0] is card
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("Retain\nthis draft")
+        composer.move_cursor((1, 3))
+        selection = composer.selection
+        composer.focus()
+
+        # No timed sleeps: schedule an actual deferred Textual scroll before
+        # the layout invalidation. Its second release occurs after reflow.
+        for _ in range(queued_scrolls):
+            chat.scroll_to(y=chat.scroll_y, animate=False)
+        chat.append_agent_chunk("earlier", "Earlier content grew\n" * 5)
+        result(app, success=False, result="Retained failure\n" * 20)
+        await settle_layout(pilot)
+        assert chat._reading_anchor[0] is card
+        assert card.region.y - chat.content_region.y == offset
+        await pilot.resize_terminal(80, 40)
+        await settle_layout(pilot)
+        assert card.region.y - chat.content_region.y == offset
+        assert not chat.follow_live and chat.new_activity
+        assert app.focused is composer and composer.selection == selection
+        assert composer.text == "Retain\nthis draft"
+
+        # Actual user navigation still supersedes a pending held restoration.
+        chat.append_agent_chunk("earlier", "More content\n")
+        chat.scroll_to(y=chat.scroll_y - 10, animate=False, immediate=True)
+        selected, selected_offset = chat._reading_anchor
+        assert selected is not card
+        await settle_layout(pilot)
+        assert chat._reading_anchor == (selected, selected_offset)
+        assert chat.scroll_y == selected.virtual_region.y + selected_offset
+        chat.return_to_live()
+        await settle_layout(pilot)
+        assert chat.follow_live and not chat.new_activity
+        assert chat.scroll_y == chat.max_scroll_y
+        assert app.focused is composer and composer.text == "Retain\nthis draft"
+
+
+@pytest.mark.parametrize("density", DENSITIES)
 async def test_bounded_evidence_and_keyboard_inspection_keep_current_redaction(tmp_path, monkeypatch, density):
     from henchman.cli import textual_tool_activity
 

@@ -994,13 +994,18 @@ class ChatPane(VerticalScroll):
         self._reading_anchor: tuple[Static, float] | None = None
         self._viewport_refresh_pending = False
         self._restoring_viewport = False
+        self._capture_after_scroll = False
 
     def _capture_reading_anchor(self) -> None:
         if not self.is_mounted:
             return
+        # Focus/scroll animations retain fractional positions, while Textual
+        # displays rows at the rounded scroll_offset. Anchor the visible row,
+        # not a preceding row whose fractional tail is no longer on screen.
+        visible_y = self.scroll_offset.y
         for child in self.children:
-            if isinstance(child, Static) and child.virtual_region.bottom > self.scroll_y:
-                self._reading_anchor = (child, self.scroll_y - child.virtual_region.y)
+            if isinstance(child, Static) and child.virtual_region.bottom > visible_y:
+                self._reading_anchor = (child, visible_y - child.virtual_region.y)
                 return
 
     def hold_reading_position(self) -> None:
@@ -1013,22 +1018,31 @@ class ChatPane(VerticalScroll):
         """Treat user scrolling and search navigation as an explicit hold."""
         super().release_anchor()
         if hasattr(self, "follow_live") and not self._restoring_viewport:
-            # A queued live refresh must not suppress the anchor update for a
-            # newer user scroll. Its callback will observe the held state.
-            self._viewport_refresh_pending = False
-            self.hold_reading_position()
+            # Explicit navigation may supersede a queued live/held refresh,
+            # but only after it actually changes the scroll position.
+            capture = self.follow_live or not self._viewport_refresh_pending
+            self._capture_after_scroll = True
+            # Textual releases again when a deferred scroll executes. If a
+            # layout update moved the held message meanwhile, a no-op scroll
+            # must not replace it with the row now occupying the old offset.
+            # A genuine position change is captured by watch_scroll_y below.
+            if capture:
+                self.hold_reading_position()
 
     def watch_scroll_y(self, old_value: float, new_value: float) -> None:
         super().watch_scroll_y(old_value, new_value)
         if (hasattr(self, "follow_live") and not self.follow_live
-                and not self._restoring_viewport and not self._viewport_refresh_pending):
+                and not self._restoring_viewport
+                and (self._capture_after_scroll or not self._viewport_refresh_pending)):
             self._capture_reading_anchor()
+            self._capture_after_scroll = False
 
     def return_to_live(self) -> None:
         """Resume following without changing the draft or focus."""
         self.follow_live = True
         self.new_activity = False
         self._reading_anchor = None
+        self._capture_after_scroll = False
         self.post_message(self.FollowChanged(self))
         self.refresh_reading_position()
 
@@ -1056,6 +1070,7 @@ class ChatPane(VerticalScroll):
                         immediate=True, force=True, release_anchor=False,
                     )
         finally:
+            self._capture_after_scroll = False
             self._restoring_viewport = False
 
     def on_resize(self) -> None:

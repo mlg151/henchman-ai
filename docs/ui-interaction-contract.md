@@ -69,7 +69,10 @@ runtime boundaries.
 | Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) and [reduced-motion lifecycle](../tests/cli/test_textual_motion_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
 
 The implemented resize anchor retains a message and its visual row while earlier
-messages reflow. Exact character anchoring within one rewrapped long message is
+messages reflow. The anchor uses the displayed row, including when focus scrolling
+has a fractional internal position. Deferred scrolling to the same position keeps
+that anchor through pending layout work; actual navigation selects a new anchor.
+Exact character anchoring within one rewrapped long message is
 not yet implemented. Full approval inspection, external-editor composition,
 clipboard behavior and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
