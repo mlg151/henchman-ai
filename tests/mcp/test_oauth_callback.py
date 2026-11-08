@@ -2,6 +2,7 @@
 
 import asyncio
 import traceback
+from contextlib import suppress
 from urllib.parse import urlencode, urlsplit
 
 import pytest
@@ -112,9 +113,14 @@ async def test_cancellation_joins_slow_accepted_callback_connections():
     owner.cancel()
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(owner, 2)
-    assert await asyncio.wait_for(reader.read(), 1) == b""
+    # Closing an accepted socket with unread request bytes may report RST
+    # instead of EOF on native kernels (observed on macOS/Python 3.11).
+    # Both prove closure; a timeout or response bytes still fail this check.
+    with suppress(ConnectionResetError):
+        assert await asyncio.wait_for(reader.read(), 1) == b""
     writer.close()
-    await writer.wait_closed()
+    with suppress(ConnectionResetError):
+        await writer.wait_closed()
     assert not [task for task in asyncio.all_tasks() if task.get_name().startswith("henchman-oauth-callback")]
 
 
