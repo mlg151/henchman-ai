@@ -7,6 +7,12 @@ mechanisms.
 
 ## Why Behavioral Evals?
 
+For the separate, model-free terminal resource workload, see
+[`ui_resource_baseline.py`](ui_resource_baseline.py) and its
+[recorded method and limits](../docs/evaluations/2026-11-08-ui-resource-baseline.md).
+It measures headless transcript memory/idle CPU; it does not evaluate model
+quality, native paint latency or accessibility.
+
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
 evals verify that the model _chooses_ to take the correct action (e.g., "does

@@ -648,6 +648,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
 
 - [x] Research coding-agent UI preferences/friction and Python application exemplars, with source dates, surface distinctions and historical-fix caveats.
 - [ ] [UI-0 / #32](https://github.com/mlg151/henchman-ai/issues/32): Establish reproducible interaction baselines, keyboard/state contracts and native terminal evidence.
+  A [headless resource baseline](docs/evaluations/2026-11-08-ui-resource-baseline.md)
+  records long-transcript memory/idle CPU and future screening limits. Native
+  paint/cancellation timing, terminal behavior and participant evidence remain open.
 - [ ] [UI-1 / #33](https://github.com/mlg151/henchman-ai/issues/33): Preserve reading position, copy/export, drafts, configurable mouse capture/scrolling and predictable input/cancellation; validate quiet accessible output.
   `ui.mouse_capture` now controls Textual driver startup with keyboard history/live
   fallback and preserved drafts. `ui.reduced_motion` now suppresses transitions,

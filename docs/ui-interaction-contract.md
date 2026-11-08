@@ -326,10 +326,12 @@ instead of cancellation. These failures precede the first implementation.
 The frozen engineering targets are local input-to-paint p95 below 100 ms and
 visible cancellation acknowledgement below 250 ms on named hardware. The
 existing runtime cancellation gate remains one second with bounded cleanup.
-Provider latency is measured separately. This document supplies no passing
-performance measurement: native terminal/version and hardware qualification,
-long-transcript memory/idle-CPU baseline and an explicit regression budget remain
-outstanding release evidence. Record failures and unsupported paths as results.
+Provider latency is measured separately. The
+[headless resource baseline](evaluations/2026-11-08-ui-resource-baseline.md)
+records 40/1,000-message memory and idle CPU at all three widths, with a frozen
+screening budget for future matching observations. It supplies no native
+input-to-paint or visible-cancellation measurement; those remain outstanding
+release evidence. Record failures and unsupported paths as results.
 
 Native Windows, macOS and Linux terminals, tmux/SSH/mosh, IME, clipboard and
 screen-reader scenarios remain unqualified. The formative study must include

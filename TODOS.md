@@ -308,6 +308,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - Foundation [#12](https://github.com/mlg151/henchman-ai/issues/12) is complete at `55fd66b`: [all 20 CI jobs passed](https://github.com/mlg151/henchman-ai/actions/runs/41758021286), including all supported Python/native-wheel cohorts. Python 3.12 passed 8,374 tests with 93.12% coverage. Independent evaluation and final-artifact release gates remain open.
 - The typed terminal UI controls (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout.compact_tables`) ship under [#14](https://github.com/mlg151/henchman-ai/issues/14) with field-attributed validation and local import/export sync round-trips, and the shared discovery capability matrix now classifies them as TUI-scoped controls that generic discovery/help surfaces do not advertise as generic commands. Consumer alignment as the UI child features land and final runtime wiring remain open.
 
+- #32 now has a [headless resource baseline](docs/evaluations/2026-11-08-ui-resource-baseline.md)
+  for 40/1,000-message transcripts at three widths, plus fixed future screening
+  limits. Native responsiveness, terminal/assistive-technology and participant
+  evidence remain open.
+
 - #33 now applies `ui.mouse_capture` at Textual driver startup, retaining keyboard
   history/live navigation and drafts. `ui.reduced_motion` suppresses transitions,
   animated loading and focused editor cursor blinking without disabling streaming,

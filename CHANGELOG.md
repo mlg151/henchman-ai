@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Headless UI resource baseline** — Six fresh-process observations record
+  long-transcript memory and idle CPU at three widths, with reproducible workload
+  and future screening limits. Native paint latency, assistive technology and
+  whole-app model memory remain unqualified.
+
 - **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
   copying a selection. Credential or evidence changes require reselection,
   preserving masked text, draft/focus and chronological observations.
