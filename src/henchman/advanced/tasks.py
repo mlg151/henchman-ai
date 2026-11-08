@@ -567,8 +567,12 @@ class TaskService:
         finally:
             # The parent can exit while a descendant ignores SIGTERM.
             if os.name == "posix":
-                with contextlib.suppress(ProcessLookupError):
+                try:
                     os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except PermissionError as error:
+                    raise PermissionError(error.errno, f"Task group SIGKILL failed: {error.strerror}") from error
 
     async def _monitor_process(
         self, task_id: str, process: Process, output: TaskOutput,

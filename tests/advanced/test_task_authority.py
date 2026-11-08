@@ -75,6 +75,25 @@ async def test_darwin_group_permission_error_does_not_claim_live_child_stopped(t
     assert child.returncode is None
 
 
+@pytest.mark.skipif(os.name != "posix", reason="Process groups require POSIX")
+async def test_group_kill_permission_error_is_reported_as_uncertain_cleanup(tmp_path, monkeypatch):
+    from henchman.advanced import tasks
+
+    service = TaskService(tmp_path)
+    child = SimpleNamespace(pid=12345, returncode=0)
+    signals = []
+
+    def deny_final(_pid, signum):
+        signals.append(signum)
+        if len(signals) == 2:
+            raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(tasks.os, "killpg", deny_final)
+    with pytest.raises(PermissionError, match="SIGKILL"):
+        await service._terminate_process(child)
+    assert len(signals) == 2
+
+
 def _observe(project, result):
     service = TaskService(Path(project))
     records = service.list_tasks()
