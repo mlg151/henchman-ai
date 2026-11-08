@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
 
+from henchman.agents.proposal_review import ParentProposalReview
 from henchman.agents.proposal_runtime import ProposalCoordinator
 from henchman.agents.staged_tool_registry import StagedToolRegistry
 from henchman.agents.workspace_ownership import WorkspaceBinding
@@ -63,9 +65,10 @@ async def test_staged_tools_use_owned_overlay_and_never_format_live_workspace(tm
     worker = asyncio.create_task(run())
     runtime.bind(handle, worker)
     await worker
-    review = runtime.review(handle)
-    assert review.files[0].after.content == b"value=3\n"
-    runtime.publish(handle, review)
+    parent_review = ParentProposalReview(runtime, handle)
+    preview = json.loads(parent_review.preview())
+    assert preview["review"]["files"][0]["after"]["content"] == "value=3\n"
+    parent_review.publish(preview["review_token"])
     assert path.read_text() == "value=3\n"
     assert unrelated.read_text() == "untouched=1\n"
     await runtime.close()
