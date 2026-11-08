@@ -347,6 +347,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   F9 now provides revision-bound inspect/edit/remove/reorder/Send controls with
   joined cancellation, preserved drafts and no automatic rearming. Native
   qualification remains open; see the [queue contract](docs/ui-interaction-contract.md#saved-input-queue).
+  The `task_stop` tool reports success only for an observed `stopped` state;
+  completed, failed, cancelled, running and unknown outcomes remain explicit.
 - #33 pending decisions now provide F10 read-only inspection, selection/copy and
   private TXT/Markdown export under `.henchman/exports`. Snapshot bounds and
   credential reprojection preserve decisions and drafts; closing joins owned

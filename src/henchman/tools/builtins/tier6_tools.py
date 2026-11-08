@@ -17,6 +17,7 @@ from henchman.advanced import (
 from henchman.advanced.tasks import (
     TASK_STATUS_OUTCOME_UNKNOWN,
     TASK_STATUS_QUEUED,
+    TASK_STATUS_STOPPED,
     TaskOwnershipError,
 )
 from henchman.lsp import LspService
@@ -538,7 +539,12 @@ class TaskStopTool(_Tier6TaskToolBase):
             record = await self._task_service.stop_task(_require_task_id(params))
         except (KeyError, TaskOwnershipError) as exc:
             return ToolResult(content=str(exc), success=False, error=str(exc))
-        return ToolResult(content=f"Stopped task {_render_task(record)}")
+        if record.status != TASK_STATUS_STOPPED:
+            message = f"Task stop did not establish a stopped state: {record.task_id} [{record.status}]"
+            if record.metadata.get("error"):
+                message += f" Error: {record.metadata['error']}"
+            return ToolResult(content=message, success=False, error=message)
+        return ToolResult(content=f"Task is stopped: {_render_task(record)}")
 
 
 class TaskUpdateTool(_Tier6TaskToolBase):

@@ -807,6 +807,9 @@ and `task_list(status="outcome_unknown")` expose these records; `task_output`
 continues to expose eligible retained evidence. `task_stop` and waiting refuse
 unowned processes. Inspect external process state before explicitly starting new
 work; no command is replayed from the saved argv.
+`task_stop` reports success only when the observed final state is `stopped`;
+already completed, failed, cancelled, still-running or outcome-unknown states
+are returned as unsuccessful stop results with their actual state.
 
 The versioned `.henchman/tasks/index.json` stores index and per-task revisions,
 a store identity and a damage-detection checksum. A stable `index.lock` protects

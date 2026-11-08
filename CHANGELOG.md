@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and F6, and both frontends accept `/work stop task <exact-id>`. Controls
   recheck the bound project, session, task revision and in-process owner, then
   wait for existing cleanup. Stored PIDs cannot authorize a stop; the settled
-  state does not imply task verification.
+  state does not imply task verification. The `task_stop` tool likewise reports
+  a non-stopped outcome as unsuccessful rather than claiming it stopped.
 
 - **Bounded delegation** — One configurable runtime limit covers executing
   descendants across dynamic, named, nested and parallel routes. Refusals are
