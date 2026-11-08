@@ -186,6 +186,9 @@ A separate [CPU corpus readiness run](docs/evaluations/2026-11-07-cpu-corpus-rea
 passed two protocol probes but timed out before the first coding response; all
 twelve corpus cases remained unrun. Its failed evidence and cleanup verification
 are retained without changing the earlier cohorts.
+A [separate revised readiness diagnostic](docs/evaluations/2026-11-07-cpu-corpus-readiness-v2.md)
+passed syntax repair with complete per-request usage and cleanup. The full corpus
+and target-hardware qualification remain outstanding.
 MCP/schema foundations and their remaining #21/#25 qualification gates are
 recorded above and in the [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 Automatic compaction now respects the configured disable flag across primary,

@@ -1,0 +1,551 @@
+{
+  "cleanup": [
+    "owned_alias_unload_acknowledged",
+    "owned_alias_deleted_and_base_unchanged"
+  ],
+  "cleanup_failure": null,
+  "cost": {
+    "amount_usd": 0,
+    "hardware_energy_cost": "not_estimated",
+    "source": "local-model-no-hosted-billing"
+  },
+  "date_local": "2026-11-07",
+  "evidence": {
+    "harness_sha256": {
+      "launch.py": "e72edb5f437f2b18da0858e170e17ae6f00fa9e1fa6a2174c8278a18180cc429",
+      "qualification.py": "b418c33d5b041365967e20f6f045077efb62c3eb76d8d439a30a4309172503c8",
+      "worker.py": "38b4254065efc6d43a24affd9fd2abf051748ecd81118b93ed0167c34b326404"
+    },
+    "original_manifest_sha256": "6d5e5c953099206f7bd746f09df8750a682c57bc45f7aee74250298387366c90",
+    "private_directory": "/tmp/henchman-cpu-readiness-add457c-20261107-review2"
+  },
+  "frozen_bounds": {
+    "context_window": 16384,
+    "http_connect_pool_timeout_seconds": 5,
+    "http_read_write_timeout_seconds": 600,
+    "input_budget": 13926,
+    "max_output_tokens": 512,
+    "protocol_stage_seconds": 120,
+    "sdk_retries": 0,
+    "syntax_request_cap": 12,
+    "tool_rounds_per_turn": 10,
+    "whole_case_seconds": 600
+  },
+  "interpreter": {
+    "packages": {
+      "hatchling": null,
+      "httpx": "0.28.1",
+      "openai": "2.21.0",
+      "pydantic": "2.12.5",
+      "pytest": "9.0.2",
+      "tiktoken": "0.12.0",
+      "uv": null
+    },
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]"
+  },
+  "kind": "local_cpu_readiness",
+  "late_memory_observations": {
+    "pss_permission_failures_present": true,
+    "raw_sha256": "3033b67b22b315250662a31ccc3176610f34ef8ecc0dd8e99ed7b0f73e2f6420",
+    "sampled_summed_rss_max_bytes": 8714797056,
+    "samples": 38,
+    "scope": "late samples of ollama roots and exact owned worker plus descendants; not whole-run peak"
+  },
+  "limits": [
+    "Separate revised diagnostic; earlier failed attempt is retained unchanged.",
+    "No twelve-case corpus or two-run reliability score is included here.",
+    "This host is not the required 16 GB laptop; late RSS samples do not establish whole-run peak.",
+    "Provider dispatch is restricted; arbitrary subprocess networking is not universally sandboxed."
+  ],
+  "model": {
+    "base": "ornith1.5:9b",
+    "base_digest": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+    "ollama_version": {
+      "version": "0.40.7"
+    },
+    "owned_alias": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+    "parameters": {
+      "num_ctx": 16384,
+      "num_gpu": 0,
+      "num_thread": 14,
+      "temperature": 0
+    }
+  },
+  "outcome": "readiness_passed",
+  "readiness_pass": true,
+  "records": [
+    {
+      "case_id": "protocol",
+      "observed_residency": {
+        "models": [
+          {
+            "context_length": 16384,
+            "details": {
+              "families": [
+                "qwen35"
+              ],
+              "family": "qwen35",
+              "format": "gguf",
+              "parameter_size": "9.0B",
+              "parent_model": "",
+              "quantization_level": "Q4_K_M"
+            },
+            "digest": "e87507270d9f0a369588052ff73c6292068e8bae61215df72d5393cc95ef64f4",
+            "expires_at": "2026-11-08T19:29:18.07797206-05:00",
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75:latest",
+            "name": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75:latest",
+            "runner": "llamacpp",
+            "size": 6485956360,
+            "size_vram": 0
+          }
+        ]
+      },
+      "owned_work_joined": true,
+      "passed": true,
+      "protocol_stages": [
+        {
+          "passed": true,
+          "stage": "exact-OK"
+        },
+        {
+          "passed": true,
+          "stage": "structured-read-file"
+        }
+      ],
+      "requests": {
+        "denials": [],
+        "requests": [
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-595",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 258,
+            "request_index": 1,
+            "request_sha256": "c89130358e27a551d306c1177af0ed45b1b273564027e2403179f74fc15604e0",
+            "request_started_monotonic": 365022.939144984,
+            "response_bytes": 1037,
+            "response_headers_after_ms": 12286.424695979804,
+            "response_sha256": "6dace9a2a878995a6e191d3e8380e9ebbe1035fc65b5591ce97210b864c9cfee",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 2,
+              "prompt_tokens": 20,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "total_tokens": 22
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-786",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 1537,
+            "request_index": 2,
+            "request_sha256": "d80f9be371e94a1e36ecb1adfda4aaa9fbe96f494c95d5affec00a4fe8ee7ace",
+            "request_started_monotonic": 365035.447502045,
+            "response_bytes": 4096,
+            "response_headers_after_ms": 9386.147329001687,
+            "response_sha256": "79729fd579519d27711fcafed5f857b411b2bfc795a2de08012e6ad05bac268f",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 75,
+              "prompt_tokens": 516,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "total_tokens": 591
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          }
+        ],
+        "usage": {
+          "all_dispatched_requests_have_complete_usage": true,
+          "cost": {
+            "amount_usd": 0,
+            "source": "owned-local-model-no-hosted-billing"
+          },
+          "dispatched_requests": 2,
+          "known_completion_tokens": 77,
+          "known_prompt_tokens": 536,
+          "scope": "All requests observed by this transport; missing usage remains unknown",
+          "usage_complete_requests": 2,
+          "usage_reported_requests": 2
+        }
+      },
+      "worker": {
+        "duration_ms": 34331.63907495327,
+        "provider_denials": [],
+        "provider_usage": {
+          "all_dispatched_requests_have_complete_usage": true,
+          "cost": {
+            "amount_usd": 0,
+            "source": "owned-local-model-no-hosted-billing"
+          },
+          "dispatched_requests": 2,
+          "known_completion_tokens": 77,
+          "known_prompt_tokens": 536,
+          "scope": "All requests observed by this transport; missing usage remains unknown",
+          "usage_complete_requests": 2,
+          "usage_reported_requests": 2
+        },
+        "qualification_pass": true
+      },
+      "worker_sha256": "51efa64780b6fa076c3a3211ab212f106a30e9332618bb61ce6a36436ce8c1f2",
+      "workspaces_removed": true
+    },
+    {
+      "case_id": "syntax-fix",
+      "observed_residency": {
+        "models": [
+          {
+            "context_length": 16384,
+            "details": {
+              "families": [
+                "qwen35"
+              ],
+              "family": "qwen35",
+              "format": "gguf",
+              "parameter_size": "9.0B",
+              "parent_model": "",
+              "quantization_level": "Q4_K_M"
+            },
+            "digest": "e87507270d9f0a369588052ff73c6292068e8bae61215df72d5393cc95ef64f4",
+            "expires_at": "2026-11-08T19:35:07.520492863-05:00",
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75:latest",
+            "name": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75:latest",
+            "runner": "llamacpp",
+            "size": 6485956360,
+            "size_vram": 0
+          }
+        ]
+      },
+      "owned_work_joined": true,
+      "passed": true,
+      "protocol_stages": [],
+      "requests": {
+        "denials": [],
+        "requests": [
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-60",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 37930,
+            "request_index": 1,
+            "request_sha256": "f874b309ece097bc74ad27641a35db438566c33d5e5b6a8b584ecf6c9445739d",
+            "request_started_monotonic": 365061.541113862,
+            "response_bytes": 5376,
+            "response_headers_after_ms": 212542.53129300196,
+            "response_sha256": "ca234f76253ca9a9c73d999e9fe34f669b42c54df2bcbc42b64d831d3c0a5e07",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 70,
+              "prompt_tokens": 8823,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "total_tokens": 8893
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-97",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 38484,
+            "request_index": 2,
+            "request_sha256": "b6139340bcc6ff88481e1e13d8c42e09b2b044ec11089869ac0c053ea0fd70fe",
+            "request_started_monotonic": 365287.987862902,
+            "response_bytes": 1236,
+            "response_headers_after_ms": 6664.778203004971,
+            "response_sha256": "7c67fb4c080896c4c4605c62d2e0d4e8f64ecf61af79414b74b4a9cedf9371de",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 26,
+              "prompt_tokens": 8919,
+              "prompt_tokens_details": {
+                "cached_tokens": 8892
+              },
+              "total_tokens": 8945
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-873",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 38812,
+            "request_index": 3,
+            "request_sha256": "9d914f2b7d2cd63ce274aaac4e1de1ee50a3db3d88b2ff95d1f6821dfc72440e",
+            "request_started_monotonic": 365294.808237914,
+            "response_bytes": 7414,
+            "response_headers_after_ms": 1904.0304300142452,
+            "response_sha256": "677114c9f5857f4f6b81f36fb7cf116f643c106734609be15dc5d807aa5f9fc6",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 103,
+              "prompt_tokens": 8981,
+              "prompt_tokens_details": {
+                "cached_tokens": 8944
+              },
+              "total_tokens": 9084
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-146",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 39497,
+            "request_index": 4,
+            "request_sha256": "db1a8def9b9ae5d4ca8f5e713806396d1051eeb3d37f3f7589448e7f35f384a1",
+            "request_started_monotonic": 365317.539209877,
+            "response_bytes": 4946,
+            "response_headers_after_ms": 7166.252297000028,
+            "response_sha256": "5f8b0cca4db73bae74f4fa3b310dc811b5b8ea3d8c0cb6a549360af3e67f65c1",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 143,
+              "prompt_tokens": 9155,
+              "prompt_tokens_details": {
+                "cached_tokens": 8977
+              },
+              "total_tokens": 9298
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-530",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 40550,
+            "request_index": 5,
+            "request_sha256": "0d2f8eb65b9f77f063af574868b5c94c618c435d1ca468fb4662439b698ef2a9",
+            "request_started_monotonic": 365353.218211251,
+            "response_bytes": 1241,
+            "response_headers_after_ms": 11616.404469998088,
+            "response_sha256": "d249261d93191035741047e8b827d419d4d6a880f931ee36915a384fe3eb578d",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 40,
+              "prompt_tokens": 9382,
+              "prompt_tokens_details": {
+                "cached_tokens": 9297
+              },
+              "total_tokens": 9422
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-537",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 40861,
+            "request_index": 6,
+            "request_sha256": "adb8d93ce78f52b3b6f183470a463db79ba14db084876bb60542c8c0642fefaf",
+            "request_started_monotonic": 365364.958435824,
+            "response_bytes": 4746,
+            "response_headers_after_ms": 1941.943203972187,
+            "response_sha256": "d6676031971f52190f0edce2679e56898eccb343f8f99d38837147cb7c89ad15",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 40,
+              "prompt_tokens": 9454,
+              "prompt_tokens_details": {
+                "cached_tokens": 9421
+              },
+              "total_tokens": 9494
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          },
+          {
+            "effective_http_timeouts": {
+              "connect": 5,
+              "pool": 5,
+              "read": 600,
+              "write": 600
+            },
+            "http_status": 200,
+            "max_output_tokens": 512,
+            "model": "henchman-eval-cpu-owned-20261108-002831-995c4c9ccd75",
+            "provider_response_id": "chatcmpl-88",
+            "raw_omitted_bytes": 0,
+            "request_bytes": 41249,
+            "request_index": 7,
+            "request_sha256": "7f9ace0e647af08bfc8484b1040cf36c3aa67e0c33962c3533d6f5e0f7073ea3",
+            "request_started_monotonic": 365375.008458236,
+            "response_bytes": 38111,
+            "response_headers_after_ms": 2194.4383130175993,
+            "response_sha256": "f0b14cba1992097a057baaabb57301d5587d62ab90a397342ab8c055a776edb7",
+            "stream_close_type": "GeneratorExit",
+            "stream_complete": true,
+            "transport_eof": false,
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "usage": {
+              "completion_tokens": 150,
+              "prompt_tokens": 9530,
+              "prompt_tokens_details": {
+                "cached_tokens": 9493
+              },
+              "total_tokens": 9680
+            },
+            "usage_complete": true,
+            "usage_source": "local-server-reported-SSE-usage"
+          }
+        ],
+        "usage": {
+          "all_dispatched_requests_have_complete_usage": true,
+          "cost": {
+            "amount_usd": 0,
+            "source": "owned-local-model-no-hosted-billing"
+          },
+          "dispatched_requests": 7,
+          "known_completion_tokens": 572,
+          "known_prompt_tokens": 64244,
+          "scope": "All requests observed by this transport; missing usage remains unknown",
+          "usage_complete_requests": 7,
+          "usage_reported_requests": 7
+        }
+      },
+      "worker": {
+        "baseline_record": {
+          "case_id": "syntax-fix",
+          "duration_ms": 346791.0050910432,
+          "error": null,
+          "outcome": "success",
+          "profile": "engineer",
+          "run_index": 1,
+          "task_verified": true,
+          "tokens_in": 9530,
+          "tokens_out": 150
+        },
+        "baseline_usage_scope": "Final scenario/turn observation; NOT full-case token totals",
+        "case_id": "syntax-fix",
+        "cleanup_errors": [],
+        "effective_outcome": "success",
+        "primary_exception_type": null,
+        "provider_denials": [],
+        "provider_usage": {
+          "all_dispatched_requests_have_complete_usage": true,
+          "cost": {
+            "amount_usd": 0,
+            "source": "owned-local-model-no-hosted-billing"
+          },
+          "dispatched_requests": 7,
+          "known_completion_tokens": 572,
+          "known_prompt_tokens": 64244,
+          "scope": "All requests observed by this transport; missing usage remains unknown",
+          "usage_complete_requests": 7,
+          "usage_reported_requests": 7
+        },
+        "provider_violations": [],
+        "qualification_pass": true,
+        "tool_denials": [],
+        "total_duration_ms_including_cleanup": 347652.2713949671
+      },
+      "worker_sha256": "cc0cd47a2da11c16380c89686ecb9a064c4a9e2705e1bff6052093ed6270ccad",
+      "workspaces_removed": true
+    }
+  ],
+  "schema_version": 1,
+  "source_commit": "add457cd2e6ae1b4debab303bf80d20ce1af5d9f",
+  "source_manifest_sha256": "2ae18535d0bfcc36b2c2252e7038a4d1e3ff638c60842ee569390c484ff6f9f0"
+}

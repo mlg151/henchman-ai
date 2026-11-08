@@ -8,6 +8,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   passed two protocol probes but timed out before a coding response. The twelve
   cases did not run; the failed attempt, unknown usage and cleanup verification
   remain separate from any revised diagnostic.
+  The [revised diagnostic](docs/evaluations/2026-11-07-cpu-corpus-readiness-v2.md)
+  passed syntax repair and cleanup with a 600-second request allowance. It is
+  separate from the wider corpus and does not qualify a 16 GB machine.
 
 - #27's legacy JSON renderer now preserves long/Unicode payloads and literal
   emoji aliases at narrow console widths. The versioned editor protocol and

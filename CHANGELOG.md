@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Revised CPU readiness evidence** — A separate diagnostic passed syntax repair
+  in 347.65 seconds with complete usage across seven requests. Its 600-second
+  request allowance, cleanup and limits are retained separately from the failed
+  attempt; [report](docs/evaluations/2026-11-07-cpu-corpus-readiness-v2.md).
+
 - **Memory roadmap status** — The living roadmap now reflects the closed #19
   issue while retaining the separate pending Textual snapshot display.
 
