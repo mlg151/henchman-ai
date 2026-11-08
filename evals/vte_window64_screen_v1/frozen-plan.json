@@ -1,0 +1,4742 @@
+{
+  "purpose": "exploratory two-pair single-scenario screen, not latency qualification",
+  "base_commit": "6db0adfd88aedd458bbbca480052fbefa74c6521",
+  "change": "ORDINARY_WINDOW 128 to 64 only",
+  "scope": "160x50, 1000 synthetic rows; 20 input and 20 cancellation observations per process",
+  "order": "baseline, candidate, candidate, baseline; no replacement",
+  "no_model": true,
+  "limitations": [
+    "One scenario on shared host software display",
+    "Two processes per arm; samples within a process are correlated",
+    "Smaller pages change navigation; no UI/accessibility qualification",
+    "Paired release gate and source tests remain separate"
+  ],
+  "arms": {
+    "baseline": {
+      "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "kind": "file",
+          "sha256": "6d0d8a2f8dd71cb1d8809a2affb562da527418b03881d17991dd16abc481eb35"
+        },
+        {
+          "path": "src/henchman/__init__.py",
+          "kind": "file",
+          "sha256": "65f0292f828096cf1fe56d1e65dd72dd4b5f22d3cd965e43606829428fe720e9"
+        },
+        {
+          "path": "src/henchman/__main__.py",
+          "kind": "file",
+          "sha256": "06dd2246acdea3d581585edcb971dfcfba9b5e40b0614591617cd37bc5b7bce0"
+        },
+        {
+          "path": "src/henchman/advanced/__init__.py",
+          "kind": "file",
+          "sha256": "be47334d49843060a3980b599f194806230a6b827b22ba5c88e134e63cd50455"
+        },
+        {
+          "path": "src/henchman/advanced/acceptance_checks.py",
+          "kind": "file",
+          "sha256": "ba5183eff659c7d21501ab62d48dbcd6c20a7cb3146f4487eb74ccc6288bea2b"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_codec.py",
+          "kind": "file",
+          "sha256": "0c51a97817e652b5298a85edb013be46d95f86f7197b3c329d93d94d3ed773e5"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_files.py",
+          "kind": "file",
+          "sha256": "18b5fd325a69de5f9ecaab0c70b08e2eaab500addffc6dc1fdac218d5094f2f5"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_models.py",
+          "kind": "file",
+          "sha256": "51f0cbed6de812fc0bbc6d2efb5410b27be1d6212952217646d42a124ce89665"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_store.py",
+          "kind": "file",
+          "sha256": "04716836f02110c0d9d116ced8a8662fcc34bd3138edbb73217dfae49b14cc54"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_windows.py",
+          "kind": "file",
+          "sha256": "dc8c08efd469ce5cbf3574f539210128b40c3d9765e46cefe6ab0631ddb8e30d"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_windows_restore.py",
+          "kind": "file",
+          "sha256": "834918a4e316d6f93396ad65689cc763bb690c3c59ca9a018e17a23301473b36"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoints.py",
+          "kind": "file",
+          "sha256": "ccc456ef946bf902f83240c402f99313fd6abbe222100f9cdcf3cbef6ccb27e9"
+        },
+        {
+          "path": "src/henchman/advanced/insights.py",
+          "kind": "file",
+          "sha256": "98c664c8bf1a6a3e31b526c38856cdb44f90ec8e852ca1497b59f7fa7bf9d706"
+        },
+        {
+          "path": "src/henchman/advanced/plans.py",
+          "kind": "file",
+          "sha256": "150c644ee2ff938554916412defbfa209e02019ccf91aa79e26aec930f3f3ea2"
+        },
+        {
+          "path": "src/henchman/advanced/repl.py",
+          "kind": "file",
+          "sha256": "1d68544c56dacbd7c6943583e41e859ab7ebf2c10b9b107a3ca4d3074f99132a"
+        },
+        {
+          "path": "src/henchman/advanced/schedule.py",
+          "kind": "file",
+          "sha256": "809b85abbee901222498b030985b893dce5af5829b2acde492cf4cbc4969321f"
+        },
+        {
+          "path": "src/henchman/advanced/task_output.py",
+          "kind": "file",
+          "sha256": "fe8f64864540e5f0a2f2a2f84e3591b1373554917617daacf1acaab6955b5328"
+        },
+        {
+          "path": "src/henchman/advanced/task_store.py",
+          "kind": "file",
+          "sha256": "f1cb62cae05c3f2a89889f6908462e134ad6af694eb3f9ed4eef955314361fca"
+        },
+        {
+          "path": "src/henchman/advanced/tasks.py",
+          "kind": "file",
+          "sha256": "78f0bff38f166c2cf590d0c61b4fd8ab1401c51b516061b6ad3ca4d2a7c9722b"
+        },
+        {
+          "path": "src/henchman/advanced/tungsten.py",
+          "kind": "file",
+          "sha256": "1aea4ff028fa6a2a21f94a038ba6a9560b02a8a34913b52f6e65f10a0749b4b3"
+        },
+        {
+          "path": "src/henchman/advanced/verification_evidence.py",
+          "kind": "file",
+          "sha256": "17ce8283ec6142d55e83ceddffe387114ee92adab0d43c16a6f719d69df14321"
+        },
+        {
+          "path": "src/henchman/advanced/verification_inputs.py",
+          "kind": "file",
+          "sha256": "668b61f9d5c986660de14e673ebd672d671c67d22491fe4a8828202a1c042a35"
+        },
+        {
+          "path": "src/henchman/advanced/verification_repair.py",
+          "kind": "file",
+          "sha256": "985f61e3b4c47a579f114cb62037da0e8512134d2a5e65d7e15f4c632229ff74"
+        },
+        {
+          "path": "src/henchman/agents/__init__.py",
+          "kind": "file",
+          "sha256": "a7a20db4d10cff3f74deeaa61270796407a6e5bc6ed95649120b60e9ae4afe1c"
+        },
+        {
+          "path": "src/henchman/agents/catalog.py",
+          "kind": "file",
+          "sha256": "9e73e9e0b7eac9861ae14ea732d07ed6c9a57f65faee27dcf60c19c22803dcf0"
+        },
+        {
+          "path": "src/henchman/agents/config.py",
+          "kind": "file",
+          "sha256": "76e91085f163896bd30bd9886c993acfc9f94d87ec994cb8551fe82f2a36b59f"
+        },
+        {
+          "path": "src/henchman/agents/delegation.py",
+          "kind": "file",
+          "sha256": "1943c797bea0b2308c07981c31fae91b67c6dc8cd8845248378e3b40e42154ce"
+        },
+        {
+          "path": "src/henchman/agents/delegation.py.bak",
+          "kind": "file",
+          "sha256": "b851e41feb2a3d477c4bb52bb691e86d859dc2ce5ac60baf9059d1025c3f43e0"
+        },
+        {
+          "path": "src/henchman/agents/delegation_admission.py",
+          "kind": "file",
+          "sha256": "e9a544f7be231dc19c3f9913806e0e061635d4d0dffbd4567d22470c7859076a"
+        },
+        {
+          "path": "src/henchman/agents/delegation_manager.py",
+          "kind": "file",
+          "sha256": "0af5f683608a86cadcd038b46f0f99af3ea9fc358a98aad1d2169f09b6ff94b7"
+        },
+        {
+          "path": "src/henchman/agents/file_read_decision_maker.py",
+          "kind": "file",
+          "sha256": "0970d892dab9fa32b546aab53c1676aeffa8b3cdb59a780192bba721dddfcd88"
+        },
+        {
+          "path": "src/henchman/agents/identity.py",
+          "kind": "file",
+          "sha256": "4a49e5e93539c8abf530bb09f80c80dba4095337dfaadbef0014cbbb36ea92a1"
+        },
+        {
+          "path": "src/henchman/agents/instruction_runtime.py",
+          "kind": "file",
+          "sha256": "0459f2bf92f499d64e93b587904e3f9ca229e34e6ff31c11c57d15c89cd82c07"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py",
+          "kind": "file",
+          "sha256": "774114aa4010b864a8cb35ba17e92826220982e3f4d1ed3052efcb838b0094cd"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py.backup",
+          "kind": "file",
+          "sha256": "395e438b518ba0fa84f35c68afa2287fff6ed0c9852d1a8575da77650f2976fb"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py.backup.refactor",
+          "kind": "file",
+          "sha256": "023a745478fe8f82cee085d48228c0be08bd0f44c126870ba062ee2348af4f8c"
+        },
+        {
+          "path": "src/henchman/agents/line_range_utils.py",
+          "kind": "file",
+          "sha256": "9810cd2ac81bb6373971ab437534a1a77ffef476b2d5524b3df14638fd4607d7"
+        },
+        {
+          "path": "src/henchman/agents/metrics.py",
+          "kind": "file",
+          "sha256": "8a7a16a486b1e8787cc2e834e3ecbbe42c5f631077a9d5117f417d12a3b35423"
+        },
+        {
+          "path": "src/henchman/agents/metrics_reporter.py",
+          "kind": "file",
+          "sha256": "4843b2618bfd0bb0f8849cb8545bd4ebace5bc93d053a90da3413b85a787639f"
+        },
+        {
+          "path": "src/henchman/agents/models.py",
+          "kind": "file",
+          "sha256": "8d63eae492457c78cc90d471982c147303b8a56dc7dcaf58ef13197e86070226"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator.py",
+          "kind": "file",
+          "sha256": "bdf9ed6c54cd790ce6b5dac17cba0a8d2bfbc7bf90e1754bbec07eb92e7d224d"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_anchoring.py",
+          "kind": "file",
+          "sha256": "b43870f63493ecf18b950f44420e41620848129a494b77dd9753fd715f794a52"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_components.py",
+          "kind": "file",
+          "sha256": "63b3538b52fa43f0237aa0232e5cd0df7081103320d67288ea0180905f175ce0"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_delegation_ctrl.py",
+          "kind": "file",
+          "sha256": "3eaf4aa85d37d97f6dc3536e2d7ed5e3491cd77e6fd11c38f79649c830c9a1c4"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_events.py",
+          "kind": "file",
+          "sha256": "862cada2f11896ad6fd03554d5baf566f99fe1d94dfc848adce4d32c70e96e70"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_execution.py",
+          "kind": "file",
+          "sha256": "097e4d53d114f701793432226295958e400e25b025b336953ea783ad68f3a17a"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_init.py",
+          "kind": "file",
+          "sha256": "81ccc49700e82bad2b90715dcd213efed8e76a3c72260ca9473424e6b313fb5a"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_loop.py",
+          "kind": "file",
+          "sha256": "e3dff9025fe52c88feae8620b8a9346a5ee62792a943f26a4e370d5b0ef16f23"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_metrics_ctrl.py",
+          "kind": "file",
+          "sha256": "af095944f4bbea421684a7923d5299df75786c4089201cf29c494b01fbce28f8"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_prompts.py",
+          "kind": "file",
+          "sha256": "14c57045228b2d728eba8abbbed312ff45acc561f812e09f79a888032980604e"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_repair.py",
+          "kind": "file",
+          "sha256": "ccf97ecd9a6a63ec2e10ccf2dabf637ce7e8028ebe02fb8a78d482a0ca589748"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_run.py",
+          "kind": "file",
+          "sha256": "8b68c7d8e7f6fa45aac501f9933af034211f4c8f3be561524f741db8a4687e5b"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_tech_lead.py",
+          "kind": "file",
+          "sha256": "e9d83cb4b9f07e800a1b2feab63cc6905553b752423c01c3b1560cee32e8b4cf"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_timeout.py",
+          "kind": "file",
+          "sha256": "21b7c52fc64865bf1454ec47f0c747d1e0e7879f4554ad8e077a3169e5217eca"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_tools.py",
+          "kind": "file",
+          "sha256": "39b39ef5aeec8bbc7ca048bf88402b247654cd5deebf01fdaa3ea9fad3c37d68"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_turns.py",
+          "kind": "file",
+          "sha256": "44df49e908227c3aaf15aad5d7b3bcc1ca15c85efefb5d4f31f6ccfcdcef0c4d"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_types.py",
+          "kind": "file",
+          "sha256": "aeed047b9e65ec8f2332af7b3687a7af97c10619a4c948e15d55e4e1c9c1907b"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_validation.py",
+          "kind": "file",
+          "sha256": "3f9dc536ce60465a3739b750a1f3261eb5dc06a1eee337127d9c2481c494d7d5"
+        },
+        {
+          "path": "src/henchman/agents/platform_manager.py",
+          "kind": "file",
+          "sha256": "b7734290f1ded3a05162759789652474dec12d7966595a6796c741c35fba9b1c"
+        },
+        {
+          "path": "src/henchman/agents/pool.py",
+          "kind": "file",
+          "sha256": "0d04c40f43bdc4a7601b69f96431ecb66103e80cafb9b9fb22c13ed1c35bd288"
+        },
+        {
+          "path": "src/henchman/agents/presets.py",
+          "kind": "file",
+          "sha256": "dbc6033eec364208b523490ac300c6007f4053b19bbadc0da2942c80c1ba7d50"
+        },
+        {
+          "path": "src/henchman/agents/prompts.py",
+          "kind": "file",
+          "sha256": "58111d163fab64aebe19278f31c343cd121bbfdc76522a4e1b56d658aadc7584"
+        },
+        {
+          "path": "src/henchman/agents/subagent_runtime.py",
+          "kind": "file",
+          "sha256": "c73a8659097e88b9bdf3f4ea174f4719c067438d60d62863aeda47f9a8bde914"
+        },
+        {
+          "path": "src/henchman/agents/subagents.py",
+          "kind": "file",
+          "sha256": "cf771f5b0643a00d79003c69609dd5af099dea77f62c99f41af162e19ac12b67"
+        },
+        {
+          "path": "src/henchman/agents/working_memory.py",
+          "kind": "file",
+          "sha256": "be739b32f2dce21f668e2b4f368dfc59e0399ff99d0dbf2bb4713562d68d1ffe"
+        },
+        {
+          "path": "src/henchman/agents/workspace_ownership.py",
+          "kind": "file",
+          "sha256": "9d5c2109ec030b6611649b08e3039ca7df0c3f85762cfb6a4350b10ced27f90a"
+        },
+        {
+          "path": "src/henchman/analysis/__init__.py",
+          "kind": "file",
+          "sha256": "65c757b350f5db73440386bb83704a9698cf893aa35ffd895d5edfc4e7b91e5c"
+        },
+        {
+          "path": "src/henchman/analysis/repository_evidence.py",
+          "kind": "file",
+          "sha256": "a56fbc6541466d028e3ed4e5f94d83677e36135684c6d22e0047934d98cda0c8"
+        },
+        {
+          "path": "src/henchman/analysis/repository_search.py",
+          "kind": "file",
+          "sha256": "d6110a782aac4d79bb6ffe25c84a9d96976e47ebdfd7ca7ee3ccdb21022cc0db"
+        },
+        {
+          "path": "src/henchman/analysis/repository_sources.py",
+          "kind": "file",
+          "sha256": "b64e3db621c28eddeb4c90b48c8de5e9a4cba752b77f1e2ced4f065047b05e35"
+        },
+        {
+          "path": "src/henchman/analysis/smells/__init__.py",
+          "kind": "file",
+          "sha256": "f5b4cdbd2c6e18eeb334123e4256e94f50fc8b0a0380ca5f76ce77a585cb36a4"
+        },
+        {
+          "path": "src/henchman/analysis/smells/base.py",
+          "kind": "file",
+          "sha256": "c53a62838ff7de5b145b2f7ff480e49810dcbbbeb341759916a0d1d69f769291"
+        },
+        {
+          "path": "src/henchman/analysis/smells/deep_nesting.py",
+          "kind": "file",
+          "sha256": "e1cb5ae4f4e50e56740000309bf45825164bbb9e75855f3321d17202ad8f04f5"
+        },
+        {
+          "path": "src/henchman/analysis/smells/duplicates.py",
+          "kind": "file",
+          "sha256": "4cb7d01662d5af6e074d87286af8cdd2154a2be8317774e529f9df6adfe668d5"
+        },
+        {
+          "path": "src/henchman/analysis/smells/long_method.py",
+          "kind": "file",
+          "sha256": "fa992c528f46eb7ebe83fb6997ea2b6363ddc4e0571ae374836ea906ef508593"
+        },
+        {
+          "path": "src/henchman/analysis/smells/models.py",
+          "kind": "file",
+          "sha256": "5374eb02b4b9a631bef66d052e3bbf56e306a6b94bc76c73c4125b669ecce461"
+        },
+        {
+          "path": "src/henchman/analysis/smells/scanner.py",
+          "kind": "file",
+          "sha256": "e692e39e0b6e49822b7b008f399026a875ae7fa2b430c63d4915cf905702777f"
+        },
+        {
+          "path": "src/henchman/analysis/smells/symbols.py",
+          "kind": "file",
+          "sha256": "98a87ecb49d52ea227c92a36c9c790d5ea9d1864c4a6fe40fbfcc4889f0dfc66"
+        },
+        {
+          "path": "src/henchman/api/__init__.py",
+          "kind": "file",
+          "sha256": "89d1f1c2985a316a3c8bbf144ed3276879e2f1aa35a5da97a03a63b576ec19d9"
+        },
+        {
+          "path": "src/henchman/api/auth.py",
+          "kind": "file",
+          "sha256": "c336f0fea10ca4e38393182a7bf5e5c77b87541b48057f32a29d37537e2f3cf6"
+        },
+        {
+          "path": "src/henchman/api/endpoints/__init__.py",
+          "kind": "file",
+          "sha256": "1b27f4522425ac66515df27322f0b420f0f3e11b31b8947632fba8ee9f26ee82"
+        },
+        {
+          "path": "src/henchman/api/endpoints/chat.py",
+          "kind": "file",
+          "sha256": "eaf27f5557ddeb6afe7f568852afe420d99caceb5d570ca8a2ddeaa9755b5837"
+        },
+        {
+          "path": "src/henchman/api/endpoints/health.py",
+          "kind": "file",
+          "sha256": "ecfeabfba72fcc7262ac8dd0ccce14c19c31ed6551f824937a577fc0bc27e6eb"
+        },
+        {
+          "path": "src/henchman/api/endpoints/remote.py",
+          "kind": "file",
+          "sha256": "99546d02f38375037e5c2723e583b59e5c44527d3ca356d52687b449fd33b0f5"
+        },
+        {
+          "path": "src/henchman/api/oauth.py",
+          "kind": "file",
+          "sha256": "3264ad97f082cf5ab4de35b00d00ffeff979f4dd9e9cb097802c699f97324717"
+        },
+        {
+          "path": "src/henchman/api/proxy.py",
+          "kind": "file",
+          "sha256": "de88fca2af7c9407e8589b072135491634763758044b05b3e625c762779c646c"
+        },
+        {
+          "path": "src/henchman/api/remote_sessions.py",
+          "kind": "file",
+          "sha256": "7bb4278b8569900882d562cfcff53a891db5b0ac86d283a550c67d75fd834346"
+        },
+        {
+          "path": "src/henchman/api/run_accounting.py",
+          "kind": "file",
+          "sha256": "7d7815bbd49dfa024ec1a446ddebbe72a98fbef7a56cdc09f9d0a37de0917b87"
+        },
+        {
+          "path": "src/henchman/api/server.py",
+          "kind": "file",
+          "sha256": "66ca16174a1ad96b04ecb8ddf89fffca07049f7cb66115e9ac4939cf4ac48e59"
+        },
+        {
+          "path": "src/henchman/api/state.py",
+          "kind": "file",
+          "sha256": "e21760f99bfe051fbc497fa5a16e82229061ab198ff7cc5a71dbf9332850057d"
+        },
+        {
+          "path": "src/henchman/chat/__init__.py",
+          "kind": "file",
+          "sha256": "9c02e56b934b8755ac592eedeb2875974bba7171295651479d5624c58277b4aa"
+        },
+        {
+          "path": "src/henchman/chat/base.py",
+          "kind": "file",
+          "sha256": "73b3c0a622dad56483fc92f5991d758050c03d4ddda47342e74dbf070d2aa34b"
+        },
+        {
+          "path": "src/henchman/chat/discord_bot.py",
+          "kind": "file",
+          "sha256": "f3d6d097c97bd6c74a856f243249348adac76658aa93436f537453db1777df7b"
+        },
+        {
+          "path": "src/henchman/chat/manager.py",
+          "kind": "file",
+          "sha256": "81fe805ceff40eef743b7353639737922097a012269a667d86f06ff088cf3c3f"
+        },
+        {
+          "path": "src/henchman/cli/__init__.py",
+          "kind": "file",
+          "sha256": "6cfe4d9a0077a97605c1189a388ef2810c75c4947954acb63ad301b7a2b328c9"
+        },
+        {
+          "path": "src/henchman/cli/accounting.py",
+          "kind": "file",
+          "sha256": "21904a463dd23b7f3d35c32c4f0c4e627cac3feff3594e13383b1c0f841b77de"
+        },
+        {
+          "path": "src/henchman/cli/app.py",
+          "kind": "file",
+          "sha256": "9a1b3c5bd5fe4317b0a4cf4241f0e437b146c3d5c8ecaee47673363740469b99"
+        },
+        {
+          "path": "src/henchman/cli/chat_serve.py",
+          "kind": "file",
+          "sha256": "dfc1ec9180b6c6b28d32bd0a8157a9a631069a5c35d903a06afa5c19a22fe4d9"
+        },
+        {
+          "path": "src/henchman/cli/command_processor.py",
+          "kind": "file",
+          "sha256": "4dd2c60615817ee541f01ae5e498e4f0c251ad86293efd158c930703279aeb05"
+        },
+        {
+          "path": "src/henchman/cli/commands/__init__.py",
+          "kind": "file",
+          "sha256": "481998293f647f4a6e5790c9b43a23013ad74fd0f93cb6afd4dbb16a1a65b285"
+        },
+        {
+          "path": "src/henchman/cli/commands/agent.py",
+          "kind": "file",
+          "sha256": "7e92bd9784b42789f6a25a21ef9af5e58d0b1ee146c9273358240fd846ca0391"
+        },
+        {
+          "path": "src/henchman/cli/commands/agents_platform_command.py",
+          "kind": "file",
+          "sha256": "d9d08fb6b63a5a7ed6210da81126e734032d1e52446bb115f7a1f5d9bb6d54b3"
+        },
+        {
+          "path": "src/henchman/cli/commands/builtins.py",
+          "kind": "file",
+          "sha256": "a92e88cab5c96efdb8e751d3e7f4a73def09fd0037e3fa4dbbd33de8fce41534"
+        },
+        {
+          "path": "src/henchman/cli/commands/chat.py",
+          "kind": "file",
+          "sha256": "fdef1e67ba48012e980f6c366cad4a09887c3a70462677c75ad654000560a3fa"
+        },
+        {
+          "path": "src/henchman/cli/commands/checkpoint.py",
+          "kind": "file",
+          "sha256": "6530bde252ce099007505aeef133a2f4ad93b3ddf5181d93b871fdaafb2486f7"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_command.py",
+          "kind": "file",
+          "sha256": "a4bccd92262750f36e6f54159ed44d05e669c27c50b5a96920a2d13b1072cfc5"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_redaction.py",
+          "kind": "file",
+          "sha256": "ab280fe56d0c552582f75e18bf123154f6f14425870a35bd47d8e7b470319958"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_view_command.py",
+          "kind": "file",
+          "sha256": "1dc323b29f0a4ef3bed098276d66838cc56a5c93c9227ad81cad9e1ad410b080"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_write_command.py",
+          "kind": "file",
+          "sha256": "1a5cab39ac6792e6f32e12e039b9d9dcb51a9d47366316a5930adeddf25c1b15"
+        },
+        {
+          "path": "src/henchman/cli/commands/context.py",
+          "kind": "file",
+          "sha256": "d4270740d964b5c06da35414da666f9389ef266920f8ca3db8df6e31de993850"
+        },
+        {
+          "path": "src/henchman/cli/commands/discovery_capabilities.py",
+          "kind": "file",
+          "sha256": "cb2362360c434a26f28ac86ed6479755ef7f1c57420f7e546052b9c22a3c59b5"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_command.py",
+          "kind": "file",
+          "sha256": "42eb81354317006d0d4c210f16b4eaa0a0f52f18ce14a089986d61a4aab35dad"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_core_command.py",
+          "kind": "file",
+          "sha256": "4de0f2f08cd9f17a8f58daa2e15ec59a4d8ceb44d77d3eb3c64fd17c23612fad"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_tool_command.py",
+          "kind": "file",
+          "sha256": "57b6f6ab632c006abb54d2c641abcf2700d9b4d06a011fb430f00512aa8d5584"
+        },
+        {
+          "path": "src/henchman/cli/commands/extensions.py",
+          "kind": "file",
+          "sha256": "1197290cfd40c7d553ad8cf2b737c9ef6b967fcab54a94d358154f3bb1de98e9"
+        },
+        {
+          "path": "src/henchman/cli/commands/git_command.py",
+          "kind": "file",
+          "sha256": "b20b50dd81ab54deef1d345397c398227b63575e71d284731e2b93cafbdb8dc7"
+        },
+        {
+          "path": "src/henchman/cli/commands/goal.py",
+          "kind": "file",
+          "sha256": "dd521d306dd6b827f3fc49b15d27e51f3eaff9b8a018ed147eb569729d08ab0b"
+        },
+        {
+          "path": "src/henchman/cli/commands/help_command.py",
+          "kind": "file",
+          "sha256": "eb103896fcdcd8cc4a51415bbb204ca2651370b7e4571df4c784a63db5c6a4c2"
+        },
+        {
+          "path": "src/henchman/cli/commands/init_command.py",
+          "kind": "file",
+          "sha256": "ae2b4b921a7fd0d413366f724df2c4df4516d675add59a9bd92294cefec5f8d2"
+        },
+        {
+          "path": "src/henchman/cli/commands/integration_commands.py",
+          "kind": "file",
+          "sha256": "e54c0d6ac47f521aa26dbb193de29a8a3f9ae948d4bac6c2a4063a592022e877"
+        },
+        {
+          "path": "src/henchman/cli/commands/mcp.py",
+          "kind": "file",
+          "sha256": "8002361acf4126802e9297fda90867000d51f43d39fe0b833e53b49f0b36664c"
+        },
+        {
+          "path": "src/henchman/cli/commands/model.py",
+          "kind": "file",
+          "sha256": "e3297c299c19a8e2278abea79c9961a41568622a91bb6e12359962f136e84625"
+        },
+        {
+          "path": "src/henchman/cli/commands/plan.py",
+          "kind": "file",
+          "sha256": "2f43880b4ee16be47413a413a7dbf46855fbacc4bca8fa060cd70001f71693e1"
+        },
+        {
+          "path": "src/henchman/cli/commands/plugin_command.py",
+          "kind": "file",
+          "sha256": "c58785ca22b050801ab1bda9ce40f064c434c2ba3da3ff541051d46cbdc0e6f4"
+        },
+        {
+          "path": "src/henchman/cli/commands/pull_request_command.py",
+          "kind": "file",
+          "sha256": "1347f9a07f5977ff0764770f67ab10ba809c813e8c9ce7e8d56f16e1c4d7828e"
+        },
+        {
+          "path": "src/henchman/cli/commands/queue.py",
+          "kind": "file",
+          "sha256": "4d23ac5d1418eac24ccccbbd486261a445a99f99a430446493892adf822e4207"
+        },
+        {
+          "path": "src/henchman/cli/commands/rag.py",
+          "kind": "file",
+          "sha256": "a362f7c3109083eb14969fdef30d05c1eedac5df52c6043fe7f30cc0793a98a5"
+        },
+        {
+          "path": "src/henchman/cli/commands/recovery.py",
+          "kind": "file",
+          "sha256": "25b72deabbb6a7134c65e45ca97f510cda7d30a4030c3b22f0e80cc089e1d2fd"
+        },
+        {
+          "path": "src/henchman/cli/commands/runtime_config.py",
+          "kind": "file",
+          "sha256": "72c87f96dbf5c93f38d69790e02681c480f9ca1dd306c5730f98cf92adce23dc"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py",
+          "kind": "file",
+          "sha256": "38764ef8a5cb67025e610d5bcfab1b50fd66d3c2059f99cadca266341f90fc74"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py.backup",
+          "kind": "file",
+          "sha256": "cd79c6456b6b678a0aee6fb6416e5765eb5c722f8024d1eaa5b72213227ff5de"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py.bak",
+          "kind": "file",
+          "sha256": "35fe9b4d0a9c45da88b3f158a501e62a9487bb83615ee3c80316958bb0abf098"
+        },
+        {
+          "path": "src/henchman/cli/commands/session_command.py",
+          "kind": "file",
+          "sha256": "452f3a3f298a5db7038afb5bad4d066da4670db64e6b62a3c61f10922e963a63"
+        },
+        {
+          "path": "src/henchman/cli/commands/session_context_command.py",
+          "kind": "file",
+          "sha256": "912f047edb594fbce66b67f865769eeed1508fcf93ef91b063d21349ac965be5"
+        },
+        {
+          "path": "src/henchman/cli/commands/skill_command.py",
+          "kind": "file",
+          "sha256": "378afc2b0044219d0853497d6c5791449d0e23a00138a660bd9f4aa142a166b4"
+        },
+        {
+          "path": "src/henchman/cli/commands/team.py",
+          "kind": "file",
+          "sha256": "a8105f4b8d005c02a92afcb9673b1ff1bc6e2b4e51f9982eded90d3a111107f2"
+        },
+        {
+          "path": "src/henchman/cli/commands/theme.py",
+          "kind": "file",
+          "sha256": "c10d779ce6a454907d4dbc317bdd91cca823b330a5deceb06911944ec3177357"
+        },
+        {
+          "path": "src/henchman/cli/commands/unlimited.py",
+          "kind": "file",
+          "sha256": "e98edcfd5238721c9eee4b8d4a1db4a936aebee747eb1696d09878bb42c41496"
+        },
+        {
+          "path": "src/henchman/cli/commands/upgrade_command.py",
+          "kind": "file",
+          "sha256": "6da3288851e1a4797ad39bffe1ae58109b2bc003494a94683c78b70289b9315c"
+        },
+        {
+          "path": "src/henchman/cli/commands/usage.py",
+          "kind": "file",
+          "sha256": "0426cff8d79535b758f70ae0d5a3e25a48c378eb7de699ea6dedf26e433b0a40"
+        },
+        {
+          "path": "src/henchman/cli/commands/version_command.py",
+          "kind": "file",
+          "sha256": "3e8390b6bf0467621fc49e8a35fbb2e65e41240437e90cd74230a83e36998803"
+        },
+        {
+          "path": "src/henchman/cli/commands/voice_command.py",
+          "kind": "file",
+          "sha256": "988dfa5413e5a3bc997be739c7fc88a22344044fbd3e36f736ee57a72556987d"
+        },
+        {
+          "path": "src/henchman/cli/commands/work.py",
+          "kind": "file",
+          "sha256": "cf9c9d36bbebc8876190fa0fdf904ed49c04d4f08deecbf93866f475f8a93b49"
+        },
+        {
+          "path": "src/henchman/cli/console.py",
+          "kind": "file",
+          "sha256": "d0fbbb9eba7efd40219090f6b7503a9fe52074b287573d01d710d996fd5edd38"
+        },
+        {
+          "path": "src/henchman/cli/console_helpers.py",
+          "kind": "file",
+          "sha256": "c60428b81e8898929abe30f7469a2868994c8f37d41de4ca15b25e4c923384b0"
+        },
+        {
+          "path": "src/henchman/cli/context_attachments.py",
+          "kind": "file",
+          "sha256": "03ec6a4dae04be35aa04bb4bfcfec3527007b8ebd63e46a9854e0f4178748dfe"
+        },
+        {
+          "path": "src/henchman/cli/core_init.py",
+          "kind": "file",
+          "sha256": "3914524dd3476b400cbefc7df39301bd1015df5c3d33000de09b1c41f18affc5"
+        },
+        {
+          "path": "src/henchman/cli/draft_editor.py",
+          "kind": "file",
+          "sha256": "877f714d4f34cf28ea11c28ffe23aa0d54a0ef8f2e80dad97509fa3ee4b94882"
+        },
+        {
+          "path": "src/henchman/cli/evidence.py",
+          "kind": "file",
+          "sha256": "76d2f85bf5da08a240e4cbd6142b3ce1d943c6c4dc75933edb2f879b64667444"
+        },
+        {
+          "path": "src/henchman/cli/headless.py",
+          "kind": "file",
+          "sha256": "c84be723fb08b2c61c7d30c623693efb7a21945e9610e800ed95210b5214779e"
+        },
+        {
+          "path": "src/henchman/cli/headless_control.py",
+          "kind": "file",
+          "sha256": "461d249eea0d5e38e359a3e770a7a6b4a652647a7a65deabbd5ea17f225b4ca2"
+        },
+        {
+          "path": "src/henchman/cli/headless_protocol.py",
+          "kind": "file",
+          "sha256": "25150cbbd4227904630bf8449130557b997c20b68209fab72cc1adc1b5e64acd"
+        },
+        {
+          "path": "src/henchman/cli/headless_runtime.py",
+          "kind": "file",
+          "sha256": "3f06e816d012a7ccee705f308f2709c3e0925ec85951804db112077cc76ecfd0"
+        },
+        {
+          "path": "src/henchman/cli/headless_stdio.py",
+          "kind": "file",
+          "sha256": "55d476085a3365d273b0100a85c5c15eebe0d766c89635054517bbe83f2f045d"
+        },
+        {
+          "path": "src/henchman/cli/henchman.tcss",
+          "kind": "file",
+          "sha256": "569e398df74ab5765382dbfe109b2ddabe31b6c02f20923b9cb0c8b036ca7c30"
+        },
+        {
+          "path": "src/henchman/cli/input.py",
+          "kind": "file",
+          "sha256": "5789749a8112a46ce2905f5193c45a4247fb045b4ba32659d512b3c569185495"
+        },
+        {
+          "path": "src/henchman/cli/input_handler.py",
+          "kind": "file",
+          "sha256": "3bef340373da3850ff73f46ff6cc7b6b15b69b8e940fd4b8e1a9afaa2f55c1d6"
+        },
+        {
+          "path": "src/henchman/cli/inspection_runtime.py",
+          "kind": "file",
+          "sha256": "3103769610019b2bb9cd253f125c80b0f94d740024940b3dfab026f205772e5f"
+        },
+        {
+          "path": "src/henchman/cli/json_output.py",
+          "kind": "file",
+          "sha256": "b9faa218168c33dbdabef33a3d0cb6d84955f379a07f7a552941b3eb2e1c3252"
+        },
+        {
+          "path": "src/henchman/cli/oauth.py",
+          "kind": "file",
+          "sha256": "dfada783573080fb569edb96d004a4e6e90f11da0fd45cb5441c6dcb6f386eb8"
+        },
+        {
+          "path": "src/henchman/cli/oauth_browser.py",
+          "kind": "file",
+          "sha256": "f5c8d1ad0eb120347ecb83c4c6a1306cd3de897b11e2354881ccbc636c0905ad"
+        },
+        {
+          "path": "src/henchman/cli/oauth_browser_child.py",
+          "kind": "file",
+          "sha256": "6a6d0132b87458d6920dec0c5cd986e20c16a923eb885fde3c5aed6fa76ecfe8"
+        },
+        {
+          "path": "src/henchman/cli/oauth_frontend.py",
+          "kind": "file",
+          "sha256": "f47fd798a3da2d3269e1eecab4911bceaa56c90846cc8da728ce202798b52d00"
+        },
+        {
+          "path": "src/henchman/cli/output_handler.py",
+          "kind": "file",
+          "sha256": "4ffa79ad1cf159aac82d3c9fed524d252e81e151ae6bcadd80225d9f6866d5a8"
+        },
+        {
+          "path": "src/henchman/cli/plugins.py",
+          "kind": "file",
+          "sha256": "1c07966505975a4f74bb90da3f2c3dc0c9f6653c512275204c4909b83c6447c5"
+        },
+        {
+          "path": "src/henchman/cli/prompts.py",
+          "kind": "file",
+          "sha256": "6e773d739cf650f0d0eb4375828e528e048e99182ada4c3519001b9c6394d5a2"
+        },
+        {
+          "path": "src/henchman/cli/provider_switch.py",
+          "kind": "file",
+          "sha256": "8921b517272a67d05aa22b5183ce5064ec3f3eeb54d3a5861883cd446d8dc1cc"
+        },
+        {
+          "path": "src/henchman/cli/repl.py",
+          "kind": "file",
+          "sha256": "ee41b643e4537ef53b8955551ac73adc6a4933db4cfbc111b5311a0c3ea022d2"
+        },
+        {
+          "path": "src/henchman/cli/repl.py.backup",
+          "kind": "file",
+          "sha256": "63686791c00e12572e3783a1de44aba9933c2e2a04dcc3e95930e7df6a4a3171"
+        },
+        {
+          "path": "src/henchman/cli/serve.py",
+          "kind": "file",
+          "sha256": "9414a383040316a30960f6f5105d9f772216f688baeec6bfdeed6826697932d0"
+        },
+        {
+          "path": "src/henchman/cli/session_manager.py",
+          "kind": "file",
+          "sha256": "1be4f86d56fe60bc35840d6d314e56e5d937fe602aa61c386f4e4fe0f838ab6b"
+        },
+        {
+          "path": "src/henchman/cli/stream_event_handlers.py",
+          "kind": "file",
+          "sha256": "b7cde3c4d2338e97e6e0b7f9fabca764d4edcc4ff1a463281ac33f15eb56b8a8"
+        },
+        {
+          "path": "src/henchman/cli/system_info.py",
+          "kind": "file",
+          "sha256": "901dd0d2049b75251168579510b2c590fa439e81a4f3cc83e87d20dfab1f0512"
+        },
+        {
+          "path": "src/henchman/cli/textual_activity_state.py",
+          "kind": "file",
+          "sha256": "68ae3875a13ec94d1e73463a7d6e47f20ebde6755611d5947a2c3e34e9797b2e"
+        },
+        {
+          "path": "src/henchman/cli/textual_app.py",
+          "kind": "file",
+          "sha256": "455793123a362399e0ee681316aba631b8bb1880eb61b4b58c6ec1ef84302e2c"
+        },
+        {
+          "path": "src/henchman/cli/textual_app.py.bak2",
+          "kind": "file",
+          "sha256": "71fdb12f444f9ee3f2b810a010a44395db02a948645a52a0d5e2b5a609462b34"
+        },
+        {
+          "path": "src/henchman/cli/textual_bridge.py",
+          "kind": "file",
+          "sha256": "9b04c870a08adb06e1a95ef9c853479d5ef03e1e047abff9c714b4b234900cb3"
+        },
+        {
+          "path": "src/henchman/cli/textual_checkpoints.py",
+          "kind": "file",
+          "sha256": "54fd47c25b807ca1f06d69fc20a3816d6c6748048b62adf00a3b142d679c573a"
+        },
+        {
+          "path": "src/henchman/cli/textual_config.py",
+          "kind": "file",
+          "sha256": "2316ddde8f4188b4f98e305a4904b28a3bc5d3e479975563e74984c9d91c5741"
+        },
+        {
+          "path": "src/henchman/cli/textual_context.py",
+          "kind": "file",
+          "sha256": "159e36013cdaa8ab47c150ce40fc03dc617ad462085f69b09555b9b29f5d0816"
+        },
+        {
+          "path": "src/henchman/cli/textual_driver.py",
+          "kind": "file",
+          "sha256": "9a44101a7e886071fad57e97c9ec17bd6351a1e358b366372cde18e66fef814f"
+        },
+        {
+          "path": "src/henchman/cli/textual_editor.py",
+          "kind": "file",
+          "sha256": "c1c8e6d4fc872c3f76491f41e79de9289838cb7f63e5463c097a476e61a4464f"
+        },
+        {
+          "path": "src/henchman/cli/textual_messages.py",
+          "kind": "file",
+          "sha256": "75d6c337f6bedc297e33b616a4e0c174082e971b1dd84fb2bb1b75db604a43f9"
+        },
+        {
+          "path": "src/henchman/cli/textual_mixins.py",
+          "kind": "file",
+          "sha256": "a0cab51849c1b78f94f4ba4aa279b614a5864af4b4bb81583fbbacd2884b6dcb"
+        },
+        {
+          "path": "src/henchman/cli/textual_preferences.py",
+          "kind": "file",
+          "sha256": "6a4a1d2c44481a4648e7f80f5e3b451af7627438df34a0b7b4a1c9c482f57b3f"
+        },
+        {
+          "path": "src/henchman/cli/textual_questions.py",
+          "kind": "file",
+          "sha256": "e419cb3a043a1a179215e05de1eba6ef78ad327e49f3c06f9ca273db66eb028d"
+        },
+        {
+          "path": "src/henchman/cli/textual_queue.py",
+          "kind": "file",
+          "sha256": "9a7fde5f306ccb7df34efe507fa893ab67ea21cbf3fbf3861b7fb9891b5ae05a"
+        },
+        {
+          "path": "src/henchman/cli/textual_review.py",
+          "kind": "file",
+          "sha256": "4d41c4e249d517814298cf4d78ae4ac9d0f8be2980d12473f9406cc3e7d0d507"
+        },
+        {
+          "path": "src/henchman/cli/textual_screens.py",
+          "kind": "file",
+          "sha256": "4f473e5dba7aa3140afedcfff4116da96f2aabbfb0d425f85f59baab3a3a94ac"
+        },
+        {
+          "path": "src/henchman/cli/textual_sessions.py",
+          "kind": "file",
+          "sha256": "ea9931cf3991115774fd381b963651be6aeca723a9f3cd7d116b53876dbf9db6"
+        },
+        {
+          "path": "src/henchman/cli/textual_tool_activity.py",
+          "kind": "file",
+          "sha256": "09da7df2490d6bc71af280e90d8e009f301cc962e47f49ded9d5d7f97da59301"
+        },
+        {
+          "path": "src/henchman/cli/textual_transcript.py",
+          "kind": "file",
+          "sha256": "daabe145fbe47ad5a8f97ed9ab55b62cf5bb13586987b6ea957d603eeb439841"
+        },
+        {
+          "path": "src/henchman/cli/textual_widgets.py",
+          "kind": "file",
+          "sha256": "4c39dc5d8cc01c3ee81bfa4d57f4005f5caf62dbc314c9822619fe66c550c0e6"
+        },
+        {
+          "path": "src/henchman/cli/textual_widgets.py.backup",
+          "kind": "file",
+          "sha256": "807889bcdac7639d58db9cd772f51e287b6a22f0c45694654078b1b5ce9fb962"
+        },
+        {
+          "path": "src/henchman/cli/textual_work.py",
+          "kind": "file",
+          "sha256": "494e763410d1d3ad01b4a678076168348e8177d0a6cd7dbc42e21155312e6c74"
+        },
+        {
+          "path": "src/henchman/cli/tool_executor.py",
+          "kind": "file",
+          "sha256": "f98fd5c548b43e2fde79488e5a8ec0cf430af36e62958570b818decf7dcb763f"
+        },
+        {
+          "path": "src/henchman/cli/tool_executor.py.bak",
+          "kind": "file",
+          "sha256": "d01550e239141e7f76ac15fd851616ab9de8031433ead5adf1ed567b501fc707"
+        },
+        {
+          "path": "src/henchman/cli/tool_manager.py",
+          "kind": "file",
+          "sha256": "ff40eac3c3e6b68270d026c41c9f6a56439915b9c844ccbd8686a4b968caad9b"
+        },
+        {
+          "path": "src/henchman/cli/ui_renderer.py",
+          "kind": "file",
+          "sha256": "804cf08e0b288354e872226a0c53b4539109750900907f50102e3be6a6844cc1"
+        },
+        {
+          "path": "src/henchman/cli/update_check.py",
+          "kind": "file",
+          "sha256": "ac3e2a0dbaeb67f58a73d7798aeb6419a931ef118b7d5584a0afd4f6af3f27ce"
+        },
+        {
+          "path": "src/henchman/cli/work_inspection.py",
+          "kind": "file",
+          "sha256": "ff83d42cdf2f23b85f9c96eacd6a044fe7c54971e5cee30449147d314b9129d5"
+        },
+        {
+          "path": "src/henchman/cli/workflow.py",
+          "kind": "file",
+          "sha256": "eb0c38dfe226044d87a8a403a4126ca42008407573e094caee15eab910ada730"
+        },
+        {
+          "path": "src/henchman/config/__init__.py",
+          "kind": "file",
+          "sha256": "e5b72378f831cebf1c87e5012b86a4f0a39b54ffcb49a417593d3cec39f5c66c"
+        },
+        {
+          "path": "src/henchman/config/context.py",
+          "kind": "file",
+          "sha256": "a478b35912ed66f79a52d6573d684e8d2182d61b1367cd82b115d2b7f317bb97"
+        },
+        {
+          "path": "src/henchman/config/environment.py",
+          "kind": "file",
+          "sha256": "868129b4db6307eb5efb4fbcd4fb26df843ba60e9de5ec79eb58d5dade77fa40"
+        },
+        {
+          "path": "src/henchman/config/key_paths.py",
+          "kind": "file",
+          "sha256": "87dcb074e73d1a6d61c1c81c18d7e1047d9a44ac3d7524b4f20b9a17e3e0b3fc"
+        },
+        {
+          "path": "src/henchman/config/mcp.py",
+          "kind": "file",
+          "sha256": "22abdca75286c2391ada833b50bfd29cd089d6c43893a5c3fda090963221cb61"
+        },
+        {
+          "path": "src/henchman/config/parsing.py",
+          "kind": "file",
+          "sha256": "03eca955e936858f675ed4e2c61db854bb18a51913dfc1d43773a91c33914f67"
+        },
+        {
+          "path": "src/henchman/config/paths.py",
+          "kind": "file",
+          "sha256": "830bbf7f5a8d529e3edea9d6b8c5f1c19d1654fb20cf066ca772ffa1159f3c9a"
+        },
+        {
+          "path": "src/henchman/config/repository.py",
+          "kind": "file",
+          "sha256": "03dceb434f140133089f429c265ada1f3ab0297e5b6eedb36126bafbeaf9e35f"
+        },
+        {
+          "path": "src/henchman/config/runtime.py",
+          "kind": "file",
+          "sha256": "5f740575dab959974e794d57d755b802070c9737c0efee3de2f3e45224c06f07"
+        },
+        {
+          "path": "src/henchman/config/schema.py",
+          "kind": "file",
+          "sha256": "6ef4004339014698416b2c74e35c7822323fcae372db195e1cebd32dd77a9761"
+        },
+        {
+          "path": "src/henchman/config/settings.py",
+          "kind": "file",
+          "sha256": "2b8164373d2c0a1168699587b7f8614903ad79ac8f8de42d103129e290bd0c72"
+        },
+        {
+          "path": "src/henchman/config/sync_controls.py",
+          "kind": "file",
+          "sha256": "cf2e3692dc482a2c8ecd7146fe3ed2102838107a6ef293b5e18b99155296aed2"
+        },
+        {
+          "path": "src/henchman/config/usage.py",
+          "kind": "file",
+          "sha256": "b89476efce55762de51248f6c9258f6a0279badd584241a728c6d6640e6e5e45"
+        },
+        {
+          "path": "src/henchman/core/__init__.py",
+          "kind": "file",
+          "sha256": "c5b05e8d22ecd8edc8b9b42d170bf8952b63daf49462770933d7835da976a377"
+        },
+        {
+          "path": "src/henchman/core/agent.py",
+          "kind": "file",
+          "sha256": "c31e9e492e71c4fe5ae71b909e7fc775bd1c82affa3465732739ecea6adcfbbb"
+        },
+        {
+          "path": "src/henchman/core/agent_config.py",
+          "kind": "file",
+          "sha256": "04130b2f86332cf0fb2dc7bc99cf478e46a5e788f72403cbfbbe476fc0debca2"
+        },
+        {
+          "path": "src/henchman/core/agent_interface.py",
+          "kind": "file",
+          "sha256": "e3ed2f1e864bd7d1aca0d03fc5b9321c98749cad43b66fef4dd3555424229bbf"
+        },
+        {
+          "path": "src/henchman/core/agent_stall.py",
+          "kind": "file",
+          "sha256": "d51003f8e8b31993d30d27141fa7ae9de3510ee493545011adfb2d508ed553d0"
+        },
+        {
+          "path": "src/henchman/core/agent_streaming.py",
+          "kind": "file",
+          "sha256": "bb512adbdda4cfef28a2a7052edc5d596fd17812c62b83a45ac0bf15ca2a64ea"
+        },
+        {
+          "path": "src/henchman/core/event_evidence.py",
+          "kind": "file",
+          "sha256": "155e49c9d2e85f1cccc3ffa3ddc2ac99faa0d03bead58c96748a18e81482dfb3"
+        },
+        {
+          "path": "src/henchman/core/event_payloads.py",
+          "kind": "file",
+          "sha256": "0a76c5d8001437ed6fba61420a08afbfff0d43992f0dbc84c9bb1f0c13891007"
+        },
+        {
+          "path": "src/henchman/core/eventbus.py",
+          "kind": "file",
+          "sha256": "f7de09f58c861df3e61295803fff4d44be1e33868444515173e3aa76dccc551b"
+        },
+        {
+          "path": "src/henchman/core/events.py",
+          "kind": "file",
+          "sha256": "dd77fd78af8f958dffbda90f215280e06aed38b5237baf4bb8489a7a4b773e70"
+        },
+        {
+          "path": "src/henchman/core/failure_evidence.py",
+          "kind": "file",
+          "sha256": "a671d47df8ca3f481cc56c76a7094739de221cdd27848538ca4385e76337124b"
+        },
+        {
+          "path": "src/henchman/core/goals.py",
+          "kind": "file",
+          "sha256": "23b4c5090f4d3acd622faca8dfd8fce971950699337036c2c643c5c1f18d9a29"
+        },
+        {
+          "path": "src/henchman/core/instruction_context.py",
+          "kind": "file",
+          "sha256": "2ed57149e28a068075080bda411924051544dca23b90264bbe4d31710939274b"
+        },
+        {
+          "path": "src/henchman/core/instruction_provenance.py",
+          "kind": "file",
+          "sha256": "86bc16cc76b801f9aeb7dee269d132555ab37f7f1fc688d89329a98389f13e1c"
+        },
+        {
+          "path": "src/henchman/core/operation_bindings.py",
+          "kind": "file",
+          "sha256": "827afcc990afb19a14020219573ce4089703aab0699e5ba2cdc0d3db15b7b6cd"
+        },
+        {
+          "path": "src/henchman/core/operation_recovery.py",
+          "kind": "file",
+          "sha256": "2deeb771c0a9c1d8ef493406b1566d0a9aeda1ef15259bb61e3a48aca180bc5a"
+        },
+        {
+          "path": "src/henchman/core/request_budget.py",
+          "kind": "file",
+          "sha256": "6216efc7e2fb5ccf4937bc5f51c57d76192e3516b1795abf9c99438acd635b26"
+        },
+        {
+          "path": "src/henchman/core/run_accounting.py",
+          "kind": "file",
+          "sha256": "5264a31894d231d61737b2cdd90d27c80e53a5ac2dd32e179263413ca502352f"
+        },
+        {
+          "path": "src/henchman/core/run_budget.py",
+          "kind": "file",
+          "sha256": "e2bdfbb2357d2860879ff9885760127043f95794ca28dcac2a02b930e8bf408e"
+        },
+        {
+          "path": "src/henchman/core/run_budget_state.py",
+          "kind": "file",
+          "sha256": "3fbe5ed21582cd90df1964090173532e88ba5af03a2e9b2be36655d487de68f2"
+        },
+        {
+          "path": "src/henchman/core/runtime_accounting.py",
+          "kind": "file",
+          "sha256": "c0fec8a7b4235e861b1f107c05ccee1e6e0618def6c6e6b91d51dee033c72144"
+        },
+        {
+          "path": "src/henchman/core/runtime_operations.py",
+          "kind": "file",
+          "sha256": "9bf6ba3e619062d23b6b6da1bc9dd9db5edbfaf1620fe8184b2c8b8e279fb53b"
+        },
+        {
+          "path": "src/henchman/core/runtime_workflow.py",
+          "kind": "file",
+          "sha256": "3d295af918fff34b7dc4c2473bf12369c4b91cbd25463fe4602486da8d68a298"
+        },
+        {
+          "path": "src/henchman/core/session.py",
+          "kind": "file",
+          "sha256": "f1ca70c527ed8d85c76ec67d5cf1e27c0f157de41998bbedc63cf5d5e150524e"
+        },
+        {
+          "path": "src/henchman/core/session_branch.py",
+          "kind": "file",
+          "sha256": "3e013f5f509ba60ab1554784c4a155ae233bc81ff8c75cb0b575a33e5466e06f"
+        },
+        {
+          "path": "src/henchman/core/session_context.py",
+          "kind": "file",
+          "sha256": "a63a1014934ff06e67dc5c2d80c19fa056a3af6e16f046bcba2059d90f34ef82"
+        },
+        {
+          "path": "src/henchman/core/session_data.py",
+          "kind": "file",
+          "sha256": "385885b7db47c88090672aa51f84573152eb1ae807818c86702a9000f03b6a98"
+        },
+        {
+          "path": "src/henchman/core/session_evidence.py",
+          "kind": "file",
+          "sha256": "1cd3674e7e83d5e43f6babd981ca39fabd83584f93b1780dbb8daed61b127a41"
+        },
+        {
+          "path": "src/henchman/core/session_export.py",
+          "kind": "file",
+          "sha256": "cdc23e848a931fe404573371605fc8066c427b11b7ef2f1a354962872ed12994"
+        },
+        {
+          "path": "src/henchman/core/session_helpers.py",
+          "kind": "file",
+          "sha256": "5b757a36e9ff1a42dfda694b96e1e51b5663fc38e84afe97804c2cd08266bdcf"
+        },
+        {
+          "path": "src/henchman/core/session_manager.py",
+          "kind": "file",
+          "sha256": "c31ff5e5a9ffccddfa9e728697c756982cd417e024e244827d4ccb694547880b"
+        },
+        {
+          "path": "src/henchman/core/session_manager_base.py",
+          "kind": "file",
+          "sha256": "9bf6cef7bae48ab5358a87b9eeeacfc2eb1b1e126f1e75e631e02239cf867cc7"
+        },
+        {
+          "path": "src/henchman/core/session_memory.py",
+          "kind": "file",
+          "sha256": "e8c0b2fbd0aff561d1f9c0691de3b13ec29d23a6e1a69e124cd8f78f54891c7a"
+        },
+        {
+          "path": "src/henchman/core/session_merge.py",
+          "kind": "file",
+          "sha256": "67850a8df000bf25ff08aa98aa03ed789ca24c6b8bc87864d95f585188868feb"
+        },
+        {
+          "path": "src/henchman/core/session_models.py",
+          "kind": "file",
+          "sha256": "4ca740ef4405f3f3aa8c286d2d95ae468d8543befdc5210fdbae32cbeee0cc92"
+        },
+        {
+          "path": "src/henchman/core/session_operations.py",
+          "kind": "file",
+          "sha256": "fcf8c2c01c5fa2ebd9d63aeb96ec482db9505e0161e030c7eb4b5e0aaccd32e4"
+        },
+        {
+          "path": "src/henchman/core/session_persistence.py",
+          "kind": "file",
+          "sha256": "612870076da8c25dc325c583dded784be614762121eee66a2845cb1d448c0fa8"
+        },
+        {
+          "path": "src/henchman/core/session_run_accounting.py",
+          "kind": "file",
+          "sha256": "7ebf8fa1b6fa84d2b9f1b794039532ed9ff92ecaefd2138f4b7dccb783fbd115"
+        },
+        {
+          "path": "src/henchman/core/session_templates.py",
+          "kind": "file",
+          "sha256": "6b22ed84ffd142f1ce8b970ffa1e2a7d3c47578a8aa030ced96b9566d89080e4"
+        },
+        {
+          "path": "src/henchman/core/session_vcr.py",
+          "kind": "file",
+          "sha256": "5f662118a3bec61e2f8c10a54a9277f4aceab0afb5e0ce3ec5db692ffd83af39"
+        },
+        {
+          "path": "src/henchman/core/session_workflow.py",
+          "kind": "file",
+          "sha256": "5477ab978fb4542d240a48a8a15d8a3decfff0e5522d003cb7f2a72c23b55155"
+        },
+        {
+          "path": "src/henchman/core/tool_selection.py",
+          "kind": "file",
+          "sha256": "c8ab9c3d02c77b44377df0d17780a8bb191a1340ffc30979af96b78c624335a1"
+        },
+        {
+          "path": "src/henchman/core/turn.py",
+          "kind": "file",
+          "sha256": "f78006d99ec2918b84ccc58eef6a198eb2ff6014ff0294f419dff0d233562600"
+        },
+        {
+          "path": "src/henchman/core/usage_summary.py",
+          "kind": "file",
+          "sha256": "44d9d49696cbbcf0deb82c3962b390d5195b7831224724284cc82f6ec3b3dbe0"
+        },
+        {
+          "path": "src/henchman/core/workflow_state.py",
+          "kind": "file",
+          "sha256": "259c0532eea231ebe8feb902d4868ae3e80699a6b6c18ed87824dc20ef33787e"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/LICENSE",
+          "kind": "file",
+          "sha256": "418cb499b436128d653d79941333a5437b7be2ea9213dcc2f04d15d5d2c51d86"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/PROVENANCE.json",
+          "kind": "file",
+          "sha256": "3353c58c7d22ac0a77362b71de27272f2d96c97c411daed2aff1192b16ec7a2d"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/cl100k_base.tiktoken",
+          "kind": "file",
+          "sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/o200k_base.tiktoken",
+          "kind": "file",
+          "sha256": "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d"
+        },
+        {
+          "path": "src/henchman/entrypoint.py",
+          "kind": "file",
+          "sha256": "80f9c9b2c83ffb4da5c3228e5bfcb326cac559df2e5f09c63ddb73ed3afd8fd3"
+        },
+        {
+          "path": "src/henchman/extensions/__init__.py",
+          "kind": "file",
+          "sha256": "34178fefa75b0ae98a6c95dd8e225dc2ef42305bc7b974f545fb910658651389"
+        },
+        {
+          "path": "src/henchman/extensions/base.py",
+          "kind": "file",
+          "sha256": "e7aece2108a0d8074d81592a2c862961972463f3e977f57c6f50f3dc81761f9a"
+        },
+        {
+          "path": "src/henchman/extensions/constants.py",
+          "kind": "file",
+          "sha256": "ba60f87c8d2cf2b9911e4b8a81dd67ab0033a05596c54545a04c26166151e4a2"
+        },
+        {
+          "path": "src/henchman/extensions/manager.py",
+          "kind": "file",
+          "sha256": "9e8a020451484c322e023fbac507da2acf902dafcead53ffb5d9f0a3d0d2e75f"
+        },
+        {
+          "path": "src/henchman/extensions/models.py",
+          "kind": "file",
+          "sha256": "6e9a497942dacc4a0363611140b46d347d109fe3208bca34ffc9974c349a1ccf"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_compatibility.py",
+          "kind": "file",
+          "sha256": "9cf450f899a52f8b593dbe054ca217bb0ad206d8f84ea0e4169c70198a148837"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_database.py",
+          "kind": "file",
+          "sha256": "bdef2f83a55101d601440313b6cfb2c76f892e7a6ec4f954d0d5bd49d1ce3955"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_installer.py",
+          "kind": "file",
+          "sha256": "9950b9ccd273fab36216516e2d7e569608030b9d98f24f0bd99f0a544de63ff7"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_manager.py",
+          "kind": "file",
+          "sha256": "1a2956005146b86281a9ed748d1edf1fbf9dc9d81b09a05b04d82754f2acaa33"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_registry_client.py",
+          "kind": "file",
+          "sha256": "3feddd0d6f451f9633684b82aaeec5baab76993e0485049cb669d6eb5841efb8"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_security_scanner.py",
+          "kind": "file",
+          "sha256": "665c70506a50708729a794d90b9f65e34825b5025fb2ea474c3d74a5af0e72fe"
+        },
+        {
+          "path": "src/henchman/extensions/sandbox.py",
+          "kind": "file",
+          "sha256": "a29bc76bd4aae8f35011698c8a99518121f02e18c7b0ac6fcfb12c2d27513481"
+        },
+        {
+          "path": "src/henchman/git/__init__.py",
+          "kind": "file",
+          "sha256": "e238359118e36d70f1953faf6a044399f29da6adeca33e8a19717378274e7ef9"
+        },
+        {
+          "path": "src/henchman/git/clients.py",
+          "kind": "file",
+          "sha256": "bb471a145c4a8c3a91ffa50aaaa8b64f1087f92a46fd0be9f5731e35e6857772"
+        },
+        {
+          "path": "src/henchman/git/github_app.py",
+          "kind": "file",
+          "sha256": "b479a92f40d183ba9c1ed638a712d4dd8773430c1149736520f32ec11911c27f"
+        },
+        {
+          "path": "src/henchman/git/review.py",
+          "kind": "file",
+          "sha256": "20de604de096562b39753670353f314a5d98da8363e8fe28eb1ee054ffe9b663"
+        },
+        {
+          "path": "src/henchman/git/workflow.py",
+          "kind": "file",
+          "sha256": "38c108687717ead8b26bda0e115167be24beab2e2b716b9d61053a6e38395f54"
+        },
+        {
+          "path": "src/henchman/integrations/__init__.py",
+          "kind": "file",
+          "sha256": "5c053982a512676c1d362fc16d5638bb7fc2dd4d29ab0de1e84eb78475b988bf"
+        },
+        {
+          "path": "src/henchman/integrations/blueprints.py",
+          "kind": "file",
+          "sha256": "d54eeb6efc3dca7f0a99b85aea505ddccc508979ba1cb96cc627a724ba52f977"
+        },
+        {
+          "path": "src/henchman/integrations/neovim.lua",
+          "kind": "file",
+          "sha256": "484e6d9d743bf8aa6601871a98f973025cf837692d7119fbdfe4962a617916d0"
+        },
+        {
+          "path": "src/henchman/integrations/neovim.py",
+          "kind": "file",
+          "sha256": "f0e7ce8222d1b4b9466a475e0c01b94e8c9025840bf2e64518ffc2aabb9166fb"
+        },
+        {
+          "path": "src/henchman/integrations/voice.py",
+          "kind": "file",
+          "sha256": "0d882ce368992324d5b1d84bd93433f93967e0afaa3807423ec2ee3a6572f241"
+        },
+        {
+          "path": "src/henchman/knowledge/__init__.py",
+          "kind": "file",
+          "sha256": "26720aa7bdc1bc3c82dae74b0ffd47020c74e24bd5114c708b78ab1141a3b014"
+        },
+        {
+          "path": "src/henchman/knowledge/models.py",
+          "kind": "file",
+          "sha256": "6ddd9b832fee81e5725dc214fa3106a8fd252e5678677e698ec0235217a01e12"
+        },
+        {
+          "path": "src/henchman/knowledge/scanner.py",
+          "kind": "file",
+          "sha256": "b0cc3b2550286e9da9d28b2aef21ce4c386e02eb8fb068f39eda598bac424eef"
+        },
+        {
+          "path": "src/henchman/knowledge/store.py",
+          "kind": "file",
+          "sha256": "11c33c79ab1e76eb61d8f2760937321be76a33e72a28317fc0080ff3c0c75676"
+        },
+        {
+          "path": "src/henchman/lsp/__init__.py",
+          "kind": "file",
+          "sha256": "e6e4fe9a8bcb0a12171c29ab29dcf2fec170a125e4efd219bd6fa6aa14dedbf5"
+        },
+        {
+          "path": "src/henchman/lsp/service.py",
+          "kind": "file",
+          "sha256": "47264d62c9813444a85075b077edaa113325acb5406235c7d329d966c8773aea"
+        },
+        {
+          "path": "src/henchman/mcp/__init__.py",
+          "kind": "file",
+          "sha256": "54c3bc6c8d79635fe8c5cc1d5a9df7e5808732b1e24c39d4d9b78b351e089813"
+        },
+        {
+          "path": "src/henchman/mcp/auth.py",
+          "kind": "file",
+          "sha256": "af63376db6b62b7e6bbfd69c3856a77d48c7a4a0590c000f5dde144779c38a0b"
+        },
+        {
+          "path": "src/henchman/mcp/client.py",
+          "kind": "file",
+          "sha256": "de5bb83647ea5bd2bc6f618e469155bb82105a3618112ded7dadab61d8be789b"
+        },
+        {
+          "path": "src/henchman/mcp/config.py",
+          "kind": "file",
+          "sha256": "e9c6aa4b2008f2c9f2f6227ea82ecd4d350eaae5a9e915e4e6a073c551342be4"
+        },
+        {
+          "path": "src/henchman/mcp/context.py",
+          "kind": "file",
+          "sha256": "81a009cf0549738ad216f5c8223b77d6ceb53901f1f1e2543cad5e9273fe7ac4"
+        },
+        {
+          "path": "src/henchman/mcp/credentials.py",
+          "kind": "file",
+          "sha256": "1bab443e5a629b92d072513f08595dc0187f6af89b304c0eca86ed77e032c937"
+        },
+        {
+          "path": "src/henchman/mcp/diagnostics.py",
+          "kind": "file",
+          "sha256": "8965709633edb834060821ad1d0af0db6510a0629a0ed3e8f9a473d132b4c598"
+        },
+        {
+          "path": "src/henchman/mcp/http_guard.py",
+          "kind": "file",
+          "sha256": "bf4be6ad0b2491c538db25d1eb949474f3373231f575ee24b175a8a05678068f"
+        },
+        {
+          "path": "src/henchman/mcp/http_transport.py",
+          "kind": "file",
+          "sha256": "50e4a90587a7839a382bd0b2de13f3e956d022d105a6bf903e6b10eac0a1ebb6"
+        },
+        {
+          "path": "src/henchman/mcp/manager.py",
+          "kind": "file",
+          "sha256": "dabc29d32f6ce1b2032d039dc2cae0fb4e20b6cc8ee0cc17d52d3928ce890c5f"
+        },
+        {
+          "path": "src/henchman/mcp/oauth.py",
+          "kind": "file",
+          "sha256": "b06ef7d345d1724d5dcf38b81a696337f999ca2afa4032168c07f95895b8b730"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_callback.py",
+          "kind": "file",
+          "sha256": "eba83b85bef1c09add3bea6b53504ea05bc33b799a2dc0cefc9731abfb10fbed"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_flow.py",
+          "kind": "file",
+          "sha256": "bf76cc12545ff913ae2e0002a9ac260a78dca55510a304b5f79ab01e1325d967"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_manager.py",
+          "kind": "file",
+          "sha256": "835268ab4c75ef3432f7b630ae3b45eedfac1bab73e3ecc94d785b990f0dfa0d"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_store.py",
+          "kind": "file",
+          "sha256": "bb628f9baa5fe922b7c8b4f35bea95f80d4a358dfc9f1ef93d89a9c4a3e83f95"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_transport.py",
+          "kind": "file",
+          "sha256": "a873aa434713167cdd278ed8492182385bfcb08282af4f542fcdb5c644ba8e3f"
+        },
+        {
+          "path": "src/henchman/mcp/protocol.py",
+          "kind": "file",
+          "sha256": "8fa46d7d4fc9815d4d921084aa9d41f497c2f9b3679f19e7964b4284ea275859"
+        },
+        {
+          "path": "src/henchman/mcp/stdio_transport.py",
+          "kind": "file",
+          "sha256": "92d81ea1fd80dfb75de12a7b2dcbcc536eed920d4247cbd34b809ea3bea337bd"
+        },
+        {
+          "path": "src/henchman/mcp/tool.py",
+          "kind": "file",
+          "sha256": "b7e0a42090d0d28122cdf7f3d579aaf6e63a2e57890c13dc26ef348e0b35499d"
+        },
+        {
+          "path": "src/henchman/metrics/__init__.py",
+          "kind": "file",
+          "sha256": "2782f24186c492614c3fbb020658d5b9400bb246b6020ffeb31da75dd37fd919"
+        },
+        {
+          "path": "src/henchman/metrics/collector.py",
+          "kind": "file",
+          "sha256": "9760e516abf1e742bc737fc167d98d47379217a1d482036b68ab3e0ea078ff4d"
+        },
+        {
+          "path": "src/henchman/metrics/dashboard.py",
+          "kind": "file",
+          "sha256": "aa8a563895d90260f8ef120f6ec3cd890db96b235cbb4b25628cb7548ee31c7a"
+        },
+        {
+          "path": "src/henchman/metrics/evidence.py",
+          "kind": "file",
+          "sha256": "13be308873bf6073bca6949e0d7f87a045b7e7ce4a4ed4e00dbb1cc066757547"
+        },
+        {
+          "path": "src/henchman/metrics/exporter.py",
+          "kind": "file",
+          "sha256": "65ebd2e914f18028c178bcbcc67aba0e7dc827a94ece049a1f792531978792b6"
+        },
+        {
+          "path": "src/henchman/metrics/models.py",
+          "kind": "file",
+          "sha256": "9bc7468460f2d2d9540a6312dab87ba2bec14372eb61a573b9d1250a6f72c08b"
+        },
+        {
+          "path": "src/henchman/metrics/storage.py",
+          "kind": "file",
+          "sha256": "50071a595502b4e816065a357f0b84398799759835a548b7b76c7ea8e4f7c753"
+        },
+        {
+          "path": "src/henchman/ops/__init__.py",
+          "kind": "file",
+          "sha256": "cac2a6d5a19dfd60a8b3f77fc53ab3cbacac8ef5ab3c67fb15724bfd2e211864"
+        },
+        {
+          "path": "src/henchman/ops/flags.py",
+          "kind": "file",
+          "sha256": "8b0606dfdf4e16abc5d6a501a9bdb81ea2b8f35eee20d7986e350c5a993e6c30"
+        },
+        {
+          "path": "src/henchman/ops/migrations.py",
+          "kind": "file",
+          "sha256": "4f5616c6ae12108ed46d919643e18ce7307f126f8775f217c9b53b264754f866"
+        },
+        {
+          "path": "src/henchman/ops/native.py",
+          "kind": "file",
+          "sha256": "147b04210fbba3fada619319c4a69b3d4aed921c6ca081f91406f9457b783c5b"
+        },
+        {
+          "path": "src/henchman/ops/observability.py",
+          "kind": "file",
+          "sha256": "9882ff797268e750615cec031af7c294fc0bf9adad945a30440f4726733ae5c0"
+        },
+        {
+          "path": "src/henchman/ops/operation_store.py",
+          "kind": "file",
+          "sha256": "7f0a8fa1ef6cce55f529d9483c2414fcde2676dd0763d118e72ded85b764c113"
+        },
+        {
+          "path": "src/henchman/ops/rate_limits.py",
+          "kind": "file",
+          "sha256": "0e58075f41375e10bbffd71bc8342aa8aa65cd1e6e67d12c026a73c2975ceb26"
+        },
+        {
+          "path": "src/henchman/ops/release.py",
+          "kind": "file",
+          "sha256": "dd863cfcd963623a1de064cfed99e18f9e93158fc5c1ab7bd94ff4767258f6dc"
+        },
+        {
+          "path": "src/henchman/ops/run_budget_store.py",
+          "kind": "file",
+          "sha256": "e029cf64cee22281a3ee8bc5e4302553c6adb09e3a2a3eebbf6599dc51090376"
+        },
+        {
+          "path": "src/henchman/ops/state.py",
+          "kind": "file",
+          "sha256": "b12428c5218f57b17683e70d6cf516ad80b106b21361cd0f62be1518c12b7e31"
+        },
+        {
+          "path": "src/henchman/ops/store.py",
+          "kind": "file",
+          "sha256": "2c93086b8d80cb9c0f9304ab8c0ee7f570de81c0df893d9694b2ec41bc4ac60e"
+        },
+        {
+          "path": "src/henchman/ops/sync.py",
+          "kind": "file",
+          "sha256": "3d4af9b3bf2ece210a1c2ee2ffd8ce9c9114c82ef9eb58f5a42e0811b49fc599"
+        },
+        {
+          "path": "src/henchman/ops/updater.py",
+          "kind": "file",
+          "sha256": "0722ab79513f9b7da9a6f846f85c7c6c6987e094b5c80981ce3e18a462955ec3"
+        },
+        {
+          "path": "src/henchman/ops/workflow_store.py",
+          "kind": "file",
+          "sha256": "d17691a86b1ad044d7912c9c70adb8048dc9ebafd84b92939f2e60edae16b365"
+        },
+        {
+          "path": "src/henchman/providers/__init__.py",
+          "kind": "file",
+          "sha256": "89322e0686f1cfb1aebe679b11ed2243eddd32cf453c3f8717f291a02a9cf121"
+        },
+        {
+          "path": "src/henchman/providers/anthropic.py",
+          "kind": "file",
+          "sha256": "48d5f953c87ae85bc3d62f00332897229ed68d9136573721b22f9605f8fb56c7"
+        },
+        {
+          "path": "src/henchman/providers/base.py",
+          "kind": "file",
+          "sha256": "feae2c74ff4aa73e0a683e9c3984d7000c2bb6c74d842fcebed920f616f52abd"
+        },
+        {
+          "path": "src/henchman/providers/continuation.py",
+          "kind": "file",
+          "sha256": "d9c91fa8727001f41fae712d30b60d0afbb616365576709e14772c7dfc186d66"
+        },
+        {
+          "path": "src/henchman/providers/deepseek.py",
+          "kind": "file",
+          "sha256": "39727736dadfee4e828c232daf139f8e1382f5e71488222ef9af819ba24a09a4"
+        },
+        {
+          "path": "src/henchman/providers/factory.py",
+          "kind": "file",
+          "sha256": "8c18e85cb85e722466b95535d8a667a31d03eb02ca80768ff1762ceb80dd231c"
+        },
+        {
+          "path": "src/henchman/providers/ollama.py",
+          "kind": "file",
+          "sha256": "feee8eacdf7a35f855d3d095958cc475e5a731b60bd3570aaa2a4603258328a6"
+        },
+        {
+          "path": "src/henchman/providers/openai_compat.py",
+          "kind": "file",
+          "sha256": "3ceffde9402e75a3cea30b151d2ccbc06158474d05e66421a1c45b31e3311faa"
+        },
+        {
+          "path": "src/henchman/providers/openai_compat.py.backup",
+          "kind": "file",
+          "sha256": "2e9b6ea4071f984bc937353cc2125cf0b5ced85924e87d1152a9a339b4fb1784"
+        },
+        {
+          "path": "src/henchman/providers/openrouter.py",
+          "kind": "file",
+          "sha256": "3793f23f62a2e8156d6e508bfc1775ed333a8deeb119fe3fe268f95409b20d03"
+        },
+        {
+          "path": "src/henchman/providers/registry.py",
+          "kind": "file",
+          "sha256": "12f3eec8f0bfb3b8156dbfee6942fbf1cb2b6a9155da12622ad8191e4850a9ff"
+        },
+        {
+          "path": "src/henchman/providers/request_budget.py",
+          "kind": "file",
+          "sha256": "5f82c28ffdbc6ee2bf2e31f6b95614e31a44f8f293267e802eba6629701d4088"
+        },
+        {
+          "path": "src/henchman/providers/runtime_budget.py",
+          "kind": "file",
+          "sha256": "8de74adaccb183197dd1c6bedfa941fa9cd235d705766c30bf76def2b4a4919c"
+        },
+        {
+          "path": "src/henchman/providers/schema_projections.py",
+          "kind": "file",
+          "sha256": "9967ddb5babe9d071a76d6e089e095c00c4c4a6862b46b1f63edb12d0dd4bfea"
+        },
+        {
+          "path": "src/henchman/providers/usage.py",
+          "kind": "file",
+          "sha256": "e31a22723841c021b01287d749d41a8df4aef74395a8133f571e4bede4a84255"
+        },
+        {
+          "path": "src/henchman/providers/utils.py",
+          "kind": "file",
+          "sha256": "52be74d4c3ccdb18ea1a55a1f5d6d24eda65c4bf78e67ccce6044d380d12eab5"
+        },
+        {
+          "path": "src/henchman/py.typed",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "src/henchman/rag/__init__.py",
+          "kind": "file",
+          "sha256": "e466e8ed26583eb64af182c59f7c2a7cf27f3e53d5f6e547632dcd386c233e89"
+        },
+        {
+          "path": "src/henchman/rag/chunker.py",
+          "kind": "file",
+          "sha256": "b07842b148549bbc7f18796e25bab22cf906868d59cb6b5596bd6ba219591d93"
+        },
+        {
+          "path": "src/henchman/rag/concurrency.py",
+          "kind": "file",
+          "sha256": "ac0bea11bec298acf7c99cd4ccf61f28d65f144b2bae05fe5276c4ccb9d0e2ed"
+        },
+        {
+          "path": "src/henchman/rag/embedder.py",
+          "kind": "file",
+          "sha256": "59d6baa4b8cb4eaea956e5b3f370a9d22c24b8884d929f88b8019a598383725b"
+        },
+        {
+          "path": "src/henchman/rag/evidence.py",
+          "kind": "file",
+          "sha256": "1cd221203c44dd34c0e965b66efed5598423156f9c5ab397b02fed9665ad1dfa"
+        },
+        {
+          "path": "src/henchman/rag/indexer.py",
+          "kind": "file",
+          "sha256": "c2095ee7d3082f5cd5b3cf7fef113ca01f00f7dcc117b59ead338db6c4e3516a"
+        },
+        {
+          "path": "src/henchman/rag/repo_id.py",
+          "kind": "file",
+          "sha256": "238ca6e168b93c7b67cbd11c39449ff616e4a1a09aa7335fe2ed9077780d8768"
+        },
+        {
+          "path": "src/henchman/rag/store.py",
+          "kind": "file",
+          "sha256": "74e097404471f9eee41556584de661e229952577417fd8bcdf14902a6e284c74"
+        },
+        {
+          "path": "src/henchman/rag/system.py",
+          "kind": "file",
+          "sha256": "f56436364b6263f4c4876e866a0d9f45746829cb483156c47e094682040140cb"
+        },
+        {
+          "path": "src/henchman/skills/__init__.py",
+          "kind": "file",
+          "sha256": "286e74aaff9a40b6632b549d32eb43ed3599b0bdbafffba8d73bd08fcd225f43"
+        },
+        {
+          "path": "src/henchman/skills/catalog.py",
+          "kind": "file",
+          "sha256": "c8bbc736874aedc263f9375466051d3bbe047e22aecb1c6215cca86bb7f95526"
+        },
+        {
+          "path": "src/henchman/team/__init__.py",
+          "kind": "file",
+          "sha256": "b9c62253c4de054d6c1015456f59d96cdaf627e19221035bf75bf8bd86c4a90d"
+        },
+        {
+          "path": "src/henchman/team/collaboration.py",
+          "kind": "file",
+          "sha256": "948bca73012504f51da2ddd7e0a34273cef079da0cc0b3753634465bae46d9a2"
+        },
+        {
+          "path": "src/henchman/testing/__init__.py",
+          "kind": "file",
+          "sha256": "3f60e46eb1907063abab890ecc05e0560a9d3d43a2cd210f6b850b8adbd7d9b3"
+        },
+        {
+          "path": "src/henchman/testing/contract.py",
+          "kind": "file",
+          "sha256": "e8dbee2ec2654cf4cca198774ee34bf4dc74b23ca3264dceb300e088028df043"
+        },
+        {
+          "path": "src/henchman/testing/pytest_reporter.py",
+          "kind": "file",
+          "sha256": "aadaf7f106b0a188ea38e8527e30043712f8aa902232e669b2c1167aafbb3543"
+        },
+        {
+          "path": "src/henchman/testing/vcr.py",
+          "kind": "file",
+          "sha256": "e98a98fd333a5dd721c2a81736c3558dec2e4808c974e3b38b91d64e62bc5093"
+        },
+        {
+          "path": "src/henchman/tools/__init__.py",
+          "kind": "file",
+          "sha256": "23f80083638a64ec5249c7a2d4821de142a29f64e6555c80ede4aaa29cacb968"
+        },
+        {
+          "path": "src/henchman/tools/access_policy.py",
+          "kind": "file",
+          "sha256": "291ec510d15cb1db11960c996d130ba8c5cd48949b8f6a94aace622e480ee1c9"
+        },
+        {
+          "path": "src/henchman/tools/base.py",
+          "kind": "file",
+          "sha256": "2623d82301f32a7578162cf788570cbeada3377f5f49d090b8dcc9655ed6b998"
+        },
+        {
+          "path": "src/henchman/tools/builtins/__init__.py",
+          "kind": "file",
+          "sha256": "6049edef6ae603977aa51731e9560f345ee784a04202ea138230e033cb55a8ce"
+        },
+        {
+          "path": "src/henchman/tools/builtins/ask_user.py",
+          "kind": "file",
+          "sha256": "0c18b39b31ac0a2e6516ab1fbed2383c3769890651c694a9541330e7384b2326"
+        },
+        {
+          "path": "src/henchman/tools/builtins/code_format.py",
+          "kind": "file",
+          "sha256": "12dc5f00bf2527516317ad06878651955115e2119b9e34dc6a8dc2bb29cb2750"
+        },
+        {
+          "path": "src/henchman/tools/builtins/coverage_map.py",
+          "kind": "file",
+          "sha256": "e134aad3c378a09a1d169447e22506a3068d9c78aff592d0cf8e965f340da2bc"
+        },
+        {
+          "path": "src/henchman/tools/builtins/dead_code.py",
+          "kind": "file",
+          "sha256": "f6414a29f6f99c82dfce17429f4c635b94e95308e6c69e1aaeaf689c33966606"
+        },
+        {
+          "path": "src/henchman/tools/builtins/deep_research.py",
+          "kind": "file",
+          "sha256": "336cb14c0b6ad5a4467ec04151d2edfd5a1974c8f650686465303dfc1b212f2e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/delegate.py",
+          "kind": "file",
+          "sha256": "5e0cdb154a66dcc571ca7aa0b367a31e013489e0515e6330bd67fcac416697bf"
+        },
+        {
+          "path": "src/henchman/tools/builtins/diff_view.py",
+          "kind": "file",
+          "sha256": "7a31a194c8839599af490e84f420bb609ba13d54eb0c54a6d53d5b3ba31c7423"
+        },
+        {
+          "path": "src/henchman/tools/builtins/env_inspect.py",
+          "kind": "file",
+          "sha256": "911d5c540486130cd02c6196502cb0afa5c4336551f83f05e6194951dc4aed6e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_edit.py",
+          "kind": "file",
+          "sha256": "9160cc46ab5276adefa31499575c988040f885078823d1099e5e17db00e03116"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_overview.py",
+          "kind": "file",
+          "sha256": "fc7daee6869f447618f85eff1588e1e029e76b46c76e252d4352c069e30cfb3b"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_read.py",
+          "kind": "file",
+          "sha256": "e147906e45d97e3fc14418f93e42b82ee4fa3cf371b85aae17b4ddafc710275a"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_write.py",
+          "kind": "file",
+          "sha256": "5027d5dd42980c572fc51a458fde4e8ea3010b60405d35465950e148c37eb955"
+        },
+        {
+          "path": "src/henchman/tools/builtins/git_ops.py",
+          "kind": "file",
+          "sha256": "4f800fae65db8f1eb0fb2f04ed0c4873991c477cbe423a79112d732a05e7ed1c"
+        },
+        {
+          "path": "src/henchman/tools/builtins/glob_tool.py",
+          "kind": "file",
+          "sha256": "56a6ae7fa0eddfd5a0d4169edac888b3c137f2026abe2d6e169d73d47dd95dea"
+        },
+        {
+          "path": "src/henchman/tools/builtins/goal_status.py",
+          "kind": "file",
+          "sha256": "1dbc9760f977cdd2b1f26b981b984d28b787d226a8df7c0f7d7ac0bf525e2724"
+        },
+        {
+          "path": "src/henchman/tools/builtins/grep.py",
+          "kind": "file",
+          "sha256": "2cafc9cbc0b64a170d7c1b32ec7c6cb7e9baab7ac6b63868581746ac6e2cd862"
+        },
+        {
+          "path": "src/henchman/tools/builtins/import_graph.py",
+          "kind": "file",
+          "sha256": "0f491bdbcbf95b23bd0710760cc94022296637b8af1d18943491fd2e90404f9c"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_common.py",
+          "kind": "file",
+          "sha256": "13c0b3aba0c4ded8e5a5d784c860d792f6ea0580352e7c1aae0238dc2d61ad32"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_query.py",
+          "kind": "file",
+          "sha256": "6b5f8e4d4bd6bb29d3c75ccc59675e03f77132e991d165f4e51edfa572b4ff23"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_update.py",
+          "kind": "file",
+          "sha256": "79ac0d3e3b254baa8c4633cf0b94a4d24263eb9d18b41d86fc37a4fde0604fee"
+        },
+        {
+          "path": "src/henchman/tools/builtins/lint_check.py",
+          "kind": "file",
+          "sha256": "a579fe67e7c610929f6631f8f86e401bda5d825543861877be181ee1b7a5fab7"
+        },
+        {
+          "path": "src/henchman/tools/builtins/ls.py",
+          "kind": "file",
+          "sha256": "f95966d6a41796dd8a144b4671e423829c186e7fc87757d83eb727074de41876"
+        },
+        {
+          "path": "src/henchman/tools/builtins/patch_apply.py",
+          "kind": "file",
+          "sha256": "96ffda5143a83bf6db91d87cb424828db207900a8448f417d586e0a57a228c18"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pattern_search.py",
+          "kind": "file",
+          "sha256": "d484bf749f67f3f6c6096cca3a9aa14c166f0f3a1d1f73caf0429246e9d3623e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pip_inspect.py",
+          "kind": "file",
+          "sha256": "09b443c506510ab5ca6fb3e10cae5dc0333dd83386a55d586d4375bea2311683"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pytest_run.py",
+          "kind": "file",
+          "sha256": "b7804ffd6a12144bbeaa88fdc0249358864cb26d4cb693b4fa0dfc1396283010"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_ast.py",
+          "kind": "file",
+          "sha256": "ca8fa46f06c9a2b0882b900999417d234a8356d33c126559eb905ee94f3f4437"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_ast_helpers.py",
+          "kind": "file",
+          "sha256": "cda4e9f09b263622e5301ea51b516c0bc80a2af9e61daa5952d135027ebd1a9f"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_exec.py",
+          "kind": "file",
+          "sha256": "fd79a984291ee5e800bfa2de87dc0778639d31dfe3a9a4b7ab2e8416d890a4ae"
+        },
+        {
+          "path": "src/henchman/tools/builtins/rag_search.py",
+          "kind": "file",
+          "sha256": "2d9e78470ce0475c4f5106c10964f9dd8b9aa25a8cc8e7f015c9adc89099e206"
+        },
+        {
+          "path": "src/henchman/tools/builtins/research_notes.py",
+          "kind": "file",
+          "sha256": "f9150202aeab4a4f5e568189ed3c07d22968f442cd580c989017feee33e75404"
+        },
+        {
+          "path": "src/henchman/tools/builtins/shell.py",
+          "kind": "file",
+          "sha256": "8036daf4da8a1ce2dcb26bcb9a81f72c16cf5a7c6ef218bda9a227a72bbbff9e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/shell.py.backup",
+          "kind": "file",
+          "sha256": "4ba2fbe051135bb1aabb2293aead27c298cd690149138fb0f5f7dfda8e4ad112"
+        },
+        {
+          "path": "src/henchman/tools/builtins/subagents.py",
+          "kind": "file",
+          "sha256": "b98b3f983a6840d5879b2706143ef3450cc53df860d927098023e7285af69209"
+        },
+        {
+          "path": "src/henchman/tools/builtins/symbol_trace.py",
+          "kind": "file",
+          "sha256": "f84193a085e4d461f3df2176c1561a6c12d5fa590bdba2bb4a6621bb5b8ef504"
+        },
+        {
+          "path": "src/henchman/tools/builtins/test_gen.py",
+          "kind": "file",
+          "sha256": "3a979741eabdae5e755ea674190c1286423eea5a244124c2fd1272946c15ac03"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier1_tools.py",
+          "kind": "file",
+          "sha256": "3a959ad0a2d4dd9dd0a9dfc2a13717c7c2e73a71efa603d18952de1d25606a2e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier2_tools.py",
+          "kind": "file",
+          "sha256": "468cb2cbb5c3cdc055f4a6bb12bde9a334d607e212d458b6458e2f3861c9c274"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier5_tools.py",
+          "kind": "file",
+          "sha256": "8ffc19bc07aa98ac1d0ce52f3fedbb72db0dab2aeedd11db3b5cf09375dec2e5"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier6_tools.py",
+          "kind": "file",
+          "sha256": "d3526f7f729e0905ddedb9eb7ffcee26ab8be62576429d05995bc1bf4e42412e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/traceback_parse.py",
+          "kind": "file",
+          "sha256": "7dc9a477eec6c962af88d04f787d03ac67c9a5e37024b6939fc9ffc7210124bb"
+        },
+        {
+          "path": "src/henchman/tools/builtins/web_fetch.py",
+          "kind": "file",
+          "sha256": "3b8764f6957a156ad86cd837dd797cb29f567fa125c83707c18fb3e4d236c64e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/web_search.py",
+          "kind": "file",
+          "sha256": "973e9a0a73776f7bc9bb616bbf67f7961c4cfa83f320f3b8b700aa915cffae7a"
+        },
+        {
+          "path": "src/henchman/tools/checkpoint_capture.py",
+          "kind": "file",
+          "sha256": "1a879941a49540da3b5a16c3c2d2d8141733c57ef1d0cd92ef062f7001e42000"
+        },
+        {
+          "path": "src/henchman/tools/contracts.py",
+          "kind": "file",
+          "sha256": "6d05a5dc68f8680e7ea8dea2843a17d70f32dc28cd6db38fa595629aab688687"
+        },
+        {
+          "path": "src/henchman/tools/formatting.py",
+          "kind": "file",
+          "sha256": "51f16ea009446af52ba189b16384873fc56be359c65faf6948024259e05ccf48"
+        },
+        {
+          "path": "src/henchman/tools/http_security.py",
+          "kind": "file",
+          "sha256": "71e5a6d9daed1a7faccd357b2ced5792b4bf62bf35497b5f35aae0f5c58bef93"
+        },
+        {
+          "path": "src/henchman/tools/policy.py",
+          "kind": "file",
+          "sha256": "bf4797751c49229f4b48f76f265540dc3dc2afe4c8ee8ba9eeeae337ea096327"
+        },
+        {
+          "path": "src/henchman/tools/registry.py",
+          "kind": "file",
+          "sha256": "6672c80616ba4cf235576bf77b721ed727eeead5e396e035dd0af89dffe7ec78"
+        },
+        {
+          "path": "src/henchman/tools/repair_scope.py",
+          "kind": "file",
+          "sha256": "e5787fce647cabfc0ceb88d3b61a48d64793646d79c71b7f43644d8e732ae7da"
+        },
+        {
+          "path": "src/henchman/tools/scoped_registry.py",
+          "kind": "file",
+          "sha256": "f784e516894d26dd043ad0d9804d76e554bd853b6cec4e69747e82388899d417"
+        },
+        {
+          "path": "src/henchman/tools/security.py",
+          "kind": "file",
+          "sha256": "d6ece7dccb542aa15d60b95b98a940ff4b4889e6e82f316fcbddfe2b18fd331d"
+        },
+        {
+          "path": "src/henchman/tools/security/__init__.py",
+          "kind": "file",
+          "sha256": "7b57a3547aab17b5863141a929a07dafe67cef5726d2fcb36ae42df4f449d1f0"
+        },
+        {
+          "path": "src/henchman/tools/security/__init__.pyi",
+          "kind": "file",
+          "sha256": "f6907d748d2c33f6116e09301f9c91ab3396809e9ecbbee015640392b4519f00"
+        },
+        {
+          "path": "src/henchman/tools/security/shell_secure.py",
+          "kind": "file",
+          "sha256": "ff23801790496cae53a3d1a9fe4ed7154ff12f9308e673d418761327379203dc"
+        },
+        {
+          "path": "src/henchman/tools/snippet_formatting.py",
+          "kind": "file",
+          "sha256": "fa21bb9b5a0ee1cc8fb91f2bc3b41572ac38cb413285a142a020451e5211e722"
+        },
+        {
+          "path": "src/henchman/tools/subprocess_utils.py",
+          "kind": "file",
+          "sha256": "44d63fe2e73cc3a5ca9ee822efa9d60a3f5c7d0a94afcf89f676d4e880a9dc91"
+        },
+        {
+          "path": "src/henchman/tools/utils.py",
+          "kind": "file",
+          "sha256": "8cba760c4c92796d06cf7628dfc933ed3b473eedd4bcbcc94a1f292d6a4ff018"
+        },
+        {
+          "path": "src/henchman/utils/__init__.py",
+          "kind": "file",
+          "sha256": "5e6bce0fa4f82f218e7d1c745c7f85f5b84593310bd7b42629414cd96495e4a0"
+        },
+        {
+          "path": "src/henchman/utils/cluster_utils.py",
+          "kind": "file",
+          "sha256": "cda1c6d470d58ef08d50a43f8dc98060327472ecf2f0d841ed1a90ee8ade3f3e"
+        },
+        {
+          "path": "src/henchman/utils/compaction.py",
+          "kind": "file",
+          "sha256": "1bb138c8a0aec8ece8db0df8e5a165a20972c8b6c0c189431a1d793664221708"
+        },
+        {
+          "path": "src/henchman/utils/compression_strategy.py",
+          "kind": "file",
+          "sha256": "7c235bae6ebbe7cfb81cbe100cae6bf697d0b952e2f950a9be6108bc6439414c"
+        },
+        {
+          "path": "src/henchman/utils/context_attachments.py",
+          "kind": "file",
+          "sha256": "fb41ad428baa30c3ed97dc8363425eb97e86d82879d34778ced30657d8ef5325"
+        },
+        {
+          "path": "src/henchman/utils/evidence_redaction.py",
+          "kind": "file",
+          "sha256": "8d6a608aa5ccf7b27aca019872ab04895a201b2d8d595a52558277e9299c3099"
+        },
+        {
+          "path": "src/henchman/utils/exception_evidence.py",
+          "kind": "file",
+          "sha256": "299ba6d23bd33b00a18d4dfdb5adaf011b82e49f31451f60d2a9529983021d6a"
+        },
+        {
+          "path": "src/henchman/utils/file_lock.py",
+          "kind": "file",
+          "sha256": "3485124862c484b641598d2577fd13467790dceb4f6c3bb7705172fba7a262dd"
+        },
+        {
+          "path": "src/henchman/utils/importance_scorer.py",
+          "kind": "file",
+          "sha256": "18767661f31f2d87fd1fb7597bb1363149ad150adac0e7797419b2f49ffd9c53"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context.py",
+          "kind": "file",
+          "sha256": "67811dbc9b8885416ee0dd4f59fd065e56391168142878a4c1b31e5ff6093dbb"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_aggregator.py",
+          "kind": "file",
+          "sha256": "9802f745cab0f2874341e05d6db872946422997783ffe6005694d1ff38ff0d42"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_config.py",
+          "kind": "file",
+          "sha256": "14d47e7d624f95606b1316efc29b8d56fea2538ca2e423bdab2721c3cd7d03f8"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_detector.py",
+          "kind": "file",
+          "sha256": "0ea34b8469c93c23beeee02aa3fe3c567c6e6428e15febca5b131dd3314427f3"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_extractor.py",
+          "kind": "file",
+          "sha256": "e376d8a0e2b8858108964c4176401d4c6747c5615890ebaf540147fe95bf2f7c"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_formatter.py",
+          "kind": "file",
+          "sha256": "606f26018e5ca54e3bb830cee2c67edcbb6719806179d181a98163daf3c7f3e2"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_parser.py",
+          "kind": "file",
+          "sha256": "02b91a99969abb42e5675527821f7618f2747edea3bc7d2a67c3c31b521e444a"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_summarizer.py",
+          "kind": "file",
+          "sha256": "880ca36787d429fe992bc5bb6a1e00ec8885df12951ec06dbaa8f7da678d67fb"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_topic_extractor.py",
+          "kind": "file",
+          "sha256": "6d2ed89ed44273ffe98e4ec95750024ea2625ae0d7517424f6ffa68727ffc524"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_types.py",
+          "kind": "file",
+          "sha256": "89b665021b072aee027a1fc14179cd0384d54140cc00b39e936869690c544b16"
+        },
+        {
+          "path": "src/henchman/utils/lazy_import.py",
+          "kind": "file",
+          "sha256": "c8eb7187c0deb3f8876425cb67299619c72b494110fb8311e490147632b3197d"
+        },
+        {
+          "path": "src/henchman/utils/message_analyzer.py",
+          "kind": "file",
+          "sha256": "8445604f5995c65c47a6f03aae58afde6cd16b48ce9268eded080847986b03eb"
+        },
+        {
+          "path": "src/henchman/utils/message_clusterer.py",
+          "kind": "file",
+          "sha256": "299971ab852370289810a613c9ea000ff43653c6821e182f2d5751731f1136e7"
+        },
+        {
+          "path": "src/henchman/utils/message_compactor.py",
+          "kind": "file",
+          "sha256": "35557e3d41a089acdc5e5891a4e55be4b5faa532bdbb11190a0d759e53d04da6"
+        },
+        {
+          "path": "src/henchman/utils/network_hosts.py",
+          "kind": "file",
+          "sha256": "2836121176f24c13e12deac021c4e0809a1b1a80f52efb90b6f012df67ef47c7"
+        },
+        {
+          "path": "src/henchman/utils/pipe_output.py",
+          "kind": "file",
+          "sha256": "6f2cfbcfac380d9d30afc06aa1eb1f11700080444028546aaae7b029aa098347"
+        },
+        {
+          "path": "src/henchman/utils/ratelimit.py",
+          "kind": "file",
+          "sha256": "0e52d587c8956c4ffe5896d2f89c660b539d4242eaa52252dd11096f4729dec0"
+        },
+        {
+          "path": "src/henchman/utils/registry.py",
+          "kind": "file",
+          "sha256": "ac7aef3f0a8b34c3e715ba9a6b5031013f3ef47e17ea1905cbbda46a44b44597"
+        },
+        {
+          "path": "src/henchman/utils/retry.py",
+          "kind": "file",
+          "sha256": "838787d84f0dbd5ede6aa5151bcb9948fb46fe151e9cc76c030c00b1eaab1153"
+        },
+        {
+          "path": "src/henchman/utils/serialization.py",
+          "kind": "file",
+          "sha256": "2ced96e7883c6dccadd5465a6714acd5311f3521759c46a886b10a94c85ff719"
+        },
+        {
+          "path": "src/henchman/utils/sorting_utils.py",
+          "kind": "file",
+          "sha256": "c56f84a91213e593eb9326dc9fa7f95136ace17a47cb06b9bf7c36c1ee567b98"
+        },
+        {
+          "path": "src/henchman/utils/source_files.py",
+          "kind": "file",
+          "sha256": "d798c687eea41a49a887543b6fcb985fef64d2fdfdce2af22aca9c223f6766f7"
+        },
+        {
+          "path": "src/henchman/utils/token_encodings.py",
+          "kind": "file",
+          "sha256": "26e5f24e69af223240dbeb2961d279190e1ce61fb3aeb2f2949ccdf6ba6f4add"
+        },
+        {
+          "path": "src/henchman/utils/tokens.py",
+          "kind": "file",
+          "sha256": "7828527cc0c18dbe3fcfed2a426788ea783e704cd9cf0e1cbb2a4c2993d6a8e3"
+        },
+        {
+          "path": "src/henchman/utils/tool_results.py",
+          "kind": "file",
+          "sha256": "fb4188d5126d92b128432b32d76d04423b2e629af16ee1c8de7b5850b0756330"
+        },
+        {
+          "path": "src/henchman/utils/validation.py",
+          "kind": "file",
+          "sha256": "8b4fdbc6bd31b53f9261676b97aabc2a2e6523e5ead4c022dec0c298d53cfd64"
+        },
+        {
+          "path": "src/henchman/version.py",
+          "kind": "file",
+          "sha256": "533f5aa8d6ff2626562eb8262e6fb110de11e334852bbaf2068877f62d877dcb"
+        },
+        {
+          "path": "tests/__init__.py",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "tests/cli/__init__.py",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "tests/cli/ui_scenarios.py",
+          "kind": "file",
+          "sha256": "6effcb8a8fb87a35eca0269ddfe11bf4f71fb523fc817a539f4f5f69541adb28"
+        }
+      ]
+    },
+    "candidate": {
+      "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+      "files": [
+        {
+          "path": "pyproject.toml",
+          "kind": "file",
+          "sha256": "6d0d8a2f8dd71cb1d8809a2affb562da527418b03881d17991dd16abc481eb35"
+        },
+        {
+          "path": "src/henchman/__init__.py",
+          "kind": "file",
+          "sha256": "65f0292f828096cf1fe56d1e65dd72dd4b5f22d3cd965e43606829428fe720e9"
+        },
+        {
+          "path": "src/henchman/__main__.py",
+          "kind": "file",
+          "sha256": "06dd2246acdea3d581585edcb971dfcfba9b5e40b0614591617cd37bc5b7bce0"
+        },
+        {
+          "path": "src/henchman/advanced/__init__.py",
+          "kind": "file",
+          "sha256": "be47334d49843060a3980b599f194806230a6b827b22ba5c88e134e63cd50455"
+        },
+        {
+          "path": "src/henchman/advanced/acceptance_checks.py",
+          "kind": "file",
+          "sha256": "ba5183eff659c7d21501ab62d48dbcd6c20a7cb3146f4487eb74ccc6288bea2b"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_codec.py",
+          "kind": "file",
+          "sha256": "0c51a97817e652b5298a85edb013be46d95f86f7197b3c329d93d94d3ed773e5"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_files.py",
+          "kind": "file",
+          "sha256": "18b5fd325a69de5f9ecaab0c70b08e2eaab500addffc6dc1fdac218d5094f2f5"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_models.py",
+          "kind": "file",
+          "sha256": "51f0cbed6de812fc0bbc6d2efb5410b27be1d6212952217646d42a124ce89665"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_store.py",
+          "kind": "file",
+          "sha256": "04716836f02110c0d9d116ced8a8662fcc34bd3138edbb73217dfae49b14cc54"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_windows.py",
+          "kind": "file",
+          "sha256": "dc8c08efd469ce5cbf3574f539210128b40c3d9765e46cefe6ab0631ddb8e30d"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoint_windows_restore.py",
+          "kind": "file",
+          "sha256": "834918a4e316d6f93396ad65689cc763bb690c3c59ca9a018e17a23301473b36"
+        },
+        {
+          "path": "src/henchman/advanced/checkpoints.py",
+          "kind": "file",
+          "sha256": "ccc456ef946bf902f83240c402f99313fd6abbe222100f9cdcf3cbef6ccb27e9"
+        },
+        {
+          "path": "src/henchman/advanced/insights.py",
+          "kind": "file",
+          "sha256": "98c664c8bf1a6a3e31b526c38856cdb44f90ec8e852ca1497b59f7fa7bf9d706"
+        },
+        {
+          "path": "src/henchman/advanced/plans.py",
+          "kind": "file",
+          "sha256": "150c644ee2ff938554916412defbfa209e02019ccf91aa79e26aec930f3f3ea2"
+        },
+        {
+          "path": "src/henchman/advanced/repl.py",
+          "kind": "file",
+          "sha256": "1d68544c56dacbd7c6943583e41e859ab7ebf2c10b9b107a3ca4d3074f99132a"
+        },
+        {
+          "path": "src/henchman/advanced/schedule.py",
+          "kind": "file",
+          "sha256": "809b85abbee901222498b030985b893dce5af5829b2acde492cf4cbc4969321f"
+        },
+        {
+          "path": "src/henchman/advanced/task_output.py",
+          "kind": "file",
+          "sha256": "fe8f64864540e5f0a2f2a2f84e3591b1373554917617daacf1acaab6955b5328"
+        },
+        {
+          "path": "src/henchman/advanced/task_store.py",
+          "kind": "file",
+          "sha256": "f1cb62cae05c3f2a89889f6908462e134ad6af694eb3f9ed4eef955314361fca"
+        },
+        {
+          "path": "src/henchman/advanced/tasks.py",
+          "kind": "file",
+          "sha256": "78f0bff38f166c2cf590d0c61b4fd8ab1401c51b516061b6ad3ca4d2a7c9722b"
+        },
+        {
+          "path": "src/henchman/advanced/tungsten.py",
+          "kind": "file",
+          "sha256": "1aea4ff028fa6a2a21f94a038ba6a9560b02a8a34913b52f6e65f10a0749b4b3"
+        },
+        {
+          "path": "src/henchman/advanced/verification_evidence.py",
+          "kind": "file",
+          "sha256": "17ce8283ec6142d55e83ceddffe387114ee92adab0d43c16a6f719d69df14321"
+        },
+        {
+          "path": "src/henchman/advanced/verification_inputs.py",
+          "kind": "file",
+          "sha256": "668b61f9d5c986660de14e673ebd672d671c67d22491fe4a8828202a1c042a35"
+        },
+        {
+          "path": "src/henchman/advanced/verification_repair.py",
+          "kind": "file",
+          "sha256": "985f61e3b4c47a579f114cb62037da0e8512134d2a5e65d7e15f4c632229ff74"
+        },
+        {
+          "path": "src/henchman/agents/__init__.py",
+          "kind": "file",
+          "sha256": "a7a20db4d10cff3f74deeaa61270796407a6e5bc6ed95649120b60e9ae4afe1c"
+        },
+        {
+          "path": "src/henchman/agents/catalog.py",
+          "kind": "file",
+          "sha256": "9e73e9e0b7eac9861ae14ea732d07ed6c9a57f65faee27dcf60c19c22803dcf0"
+        },
+        {
+          "path": "src/henchman/agents/config.py",
+          "kind": "file",
+          "sha256": "76e91085f163896bd30bd9886c993acfc9f94d87ec994cb8551fe82f2a36b59f"
+        },
+        {
+          "path": "src/henchman/agents/delegation.py",
+          "kind": "file",
+          "sha256": "1943c797bea0b2308c07981c31fae91b67c6dc8cd8845248378e3b40e42154ce"
+        },
+        {
+          "path": "src/henchman/agents/delegation.py.bak",
+          "kind": "file",
+          "sha256": "b851e41feb2a3d477c4bb52bb691e86d859dc2ce5ac60baf9059d1025c3f43e0"
+        },
+        {
+          "path": "src/henchman/agents/delegation_admission.py",
+          "kind": "file",
+          "sha256": "e9a544f7be231dc19c3f9913806e0e061635d4d0dffbd4567d22470c7859076a"
+        },
+        {
+          "path": "src/henchman/agents/delegation_manager.py",
+          "kind": "file",
+          "sha256": "0af5f683608a86cadcd038b46f0f99af3ea9fc358a98aad1d2169f09b6ff94b7"
+        },
+        {
+          "path": "src/henchman/agents/file_read_decision_maker.py",
+          "kind": "file",
+          "sha256": "0970d892dab9fa32b546aab53c1676aeffa8b3cdb59a780192bba721dddfcd88"
+        },
+        {
+          "path": "src/henchman/agents/identity.py",
+          "kind": "file",
+          "sha256": "4a49e5e93539c8abf530bb09f80c80dba4095337dfaadbef0014cbbb36ea92a1"
+        },
+        {
+          "path": "src/henchman/agents/instruction_runtime.py",
+          "kind": "file",
+          "sha256": "0459f2bf92f499d64e93b587904e3f9ca229e34e6ff31c11c57d15c89cd82c07"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py",
+          "kind": "file",
+          "sha256": "774114aa4010b864a8cb35ba17e92826220982e3f4d1ed3052efcb838b0094cd"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py.backup",
+          "kind": "file",
+          "sha256": "395e438b518ba0fa84f35c68afa2287fff6ed0c9852d1a8575da77650f2976fb"
+        },
+        {
+          "path": "src/henchman/agents/ledger.py.backup.refactor",
+          "kind": "file",
+          "sha256": "023a745478fe8f82cee085d48228c0be08bd0f44c126870ba062ee2348af4f8c"
+        },
+        {
+          "path": "src/henchman/agents/line_range_utils.py",
+          "kind": "file",
+          "sha256": "9810cd2ac81bb6373971ab437534a1a77ffef476b2d5524b3df14638fd4607d7"
+        },
+        {
+          "path": "src/henchman/agents/metrics.py",
+          "kind": "file",
+          "sha256": "8a7a16a486b1e8787cc2e834e3ecbbe42c5f631077a9d5117f417d12a3b35423"
+        },
+        {
+          "path": "src/henchman/agents/metrics_reporter.py",
+          "kind": "file",
+          "sha256": "4843b2618bfd0bb0f8849cb8545bd4ebace5bc93d053a90da3413b85a787639f"
+        },
+        {
+          "path": "src/henchman/agents/models.py",
+          "kind": "file",
+          "sha256": "8d63eae492457c78cc90d471982c147303b8a56dc7dcaf58ef13197e86070226"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator.py",
+          "kind": "file",
+          "sha256": "bdf9ed6c54cd790ce6b5dac17cba0a8d2bfbc7bf90e1754bbec07eb92e7d224d"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_anchoring.py",
+          "kind": "file",
+          "sha256": "b43870f63493ecf18b950f44420e41620848129a494b77dd9753fd715f794a52"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_components.py",
+          "kind": "file",
+          "sha256": "63b3538b52fa43f0237aa0232e5cd0df7081103320d67288ea0180905f175ce0"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_delegation_ctrl.py",
+          "kind": "file",
+          "sha256": "3eaf4aa85d37d97f6dc3536e2d7ed5e3491cd77e6fd11c38f79649c830c9a1c4"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_events.py",
+          "kind": "file",
+          "sha256": "862cada2f11896ad6fd03554d5baf566f99fe1d94dfc848adce4d32c70e96e70"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_execution.py",
+          "kind": "file",
+          "sha256": "097e4d53d114f701793432226295958e400e25b025b336953ea783ad68f3a17a"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_init.py",
+          "kind": "file",
+          "sha256": "81ccc49700e82bad2b90715dcd213efed8e76a3c72260ca9473424e6b313fb5a"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_loop.py",
+          "kind": "file",
+          "sha256": "e3dff9025fe52c88feae8620b8a9346a5ee62792a943f26a4e370d5b0ef16f23"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_metrics_ctrl.py",
+          "kind": "file",
+          "sha256": "af095944f4bbea421684a7923d5299df75786c4089201cf29c494b01fbce28f8"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_prompts.py",
+          "kind": "file",
+          "sha256": "14c57045228b2d728eba8abbbed312ff45acc561f812e09f79a888032980604e"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_repair.py",
+          "kind": "file",
+          "sha256": "ccf97ecd9a6a63ec2e10ccf2dabf637ce7e8028ebe02fb8a78d482a0ca589748"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_run.py",
+          "kind": "file",
+          "sha256": "8b68c7d8e7f6fa45aac501f9933af034211f4c8f3be561524f741db8a4687e5b"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_tech_lead.py",
+          "kind": "file",
+          "sha256": "e9d83cb4b9f07e800a1b2feab63cc6905553b752423c01c3b1560cee32e8b4cf"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_timeout.py",
+          "kind": "file",
+          "sha256": "21b7c52fc64865bf1454ec47f0c747d1e0e7879f4554ad8e077a3169e5217eca"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_tools.py",
+          "kind": "file",
+          "sha256": "39b39ef5aeec8bbc7ca048bf88402b247654cd5deebf01fdaa3ea9fad3c37d68"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_turns.py",
+          "kind": "file",
+          "sha256": "44df49e908227c3aaf15aad5d7b3bcc1ca15c85efefb5d4f31f6ccfcdcef0c4d"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_types.py",
+          "kind": "file",
+          "sha256": "aeed047b9e65ec8f2332af7b3687a7af97c10619a4c948e15d55e4e1c9c1907b"
+        },
+        {
+          "path": "src/henchman/agents/orchestrator_validation.py",
+          "kind": "file",
+          "sha256": "3f9dc536ce60465a3739b750a1f3261eb5dc06a1eee337127d9c2481c494d7d5"
+        },
+        {
+          "path": "src/henchman/agents/platform_manager.py",
+          "kind": "file",
+          "sha256": "b7734290f1ded3a05162759789652474dec12d7966595a6796c741c35fba9b1c"
+        },
+        {
+          "path": "src/henchman/agents/pool.py",
+          "kind": "file",
+          "sha256": "0d04c40f43bdc4a7601b69f96431ecb66103e80cafb9b9fb22c13ed1c35bd288"
+        },
+        {
+          "path": "src/henchman/agents/presets.py",
+          "kind": "file",
+          "sha256": "dbc6033eec364208b523490ac300c6007f4053b19bbadc0da2942c80c1ba7d50"
+        },
+        {
+          "path": "src/henchman/agents/prompts.py",
+          "kind": "file",
+          "sha256": "58111d163fab64aebe19278f31c343cd121bbfdc76522a4e1b56d658aadc7584"
+        },
+        {
+          "path": "src/henchman/agents/subagent_runtime.py",
+          "kind": "file",
+          "sha256": "c73a8659097e88b9bdf3f4ea174f4719c067438d60d62863aeda47f9a8bde914"
+        },
+        {
+          "path": "src/henchman/agents/subagents.py",
+          "kind": "file",
+          "sha256": "cf771f5b0643a00d79003c69609dd5af099dea77f62c99f41af162e19ac12b67"
+        },
+        {
+          "path": "src/henchman/agents/working_memory.py",
+          "kind": "file",
+          "sha256": "be739b32f2dce21f668e2b4f368dfc59e0399ff99d0dbf2bb4713562d68d1ffe"
+        },
+        {
+          "path": "src/henchman/agents/workspace_ownership.py",
+          "kind": "file",
+          "sha256": "9d5c2109ec030b6611649b08e3039ca7df0c3f85762cfb6a4350b10ced27f90a"
+        },
+        {
+          "path": "src/henchman/analysis/__init__.py",
+          "kind": "file",
+          "sha256": "65c757b350f5db73440386bb83704a9698cf893aa35ffd895d5edfc4e7b91e5c"
+        },
+        {
+          "path": "src/henchman/analysis/repository_evidence.py",
+          "kind": "file",
+          "sha256": "a56fbc6541466d028e3ed4e5f94d83677e36135684c6d22e0047934d98cda0c8"
+        },
+        {
+          "path": "src/henchman/analysis/repository_search.py",
+          "kind": "file",
+          "sha256": "d6110a782aac4d79bb6ffe25c84a9d96976e47ebdfd7ca7ee3ccdb21022cc0db"
+        },
+        {
+          "path": "src/henchman/analysis/repository_sources.py",
+          "kind": "file",
+          "sha256": "b64e3db621c28eddeb4c90b48c8de5e9a4cba752b77f1e2ced4f065047b05e35"
+        },
+        {
+          "path": "src/henchman/analysis/smells/__init__.py",
+          "kind": "file",
+          "sha256": "f5b4cdbd2c6e18eeb334123e4256e94f50fc8b0a0380ca5f76ce77a585cb36a4"
+        },
+        {
+          "path": "src/henchman/analysis/smells/base.py",
+          "kind": "file",
+          "sha256": "c53a62838ff7de5b145b2f7ff480e49810dcbbbeb341759916a0d1d69f769291"
+        },
+        {
+          "path": "src/henchman/analysis/smells/deep_nesting.py",
+          "kind": "file",
+          "sha256": "e1cb5ae4f4e50e56740000309bf45825164bbb9e75855f3321d17202ad8f04f5"
+        },
+        {
+          "path": "src/henchman/analysis/smells/duplicates.py",
+          "kind": "file",
+          "sha256": "4cb7d01662d5af6e074d87286af8cdd2154a2be8317774e529f9df6adfe668d5"
+        },
+        {
+          "path": "src/henchman/analysis/smells/long_method.py",
+          "kind": "file",
+          "sha256": "fa992c528f46eb7ebe83fb6997ea2b6363ddc4e0571ae374836ea906ef508593"
+        },
+        {
+          "path": "src/henchman/analysis/smells/models.py",
+          "kind": "file",
+          "sha256": "5374eb02b4b9a631bef66d052e3bbf56e306a6b94bc76c73c4125b669ecce461"
+        },
+        {
+          "path": "src/henchman/analysis/smells/scanner.py",
+          "kind": "file",
+          "sha256": "e692e39e0b6e49822b7b008f399026a875ae7fa2b430c63d4915cf905702777f"
+        },
+        {
+          "path": "src/henchman/analysis/smells/symbols.py",
+          "kind": "file",
+          "sha256": "98a87ecb49d52ea227c92a36c9c790d5ea9d1864c4a6fe40fbfcc4889f0dfc66"
+        },
+        {
+          "path": "src/henchman/api/__init__.py",
+          "kind": "file",
+          "sha256": "89d1f1c2985a316a3c8bbf144ed3276879e2f1aa35a5da97a03a63b576ec19d9"
+        },
+        {
+          "path": "src/henchman/api/auth.py",
+          "kind": "file",
+          "sha256": "c336f0fea10ca4e38393182a7bf5e5c77b87541b48057f32a29d37537e2f3cf6"
+        },
+        {
+          "path": "src/henchman/api/endpoints/__init__.py",
+          "kind": "file",
+          "sha256": "1b27f4522425ac66515df27322f0b420f0f3e11b31b8947632fba8ee9f26ee82"
+        },
+        {
+          "path": "src/henchman/api/endpoints/chat.py",
+          "kind": "file",
+          "sha256": "eaf27f5557ddeb6afe7f568852afe420d99caceb5d570ca8a2ddeaa9755b5837"
+        },
+        {
+          "path": "src/henchman/api/endpoints/health.py",
+          "kind": "file",
+          "sha256": "ecfeabfba72fcc7262ac8dd0ccce14c19c31ed6551f824937a577fc0bc27e6eb"
+        },
+        {
+          "path": "src/henchman/api/endpoints/remote.py",
+          "kind": "file",
+          "sha256": "99546d02f38375037e5c2723e583b59e5c44527d3ca356d52687b449fd33b0f5"
+        },
+        {
+          "path": "src/henchman/api/oauth.py",
+          "kind": "file",
+          "sha256": "3264ad97f082cf5ab4de35b00d00ffeff979f4dd9e9cb097802c699f97324717"
+        },
+        {
+          "path": "src/henchman/api/proxy.py",
+          "kind": "file",
+          "sha256": "de88fca2af7c9407e8589b072135491634763758044b05b3e625c762779c646c"
+        },
+        {
+          "path": "src/henchman/api/remote_sessions.py",
+          "kind": "file",
+          "sha256": "7bb4278b8569900882d562cfcff53a891db5b0ac86d283a550c67d75fd834346"
+        },
+        {
+          "path": "src/henchman/api/run_accounting.py",
+          "kind": "file",
+          "sha256": "7d7815bbd49dfa024ec1a446ddebbe72a98fbef7a56cdc09f9d0a37de0917b87"
+        },
+        {
+          "path": "src/henchman/api/server.py",
+          "kind": "file",
+          "sha256": "66ca16174a1ad96b04ecb8ddf89fffca07049f7cb66115e9ac4939cf4ac48e59"
+        },
+        {
+          "path": "src/henchman/api/state.py",
+          "kind": "file",
+          "sha256": "e21760f99bfe051fbc497fa5a16e82229061ab198ff7cc5a71dbf9332850057d"
+        },
+        {
+          "path": "src/henchman/chat/__init__.py",
+          "kind": "file",
+          "sha256": "9c02e56b934b8755ac592eedeb2875974bba7171295651479d5624c58277b4aa"
+        },
+        {
+          "path": "src/henchman/chat/base.py",
+          "kind": "file",
+          "sha256": "73b3c0a622dad56483fc92f5991d758050c03d4ddda47342e74dbf070d2aa34b"
+        },
+        {
+          "path": "src/henchman/chat/discord_bot.py",
+          "kind": "file",
+          "sha256": "f3d6d097c97bd6c74a856f243249348adac76658aa93436f537453db1777df7b"
+        },
+        {
+          "path": "src/henchman/chat/manager.py",
+          "kind": "file",
+          "sha256": "81fe805ceff40eef743b7353639737922097a012269a667d86f06ff088cf3c3f"
+        },
+        {
+          "path": "src/henchman/cli/__init__.py",
+          "kind": "file",
+          "sha256": "6cfe4d9a0077a97605c1189a388ef2810c75c4947954acb63ad301b7a2b328c9"
+        },
+        {
+          "path": "src/henchman/cli/accounting.py",
+          "kind": "file",
+          "sha256": "21904a463dd23b7f3d35c32c4f0c4e627cac3feff3594e13383b1c0f841b77de"
+        },
+        {
+          "path": "src/henchman/cli/app.py",
+          "kind": "file",
+          "sha256": "9a1b3c5bd5fe4317b0a4cf4241f0e437b146c3d5c8ecaee47673363740469b99"
+        },
+        {
+          "path": "src/henchman/cli/chat_serve.py",
+          "kind": "file",
+          "sha256": "dfc1ec9180b6c6b28d32bd0a8157a9a631069a5c35d903a06afa5c19a22fe4d9"
+        },
+        {
+          "path": "src/henchman/cli/command_processor.py",
+          "kind": "file",
+          "sha256": "4dd2c60615817ee541f01ae5e498e4f0c251ad86293efd158c930703279aeb05"
+        },
+        {
+          "path": "src/henchman/cli/commands/__init__.py",
+          "kind": "file",
+          "sha256": "481998293f647f4a6e5790c9b43a23013ad74fd0f93cb6afd4dbb16a1a65b285"
+        },
+        {
+          "path": "src/henchman/cli/commands/agent.py",
+          "kind": "file",
+          "sha256": "7e92bd9784b42789f6a25a21ef9af5e58d0b1ee146c9273358240fd846ca0391"
+        },
+        {
+          "path": "src/henchman/cli/commands/agents_platform_command.py",
+          "kind": "file",
+          "sha256": "d9d08fb6b63a5a7ed6210da81126e734032d1e52446bb115f7a1f5d9bb6d54b3"
+        },
+        {
+          "path": "src/henchman/cli/commands/builtins.py",
+          "kind": "file",
+          "sha256": "a92e88cab5c96efdb8e751d3e7f4a73def09fd0037e3fa4dbbd33de8fce41534"
+        },
+        {
+          "path": "src/henchman/cli/commands/chat.py",
+          "kind": "file",
+          "sha256": "fdef1e67ba48012e980f6c366cad4a09887c3a70462677c75ad654000560a3fa"
+        },
+        {
+          "path": "src/henchman/cli/commands/checkpoint.py",
+          "kind": "file",
+          "sha256": "6530bde252ce099007505aeef133a2f4ad93b3ddf5181d93b871fdaafb2486f7"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_command.py",
+          "kind": "file",
+          "sha256": "a4bccd92262750f36e6f54159ed44d05e669c27c50b5a96920a2d13b1072cfc5"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_redaction.py",
+          "kind": "file",
+          "sha256": "ab280fe56d0c552582f75e18bf123154f6f14425870a35bd47d8e7b470319958"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_view_command.py",
+          "kind": "file",
+          "sha256": "1dc323b29f0a4ef3bed098276d66838cc56a5c93c9227ad81cad9e1ad410b080"
+        },
+        {
+          "path": "src/henchman/cli/commands/config_write_command.py",
+          "kind": "file",
+          "sha256": "1a5cab39ac6792e6f32e12e039b9d9dcb51a9d47366316a5930adeddf25c1b15"
+        },
+        {
+          "path": "src/henchman/cli/commands/context.py",
+          "kind": "file",
+          "sha256": "d4270740d964b5c06da35414da666f9389ef266920f8ca3db8df6e31de993850"
+        },
+        {
+          "path": "src/henchman/cli/commands/discovery_capabilities.py",
+          "kind": "file",
+          "sha256": "cb2362360c434a26f28ac86ed6479755ef7f1c57420f7e546052b9c22a3c59b5"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_command.py",
+          "kind": "file",
+          "sha256": "42eb81354317006d0d4c210f16b4eaa0a0f52f18ce14a089986d61a4aab35dad"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_core_command.py",
+          "kind": "file",
+          "sha256": "4de0f2f08cd9f17a8f58daa2e15ec59a4d8ceb44d77d3eb3c64fd17c23612fad"
+        },
+        {
+          "path": "src/henchman/cli/commands/doctor_tool_command.py",
+          "kind": "file",
+          "sha256": "57b6f6ab632c006abb54d2c641abcf2700d9b4d06a011fb430f00512aa8d5584"
+        },
+        {
+          "path": "src/henchman/cli/commands/extensions.py",
+          "kind": "file",
+          "sha256": "1197290cfd40c7d553ad8cf2b737c9ef6b967fcab54a94d358154f3bb1de98e9"
+        },
+        {
+          "path": "src/henchman/cli/commands/git_command.py",
+          "kind": "file",
+          "sha256": "b20b50dd81ab54deef1d345397c398227b63575e71d284731e2b93cafbdb8dc7"
+        },
+        {
+          "path": "src/henchman/cli/commands/goal.py",
+          "kind": "file",
+          "sha256": "dd521d306dd6b827f3fc49b15d27e51f3eaff9b8a018ed147eb569729d08ab0b"
+        },
+        {
+          "path": "src/henchman/cli/commands/help_command.py",
+          "kind": "file",
+          "sha256": "eb103896fcdcd8cc4a51415bbb204ca2651370b7e4571df4c784a63db5c6a4c2"
+        },
+        {
+          "path": "src/henchman/cli/commands/init_command.py",
+          "kind": "file",
+          "sha256": "ae2b4b921a7fd0d413366f724df2c4df4516d675add59a9bd92294cefec5f8d2"
+        },
+        {
+          "path": "src/henchman/cli/commands/integration_commands.py",
+          "kind": "file",
+          "sha256": "e54c0d6ac47f521aa26dbb193de29a8a3f9ae948d4bac6c2a4063a592022e877"
+        },
+        {
+          "path": "src/henchman/cli/commands/mcp.py",
+          "kind": "file",
+          "sha256": "8002361acf4126802e9297fda90867000d51f43d39fe0b833e53b49f0b36664c"
+        },
+        {
+          "path": "src/henchman/cli/commands/model.py",
+          "kind": "file",
+          "sha256": "e3297c299c19a8e2278abea79c9961a41568622a91bb6e12359962f136e84625"
+        },
+        {
+          "path": "src/henchman/cli/commands/plan.py",
+          "kind": "file",
+          "sha256": "2f43880b4ee16be47413a413a7dbf46855fbacc4bca8fa060cd70001f71693e1"
+        },
+        {
+          "path": "src/henchman/cli/commands/plugin_command.py",
+          "kind": "file",
+          "sha256": "c58785ca22b050801ab1bda9ce40f064c434c2ba3da3ff541051d46cbdc0e6f4"
+        },
+        {
+          "path": "src/henchman/cli/commands/pull_request_command.py",
+          "kind": "file",
+          "sha256": "1347f9a07f5977ff0764770f67ab10ba809c813e8c9ce7e8d56f16e1c4d7828e"
+        },
+        {
+          "path": "src/henchman/cli/commands/queue.py",
+          "kind": "file",
+          "sha256": "4d23ac5d1418eac24ccccbbd486261a445a99f99a430446493892adf822e4207"
+        },
+        {
+          "path": "src/henchman/cli/commands/rag.py",
+          "kind": "file",
+          "sha256": "a362f7c3109083eb14969fdef30d05c1eedac5df52c6043fe7f30cc0793a98a5"
+        },
+        {
+          "path": "src/henchman/cli/commands/recovery.py",
+          "kind": "file",
+          "sha256": "25b72deabbb6a7134c65e45ca97f510cda7d30a4030c3b22f0e80cc089e1d2fd"
+        },
+        {
+          "path": "src/henchman/cli/commands/runtime_config.py",
+          "kind": "file",
+          "sha256": "72c87f96dbf5c93f38d69790e02681c480f9ca1dd306c5730f98cf92adce23dc"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py",
+          "kind": "file",
+          "sha256": "38764ef8a5cb67025e610d5bcfab1b50fd66d3c2059f99cadca266341f90fc74"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py.backup",
+          "kind": "file",
+          "sha256": "cd79c6456b6b678a0aee6fb6416e5765eb5c722f8024d1eaa5b72213227ff5de"
+        },
+        {
+          "path": "src/henchman/cli/commands/session.py.bak",
+          "kind": "file",
+          "sha256": "35fe9b4d0a9c45da88b3f158a501e62a9487bb83615ee3c80316958bb0abf098"
+        },
+        {
+          "path": "src/henchman/cli/commands/session_command.py",
+          "kind": "file",
+          "sha256": "452f3a3f298a5db7038afb5bad4d066da4670db64e6b62a3c61f10922e963a63"
+        },
+        {
+          "path": "src/henchman/cli/commands/session_context_command.py",
+          "kind": "file",
+          "sha256": "912f047edb594fbce66b67f865769eeed1508fcf93ef91b063d21349ac965be5"
+        },
+        {
+          "path": "src/henchman/cli/commands/skill_command.py",
+          "kind": "file",
+          "sha256": "378afc2b0044219d0853497d6c5791449d0e23a00138a660bd9f4aa142a166b4"
+        },
+        {
+          "path": "src/henchman/cli/commands/team.py",
+          "kind": "file",
+          "sha256": "a8105f4b8d005c02a92afcb9673b1ff1bc6e2b4e51f9982eded90d3a111107f2"
+        },
+        {
+          "path": "src/henchman/cli/commands/theme.py",
+          "kind": "file",
+          "sha256": "c10d779ce6a454907d4dbc317bdd91cca823b330a5deceb06911944ec3177357"
+        },
+        {
+          "path": "src/henchman/cli/commands/unlimited.py",
+          "kind": "file",
+          "sha256": "e98edcfd5238721c9eee4b8d4a1db4a936aebee747eb1696d09878bb42c41496"
+        },
+        {
+          "path": "src/henchman/cli/commands/upgrade_command.py",
+          "kind": "file",
+          "sha256": "6da3288851e1a4797ad39bffe1ae58109b2bc003494a94683c78b70289b9315c"
+        },
+        {
+          "path": "src/henchman/cli/commands/usage.py",
+          "kind": "file",
+          "sha256": "0426cff8d79535b758f70ae0d5a3e25a48c378eb7de699ea6dedf26e433b0a40"
+        },
+        {
+          "path": "src/henchman/cli/commands/version_command.py",
+          "kind": "file",
+          "sha256": "3e8390b6bf0467621fc49e8a35fbb2e65e41240437e90cd74230a83e36998803"
+        },
+        {
+          "path": "src/henchman/cli/commands/voice_command.py",
+          "kind": "file",
+          "sha256": "988dfa5413e5a3bc997be739c7fc88a22344044fbd3e36f736ee57a72556987d"
+        },
+        {
+          "path": "src/henchman/cli/commands/work.py",
+          "kind": "file",
+          "sha256": "cf9c9d36bbebc8876190fa0fdf904ed49c04d4f08deecbf93866f475f8a93b49"
+        },
+        {
+          "path": "src/henchman/cli/console.py",
+          "kind": "file",
+          "sha256": "d0fbbb9eba7efd40219090f6b7503a9fe52074b287573d01d710d996fd5edd38"
+        },
+        {
+          "path": "src/henchman/cli/console_helpers.py",
+          "kind": "file",
+          "sha256": "c60428b81e8898929abe30f7469a2868994c8f37d41de4ca15b25e4c923384b0"
+        },
+        {
+          "path": "src/henchman/cli/context_attachments.py",
+          "kind": "file",
+          "sha256": "03ec6a4dae04be35aa04bb4bfcfec3527007b8ebd63e46a9854e0f4178748dfe"
+        },
+        {
+          "path": "src/henchman/cli/core_init.py",
+          "kind": "file",
+          "sha256": "3914524dd3476b400cbefc7df39301bd1015df5c3d33000de09b1c41f18affc5"
+        },
+        {
+          "path": "src/henchman/cli/draft_editor.py",
+          "kind": "file",
+          "sha256": "877f714d4f34cf28ea11c28ffe23aa0d54a0ef8f2e80dad97509fa3ee4b94882"
+        },
+        {
+          "path": "src/henchman/cli/evidence.py",
+          "kind": "file",
+          "sha256": "76d2f85bf5da08a240e4cbd6142b3ce1d943c6c4dc75933edb2f879b64667444"
+        },
+        {
+          "path": "src/henchman/cli/headless.py",
+          "kind": "file",
+          "sha256": "c84be723fb08b2c61c7d30c623693efb7a21945e9610e800ed95210b5214779e"
+        },
+        {
+          "path": "src/henchman/cli/headless_control.py",
+          "kind": "file",
+          "sha256": "461d249eea0d5e38e359a3e770a7a6b4a652647a7a65deabbd5ea17f225b4ca2"
+        },
+        {
+          "path": "src/henchman/cli/headless_protocol.py",
+          "kind": "file",
+          "sha256": "25150cbbd4227904630bf8449130557b997c20b68209fab72cc1adc1b5e64acd"
+        },
+        {
+          "path": "src/henchman/cli/headless_runtime.py",
+          "kind": "file",
+          "sha256": "3f06e816d012a7ccee705f308f2709c3e0925ec85951804db112077cc76ecfd0"
+        },
+        {
+          "path": "src/henchman/cli/headless_stdio.py",
+          "kind": "file",
+          "sha256": "55d476085a3365d273b0100a85c5c15eebe0d766c89635054517bbe83f2f045d"
+        },
+        {
+          "path": "src/henchman/cli/henchman.tcss",
+          "kind": "file",
+          "sha256": "569e398df74ab5765382dbfe109b2ddabe31b6c02f20923b9cb0c8b036ca7c30"
+        },
+        {
+          "path": "src/henchman/cli/input.py",
+          "kind": "file",
+          "sha256": "5789749a8112a46ce2905f5193c45a4247fb045b4ba32659d512b3c569185495"
+        },
+        {
+          "path": "src/henchman/cli/input_handler.py",
+          "kind": "file",
+          "sha256": "3bef340373da3850ff73f46ff6cc7b6b15b69b8e940fd4b8e1a9afaa2f55c1d6"
+        },
+        {
+          "path": "src/henchman/cli/inspection_runtime.py",
+          "kind": "file",
+          "sha256": "3103769610019b2bb9cd253f125c80b0f94d740024940b3dfab026f205772e5f"
+        },
+        {
+          "path": "src/henchman/cli/json_output.py",
+          "kind": "file",
+          "sha256": "b9faa218168c33dbdabef33a3d0cb6d84955f379a07f7a552941b3eb2e1c3252"
+        },
+        {
+          "path": "src/henchman/cli/oauth.py",
+          "kind": "file",
+          "sha256": "dfada783573080fb569edb96d004a4e6e90f11da0fd45cb5441c6dcb6f386eb8"
+        },
+        {
+          "path": "src/henchman/cli/oauth_browser.py",
+          "kind": "file",
+          "sha256": "f5c8d1ad0eb120347ecb83c4c6a1306cd3de897b11e2354881ccbc636c0905ad"
+        },
+        {
+          "path": "src/henchman/cli/oauth_browser_child.py",
+          "kind": "file",
+          "sha256": "6a6d0132b87458d6920dec0c5cd986e20c16a923eb885fde3c5aed6fa76ecfe8"
+        },
+        {
+          "path": "src/henchman/cli/oauth_frontend.py",
+          "kind": "file",
+          "sha256": "f47fd798a3da2d3269e1eecab4911bceaa56c90846cc8da728ce202798b52d00"
+        },
+        {
+          "path": "src/henchman/cli/output_handler.py",
+          "kind": "file",
+          "sha256": "4ffa79ad1cf159aac82d3c9fed524d252e81e151ae6bcadd80225d9f6866d5a8"
+        },
+        {
+          "path": "src/henchman/cli/plugins.py",
+          "kind": "file",
+          "sha256": "1c07966505975a4f74bb90da3f2c3dc0c9f6653c512275204c4909b83c6447c5"
+        },
+        {
+          "path": "src/henchman/cli/prompts.py",
+          "kind": "file",
+          "sha256": "6e773d739cf650f0d0eb4375828e528e048e99182ada4c3519001b9c6394d5a2"
+        },
+        {
+          "path": "src/henchman/cli/provider_switch.py",
+          "kind": "file",
+          "sha256": "8921b517272a67d05aa22b5183ce5064ec3f3eeb54d3a5861883cd446d8dc1cc"
+        },
+        {
+          "path": "src/henchman/cli/repl.py",
+          "kind": "file",
+          "sha256": "ee41b643e4537ef53b8955551ac73adc6a4933db4cfbc111b5311a0c3ea022d2"
+        },
+        {
+          "path": "src/henchman/cli/repl.py.backup",
+          "kind": "file",
+          "sha256": "63686791c00e12572e3783a1de44aba9933c2e2a04dcc3e95930e7df6a4a3171"
+        },
+        {
+          "path": "src/henchman/cli/serve.py",
+          "kind": "file",
+          "sha256": "9414a383040316a30960f6f5105d9f772216f688baeec6bfdeed6826697932d0"
+        },
+        {
+          "path": "src/henchman/cli/session_manager.py",
+          "kind": "file",
+          "sha256": "1be4f86d56fe60bc35840d6d314e56e5d937fe602aa61c386f4e4fe0f838ab6b"
+        },
+        {
+          "path": "src/henchman/cli/stream_event_handlers.py",
+          "kind": "file",
+          "sha256": "b7cde3c4d2338e97e6e0b7f9fabca764d4edcc4ff1a463281ac33f15eb56b8a8"
+        },
+        {
+          "path": "src/henchman/cli/system_info.py",
+          "kind": "file",
+          "sha256": "901dd0d2049b75251168579510b2c590fa439e81a4f3cc83e87d20dfab1f0512"
+        },
+        {
+          "path": "src/henchman/cli/textual_activity_state.py",
+          "kind": "file",
+          "sha256": "68ae3875a13ec94d1e73463a7d6e47f20ebde6755611d5947a2c3e34e9797b2e"
+        },
+        {
+          "path": "src/henchman/cli/textual_app.py",
+          "kind": "file",
+          "sha256": "455793123a362399e0ee681316aba631b8bb1880eb61b4b58c6ec1ef84302e2c"
+        },
+        {
+          "path": "src/henchman/cli/textual_app.py.bak2",
+          "kind": "file",
+          "sha256": "71fdb12f444f9ee3f2b810a010a44395db02a948645a52a0d5e2b5a609462b34"
+        },
+        {
+          "path": "src/henchman/cli/textual_bridge.py",
+          "kind": "file",
+          "sha256": "9b04c870a08adb06e1a95ef9c853479d5ef03e1e047abff9c714b4b234900cb3"
+        },
+        {
+          "path": "src/henchman/cli/textual_checkpoints.py",
+          "kind": "file",
+          "sha256": "54fd47c25b807ca1f06d69fc20a3816d6c6748048b62adf00a3b142d679c573a"
+        },
+        {
+          "path": "src/henchman/cli/textual_config.py",
+          "kind": "file",
+          "sha256": "2316ddde8f4188b4f98e305a4904b28a3bc5d3e479975563e74984c9d91c5741"
+        },
+        {
+          "path": "src/henchman/cli/textual_context.py",
+          "kind": "file",
+          "sha256": "159e36013cdaa8ab47c150ce40fc03dc617ad462085f69b09555b9b29f5d0816"
+        },
+        {
+          "path": "src/henchman/cli/textual_driver.py",
+          "kind": "file",
+          "sha256": "9a44101a7e886071fad57e97c9ec17bd6351a1e358b366372cde18e66fef814f"
+        },
+        {
+          "path": "src/henchman/cli/textual_editor.py",
+          "kind": "file",
+          "sha256": "c1c8e6d4fc872c3f76491f41e79de9289838cb7f63e5463c097a476e61a4464f"
+        },
+        {
+          "path": "src/henchman/cli/textual_messages.py",
+          "kind": "file",
+          "sha256": "75d6c337f6bedc297e33b616a4e0c174082e971b1dd84fb2bb1b75db604a43f9"
+        },
+        {
+          "path": "src/henchman/cli/textual_mixins.py",
+          "kind": "file",
+          "sha256": "a0cab51849c1b78f94f4ba4aa279b614a5864af4b4bb81583fbbacd2884b6dcb"
+        },
+        {
+          "path": "src/henchman/cli/textual_preferences.py",
+          "kind": "file",
+          "sha256": "6a4a1d2c44481a4648e7f80f5e3b451af7627438df34a0b7b4a1c9c482f57b3f"
+        },
+        {
+          "path": "src/henchman/cli/textual_questions.py",
+          "kind": "file",
+          "sha256": "e419cb3a043a1a179215e05de1eba6ef78ad327e49f3c06f9ca273db66eb028d"
+        },
+        {
+          "path": "src/henchman/cli/textual_queue.py",
+          "kind": "file",
+          "sha256": "9a7fde5f306ccb7df34efe507fa893ab67ea21cbf3fbf3861b7fb9891b5ae05a"
+        },
+        {
+          "path": "src/henchman/cli/textual_review.py",
+          "kind": "file",
+          "sha256": "4d41c4e249d517814298cf4d78ae4ac9d0f8be2980d12473f9406cc3e7d0d507"
+        },
+        {
+          "path": "src/henchman/cli/textual_screens.py",
+          "kind": "file",
+          "sha256": "4f473e5dba7aa3140afedcfff4116da96f2aabbfb0d425f85f59baab3a3a94ac"
+        },
+        {
+          "path": "src/henchman/cli/textual_sessions.py",
+          "kind": "file",
+          "sha256": "ea9931cf3991115774fd381b963651be6aeca723a9f3cd7d116b53876dbf9db6"
+        },
+        {
+          "path": "src/henchman/cli/textual_tool_activity.py",
+          "kind": "file",
+          "sha256": "09da7df2490d6bc71af280e90d8e009f301cc962e47f49ded9d5d7f97da59301"
+        },
+        {
+          "path": "src/henchman/cli/textual_transcript.py",
+          "kind": "file",
+          "sha256": "84cabdc3e1dbb0d720cab5aedd7055b21b108c8e0396a94fa0a867a608befde5"
+        },
+        {
+          "path": "src/henchman/cli/textual_widgets.py",
+          "kind": "file",
+          "sha256": "4c39dc5d8cc01c3ee81bfa4d57f4005f5caf62dbc314c9822619fe66c550c0e6"
+        },
+        {
+          "path": "src/henchman/cli/textual_widgets.py.backup",
+          "kind": "file",
+          "sha256": "807889bcdac7639d58db9cd772f51e287b6a22f0c45694654078b1b5ce9fb962"
+        },
+        {
+          "path": "src/henchman/cli/textual_work.py",
+          "kind": "file",
+          "sha256": "494e763410d1d3ad01b4a678076168348e8177d0a6cd7dbc42e21155312e6c74"
+        },
+        {
+          "path": "src/henchman/cli/tool_executor.py",
+          "kind": "file",
+          "sha256": "f98fd5c548b43e2fde79488e5a8ec0cf430af36e62958570b818decf7dcb763f"
+        },
+        {
+          "path": "src/henchman/cli/tool_executor.py.bak",
+          "kind": "file",
+          "sha256": "d01550e239141e7f76ac15fd851616ab9de8031433ead5adf1ed567b501fc707"
+        },
+        {
+          "path": "src/henchman/cli/tool_manager.py",
+          "kind": "file",
+          "sha256": "ff40eac3c3e6b68270d026c41c9f6a56439915b9c844ccbd8686a4b968caad9b"
+        },
+        {
+          "path": "src/henchman/cli/ui_renderer.py",
+          "kind": "file",
+          "sha256": "804cf08e0b288354e872226a0c53b4539109750900907f50102e3be6a6844cc1"
+        },
+        {
+          "path": "src/henchman/cli/update_check.py",
+          "kind": "file",
+          "sha256": "ac3e2a0dbaeb67f58a73d7798aeb6419a931ef118b7d5584a0afd4f6af3f27ce"
+        },
+        {
+          "path": "src/henchman/cli/work_inspection.py",
+          "kind": "file",
+          "sha256": "ff83d42cdf2f23b85f9c96eacd6a044fe7c54971e5cee30449147d314b9129d5"
+        },
+        {
+          "path": "src/henchman/cli/workflow.py",
+          "kind": "file",
+          "sha256": "eb0c38dfe226044d87a8a403a4126ca42008407573e094caee15eab910ada730"
+        },
+        {
+          "path": "src/henchman/config/__init__.py",
+          "kind": "file",
+          "sha256": "e5b72378f831cebf1c87e5012b86a4f0a39b54ffcb49a417593d3cec39f5c66c"
+        },
+        {
+          "path": "src/henchman/config/context.py",
+          "kind": "file",
+          "sha256": "a478b35912ed66f79a52d6573d684e8d2182d61b1367cd82b115d2b7f317bb97"
+        },
+        {
+          "path": "src/henchman/config/environment.py",
+          "kind": "file",
+          "sha256": "868129b4db6307eb5efb4fbcd4fb26df843ba60e9de5ec79eb58d5dade77fa40"
+        },
+        {
+          "path": "src/henchman/config/key_paths.py",
+          "kind": "file",
+          "sha256": "87dcb074e73d1a6d61c1c81c18d7e1047d9a44ac3d7524b4f20b9a17e3e0b3fc"
+        },
+        {
+          "path": "src/henchman/config/mcp.py",
+          "kind": "file",
+          "sha256": "22abdca75286c2391ada833b50bfd29cd089d6c43893a5c3fda090963221cb61"
+        },
+        {
+          "path": "src/henchman/config/parsing.py",
+          "kind": "file",
+          "sha256": "03eca955e936858f675ed4e2c61db854bb18a51913dfc1d43773a91c33914f67"
+        },
+        {
+          "path": "src/henchman/config/paths.py",
+          "kind": "file",
+          "sha256": "830bbf7f5a8d529e3edea9d6b8c5f1c19d1654fb20cf066ca772ffa1159f3c9a"
+        },
+        {
+          "path": "src/henchman/config/repository.py",
+          "kind": "file",
+          "sha256": "03dceb434f140133089f429c265ada1f3ab0297e5b6eedb36126bafbeaf9e35f"
+        },
+        {
+          "path": "src/henchman/config/runtime.py",
+          "kind": "file",
+          "sha256": "5f740575dab959974e794d57d755b802070c9737c0efee3de2f3e45224c06f07"
+        },
+        {
+          "path": "src/henchman/config/schema.py",
+          "kind": "file",
+          "sha256": "6ef4004339014698416b2c74e35c7822323fcae372db195e1cebd32dd77a9761"
+        },
+        {
+          "path": "src/henchman/config/settings.py",
+          "kind": "file",
+          "sha256": "2b8164373d2c0a1168699587b7f8614903ad79ac8f8de42d103129e290bd0c72"
+        },
+        {
+          "path": "src/henchman/config/sync_controls.py",
+          "kind": "file",
+          "sha256": "cf2e3692dc482a2c8ecd7146fe3ed2102838107a6ef293b5e18b99155296aed2"
+        },
+        {
+          "path": "src/henchman/config/usage.py",
+          "kind": "file",
+          "sha256": "b89476efce55762de51248f6c9258f6a0279badd584241a728c6d6640e6e5e45"
+        },
+        {
+          "path": "src/henchman/core/__init__.py",
+          "kind": "file",
+          "sha256": "c5b05e8d22ecd8edc8b9b42d170bf8952b63daf49462770933d7835da976a377"
+        },
+        {
+          "path": "src/henchman/core/agent.py",
+          "kind": "file",
+          "sha256": "c31e9e492e71c4fe5ae71b909e7fc775bd1c82affa3465732739ecea6adcfbbb"
+        },
+        {
+          "path": "src/henchman/core/agent_config.py",
+          "kind": "file",
+          "sha256": "04130b2f86332cf0fb2dc7bc99cf478e46a5e788f72403cbfbbe476fc0debca2"
+        },
+        {
+          "path": "src/henchman/core/agent_interface.py",
+          "kind": "file",
+          "sha256": "e3ed2f1e864bd7d1aca0d03fc5b9321c98749cad43b66fef4dd3555424229bbf"
+        },
+        {
+          "path": "src/henchman/core/agent_stall.py",
+          "kind": "file",
+          "sha256": "d51003f8e8b31993d30d27141fa7ae9de3510ee493545011adfb2d508ed553d0"
+        },
+        {
+          "path": "src/henchman/core/agent_streaming.py",
+          "kind": "file",
+          "sha256": "bb512adbdda4cfef28a2a7052edc5d596fd17812c62b83a45ac0bf15ca2a64ea"
+        },
+        {
+          "path": "src/henchman/core/event_evidence.py",
+          "kind": "file",
+          "sha256": "155e49c9d2e85f1cccc3ffa3ddc2ac99faa0d03bead58c96748a18e81482dfb3"
+        },
+        {
+          "path": "src/henchman/core/event_payloads.py",
+          "kind": "file",
+          "sha256": "0a76c5d8001437ed6fba61420a08afbfff0d43992f0dbc84c9bb1f0c13891007"
+        },
+        {
+          "path": "src/henchman/core/eventbus.py",
+          "kind": "file",
+          "sha256": "f7de09f58c861df3e61295803fff4d44be1e33868444515173e3aa76dccc551b"
+        },
+        {
+          "path": "src/henchman/core/events.py",
+          "kind": "file",
+          "sha256": "dd77fd78af8f958dffbda90f215280e06aed38b5237baf4bb8489a7a4b773e70"
+        },
+        {
+          "path": "src/henchman/core/failure_evidence.py",
+          "kind": "file",
+          "sha256": "a671d47df8ca3f481cc56c76a7094739de221cdd27848538ca4385e76337124b"
+        },
+        {
+          "path": "src/henchman/core/goals.py",
+          "kind": "file",
+          "sha256": "23b4c5090f4d3acd622faca8dfd8fce971950699337036c2c643c5c1f18d9a29"
+        },
+        {
+          "path": "src/henchman/core/instruction_context.py",
+          "kind": "file",
+          "sha256": "2ed57149e28a068075080bda411924051544dca23b90264bbe4d31710939274b"
+        },
+        {
+          "path": "src/henchman/core/instruction_provenance.py",
+          "kind": "file",
+          "sha256": "86bc16cc76b801f9aeb7dee269d132555ab37f7f1fc688d89329a98389f13e1c"
+        },
+        {
+          "path": "src/henchman/core/operation_bindings.py",
+          "kind": "file",
+          "sha256": "827afcc990afb19a14020219573ce4089703aab0699e5ba2cdc0d3db15b7b6cd"
+        },
+        {
+          "path": "src/henchman/core/operation_recovery.py",
+          "kind": "file",
+          "sha256": "2deeb771c0a9c1d8ef493406b1566d0a9aeda1ef15259bb61e3a48aca180bc5a"
+        },
+        {
+          "path": "src/henchman/core/request_budget.py",
+          "kind": "file",
+          "sha256": "6216efc7e2fb5ccf4937bc5f51c57d76192e3516b1795abf9c99438acd635b26"
+        },
+        {
+          "path": "src/henchman/core/run_accounting.py",
+          "kind": "file",
+          "sha256": "5264a31894d231d61737b2cdd90d27c80e53a5ac2dd32e179263413ca502352f"
+        },
+        {
+          "path": "src/henchman/core/run_budget.py",
+          "kind": "file",
+          "sha256": "e2bdfbb2357d2860879ff9885760127043f95794ca28dcac2a02b930e8bf408e"
+        },
+        {
+          "path": "src/henchman/core/run_budget_state.py",
+          "kind": "file",
+          "sha256": "3fbe5ed21582cd90df1964090173532e88ba5af03a2e9b2be36655d487de68f2"
+        },
+        {
+          "path": "src/henchman/core/runtime_accounting.py",
+          "kind": "file",
+          "sha256": "c0fec8a7b4235e861b1f107c05ccee1e6e0618def6c6e6b91d51dee033c72144"
+        },
+        {
+          "path": "src/henchman/core/runtime_operations.py",
+          "kind": "file",
+          "sha256": "9bf6ba3e619062d23b6b6da1bc9dd9db5edbfaf1620fe8184b2c8b8e279fb53b"
+        },
+        {
+          "path": "src/henchman/core/runtime_workflow.py",
+          "kind": "file",
+          "sha256": "3d295af918fff34b7dc4c2473bf12369c4b91cbd25463fe4602486da8d68a298"
+        },
+        {
+          "path": "src/henchman/core/session.py",
+          "kind": "file",
+          "sha256": "f1ca70c527ed8d85c76ec67d5cf1e27c0f157de41998bbedc63cf5d5e150524e"
+        },
+        {
+          "path": "src/henchman/core/session_branch.py",
+          "kind": "file",
+          "sha256": "3e013f5f509ba60ab1554784c4a155ae233bc81ff8c75cb0b575a33e5466e06f"
+        },
+        {
+          "path": "src/henchman/core/session_context.py",
+          "kind": "file",
+          "sha256": "a63a1014934ff06e67dc5c2d80c19fa056a3af6e16f046bcba2059d90f34ef82"
+        },
+        {
+          "path": "src/henchman/core/session_data.py",
+          "kind": "file",
+          "sha256": "385885b7db47c88090672aa51f84573152eb1ae807818c86702a9000f03b6a98"
+        },
+        {
+          "path": "src/henchman/core/session_evidence.py",
+          "kind": "file",
+          "sha256": "1cd3674e7e83d5e43f6babd981ca39fabd83584f93b1780dbb8daed61b127a41"
+        },
+        {
+          "path": "src/henchman/core/session_export.py",
+          "kind": "file",
+          "sha256": "cdc23e848a931fe404573371605fc8066c427b11b7ef2f1a354962872ed12994"
+        },
+        {
+          "path": "src/henchman/core/session_helpers.py",
+          "kind": "file",
+          "sha256": "5b757a36e9ff1a42dfda694b96e1e51b5663fc38e84afe97804c2cd08266bdcf"
+        },
+        {
+          "path": "src/henchman/core/session_manager.py",
+          "kind": "file",
+          "sha256": "c31ff5e5a9ffccddfa9e728697c756982cd417e024e244827d4ccb694547880b"
+        },
+        {
+          "path": "src/henchman/core/session_manager_base.py",
+          "kind": "file",
+          "sha256": "9bf6cef7bae48ab5358a87b9eeeacfc2eb1b1e126f1e75e631e02239cf867cc7"
+        },
+        {
+          "path": "src/henchman/core/session_memory.py",
+          "kind": "file",
+          "sha256": "e8c0b2fbd0aff561d1f9c0691de3b13ec29d23a6e1a69e124cd8f78f54891c7a"
+        },
+        {
+          "path": "src/henchman/core/session_merge.py",
+          "kind": "file",
+          "sha256": "67850a8df000bf25ff08aa98aa03ed789ca24c6b8bc87864d95f585188868feb"
+        },
+        {
+          "path": "src/henchman/core/session_models.py",
+          "kind": "file",
+          "sha256": "4ca740ef4405f3f3aa8c286d2d95ae468d8543befdc5210fdbae32cbeee0cc92"
+        },
+        {
+          "path": "src/henchman/core/session_operations.py",
+          "kind": "file",
+          "sha256": "fcf8c2c01c5fa2ebd9d63aeb96ec482db9505e0161e030c7eb4b5e0aaccd32e4"
+        },
+        {
+          "path": "src/henchman/core/session_persistence.py",
+          "kind": "file",
+          "sha256": "612870076da8c25dc325c583dded784be614762121eee66a2845cb1d448c0fa8"
+        },
+        {
+          "path": "src/henchman/core/session_run_accounting.py",
+          "kind": "file",
+          "sha256": "7ebf8fa1b6fa84d2b9f1b794039532ed9ff92ecaefd2138f4b7dccb783fbd115"
+        },
+        {
+          "path": "src/henchman/core/session_templates.py",
+          "kind": "file",
+          "sha256": "6b22ed84ffd142f1ce8b970ffa1e2a7d3c47578a8aa030ced96b9566d89080e4"
+        },
+        {
+          "path": "src/henchman/core/session_vcr.py",
+          "kind": "file",
+          "sha256": "5f662118a3bec61e2f8c10a54a9277f4aceab0afb5e0ce3ec5db692ffd83af39"
+        },
+        {
+          "path": "src/henchman/core/session_workflow.py",
+          "kind": "file",
+          "sha256": "5477ab978fb4542d240a48a8a15d8a3decfff0e5522d003cb7f2a72c23b55155"
+        },
+        {
+          "path": "src/henchman/core/tool_selection.py",
+          "kind": "file",
+          "sha256": "c8ab9c3d02c77b44377df0d17780a8bb191a1340ffc30979af96b78c624335a1"
+        },
+        {
+          "path": "src/henchman/core/turn.py",
+          "kind": "file",
+          "sha256": "f78006d99ec2918b84ccc58eef6a198eb2ff6014ff0294f419dff0d233562600"
+        },
+        {
+          "path": "src/henchman/core/usage_summary.py",
+          "kind": "file",
+          "sha256": "44d9d49696cbbcf0deb82c3962b390d5195b7831224724284cc82f6ec3b3dbe0"
+        },
+        {
+          "path": "src/henchman/core/workflow_state.py",
+          "kind": "file",
+          "sha256": "259c0532eea231ebe8feb902d4868ae3e80699a6b6c18ed87824dc20ef33787e"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/LICENSE",
+          "kind": "file",
+          "sha256": "418cb499b436128d653d79941333a5437b7be2ea9213dcc2f04d15d5d2c51d86"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/PROVENANCE.json",
+          "kind": "file",
+          "sha256": "3353c58c7d22ac0a77362b71de27272f2d96c97c411daed2aff1192b16ec7a2d"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/cl100k_base.tiktoken",
+          "kind": "file",
+          "sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7"
+        },
+        {
+          "path": "src/henchman/data/tokenizers/o200k_base.tiktoken",
+          "kind": "file",
+          "sha256": "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d"
+        },
+        {
+          "path": "src/henchman/entrypoint.py",
+          "kind": "file",
+          "sha256": "80f9c9b2c83ffb4da5c3228e5bfcb326cac559df2e5f09c63ddb73ed3afd8fd3"
+        },
+        {
+          "path": "src/henchman/extensions/__init__.py",
+          "kind": "file",
+          "sha256": "34178fefa75b0ae98a6c95dd8e225dc2ef42305bc7b974f545fb910658651389"
+        },
+        {
+          "path": "src/henchman/extensions/base.py",
+          "kind": "file",
+          "sha256": "e7aece2108a0d8074d81592a2c862961972463f3e977f57c6f50f3dc81761f9a"
+        },
+        {
+          "path": "src/henchman/extensions/constants.py",
+          "kind": "file",
+          "sha256": "ba60f87c8d2cf2b9911e4b8a81dd67ab0033a05596c54545a04c26166151e4a2"
+        },
+        {
+          "path": "src/henchman/extensions/manager.py",
+          "kind": "file",
+          "sha256": "9e8a020451484c322e023fbac507da2acf902dafcead53ffb5d9f0a3d0d2e75f"
+        },
+        {
+          "path": "src/henchman/extensions/models.py",
+          "kind": "file",
+          "sha256": "6e9a497942dacc4a0363611140b46d347d109fe3208bca34ffc9974c349a1ccf"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_compatibility.py",
+          "kind": "file",
+          "sha256": "9cf450f899a52f8b593dbe054ca217bb0ad206d8f84ea0e4169c70198a148837"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_database.py",
+          "kind": "file",
+          "sha256": "bdef2f83a55101d601440313b6cfb2c76f892e7a6ec4f954d0d5bd49d1ce3955"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_installer.py",
+          "kind": "file",
+          "sha256": "9950b9ccd273fab36216516e2d7e569608030b9d98f24f0bd99f0a544de63ff7"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_manager.py",
+          "kind": "file",
+          "sha256": "1a2956005146b86281a9ed748d1edf1fbf9dc9d81b09a05b04d82754f2acaa33"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_registry_client.py",
+          "kind": "file",
+          "sha256": "3feddd0d6f451f9633684b82aaeec5baab76993e0485049cb669d6eb5841efb8"
+        },
+        {
+          "path": "src/henchman/extensions/plugin_security_scanner.py",
+          "kind": "file",
+          "sha256": "665c70506a50708729a794d90b9f65e34825b5025fb2ea474c3d74a5af0e72fe"
+        },
+        {
+          "path": "src/henchman/extensions/sandbox.py",
+          "kind": "file",
+          "sha256": "a29bc76bd4aae8f35011698c8a99518121f02e18c7b0ac6fcfb12c2d27513481"
+        },
+        {
+          "path": "src/henchman/git/__init__.py",
+          "kind": "file",
+          "sha256": "e238359118e36d70f1953faf6a044399f29da6adeca33e8a19717378274e7ef9"
+        },
+        {
+          "path": "src/henchman/git/clients.py",
+          "kind": "file",
+          "sha256": "bb471a145c4a8c3a91ffa50aaaa8b64f1087f92a46fd0be9f5731e35e6857772"
+        },
+        {
+          "path": "src/henchman/git/github_app.py",
+          "kind": "file",
+          "sha256": "b479a92f40d183ba9c1ed638a712d4dd8773430c1149736520f32ec11911c27f"
+        },
+        {
+          "path": "src/henchman/git/review.py",
+          "kind": "file",
+          "sha256": "20de604de096562b39753670353f314a5d98da8363e8fe28eb1ee054ffe9b663"
+        },
+        {
+          "path": "src/henchman/git/workflow.py",
+          "kind": "file",
+          "sha256": "38c108687717ead8b26bda0e115167be24beab2e2b716b9d61053a6e38395f54"
+        },
+        {
+          "path": "src/henchman/integrations/__init__.py",
+          "kind": "file",
+          "sha256": "5c053982a512676c1d362fc16d5638bb7fc2dd4d29ab0de1e84eb78475b988bf"
+        },
+        {
+          "path": "src/henchman/integrations/blueprints.py",
+          "kind": "file",
+          "sha256": "d54eeb6efc3dca7f0a99b85aea505ddccc508979ba1cb96cc627a724ba52f977"
+        },
+        {
+          "path": "src/henchman/integrations/neovim.lua",
+          "kind": "file",
+          "sha256": "484e6d9d743bf8aa6601871a98f973025cf837692d7119fbdfe4962a617916d0"
+        },
+        {
+          "path": "src/henchman/integrations/neovim.py",
+          "kind": "file",
+          "sha256": "f0e7ce8222d1b4b9466a475e0c01b94e8c9025840bf2e64518ffc2aabb9166fb"
+        },
+        {
+          "path": "src/henchman/integrations/voice.py",
+          "kind": "file",
+          "sha256": "0d882ce368992324d5b1d84bd93433f93967e0afaa3807423ec2ee3a6572f241"
+        },
+        {
+          "path": "src/henchman/knowledge/__init__.py",
+          "kind": "file",
+          "sha256": "26720aa7bdc1bc3c82dae74b0ffd47020c74e24bd5114c708b78ab1141a3b014"
+        },
+        {
+          "path": "src/henchman/knowledge/models.py",
+          "kind": "file",
+          "sha256": "6ddd9b832fee81e5725dc214fa3106a8fd252e5678677e698ec0235217a01e12"
+        },
+        {
+          "path": "src/henchman/knowledge/scanner.py",
+          "kind": "file",
+          "sha256": "b0cc3b2550286e9da9d28b2aef21ce4c386e02eb8fb068f39eda598bac424eef"
+        },
+        {
+          "path": "src/henchman/knowledge/store.py",
+          "kind": "file",
+          "sha256": "11c33c79ab1e76eb61d8f2760937321be76a33e72a28317fc0080ff3c0c75676"
+        },
+        {
+          "path": "src/henchman/lsp/__init__.py",
+          "kind": "file",
+          "sha256": "e6e4fe9a8bcb0a12171c29ab29dcf2fec170a125e4efd219bd6fa6aa14dedbf5"
+        },
+        {
+          "path": "src/henchman/lsp/service.py",
+          "kind": "file",
+          "sha256": "47264d62c9813444a85075b077edaa113325acb5406235c7d329d966c8773aea"
+        },
+        {
+          "path": "src/henchman/mcp/__init__.py",
+          "kind": "file",
+          "sha256": "54c3bc6c8d79635fe8c5cc1d5a9df7e5808732b1e24c39d4d9b78b351e089813"
+        },
+        {
+          "path": "src/henchman/mcp/auth.py",
+          "kind": "file",
+          "sha256": "af63376db6b62b7e6bbfd69c3856a77d48c7a4a0590c000f5dde144779c38a0b"
+        },
+        {
+          "path": "src/henchman/mcp/client.py",
+          "kind": "file",
+          "sha256": "de5bb83647ea5bd2bc6f618e469155bb82105a3618112ded7dadab61d8be789b"
+        },
+        {
+          "path": "src/henchman/mcp/config.py",
+          "kind": "file",
+          "sha256": "e9c6aa4b2008f2c9f2f6227ea82ecd4d350eaae5a9e915e4e6a073c551342be4"
+        },
+        {
+          "path": "src/henchman/mcp/context.py",
+          "kind": "file",
+          "sha256": "81a009cf0549738ad216f5c8223b77d6ceb53901f1f1e2543cad5e9273fe7ac4"
+        },
+        {
+          "path": "src/henchman/mcp/credentials.py",
+          "kind": "file",
+          "sha256": "1bab443e5a629b92d072513f08595dc0187f6af89b304c0eca86ed77e032c937"
+        },
+        {
+          "path": "src/henchman/mcp/diagnostics.py",
+          "kind": "file",
+          "sha256": "8965709633edb834060821ad1d0af0db6510a0629a0ed3e8f9a473d132b4c598"
+        },
+        {
+          "path": "src/henchman/mcp/http_guard.py",
+          "kind": "file",
+          "sha256": "bf4be6ad0b2491c538db25d1eb949474f3373231f575ee24b175a8a05678068f"
+        },
+        {
+          "path": "src/henchman/mcp/http_transport.py",
+          "kind": "file",
+          "sha256": "50e4a90587a7839a382bd0b2de13f3e956d022d105a6bf903e6b10eac0a1ebb6"
+        },
+        {
+          "path": "src/henchman/mcp/manager.py",
+          "kind": "file",
+          "sha256": "dabc29d32f6ce1b2032d039dc2cae0fb4e20b6cc8ee0cc17d52d3928ce890c5f"
+        },
+        {
+          "path": "src/henchman/mcp/oauth.py",
+          "kind": "file",
+          "sha256": "b06ef7d345d1724d5dcf38b81a696337f999ca2afa4032168c07f95895b8b730"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_callback.py",
+          "kind": "file",
+          "sha256": "eba83b85bef1c09add3bea6b53504ea05bc33b799a2dc0cefc9731abfb10fbed"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_flow.py",
+          "kind": "file",
+          "sha256": "bf76cc12545ff913ae2e0002a9ac260a78dca55510a304b5f79ab01e1325d967"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_manager.py",
+          "kind": "file",
+          "sha256": "835268ab4c75ef3432f7b630ae3b45eedfac1bab73e3ecc94d785b990f0dfa0d"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_store.py",
+          "kind": "file",
+          "sha256": "bb628f9baa5fe922b7c8b4f35bea95f80d4a358dfc9f1ef93d89a9c4a3e83f95"
+        },
+        {
+          "path": "src/henchman/mcp/oauth_transport.py",
+          "kind": "file",
+          "sha256": "a873aa434713167cdd278ed8492182385bfcb08282af4f542fcdb5c644ba8e3f"
+        },
+        {
+          "path": "src/henchman/mcp/protocol.py",
+          "kind": "file",
+          "sha256": "8fa46d7d4fc9815d4d921084aa9d41f497c2f9b3679f19e7964b4284ea275859"
+        },
+        {
+          "path": "src/henchman/mcp/stdio_transport.py",
+          "kind": "file",
+          "sha256": "92d81ea1fd80dfb75de12a7b2dcbcc536eed920d4247cbd34b809ea3bea337bd"
+        },
+        {
+          "path": "src/henchman/mcp/tool.py",
+          "kind": "file",
+          "sha256": "b7e0a42090d0d28122cdf7f3d579aaf6e63a2e57890c13dc26ef348e0b35499d"
+        },
+        {
+          "path": "src/henchman/metrics/__init__.py",
+          "kind": "file",
+          "sha256": "2782f24186c492614c3fbb020658d5b9400bb246b6020ffeb31da75dd37fd919"
+        },
+        {
+          "path": "src/henchman/metrics/collector.py",
+          "kind": "file",
+          "sha256": "9760e516abf1e742bc737fc167d98d47379217a1d482036b68ab3e0ea078ff4d"
+        },
+        {
+          "path": "src/henchman/metrics/dashboard.py",
+          "kind": "file",
+          "sha256": "aa8a563895d90260f8ef120f6ec3cd890db96b235cbb4b25628cb7548ee31c7a"
+        },
+        {
+          "path": "src/henchman/metrics/evidence.py",
+          "kind": "file",
+          "sha256": "13be308873bf6073bca6949e0d7f87a045b7e7ce4a4ed4e00dbb1cc066757547"
+        },
+        {
+          "path": "src/henchman/metrics/exporter.py",
+          "kind": "file",
+          "sha256": "65ebd2e914f18028c178bcbcc67aba0e7dc827a94ece049a1f792531978792b6"
+        },
+        {
+          "path": "src/henchman/metrics/models.py",
+          "kind": "file",
+          "sha256": "9bc7468460f2d2d9540a6312dab87ba2bec14372eb61a573b9d1250a6f72c08b"
+        },
+        {
+          "path": "src/henchman/metrics/storage.py",
+          "kind": "file",
+          "sha256": "50071a595502b4e816065a357f0b84398799759835a548b7b76c7ea8e4f7c753"
+        },
+        {
+          "path": "src/henchman/ops/__init__.py",
+          "kind": "file",
+          "sha256": "cac2a6d5a19dfd60a8b3f77fc53ab3cbacac8ef5ab3c67fb15724bfd2e211864"
+        },
+        {
+          "path": "src/henchman/ops/flags.py",
+          "kind": "file",
+          "sha256": "8b0606dfdf4e16abc5d6a501a9bdb81ea2b8f35eee20d7986e350c5a993e6c30"
+        },
+        {
+          "path": "src/henchman/ops/migrations.py",
+          "kind": "file",
+          "sha256": "4f5616c6ae12108ed46d919643e18ce7307f126f8775f217c9b53b264754f866"
+        },
+        {
+          "path": "src/henchman/ops/native.py",
+          "kind": "file",
+          "sha256": "147b04210fbba3fada619319c4a69b3d4aed921c6ca081f91406f9457b783c5b"
+        },
+        {
+          "path": "src/henchman/ops/observability.py",
+          "kind": "file",
+          "sha256": "9882ff797268e750615cec031af7c294fc0bf9adad945a30440f4726733ae5c0"
+        },
+        {
+          "path": "src/henchman/ops/operation_store.py",
+          "kind": "file",
+          "sha256": "7f0a8fa1ef6cce55f529d9483c2414fcde2676dd0763d118e72ded85b764c113"
+        },
+        {
+          "path": "src/henchman/ops/rate_limits.py",
+          "kind": "file",
+          "sha256": "0e58075f41375e10bbffd71bc8342aa8aa65cd1e6e67d12c026a73c2975ceb26"
+        },
+        {
+          "path": "src/henchman/ops/release.py",
+          "kind": "file",
+          "sha256": "dd863cfcd963623a1de064cfed99e18f9e93158fc5c1ab7bd94ff4767258f6dc"
+        },
+        {
+          "path": "src/henchman/ops/run_budget_store.py",
+          "kind": "file",
+          "sha256": "e029cf64cee22281a3ee8bc5e4302553c6adb09e3a2a3eebbf6599dc51090376"
+        },
+        {
+          "path": "src/henchman/ops/state.py",
+          "kind": "file",
+          "sha256": "b12428c5218f57b17683e70d6cf516ad80b106b21361cd0f62be1518c12b7e31"
+        },
+        {
+          "path": "src/henchman/ops/store.py",
+          "kind": "file",
+          "sha256": "2c93086b8d80cb9c0f9304ab8c0ee7f570de81c0df893d9694b2ec41bc4ac60e"
+        },
+        {
+          "path": "src/henchman/ops/sync.py",
+          "kind": "file",
+          "sha256": "3d4af9b3bf2ece210a1c2ee2ffd8ce9c9114c82ef9eb58f5a42e0811b49fc599"
+        },
+        {
+          "path": "src/henchman/ops/updater.py",
+          "kind": "file",
+          "sha256": "0722ab79513f9b7da9a6f846f85c7c6c6987e094b5c80981ce3e18a462955ec3"
+        },
+        {
+          "path": "src/henchman/ops/workflow_store.py",
+          "kind": "file",
+          "sha256": "d17691a86b1ad044d7912c9c70adb8048dc9ebafd84b92939f2e60edae16b365"
+        },
+        {
+          "path": "src/henchman/providers/__init__.py",
+          "kind": "file",
+          "sha256": "89322e0686f1cfb1aebe679b11ed2243eddd32cf453c3f8717f291a02a9cf121"
+        },
+        {
+          "path": "src/henchman/providers/anthropic.py",
+          "kind": "file",
+          "sha256": "48d5f953c87ae85bc3d62f00332897229ed68d9136573721b22f9605f8fb56c7"
+        },
+        {
+          "path": "src/henchman/providers/base.py",
+          "kind": "file",
+          "sha256": "feae2c74ff4aa73e0a683e9c3984d7000c2bb6c74d842fcebed920f616f52abd"
+        },
+        {
+          "path": "src/henchman/providers/continuation.py",
+          "kind": "file",
+          "sha256": "d9c91fa8727001f41fae712d30b60d0afbb616365576709e14772c7dfc186d66"
+        },
+        {
+          "path": "src/henchman/providers/deepseek.py",
+          "kind": "file",
+          "sha256": "39727736dadfee4e828c232daf139f8e1382f5e71488222ef9af819ba24a09a4"
+        },
+        {
+          "path": "src/henchman/providers/factory.py",
+          "kind": "file",
+          "sha256": "8c18e85cb85e722466b95535d8a667a31d03eb02ca80768ff1762ceb80dd231c"
+        },
+        {
+          "path": "src/henchman/providers/ollama.py",
+          "kind": "file",
+          "sha256": "feee8eacdf7a35f855d3d095958cc475e5a731b60bd3570aaa2a4603258328a6"
+        },
+        {
+          "path": "src/henchman/providers/openai_compat.py",
+          "kind": "file",
+          "sha256": "3ceffde9402e75a3cea30b151d2ccbc06158474d05e66421a1c45b31e3311faa"
+        },
+        {
+          "path": "src/henchman/providers/openai_compat.py.backup",
+          "kind": "file",
+          "sha256": "2e9b6ea4071f984bc937353cc2125cf0b5ced85924e87d1152a9a339b4fb1784"
+        },
+        {
+          "path": "src/henchman/providers/openrouter.py",
+          "kind": "file",
+          "sha256": "3793f23f62a2e8156d6e508bfc1775ed333a8deeb119fe3fe268f95409b20d03"
+        },
+        {
+          "path": "src/henchman/providers/registry.py",
+          "kind": "file",
+          "sha256": "12f3eec8f0bfb3b8156dbfee6942fbf1cb2b6a9155da12622ad8191e4850a9ff"
+        },
+        {
+          "path": "src/henchman/providers/request_budget.py",
+          "kind": "file",
+          "sha256": "5f82c28ffdbc6ee2bf2e31f6b95614e31a44f8f293267e802eba6629701d4088"
+        },
+        {
+          "path": "src/henchman/providers/runtime_budget.py",
+          "kind": "file",
+          "sha256": "8de74adaccb183197dd1c6bedfa941fa9cd235d705766c30bf76def2b4a4919c"
+        },
+        {
+          "path": "src/henchman/providers/schema_projections.py",
+          "kind": "file",
+          "sha256": "9967ddb5babe9d071a76d6e089e095c00c4c4a6862b46b1f63edb12d0dd4bfea"
+        },
+        {
+          "path": "src/henchman/providers/usage.py",
+          "kind": "file",
+          "sha256": "e31a22723841c021b01287d749d41a8df4aef74395a8133f571e4bede4a84255"
+        },
+        {
+          "path": "src/henchman/providers/utils.py",
+          "kind": "file",
+          "sha256": "52be74d4c3ccdb18ea1a55a1f5d6d24eda65c4bf78e67ccce6044d380d12eab5"
+        },
+        {
+          "path": "src/henchman/py.typed",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "src/henchman/rag/__init__.py",
+          "kind": "file",
+          "sha256": "e466e8ed26583eb64af182c59f7c2a7cf27f3e53d5f6e547632dcd386c233e89"
+        },
+        {
+          "path": "src/henchman/rag/chunker.py",
+          "kind": "file",
+          "sha256": "b07842b148549bbc7f18796e25bab22cf906868d59cb6b5596bd6ba219591d93"
+        },
+        {
+          "path": "src/henchman/rag/concurrency.py",
+          "kind": "file",
+          "sha256": "ac0bea11bec298acf7c99cd4ccf61f28d65f144b2bae05fe5276c4ccb9d0e2ed"
+        },
+        {
+          "path": "src/henchman/rag/embedder.py",
+          "kind": "file",
+          "sha256": "59d6baa4b8cb4eaea956e5b3f370a9d22c24b8884d929f88b8019a598383725b"
+        },
+        {
+          "path": "src/henchman/rag/evidence.py",
+          "kind": "file",
+          "sha256": "1cd221203c44dd34c0e965b66efed5598423156f9c5ab397b02fed9665ad1dfa"
+        },
+        {
+          "path": "src/henchman/rag/indexer.py",
+          "kind": "file",
+          "sha256": "c2095ee7d3082f5cd5b3cf7fef113ca01f00f7dcc117b59ead338db6c4e3516a"
+        },
+        {
+          "path": "src/henchman/rag/repo_id.py",
+          "kind": "file",
+          "sha256": "238ca6e168b93c7b67cbd11c39449ff616e4a1a09aa7335fe2ed9077780d8768"
+        },
+        {
+          "path": "src/henchman/rag/store.py",
+          "kind": "file",
+          "sha256": "74e097404471f9eee41556584de661e229952577417fd8bcdf14902a6e284c74"
+        },
+        {
+          "path": "src/henchman/rag/system.py",
+          "kind": "file",
+          "sha256": "f56436364b6263f4c4876e866a0d9f45746829cb483156c47e094682040140cb"
+        },
+        {
+          "path": "src/henchman/skills/__init__.py",
+          "kind": "file",
+          "sha256": "286e74aaff9a40b6632b549d32eb43ed3599b0bdbafffba8d73bd08fcd225f43"
+        },
+        {
+          "path": "src/henchman/skills/catalog.py",
+          "kind": "file",
+          "sha256": "c8bbc736874aedc263f9375466051d3bbe047e22aecb1c6215cca86bb7f95526"
+        },
+        {
+          "path": "src/henchman/team/__init__.py",
+          "kind": "file",
+          "sha256": "b9c62253c4de054d6c1015456f59d96cdaf627e19221035bf75bf8bd86c4a90d"
+        },
+        {
+          "path": "src/henchman/team/collaboration.py",
+          "kind": "file",
+          "sha256": "948bca73012504f51da2ddd7e0a34273cef079da0cc0b3753634465bae46d9a2"
+        },
+        {
+          "path": "src/henchman/testing/__init__.py",
+          "kind": "file",
+          "sha256": "3f60e46eb1907063abab890ecc05e0560a9d3d43a2cd210f6b850b8adbd7d9b3"
+        },
+        {
+          "path": "src/henchman/testing/contract.py",
+          "kind": "file",
+          "sha256": "e8dbee2ec2654cf4cca198774ee34bf4dc74b23ca3264dceb300e088028df043"
+        },
+        {
+          "path": "src/henchman/testing/pytest_reporter.py",
+          "kind": "file",
+          "sha256": "aadaf7f106b0a188ea38e8527e30043712f8aa902232e669b2c1167aafbb3543"
+        },
+        {
+          "path": "src/henchman/testing/vcr.py",
+          "kind": "file",
+          "sha256": "e98a98fd333a5dd721c2a81736c3558dec2e4808c974e3b38b91d64e62bc5093"
+        },
+        {
+          "path": "src/henchman/tools/__init__.py",
+          "kind": "file",
+          "sha256": "23f80083638a64ec5249c7a2d4821de142a29f64e6555c80ede4aaa29cacb968"
+        },
+        {
+          "path": "src/henchman/tools/access_policy.py",
+          "kind": "file",
+          "sha256": "291ec510d15cb1db11960c996d130ba8c5cd48949b8f6a94aace622e480ee1c9"
+        },
+        {
+          "path": "src/henchman/tools/base.py",
+          "kind": "file",
+          "sha256": "2623d82301f32a7578162cf788570cbeada3377f5f49d090b8dcc9655ed6b998"
+        },
+        {
+          "path": "src/henchman/tools/builtins/__init__.py",
+          "kind": "file",
+          "sha256": "6049edef6ae603977aa51731e9560f345ee784a04202ea138230e033cb55a8ce"
+        },
+        {
+          "path": "src/henchman/tools/builtins/ask_user.py",
+          "kind": "file",
+          "sha256": "0c18b39b31ac0a2e6516ab1fbed2383c3769890651c694a9541330e7384b2326"
+        },
+        {
+          "path": "src/henchman/tools/builtins/code_format.py",
+          "kind": "file",
+          "sha256": "12dc5f00bf2527516317ad06878651955115e2119b9e34dc6a8dc2bb29cb2750"
+        },
+        {
+          "path": "src/henchman/tools/builtins/coverage_map.py",
+          "kind": "file",
+          "sha256": "e134aad3c378a09a1d169447e22506a3068d9c78aff592d0cf8e965f340da2bc"
+        },
+        {
+          "path": "src/henchman/tools/builtins/dead_code.py",
+          "kind": "file",
+          "sha256": "f6414a29f6f99c82dfce17429f4c635b94e95308e6c69e1aaeaf689c33966606"
+        },
+        {
+          "path": "src/henchman/tools/builtins/deep_research.py",
+          "kind": "file",
+          "sha256": "336cb14c0b6ad5a4467ec04151d2edfd5a1974c8f650686465303dfc1b212f2e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/delegate.py",
+          "kind": "file",
+          "sha256": "5e0cdb154a66dcc571ca7aa0b367a31e013489e0515e6330bd67fcac416697bf"
+        },
+        {
+          "path": "src/henchman/tools/builtins/diff_view.py",
+          "kind": "file",
+          "sha256": "7a31a194c8839599af490e84f420bb609ba13d54eb0c54a6d53d5b3ba31c7423"
+        },
+        {
+          "path": "src/henchman/tools/builtins/env_inspect.py",
+          "kind": "file",
+          "sha256": "911d5c540486130cd02c6196502cb0afa5c4336551f83f05e6194951dc4aed6e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_edit.py",
+          "kind": "file",
+          "sha256": "9160cc46ab5276adefa31499575c988040f885078823d1099e5e17db00e03116"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_overview.py",
+          "kind": "file",
+          "sha256": "fc7daee6869f447618f85eff1588e1e029e76b46c76e252d4352c069e30cfb3b"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_read.py",
+          "kind": "file",
+          "sha256": "e147906e45d97e3fc14418f93e42b82ee4fa3cf371b85aae17b4ddafc710275a"
+        },
+        {
+          "path": "src/henchman/tools/builtins/file_write.py",
+          "kind": "file",
+          "sha256": "5027d5dd42980c572fc51a458fde4e8ea3010b60405d35465950e148c37eb955"
+        },
+        {
+          "path": "src/henchman/tools/builtins/git_ops.py",
+          "kind": "file",
+          "sha256": "4f800fae65db8f1eb0fb2f04ed0c4873991c477cbe423a79112d732a05e7ed1c"
+        },
+        {
+          "path": "src/henchman/tools/builtins/glob_tool.py",
+          "kind": "file",
+          "sha256": "56a6ae7fa0eddfd5a0d4169edac888b3c137f2026abe2d6e169d73d47dd95dea"
+        },
+        {
+          "path": "src/henchman/tools/builtins/goal_status.py",
+          "kind": "file",
+          "sha256": "1dbc9760f977cdd2b1f26b981b984d28b787d226a8df7c0f7d7ac0bf525e2724"
+        },
+        {
+          "path": "src/henchman/tools/builtins/grep.py",
+          "kind": "file",
+          "sha256": "2cafc9cbc0b64a170d7c1b32ec7c6cb7e9baab7ac6b63868581746ac6e2cd862"
+        },
+        {
+          "path": "src/henchman/tools/builtins/import_graph.py",
+          "kind": "file",
+          "sha256": "0f491bdbcbf95b23bd0710760cc94022296637b8af1d18943491fd2e90404f9c"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_common.py",
+          "kind": "file",
+          "sha256": "13c0b3aba0c4ded8e5a5d784c860d792f6ea0580352e7c1aae0238dc2d61ad32"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_query.py",
+          "kind": "file",
+          "sha256": "6b5f8e4d4bd6bb29d3c75ccc59675e03f77132e991d165f4e51edfa572b4ff23"
+        },
+        {
+          "path": "src/henchman/tools/builtins/kg_update.py",
+          "kind": "file",
+          "sha256": "79ac0d3e3b254baa8c4633cf0b94a4d24263eb9d18b41d86fc37a4fde0604fee"
+        },
+        {
+          "path": "src/henchman/tools/builtins/lint_check.py",
+          "kind": "file",
+          "sha256": "a579fe67e7c610929f6631f8f86e401bda5d825543861877be181ee1b7a5fab7"
+        },
+        {
+          "path": "src/henchman/tools/builtins/ls.py",
+          "kind": "file",
+          "sha256": "f95966d6a41796dd8a144b4671e423829c186e7fc87757d83eb727074de41876"
+        },
+        {
+          "path": "src/henchman/tools/builtins/patch_apply.py",
+          "kind": "file",
+          "sha256": "96ffda5143a83bf6db91d87cb424828db207900a8448f417d586e0a57a228c18"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pattern_search.py",
+          "kind": "file",
+          "sha256": "d484bf749f67f3f6c6096cca3a9aa14c166f0f3a1d1f73caf0429246e9d3623e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pip_inspect.py",
+          "kind": "file",
+          "sha256": "09b443c506510ab5ca6fb3e10cae5dc0333dd83386a55d586d4375bea2311683"
+        },
+        {
+          "path": "src/henchman/tools/builtins/pytest_run.py",
+          "kind": "file",
+          "sha256": "b7804ffd6a12144bbeaa88fdc0249358864cb26d4cb693b4fa0dfc1396283010"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_ast.py",
+          "kind": "file",
+          "sha256": "ca8fa46f06c9a2b0882b900999417d234a8356d33c126559eb905ee94f3f4437"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_ast_helpers.py",
+          "kind": "file",
+          "sha256": "cda4e9f09b263622e5301ea51b516c0bc80a2af9e61daa5952d135027ebd1a9f"
+        },
+        {
+          "path": "src/henchman/tools/builtins/python_exec.py",
+          "kind": "file",
+          "sha256": "fd79a984291ee5e800bfa2de87dc0778639d31dfe3a9a4b7ab2e8416d890a4ae"
+        },
+        {
+          "path": "src/henchman/tools/builtins/rag_search.py",
+          "kind": "file",
+          "sha256": "2d9e78470ce0475c4f5106c10964f9dd8b9aa25a8cc8e7f015c9adc89099e206"
+        },
+        {
+          "path": "src/henchman/tools/builtins/research_notes.py",
+          "kind": "file",
+          "sha256": "f9150202aeab4a4f5e568189ed3c07d22968f442cd580c989017feee33e75404"
+        },
+        {
+          "path": "src/henchman/tools/builtins/shell.py",
+          "kind": "file",
+          "sha256": "8036daf4da8a1ce2dcb26bcb9a81f72c16cf5a7c6ef218bda9a227a72bbbff9e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/shell.py.backup",
+          "kind": "file",
+          "sha256": "4ba2fbe051135bb1aabb2293aead27c298cd690149138fb0f5f7dfda8e4ad112"
+        },
+        {
+          "path": "src/henchman/tools/builtins/subagents.py",
+          "kind": "file",
+          "sha256": "b98b3f983a6840d5879b2706143ef3450cc53df860d927098023e7285af69209"
+        },
+        {
+          "path": "src/henchman/tools/builtins/symbol_trace.py",
+          "kind": "file",
+          "sha256": "f84193a085e4d461f3df2176c1561a6c12d5fa590bdba2bb4a6621bb5b8ef504"
+        },
+        {
+          "path": "src/henchman/tools/builtins/test_gen.py",
+          "kind": "file",
+          "sha256": "3a979741eabdae5e755ea674190c1286423eea5a244124c2fd1272946c15ac03"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier1_tools.py",
+          "kind": "file",
+          "sha256": "3a959ad0a2d4dd9dd0a9dfc2a13717c7c2e73a71efa603d18952de1d25606a2e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier2_tools.py",
+          "kind": "file",
+          "sha256": "468cb2cbb5c3cdc055f4a6bb12bde9a334d607e212d458b6458e2f3861c9c274"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier5_tools.py",
+          "kind": "file",
+          "sha256": "8ffc19bc07aa98ac1d0ce52f3fedbb72db0dab2aeedd11db3b5cf09375dec2e5"
+        },
+        {
+          "path": "src/henchman/tools/builtins/tier6_tools.py",
+          "kind": "file",
+          "sha256": "d3526f7f729e0905ddedb9eb7ffcee26ab8be62576429d05995bc1bf4e42412e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/traceback_parse.py",
+          "kind": "file",
+          "sha256": "7dc9a477eec6c962af88d04f787d03ac67c9a5e37024b6939fc9ffc7210124bb"
+        },
+        {
+          "path": "src/henchman/tools/builtins/web_fetch.py",
+          "kind": "file",
+          "sha256": "3b8764f6957a156ad86cd837dd797cb29f567fa125c83707c18fb3e4d236c64e"
+        },
+        {
+          "path": "src/henchman/tools/builtins/web_search.py",
+          "kind": "file",
+          "sha256": "973e9a0a73776f7bc9bb616bbf67f7961c4cfa83f320f3b8b700aa915cffae7a"
+        },
+        {
+          "path": "src/henchman/tools/checkpoint_capture.py",
+          "kind": "file",
+          "sha256": "1a879941a49540da3b5a16c3c2d2d8141733c57ef1d0cd92ef062f7001e42000"
+        },
+        {
+          "path": "src/henchman/tools/contracts.py",
+          "kind": "file",
+          "sha256": "6d05a5dc68f8680e7ea8dea2843a17d70f32dc28cd6db38fa595629aab688687"
+        },
+        {
+          "path": "src/henchman/tools/formatting.py",
+          "kind": "file",
+          "sha256": "51f16ea009446af52ba189b16384873fc56be359c65faf6948024259e05ccf48"
+        },
+        {
+          "path": "src/henchman/tools/http_security.py",
+          "kind": "file",
+          "sha256": "71e5a6d9daed1a7faccd357b2ced5792b4bf62bf35497b5f35aae0f5c58bef93"
+        },
+        {
+          "path": "src/henchman/tools/policy.py",
+          "kind": "file",
+          "sha256": "bf4797751c49229f4b48f76f265540dc3dc2afe4c8ee8ba9eeeae337ea096327"
+        },
+        {
+          "path": "src/henchman/tools/registry.py",
+          "kind": "file",
+          "sha256": "6672c80616ba4cf235576bf77b721ed727eeead5e396e035dd0af89dffe7ec78"
+        },
+        {
+          "path": "src/henchman/tools/repair_scope.py",
+          "kind": "file",
+          "sha256": "e5787fce647cabfc0ceb88d3b61a48d64793646d79c71b7f43644d8e732ae7da"
+        },
+        {
+          "path": "src/henchman/tools/scoped_registry.py",
+          "kind": "file",
+          "sha256": "f784e516894d26dd043ad0d9804d76e554bd853b6cec4e69747e82388899d417"
+        },
+        {
+          "path": "src/henchman/tools/security.py",
+          "kind": "file",
+          "sha256": "d6ece7dccb542aa15d60b95b98a940ff4b4889e6e82f316fcbddfe2b18fd331d"
+        },
+        {
+          "path": "src/henchman/tools/security/__init__.py",
+          "kind": "file",
+          "sha256": "7b57a3547aab17b5863141a929a07dafe67cef5726d2fcb36ae42df4f449d1f0"
+        },
+        {
+          "path": "src/henchman/tools/security/__init__.pyi",
+          "kind": "file",
+          "sha256": "f6907d748d2c33f6116e09301f9c91ab3396809e9ecbbee015640392b4519f00"
+        },
+        {
+          "path": "src/henchman/tools/security/shell_secure.py",
+          "kind": "file",
+          "sha256": "ff23801790496cae53a3d1a9fe4ed7154ff12f9308e673d418761327379203dc"
+        },
+        {
+          "path": "src/henchman/tools/snippet_formatting.py",
+          "kind": "file",
+          "sha256": "fa21bb9b5a0ee1cc8fb91f2bc3b41572ac38cb413285a142a020451e5211e722"
+        },
+        {
+          "path": "src/henchman/tools/subprocess_utils.py",
+          "kind": "file",
+          "sha256": "44d63fe2e73cc3a5ca9ee822efa9d60a3f5c7d0a94afcf89f676d4e880a9dc91"
+        },
+        {
+          "path": "src/henchman/tools/utils.py",
+          "kind": "file",
+          "sha256": "8cba760c4c92796d06cf7628dfc933ed3b473eedd4bcbcc94a1f292d6a4ff018"
+        },
+        {
+          "path": "src/henchman/utils/__init__.py",
+          "kind": "file",
+          "sha256": "5e6bce0fa4f82f218e7d1c745c7f85f5b84593310bd7b42629414cd96495e4a0"
+        },
+        {
+          "path": "src/henchman/utils/cluster_utils.py",
+          "kind": "file",
+          "sha256": "cda1c6d470d58ef08d50a43f8dc98060327472ecf2f0d841ed1a90ee8ade3f3e"
+        },
+        {
+          "path": "src/henchman/utils/compaction.py",
+          "kind": "file",
+          "sha256": "1bb138c8a0aec8ece8db0df8e5a165a20972c8b6c0c189431a1d793664221708"
+        },
+        {
+          "path": "src/henchman/utils/compression_strategy.py",
+          "kind": "file",
+          "sha256": "7c235bae6ebbe7cfb81cbe100cae6bf697d0b952e2f950a9be6108bc6439414c"
+        },
+        {
+          "path": "src/henchman/utils/context_attachments.py",
+          "kind": "file",
+          "sha256": "fb41ad428baa30c3ed97dc8363425eb97e86d82879d34778ced30657d8ef5325"
+        },
+        {
+          "path": "src/henchman/utils/evidence_redaction.py",
+          "kind": "file",
+          "sha256": "8d6a608aa5ccf7b27aca019872ab04895a201b2d8d595a52558277e9299c3099"
+        },
+        {
+          "path": "src/henchman/utils/exception_evidence.py",
+          "kind": "file",
+          "sha256": "299ba6d23bd33b00a18d4dfdb5adaf011b82e49f31451f60d2a9529983021d6a"
+        },
+        {
+          "path": "src/henchman/utils/file_lock.py",
+          "kind": "file",
+          "sha256": "3485124862c484b641598d2577fd13467790dceb4f6c3bb7705172fba7a262dd"
+        },
+        {
+          "path": "src/henchman/utils/importance_scorer.py",
+          "kind": "file",
+          "sha256": "18767661f31f2d87fd1fb7597bb1363149ad150adac0e7797419b2f49ffd9c53"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context.py",
+          "kind": "file",
+          "sha256": "67811dbc9b8885416ee0dd4f59fd065e56391168142878a4c1b31e5ff6093dbb"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_aggregator.py",
+          "kind": "file",
+          "sha256": "9802f745cab0f2874341e05d6db872946422997783ffe6005694d1ff38ff0d42"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_config.py",
+          "kind": "file",
+          "sha256": "14d47e7d624f95606b1316efc29b8d56fea2538ca2e423bdab2721c3cd7d03f8"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_detector.py",
+          "kind": "file",
+          "sha256": "0ea34b8469c93c23beeee02aa3fe3c567c6e6428e15febca5b131dd3314427f3"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_extractor.py",
+          "kind": "file",
+          "sha256": "e376d8a0e2b8858108964c4176401d4c6747c5615890ebaf540147fe95bf2f7c"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_formatter.py",
+          "kind": "file",
+          "sha256": "606f26018e5ca54e3bb830cee2c67edcbb6719806179d181a98163daf3c7f3e2"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_parser.py",
+          "kind": "file",
+          "sha256": "02b91a99969abb42e5675527821f7618f2747edea3bc7d2a67c3c31b521e444a"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_summarizer.py",
+          "kind": "file",
+          "sha256": "880ca36787d429fe992bc5bb6a1e00ec8885df12951ec06dbaa8f7da678d67fb"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_topic_extractor.py",
+          "kind": "file",
+          "sha256": "6d2ed89ed44273ffe98e4ec95750024ea2625ae0d7517424f6ffa68727ffc524"
+        },
+        {
+          "path": "src/henchman/utils/intelligent_context_types.py",
+          "kind": "file",
+          "sha256": "89b665021b072aee027a1fc14179cd0384d54140cc00b39e936869690c544b16"
+        },
+        {
+          "path": "src/henchman/utils/lazy_import.py",
+          "kind": "file",
+          "sha256": "c8eb7187c0deb3f8876425cb67299619c72b494110fb8311e490147632b3197d"
+        },
+        {
+          "path": "src/henchman/utils/message_analyzer.py",
+          "kind": "file",
+          "sha256": "8445604f5995c65c47a6f03aae58afde6cd16b48ce9268eded080847986b03eb"
+        },
+        {
+          "path": "src/henchman/utils/message_clusterer.py",
+          "kind": "file",
+          "sha256": "299971ab852370289810a613c9ea000ff43653c6821e182f2d5751731f1136e7"
+        },
+        {
+          "path": "src/henchman/utils/message_compactor.py",
+          "kind": "file",
+          "sha256": "35557e3d41a089acdc5e5891a4e55be4b5faa532bdbb11190a0d759e53d04da6"
+        },
+        {
+          "path": "src/henchman/utils/network_hosts.py",
+          "kind": "file",
+          "sha256": "2836121176f24c13e12deac021c4e0809a1b1a80f52efb90b6f012df67ef47c7"
+        },
+        {
+          "path": "src/henchman/utils/pipe_output.py",
+          "kind": "file",
+          "sha256": "6f2cfbcfac380d9d30afc06aa1eb1f11700080444028546aaae7b029aa098347"
+        },
+        {
+          "path": "src/henchman/utils/ratelimit.py",
+          "kind": "file",
+          "sha256": "0e52d587c8956c4ffe5896d2f89c660b539d4242eaa52252dd11096f4729dec0"
+        },
+        {
+          "path": "src/henchman/utils/registry.py",
+          "kind": "file",
+          "sha256": "ac7aef3f0a8b34c3e715ba9a6b5031013f3ef47e17ea1905cbbda46a44b44597"
+        },
+        {
+          "path": "src/henchman/utils/retry.py",
+          "kind": "file",
+          "sha256": "838787d84f0dbd5ede6aa5151bcb9948fb46fe151e9cc76c030c00b1eaab1153"
+        },
+        {
+          "path": "src/henchman/utils/serialization.py",
+          "kind": "file",
+          "sha256": "2ced96e7883c6dccadd5465a6714acd5311f3521759c46a886b10a94c85ff719"
+        },
+        {
+          "path": "src/henchman/utils/sorting_utils.py",
+          "kind": "file",
+          "sha256": "c56f84a91213e593eb9326dc9fa7f95136ace17a47cb06b9bf7c36c1ee567b98"
+        },
+        {
+          "path": "src/henchman/utils/source_files.py",
+          "kind": "file",
+          "sha256": "d798c687eea41a49a887543b6fcb985fef64d2fdfdce2af22aca9c223f6766f7"
+        },
+        {
+          "path": "src/henchman/utils/token_encodings.py",
+          "kind": "file",
+          "sha256": "26e5f24e69af223240dbeb2961d279190e1ce61fb3aeb2f2949ccdf6ba6f4add"
+        },
+        {
+          "path": "src/henchman/utils/tokens.py",
+          "kind": "file",
+          "sha256": "7828527cc0c18dbe3fcfed2a426788ea783e704cd9cf0e1cbb2a4c2993d6a8e3"
+        },
+        {
+          "path": "src/henchman/utils/tool_results.py",
+          "kind": "file",
+          "sha256": "fb4188d5126d92b128432b32d76d04423b2e629af16ee1c8de7b5850b0756330"
+        },
+        {
+          "path": "src/henchman/utils/validation.py",
+          "kind": "file",
+          "sha256": "8b4fdbc6bd31b53f9261676b97aabc2a2e6523e5ead4c022dec0c298d53cfd64"
+        },
+        {
+          "path": "src/henchman/version.py",
+          "kind": "file",
+          "sha256": "533f5aa8d6ff2626562eb8262e6fb110de11e334852bbaf2068877f62d877dcb"
+        },
+        {
+          "path": "tests/__init__.py",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "tests/cli/__init__.py",
+          "kind": "file",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "tests/cli/ui_scenarios.py",
+          "kind": "file",
+          "sha256": "6effcb8a8fb87a35eca0269ddfe11bf4f71fb523fc817a539f4f5f69541adb28"
+        }
+      ]
+    }
+  },
+  "harness_sha256": {
+    "run_cohort.py": "628c33d612604d37e8d1e085fc641ff611ed34c1957e5fb1410dbb9468915731",
+    "run_measure.py": "6e2d3ac16bb5c2c23628f535ccdc910895702fe0461b0f578432f8fe17b2dcf6",
+    "measure.py": "74383732dde7f6efabe8ecf904100223a3b328d8337bcaeedea1306a911facc9",
+    "probe_app.py": "65bbe0570f56bd0f222a20cf381293238c999861183ef5bb4376ce618a74df96"
+  },
+  "cases": [
+    {
+      "name": "0-baseline",
+      "arm": "baseline",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000
+    },
+    {
+      "name": "1-candidate",
+      "arm": "candidate",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000
+    },
+    {
+      "name": "2-candidate",
+      "arm": "candidate",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000
+    },
+    {
+      "name": "3-baseline",
+      "arm": "baseline",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000
+    }
+  ]
+}

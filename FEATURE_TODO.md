@@ -725,6 +725,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   [GC-batch screening](evals/widget_gc_batch_v1/README.md) did not clear most
   evicted synthetic widgets with generation-0/1 batches; process-wide full
   collections remain unqualified for latency and safety.
+  An exploratory [64-row screen](docs/evaluations/2026-11-08-vte-window64-screen.md)
+  reduced cancellation p95 in one scenario but failed four existing interaction
+  tests; it was not integrated or qualified.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).
