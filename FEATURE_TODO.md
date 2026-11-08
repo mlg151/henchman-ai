@@ -685,7 +685,8 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   qualification and other controls remain open. F8 Checks now reads current
   declared-input freshness separately from historical observations, without
   executing checks or claiming task acceptance. From file detail, exact declared
-  input matches appear first with plan-level status and scope limits. Checkpoint selected-copy refreshes
+  input matches appear first with plan and eligible individual check status and
+  scope limits. Checkpoint selected-copy refreshes
   credential projection and rejects stale runtime/project identities. See the
   [queue contract](docs/ui-interaction-contract.md#saved-input-queue).
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.

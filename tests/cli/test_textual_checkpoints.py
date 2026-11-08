@@ -206,6 +206,7 @@ async def test_selected_file_checks_show_declared_scope_and_current_plan_status(
         assert f"[No exact declared input] {implicit.plan_id}" in text
         assert text.index(relevant.plan_id) < text.index(unrelated.plan_id)
         assert "Current status: pass" in text and "Current status: not_run" in text
+        assert "Selected-file check 1 (command): not_run" in text
         (tmp_path / "file.txt").write_text("changed after verification")
         await pilot.press("f5")
         await ready(pilot)
@@ -241,6 +242,61 @@ async def test_selected_file_checks_do_not_infer_scope_from_redacted_plan(tmp_pa
         assert f"[Inputs unavailable] {plan.plan_id}" in text
         assert secret not in text
         assert "Current status: unavailable" in text
+
+
+async def test_selected_file_shows_its_check_status_separately_from_plan(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    plans = PlanExecutionService(tmp_path)
+    plan = plans.create_plan(title="Mixed checks", steps=["Inspect"], checks=[
+        {"kind": "file_contains", "path": "file.txt", "text": "FIRST"},
+        {"kind": "file_exists", "path": "missing.txt"},
+    ])
+    await plans.verify_plan(plan.plan_id)
+    app = InteractionApp(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert "Current status: fail" in text
+        assert "Selected-file check 1 (file_contains): pass" in text
+        assert "Selected-file check 2" not in text
+        (tmp_path / "file.txt").write_text("changed after verification")
+        await pilot.press("f5")
+        await ready(pilot)
+        assert "Selected-file check 1 (file_contains): stale" in screen.query_one(TextArea).text
+
+
+async def test_selected_file_check_does_not_claim_unverified_inputs_are_current(tmp_path, monkeypatch):
+    import sys
+
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    plans = PlanExecutionService(tmp_path)
+    plan = plans.create_plan(title="Incomplete inputs", steps=["Inspect"], checks=[
+        {"kind": "file_exists", "path": "file.txt"},
+        {"kind": "command", "argv": [sys.executable, "-c", "pass"]},
+    ])
+    await plans.verify_plan(plan.plan_id)
+    app = InteractionApp(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert "Current status: unverified" in text
+        assert "Selected-file check 1 (file_exists): unverified" in text
 
 
 @pytest.mark.parametrize("state", ["pass", "fail", "not_run", "unavailable", "incomplete"])

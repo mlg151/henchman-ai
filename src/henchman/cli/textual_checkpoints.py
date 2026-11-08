@@ -18,7 +18,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, OptionList, Static, TextArea
 from textual.widgets.option_list import Option
 
-from henchman.advanced.acceptance_checks import check_input_paths
+from henchman.advanced.acceptance_checks import CheckSpec, check_input_paths
 from henchman.advanced.checkpoint_models import CheckpointRecord, CheckpointReview, ReviewPlan
 from henchman.advanced.checkpoints import CheckpointConflict, CheckpointService
 from henchman.advanced.plans import PlanExecutionService, PlanRecord
@@ -500,25 +500,37 @@ class CheckpointReviewScreen(ModalScreen[None]):
                               "other dependencies may be undeclared."])
             if omitted:
                 lines.append(f"{omitted} earlier plan(s) omitted; inspecting the most recent {_CHECK_PLAN_LIMIT}.")
-            def match(plan: PlanRecord) -> bool:
-                paths, _ = check_input_paths(plan.checks)
-                return selected_file is not None and any(
-                    PurePosixPath(path).as_posix() == selected_file for path in paths
-                )
+            def declares(spec: CheckSpec) -> bool:
+                if selected_file is None:
+                    return False
+                paths, _ = check_input_paths((spec,))
+                return any(PurePosixPath(path).as_posix() == selected_file for path in paths)
 
             if selected_file is not None:
-                observations.sort(key=lambda item: not match(item[0]))
+                observations.sort(key=lambda item: not any(declares(spec) for spec in item[0].checks))
             for plan, current in observations:
                 report = plan.last_verification
+                selected_checks = [(index, spec) for index, spec in enumerate(plan.checks) if declares(spec)]
                 status = str(report.get("status", "unknown")) if report else "not-run"
                 if status == "finished":
                     status = "recorded pass" if report and report.get("checks_passed") is True else "recorded fail"
                 label = ""
                 if selected_file is not None:
                     label = ("[Inputs unavailable] " if plan.checks_unavailable is not None else
-                             "[Declares selected file] " if match(plan) else "[No exact declared input] ")
+                             "[Declares selected file] " if selected_checks else "[No exact declared input] ")
                 lines.extend([f"\n{label}{plan.plan_id}: {plan.title}",
-                              f"Current status: {current['status']} · freshness: {current['freshness']} · configuration: {current['configuration_status']}",
+                              f"Current status: {current['status']} · freshness: {current['freshness']} · configuration: {current['configuration_status']}"])
+                for index, spec in selected_checks:
+                    state = str(current["status"])
+                    if state in {"pass", "fail"}:
+                        results = report.get("results") if report else None
+                        result = results[index] if isinstance(results, list) and index < len(results) else None
+                        result_status = result.get("status") if isinstance(result, dict) else None
+                        state = result_status if isinstance(result_status, str) and result_status in {"pass", "fail"} else "unverified"
+                    elif state not in {"not_run", "stale"}:
+                        state = "unverified"
+                    lines.append(f"Selected-file check {index + 1} ({spec.kind}): {state}")
+                lines.extend([
                               json.dumps(self._checks_policy.redact(current), ensure_ascii=True, indent=2),
                               f"Historical result: {status}",
                               json.dumps(self._checks_policy.redact(report), ensure_ascii=True, indent=2) if report else "Checks have not run."])
