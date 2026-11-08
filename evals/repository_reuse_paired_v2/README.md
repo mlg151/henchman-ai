@@ -43,3 +43,9 @@ and 3.12, then all 12 scripted attempts. An independent audit checked six
 paired inputs, joined worker identities and 790 raw files; its SHA-256 is in
 the manifest. The 48 scripted requests did not use a model and show no quality
 improvement. At preflight freeze no v2 live attempt had run.
+
+The later [live result](../../docs/evaluations/2026-11-08-reuse-paired-v2.md)
+has a separately retained audit. With the qualification directory containing
+the retained harness and live output, run
+`python evals/audit_repository_reuse_v2.py <qualification-directory> <new-output-json>`
+without Python optimization to reproduce that exact audit.

@@ -38,8 +38,10 @@ that preflight does not measure model quality. The subsequent
 [local-model run](../docs/evaluations/2026-11-08-reuse-paired-v1.md) stopped
 after one timeout and produced no paired comparison. A separately frozen
 [v2 preparation](repository_reuse_paired_v2/README.md) addresses observed
-oracle and status-access limitations; its scripted preflight is not live
-model evidence.
+oracle and status-access limitations. Its
+[local-model result](../docs/evaluations/2026-11-08-reuse-paired-v2.md) retains
+all 12 attempts and the guard-denial and timeout limitations; its scripted
+preflight remains separate from model evidence.
 
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
