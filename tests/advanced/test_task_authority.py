@@ -481,8 +481,8 @@ async def test_stop_retains_monitor_outcome_when_waiter_is_removed_during_termin
         await asyncio.gather(monitor, return_exceptions=True)
 
 
-@pytest.mark.parametrize('mismatch', ['process', 'loop'])
-async def test_stop_refuses_foreign_runtime_before_signalling(tmp_path, mismatch):
+@pytest.mark.parametrize('mismatch', ['process', 'loop', 'unmonitored_loop'])
+async def test_stop_refuses_foreign_runtime_before_signalling(tmp_path, mismatch, monkeypatch):
     from henchman.advanced.tasks import TaskOwnershipError
 
     service = TaskService(tmp_path)
@@ -495,13 +495,19 @@ async def test_stop_refuses_foreign_runtime_before_signalling(tmp_path, mismatch
     try:
         if mismatch == 'process':
             runtime.process_id = -1
-        else:
+        elif mismatch == 'loop':
             runtime.waiters[record.task_id] = other_loop.create_future()
-        with pytest.raises(TaskOwnershipError, match='runtime|loop'):
-            await service.stop_task(record.task_id)
+        else:
+            runtime.waiters.pop(record.task_id)
+            runtime.processes[record.task_id] = SimpleNamespace(_loop=other_loop, pid=process.pid, returncode=None)
+        with monkeypatch.context() as patch:
+            patch.setattr(service, '_terminate_process', lambda *_: pytest.fail('Foreign process was signalled'))
+            with pytest.raises(TaskOwnershipError, match='runtime|loop'):
+                await service.stop_task(record.task_id)
         assert process.returncode is None
     finally:
         runtime.process_id = original_process_id
+        runtime.processes[record.task_id] = process
         runtime.waiters[record.task_id] = original_waiter
         other_loop.close()
         await service.stop_task(record.task_id)

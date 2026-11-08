@@ -213,6 +213,7 @@ class WorkInspection:
             raise ValueError("Task is already stopping; wait for cleanup")
         if (runtime.process_id != os.getpid() or record.owner_id != runtime.owner_id
             or record.status != "running" or process is None or process.returncode is not None
+            or getattr(process, "_loop", None) is not loop
             or waiter is None or waiter.done() or waiter.get_loop() is not loop):
             raise ValueError("Task is not a running process owned by this runtime")
 
@@ -228,6 +229,7 @@ class WorkInspection:
                 latest = runtime.records.get(identity)
                 if (runtime.process_id != os.getpid() or runtime.processes.get(identity) is not process
                     or process.returncode is not None or latest is None
+                    or getattr(process, "_loop", None) is not loop
                     or runtime.waiters.get(identity) is not waiter or waiter.done() or waiter.get_loop() is not loop
                     or latest.revision != expected_revision or latest.owner_id != runtime.owner_id):
                     raise ValueError("Task changed; refresh the selection before stopping it")

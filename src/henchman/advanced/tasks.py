@@ -472,7 +472,11 @@ class TaskService:
         waiter = self._runtime.waiters.get(task_id)
         if self._runtime.process_id != os.getpid():
             raise TaskOwnershipError("Task process is not owned by this runtime")
-        if waiter is not None and waiter.get_loop() is not asyncio.get_running_loop():
+        loop = asyncio.get_running_loop()
+        # asyncio's subprocess handle has no public loop accessor. Fail
+        # closed if its owning loop cannot be established, including for a
+        # failed launch that never acquired a monitor waiter.
+        if getattr(process, "_loop", None) is not loop or (waiter is not None and waiter.get_loop() is not loop):
             raise TaskOwnershipError("Task process is owned by a different event loop")
         self._runtime.stopping.add(task_id)
         await self._terminate_process(process)

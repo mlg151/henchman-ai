@@ -93,19 +93,25 @@ async def test_interrupt_refuses_unknown_stored_pid(work, monkeypatch):
         await WorkInspection(frontend(work)).interrupt_task(raw['task_id'], expected_revision=raw['revision'])
 
 
-async def test_interrupt_refuses_a_task_owned_by_another_event_loop(work):
+@pytest.mark.parametrize('mismatch', ['waiter', 'handle'])
+async def test_interrupt_refuses_a_task_owned_by_another_event_loop(work, mismatch):
     record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
     work.tasks.append(record.task_id)
     current = work.service.get_task(record.task_id)
     runtime = work.service._runtime
     original = runtime.waiters[record.task_id]
+    process = runtime.processes[record.task_id]
     other_loop = asyncio.new_event_loop()
-    runtime.waiters[record.task_id] = other_loop.create_future()
+    if mismatch == 'waiter':
+        runtime.waiters[record.task_id] = other_loop.create_future()
+    else:
+        runtime.processes[record.task_id] = SimpleNamespace(_loop=other_loop, pid=process.pid, returncode=None)
     try:
         with pytest.raises(ValueError, match='owned'):
             await WorkInspection(frontend(work)).interrupt_task(record.task_id, expected_revision=current.revision)
-        assert runtime.processes[record.task_id].returncode is None
+        assert process.returncode is None
     finally:
+        runtime.processes[record.task_id] = process
         runtime.waiters[record.task_id] = original
         other_loop.close()
 
