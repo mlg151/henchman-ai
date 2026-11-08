@@ -82,6 +82,7 @@ def test_collect_doctor_core_report_surfaces_invalid_configuration(
     home_dir = tmp_path / "home"
     home_dir.mkdir()
     monkeypatch.setenv("HOME", str(home_dir))
+    monkeypatch.setenv("USERPROFILE", str(home_dir))
     project_root = tmp_path / "workspace"
     project_root.mkdir()
 
