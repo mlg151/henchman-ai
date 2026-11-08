@@ -115,6 +115,20 @@ def test_template_metadata_and_derived_sessions_share_configured_policy(tmp_path
         assert item.messages[-1].content == secret
 
 
+def test_imported_source_id_is_untrusted_evidence(tmp_path: Path) -> None:
+    secret = "imported-source-id-secret-canary"
+    manager = SessionManager(tmp_path, evidence_redactor=EvidenceRedactor([secret]))
+    payload = manager.create_session("project").to_dict()
+    payload["id"] = secret
+
+    imported = manager.import_session(json.dumps(payload))
+    path = manager.save(imported)
+
+    assert secret not in path.read_text()
+    assert secret not in manager.export_session(imported.id, format="json")
+    assert manager.load(imported.id).export_metadata["original_id"] == "[REDACTED]"
+
+
 def test_removed_legacy_credential_still_masks_current_echo(tmp_path: Path) -> None:
     manager = SessionManager(tmp_path)
     session = manager.create_session("project")

@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attachment is unavailable while retained output remains inspectable. Textual
   Refresh re-reads the selected detail without returning to the list.
 
+- **Session import provenance** — Imported copies record the immediate source
+  session ID instead of incorrectly recording their own newly assigned ID.
+
 - **Changed-file checks** — Checkpoint review highlights project plans that
   explicitly declare the selected file as an input, with plan-level and eligible
   individual check status and a reminder that inputs may omit dependencies.

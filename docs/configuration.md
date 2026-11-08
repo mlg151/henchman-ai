@@ -261,10 +261,18 @@ it does not authorize reading or modifying those sessions from this project.
 Run the command from the owning directory to access a session there. Explicit
 file import/export is still the way to transfer a user-managed copy. The `/session
 import` command creates a new ID in the destination project and leaves the source
-session unchanged. Low-level Python session APIs accept `project_hash=` for scoped access and retain unscoped
-administrative access when it is omitted. These are application access checks,
-not OS isolation: processes with filesystem access can still read saved files.
+session unchanged. Imported metadata records the ID of the immediate source copy,
+subject to evidence redaction; it is supplied by the imported file, not proof of
+its identity or permission to access the source project. Low-level Python session
+APIs accept `project_hash=` for scoped access and retain unscoped administrative
+access when it is omitted. These are application access checks, not OS isolation:
+processes with filesystem access can still read saved files.
 Restricted shell/network enforcement remains tracked separately under issue #20.
+
+Importing a transcript does not transfer a durable workflow journal or its
+dispatch authority. A copy carrying a source-session workflow reference cannot
+attach that journal under its new identity; resume the original session in its
+own project to recover its queued work. Import does not automatically replay it.
 
 ## Session evidence redaction
 

@@ -402,6 +402,15 @@ class TestSessionManagerEnhancedFeatures:
         assert imported.tag == "imported"
         assert len(imported.messages) == len(messages)
         assert "imported_at" in imported.export_metadata
+        assert imported.export_metadata["original_id"] == session_id
+
+        # Each import records the immediate source, including after persistence.
+        manager.save(imported)
+        restored = manager.load(imported.id)
+        assert restored.export_metadata["original_id"] == session_id
+        second = manager.import_session(manager.export_session(imported.id))
+        assert second.id not in {session_id, imported.id}
+        assert second.export_metadata["original_id"] == imported.id
 
     def test_save_template(
         self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]

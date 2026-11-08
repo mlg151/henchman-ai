@@ -54,7 +54,9 @@ _METADATA = {
              "policy": dict.fromkeys(("plan_mode", "plan_mode_origin", "tool_policy_digest", "instruction_digest"), PRESERVE_IDENTITY),
              "checks": [dict.fromkeys(("plan_id", "spec_digest", "observed_run_id"), PRESERVE_IDENTITY)]},
     "instruction_sources": _PROVENANCE, "instruction_sources_history": [_PROVENANCE],
-    "imported_at": PRESERVE_IDENTITY, "original_id": PRESERVE_IDENTITY,
+    # Imported source IDs come from user-supplied files and are evidence, not
+    # an identity used to select or resume this session.
+    "imported_at": PRESERVE_IDENTITY, "original_id": None,
     "merged_from": PRESERVE_IDENTITY, "merge_strategy": PRESERVE_IDENTITY,
     "merge_timestamp": PRESERVE_IDENTITY,
 }

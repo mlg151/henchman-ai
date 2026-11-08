@@ -194,9 +194,10 @@ def import_json_session(
     Returns:
         None
     """
+    original_id = session.id
     session.id = new_id
     session.last_updated = now
     if tag:
         session.tag = tag
     session.export_metadata["imported_at"] = now
-    session.export_metadata["original_id"] = session.id
+    session.export_metadata["original_id"] = original_id

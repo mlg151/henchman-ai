@@ -530,6 +530,24 @@ def test_copying_session_preserves_evidence_but_never_runtime_dispatch_permissio
     assert runtime.next_input().text == "original session only"
 
 
+def test_imported_session_cannot_dispatch_source_durable_queue(tmp_path):
+    from henchman.core.session import SessionManager
+
+    runtime, source, settings = controller(tmp_path)
+    runtime.submit("original session only")
+    imported = SessionManager(tmp_path / "sessions").import_session(
+        source.to_json(), project_hash="destination-project",
+    )
+    destination = SessionWorkflow(settings, lambda: imported, lambda _: None, tmp_path / "ops.db")
+    before = (tmp_path / "ops.db").read_bytes()
+
+    with pytest.raises(WorkflowError, match="store_identity_mismatch"):
+        destination.attach(imported)
+
+    assert (tmp_path / "ops.db").read_bytes() == before
+    assert runtime.next_input().text == "original session only"
+
+
 def test_unattached_report_projects_rotated_credentials_without_binding_or_writing(tmp_path):
     runtime, session, settings = controller(tmp_path)
     runtime.submit("inspect newly-known-unattached-canary")
