@@ -160,15 +160,19 @@ def test_marked_export_filter_registers_before_projecting_row_echoes(tmp_path, m
 
 @pytest.mark.parametrize("format_name", ["json", "csv"])
 def test_export_filesystem_failures_project_path_and_keep_errno(tmp_path, format_name):
-    import errno
-
     storage = MetricsStorage(tmp_path / "metrics.db", evidence_redactor=EvidenceRedactor(["path-metric-canary"]))
     storage.store_metric(TokenMetric(total_tokens=1))
     path = tmp_path / "path-metric-canary"
     path.mkdir()
-    with pytest.raises(IsADirectoryError) as caught:
+    # Windows reports a directory write as PermissionError; compare the native
+    # error instead of requiring POSIX's IsADirectoryError/EISDIR spelling.
+    with pytest.raises(OSError) as original:
+        with path.open("w"):
+            pass
+    with pytest.raises(type(original.value)) as caught:
         getattr(MetricsExporter(storage), "export_to_" + format_name)(path)
-    assert caught.value.errno == errno.EISDIR
+    assert caught.value.errno == original.value.errno
+    assert getattr(caught.value, "winerror", None) == getattr(original.value, "winerror", None)
     assert "path-metric-canary" not in str(caught.value)
     assert "path-metric-canary" not in "".join(traceback.format_exception(caught.value))
 
