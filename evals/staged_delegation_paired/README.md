@@ -53,3 +53,10 @@ before each attempt. The fixed route, fixture list, arm order and limits are in
 The read-only [`audit.py`](audit.py) independently checks retained worker
 records, current fixture bytes, route evidence, statuses and the fixed
 denominator; running or interrupted attempts remain outcome-unknown.
+The [corrected v2 result](../../docs/evaluations/2026-11-08-staged-paired-v2.md)
+and [retained attempt artifacts](results/v2) preserve the complete comparison.
+Recheck the retained evidence with:
+
+```bash
+python evals/staged_delegation_paired/audit.py evals/staged_delegation_paired/results/v2
+```

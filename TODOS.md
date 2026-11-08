@@ -437,6 +437,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   retained three incomplete runs and one completed AST-matching edit under a
   separately budgeted serialized test transport. A later guard audit limits
   that evidence; it is not a paired effectiveness result.
+- The [corrected paired local comparison](docs/evaluations/2026-11-08-staged-paired-v2.md)
+  passed 6/6 direct attempts and 4/6 staged attempts on three toy tasks. Two
+  staged attempts exhausted the request budget after publication. Broader
+  effectiveness, native qualification and whole-process memory remain open.
 - A live 700K-context team probe exposed false handoff failures for `BLOCKERS: none`; final-message parsing and absence handling now preserve actual action evidence while retaining genuine failures. The sample predates that fix and still timed out during review; a complete live workflow remains unverified.
 - Specialists now receive current call/round limits at execution. Default verification guidance accepts available structured tools and honors explicit tool requirements while retaining observed pass/fail evidence; see [headless teams](docs/agents.md#headless-team-execution). Full workflow and efficiency require live evaluation.
 - A prior 700K-capacity MiMo team run preserved successful Explorer/Engineer handoffs and passed all independent artifact checks, but substituted shell verification after scope-limited discovery and timed out at 480 seconds. This exposed the team lookup gap below.

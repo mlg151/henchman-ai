@@ -13,6 +13,9 @@ The separate [frozen paired comparison](staged_delegation_paired/README.md)
 defines three fixtures and two repeats per arm; its plan makes no model calls.
 Its [first cohort](../docs/evaluations/2026-11-08-staged-paired-v1-invalid.md)
 was stopped after a guard error and is not valid paired evidence.
+The [corrected local comparison](../docs/evaluations/2026-11-08-staged-paired-v2.md)
+retains all twelve attempts: direct passed 6/6 and staged passed 4/6 under the
+fixed request limit. It does not establish a general delegation benefit.
 
 ## Why Behavioral Evals?
 

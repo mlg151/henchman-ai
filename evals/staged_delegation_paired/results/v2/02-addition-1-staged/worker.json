@@ -1,0 +1,66 @@
+{
+  "outcome": "completed",
+  "error": null,
+  "completion": "completed",
+  "transport_attempts": 11,
+  "transport_errors": [],
+  "elapsed_seconds": 112.557,
+  "client_peak_rss_kib": 224788,
+  "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+  "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+  "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+  "prompt_sha256": "e6d9065e9f002a3098e9e6becc2cb56af1e2b10acd0108e6da95fd0390d0d1b9",
+  "exact_ast": true,
+  "events": [
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "invoke_subagent"
+    },
+    {
+      "event": "result",
+      "tool": "invoke_subagent",
+      "success": true
+    },
+    {
+      "event": "child",
+      "status": "done"
+    },
+    {
+      "event": "request",
+      "tool": "manage_subagents"
+    },
+    {
+      "event": "result",
+      "tool": "manage_subagents",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "publish_subagent_proposal"
+    },
+    {
+      "event": "result",
+      "tool": "publish_subagent_proposal",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    }
+  ],
+  "events_truncated": false
+}
