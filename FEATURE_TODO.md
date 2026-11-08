@@ -729,6 +729,8 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   reduced cancellation p95 in one scenario; four original interaction-test
   failures passed after candidate-specific expectations and setup were adjusted.
   The candidate was not integrated or qualified.
+  Its [six-scenario follow-up](docs/evaluations/2026-11-08-vte-window64-pair.md)
+  missed cancellation p95 in both 160 × 50 scenarios.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).

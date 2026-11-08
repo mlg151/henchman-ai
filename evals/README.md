@@ -26,6 +26,8 @@ The separate [paired VTE comparison](../docs/evaluations/2026-11-08-vte-window-p
 retains 480 native software-display observations and its exact scripts. The
 candidate still misses one cancellation p95 target; the host and workload limits
 are part of the result.
+The separate [64-row follow-up](../docs/evaluations/2026-11-08-vte-window64-pair.md)
+also missed two cancellation p95 targets, and remains an unintegrated prototype.
 The follow-up [GC attribution diagnostic](../docs/evaluations/2026-11-08-vte-gc-attribution-v1.md)
 records tracked history-widget liveness during two collections. Its six
 instrumented trials do not replace the paired result or establish a fix.
