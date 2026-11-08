@@ -36,7 +36,10 @@ recorder. A separate [paired experiment harness](repository_reuse_paired_v1/READ
 has passed a [synthetic preflight](../docs/evaluations/2026-11-08-reuse-preflight-v2.md);
 that preflight does not measure model quality. The subsequent
 [local-model run](../docs/evaluations/2026-11-08-reuse-paired-v1.md) stopped
-after one timeout and produced no paired comparison.
+after one timeout and produced no paired comparison. A separately frozen
+[v2 preparation](repository_reuse_paired_v2/README.md) addresses observed
+oracle and status-access limitations; its scripted preflight is not live
+model evidence.
 
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
