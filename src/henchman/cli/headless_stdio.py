@@ -8,7 +8,7 @@ import os
 import signal
 from collections.abc import Callable, Coroutine, Sequence
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import click
 
@@ -22,6 +22,9 @@ from henchman.cli.headless_protocol import (
 )
 from henchman.cli.headless_runtime import HeadlessRuntime, HeadlessRuntimeError, _joined
 from henchman.entrypoint import protocol_pipes
+
+if TYPE_CHECKING:
+    from henchman.integrations.neovim import EditorSelection
 
 _T = TypeVar("_T")
 
@@ -149,15 +152,22 @@ async def serve_context(
     context: CoreContext, channel: PipeChannel, *, decoder: FrameDecoder | None = None,
     initial: Sequence[Request] = (), interrupted: asyncio.Event | None = None,
     _on_bound: Callable[[], None] | None = None,
+    selection: EditorSelection | None = None,
 ) -> int:
     """Join a single transport owner even when its caller is cancelled repeatedly."""
-    return await _owned(_serve_context_owned(context, channel, decoder=decoder, initial=initial, interrupted=interrupted, _on_bound=_on_bound))
+    try:
+        return await _owned(_serve_context_owned(context, channel, decoder=decoder, initial=initial,
+                            interrupted=interrupted, _on_bound=_on_bound, selection=selection))
+    finally:
+        if selection is not None:
+            selection.close()
 
 
 async def _serve_context_owned(
     context: CoreContext, channel: PipeChannel, *, decoder: FrameDecoder | None = None,
     initial: Sequence[Request] = (), interrupted: asyncio.Event | None = None,
     _on_bound: Callable[[], None] | None = None,
+    selection: EditorSelection | None = None,
 ) -> int:
     """Observe delivery separately from the runtime's persisted result claim."""
     delivered: str | None = None
@@ -176,7 +186,8 @@ async def _serve_context_owned(
         if value["kind"] == "result":
             delivered = value["payload"]["status"]
 
-    runtime = HeadlessRuntime(context, emit, close_resources=lambda: _close_context_clients(context))
+    runtime = HeadlessRuntime(context, emit, close_resources=lambda: _close_context_clients(context),
+                              before_bind=(lambda: selection.bind(context.tool_registry)) if selection is not None else None)
     if _on_bound is not None:
         _on_bound()
     decoder = decoder or FrameDecoder()
@@ -320,12 +331,18 @@ async def _build_context(resources: _StartupResources) -> CoreContext:
         raise
 
 
-async def run_stdio(channel: PipeChannel, *, interrupted: asyncio.Event | None = None) -> int:
+async def run_stdio(channel: PipeChannel, *, interrupted: asyncio.Event | None = None,
+                    selection: EditorSelection | None = None) -> int:
     """Own startup until context transfer, including repeated caller cancellation."""
-    return await _owned(_run_stdio_owned(channel, interrupted=interrupted))
+    try:
+        return await _owned(_run_stdio_owned(channel, interrupted=interrupted, selection=selection))
+    finally:
+        if selection is not None:
+            selection.close()
 
 
-async def _run_stdio_owned(channel: PipeChannel, *, interrupted: asyncio.Event | None) -> int:
+async def _run_stdio_owned(channel: PipeChannel, *, interrupted: asyncio.Event | None,
+                           selection: EditorSelection | None = None) -> int:
     decoder = FrameDecoder()
     resources = _StartupResources()
     interrupt = asyncio.create_task(interrupted.wait()) if interrupted is not None else None
@@ -376,7 +393,8 @@ async def _run_stdio_owned(channel: PipeChannel, *, interrupted: asyncio.Event |
                 def bound() -> None:
                     nonlocal transferred
                     transferred = True
-                return await serve_context(context, channel, decoder=decoder, initial=first, interrupted=interrupted, _on_bound=bound)
+                return await serve_context(context, channel, decoder=decoder, initial=first, interrupted=interrupted,
+                                           _on_bound=bound, selection=selection)
 
     code = 1
     try:
@@ -413,14 +431,14 @@ async def _run_stdio_owned(channel: PipeChannel, *, interrupted: asyncio.Event |
     return code
 
 
-async def _run_with_signals(channel: PipeChannel) -> int:
+async def _run_with_signals(channel: PipeChannel, *, selection: EditorSelection | None = None) -> int:
     interrupted = asyncio.Event()
     loop = asyncio.get_running_loop()
     previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
     for sig in previous:
         loop.add_signal_handler(sig, interrupted.set)
     try:
-        return await run_stdio(channel, interrupted=interrupted)
+        return await run_stdio(channel, interrupted=interrupted, selection=selection)
     finally:
         for sig, handler in previous.items():
             loop.remove_signal_handler(sig)
@@ -430,7 +448,9 @@ async def _run_with_signals(channel: PipeChannel) -> int:
 @click.command(name="headless", help="Run the opt-in v1 editor protocol over POSIX stdin/stdout pipes.")
 @click.option("--protocol-version", required=True, type=click.Choice(["1"]))
 @click.option("--project", required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
-def headless_command(protocol_version: str, project: Path) -> None:
+@click.option("--editor-path", "editor_paths", multiple=True,
+              help="Opt into the Neovim pilot's explicit saved-file selection; repeat for each file.")
+def headless_command(protocol_version: str, project: Path, editor_paths: tuple[str, ...]) -> None:
     """Keep diagnostics on stderr and leave existing chat JSON modes unchanged."""
     del protocol_version
     try:
@@ -438,10 +458,18 @@ def headless_command(protocol_version: str, project: Path) -> None:
     except RuntimeError as error:
         raise click.UsageError(str(error)) from None
     os.chdir(project.resolve())
+    selection = None
+    if editor_paths:
+        from henchman.integrations.neovim import EditorSelection
+
+        try:
+            selection = EditorSelection(Path.cwd(), editor_paths)
+        except ValueError as error:
+            raise click.UsageError(str(error)) from None
     # The bootstrap owns its originals; this layer owns only these duplicates.
     channel = PipeChannel(os.dup(pipes.input_fd), os.dup(pipes.output_fd))
     try:
-        code = asyncio.run(_run_with_signals(channel))
+        code = asyncio.run(_run_with_signals(channel, selection=selection))
     finally:
         channel.close()
     raise SystemExit(code)

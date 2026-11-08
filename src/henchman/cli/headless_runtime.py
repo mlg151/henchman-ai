@@ -100,7 +100,8 @@ class HeadlessRuntime:
     """
 
     def __init__(self, context: CoreContext, sink: Callable[[bytes], Awaitable[None]], *,
-                 close_resources: Callable[[], Awaitable[None]] | None = None) -> None:
+                 close_resources: Callable[[], Awaitable[None]] | None = None,
+                 before_bind: Callable[[], None] | None = None) -> None:
         if getattr(context, "_headless_runtime_owner", None) is not None:
             raise HeadlessRuntimeError("runtime_owned")
         self.context = context
@@ -141,6 +142,10 @@ class HeadlessRuntime:
         self._connection = uuid4().hex
         self._waiting_prompts = 0
         self._answer: tuple[PendingDecision, asyncio.Future[object]] | None = None
+        # Trusted embedding may add a denial boundary only after the existing
+        # idle/ownership checks. It owns rollback if construction then fails.
+        if before_bind is not None:
+            before_bind()
         self._old_guard = context.tool_registry._execution_guard
         self._guard_callback = self._guard
         self._old_confirmation = context.tool_registry._local_confirmation_handler

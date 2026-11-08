@@ -66,8 +66,11 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "Explicit new/resume selection binds shared workflow, session and usage authority; "
             "permission and question replies require live correlated decisions. Per-frame output has "
             "a 30-second deadline; delivery failure never becomes successful process exit. "
-            "Windows and terminal/file stdio are unsupported. The Neovim pilot remains pending; "
-            "execution completion is not task verification or an OS sandbox."
+            "Windows and terminal/file stdio are unsupported. Neovim 0.12.6 on Linux has an opt-in "
+            "client for saved selected files, explicit new/resume, decisions, cancellation and "
+            "read-only recorded-diff review. ide export neovim writes the client and does not launch "
+            "it. Existing policy still applies; pytest executes trusted project code. "
+            "Execution completion is not task verification or an OS sandbox."
         ),
         aliases=("headless", "editor", "stdio", "protocol version", "Neovim"),
     ),

@@ -16,13 +16,31 @@ from henchman.advanced.checkpoints import CheckpointConflict, CheckpointService
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.config.repository import SettingsRepository
-from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
+
+_FILE_STATE_SCHEMA = {"status": PRESERVE_IDENTITY, "bytes": PRESERVE_IDENTITY}
+_RUN_REVIEW_SCHEMA = {
+    "task_verified": PRESERVE_IDENTITY, "scope": None, "checkpoints_omitted": PRESERVE_IDENTITY,
+    "checkpoints": [{
+        "checkpoint_id": None, "revision": PRESERVE_IDENTITY, "state": PRESERVE_IDENTITY,
+        "unavailable": None, "metadata_policy": PRESERVE_IDENTITY,
+        "operation": {"operation_id": None, "run_id": None, "agent_id": None, "tool_name": None},
+        "files": [{
+            "path": None, "decision": PRESERVE_IDENTITY, "restorable": PRESERVE_IDENTITY,
+            "before": _FILE_STATE_SCHEMA, "after": _FILE_STATE_SCHEMA,
+            "hunk_status": PRESERVE_IDENTITY, "hunks_omitted": PRESERVE_IDENTITY,
+            "hunks": [{"index": PRESERVE_IDENTITY, "old_start": PRESERVE_IDENTITY, "old_end": PRESERVE_IDENTITY,
+                       "new_start": PRESERVE_IDENTITY, "new_end": PRESERVE_IDENTITY, "before": None, "after": None,
+                       "accepted": PRESERVE_IDENTITY, "text_truncated": PRESERVE_IDENTITY}],
+        }],
+    }],
+}
 
 
-def _review_payload(review: CheckpointReview) -> dict[str, Any]:
+def _review_payload(review: CheckpointReview, *, max_chars: int = 65536, max_hunks: int = 256) -> dict[str, Any]:
     """Present bounded text hunks; truncation never changes restore authority."""
-    remaining = 65536
-    remaining_hunks = 256
+    remaining = max_chars
+    remaining_hunks = max_hunks
     files = []
     for item in review.files:
         hunks = []
@@ -49,6 +67,29 @@ def _review_payload(review: CheckpointReview) -> dict[str, Any]:
             "operation": asdict(review.operation) if review.operation is not None else None}
 
 
+def _run_review_payload(service: CheckpointService, run_id: str) -> dict[str, Any]:
+    """Filter canonical advisory correlation before any display projection."""
+    if not run_id or len(run_id) > 256 or any(ord(char) < 32 for char in run_id):
+        raise ValueError("Invalid run correlation")
+    matching = [record for record in service.list_checkpoints()
+                if record.operation is not None and record.operation.run_id == run_id]
+    reviews: list[dict[str, Any]] = []
+    remaining = 262144
+    for record in matching[:16]:
+        if record.state != "ready":
+            payload: dict[str, Any] = {"checkpoint_id": record.checkpoint_id, "state": record.state,
+                                       "unavailable": "Capture has not completed"}
+        else:
+            payload = _review_payload(service.review(record.checkpoint_id), max_chars=min(32768, remaining), max_hunks=64)
+        size = len(json.dumps(payload, ensure_ascii=True).encode("utf-8"))
+        if size > remaining:
+            break
+        reviews.append(payload)
+        remaining -= size
+    return {"checkpoints": reviews, "checkpoints_omitted": len(matching) - len(reviews),
+            "task_verified": False, "scope": "Recorded changes for this run; correlation is not acceptance or restore authority"}
+
+
 def create_checkpoint_command(
     *, project_root: Path | None = None, redactor: EvidenceRedactor | None = None,
     output: Callable[[str], None] | None = None,
@@ -56,16 +97,32 @@ def create_checkpoint_command(
     """Build user actions around the same revision-bound checkpoint service."""
     emit = output or click.echo
 
-    def perform(action: Callable[[CheckpointService], Any]) -> None:
+    def perform(action: Callable[[CheckpointService], Any], *, editor_review: bool = False) -> None:
         policy = redactor or EvidenceRedactor()
         try:
             root = project_root or Path.cwd()
-            policy.register_policy(SettingsRepository(root).evidence_redactor())
+            repository = SettingsRepository(root)
+            policy.register_policy(repository.evidence_redactor())
+            if editor_review:
+                from henchman.config.schema import Settings
+                from henchman.tools.access_policy import ToolAccessPolicy
+
+                if ToolAccessPolicy.from_settings(Settings.model_validate(repository.view()).tools, project_root=root).restricted:
+                    raise ValueError("Editor checkpoint review is unavailable under restricted tool policy")
             service = CheckpointService(root, redactor=policy)
             result = action(service)
             # The service exposes only eligible text. Project output again for
             # dynamic credentials in identifiers, actors and diagnostic metadata.
-            emit(json.dumps(policy.redact(result), indent=2, ensure_ascii=True))
+            projected = policy.redact(result, schema=_RUN_REVIEW_SCHEMA if editor_review else None)
+            rendered = json.dumps(projected, indent=2, ensure_ascii=True)
+            if editor_review:
+                # Bound actual projected/escaped output, including redaction
+                # expansion and indentation, before handing it to a client.
+                while len(rendered.encode("utf-8")) > 524288 and projected["checkpoints"]:
+                    projected["checkpoints"].pop()
+                    projected["checkpoints_omitted"] += 1
+                    rendered = json.dumps(projected, indent=2, ensure_ascii=True)
+            emit(rendered)
         except (OSError, ValueError, CheckpointConflict) as error:
             paths = ", ".join(error.paths) if isinstance(error, CheckpointConflict) else ""
             detail = f"{error}: {paths}" if paths else str(error)
@@ -88,6 +145,12 @@ def create_checkpoint_command(
     def show_command(checkpoint_id: str) -> None:
         """Show file status and numbered text hunks."""
         perform(lambda service: _review_payload(service.review(checkpoint_id)))
+
+    @group.command(name="review-run")
+    @click.argument("run_id")
+    def review_run_command(run_id: str) -> None:
+        """Show bounded recorded diffs correlated with one actual run; read-only."""
+        perform(lambda service: _run_review_payload(service, run_id), editor_review=True)
 
     @group.command(name="preview")
     @click.argument("checkpoint_id")

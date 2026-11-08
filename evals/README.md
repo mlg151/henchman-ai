@@ -524,3 +524,7 @@ measures scripted local overhead with an HTTP mock transport, without model
 inference. All 20 pairs/80 observations passed its fixture correctness and
 p95-regression gate. It retains the exact harness and measurements; native UI,
 wider workload and live-model qualification remain separate.
+
+The [installed Neovim pilot checkpoint](../docs/evaluations/2026-11-08-neovim-pilot.md)
+records actual editor/runtime fixture behavior separately from live model quality.
+Its scripted loopback provider is not a model evaluation.

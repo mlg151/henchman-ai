@@ -8,6 +8,22 @@ Henchman-AI supports multiple extension mechanisms for adding custom functionali
 | **UI Plugins** | Extend the CLI with custom slash commands and UI elements | `~/.henchman/plugins/` |
 | **Marketplace boundary** | Guard remote install attempts and report unavailable registry metadata | Remote installs unavailable in this variant |
 
+## Editor client exports
+
+`henchman ide list` lists bundled IDE exports; `henchman ide export neovim
+DESTINATION` writes the opt-in **Neovim 0.12.6 on Linux** client to
+`lua/henchman/init.lua`. This export contains a runnable client for the shared
+[editor stdio protocol](api.md#editor-stdio-protocol-v1), rather than only a
+placeholder integration. The export command itself only writes files: it does
+not activate the client, configure a provider or launch a runtime. Other IDE
+blueprints are not qualified clients for that protocol.
+
+Follow the [Neovim guide](neovim.md) for explicit setup, project/session selection,
+saved-buffer protection, decisions, cancellation and read-only checkpoint review.
+The pilot admits only its six exact builtin tool implementations; loading a
+custom extension does not grant its tools selected-file execution authority.
+Pytest executes trusted project code, and completion does not certify the task.
+
 ## Extension Types
 
 Extensions can provide:

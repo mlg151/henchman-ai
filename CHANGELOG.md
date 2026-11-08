@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Neovim subprocess pilot** — An explicit export supplies a Neovim 0.12.6
+  Linux client for new/resumed runs, selected saved files, correlated decisions,
+  cancellation and read-only checkpoint review. Dirty buffers are refused or
+  preserved, and held buffers are never silently reloaded. Strict bounded frames
+  and joined child cleanup keep malformed or incomplete delivery visible. The
+  installed-wheel fixture exercises inspect/edit/check/review and denial with
+  a scripted provider; [pilot scope](docs/neovim.md) records unsupported operations.
+
 - **Exact configuration money inputs** — Startup files, scoped reads, CLI set
   and explicit control import preserve numeric money literals before float
   conversion. Tiny positive prices cannot become free, and long decimal limits
@@ -61,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correlated input decisions, absolute frame-write deadlines and joined startup,
   MCP and provider cleanup keep delivery failures explicit. Both aliases and
   Python module execution share the bootstrap. Windows transport is unsupported; the Neovim
-  pilot remains pending; completed execution does not claim task verification.
+  pilot is described above; completed execution does not claim task verification.
   Invalid protocol command arguments, including help requests, use value-free errors, so rejected
   values, option names and project paths cannot echo known credentials.
 
@@ -119,12 +127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   execution guards. Concurrent or cancelled shutdown callers join owned cleanup;
   runtime settlement remains distinct from delivery and task verification.
   Model-supplied tool names now receive credential projection while call IDs
-  retain correlation. The stdio route is described above; the Neovim pilot remains pending.
+  retain correlation. The stdio route and Neovim pilot are described above.
 
 - **Internal editor protocol foundation** — A bounded v1 JSON-line codec and
   connection state machine validate requests and correlate session/run/decision
   identities without granting execution authority. The internal runtime adapter
-  and stdio wiring are described above; the Neovim pilot remains pending.
+  and stdio wiring and Neovim pilot are described above.
 
 - **Bounded schema meta-validation cache** — Repeated identical schemas reuse
   successful meta-checks within a 64-entry, 4 MiB key-payload bound. Validators,

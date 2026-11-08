@@ -60,6 +60,92 @@ def run_frame(initial):
             "params": {"session_id": initial["session_id"], "prompt": "work", "agent": None}}
 
 
+async def test_editor_selection_binds_before_runtime_and_retires_after_join(context, pipes):
+    from pathlib import Path
+
+    from henchman.cli.headless_stdio import serve_context
+    from henchman.integrations.neovim import EditorSelection
+    from henchman.tools.builtins.file_read import ReadFileTool
+
+    Path("selected.py").write_text("value = 1\n")
+    selection = EditorSelection(Path.cwd(), ("selected.py",))
+    prior = context.tool_registry._execution_guard
+    channel, client_write, client_read = pipes
+    worker = asyncio.create_task(serve_context(context, channel, selection=selection))
+    send(client_write, initialize_frame())
+    initial = await read_frame(client_read, bytearray())
+    assert context.tool_registry._execution_guard is not prior
+    send(client_write, run_frame(initial))
+    buffer = bytearray()
+    while (await read_frame(client_read, buffer))["kind"] != "result":
+        pass
+    assert await asyncio.wait_for(worker, 5) == 0
+    assert context.tool_registry._execution_guard is prior
+    assert selection.guard(ReadFileTool(), {"path": "selected.py"}) is not None
+
+
+async def test_busy_editor_context_does_not_change_guard_or_policy_generation(context, pipes):
+    from pathlib import Path
+
+    from henchman.cli.headless_runtime import HeadlessRuntimeError
+    from henchman.cli.headless_stdio import serve_context
+    from henchman.integrations.neovim import EditorSelection
+
+    Path("selected.py").write_text("value = 1\n")
+    selection = EditorSelection(Path.cwd(), ("selected.py",))
+    registry = context.tool_registry
+    prior, generation = registry._execution_guard, registry._policy_generation
+    context.orchestrator._public_run_active = True
+    try:
+        with pytest.raises(HeadlessRuntimeError, match="runtime_busy"):
+            await serve_context(context, pipes[0], selection=selection)
+        assert registry._execution_guard is prior
+        assert registry._policy_generation == generation
+    finally:
+        context.orchestrator._public_run_active = False
+
+
+async def test_constructor_failure_after_selection_hook_restores_owned_guard(context, pipes, monkeypatch):
+    from pathlib import Path
+
+    from henchman.cli.headless_stdio import serve_context
+    from henchman.integrations.neovim import EditorSelection
+    from henchman.tools.registry import ToolRegistry
+
+    Path("selected.py").write_text("value = 1\n")
+    selection = EditorSelection(Path.cwd(), ("selected.py",))
+    registry = context.tool_registry
+    prior = registry._execution_guard
+    original = ToolRegistry.__getattribute__
+    observed = []
+    def fail_after_hook(instance, name):
+        if instance is registry and name == "_local_confirmation_handler":
+            observed.append(original(instance, "_execution_guard") is not prior)
+            raise ValueError("constructor fault")
+        return original(instance, name)
+    monkeypatch.setattr(ToolRegistry, "__getattribute__", fail_after_hook)
+    with pytest.raises(ValueError, match="constructor fault"):
+        await serve_context(context, pipes[0], selection=selection)
+    assert observed == [True]
+    assert registry._execution_guard is prior
+
+
+def test_invalid_editor_selection_fails_before_provider_construction(tmp_path):
+    import subprocess
+
+    script = '''
+from henchman import entrypoint
+import henchman.cli.app as app
+app._prepare_runtime_context = lambda **kwargs: (_ for _ in ()).throw(AssertionError("constructed provider"))
+entrypoint.main()
+'''
+    result = subprocess.run([sys.executable, "-c", script, "headless", "--protocol-version", "1",
+                             "--project", str(tmp_path), "--editor-path", "missing"],
+                            input=b"", capture_output=True, timeout=20, check=False)
+    assert result.returncode == 2 and result.stdout == b""
+    assert b"Invalid headless arguments" in result.stderr and b"constructed provider" not in result.stderr
+
+
 async def test_pipe_round_trip_preserves_unicode_long_frame_and_order(pipes):
     channel, client_write, client_read = pipes
     raw = (json.dumps({"text": "é🙂" * 20000}, ensure_ascii=False) + "\n").encode()

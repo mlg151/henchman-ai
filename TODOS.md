@@ -50,8 +50,12 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   emoji aliases at narrow console widths. Opt-in v1 POSIX stdio now binds shared
   workflow/session/accounting authority, correlated decisions and joined cleanup.
   Early descriptor isolation, absolute output deadlines and distinct delivery
-  outcomes are covered by real-pipe fixtures. Windows transport is unsupported; the Neovim
-  pilot remains pending. See [editor stdio](docs/api.md#editor-stdio-protocol-v1).
+  outcomes are covered by real-pipe fixtures. The opt-in
+  [Neovim 0.12.6 Linux pilot](docs/neovim.md) completes an installed-wheel
+  inspect/edit/check/review fixture, denial and cancellation. Selection and buffer
+  preservation limits are explicit; Windows transport, other editor versions and
+  native assistive-technology qualification remain unsupported or unverified.
+  See [editor stdio](docs/api.md#editor-stdio-protocol-v1).
 
 - Context token estimates and RAG chunking use packaged verified vocabularies;
   fresh offline installs no longer depend on a warm tokenizer download cache.

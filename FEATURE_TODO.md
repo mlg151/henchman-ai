@@ -243,8 +243,14 @@ See [control transfer](docs/configuration.md#local-importexport-sync).
   authority over POSIX pipes, isolates descriptors before CLI imports and joins
   runtime, startup and provider cleanup. Bounded frames, absolute write deadlines
   and correlated decisions retain explicit delivery failures. Windows transport
-  is unsupported; the Neovim pilot remains open under #27; see
-  [editor stdio](docs/api.md#editor-stdio-protocol-v1).
+  is unsupported. The [Neovim 0.12.6/Linux pilot](docs/neovim.md) now exports an
+  opt-in client with saved-file selection, explicit new/resume, correlated
+  decisions, cancellation and read-only operation-backed checkpoint review.
+  Its installed-wheel gate passed 132 tests, including 56 actual editor cases;
+  independent review also passed 48 adversarial probes. These scripted checks do
+  not establish live model quality, human accessibility or broader editor/platform
+  support. MCP, CPU-model and final release qualification in this combined item
+  remain separate; see [editor stdio](docs/api.md#editor-stdio-protocol-v1).
 - [ ] Deliver UI-0–UI-4: interaction baselines, reliable terminal controls, work visibility, workspace navigation and native/accessibility qualification.
 - [ ] Verify integrated outcomes and the exact release artifacts before publication.
   The release workflow now requires installed wheel/source-archive checks and

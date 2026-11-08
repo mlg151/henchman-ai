@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path
 from typing import Literal
 
@@ -44,6 +45,11 @@ def _yaml_document(payload: object) -> str:
 
 
 _BLUEPRINTS: dict[str, IntegrationBlueprint] = {
+    "neovim": IntegrationBlueprint(
+        slug="neovim", surface="ide", name="Neovim 0.12.6 pilot client",
+        description="Opt-in Linux Neovim subprocess client over the v1 headless contract; export does not launch it.",
+        files=(BlueprintFile("lua/henchman/init.lua", files("henchman.integrations").joinpath("neovim.lua").read_text(encoding="utf-8")),),
+    ),
     "vscode": IntegrationBlueprint(
         slug="vscode",
         surface="ide",

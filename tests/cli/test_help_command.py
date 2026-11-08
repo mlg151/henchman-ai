@@ -171,6 +171,20 @@ def test_help_searches_capability_truth_entries() -> None:
     assert "- config:" not in result.output
 
 
+def test_help_neovim_names_supported_pilot_and_export_boundary() -> None:
+    """Editor discovery describes the qualified client without implying activation."""
+    result = CliRunner().invoke(_build_help_group(), ["help", "Neovim"])
+
+    assert result.exit_code == 0
+    assert "editor stdio protocol: [runtime-wired]" in result.output
+    assert "Neovim 0.12.6 on Linux" in result.output
+    assert "ide export neovim" in result.output
+    assert "does not launch" in result.output
+    assert "saved selected files" in result.output
+    assert "not task verification" in result.output
+    assert "pilot remains pending" not in result.output
+
+
 def test_help_discovers_root_commands_through_lazy_wrapper() -> None:
     """Lazy wrapper execution should still search the real root command tree."""
     runner = CliRunner()

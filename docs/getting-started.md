@@ -175,7 +175,10 @@ produces an indented array; see [the output contract](api.md#headless-json-outpu
 Editor clients can use `henchman headless --protocol-version 1 --project PATH`
 with POSIX stdin/stdout pipes. This separate bidirectional interface requires
 explicit session selection and correlated approval replies; see the
-[editor protocol](api.md#editor-stdio-protocol-v1). The Neovim pilot is still pending.
+[editor protocol](api.md#editor-stdio-protocol-v1). The opt-in
+[Neovim 0.12.6 on Linux pilot](neovim.md) exports with `henchman ide export neovim
+DESTINATION` and supports saved-file selection, explicit new/resume, decisions,
+cancellation and read-only recorded-diff review. Export does not activate it.
 
 ## Slash Commands
 

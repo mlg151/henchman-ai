@@ -3,8 +3,9 @@
 This page provides API reference for the main Henchman-AI modules.
 
 The [content checkpoint API and commands](checkpoints.md) provide scoped capture,
-review and recoverable POSIX restore; automatic capture and dedicated UI navigation
-remain pending.
+review, automatic capture for declared tool file scopes and dedicated Textual
+file/hunk navigation. Restore support and native qualification limits are recorded
+in that reference.
 
 `Agent.submit_tool_result` accepts either a legacy string or `ToolResult`.
 `Message.tool_result` and `SessionMessage.tool_result` optionally retain detached
@@ -109,7 +110,24 @@ The exit status reports delivery and cleanup as well as execution:
 A delivered `completed` result retains `task_verified: false`; process exit does
 not certify task correctness. Persisted execution evidence is not rewritten to
 pretend a terminal frame reached its consumer. This transport is not an OS
-sandbox. The Neovim pilot remains pending under #27.
+sandbox.
+
+#### Neovim pilot
+
+The opt-in **Neovim 0.12.6 on Linux** client exports with
+`henchman ide export neovim DESTINATION`; export writes its Lua module without
+launching a runtime. Explicit setup supplies the project and argv executable,
+then `HenchmanNew` or `HenchmanResume` selects the session. The client adds repeated
+`--editor-path` arguments for saved existing files. That admission guard permits
+only the six qualified builtin implementations and intersects existing policy;
+pytest still executes trusted project code and is not filesystem confinement.
+
+`HenchmanReview` reads bounded checkpoint evidence correlated by the actual
+operation run, without applying a restore decision. Buffer holds preserve unsaved
+edits and restore options after settlement; disk changes require an explicit
+review and normal editor reconciliation. See the [Neovim guide](neovim.md) for
+installation, selection, commands, limits and the automated qualification scope,
+and [checkpoint commands](checkpoints.md#user-commands) for revision-bound restore.
 
 ## HTTP service health
 
