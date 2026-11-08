@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
+from henchman.cli.ui_renderer import UIRenderer
 from henchman.config.schema import Settings
 from henchman.providers.base import ToolCall
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -25,6 +26,7 @@ class _FakeOutputHandler:
     """Test double for OutputHandler."""
 
     def __init__(self) -> None:
+        self.renderer = UIRenderer()
         self.errors: list[str] = []
         self.muted_messages: list[str] = []
         self.warnings: list[str] = []
