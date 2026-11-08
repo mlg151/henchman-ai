@@ -1,10 +1,11 @@
 # CI task cleanup investigation — 2026-11-08
 
 The [CI run for `bbd0ece`](https://github.com/mlg151/henchman-ai/actions/runs/42500572450)
-reported failures in the macOS 3.12 and 3.14 installed-wheel jobs. At the time
-of this report, the Python 3.12 source/coverage job was still running; all
-other completed jobs except those two macOS jobs had passed. The final run
-conclusion and native verification of the subsequent fix are separate evidence.
+reported failures in the macOS 3.12 and 3.14 installed-wheel jobs, and the
+aggregate gate failed. The other 17 jobs passed, including every Windows and
+Linux wheel job. The Python 3.12 source/coverage job passed 12,665 tests with
+91 skipped and 91.26% coverage. Native verification of the subsequent fix is
+separate evidence.
 
 The macOS 3.12 job had **6,117 passed, 83 skipped, and one failure**. In
 `test_capture_short_writes_and_cleanup_faults_settle_owned_process[zero_write]`,
@@ -21,6 +22,8 @@ The macOS logs are retained locally under
 SHA-256 hashes are `5199046ead6ebf5d1c0a8a95b97109f343925f3d91923a1e49b18047ef809239`
 for 3.12 and `de740ff1ecdad5273f8454e292443390065b729f5d790dc2fe94737840299af6`
 for 3.14. The jobs remain available in the linked CI run.
+The Python 3.12 source log SHA-256 is
+`f99bed568498e86268e0e71ea3ae5ec7e238a7cbd9a58ba7d2f8c1b1e4d8bf02`.
 
 One plausible race is Darwin returning a process-group permission error while
 the exited child is awaiting reaping; the logs alone do not establish that as
