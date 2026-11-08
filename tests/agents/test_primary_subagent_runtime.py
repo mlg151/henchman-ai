@@ -98,8 +98,10 @@ def test_subagent_discovery_requires_runtime_tools_and_retains_binding_caveat() 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("second_child_delay", [0.0, 3.2])
 async def test_concurrent_subagents_reactively_resume_primary_and_preserve_transcript(
     monkeypatch: pytest.MonkeyPatch,
+    second_child_delay: float,
 ) -> None:
     started: set[str] = set()
     both_started = asyncio.Event()
@@ -109,6 +111,8 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
         nonlocal parent_calls
         system = messages[0].content or ""
         if system.startswith("child "):
+            if system.startswith("child 1") and second_child_delay:
+                await asyncio.sleep(second_child_delay)
             started.add(system)
             if len(started) == 2:
                 both_started.set()
@@ -151,8 +155,16 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
     registry.register(_WorkspaceTool("read_file"))
     orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     registry.add_auto_approve_policy("invoke_subagent")
+    worker = asyncio.create_task(_collect(orch, "Review two parts"))
     try:
-        events = await asyncio.wait_for(_collect(orch, "Review two parts"), timeout=3)
+        try:
+            events = await asyncio.wait_for(asyncio.shield(worker), timeout=15)
+        except TimeoutError:
+            children = [(record.status, record.error, record.output) for record in orch.subagents.list()]
+            transcript = [(message.role, (message.content or "")[:200])
+                          for message in orch.tech_lead.current_turn_messages]
+            pytest.fail(f"Timed out: started={sorted(started)!r}, parent_calls={parent_calls}, "
+                        f"children={children!r}, transcript={transcript!r}", pytrace=False)
         assert len(started) == 2
         assert all(record.status == "done" for record in orch.subagents.list())
         assert any(event.type == EventType.AGENT_MESSAGE for event in events)
@@ -165,6 +177,9 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
             "Reviewed background results" in (message.content or "") for message in transcript
         )
     finally:
+        if not worker.done():
+            worker.cancel()
+            await asyncio.gather(worker, return_exceptions=True)
         await orch.aclose()
 
 
