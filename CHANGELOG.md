@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Textual transcript density** — `ui.detail_density` now selects compact
+  spacing, the normal layout or initially expanded tool evidence at startup.
+  Manual toggles, held reading position, drafts and approvals remain stable;
+  evidence keeps its existing redaction and retention limits.
+
 - **Interactive MCP OAuth actions** — Fresh REPL/Textual submissions support
   status, login, refresh, logout and separate connect. Saved commands grant no
   authority; argument-free echo/history and joined cancellation protect each

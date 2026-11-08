@@ -155,8 +155,15 @@ prompts, cancellation and evidence freshness checks remain active. Changes take
 effect on the next launch; `false` preserves the framework and caller defaults.
 These rendered checks do not establish native assistive-technology support.
 
+`ui.detail_density` is captured at the same startup boundary. `compact` reduces
+transcript spacing while keeping tool summaries visible; `normal` preserves the
+default layout; `detailed` starts new tool rows expanded to show existing bounded,
+redacted evidence. Thinking stays collapsed. Manual expansion/collapse remains
+your choice for that row through streaming and resizing. Changes require a new
+TUI and do not alter evidence retention, approvals or execution.
+
 `ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
-tables. Its Textual consumer and runtime behavior for output mode, density and
+tables. Its Textual consumer and runtime behavior for output mode and
 keyboard mode remain pending in the UI workstream.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove

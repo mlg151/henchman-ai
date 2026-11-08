@@ -231,8 +231,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - #33 now applies `ui.mouse_capture` at Textual driver startup, retaining keyboard
   history/live navigation and drafts. `ui.reduced_motion` suppresses transitions,
   animated loading and focused editor cursor blinking without disabling streaming,
-  decisions, status or cancellation. Both settings require the next launch for
-  changes; native accessibility, selection, clipboard and remote behavior remain
+  decisions, status or cancellation. `ui.detail_density` controls transcript
+  spacing and initial tool-row expansion while retaining manual choices. These
+  settings require the next launch for changes; native accessibility, selection,
+  clipboard and remote behavior remain
   unqualified. Other UI
   settings consumers remain pending or partial as described in
   [configuration](docs/configuration.md).

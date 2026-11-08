@@ -39,6 +39,12 @@ composer/dialog editors use steady cursors. Streaming, pending decisions, status
 joined cancellation and evidence refresh remain active. Later setting changes
 take effect on the next launch.
 
+`ui.detail_density` is also captured at startup. Compact tightens transcript
+spacing; normal retains the default presentation; detailed expands new tool rows
+using their existing bounded, redacted evidence. Manual row toggles persist
+through updates and resize. Density does not change the held reading position,
+draft/focus ownership, outcome labels, approval authority or retention limits.
+
 ## Versioned scenarios
 
 The deterministic rendered [harness](../tests/cli/ui_scenarios.py) is version

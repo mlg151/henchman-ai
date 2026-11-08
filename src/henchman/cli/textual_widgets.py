@@ -676,9 +676,9 @@ class ThinkingMessage(CollapsibleMessage):
 class ToolMessage(CollapsibleMessage):
     """Collapsible display for tool call/result content in the chat pane.
 
-    Starts collapsed — only a one-line summary header with tool name and
-    compact args is visible.  Clicking or ``toggle_expansion()`` reveals
-    the full JSON arguments and result text.
+    Starts collapsed by default; detailed transcript density starts expanded.
+    Clicking or ``toggle_expansion()`` changes the row without later events
+    resetting that choice.
     """
 
     DEFAULT_CSS = """
@@ -704,6 +704,8 @@ class ToolMessage(CollapsibleMessage):
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
         activity: ToolActivity | None = None,
+        *,
+        expanded: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -716,6 +718,7 @@ class ToolMessage(CollapsibleMessage):
         Args:
             thought: Tool thought/description.
             tool_call: Tool call object with ``name`` and ``arguments``.
+            expanded: Initial presentation only; does not change follow state.
             **kwargs: Forwarded to ``Static``.
         """
         # Support ToolMessage(tool_call_obj) as positional arg
@@ -725,6 +728,8 @@ class ToolMessage(CollapsibleMessage):
             thought = ""
         super().__init__(**kwargs)
         self.add_class("tool-message")
+        self._is_expanded = expanded
+        self.set_class(expanded, "expanded")
         self._thought = thought
         self.activity = activity
         self._tool_call = tool_call
@@ -966,13 +971,16 @@ class ChatPane(VerticalScroll):
             super().__init__()
             self.pane = pane
 
-    def __init__(self: Self, **kwargs: Any) -> None:
+    def __init__(self: Self, *, detail_density: str = "normal", **kwargs: Any) -> None:
         """Initialize the chat pane.
 
         Args:
+            detail_density: Held startup preference for spacing and new tool rows.
             **kwargs: Forwarded to ``VerticalScroll``.
         """
         super().__init__(**kwargs)
+        self._detail_density = detail_density
+        self.set_class(detail_density == "compact", "density-compact")
         self.border_title = "Chat"
         self.wrap: bool = True
         self.highlight: bool = True
@@ -1285,7 +1293,9 @@ class ChatPane(VerticalScroll):
         tool_call: ToolCallProtocol | None = None,
     ) -> ToolMessage:
         """Create a tool message widget."""
-        return self._add_message_widget(widget_class, thought, tool_call)
+        return self._add_message_widget(
+            widget_class, thought, tool_call, expanded=self._detail_density == "detailed",
+        )
 
     add_tool_message = functools.partialmethod(_create_tool_message, ToolMessage)
 
@@ -1293,7 +1303,9 @@ class ChatPane(VerticalScroll):
         policy = runtime_evidence_redactor(self.app)
         record = self._tool_activity.observe(message, policy, request=request)
         if record.key not in self._tool_rows:
-            self._tool_rows[record.key] = self._add_message_widget(ToolMessage, activity=record)
+            self._tool_rows[record.key] = self._add_message_widget(
+                ToolMessage, activity=record, expanded=self._detail_density == "detailed",
+            )
         self.refresh_tool_activity()
         self._record_activity()
         return self._tool_rows[record.key]
