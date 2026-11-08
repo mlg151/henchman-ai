@@ -382,3 +382,90 @@ async def test_tools_tab_line_limit_has_visible_omission_notice(app):
         pane = app.query_one(ToolPane)
         assert "omitted" in tool_tab_text(pane).lower()
         assert len(pane.lines) < pane.max_lines
+
+
+@pytest.mark.parametrize("rotation", ["registered", "active_actor"])
+async def test_inspector_copy_reprojects_before_selection_and_requires_reselection(app, monkeypatch, rotation):
+    from types import SimpleNamespace
+
+    from textual.widgets import Static
+
+    from henchman.utils.evidence_redaction import EvidenceRedactor
+
+    secret = "copy-rotation-private"
+    copies = []
+    async def close():
+        pass
+    monkeypatch.setattr(app, "copy_to_clipboard", copies.append)
+    async with app.run_test() as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("unsent draft")
+        await send(app, [request(path="owned.py"), result(success=False, result="first\n" + secret + "\nlast")])
+        await settle_layout(pilot)
+        card = app.query_one(ToolMessage)
+        card.focus()
+        await pilot.press("enter")
+        await settle_layout(pilot)
+        screen = app.screen
+        area = screen.query_one("#tool-evidence", TextArea)
+        original_entries = tuple((entry.number, entry.text) for entry in screen.record.entries)
+        area.select_all()
+        if rotation == "registered":
+            runtime_evidence_redactor(app).register_secret(secret)
+        else:
+            app.core_context = SimpleNamespace(
+                agent=SimpleNamespace(provider=SimpleNamespace(api_key=secret)),
+                background_tasks=[], orchestrator=SimpleNamespace(aclose=close),
+                mcp_manager=None, session_manager=None,
+            )
+        # Copy synchronously, before the periodic projection has an opportunity
+        # to tick. Old selection coordinates must not copy changed evidence.
+        area.action_copy()
+        assert copies == []
+        assert secret not in area.text and "[REDACTED]" in area.text
+        assert "select text again" in str(screen.query_one("#tool-evidence-status", Static).render()).lower()
+        area.select_all()
+        await pilot.press("ctrl+c")
+        assert copies == [area.text]
+        assert "Call: call" in copies[0] and "Agent: worker" in copies[0]
+        assert copies[0].index("Request arguments") < copies[0].index("Result output")
+        assert tuple((entry.number, entry.text) for entry in screen.record.entries) == original_entries
+        assert app.screen is screen and app.is_running
+        assert composer.text == "unsent draft"
+        app.core_context = None
+        app._evidence_redactor = EvidenceRedactor()
+        screen.refresh_evidence()
+        assert secret not in area.text and "[REDACTED]" in area.text
+        await pilot.press("escape")
+        await settle_layout(pilot)
+        assert app.focused is card and composer.text == "unsent draft"
+
+
+async def test_inspector_copy_keeps_unchanged_selected_text_and_reports_clipboard_failure(app, monkeypatch):
+    from textual.document._document import Selection
+    from textual.widgets import Static
+
+    copies = []
+    monkeypatch.setattr(app, "copy_to_clipboard", copies.append)
+    async with app.run_test() as pilot:
+        await send(app, [request(path="owned.py"), result(success=True, result="safe result")])
+        await settle_layout(pilot)
+        app.query_one(ToolMessage).focus()
+        await pilot.press("enter")
+        await settle_layout(pilot)
+        screen = app.screen
+        area = screen.query_one("#tool-evidence", TextArea)
+        area.selection = Selection((0, 0), (0, 4))
+        await pilot.press("ctrl+c")
+        assert copies == ["Tool"]
+        assert "requested" in str(screen.query_one("#tool-evidence-status", Static).render()).lower()
+        assert area.selected_text == "Tool" and app.screen is screen
+        secret = "clipboard-error-private"
+        runtime_evidence_redactor(app).register_secret(secret)
+        def fail(_text):
+            raise OSError("clipboard unavailable " + secret)
+        monkeypatch.setattr(app, "copy_to_clipboard", fail)
+        area.action_copy()
+        status = str(screen.query_one("#tool-evidence-status", Static).render())
+        assert secret not in status and "unavailable" in status.lower()
+        assert app.screen is screen and area.selected_text == "Tool"

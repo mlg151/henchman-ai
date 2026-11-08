@@ -15,14 +15,15 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label, TextArea
+from textual.widgets import Button, Label, Static, TextArea
 
-from henchman.cli.evidence import runtime_evidence_redactor
+from henchman.cli.textual_context import _current_policy
 from henchman.utils.evidence_redaction import (
     PRESERVE_IDENTITY,
     EvidenceRedactor,
     EvidenceStreamRedactor,
 )
+from henchman.utils.exception_evidence import exception_text
 from henchman.utils.tool_results import tool_message_content
 
 MAX_ENTRY_BYTES = 32 * 1024
@@ -244,6 +245,14 @@ class ToolActivityStore:
         return header + "\n\n" + body
 
 
+class _ToolEvidenceTextArea(TextArea):
+    """Keep native Ctrl+C selection copying behind current projection."""
+
+    def action_copy(self) -> None:
+        if isinstance(self.screen, ToolEvidenceScreen):
+            self.screen.copy_evidence()
+
+
 class ToolEvidenceScreen(ModalScreen[None]):
     """Read-only evidence; Escape/Back return to the originating transcript row."""
 
@@ -251,6 +260,7 @@ class ToolEvidenceScreen(ModalScreen[None]):
     ToolEvidenceScreen { align: center middle; }
     #tool-evidence-dialog { width: 95%; height: 90%; border: solid $accent; background: $surface; padding: 0 1; }
     #tool-evidence { height: 1fr; }
+    #tool-evidence-status { height: auto; max-height: 3; }
     #tool-evidence-back { height: 3; }
     """
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "back", "Back")]
@@ -258,11 +268,17 @@ class ToolEvidenceScreen(ModalScreen[None]):
     def __init__(self, record: ToolActivity) -> None:
         super().__init__()
         self.record = record
+        self._policy = EvidenceRedactor()
+
+    def _text(self) -> str:
+        self._policy.register_policy(_current_policy(self.app))
+        return self.record.evidence(self._policy)
 
     def compose(self) -> ComposeResult:
         with Vertical(id="tool-evidence-dialog"):
             yield Label("Tool evidence · read only · Esc: Back", markup=False)
-            yield TextArea(self.record.evidence(runtime_evidence_redactor(self.app)), read_only=True, id="tool-evidence")
+            yield _ToolEvidenceTextArea(self._text(), read_only=True, id="tool-evidence")
+            yield Static("Select text / Ctrl+C to request clipboard transfer.", markup=False, id="tool-evidence-status")
             yield Button("Back", id="tool-evidence-back")
 
     def on_mount(self) -> None:
@@ -271,9 +287,27 @@ class ToolEvidenceScreen(ModalScreen[None]):
 
     def refresh_evidence(self) -> None:
         area = self.query_one(TextArea)
-        text = self.record.evidence(runtime_evidence_redactor(self.app))
+        text = self._text()
         if area.text != text:
             area.load_text(text)
+
+    def copy_evidence(self) -> None:
+        """Reproject before slicing; changed evidence needs a fresh selection."""
+        area = self.query_one(TextArea)
+        before = area.text
+        self.refresh_evidence()
+        status = self.query_one("#tool-evidence-status", Static)
+        if before != area.text:
+            status.update("Evidence or credential projection changed; select text again before copying.")
+            return
+        if area.selected_text:
+            try:
+                self.app.copy_to_clipboard(area.selected_text)
+            except Exception as error:
+                self._policy.register_policy(_current_policy(self.app))
+                status.update(exception_text(error, self._policy))
+            else:
+                status.update("Clipboard transfer requested; terminal confirmation is unavailable.")
 
     def action_back(self) -> None:
         self.dismiss(None)

@@ -666,7 +666,8 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   [UI settings](docs/configuration.md#settings-file).
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
   Compact correlated tool rows and bounded keyboard evidence inspection are
-  implemented, alongside owned lifecycle status and F4 navigation to pending
+  implemented, with current credential projection before selected-copy and
+  explicit reselection after changes, alongside owned lifecycle status and F4 navigation to pending
   questions/approvals. F9 now inspects, edits, removes, reorders and explicitly
   sends saved input through revision-bound shared workflow controls. Native
   qualification and other controls remain open. See the

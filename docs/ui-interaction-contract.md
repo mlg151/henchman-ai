@@ -250,6 +250,12 @@ visible omissions. Inspection
 rechecks known credentials, including rotation while open. These are display
 limits; session persistence and runtime control keep their own contracts.
 
+Ctrl+C in the tool inspector requests transfer of the selected text. Copy
+reprojects the full retained evidence before taking that selection; changed
+evidence or credentials require explicit reselection. The inspector retains
+previously known credentials and reports transfer as requested, without claiming
+native clipboard acknowledgement. Back returns to the originating tool row.
+
 The mounted tests cover 80×24 and 120×40 layouts, interleaved agents, repeated
 identities, long output, credential rotation, retention, resize and draft/focus.
 These tests provide no native terminal, clipboard or assistive-technology

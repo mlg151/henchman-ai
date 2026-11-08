@@ -326,6 +326,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - #34 now has compact correlated tool rows and bounded keyboard evidence
   inspection, with strict outcomes, visible omissions and credential reprojection.
+  Tool-inspector copy now reprojects before selection and requires reselection
+  after credential/evidence changes, retaining earlier credential policies.
   Owned lifecycle status now retains cancellation through cleanup and exposes
   F4 navigation to an actual pending question or approval without answering it.
   F9 now provides revision-bound inspect/edit/remove/reorder/Send controls with

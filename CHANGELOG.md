@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
+  copying a selection. Credential or evidence changes require reselection,
+  preserving masked text, draft/focus and chronological observations.
+
 - **Searchable saved sessions** — Textual's Context → Sessions now searches
   project-scoped metadata, shows persisted/recovery state and requires explicit
   save-or-switch resume. Stale selections and changed saved bytes refuse;
