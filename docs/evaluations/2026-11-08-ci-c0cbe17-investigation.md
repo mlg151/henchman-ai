@@ -32,3 +32,14 @@ plausible early-timeout path locally: the old one-second limit returned
 With the longer limit, both delayed race cases and four adjacent cases passed on
 Python 3.11 and 3.12. This supports the fixture adjustment but does not prove
 that the Windows failures followed the same path.
+
+A clean offline wheel built from `605365bf6ff25dcb659cc0d9a57ee87b07624533`
+also passed both delayed cases on Linux/Python 3.11 after all 454 installed
+package files matched the wheel. The source archive SHA-256 was
+`09699e371facd064ee089343e5de9f2fd35599d9e490658c03bba348f8ebcaf4`, and the
+0.4.1 wheel SHA-256 was
+`6bf9136206b0e855625d79ff1cfead77a021403242c25e36401f8eb5f0d5b61c`.
+Other dependencies were reused from the local development environment; this is
+not a fresh dependency installation, a Windows result or a release artifact.
+Artifacts and logs remain in `repair-race-wheel-605365b` in the qualification
+cache.
