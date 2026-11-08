@@ -148,9 +148,16 @@ reads transcript history and Alt+End returns to live output without replacing th
 composer draft. Host selection, scrollback, clipboard and remote-terminal behavior
 still depend on the terminal and require native testing.
 
+`ui.reduced_motion: true` is also captured at Textual driver startup. Transitions
+complete immediately, loading indicators remain static, and the composer and
+focused dialog editors use steady cursors. Streaming, status changes, approval
+prompts, cancellation and evidence freshness checks remain active. Changes take
+effect on the next launch; `false` preserves the framework and caller defaults.
+These rendered checks do not establish native assistive-technology support.
+
 `ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
-tables. Its Textual consumer and runtime behavior for output mode, reduced motion,
-density and keyboard mode remain pending in the UI workstream.
+tables. Its Textual consumer and runtime behavior for output mode, density and
+keyboard mode remain pending in the UI workstream.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove
 obsolete or misspelled fields from existing files; entries inside the declared

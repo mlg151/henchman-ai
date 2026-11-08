@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Textual reduced motion preference** — `ui.reduced_motion` takes effect at
+  driver startup, completing transitions immediately and using static loading
+  feedback and steady editor cursors. Essential streaming, approval, status,
+  cancellation and evidence refresh remain active; native accessibility
+  qualification is pending.
+
 - **Metric evidence redaction** — SQLite writes, legacy reads, exports and exporter
   failure diagnostics share credential projection. Marked metadata is collected
   before projecting its echoes; numeric values and fixed identities are preserved.

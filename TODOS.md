@@ -201,8 +201,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - The typed terminal UI controls (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout.compact_tables`) ship under [#14](https://github.com/mlg151/henchman-ai/issues/14) with field-attributed validation and local import/export sync round-trips, and the shared discovery capability matrix now classifies them as TUI-scoped controls that generic discovery/help surfaces do not advertise as generic commands. Consumer alignment as the UI child features land and final runtime wiring remain open.
 
 - #33 now applies `ui.mouse_capture` at Textual driver startup, retaining keyboard
-  history/live navigation and drafts. Setting changes require the next launch;
-  native selection, clipboard and remote behavior remain unqualified. Other UI
+  history/live navigation and drafts. `ui.reduced_motion` suppresses transitions,
+  animated loading and focused editor cursor blinking without disabling streaming,
+  decisions, status or cancellation. Both settings require the next launch for
+  changes; native accessibility, selection, clipboard and remote behavior remain
+  unqualified. Other UI
   settings consumers remain pending or partial as described in
   [configuration](docs/configuration.md).
 

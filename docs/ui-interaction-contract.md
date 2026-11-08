@@ -33,6 +33,12 @@ disables application mouse reporting at the next Textual launch; explicit Python
 scrollback behavior. Keyboard history navigation and the return-to-live control
 remain available with capture disabled.
 
+`ui.reduced_motion: true` takes effect at driver startup: transitions finish
+immediately, loading feedback stays visible without animation, and focused
+composer/dialog editors use steady cursors. Streaming, pending decisions, status,
+joined cancellation and evidence refresh remain active. Later setting changes
+take effect on the next launch.
+
 ## Versioned scenarios
 
 The deterministic rendered [harness](../tests/cli/ui_scenarios.py) is version
@@ -54,7 +60,7 @@ runtime boundaries.
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
 | Width, theme, Unicode and long paths | 80×24, 120×40 and 160×50 in the [new harness](../tests/cli/ui_scenarios.py) | Light/dark/no-color native contrast and focused narrow layout |
-| Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
+| Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) and [reduced-motion lifecycle](../tests/cli/test_textual_motion_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
 
 The implemented resize anchor retains a message and its visual row while earlier
 messages reflow. Exact character anchoring within one rewrapped long message is

@@ -35,6 +35,7 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
+    Input,
     OptionList,
     Static,
     TabbedContent,
@@ -85,6 +86,7 @@ from henchman.cli.textual_mixins import (
     _StatusBarMixin,
     _WorkspaceMixin,
 )
+from henchman.cli.textual_preferences import StaticLoadingIndicator
 from henchman.cli.textual_screens import (
     AutoModeScreen,
     BridgeScreen,
@@ -123,7 +125,9 @@ from henchman.cli.ui_renderer import UIRenderer
 from henchman.config.runtime import RuntimeSettingsState
 
 if TYPE_CHECKING:
+    from textual import events
     from textual.driver import Driver
+    from textual.widget import Widget
 
     from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
@@ -287,18 +291,33 @@ class HenchmanTextualApp(
             settings_state,
         )
         self._init_state()
+        self._reduced_motion = False
 
     def _build_driver(
         self, headless: bool, inline: bool, mouse: bool, size: tuple[int, int] | None,
     ) -> Driver:
         """Apply the held startup preference to each supported launch path.
 
-        Explicit API ``mouse=False`` remains restrictive. Changing the setting
-        after driver creation takes effect when a new TUI is started.
+        Explicit API ``mouse=False`` remains restrictive. Motion preferences
+        capture the held settings here; subsequent changes need a new TUI.
         """
+        self._reduced_motion = self.settings.ui.reduced_motion
+        if self._reduced_motion:
+            self.animation_level = "none"
         return super()._build_driver(
             headless, inline, mouse and self.settings.ui.mouse_capture, size,
         )
+
+    def get_loading_widget(self) -> Widget:
+        """Keep loading feedback while suppressing decorative refresh timers."""
+        if self._reduced_motion:
+            return StaticLoadingIndicator()
+        return super().get_loading_widget()
+
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        """Apply the captured preference to editors mounted by later dialogs."""
+        if self._reduced_motion and isinstance(event.widget, (Input, TextArea)):
+            event.widget.cursor_blink = False
 
     async def _textual_question(self, question: str) -> str | None:
         """Collect an answer through the serialized Textual tool dialog."""
@@ -341,7 +360,10 @@ class HenchmanTextualApp(
                     id="workspace-overview",
                 )
         yield OptionList(id="command-palette")
-        yield HenchmanTextArea(id="input", show_line_numbers=False)
+        composer = HenchmanTextArea(id="input", show_line_numbers=False)
+        if self._reduced_motion:
+            composer.cursor_blink = False
+        yield composer
         yield Footer()
         yield StatusBar(id="status-bar")
 
