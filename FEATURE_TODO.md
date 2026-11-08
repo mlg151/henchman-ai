@@ -705,6 +705,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   chronology and pinned active/interactive rows; this is not a total memory cap.
   A diagnostic GC outlier still exceeded 250 ms, so measured improvement remains
   a separate gate.
+  A [paired native VTE comparison](docs/evaluations/2026-11-08-vte-window-pair-v1.md)
+  retained 480 observations; candidate cancellation p95 failed at 160×50 with
+  1,000 messages, so the latency target remains open.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).

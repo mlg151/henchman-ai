@@ -124,6 +124,9 @@ pending mounts and join the owned rendering worker. The
 [mounted regressions](../tests/cli/test_textual_transcript_window.py) cover these
 boundaries. Native latency and accessibility remain separately qualified; the
 diagnostic prototype still observed a cancellation above 250 ms during GC.
+The subsequent [paired VTE measurement](evaluations/2026-11-08-vte-window-pair-v1.md)
+retains 480 observations and records a candidate cancellation p95 above the
+target at 160×50 with 1,000 messages.
 
 In F8 checkpoint review, **Checks** reads current declared-input status and keeps
 historical check results separate. Refresh rechecks through the shared service

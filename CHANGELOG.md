@@ -70,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Earlier/later navigation, search, reading anchors and bounded decision-context
   copy retain chronology and current credential projection. Shutdown joins the
   rendering worker. The cancellation latency target remains unqualified.
+  A paired VTE run retained 480 observations and still missed cancellation p95
+  at 160×50 with 1,000 messages; the measured workload and limits are documented.
 
 - **Local repair comparison** — Twelve fixed local-model attempts retain a
   negative result: direct execution passed 6/6 and bounded repair 2/6. Four
