@@ -34,8 +34,8 @@ The new deterministic tests cover a vanished group, a still-signalable group,
 persistent denial, a child that remains live, final SIGKILL denial, and a real
 child with a simulated capture failure and first-signal denial. Before the fix,
 three of the first four simulated cases failed. Python 3.11 focused source tests
-passed 122 tests before the later final-signal diagnostic; Python 3.12 source
-tests passed 72 after it. A clean wheel built from `7363e61a39246d367b229465672d5151fb33f991`
+passed 124 tests after the final-signal diagnostic; Python 3.12 source tests
+passed 72. A clean wheel built from `7363e61a39246d367b229465672d5151fb33f991`
 and installed in an isolated Python 3.12.13 environment passed **124 focused
 tests**. Its wheel SHA-256 is
 `6944de9a1e66f003e1858bafd2e944b753db7b54b6f82b07f71f10c81ee968d8`,
