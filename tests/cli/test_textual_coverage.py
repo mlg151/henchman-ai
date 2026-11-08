@@ -620,94 +620,61 @@ class TestProviderScreen:
 
 
 class TestSessionScreen:
-    """Tests for SessionScreen."""
+    """Compatibility metadata uses the actual browser and awaited controls."""
 
-    def test_init(self) -> None:
-        """Test SessionScreen can be instantiated with sessions."""
+    def test_build_entries_uses_real_saved_metadata(self) -> None:
         from henchman.cli.textual_screens import SessionScreen
+        from henchman.core.session import SessionMetadata
 
-        session = MagicMock()
-        session.id = "sess-1"
-        session.tag = "my-session"
-        session.updated_at = "2025-01-01"
-        session.message_count = 5
+        session = SessionMetadata("sess-1", "project", "2025-01-01", "2025-01-02", 5, "my-session")
         screen = SessionScreen(sessions=[session])
-        assert len(screen._sessions) == 1
-
-    def test_build_entries(self) -> None:
-        """Test _build_entries creates entries from sessions."""
-        from henchman.cli.textual_screens import SessionScreen
-
-        session = MagicMock()
-        session.id = "sess-1"
-        session.tag = "my-session"
-        session.updated_at = "2025-01-01"
-        session.message_count = 5
-        screen = SessionScreen(sessions=[session])
+        assert screen._sessions == [session]
         entries = screen._build_entries()
-        assert len(entries) == 1
-        assert entries[0][1] == "sess-1"
+        assert len(entries) == 1 and entries[0][1] == "sess-1"
+        assert "my-session" in entries[0][0] and "2025-01-02" in entries[0][0]
+        assert "5 messages" in entries[0][0]
 
-    def test_action_cancel(self) -> None:
-        """Test action_cancel dismisses with None."""
-        from henchman.cli.textual_screens import SessionScreen
-
-        screen = SessionScreen(sessions=[])
-        screen.dismiss = MagicMock()
-        screen.action_cancel()
-        screen.dismiss.assert_called_once_with(None)
-
-    def test_on_button_pressed_cancel(self) -> None:
-        """Test on_button_pressed cancel button."""
-        from henchman.cli.textual_screens import SessionScreen
-
-        screen = SessionScreen(sessions=[])
-        screen.dismiss = MagicMock()
-        event = MagicMock()
-        event.button.id = "btn-cancel"
-        screen.on_button_pressed(event)
-        screen.dismiss.assert_called_once_with(None)
-
-    def test_on_button_pressed_resume_valid(self) -> None:
-        """Test on_button_pressed resume with valid selection."""
-        from henchman.cli.textual_screens import SessionScreen
-
-        screen = SessionScreen(sessions=[])
-        screen.dismiss = MagicMock()
-        sel = MagicMock()
-        sel.value = "sess-1"
-        screen.query_one = MagicMock(return_value=sel)
-        event = MagicMock()
-        event.button.id = "btn-resume"
-        screen.on_button_pressed(event)
-        screen.dismiss.assert_called_once_with("resume:sess-1")
-
-    def test_on_button_pressed_delete_valid(self) -> None:
-        """Test on_button_pressed delete with valid selection."""
-        from henchman.cli.textual_screens import SessionScreen
-
-        screen = SessionScreen(sessions=[])
-        screen.dismiss = MagicMock()
-        sel = MagicMock()
-        sel.value = "sess-1"
-        screen.query_one = MagicMock(return_value=sel)
-        event = MagicMock()
-        event.button.id = "btn-delete"
-        screen.on_button_pressed(event)
-        screen.dismiss.assert_called_once_with("delete:sess-1")
-
-    def test_on_button_pressed_no_selection(self) -> None:
-        """Test on_button_pressed with no selection."""
-        from textual.widgets import Select
+    @pytest.mark.parametrize("use_button", [False, True])
+    async def test_back_closes_mounted_metadata_browser(self, use_button: bool) -> None:
+        from textual.app import App
 
         from henchman.cli.textual_screens import SessionScreen
 
-        screen = SessionScreen(sessions=[])
-        screen.dismiss = MagicMock()
-        sel = MagicMock()
-        sel.value = Select.BLANK
-        screen.query_one = MagicMock(return_value=sel)
-        event = MagicMock()
-        event.button.id = "btn-resume"
-        screen.on_button_pressed(event)
-        screen.dismiss.assert_called_once_with(None)
+        app = App()
+        async with app.run_test() as pilot:
+            origin = app.screen
+            screen = SessionScreen(sessions=[])
+            await app.push_screen(screen)
+            await pilot.pause()
+            if use_button:
+                assert await pilot.click("#sessions-back")
+            else:
+                await pilot.press("escape")
+            await pilot.pause()
+            assert app.screen is origin
+            assert screen._sessions_closing
+            assert screen._action_task is None or screen._action_task.done()
+
+    async def test_metadata_only_browser_cannot_resume_or_delete(self) -> None:
+        from textual.app import App
+        from textual.widgets import Button
+
+        from henchman.cli.textual_screens import SessionScreen
+        from henchman.core.session import SessionMetadata
+
+        app = App()
+        async with app.run_test() as pilot:
+            screen = SessionScreen([SessionMetadata("sess-1", "project", "created", "updated", 5)])
+            await app.push_screen(screen)
+            await pilot.pause()
+            assert screen.manager is None and screen.workflow is None
+            assert screen.query_one("#sessions-resume", Button).disabled
+            assert screen.query_one("#sessions-save-resume", Button).disabled
+            assert screen.query_one("#sessions-without-save", Button).disabled
+            assert not any("delete" in (button.id or "") for button in screen.query(Button))
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app.screen is screen and screen._candidate is None
+            await pilot.press("escape")
+            await pilot.pause()
+            assert screen not in app.screen_stack
