@@ -796,7 +796,9 @@ async def test_terminal_downgrade_cannot_overwrite_a_newer_repair_owner(tmp_path
 
     service, plan, _ = setup(tmp_path)
     (tmp_path / "target.py").write_text("answer = 2\n")
-    repair = session(service, plan, timeout_seconds=1.0)
+    # The injected clock controls the deadline race; leave the real event loop
+    # enough time to reach terminal persistence on slow native filesystems.
+    repair = session(service, plan, timeout_seconds=120.0)
     clock = [10.0]
     monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     save = service.save_repair_report
@@ -809,7 +811,7 @@ async def test_terminal_downgrade_cannot_overwrite_a_newer_repair_owner(tmp_path
                      "repairs_started": 0, "observations": [], "criteria_digest": None, "error": ""}
             replacement.append(save(identity, fresh, start=True))
             if control == "deadline":
-                clock[0] = 12.0
+                clock[0] = 131.0
             else:
                 asyncio.current_task().cancel("cancel during terminal acknowledgement")
         return result
@@ -817,9 +819,13 @@ async def test_terminal_downgrade_cannot_overwrite_a_newer_repair_owner(tmp_path
     monkeypatch.setattr(service, "save_repair_report", superseded)
     task = asyncio.create_task(repair.run(lambda _: asyncio.sleep(0)))
     expected = ValueError if control == "deadline" else asyncio.CancelledError
-    with pytest.raises(expected) as caught:
-        await task
+    try:
+        result = await task
+    except (ValueError, asyncio.CancelledError) as caught:
+        assert isinstance(caught, expected)
+        assert any("Could not persist" in note for note in caught.__notes__)
+    else:
+        pytest.fail(f"Expected {expected.__name__}; got {result.status}/{result.reason} with {len(replacement)} replacement(s)")
     assert len(replacement) == 1
     assert service.get_plan(plan.plan_id).last_repair == replacement[0]
-    assert any("Could not persist" in note for note in caught.value.__notes__)
     assert repair._owner is None and not repair._editing
