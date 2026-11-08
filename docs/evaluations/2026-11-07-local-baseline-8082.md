@@ -16,9 +16,13 @@ remains in the denominator; none was omitted or retried into it.
 | Verification failures | 1 / 24 (`tool-failure-recovery` run 2) |
 | Runtime errors | 0 / 24 |
 | Attempt-duration min / p50 / p95 / max | 46.3 s / 97.5 s / 120.0 s / 120.0 s |
-| Token usage (successful attempts) | 122,832 in / 2,674 out |
+| Sum of successful-record token observations | 122,832 in / 2,674 out; incomplete scope |
 | API cost | $0; local server, no hosted calls |
 | Report generated | 2026-11-08 00:22:44 UTC |
+
+The runner's token fields retain final scenario/turn observations, not complete
+request-level aggregates across every tool round or delegated call. These sums
+must not be treated as full-cohort consumption; timed-out usage remains unknown.
 
 Per-case outcomes (successes / 2):
 
@@ -87,9 +91,9 @@ passed while GPU 1 sat at 0 % utilization (raw evidence in `/tmp/opencode/`):
 Model identity/profile: alias `qwen38-27b-iq3s`
 (`Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf`, GGUF, 131072 context, 99 GPU layers,
 2048 reasoning budget), `system_fingerprint: b1-6cb3e67`. The model is a
-thinking model: at roughly 5–10 tokens/second the reasoning budget plus task
-work exceeds the 120-second bounded limit for several cases, which is why
-timeouts appear as recorded outcomes rather than cohort failures.
+thinking model. Reasoning and generation may contribute to latency, but this
+report does not isolate their durations or establish the cause of each timeout.
+Every timeout remains a failed attempt in the fixed cohort denominator.
 
 ## Cost and spend provenance
 
