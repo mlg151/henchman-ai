@@ -4,6 +4,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- The [CPU corpus readiness attempt](docs/evaluations/2026-11-07-cpu-corpus-readiness.md)
+  passed two protocol probes but timed out before a coding response. The twelve
+  cases did not run; the failed attempt, unknown usage and cleanup verification
+  remain separate from any revised diagnostic.
+
 - #27's legacy JSON renderer now preserves long/Unicode payloads and literal
   emoji aliases at narrow console widths. The versioned editor protocol and
   Neovim pilot remain pending; see [JSON output](docs/api.md#headless-json-output).

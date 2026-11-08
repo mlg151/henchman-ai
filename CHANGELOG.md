@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Retained CPU corpus readiness failure** — Two protocol probes passed, then
+  canonical syntax repair timed out before a response. The corpus did not run;
+  unknown usage, the shorter HTTP deadline and an independently resolved cleanup
+  parsing error are retained in the [readiness report](docs/evaluations/2026-11-07-cpu-corpus-readiness.md).
+
 - **Headless JSON framing** — Long and Unicode event payloads remain valid JSON
   at narrow console widths, and literal emoji aliases retain their original text.
   JSONL and indented-array formats keep their existing event shapes; versioned
