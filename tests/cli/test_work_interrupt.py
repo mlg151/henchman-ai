@@ -110,6 +110,38 @@ async def test_interrupt_refuses_a_task_owned_by_another_event_loop(work):
         other_loop.close()
 
 
+async def test_concurrent_stop_does_not_signal_owned_process_twice(work, monkeypatch):
+    record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
+    work.tasks.append(record.task_id)
+    current = work.service.get_task(record.task_id)
+    original = work.service._terminate_process
+    entered, release = asyncio.Event(), asyncio.Event()
+    calls = []
+
+    async def delayed(process):
+        calls.append(process)
+        entered.set()
+        await release.wait()
+        await original(process)
+
+    monkeypatch.setattr(work.service, '_terminate_process', delayed)
+    first = asyncio.create_task(WorkInspection(frontend(work)).interrupt_task(record.task_id, expected_revision=current.revision))
+    second = None
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        second = asyncio.create_task(WorkInspection(frontend(work)).interrupt_task(record.task_id, expected_revision=current.revision))
+        with pytest.raises(ValueError, match='stopp'):
+            await asyncio.wait_for(asyncio.shield(second), 5)
+        assert len(calls) == 1
+        release.set()
+        assert (await first).status == 'stopped'
+    finally:
+        release.set()
+        await asyncio.gather(first, return_exceptions=True)
+        if second is not None:
+            await asyncio.gather(second, return_exceptions=True)
+
+
 async def test_session_change_during_lookup_refuses_before_interrupt(work, monkeypatch):
     record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
     work.tasks.append(record.task_id)

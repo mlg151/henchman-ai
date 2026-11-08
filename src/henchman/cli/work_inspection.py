@@ -209,6 +209,8 @@ class WorkInspection:
         process = runtime.processes.get(identity)
         waiter = runtime.waiters.get(identity)
         loop = asyncio.get_running_loop()
+        if identity in runtime.stopping:
+            raise ValueError("Task is already stopping; wait for cleanup")
         if (runtime.process_id != os.getpid() or record.owner_id != runtime.owner_id
             or record.status != "running" or process is None or process.returncode is not None
             or waiter is None or waiter.done() or waiter.get_loop() is not loop):
@@ -221,6 +223,8 @@ class WorkInspection:
                 if requester is None or requester.cancelling():
                     raise asyncio.CancelledError
                 admit()
+                if identity in runtime.stopping:
+                    raise ValueError("Task is already stopping; wait for cleanup")
                 latest = runtime.records.get(identity)
                 if (runtime.process_id != os.getpid() or runtime.processes.get(identity) is not process
                     or process.returncode is not None or latest is None

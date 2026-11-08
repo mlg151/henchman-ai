@@ -221,6 +221,7 @@ rechecks the selected task revision, project, session and owner before issuing
 the request, including the task's owning event loop. The command captures and
 rechecks the current revision. Stored
 PIDs and recovered unowned tasks never grant authority to signal a process.
+An already-stopping task refuses another stop request until cleanup settles.
 The interface acknowledges the request while cleanup is pending and reports
 the settled state afterward; closing an inspector joins an already-started stop.
 Stopping execution is not task verification, and child-agent interruption is
