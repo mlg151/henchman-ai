@@ -22,3 +22,14 @@ the test log SHA-256 is
 This development wheel reports 0.4.1. It is neither a native macOS/Windows
 result nor a final release artifact. Physical-terminal and accessibility
 qualification remain open.
+
+The follow-up at `6339138` adds current status for individual checks that
+declare the selected file. A passing selected-file check remains distinct from
+an unrelated failing check in the same plan; stale or insufficiently declared
+inputs do not become current passes. The full checkpoint suite passed **52
+tests** each on Python 3.11 and 3.12, and Ruff/mypy passed. A clean wheel from
+that commit, imported from its isolated Python 3.12.13 `site-packages`, also
+passed all **52 tests**. Its wheel SHA-256 is
+`c2f9bba29641f2eec7c1ff6ed6547859b64c0e1f470f3e7383f6d32f68a2d831`;
+its log SHA-256 is
+`2767d5a8651e6dc966c744b2d66168afc50bcc6324f476147aa25cbaf84a96e6`.
