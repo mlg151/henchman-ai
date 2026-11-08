@@ -271,6 +271,20 @@ track changes to the referenced variable. Embedded Python callers can pass an
 known values. This policy does not discover arbitrary secrets or every possible
 encoding. Revocation at the provider remains a separate action.
 
+Provider and forwarded-stream cleanup, delegation failures and delegation error
+retrieval project exception messages, notes, chains and stack traces before
+logging. They retain known credentials across rotation and preserve the original
+failure or cancellation. Tracebacks exclude local variables and raw exceptions
+are not attached to these log records.
+
+Operational analytics, telemetry, cost and diagnostic events are projected before
+SQLite writes and when returned or read. Embedded callers can supply their held
+policy with `OpsStore(path, evidence_redactor=...)`; credential-named environment
+values and marked payload fields are also registered. Generated event identities,
+timestamps and validated cost controls retain their meaning. Legacy reads project
+detached copies without rewriting database bytes; execution and authority tables
+are outside this evidence projection.
+
 Redaction produces an independent evidence copy: it does not change live provider
 credentials, tool arguments or in-memory messages used for execution. A resumed
 session contains the redacted evidence; it cannot restore removed secret values.

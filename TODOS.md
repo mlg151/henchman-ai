@@ -184,6 +184,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   known credentials and marked metadata while retaining numeric/identity semantics.
   Existing database bytes remain unchanged during inspection; broader #20
   qualification remains open.
+  Lower-level provider/stream cleanup and delegation diagnostics now project
+  exception snapshots while preserving original failures and cancellation.
+  Operational event SQLite writes and legacy read copies share the policy;
+  execution and authority tables remain outside evidence projection.
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale

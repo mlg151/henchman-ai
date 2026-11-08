@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Lower-level diagnostic privacy** — Provider/stream cleanup and delegation
+  failure logs now project credentials before traceback formatting while retaining
+  original errors and cancellation. Operational event SQLite writes and legacy
+  read copies share credential projection without rewriting authority tables.
+
 - **Plain and quiet Textual output** — Startup output mode now controls literal
   transcript/command rendering. Quiet hides routine chatter while retaining
   inspectable tool cards, manual expansion, decisions, failures and status.

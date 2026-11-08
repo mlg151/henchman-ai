@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.core.runtime_operations import current_operation_run
+from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.exception_evidence import exception_text
 
 from .orchestrator_loop import (
     assess_agent_completion,
@@ -85,11 +88,13 @@ class ExecutionController:
             raise ValueError(msg)
 
         with self.orchestrator.pool.claim_agent(params.agent, owner=params, running=True):
+            evidence = failure_evidence_redactor(self.orchestrator)
+            failure_evidence_redactor(params.agent, redactor=evidence)
             operation_run = current_operation_run()
             if operation_run is not None:
                 operation_run.register_actor_credentials(params.agent)
             try:
-                async with closing_event_stream(self._run_claimed_agent_loop(params)) as stream:
+                async with closing_event_stream(self._run_claimed_agent_loop(params), redactor=evidence) as stream:
                     async for event in stream:
                         if operation_run is not None:
                             operation_run.register_actor_credentials(params.agent)
@@ -103,6 +108,8 @@ class ExecutionController:
     ) -> AsyncIterator[AgentEvent]:
         """Run and settle an agent while its pool execution claim is held."""
         agent = params.agent
+        evidence = failure_evidence_redactor(self.orchestrator)
+        failure_evidence_redactor(agent, redactor=evidence)
         generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)
         state = LoopState(completion_requirement=CompletionRequirement(params.completion_requirement))
 
@@ -144,7 +151,8 @@ class ExecutionController:
                     state.failed = True
                     raise
                 finally:
-                    await _close_stream(generator, primary_error=primary_error)
+                    await _close_stream(generator, primary_error=primary_error,
+                                        redactor=failure_evidence_redactor(agent, redactor=evidence))
 
                 if failed:
                     for event in _settle_unanswered_calls(agent, "Skipped after agent error"):
@@ -162,7 +170,7 @@ class ExecutionController:
                     tool_stream = stream_tool_events(
                         self.orchestrator, agent, pending, params, state,
                     )
-                    async with closing_event_stream(tool_stream) as events_stream:
+                    async with closing_event_stream(tool_stream, redactor=evidence) as events_stream:
                         async for event in events_stream:
                             yield event
                     should_break, limit_event = check_turn_limits(agent, params, state)
@@ -273,22 +281,25 @@ def _check_tool_round_budget(
 @asynccontextmanager
 async def closing_event_stream(
     stream: AsyncIterator[AgentEvent],
+    *, redactor: EvidenceRedactor | None = None,
 ) -> AsyncIterator[AsyncIterator[AgentEvent]]:
     """Close a forwarded stream without masking consumer errors or cancellation."""
     primary_error: BaseException | None = None
+    evidence = failure_evidence_redactor(redactor=redactor)
     try:
         yield stream
     except BaseException as exc:
         primary_error = exc
         raise
     finally:
-        await _close_stream(stream, primary_error=primary_error)
+        await _close_stream(stream, primary_error=primary_error, redactor=evidence)
 
 
 async def _close_stream(
     generator: AsyncIterator[AgentEvent],
     *,
     primary_error: BaseException | None,
+    redactor: EvidenceRedactor | None = None,
 ) -> None:
     """Close an owned iterator without replacing its primary exception."""
     close = getattr(generator, "aclose", None)
@@ -296,10 +307,12 @@ async def _close_stream(
         return
     try:
         await close()
-    except BaseException:
+    except BaseException as error:
         if primary_error is None:
             raise
-        _LOGGER.warning("Agent stream cleanup failed during interruption", exc_info=True)
+        _LOGGER.warning("Agent stream cleanup failed during interruption: %s", exception_text(
+            error, failure_evidence_redactor(redactor=redactor), include_traceback=True,
+        ))
 
 
 def _settle_unanswered_calls(agent: Agent, reason: str) -> list[AgentEvent]:

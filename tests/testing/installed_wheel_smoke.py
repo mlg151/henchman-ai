@@ -460,6 +460,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_textual_evidence_redaction.py",
         "tests/cli/test_textual_direct_evidence.py",
         "tests/cli/test_failure_evidence_redaction.py",
+        "tests/core/test_failure_evidence.py",
+        "tests/ops/test_evidence_redaction.py",
         "tests/cli/test_history_evidence_redaction.py",
         "tests/cli/test_direct_failure_evidence.py",
         "tests/cli/test_textual_workspace_evidence.py",

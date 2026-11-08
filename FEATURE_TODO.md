@@ -162,6 +162,10 @@ flushes pending evidence before completion or on interruption without changing
 execution inputs. REPL/Textual event streams, tool displays/approvals, Textual
 command output and direct chat/status/history displays now share that policy.
 Interactive failure logs project tracebacks without attaching raw exceptions.
+Provider/forwarded-stream cleanup and delegation diagnostics now use the shared
+exception projection while preserving original cancellation. Operational event
+SQLite writes and legacy read copies redact known credentials; execution and
+authority tables remain outside evidence projection.
 Config mutation responses and sync exports now redact credential echoes while
 retaining raw settings and runtime inputs. Background task output now redacts
 before disk capture, bounds private logs and safely migrates eligible indexed

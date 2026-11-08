@@ -16,9 +16,11 @@ from henchman.agents.orchestrator_execution import _close_stream, closing_event_
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_budget import BudgetControlError
 from henchman.providers.continuation import ProviderContinuationError
+from henchman.utils.exception_evidence import exception_text
 
 from .orchestrator_anchoring import (
     _enrich_completion_from_report,
@@ -407,6 +409,7 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
     Returns:
         List of error strings, empty if none found.
     """
+    evidence = failure_evidence_redactor(target_agent)
     try:
         if hasattr(target_agent, "get_delegation_errors"):
             errors = target_agent.get_delegation_errors()
@@ -419,15 +422,15 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
     except (AttributeError, TypeError, RuntimeError) as exc:
         logger.warning(
             "Failed to fetch delegation errors from agent %r: %s",
-            type(target_agent).__name__,
-            exc,
+            evidence.text(type(target_agent).__name__),
+            exception_text(exc, failure_evidence_redactor(target_agent, redactor=evidence), include_traceback=True),
         )
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         # Catch-all for unexpected errors, but log with full traceback
         logger.warning(
-            "Unexpected error fetching delegation errors from agent %r",
-            type(target_agent).__name__,
-            exc_info=True,
+            "Unexpected error fetching delegation errors from agent %r: %s",
+            evidence.text(type(target_agent).__name__),
+            exception_text(exc, failure_evidence_redactor(target_agent, redactor=evidence), include_traceback=True),
         )
     return []
 

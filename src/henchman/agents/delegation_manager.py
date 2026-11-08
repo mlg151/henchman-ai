@@ -10,6 +10,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from henchman.core.events import EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
+from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.exception_evidence import exception_text
 
 from .orchestrator_types import DelegationParams
 
@@ -58,6 +61,11 @@ class DelegationManager:
         self.completed_tasks: OrderedDict[str, DelegationTask] = OrderedDict()
         self._task_counter = 0
 
+    def _diagnostic_policy(self, source_agent: Agent) -> EvidenceRedactor:
+        policy = failure_evidence_redactor(self)
+        failure_evidence_redactor(self.delegation_runner, redactor=policy)
+        return failure_evidence_redactor(source_agent, redactor=policy)
+
     async def start_delegation(
         self,
         source_agent: Agent,
@@ -80,6 +88,7 @@ class DelegationManager:
         # Extract delegation parameters
         target_role = tool_call.arguments.get("agent", "")
         task = tool_call.arguments.get("task", "")
+        evidence = self._diagnostic_policy(source_agent)
 
         # Create future for the delegation result
         loop = asyncio.get_running_loop()
@@ -104,7 +113,7 @@ class DelegationManager:
         delegation_task.asyncio_task = task
 
         logger.info("Started asynchronous delegation %s: %s -> %s",
-                   task_id, source_agent, target_role)
+                   task_id, evidence.text(str(source_agent)), evidence.text(str(target_role)))
 
         return task_id
 
@@ -165,7 +174,9 @@ class DelegationManager:
             logger.info("Completed asynchronous delegation %s", delegation_task.id)
 
         except Exception as e:
-            logger.exception("Delegation %s failed: %s", delegation_task.id, e)
+            logger.error("Delegation %s failed: %s", delegation_task.id, exception_text(
+                e, self._diagnostic_policy(delegation_task.source_agent), include_traceback=True,
+            ))
             delegation_task.completed = True
             delegation_task.error = str(e)
 
@@ -257,7 +268,9 @@ class DelegationManager:
                 return task.task_future.result()
             except (asyncio.CancelledError, Exception) as e:
                 error_msg = str(e) if str(e) else type(e).__name__
-                logger.warning("Delegation %s result retrieval failed: %s", task_id, error_msg)
+                logger.warning("Delegation %s result retrieval failed: %s", task_id, exception_text(
+                    e, self._diagnostic_policy(task.source_agent), include_traceback=True,
+                ))
                 return (f"Delegation failed: {error_msg}", False)
 
         return await asyncio.wait_for(task.task_future, timeout)
@@ -315,5 +328,7 @@ class DelegationManager:
             task.source_agent.submit_tool_result(task.tool_call_id, result_content)
             return True
         except (asyncio.CancelledError, Exception) as e:
-            logger.warning("Failed to submit delegation result %s: %s", task_id, e)
+            logger.warning("Failed to submit delegation result %s: %s", task_id, exception_text(
+                e, self._diagnostic_policy(task.source_agent), include_traceback=True,
+            ))
             return False

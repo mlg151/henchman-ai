@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.core.run_budget import BudgetControlError
 from henchman.core.runtime_accounting import require_accounted_provider
 from henchman.providers.base import (
@@ -29,6 +30,7 @@ from henchman.providers.continuation import (
     validate_runtime_continuations,
 )
 from henchman.providers.usage import UsageSource
+from henchman.utils.exception_evidence import exception_text
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -253,6 +255,7 @@ async def generate_stream_events(
     Yields:
         AgentEvent instances for content, thinking, tool calls, errors, and finish.
     """
+    evidence = failure_evidence_redactor(ctx.provider)
     if compacted:
         yield _make_event(
             EventType.CONTEXT_COMPACTED,
@@ -307,9 +310,12 @@ async def generate_stream_events(
         if close is not None:
             try:
                 await close()
-            except Exception:
+            except Exception as error:
                 if not interrupted:
                     raise
-                logger.warning("Provider cleanup failed during interruption", exc_info=True)
+                logger.warning("Provider cleanup failed during interruption: %s", exception_text(
+                    error, failure_evidence_redactor(ctx.provider, redactor=evidence),
+                    include_traceback=True,
+                ))
     # Yielding from finally masks cancellation and violates generator close.
     yield _make_event(EventType.FINISHED, state.create_finished_data(), ctx.source_agent)
