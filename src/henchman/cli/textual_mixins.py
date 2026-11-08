@@ -28,7 +28,6 @@ from textual.widgets import (
     Tree,
 )
 
-from henchman.advanced import TaskService
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.oauth_frontend import FrontendOAuth, is_oauth_command, oauth_command_evidence
 from henchman.cli.output_handler import resolve_active_agent
@@ -2256,7 +2255,11 @@ class _WorkspaceMixin:
 
     def _refresh_workspace_widgets(self: _WorkspaceMixin) -> None:
         """Refresh all workspace panels with current state."""
-        policy = runtime_evidence_redactor(self)
+        from henchman.cli.textual_context import _agent, _current_policy, _model, _provider_name
+        from henchman.cli.textual_work import bound_task_service
+        from henchman.tools.registry import ToolRegistry
+
+        policy = _current_policy(self)
         summary = _query_one_or_none(self, "#agent-summary-panel", AgentSummaryPanel)
         memory = _query_one_or_none(self, "#memory-indicators", MemoryIndicator)
         tasks_widget = _query_one_or_none(self, "#task-list-widget", TaskListWidget)
@@ -2264,7 +2267,18 @@ class _WorkspaceMixin:
         team = _query_one_or_none(self, "#team-components", TeamPanel)
         settings_panel = _query_one_or_none(self, "#settings-panels", SettingsPanel)
 
-        provider = _active_display_provider(self)
+        actor = _agent(self)
+        provider = getattr(actor, "provider", None)
+        provider_name = _provider_name(provider)
+        provider_label = policy.text(provider_name) if isinstance(provider_name, str) and provider_name else "unavailable"
+        model_label = policy.text(_model(provider) or "unavailable")
+        role = getattr(getattr(self, "config", None), "agent_role", None)
+        identity = getattr(actor, "identity", None)
+        agent_name = getattr(identity, "name", None) or getattr(identity, "id", None)
+        agent_label = policy.text(agent_name if isinstance(agent_name, str) and agent_name else role if isinstance(role, str) and role else "primary")
+        agent_label += " (instantiated)" if actor is not None else " (not instantiated; unavailable)"
+        actor_registry = getattr(actor, "tool_registry", None)
+        tool_count = len(actor_registry.list_tools()) if isinstance(actor_registry, ToolRegistry) else None
         settings = getattr(self, "settings", None)
         ctx = getattr(self, "core_context", None)
         mgr = getattr(ctx, "session_manager", None) if ctx else None
@@ -2273,11 +2287,11 @@ class _WorkspaceMixin:
 
         if summary is not None:
             summary.update_summary(
-                provider_name=_safe_markup(policy.text(provider.name if provider else "")),
-                model_name=_safe_markup(policy.text(_display_model(provider, ""))),
+                provider_name=_safe_markup(provider_label),
+                model_name=_safe_markup(model_label),
                 mode="Plan" if plan_mode else "Chat",
-                active_agent="",
-                tools=0,
+                active_agent=_safe_markup(agent_label),
+                tools=tool_count,
             )
 
         if memory is not None:
@@ -2291,14 +2305,11 @@ class _WorkspaceMixin:
 
         if tasks_widget is not None:
             try:
-                service = TaskService()
-                task_list = service.list_tasks()
-                tasks_widget.set_tasks(
-                    [
+                service = bound_task_service(self)
+                tasks_widget.set_tasks([
                         _safe_markup(f"{policy.text(t.task_id)} [{policy.text(str(t.status))}] {policy.text(t.title)}")
-                        for t in task_list
-                    ],
-                )
+                        for t in service.list_tasks()
+                    ] if service is not None else ["Task evidence unavailable: no bound project owner."])
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("tasks", exc)
                 tasks_widget.set_tasks([f"[red]{_safe_markup(message)}[/]"])
@@ -2339,7 +2350,7 @@ class _WorkspaceMixin:
             settings_panel.update_settings(
                 theme=_safe_markup(policy.text(getattr(ui_settings, "theme", "") if ui_settings else "")),
                 auto_mode=auto_mode,
-                provider=_safe_markup(policy.text(provider.name if provider else "")),
+                provider=_safe_markup(provider_label),
                 mcp_servers=mcp_count,
             )
 

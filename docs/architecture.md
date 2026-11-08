@@ -38,6 +38,10 @@ display outcomes never authorize execution or establish task acceptance.
 The separate [activity display](ui-interaction-contract.md#activity-status-and-pending-decisions)
 uses worker and prompt ownership to retain cancellation through cleanup and
 ignore stale callbacks. F4 focuses a pending decision without granting approval.
+The [Workspace inspector](ui-interaction-contract.md#task-and-agent-inspection)
+reads existing child-conversation and bound project-task owners. Its bounded
+observations, explicit refresh and Back navigation do not create execution,
+storage or accounting authority; instantiated actors are distinct from running work.
 
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 

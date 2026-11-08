@@ -277,6 +277,7 @@ class HelpScreen(ModalScreen[None]):
             Label("  F10              Inspect/export a pending decision"),
             Label("  F11              Edit unsent draft in VISUAL/EDITOR"),
             Label("  Context → Sessions    Search, inspect and explicitly resume"),
+            Label("  Workspace → Tasks and agents    Inspect observed work"),
             Label("  Ctrl+Shift+T       Clear thinking messages in chat"),
             Label("  Ctrl+Shift+Y       Clear tool messages in chat"),
             Label("  /               Slash command palette"),

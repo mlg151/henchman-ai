@@ -1674,7 +1674,7 @@ class AgentSummaryPanel(Static):
         self._model_name: str = ""
         self._mode: str = ""
         self._active_agent: str = ""
-        self._tools: int = 0
+        self._tools: int | None = None
 
     def update_summary(
         self: Self,
@@ -1682,7 +1682,7 @@ class AgentSummaryPanel(Static):
         model_name: str = "",
         mode: str = "",
         active_agent: str = "",
-        tools: int = 0,
+        tools: int | None = None,
     ) -> None:
         """Update the summary information.
 
@@ -1690,8 +1690,8 @@ class AgentSummaryPanel(Static):
             provider_name: The provider name.
             model_name: The model name.
             mode: The current mode (Chat/Plan).
-            active_agent: The active agent name.
-            tools: The number of tools.
+            active_agent: Selected actor identity, without implying execution.
+            tools: Registered tool count, or None when unavailable.
         """
         self._provider_name = provider_name
         self._model_name = model_name
@@ -1708,8 +1708,8 @@ class AgentSummaryPanel(Static):
         """
         return (
             f"{self._provider_name}:{self._model_name} | "
-            f"Mode: {self._mode} | Agent: {self._active_agent} | "
-            f"Tools: {self._tools}"
+            f"Mode: {self._mode} | Selected agent: {self._active_agent} | "
+            f"Tools: {self._tools if self._tools is not None else 'unavailable'}"
         )
 
 

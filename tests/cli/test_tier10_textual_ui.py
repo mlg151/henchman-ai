@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -37,6 +38,20 @@ from henchman.core.session_data import Session
 from henchman.core.session_models import SessionMessage
 from henchman.team import BridgeSessionService, TeamWorkspaceService
 from henchman.tools.base import ConfirmationRequest
+from henchman.tools.builtins.tier6_tools import TaskGetTool
+from henchman.tools.registry import ToolRegistry
+from tests.advanced.test_task_store import record as task_record
+
+
+def _bind_workspace_tasks(context, root):
+    """Install the same project-bound service that production tools retain."""
+    assert Path.cwd() == root
+    registry = ToolRegistry()
+    tool = TaskGetTool()
+    tool.bind_runtime(tool_registry=registry, project_root=root)
+    registry.register(tool)
+    context.project_root, context.tool_registry = root, registry
+    return tool._task_service
 
 
 class TestTier10Widgets:
@@ -284,6 +299,7 @@ class TestTier10AppWiring:
 
         def initialize() -> None:
             context = MagicMock()
+            _bind_workspace_tasks(context, tmp_path)
             context.session_manager.current = None
             context.mcp_manager = None
             context.background_tasks = []
@@ -483,7 +499,10 @@ class TestTier10AppWiring:
     def test_refresh_workspace_widgets_populates_all_tier10_panels(
         self,
         textual_app: HenchmanTextualApp,
+        tmp_path,
+        monkeypatch,
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         session_manager = MagicMock()
         session_manager.current = MagicMock(messages=[1, 2, 3, 4])
         mcp_manager = MagicMock()
@@ -492,6 +511,8 @@ class TestTier10AppWiring:
             session_manager=session_manager,
             mcp_manager=mcp_manager,
         )
+        task_service = _bind_workspace_tasks(textual_app.core_context, tmp_path)
+        task_service._store.create(dict(task_record(), title="Lint"))
         textual_app.command_history = ["one", "two"]
 
         summary = MagicMock(spec=AgentSummaryPanel)
@@ -514,13 +535,9 @@ class TestTier10AppWiring:
 
         with (
             patch.object(textual_app, "query_one", side_effect=query_one),
-            patch("henchman.cli.textual_mixins.TaskService") as task_service,
             patch("henchman.cli.textual_mixins.SkillCatalog") as skill_catalog,
             patch("henchman.cli.textual_mixins.TeamWorkspaceService") as team_service,
         ):
-            task_service.return_value.list_tasks.return_value = [
-                MagicMock(task_id="task-1", status="running", title="Lint"),
-            ]
             skill_catalog.return_value.list_skills.return_value = [
                 SimpleNamespace(name="qa"),
                 SimpleNamespace(name="design-review"),
@@ -538,6 +555,7 @@ class TestTier10AppWiring:
             context_loaded=False,
         )
         tasks.set_tasks.assert_called_once()
+        assert "Lint" in tasks.set_tasks.call_args.args[0][0]
         skills.set_skills.assert_called_once_with(["qa", "design-review"])
         team.set_workspaces.assert_called_once_with(["core-team (2 members)"])
         settings_panel.update_settings.assert_called_once()
@@ -666,6 +684,9 @@ class TestTier10AppWiring:
             title="Operational lint",
         )
         await task_service.wait_for_task(task.task_id, timeout=10)
+
+        textual_app.core_context = SimpleNamespace(session_manager=None, mcp_manager=None)
+        _bind_workspace_tasks(textual_app.core_context, tmp_path)
 
         skill_path = tmp_path / ".henchman" / "skills" / "review.yaml"
         skill_path.parent.mkdir(parents=True, exist_ok=True)

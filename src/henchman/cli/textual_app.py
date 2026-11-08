@@ -352,6 +352,7 @@ class HenchmanTextualApp(
                 yield Tree("Context Files", id="context-tree")
             with TabPane("Workspace", id="tab-workspace"):
                 yield VerticalScroll(
+                    Button("Tasks and agents", id="workspace-inspect"),
                     AgentSummaryPanel(id="agent-summary-panel"),
                     MemoryIndicator(id="memory-indicators"),
                     TaskListWidget(id="task-list-widget"),
@@ -442,6 +443,17 @@ class HenchmanTextualApp(
         from henchman.cli.textual_sessions import open_session_browser
 
         open_session_browser(self)
+
+    def action_work_inspector(self) -> None:
+        """Inspect existing task and agent owners without starting work."""
+        from henchman.cli.textual_work import open_work_inspector
+
+        open_work_inspector(self)
+
+    @on(Button.Pressed, "#workspace-inspect")
+    def _work_inspector_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_work_inspector()
 
     @on(Button.Pressed, "#context-sessions")
     def _sessions_pressed(self, event: Button.Pressed) -> None:

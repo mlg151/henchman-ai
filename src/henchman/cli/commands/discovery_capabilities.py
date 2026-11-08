@@ -342,7 +342,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "export under .henchman/exports. Review never answers a decision; clipboard "
             "transfer is requested without a native receipt. Context > Sessions searches "
             "project-scoped saved metadata, inspects recovery and requires an explicit "
-            "save-or-switch choice; it preserves drafts and holds queues/goals."
+            "save-or-switch choice; it preserves drafts and holds queues/goals. "
+            "Workspace > Tasks and agents inspects existing runtime children and bound "
+            "project tasks with explicit Refresh and Back; it does not execute work. "
+            "Unavailable owners and unknown outcomes remain explicit."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
     ),

@@ -24,6 +24,7 @@ transcript workflow; this first implementation slice changes Textual only.
 | Saved input queue | F9 opens inspection and explicit edit, remove, reorder and Send controls. Opening or editing never grants dispatch permission. |
 | Context and usage | The Context tab opens a read-only snapshot. F5 explicitly refreshes; Escape/Back restores focus without changing the composer or session. |
 | Saved sessions | Context → Sessions searches project-scoped saved metadata. Enter inspects; Resume requires an explicit save-or-switch choice. Back preserves the draft. |
+| Tasks and agents | Workspace → Tasks and agents inspects existing work. Enter opens details; F5 refreshes; Back returns to the list and then original focus. |
 | External editor | F11, or Textual's External editor button, edits an idle unsent draft through the configured local editor. Returning never submits it. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
 | Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained outside the decision review editor, where Ctrl+C requests copying the selection. |
@@ -82,7 +83,7 @@ runtime boundaries.
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
 | Queued input and recovery | [F9 queue controls](../tests/cli/test_textual_queue.py), [shared workflow](../tests/core/test_session_workflow.py), [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py) | Cancellation/resume disposition and draft-loss observation |
 | Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
-| Sessions, tasks and project boundaries | [Session browser](../tests/cli/test_textual_session_resume.py), [shared activation](../tests/cli/test_session_activation.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); task drill-down remains pending | Find/resume the intended session, Back navigation |
+| Sessions, tasks and project boundaries | [Session browser](../tests/cli/test_textual_session_resume.py), [shared activation](../tests/cli/test_session_activation.py), [task/agent inspection](../tests/cli/test_textual_work.py), [workspace ownership](../tests/cli/test_textual_workspace_owners.py) | Find/resume the intended session, inspect specific work, Back navigation |
 | External-editor draft composition | [Owned POSIX PTY](../tests/cli/test_draft_editor.py), [classic prompt](../tests/cli/test_repl_draft_editor.py), [Textual adapter](../tests/cli/test_textual_draft_editor.py) | Actual editor applications, native host keys, tmux/remote and assistive technology |
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Context inspector](../tests/cli/test_textual_context.py), [provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
@@ -163,6 +164,46 @@ latency bound. Read workers are joined on close. The
 and 120×40 layouts, keyboard navigation, stale reads, save failures, privacy and
 held recovery. Native terminal/accessibility qualification and task inspection
 remain separate work.
+
+## Task and agent inspection
+
+Open **Workspace → Tasks and agents**. The list uses actual background-child
+identities and the already-bound project's task service. Enter/**Inspect** opens
+a captured observation, F5/**Refresh** reads again, and Back returns to the list
+before restoring the previous frontend focus. At narrow widths only the active
+list or detail is shown; wide layouts show both. Drafts and transcript chronology
+are preserved. Opening inspection never creates an agent/provider, launches or
+stops a task, changes approval/queue permission, or adds accounting usage.
+
+Child states come from their runtime owner: waiting for input is explicitly
+blocked, errors remain errors, and cancelled `done` records do not become
+successful completion. These conversations are process-only. Project task
+records are persisted observations and may belong to a different session; exact
+operation correlation is displayed when recorded. Stored PIDs are not adopted,
+and recovered unowned outcomes stay unknown. The selected child's existing
+provider/model is shown, but per-child bills or current-run attribution are not
+inferred. **Context and usage** and `/usage` retain accounting authority.
+
+The overview labels the selected actor as instantiated rather than running.
+It reads that actor's configured provider alias, effective request model and
+registered tool count; an unresolved actor or unavailable count does not become
+a startup-provider fallback or zero. Task rows reuse the bound project owner
+even if the process working directory changes. Missing owners stay unavailable.
+
+Inspection shows at most 200 rows, 64 KiB of projected detail and 32 KiB of task
+log. Oversized or capture-truncated observations are omitted as a whole; interrupted
+output retains conservative credential-prefix handling. Raw actor history, system
+prompts and opaque continuation are not shown. Current and retained credential
+policies apply before Copy, which requests clipboard transfer without confirming
+receipt. Changed selected text requires reselection; stale project/session/owner
+bindings refuse publication. Closing joins outstanding reads. Existing task
+reads can use lockfiles but do not rewrite index or log payloads.
+
+The [mounted tests](../tests/cli/test_textual_work.py) use actual task owners,
+owned child processes and scripted background agents at 80×24/120×40. They do
+not qualify native accessibility, remote input or human comprehension. Classic
+text drill-down and task interrupt controls remain separate work; this inspector
+does not introduce a scheduler or execution service.
 
 ## Pending decision inspection and export
 

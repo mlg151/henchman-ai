@@ -295,6 +295,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/cli/test_session_activation.py",
         "tests/cli/test_textual_decision_review.py",
         "tests/cli/test_textual_session_resume.py",
+        "tests/cli/test_textual_work.py",
+        "tests/cli/test_textual_workspace_owners.py",
         "tests/cli/test_oauth_command_privacy.py",
         "tests/mcp/test_oauth_connect.py",
         "tests/mcp/test_oauth_manager.py",

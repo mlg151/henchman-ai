@@ -29,6 +29,12 @@ Enter inspects; **Resume** offers saving the current session first or switching
 without saving. Your composer draft stays intact, and queued inputs and goals
 remain held. See [session browsing](ui-interaction-contract.md#saved-session-browsing).
 
+Use **Workspace → Tasks and agents** to inspect existing child conversations or
+project tasks. Enter opens details, F5 refreshes the observation, and Back returns
+to the list and then your prior focus. Running, waiting for input, failed,
+cancelled and unknown states remain distinct. See
+[work inspection](ui-interaction-contract.md#task-and-agent-inspection).
+
 To compose in a local editor, set `VISUAL` or `EDITOR` to a command that waits
 for editing to finish, then press **F11** in the idle classic prompt or choose
 **External editor** in Textual. Returning updates the unsent draft for review.

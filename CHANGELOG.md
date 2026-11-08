@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Task and agent inspection** — Textual's Workspace now opens existing child
+  and project-task observations with keyboard detail/Back navigation. Current
+  owners, blocked/failed/cancelled/unknown states, bounded evidence and actual
+  selected provider/model are shown without execution or accounting changes.
+  Overview counts distinguish unavailable from zero and avoid ambient task storage.
+
 - **Current check freshness in review** — Checkpoint review now shows current
   declared-input status separately from historical results. Inspection uses held
   settings, rejects stale runtime/project selection and joins reads without

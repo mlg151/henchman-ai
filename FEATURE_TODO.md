@@ -682,8 +682,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   inspection with explicit Refresh, current credential projection and preserved
   drafts/focus. Context → Sessions now provides project-scoped search, recovery
   inspection and explicit save-or-switch resume with stale-selection/storage
-  refusal; drafts and held queue/goal disposition are preserved. Task navigation
-  and native qualification remain open;
+  refusal; drafts and held queue/goal disposition are preserved. Workspace now
+  inspects existing task/child state and evidence at narrow/wide sizes, with
+  actual-owner summary values and no new execution authority. Classic drill-down,
+  broader navigation and native qualification remain open;
   see the [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
 

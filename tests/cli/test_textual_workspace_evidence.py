@@ -23,6 +23,9 @@ from henchman.cli.textual_widgets import (
     TeamPanel,
 )
 from henchman.config.schema import Settings
+from henchman.tools.builtins.tier6_tools import TaskGetTool
+from henchman.tools.registry import ToolRegistry
+from tests.advanced.test_task_store import record as task_record
 
 
 @pytest.fixture
@@ -86,7 +89,7 @@ def test_context_discovery_error_redacts_before_prefixing_and_logging(
 
 
 def test_workspace_panels_redact_each_field_before_prefixes_without_mutating_records(
-    app: HenchmanTextualApp, monkeypatch: pytest.MonkeyPatch,
+    app: HenchmanTextualApp, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     panels = {
         "#agent-summary-panel": AgentSummaryPanel(),
@@ -98,13 +101,20 @@ def test_workspace_panels_redact_each_field_before_prefixes_without_mutating_rec
     }
     monkeypatch.setattr(app, "query_one", lambda selector, *_args: panels[selector])
     task = SimpleNamespace(
-        task_id="task-private-canary", status="status-private-canary",
+        task_id="task-012345abcdef", status="queued",
         title="Authorization: Bearer unknown-task-canary",
     )
     skill = SimpleNamespace(name="Authorization: Bearer unknown-skill-canary")
     team = SimpleNamespace(name="Authorization: Bearer unknown-team-canary", members=("private-canary",))
     original = deepcopy((task, skill, team))
-    monkeypatch.setattr("henchman.cli.textual_mixins.TaskService", lambda: SimpleNamespace(list_tasks=lambda: [task]))
+    registry = ToolRegistry()
+    tool = TaskGetTool()
+    tool.bind_runtime(tool_registry=registry, project_root=tmp_path)
+    registry.register(tool)
+    tool._task_service._store.create(dict(task_record(), title=task.title))
+    before = tool._task_service._index_path.read_bytes()
+    app.core_context = SimpleNamespace(project_root=tmp_path, tool_registry=registry,
+                                       session_manager=None, mcp_manager=None)
     monkeypatch.setattr("henchman.cli.textual_mixins.SkillCatalog", lambda: SimpleNamespace(list_skills=lambda: [skill]))
     monkeypatch.setattr("henchman.cli.textual_mixins.TeamWorkspaceService", lambda: SimpleNamespace(list_workspaces=lambda: [team]))
     app.settings.ui.theme = "Authorization: Bearer unknown-theme-canary"
@@ -117,6 +127,7 @@ def test_workspace_panels_redact_each_field_before_prefixes_without_mutating_rec
     assert "[REDACTED]" in rendered
     assert "1 members" in rendered
     assert (task, skill, team) == original
+    assert tool._task_service._index_path.read_bytes() == before
     assert app.provider.name == "provider-private-canary"
     assert app.provider.default_model == "model-private-canary"
     assert app.settings.ui.theme == "Authorization: Bearer unknown-theme-canary"
