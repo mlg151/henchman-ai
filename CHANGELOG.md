@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Paired local latency evidence** — Twenty alternating pairs retain 80
+  successful scripted observations with unprofiled p50/p95, correctness checks
+  and source/harness identities. The schema-cache fixture passes its stated
+  regression gate; native responsiveness and live-model performance remain
+  unqualified. See the [comparison](docs/evaluations/2026-11-08-paired-schema-latency.md).
+
 - **Fresh repository evidence packs** — Explicit `pattern_search` repository
   mode finds bounded Python implementations, static test/reference candidates
   and scoped instruction excerpts from current Git worktree bytes. Typed results

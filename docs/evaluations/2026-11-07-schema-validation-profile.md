@@ -29,3 +29,7 @@ was lower during the candidate profile. cProfile adds substantial overhead; thes
 two runs per revision establish attribution and call counts, not production
 p50/p95 latency, a native responsiveness result or a completed #26 qualification.
 The cache's correctness gate is independent of those timing observations.
+
+A subsequent [20-pair unprofiled comparison](2026-11-08-paired-schema-latency.md)
+retains p50/p95 fixture measurements and passes its declared regression gate.
+Native responsiveness and wider workload qualification remain open.

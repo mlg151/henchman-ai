@@ -28,8 +28,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - #26 now reuses only successful bounded schema meta-validation. Fresh schemas,
   arguments, policy/grants and verification remain authoritative. The
   [offline profile](docs/evaluations/2026-11-07-schema-validation-profile.md)
-  attributes the reduction; unprofiled latency and native responsiveness gates
-  remain open.
+  attributes the reduction. The
+  [20-pair unprofiled fixture](docs/evaluations/2026-11-08-paired-schema-latency.md)
+  passes its declared gate with 80 successful observations; wider workloads and
+  native responsiveness remain open.
 
 - The [CPU corpus readiness attempt](docs/evaluations/2026-11-07-cpu-corpus-readiness.md)
   passed two protocol probes but timed out before a coding response. The twelve

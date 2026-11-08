@@ -205,7 +205,10 @@ qualification remains explicitly unverified.
 For #26, a bounded schema meta-validation cache removes repeated compilation
 while preserving fresh authorization and verification. The
 [profiled fixture](docs/evaluations/2026-11-07-schema-validation-profile.md)
-does not establish the required unprofiled p50/p95 or native latency results.
+attributes the improvement; a subsequent
+[20-pair unprofiled comparison](docs/evaluations/2026-11-08-paired-schema-latency.md)
+passes its local regression gate with all 80 observations retained. Wider
+workloads and native responsiveness remain unqualified.
 A separate [CPU corpus readiness run](docs/evaluations/2026-11-07-cpu-corpus-readiness.md)
 passed two protocol probes but timed out before the first coding response; all
 twelve corpus cases remained unrun. Its failed evidence and cleanup verification

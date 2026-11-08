@@ -518,3 +518,9 @@ all-request usage from final-turn observations and retains a late receipt
 finalization discrepancy without altering the original artifacts. Another
 cohort requires a separately tested harness correction. Resource samples do not
 establish whole-model peak memory or 16 GB hardware qualification.
+
+The separate [paired schema-cache comparison](../docs/evaluations/2026-11-08-paired-schema-latency.md)
+measures scripted local overhead with an HTTP mock transport, without model
+inference. All 20 pairs/80 observations passed its fixture correctness and
+p95-regression gate. It retains the exact harness and measurements; native UI,
+wider workload and live-model qualification remain separate.
