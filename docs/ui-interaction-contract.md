@@ -233,6 +233,8 @@ fresh inspection. The existing manager cancels and joins the child and its
 descendants and discards their queued follow-ups. Sibling conversations continue.
 A stop in progress for any part of the selected tree must settle first. A child
 that finishes during descendant cleanup is reported with its actual outcome.
+Background project tasks have separate owners and are not stopped by cancelling
+a child conversation; inspect and stop those tasks separately when needed.
 
 Stopping execution is not task verification. Task revision checks are observations; they do not
 lock out other processes from changing task metadata after the check.

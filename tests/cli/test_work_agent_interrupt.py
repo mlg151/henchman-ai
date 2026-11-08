@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from dataclasses import replace
 
 import pytest
@@ -26,6 +27,18 @@ async def test_interrupt_joins_selected_running_agent(work):
     assert result.cancelled and result.status == "done"
     assert worker is not None and worker.done()
     assert work.agents.get(work.records[2].conversation_id).status == "waiting_for_input"
+
+
+async def test_interrupt_does_not_stop_separately_owned_project_tasks(work):
+    task = await work.service.start_task(argv=[sys.executable, "-c", "import time; time.sleep(30)"])
+    work.tasks.append(task.task_id)
+    process = work.service._runtime.processes[task.task_id]
+    identity = work.records[0].conversation_id
+    conversation = work.agents._conversations[identity]
+    result = await WorkInspection(frontend(work)).interrupt_agent(
+        identity, expected=conversation.record, expected_worker=conversation.task,
+    )
+    assert result.cancelled and process.returncode is None
 
 
 @pytest.mark.parametrize("change", ["record", "session", "selection"])

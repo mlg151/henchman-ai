@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Owned work interruption** — Workspace details provide **Stop work**
   and F6, and both frontends accept `/work stop agent|task <exact-id>`. Child
   cancellation joins owned descendants and discards their pending follow-ups;
-  siblings keep running. Agent controls bind to the observed worker and state.
+  siblings and separately owned background tasks keep running. Agent controls
+  bind to the observed worker and state.
   Task controls
   recheck the bound project, session, task revision and in-process owner, then
   wait for existing cleanup. Settled unknown outcomes with retained live handles
