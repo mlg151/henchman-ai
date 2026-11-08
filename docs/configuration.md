@@ -252,11 +252,22 @@ Exception chains, notes and stack locations remain available; raw exceptions are
 not attached to those log records. Non-JSON objects such as paths and exceptions
 are projected before display conversion.
 
-This increment does not establish full privacy or OS isolation. Remaining
-subsystem and third-party logging, metrics, handoffs, additional command outputs,
-ordinary configuration exports and broader restricted execution still require the work
-and qualification in issue #20. Existing configuration export semantics are
-described below.
+Metric storage projects known credentials and marked metadata before SQLite
+insertion without changing the caller's metric object. Reads project legacy rows
+under the current policy without rewriting old database bytes. JSON/CSV/Prometheus
+exports, export filters, session summaries and exporter failure diagnostics use
+the same policy. Fixed schema keys, correlation identities and numeric measurements
+retain their meaning. Malformed stored metadata fails explicitly before export.
+Python embedders can pass the runtime's `EvidenceRedactor` to `MetricsStorage`;
+its exporter inherits that object, including later rotations. Defaults discover
+credential-named environment values. Existing database files and earlier exports
+are not retroactively sanitized, and endpoint authorization is separate from
+evidence redaction. See the [metrics API](api.md#metrics).
+
+This work does not establish full privacy or OS isolation. Remaining subsystem and
+third-party logging, handoffs and additional command outputs require the work and
+qualification in issue #20. Configuration exports and restricted tool access have
+their separate contracts below.
 
 ## Restricted tool access
 

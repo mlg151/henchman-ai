@@ -197,6 +197,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/core/test_controller_operations.py",
         "tests/e2e/test_bounded_repair.py",
         "tests/tools/test_formatting_controls.py",
+        "tests/metrics/test_evidence_redaction.py",
         "tests/advanced/test_verification_evidence.py",
         "tests/advanced/test_project_verification.py",
         "tests/config/test_verification_settings.py",

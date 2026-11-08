@@ -45,6 +45,8 @@ the existing registry, one usage budget and correlated model/controller operatio
 Interactive controls and live acceptance remain open under #16.
 Known credentials are now projected from verification evidence, with sensitive
 saved specifications unavailable for execution and explicit locked sanitation.
+Metric storage and exports now project known credentials and marked metadata;
+legacy reads remain non-mutating. Broader privacy qualification remains under #20.
 
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured

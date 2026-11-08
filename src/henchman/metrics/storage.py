@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast
 
+from henchman.metrics.evidence import project_metrics, project_summary
 from henchman.metrics.models import (
     BaseMetric,
     CostMetric,
@@ -23,6 +24,7 @@ from henchman.metrics.models import (
     ToolMetric,
     UsageMetric,
 )
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -128,6 +130,11 @@ class SessionMetricsAnalyzer:
         with self.storage._get_connection() as conn:
             cursor = conn.cursor()
 
+            # Aggregate queries omit metadata. Collect marked values from this
+            # session before projecting its free-form command labels.
+            cursor.execute("SELECT metadata FROM metrics WHERE session_id = ? AND metadata IS NOT NULL", (session_id,))
+            project_metrics([dict(row) for row in cursor.fetchall()], self.storage.evidence_redactor)
+
             token_stats = self._get_session_metric_by_type(
                 cursor,
                 session_id,
@@ -141,13 +148,13 @@ class SessionMetricsAnalyzer:
             )
             usage_patterns = self._get_session_usage_patterns(cursor, session_id)
 
-        return {
+        return cast(dict[str, Any], project_summary({
             "session_id": session_id,
             "token_usage": dict(token_stats) if token_stats else {},
             "cost": dict(cost_stats) if cost_stats else {},
             "tool_performance": dict(tool_stats) if tool_stats else {},
             "usage_patterns": [dict(row) for row in usage_patterns],
-        }
+        }, self.storage.evidence_redactor))
 
     def _get_session_metrics_by_type(
         self: SessionMetricsAnalyzer,
@@ -544,6 +551,8 @@ class MetricsStorage:
         db_path: str | Path | None = None,
         retention_days: int | None = 30,
         max_metrics: int | None = 100000,
+        *,
+        evidence_redactor: EvidenceRedactor | None = None,
     ) -> None:
         """Initialize metrics storage.
 
@@ -565,6 +574,7 @@ class MetricsStorage:
         self.db_path = Path(db_path)
         self.retention_days = retention_days
         self.max_metrics = max_metrics
+        self.evidence_redactor = evidence_redactor if evidence_redactor is not None else EvidenceRedactor()
         self.aggregator = MetricsAggregator(self)
         self.session_analyzer = SessionMetricsAnalyzer(self)
 
@@ -644,7 +654,7 @@ class MetricsStorage:
         """
         base_dict = _create_base_metric_dict(metric)
         self._add_metric_specific_fields(metric, base_dict)
-        return base_dict
+        return project_metrics([base_dict], self.evidence_redactor)[0]
 
     # Class constant for field mappings
     _FIELD_MAPPINGS: ClassVar[dict[type[BaseMetric], dict[str, str]]] = {
@@ -827,7 +837,7 @@ class MetricsStorage:
             cursor.execute(query, params)
             rows = cursor.fetchall()
 
-        return [dict(row) for row in rows]
+        return project_metrics([dict(row) for row in rows], self.evidence_redactor)
 
     def get_aggregated_stats(
         self: MetricsStorage,

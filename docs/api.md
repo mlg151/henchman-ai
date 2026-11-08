@@ -1263,10 +1263,11 @@ class KnowledgeGraph:
 ```python
 from henchman.metrics import (
     MetricsStorage,
-    PerformanceMetrics,
-    QualityMetrics,
-    ToolMetrics,
-    OrchestratorMetrics,
+    TokenMetric,
+    CostMetric,
+    ToolMetric,
+    UsageMetric,
+    PerformanceMetric,
     MetricsExporter,
 )
 ```
@@ -1275,13 +1276,19 @@ from henchman.metrics import (
 
 ```python
 class MetricsStorage:
-    def store_metric(self, metric: dict[str, Any]) -> None:
+    def __init__(self, db_path: str | Path | None = None,
+                 retention_days: int | None = 30, max_metrics: int | None = 100000,
+                 *, evidence_redactor: EvidenceRedactor | None = None) -> None: ...
+
+    def store_metric(self, metric: BaseMetric) -> None:
         """Store a metric."""
     
-    def query_metrics(
+    def get_metrics(
         self,
-        filters: dict[str, Any] | None = None,
-        limit: int = 100
+        metric_type: MetricType | None = None,
+        session_id: str | None = None, agent_id: str | None = None,
+        start_date: datetime | None = None, end_date: datetime | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Query metrics with filters."""
     
@@ -1293,6 +1300,9 @@ class MetricsStorage:
 
 ```python
 class MetricsExporter:
+    def __init__(self, metrics_storage: MetricsStorage, *,
+                 evidence_redactor: EvidenceRedactor | None = None) -> None: ...
+
     def export_to_json(self, filepath: str, **filters: Any) -> None:
         """Export metrics to JSON file."""
     
@@ -1308,6 +1318,13 @@ class MetricsExporter:
     def get_available_formats(self) -> list[str]:
         """Get list of available export formats."""
 ```
+
+Storage and exports project evidence without changing live metric objects or
+query arguments. Bind a runtime policy explicitly when credentials come from
+settings rather than environment variables. The exporter inherits the storage
+policy; an explicitly supplied policy adds to inherited credentials and later
+rotations rather than replacing them. Legacy reads do not sanitize
+database bytes. See the [redaction boundary](configuration.md#session-evidence-redaction).
 
 ## Utilities
 

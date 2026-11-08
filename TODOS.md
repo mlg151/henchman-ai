@@ -118,6 +118,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Verification reports now share that policy; sensitive saved checks cannot be
   replayed and read-only inspection remains separate from locked sanitation.
   See [plan checks](docs/tools.md#plan-acceptance-checks).
+  Metric SQLite writes, legacy reads, exports and exporter diagnostics now project
+  known credentials and marked metadata while retaining numeric/identity semantics.
+  Existing database bytes remain unchanged during inspection; broader #20
+  qualification remains open.
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale

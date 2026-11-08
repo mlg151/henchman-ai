@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Metric evidence redaction** — SQLite writes, legacy reads, exports and exporter
+  failure diagnostics share credential projection. Marked metadata is collected
+  before projecting its echoes; numeric values and fixed identities are preserved.
+  Reads leave legacy database bytes unchanged, and malformed metadata fails
+  explicitly. Embedders can bind the runtime's credential policy.
+
 - **Textual mouse capture preference** — `ui.mouse_capture` controls mouse reporting
   at driver startup while preserving explicit Python `mouse=False`. Keyboard
   history/live navigation and composer selection remain available. Setting changes
