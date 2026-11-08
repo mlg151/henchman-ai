@@ -216,6 +216,10 @@ not included. Back/Escape restores the approval's No button or question input
 without answering, submitting the composer or losing its draft. Approval keys
 and Ctrl+Enter do not answer while reviewing.
 
+Long questions show at most eight preview rows in the answer dialog so Review,
+answer and Cancel controls remain visible at 80×24. F10 retains the full question
+within the snapshot limits; resizing and Back preserve the pending answer.
+
 The display copy of approval data is bounded before traversal or JSON rendering
 to 32 KiB, 2,048 nodes and depth 16. Unsupported or oversized requests are omitted
 as a whole with an explanation. Oversized text items and already-clipped tool

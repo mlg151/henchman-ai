@@ -93,20 +93,29 @@ async def test_question_review_retains_answer_and_literal_long_link(app):
         assert await asyncio.wait_for(task, 2) == "partial answer"
 
 
-async def test_long_pending_decision_keeps_visible_review_and_answer_controls(app):
-    async with app.run_test(size=(80, 24)) as pilot:
+@pytest.mark.parametrize("size", [(80, 24), (120, 40)])
+async def test_long_pending_decision_keeps_visible_review_and_answer_controls(app, size):
+    async with app.run_test(size=size) as pilot:
         task = asyncio.create_task(
             app._textual_question("\n".join(f"question line {index}" for index in range(100)))
         )
         await settle_layout(pilot)
         try:
             origin = app.screen
+            # Visibility must not depend on autofocus scrolling an oversized
+            # dialog into view after an arbitrary amount of animation time.
+            for target in ("#question-dialog", "#tool-question", "#question-answer", "#question-actions"):
+                assert origin.region.contains_region(origin.query_one(target).region), target
             assert await pilot.click("#decision-review")
             await settle_layout(pilot)
             assert app.screen is not origin
             assert "question line 99" in app.screen.query_one(TextArea).text
             await pilot.press("escape")
             await settle_layout(pilot)
+            await pilot.resize_terminal(80, 24)
+            await settle_layout(pilot)
+            for target in ("#decision-review", "#question-submit", "#question-cancel", "#question-answer"):
+                assert origin.region.contains_region(origin.query_one(target).region), target
             assert origin.query_one(Input).region.bottom <= 24
         finally:
             task.cancel()

@@ -59,10 +59,10 @@ class QuestionScreen(_PromptLifetime, ModalScreen[str | None]):
     DEFAULT_CSS = """
     QuestionScreen { align: center middle; }
     #question-dialog {
-        width: 70; max-width: 95%; height: auto;
+        width: 70; max-width: 95%; height: auto; max-height: 95%;
         padding: 1 2; border: solid $accent; background: $surface;
     }
-    #tool-question { width: 100%; height: auto; margin-bottom: 1; }
+    #tool-question { width: 100%; height: auto; max-height: 8; overflow: hidden; margin-bottom: 1; }
     #question-actions { height: auto; align-horizontal: right; margin-top: 1; }
     """
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [

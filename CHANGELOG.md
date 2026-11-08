@@ -93,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inspection, selection/copy and private TXT/Markdown export. Bounded snapshots
   reproject credentials and reject stale publication while preserving drafts,
   focus and unanswered decisions; native clipboard qualification remains open.
+  Long questions now keep their answer and Review controls inside the viewport,
+  with the full request available in F10 inspection.
 
 - **Operation-safe session compaction** — Explicit compaction now retains typed
   completed request/result correlation through atomic save/load and remaps the
