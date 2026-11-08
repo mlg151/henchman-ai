@@ -353,9 +353,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "ui.mouse_capture, ui.reduced_motion and ui.detail_density apply at Textual driver "
             "startup; density controls transcript spacing and initial tool-row expansion. compact_tables "
             "currently affects classic REPL renderer tables. ui.output_mode selects rich, "
-            "plain or quiet rendering at classic REPL startup; answers, decisions, warnings "
-            "and failures remain visible. Its Textual consumer and keyboard_mode "
-            "remain pending in the terminal UI workstream; "
+            "plain or quiet transcript/command rendering at REPL and Textual startup; "
+            "answers, decisions, warnings and failures remain visible. Quiet Textual keeps "
+            "tool cards inspectable and preserves manual expansion. keyboard_mode and the "
+            "Textual compact_tables consumer remain pending in the terminal UI workstream; "
             "runtime-scoped discovery must not present them as generic commands."
         ),
         aliases=(

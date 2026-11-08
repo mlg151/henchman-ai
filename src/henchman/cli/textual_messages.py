@@ -130,15 +130,19 @@ class CommandOutputMessage(_AgentPayloadMessage):
         self: CommandOutputMessage,
         text: str,
         style: str = "",
+        *,
+        routine: bool = False,
     ) -> None:
         """Initialize.
 
         Args:
             text: Output text.
             style: Optional Rich markup style.
+            routine: Runtime chatter that quiet presentation may hide.
         """
         super().__init__(text)
         self.style = style
+        self.routine = routine
 
     @property
     def text(self: CommandOutputMessage) -> str:

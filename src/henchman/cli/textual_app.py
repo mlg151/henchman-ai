@@ -293,6 +293,7 @@ class HenchmanTextualApp(
         self._init_state()
         self._reduced_motion = False
         self._detail_density = "normal"
+        self._output_mode = "rich"
 
     def _build_driver(
         self, headless: bool, inline: bool, mouse: bool, size: tuple[int, int] | None,
@@ -304,6 +305,7 @@ class HenchmanTextualApp(
         """
         self._reduced_motion = self.settings.ui.reduced_motion
         self._detail_density = self.settings.ui.detail_density
+        self._output_mode = self.settings.ui.output_mode
         if self._reduced_motion:
             self.animation_level = "none"
         return super()._build_driver(
@@ -334,7 +336,7 @@ class HenchmanTextualApp(
         yield Header()
         with TabbedContent():
             with TabPane("Chat", id="tab-chat"):
-                yield ChatPane(id="chat-pane", detail_density=self._detail_density)
+                yield ChatPane(id="chat-pane", detail_density=self._detail_density, output_mode=self._output_mode)
                 with Horizontal(id="chat-navigation"):
                     yield Static("Live", id="chat-follow-state")
                     yield Button("Return to live", id="chat-return-live", disabled=True)

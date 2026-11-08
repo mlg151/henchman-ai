@@ -70,7 +70,10 @@ def console_for_output_mode(console: Console, output_mode: str) -> Console:
     """Create a local transcript console without changing a shared console."""
     if output_mode not in ("rich", "plain", "quiet"):
         raise ValueError("Unsupported output mode")
-    if output_mode == "rich" or isinstance(console, _TranscriptConsole):
+    if (
+        output_mode == "rich" or isinstance(console, _TranscriptConsole)
+        or getattr(console, "_henchman_transcript_output", False) is True
+    ):
         return console
     return _TranscriptConsole(console)
 

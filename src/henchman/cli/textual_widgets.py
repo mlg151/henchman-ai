@@ -238,13 +238,14 @@ class CollapsibleMessage(_BaseMessageWidget):
     }
     """
 
-    def __init__(self: Self, **kwargs: Any) -> None:
+    def __init__(self: Self, *, output_mode: str = "rich", **kwargs: Any) -> None:
         """Initialize the collapsible message.
 
         Args:
             **kwargs: Forwarded to ``_BaseMessageWidget``.
         """
         super().__init__(**kwargs)
+        self._output_mode = output_mode
         self._is_expanded: bool = False
         self._highlight_term: str = ""
         self.header = _CollapsibleHeader()
@@ -477,6 +478,7 @@ class ChatMessage(_BaseMessageWidget):
         content: str = "",
         *,
         trusted: bool = False,
+        output_mode: str = "rich",
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -491,18 +493,31 @@ class ChatMessage(_BaseMessageWidget):
         super().__init__(content, **kwargs)
         self._prefix = prefix
         self._trusted = trusted
+        self._output_mode = output_mode
         self._highlight_term: str = ""
         self._is_markdown: bool = False
-        self._renderable_text: str = ""
+        self._renderable_text: str | RichMarkdown | Text = ""
         self._update_renderable()
 
     @property
-    def renderable(self: Self) -> str | RichMarkdown:
+    def renderable(self: Self) -> str | RichMarkdown | Text:
         """Return the last computed renderable for testing introspection."""
         return self._renderable_text
 
     def _update_renderable(self: Self) -> None:
         """Re-render the static widget with current content."""
+        if self._output_mode != "rich":
+            prefix = Text.from_markup(self._prefix, emoji=False).plain
+            content = (
+                Text.from_markup(self._content_text, emoji=False).plain
+                if self._trusted else self._content_text
+            )
+            text = Text(f"{prefix} {content}" if content else prefix)
+            if self._highlight_term:
+                text.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._renderable_text = text
+            self.update(text)
+            return
         if not self._content_text:
             self._renderable_text = self._prefix
             self.update(self._prefix)
@@ -515,7 +530,7 @@ class ChatMessage(_BaseMessageWidget):
     def _render_markdown(self: Self) -> None:
         """Render content as markdown."""
         md = RichMarkdown(self._content_text)
-        self._renderable_text = md  # type: ignore[assignment]
+        self._renderable_text = md
         self.update(md)
 
     def _render_plain_text(self: Self) -> None:
@@ -552,7 +567,7 @@ class ChatMessage(_BaseMessageWidget):
         Returns:
             None
         """
-        if not self._content_text:
+        if not self._content_text or self._output_mode != "rich":
             return
         if _looks_like_markdown(self._content_text):
             self._is_markdown = True
@@ -617,6 +632,13 @@ class ThinkingMessage(CollapsibleMessage):
     def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
         agent = f"{self._agent_name} " if self._agent_name else ""
+        if self._output_mode != "rich":
+            self.header.update(Text(f"{agent}Thinking (expand to inspect)"))
+            body = Text(self._content_text)
+            if self._highlight_term:
+                body.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._body.update(body)
+            return
         # Header sub-widget: never includes content, just "thinking: (click to expand)"
         header_text = f"{_THINKING_EMOJI} {agent}{_THINKING_TEXT}"
         self.header.update(header_text)
@@ -732,6 +754,7 @@ class ToolMessage(CollapsibleMessage):
         self.set_class(expanded, "expanded")
         self._thought = thought
         self.activity = activity
+        self._manual_expansion = False
         self._tool_call = tool_call
         self._content_text = self._thought
         self._result_text: str = ""
@@ -743,6 +766,11 @@ class ToolMessage(CollapsibleMessage):
 
     def action_expand(self) -> None:
         self.toggle_expansion()
+
+    def toggle_expansion(self) -> None:
+        """Retain the user's choice across subsequent outcome projections."""
+        self._manual_expansion = True
+        super().toggle_expansion()
 
     def action_inspect(self) -> None:
         if self.activity is not None:
@@ -914,12 +942,28 @@ class ToolMessage(CollapsibleMessage):
 
     def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
-        self.header.update(self._get_header_text())
+        if (
+            self._output_mode == "quiet" and not self._manual_expansion
+            and self.activity is not None
+            and self.activity.outcome in {"Failed", "Unknown", "Interrupted"}
+        ):
+            self._is_expanded = True
+            self.add_class("expanded")
+        self.header.update(
+            self._get_header_text() if self._output_mode == "rich"
+            else Text(self._get_render_header()),
+        )
         if self.activity is not None:
             self.header.styles.height = 1
             self.header.styles.text_wrap = "nowrap"
             self.header.styles.text_overflow = "ellipsis"
-        self._body.update(self._get_body_content())
+        if self._output_mode == "rich":
+            self._body.update(self._get_body_content())
+        else:
+            body = Text("\n".join(self._build_body_parts(for_ui=True)))
+            if self._highlight_term:
+                body.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._body.update(body)
 
     def _get_render_header(self: Self) -> str:
         """Get the header for render output.
@@ -971,7 +1015,7 @@ class ChatPane(VerticalScroll):
             super().__init__()
             self.pane = pane
 
-    def __init__(self: Self, *, detail_density: str = "normal", **kwargs: Any) -> None:
+    def __init__(self: Self, *, detail_density: str = "normal", output_mode: str = "rich", **kwargs: Any) -> None:
         """Initialize the chat pane.
 
         Args:
@@ -980,6 +1024,7 @@ class ChatPane(VerticalScroll):
         """
         super().__init__(**kwargs)
         self._detail_density = detail_density
+        self.output_mode = output_mode
         self.set_class(detail_density == "compact", "density-compact")
         self.border_title = "Chat"
         self.wrap: bool = True
@@ -1139,16 +1184,18 @@ class ChatPane(VerticalScroll):
         """
         return self._add_message_with_prefix(_USER_PREFIX, text)
 
-    def add_system_message(self: Self, text: str) -> ChatMessage:
-        """Add a system message (trusted content, markup rendered).
+    def add_system_message(self: Self, text: str, *, routine: bool = False, literal: bool = False) -> ChatMessage:
+        """Add runtime or command output with explicit presentation metadata.
 
         Args:
-            text: Message content to display. Markup is rendered for rich formatting.
+            text: Message content to display.
+            routine: Hide this row in quiet mode while retaining its content.
+            literal: Preserve bracketed text instead of interpreting markup.
 
         Returns:
             The created ChatMessage widget.
         """
-        return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)
+        return self._add_message_widget(ChatMessage, _SYSTEM_PREFIX, text, trusted=not literal, routine=routine)
 
     def add_error_message(self: Self, text: str) -> ChatMessage:
         """Add an error message (untrusted content, markup escaped).
@@ -1233,6 +1280,7 @@ class ChatPane(VerticalScroll):
         *args: Any,
         tracking_dict: dict[str, _T] | None = None,
         tracking_key: str | None = None,
+        routine: bool = False,
         **kwargs: Any,
     ) -> _T:
         """Add a message widget to the chat pane.
@@ -1247,9 +1295,14 @@ class ChatPane(VerticalScroll):
         Returns:
             The created widget.
         """
+        kwargs.setdefault("output_mode", self.output_mode)
         widget = widget_class(*args, **kwargs)
+        hidden = self.output_mode == "quiet" and (routine or isinstance(widget, ThinkingMessage))
+        if hidden:
+            widget.display = False
         self._mount_widget(widget)
-        self._record_activity()
+        if not hidden:
+            self._record_activity()
 
         if tracking_dict is not None and tracking_key is not None:
             tracking_dict[tracking_key] = widget
@@ -1299,7 +1352,8 @@ class ChatPane(VerticalScroll):
         if agent_name not in self._active_thinking:
             self.begin_thinking_stream(agent_name)
         self._active_thinking[agent_name].append(chunk)
-        self._record_activity()
+        if self.output_mode != "quiet":
+            self._record_activity()
 
     def _create_tool_message(
         self: Self,
@@ -1309,7 +1363,7 @@ class ChatPane(VerticalScroll):
     ) -> ToolMessage:
         """Create a tool message widget."""
         return self._add_message_widget(
-            widget_class, thought, tool_call, expanded=self._detail_density == "detailed",
+            widget_class, thought, tool_call, expanded=self._detail_density == "detailed" and self.output_mode != "quiet",
         )
 
     add_tool_message = functools.partialmethod(_create_tool_message, ToolMessage)
@@ -1319,7 +1373,7 @@ class ChatPane(VerticalScroll):
         record = self._tool_activity.observe(message, policy, request=request)
         if record.key not in self._tool_rows:
             self._tool_rows[record.key] = self._add_message_widget(
-                ToolMessage, activity=record, expanded=self._detail_density == "detailed",
+                ToolMessage, activity=record, expanded=self._detail_density == "detailed" and self.output_mode != "quiet",
             )
         self.refresh_tool_activity()
         self._record_activity()

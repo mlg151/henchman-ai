@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import yaml
+from rich.text import Text
 from textual import on, work
 from textual.widgets import (
     Button,
@@ -917,13 +918,18 @@ class _ContextTreeMixin:
         mcp = self._welcome_mcp_info()
         cfg = self.config  # type: ignore[attr-defined]
         ctx = " | Context loaded" if cfg.system_prompt else ""
+        plain = chat.output_mode in ("plain", "quiet")
+        title = "Henchman-AI" if plain else "[bold]Henchman-AI[/bold]"
         chat.add_system_message(
             runtime_evidence_redactor(self).text(
-                f"[bold]Henchman-AI[/bold] | {provider}:{model} | {tools} tools{mcp}{ctx}",
+                f"{title} | {provider}:{model} | {tools} tools{mcp}{ctx}",
             ),
+            routine=True,
+            literal=plain,
         )
         chat.add_system_message(
             "Type /help for commands. Press F1 for keybindings.",
+            routine=True,
         )
 
     def _welcome_mcp_info(self: _ContextTreeMixin) -> str:
@@ -1642,7 +1648,8 @@ class _MessageHandlerMixin:
         if thinking is not None:
             label = source or "Agent"
             thinking.write(
-                f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]",
+                f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]"
+                if pane.output_mode == "rich" else Text(f"{label}: {thought}"),
             )
             thinking.scroll_end(animate=False)
 
@@ -1795,7 +1802,7 @@ class _MessageHandlerMixin:
         """
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
-            chat.add_system_message(message.text)
+            chat.add_system_message(message.text, routine=message.routine, literal=chat.output_mode != "rich")
 
     def on_switch_provider_message(
         self: _MessageHandlerMixin,

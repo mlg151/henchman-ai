@@ -94,6 +94,8 @@ class _AnsiPlainText:
 class _EvidenceConsole(RichConsole):
     """Project text before Rich can wrap, crop, or consume its markup."""
 
+    _henchman_transcript_output: bool = False
+
     def __init__(self, policy: Callable[[], EvidenceRedactor], **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._policy = policy
@@ -197,14 +199,21 @@ class TuiConsoleAdapter:
         self._evidence_stream: EvidenceStreamRedactor | None = None
         self._ansi = _AnsiPlainText()
         self._buf = io.StringIO()
+        plain = getattr(app, "_output_mode", "rich") in ("plain", "quiet")
         self._rich_console = _EvidenceConsole(
             lambda: runtime_evidence_redactor(self._app),
             file=self._buf,
-            force_terminal=True,
-            no_color=False,
+            force_terminal=not plain,
+            no_color=plain,
+            color_system=None if plain else "auto",
+            soft_wrap=plain,
             markup=True,
-            highlight=True,
+            highlight=not plain,
+            emoji=not plain,
         )
+        # Reuse this projecting console when the shared renderer requests its
+        # plain path; wrapping it would bypass projection before Rich layouts.
+        self._rich_console._henchman_transcript_output = plain
 
     @property
     def console(self: Self) -> RichConsole:
@@ -652,8 +661,7 @@ class EventBridge:
             event,
             "Context compacted to fit model limits",
         )
-        compacted_notice = "[dim]ℹ Context window was compacted.[/dim]"
-        self._message_poster.post(CommandOutputMessage(compacted_notice))
+        self._post_notice("ℹ Context window was compacted.")
 
     def _on_turn_status(self: Self, event: AgentEvent) -> None:
         """Handle TURN_STATUS events.
@@ -720,11 +728,10 @@ class EventBridge:
         from_a = _extract_dict_field(event, "from", "?")
         to_a = _extract_dict_field(event, "to", "?")
         reason = _extract_dict_field(event, "reason", "")
-        text = f"[dim]↳ Delegating: {from_a} → {to_a}"
+        text = f"↳ Delegating: {from_a} → {to_a}"
         if reason:
             text += f" ({reason})"
-        text += "[/dim]"
-        self._message_poster.post(CommandOutputMessage(text))
+        self._post_notice(text, routine=True)
         self._message_poster.post_status_message(event, f"{from_a} → {to_a}")
 
     def _on_agent_msg(self: Self, event: AgentEvent) -> None:
@@ -734,9 +741,13 @@ class EventBridge:
             None
         """
         if event.data:
-            self._message_poster.post(
-                CommandOutputMessage(f"[dim]📨 {event.data}[/dim]"),
-            )
+            self._post_notice(f"📨 {event.data}")
+
+    def _post_notice(self, text: str, *, routine: bool = False) -> None:
+        """Style runtime notices without interpreting plain-mode payloads."""
+        if getattr(self.app, "_output_mode", "rich") not in ("plain", "quiet"):
+            text = f"[dim]{text}[/dim]"
+        self._message_poster.post(CommandOutputMessage(text, routine=routine))
 
 
 # ------------------------------------------------------------------ #

@@ -45,6 +45,14 @@ using their existing bounded, redacted evidence. Manual row toggles persist
 through updates and resize. Density does not change the held reading position,
 draft/focus ownership, outcome labels, approval authority or retention limits.
 
+`ui.output_mode` is captured at Textual startup. Plain/quiet transcript and
+command content stays literal, including Markdown, bracketed text and long lines.
+Quiet hides typed routine welcome/delegation/thinking rows while preserving
+thinking inspection and mounted tool cards. Routine details start collapsed;
+failed/unknown/interrupted outcomes expand unless the user already chose a state.
+Answers, commands, warnings, compaction, decisions and cancellation/status remain
+visible. This does not alter stored evidence or qualify native accessibility.
+
 ## Versioned scenarios
 
 The deterministic rendered [harness](../tests/cli/ui_scenarios.py) is version
@@ -66,7 +74,7 @@ runtime boundaries.
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
 | Width, theme, Unicode and long paths | 80×24, 120×40 and 160×50 in the [new harness](../tests/cli/ui_scenarios.py) | Light/dark/no-color native contrast and focused narrow layout |
-| Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) and [reduced-motion lifecycle](../tests/cli/test_textual_motion_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
+| Quiet output, reduced motion, keyboard mode, mouse preference | [Plain/quiet rendering](../tests/cli/test_textual_output_modes.py), [typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) and [reduced-motion lifecycle](../tests/cli/test_textual_motion_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
 
 The implemented resize anchor retains a message and its visual row while earlier
 messages reflow. The anchor uses the displayed row, including when focus scrolling

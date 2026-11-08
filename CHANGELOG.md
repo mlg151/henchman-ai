@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Plain and quiet Textual output** — Startup output mode now controls literal
+  transcript/command rendering. Quiet hides routine chatter while retaining
+  inspectable tool cards, manual expansion, decisions, failures and status.
+  Bracketed identities, long lines, drafts and reading anchors remain intact;
+  native accessibility qualification remains open.
+
 - **P0/P1 compatibility evidence** — The standards roadmap now records implemented
   canonical schemas, five explicit provider projections, bounded MCP refresh and
   typed results with native fixture evidence. Real-account and final-release
@@ -123,8 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rendering at startup. Plain output preserves literal text without styling or
   animation; quiet output also hides routine chatter. Answers, explicit commands,
   decisions, warnings, failed/unknown results and cancellation remain visible,
-  with identical session evidence. Textual consumption and native accessibility
-  qualification remain open.
+  with identical session evidence. Textual consumption is described above; native
+  accessibility qualification remains open.
 
 - **Textual transcript density** — `ui.detail_density` now selects compact
   spacing, the normal layout or initially expanded tool evidence at startup.

@@ -185,7 +185,10 @@ class ComponentInitializer:
         theme_manager = ThemeManager()
         theme_name = self._resolve_theme_name(theme_manager)
         theme = theme_manager.get_theme(theme_name)
-        output_renderer = OutputRenderer(console=console, theme=theme)
+        output_renderer = OutputRenderer(
+            console=console, theme=theme,
+            output_mode=getattr(self.config.app, "_output_mode", "rich"),
+        )
         self._ui_renderer = self._ui_renderer_cls(
             console=console,
             renderer=output_renderer,

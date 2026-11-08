@@ -19,13 +19,16 @@ the draft. If the terminal intercepts an extended key, Tab to the visible button
 See the [interaction contract](ui-interaction-contract.md) for supported states
 and the remaining native/accessibility qualification.
 
-## Plain or quiet REPL output
+## Plain or quiet output
 
 Set `henchman config set ui.output_mode plain --scope global`, then start a new
 classic `henchman chat` session for an unstyled transcript with static progress.
 Use `quiet` to hide routine progress chatter while retaining answers, commands,
 approvals, questions, warnings and failures. Use `rich` to restore the default.
-These settings leave explicit `--tui` selection unchanged. See
+A new Textual launch also uses the selected mode for transcript and command
+rendering. Quiet keeps tool cards available for inspection and preserves explicit
+decisions, failures and status. These settings leave explicit `--tui` selection
+unchanged. See
 [output controls](configuration.md#terminal-ui-controls) for the current runtime limits.
 
 ## Prerequisites
