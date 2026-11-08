@@ -220,6 +220,9 @@ transfer and native qualification stay tracked under #14.
   Neovim pilot remain open under #27; see [JSON output](docs/api.md#headless-json-output).
 - [ ] Deliver UI-0–UI-4: interaction baselines, reliable terminal controls, work visibility, workspace navigation and native/accessibility qualification.
 - [ ] Verify integrated outcomes and the exact release artifacts before publication.
+  The release workflow now requires installed wheel/source-archive checks and
+  matching qualification receipts before upload and tagging. Final release
+  evidence remains outstanding; see the [release process](CONTRIBUTING.md#-release-process).
 
 Keep the foundations-first tier ordering below. Existing v0.4.1 issues retain
 their history; cloud settings sync, inbound servers, A2A, broad IDE support and

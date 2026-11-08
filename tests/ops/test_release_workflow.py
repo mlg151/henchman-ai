@@ -46,9 +46,26 @@ const github = {
   paginate: async (method, parameters) => (await method(parameters)).data,
 };
 const core = {setOutput: (name, value) => {outputs[name] = value;}};
+const artifactNames = ['henchman_ai-0.4.1-py3-none-any.whl', 'henchman_ai-0.4.1.tar.gz'];
+const qualification = Object.hasOwn(input, 'qualification') ? input.qualification : {
+  schema_version: 1, version: '0.4.1', commit: input.context?.payload?.workflow_run?.head_sha,
+  profile: 'installed-wheel-smoke-v1',
+  helper_sha256: nativeRequire('crypto').createHash('sha256')
+    .update('fixture bytes for tests/testing/installed_wheel_smoke.py').digest('hex'),
+  runs: Object.fromEntries(['wheel', 'sdist'].map((kind, index) => [kind, {
+    passed: true, python: '3.12',
+    artifact_sha256: nativeRequire('crypto').createHash('sha256')
+      .update('fixture bytes for dist/' + artifactNames[index]).digest('hex'),
+    installed_wheel_sha256: nativeRequire('crypto').createHash('sha256')
+      .update('fixture bytes for dist/' + artifactNames[0]).digest('hex'),
+  }])),
+  artifacts: Object.fromEntries(artifactNames.map(name => [name,
+    nativeRequire('crypto').createHash('sha256').update('fixture bytes for dist/' + name).digest('hex')])),
+};
 const fakeFs = {
   readdirSync: () => ['.gitignore', 'henchman_ai-0.4.1-py3-none-any.whl', 'henchman_ai-0.4.1.tar.gz'],
-  readFileSync: (name) => Buffer.from('fixture bytes for ' + name),
+  readFileSync: (name) => name === 'release-evidence/qualification.json'
+    ? JSON.stringify(qualification) : Buffer.from('fixture bytes for ' + name),
 };
 process.env.RELEASE_TAG = 'v0.4.1';
 process.env.RELEASE_PR = '8';
@@ -316,6 +333,52 @@ def test_publisher_failure_prevents_tagging_and_credentials_stay_in_publish_step
     assert steps[publisher]["env"]["PYPI"] == "${{ secrets.PYPI }}"
     assert all("PYPI" not in step.get("env", {}) for i, step in enumerate(steps) if i != publisher)
     assert _workflow()["concurrency"] == {"group": "pypi-release", "cancel-in-progress": False}
+
+
+@pytest.mark.parametrize("qualification", [None, {}, {"schema_version": 1, "commit": "wrong-sha"}])
+def test_missing_qualification_prevents_all_tag_and_release_calls(qualification) -> None:
+    result = _node(script=_script(name="Tag and publish the GitHub release"),
+                   context=_context(), qualification=qualification)
+    assert result.get("error")
+    assert result["calls"] == []
+
+
+@pytest.mark.parametrize("change", ["helper", "run-artifact", "python", "installed-wheel", "archive"])
+def test_inconsistent_qualification_blocks_tag_before_any_mutation(change) -> None:
+    names = ["henchman_ai-0.4.1-py3-none-any.whl", "henchman_ai-0.4.1.tar.gz"]
+    hashes = {name: hashlib.sha256(f"fixture bytes for dist/{name}".encode()).hexdigest() for name in names}
+    record = {
+        "schema_version": 1, "version": "0.4.1", "commit": "tested-merge-sha",
+        "profile": "installed-wheel-smoke-v1", "artifacts": hashes,
+        "helper_sha256": hashlib.sha256(b"fixture bytes for tests/testing/installed_wheel_smoke.py").hexdigest(),
+        "runs": {kind: {"passed": True, "python": "3.12", "artifact_sha256": hashes[name],
+                        "installed_wheel_sha256": hashes[names[0]]}
+                 for kind, name in zip(("wheel", "sdist"), names, strict=True)},
+    }
+    if change == "helper":
+        record["helper_sha256"] = "0" * 64
+    elif change == "archive":
+        record["artifacts"][names[1]] = "0" * 64
+    else:
+        field = {"run-artifact": "artifact_sha256", "python": "python", "installed-wheel": "installed_wheel_sha256"}[change]
+        record["runs"]["wheel"][field] = "0" * 64
+    result = _node(script=_script(name="Tag and publish the GitHub release"),
+                   context=_context(), qualification=record)
+    assert result.get("error")
+    assert result["calls"] == []
+
+
+def test_exact_artifact_qualification_runs_before_publish_without_credentials() -> None:
+    steps = _steps()
+    qualification = next(i for i, step in enumerate(steps) if "release.py qualify" in step.get("run", ""))
+    build = next(i for i, step in enumerate(steps) if "uv build" in step.get("run", ""))
+    publish = next(i for i, step in enumerate(steps) if "release.py publish" in step.get("run", ""))
+    assert build < qualification < publish
+    assert "continue-on-error" not in steps[qualification]
+    assert "if" not in steps[qualification]
+    assert "PYPI" not in steps[qualification].get("env", {})
+    evidence = next(step for step in steps if step.get("with", {}).get("path") == "release-evidence/")
+    assert evidence["if"] == "always()"
 
 
 def test_retry_artifacts_preserve_each_attempt_and_tested_commit() -> None:

@@ -285,6 +285,22 @@ PR CI also retains its validated distribution pair for review. Release archives
 include `henchman/_release.json` (under `src/` in the source distribution),
 recording the tested commit, milestone, and release PR. Both archives' metadata,
 runtime version, and embedded commit must match before credentials are used.
+After building, the POSIX release worker runs `release.py qualify`: it installs
+the exact wheel and a wheel built from the exact source archive into separate
+Python 3.12 environments. Both run the installed-package CLI, API, RAG and scripted
+coding regressions, including package-lifecycle checks, outside the checkout.
+User settings and tokenizer caches are cold; only the existing uv build cache is
+retained for offline package builds. The worker owns and terminates each check's
+process group on completion or failure.
+
+Successful checks write `release-evidence/qualification.json`, binding both
+archive hashes, the derived wheel, check helper, version and tested commit.
+Failures remove any previous receipt and retain per-artifact logs. The publisher
+and tag step reject missing or mismatched receipts; changed archives require
+fresh qualification. Logs and receipts are retained as an Actions artifact even
+on failure. This gate tests the release bytes with local scripted fixtures; it
+does not replace live-model, cross-platform CI or native UI acceptance evidence.
+
 `uv publish` checks existing file hashes, so matching uploads can be retried and
 different contents cannot replace an existing version. Builds use the commit
 timestamp as `SOURCE_DATE_EPOCH` for reproducibility. Embedded commit provenance

@@ -10,6 +10,7 @@ import pytest
 from tests.testing.installed_wheel_smoke import (
     find_wheel,
     isolated_runtime_environment,
+    retain_build_cache,
     smoke_environment,
     stage_workflow_tests,
     verify_wheel_contents,
@@ -68,6 +69,27 @@ def test_runtime_environment_has_empty_caches_and_no_user_provider_selection(tmp
     assert not any(key.startswith("HENCHMAN_") for key in isolated)
     assert "OPENAI_API_KEY" not in isolated
     assert original["HOME"] == "/user"
+
+
+def test_package_build_cache_is_resolved_before_cold_home_isolation(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from tests.testing import installed_wheel_smoke as module
+
+    inherited = {"HOME": str(tmp_path / "original-home"), "XDG_CACHE_HOME": str(tmp_path / "original-cache")}
+    build_cache = tmp_path / "existing-build-cache"
+
+    def run(command, **kwargs):
+        assert command == ["uv", "--no-config", "cache", "dir"]
+        assert kwargs["env"] == inherited
+        return SimpleNamespace(stdout=str(build_cache) + "\n")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    result = isolated_runtime_environment(retain_build_cache(inherited), tmp_path / "isolated")
+    assert result["UV_CACHE_DIR"] == str(build_cache)
+    assert result["HOME"] != inherited["HOME"]
+    assert not list(Path(result["TIKTOKEN_CACHE_DIR"]).iterdir())
+    assert "UV_CACHE_DIR" not in inherited
 
 
 @pytest.mark.parametrize("utf8_mode", ["0", "1"])
@@ -236,6 +258,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/cli/test_oauth_browser.py",
         "tests/cli/test_oauth_controller.py",
         "tests/cli/test_oauth_frontends.py",
+        "tests/cli/test_textual_density_settings.py",
         "tests/cli/test_oauth_command_privacy.py",
         "tests/mcp/test_oauth_connect.py",
         "tests/mcp/test_oauth_manager.py",

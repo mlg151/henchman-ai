@@ -100,6 +100,15 @@ def isolated_runtime_environment(environment: dict[str, str], directory: Path) -
     return result
 
 
+def retain_build_cache(environment: dict[str, str]) -> dict[str, str]:
+    """Keep only uv's existing build cache across the cold HOME boundary."""
+    result = dict(environment)
+    cache = subprocess.run(["uv", "--no-config", "cache", "dir"], env=result,
+                           capture_output=True, text=True, check=True, timeout=5)
+    result["UV_CACHE_DIR"] = str(Path(cache.stdout.strip()).resolve())
+    return result
+
+
 def stage_workflow_tests(repository: Path, target: Path, *, include_package: bool = False) -> None:
     """Copy offline coding and terminal workflows, never production source code."""
     for relative in (
@@ -231,6 +240,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_oauth_browser.py",
         "tests/cli/test_oauth_controller.py",
         "tests/cli/test_oauth_frontends.py",
+        "tests/cli/test_textual_density_settings.py",
         "tests/cli/test_oauth_command_privacy.py",
         "tests/mcp/test_oauth_connect.py",
         "tests/mcp/test_oauth_manager.py",
@@ -546,10 +556,14 @@ def main() -> None:
     """Install the artifact and run isolated entrypoint and coding-loop checks."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheel-dir", type=Path, required=True)
+    parser.add_argument("--include-package", action="store_true",
+                        help="Include the full package-lifecycle walkthrough for release qualification")
     args = parser.parse_args()
     wheel = find_wheel(args.wheel_dir).resolve()
     repository = Path(__file__).resolve().parents[2]
     environment = smoke_environment(dict(os.environ))
+    if args.include_package:
+        environment = retain_build_cache(environment)
     subprocess.run(
         [sys.executable, "-m", "pip", "install", str(wheel), "pytest>=8", "pytest-asyncio>=0.23",
          "ruff>=0.4", "mypy>=1.10"],
@@ -559,7 +573,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="henchman-wheel-smoke-") as scratch:
         directory = Path(scratch)
         environment = isolated_runtime_environment(environment, directory)
-        stage_workflow_tests(repository, directory)
+        stage_workflow_tests(repository, directory, include_package=args.include_package)
         subprocess.run(
             [sys.executable, "-I", "-c", _ORIGIN_CHECK], cwd=directory,
             env=environment, check=True, timeout=60,
@@ -573,9 +587,9 @@ def main() -> None:
             [sys.executable, "-I", "-m", "pytest", "-p", "pytest_asyncio.plugin", "-q",
              "--maxfail=10", "--tb=short", "--durations=15",
              "tests/"],
-            # This cohort now includes thousands of native regression cases.
-            # Keep its overall watchdog separate from per-operation deadlines.
-            cwd=directory, env=environment, check=True, timeout=1200,
+            # The expanded cohort exceeded 1200s at 80% on Windows/Python 3.11.
+            # This aggregate watchdog does not change per-operation deadlines.
+            cwd=directory, env=environment, check=True, timeout=1800,
         )
 
 

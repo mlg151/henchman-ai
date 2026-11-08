@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Exact release-artifact qualification** — Publication now requires separate
+  installed checks of the wheel and a wheel built from its source archive.
+  Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;
+  failed checks invalidate prior receipts and join the owned process group.
+
 - **Textual transcript density** — `ui.detail_density` now selects compact
   spacing, the normal layout or initially expanded tool evidence at startup.
   Manual toggles, held reading position, drafts and approvals remain stable;

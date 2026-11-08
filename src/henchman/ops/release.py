@@ -2,17 +2,23 @@
 
 import ast
 import configparser
+import contextlib
 import email
+import hashlib
 import json
 import os
 import re
 import runpy
+import signal
 import subprocess
 import sys
 import tarfile
+import tempfile
+import time
 import tomllib
 import zipfile
 from pathlib import Path
+from typing import Any, BinaryIO
 
 
 def parse_pypi_token(fragment: str) -> str:
@@ -105,9 +111,128 @@ def validate_distributions(dist: Path, version: str, commit: str) -> list[Path]:
     return files
 
 
+def _digest(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def _qualification_step(command: list[str], *, cwd: Path, env: dict[str, str],
+                        stdout: BinaryIO, timeout: float) -> None:
+    """Own the POSIX release worker's process group through bounded cleanup."""
+    if os.name != "posix":
+        raise ValueError("Artifact qualification requires the POSIX release worker")
+    process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stdout,
+                               stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        returncode = process.wait(timeout=timeout)
+        if returncode:
+            raise subprocess.CalledProcessError(returncode, command)
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        deadline = time.monotonic() + 5
+        while True:
+            process.poll()
+            try:
+                os.killpg(process.pid, 0)
+            except ProcessLookupError:
+                break
+            if time.monotonic() >= deadline:
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGKILL)
+                break
+            time.sleep(0.02)
+        process.wait(timeout=5)
+
+
+def validate_qualification(dist: Path, version: str, commit: str) -> dict[str, Any]:
+    """Require successful installation checks bound to the current archive bytes."""
+    try:
+        path = dist.parent / "release-evidence/qualification.json"
+        if path.stat().st_size > 64 * 1024:
+            raise ValueError
+        record = json.loads(path.read_text(encoding="utf-8"))
+        files = validate_distributions(dist, version, commit)
+        hashes = {file.name: _digest(file) for file in files}
+        helper = dist.parent / "tests/testing/installed_wheel_smoke.py"
+        if (record["schema_version"] != 1 or record["version"] != version
+            or record["commit"] != commit or record["artifacts"] != hashes
+            or record["profile"] != "installed-wheel-smoke-v1"
+            or record["helper_sha256"] != _digest(helper)
+            or set(record["runs"]) != {"wheel", "sdist"}):
+            raise ValueError
+        for kind, run in record["runs"].items():
+            suffix = ".whl" if kind == "wheel" else ".tar.gz"
+            artifact_hash = next(value for name, value in hashes.items() if name.endswith(suffix))
+            if (run["passed"] is not True or run["artifact_sha256"] != artifact_hash
+                or not re.fullmatch(r"[0-9a-f]{64}", run["installed_wheel_sha256"])
+                or run["python"] != "3.12"):
+                raise ValueError
+            if kind == "wheel" and run["installed_wheel_sha256"] != artifact_hash:
+                raise ValueError
+    except (OSError, ValueError, KeyError, TypeError, StopIteration):
+        raise ValueError("Missing or mismatched release artifact qualification") from None
+    return dict(record)
+
+
+def qualify_distributions(root: Path, version: str, commit: str) -> None:
+    """Install and exercise both archives before writing a hash-bound receipt."""
+    root = root.resolve()
+    evidence = root / "release-evidence"
+    evidence.mkdir(exist_ok=True)
+    receipt = evidence / "qualification.json"
+    # A failed retry must not inherit an earlier successful record.
+    receipt.unlink(missing_ok=True)
+    files = validate_distributions(root / "dist", version, commit)
+    hashes = {file.name: _digest(file) for file in files}
+    helper = root / "tests/testing/installed_wheel_smoke.py"
+    helper_hash = _digest(helper)
+    environment = dict(os.environ)
+    for key in ("PYPI", "UV_PUBLISH_TOKEN", "TWINE_PASSWORD", "PYTHONPATH", "PYTHONHOME"):
+        environment.pop(key, None)
+    runs = {}
+    with tempfile.TemporaryDirectory(prefix="henchman-release-check-") as directory:
+        scratch = Path(directory)
+        for kind, suffix in (("wheel", ".whl"), ("sdist", ".tar.gz")):
+            artifact = next(file for file in files if file.name.endswith(suffix))
+            with (evidence / f"{kind}.log").open("wb") as log:
+                def run(command: list[str], timeout: int, kind: str = kind) -> None:
+                    try:
+                        _qualification_step(command, cwd=scratch, env=environment, stdout=log, timeout=timeout)
+                    except (OSError, subprocess.SubprocessError):
+                        raise ValueError(f"Release {kind} qualification failed; inspect release-evidence/{kind}.log") from None
+
+                wheels = root / "dist"
+                if kind == "sdist":
+                    wheels = scratch / "sdist-wheel"
+                    run(["uv", "build", "--wheel", "--no-sources", "--out-dir", str(wheels), str(artifact)], 600)
+                candidates = sorted(wheels.glob("*.whl"))
+                if len(candidates) != 1:
+                    raise ValueError("Release qualification requires exactly one candidate wheel")
+                installed_hash = _digest(candidates[0])
+                venv = scratch / f"{kind}-env"
+                run(["uv", "venv", "--python", "3.12", "--seed", str(venv)], 180)
+                python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+                run([str(python), "-I", str(helper), "--wheel-dir", str(wheels), "--include-package"], 3600)
+                if _digest(candidates[0]) != installed_hash:
+                    raise ValueError("Release artifact changed during qualification")
+                runs[kind] = {"passed": True, "python": "3.12", "artifact_sha256": hashes[artifact.name],
+                              "installed_wheel_sha256": installed_hash}
+        if ({file.name: _digest(file) for file in files} != hashes or _digest(helper) != helper_hash):
+            raise ValueError("Release artifacts or checks changed during qualification")
+    record = {"schema_version": 1, "version": version, "commit": commit,
+              "profile": "installed-wheel-smoke-v1", "helper_sha256": helper_hash,
+              "artifacts": hashes, "runs": runs}
+    temporary = evidence / "qualification.json.tmp"
+    temporary.write_text(json.dumps(record, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(receipt)
+    validate_qualification(root / "dist", version, commit)
+
+
 def publish(dist: Path, version: str) -> int:
     """Publish only the expected distribution pair, preserving upload failures."""
     files = validate_distributions(dist, version, os.environ.get("RELEASE_SHA", ""))
+    validate_qualification(dist, version, os.environ.get("RELEASE_SHA", ""))
     environment = os.environ.copy()
     token = parse_pypi_token(environment.pop("PYPI", ""))
     # GitHub masks the whole INI secret; mask its extracted token independently.
@@ -147,7 +272,10 @@ def main() -> int:
             return 0
         if sys.argv[1:] == ["publish"]:
             return publish(Path("dist"), version)
-        raise ValueError("Use check, prepare, or publish")
+        if sys.argv[1:] == ["qualify"]:
+            qualify_distributions(Path.cwd(), version, os.environ.get("RELEASE_SHA", ""))
+            return 0
+        raise ValueError("Use check, prepare, qualify, or publish")
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 1
