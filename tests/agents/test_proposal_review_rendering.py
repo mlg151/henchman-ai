@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from pathlib import Path
 
 import pytest
 
 from henchman.advanced.checkpoint_models import FileState, ReviewFile
 from henchman.advanced.child_proposals import ChildProposalReview
-from henchman.agents.proposal_review import render_parent_review
+from henchman.agents.proposal_review import ParentProposalReview, render_parent_review
+from henchman.agents.proposal_runtime import ProposalCoordinator
+from henchman.agents.workspace_ownership import WorkspaceBinding, WorkspaceOwnershipError
 
 
 def _review(before: FileState, after: FileState) -> ChildProposalReview:
@@ -42,3 +46,65 @@ def test_review_counts_escaped_output_not_only_input_bytes() -> None:
 def test_review_refuses_unsupported_file_content() -> None:
     with pytest.raises(ValueError, match="unsupported"):
         render_parent_review(_review(FileState("binary"), FileState("missing")))
+
+
+async def test_parent_must_request_complete_preview_and_acknowledge_it(tmp_path: Path) -> None:
+    path = tmp_path / "file"
+    path.write_text("before")
+    session, actor, child = object(), object(), object()
+    runtime = ProposalCoordinator(tmp_path, session=session, generation=0, parent=actor, paths=["file"],
+                                  current_binding=lambda: WorkspaceBinding(tmp_path, session, 0))
+    handle = runtime.reserve(child, paths=["file"], completed=lambda: True)
+
+    async def run() -> None:
+        runtime.workspace(handle, child).stage("file", "after")
+
+    worker = asyncio.create_task(run())
+    runtime.bind(handle, worker)
+    await worker
+    parent = ParentProposalReview(runtime, handle)
+    with pytest.raises(ValueError, match="review"):
+        parent.publish("not-reviewed")
+    preview = json.loads(parent.preview())
+    assert preview["review"]["files"][0]["after"]["content"] == "after"
+    assert json.loads(parent.preview()) == preview
+    with pytest.raises(ValueError, match="review"):
+        parent.publish("wrong-token")
+    with pytest.raises(ValueError, match="review"):
+        parent.publish("\N{SNOWMAN}")
+
+    async def wrong_worker() -> None:
+        with pytest.raises(WorkspaceOwnershipError, match="wrong_worker"):
+            parent.publish(preview["review_token"])
+
+    await asyncio.create_task(wrong_worker())
+    assert path.read_text() == "before"
+    assert parent.publish(preview["review_token"]).changed_paths == ("file",)
+    assert path.read_text() == "after"
+    with pytest.raises(ValueError, match="review"):
+        parent.publish(preview["review_token"])
+    await runtime.close()
+
+
+async def test_oversized_preview_cannot_issue_publication_acknowledgement(tmp_path: Path) -> None:
+    path = tmp_path / "file"
+    path.write_text("before")
+    session, actor, child = object(), object(), object()
+    runtime = ProposalCoordinator(tmp_path, session=session, generation=0, parent=actor, paths=["file"],
+                                  current_binding=lambda: WorkspaceBinding(tmp_path, session, 0))
+    handle = runtime.reserve(child, paths=["file"], completed=lambda: True)
+
+    async def run() -> None:
+        runtime.workspace(handle, child).stage("file", "after" * 7000)
+
+    worker = asyncio.create_task(run())
+    runtime.bind(handle, worker)
+    await worker
+    parent = ParentProposalReview(runtime, handle)
+    with pytest.raises(ValueError, match="too large"):
+        parent.preview()
+    with pytest.raises(ValueError, match="review"):
+        parent.publish("unissued")
+    runtime.discard(handle)
+    assert path.read_text() == "before"
+    await runtime.close()
