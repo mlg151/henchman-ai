@@ -462,22 +462,55 @@ resume dispatch after its original monotonic clock domain is lost.
 
 See [run accounting](providers.md#automatic-task-accounting) for lifecycle and
 billing limits. The standalone HTTP API currently supports process accounting
-only and rejects `durable` before dispatch. Local UI import/export sync does not
-transfer the usage group.
+only and rejects `durable` before dispatch. Explicit control import/export can
+transfer usage configuration as described below; it never transfers accounting state.
 
 ## Local import/export sync
 
 `henchman config import` / `henchman config export` move a narrow **sync payload**
-(`ui.output_style`, `ui.theme`, `ui.keybindings`, `ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) between files, never the whole
-settings document:
+between local files. By default it contains only `ui.output_style`, `ui.theme`,
+`ui.keybindings`, `ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`,
+`ui.keyboard_mode`, `ui.mouse_capture` and `ui.layout`.
 
-- Import validates before writing; unsupported top-level or UI keys fail without touching the existing settings file.
-- Provider credentials and other non-UI settings cannot flow through import/export in either direction; exports never contain `providers`, API keys or tokens.
-- Writes target the canonical `.henchman` directory for the chosen scope; legacy casing remains a read-only fallback.
-- Both text and JSON mutation responses redact credentials and known credential echoes. Actual `set`/`import` persistence and runtime values retain the supplied input.
-- Exported JSON/YAML files also redact credential echoes in freeform UI values and dynamic keys. This is deliberately lossy for those values; ordinary nonsecret sync remains unchanged. Fixed schema keys and validated UI enum values retain their meanings.
+To transfer nonsecret operational controls, use explicit flags:
 
-There is no backend or cloud sync. The payload is for explicit, file-based transfer between machines or teammates. Sync files containing the newer keys (`ui.output_mode`, `ui.reduced_motion`, `ui.detail_density`, `ui.keyboard_mode`, `ui.mouse_capture`, `ui.layout`) require Henchman v0.4.2 or newer; older binaries reject the entire file with a clear error rather than partially applying it.
+```bash
+henchman config export controls.yaml --scope project --include-controls
+henchman config import controls.yaml --scope project --accept-control-changes
+```
+
+`--include-controls` adds `usage.limits`, `usage.prices`, `usage.persistence`,
+`operations.persistence` and `verification.checks`. Importing any of these groups
+requires `--accept-control-changes`, including tightening changes. This records
+explicit intent to replace settings that may remove a limit, lower a price,
+select process persistence or remove required checks. A flag stored inside the
+payload cannot supply that acceptance.
+
+- Supplied mapping leaves merge with the selected persisted scope; omitted leaves
+  remain unchanged. Supplied price/check lists replace the entire old list.
+  Explicit zero, null, default values and empty lists retain their meanings.
+  Decimal values remain exact, although their string spelling may canonicalize.
+- Typed validation checks the complete candidate before one canonical write.
+  Unsupported groups and fields reject the whole import without partial UI changes.
+  Providers, credentials, tools, MCP and agents are outside the transfer contract.
+- Writes target `.henchman` for the chosen scope; legacy casing is a read-only
+  fallback. Partial imports do not persist inherited environment/session values.
+- Known credential echoes in freeform UI values are redacted on export. Operational
+  values require lossless transfer: if credential projection would alter a model
+  name, price source, check argument, path, text or requirement identifier, the
+  entire transfer is refused. No redacted placeholder becomes executable input.
+  This does not detect arbitrary unknown secrets.
+- Transfers contain configuration only. They cannot import grants, verification
+  observations, run budgets already consumed, or recovery journal authority.
+  They do not reload a held runtime; normal startup/reload rules still apply.
+  Text and JSON command responses use the existing credential projection.
+
+There is no backend or cloud sync. The payload is for explicit file-based transfer
+between machines or teammates. New UI keys and operational groups require
+Henchman v0.4.2 or newer; older binaries reject unsupported keys rather than
+partially applying them. The repository API uses keyword-only
+`export_settings(..., include_controls=True)` and
+`import_settings(..., accept_control_changes=True)` with defaults of `False`.
 
 ## Environment Variables
 

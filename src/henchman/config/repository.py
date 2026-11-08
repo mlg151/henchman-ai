@@ -36,6 +36,13 @@ from henchman.config.settings import (
     discover_settings_files,
     load_settings_snapshot,
 )
+from henchman.config.sync_controls import (
+    CONTROL_GROUPS,
+    merge_controls,
+    normalize_controls,
+    project_control_evidence,
+    require_nonsecret_controls,
+)
 from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
 _SETTINGS_FILENAME = "settings.yaml"
@@ -85,6 +92,7 @@ class SettingsRepository:
         """
         self._project_root = project_root
         self._snapshot_provider = snapshot_provider
+        self._evidence_policy = EvidenceRedactor()
 
     def view(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
         """Return settings for a selected scope.
@@ -221,21 +229,35 @@ class SettingsRepository:
         self._write_scope_settings(target_scope, candidate)
         return True
 
-    def export_settings(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
-        """Export a sync projection with credential echoes removed from freeform fields."""
+    def export_settings(
+        self, *, scope: SettingsScope = SettingsScope.MERGED, include_controls: bool = False,
+    ) -> dict[str, Any]:
+        """Export UI preferences, optionally adding lossless nonsecret controls.
+
+        Operational values that would change under redaction refuse the entire
+        export. The default UI-only projection keeps its existing behavior.
+        """
         source = self.view(scope=scope)
         redactor = self.evidence_redactor()
         redactor.register_config(source)
-        return project_sync_evidence(_build_sync_payload(source), redactor=redactor)
+        payload = _build_sync_payload(source)
+        controls = require_nonsecret_controls(source, redactor=redactor) if include_controls else {}
+        payload.update(controls)
+        projected = project_sync_evidence(payload, redactor=redactor)
+        if any(projected.get(group) != value for group, value in controls.items()):
+            raise ValueError("Sync payload contains credential-bearing operational controls")
+        return projected
 
     def evidence_redactor(self) -> EvidenceRedactor:
         """Collect configured credentials without requiring valid effective settings.
 
         Raw layers include shadowed credentials and allow config commands to
         repair invalid settings. An explicit file or active snapshot supplies
-        additional effective credentials; none of these inputs are modified.
+        additional effective credentials. Previously observed values remain
+        registered for this repository instance; no source input is modified.
         """
-        redactor = EvidenceRedactor()
+        redactor = self._evidence_policy
+        redactor.register_environment()
         for scope in (SettingsScope.GLOBAL, SettingsScope.PROJECT):
             redactor.register_config(self.view(scope=scope))
         for path in discover_settings_files(project_root=self._project_root):
@@ -244,10 +266,21 @@ class SettingsRepository:
             redactor.register_config(self._snapshot_provider().settings.model_dump(mode="python"))
         return redactor
 
-    def import_settings(self, payload: Mapping[str, Any], *, scope: SettingsScope) -> None:
-        """Import a Tier 1 local-sync payload into an explicit persisted scope."""
+    def import_settings(
+        self, payload: Mapping[str, Any], *, scope: SettingsScope, accept_control_changes: bool = False,
+    ) -> None:
+        """Import configuration, requiring explicit acceptance of operational changes."""
         candidate = self.view(scope=_require_write_scope(scope))
-        _merge_sync_payload(candidate, _normalize_sync_payload(payload))
+        has_controls = bool(CONTROL_GROUPS.intersection(payload))
+        if has_controls and accept_control_changes is not True:
+            raise ValueError("Sync payload controls require --accept-control-changes")
+        normalized = _normalize_sync_payload(payload)
+        if has_controls:
+            redactor = self.evidence_redactor()
+            redactor.register_config(payload)
+            normalized.update(require_nonsecret_controls(normalized, redactor=redactor))
+        _merge_sync_payload(candidate, normalized)
+        merge_controls(candidate, normalize_controls(normalized))
         self._write_scope_settings(scope, candidate)
 
     def sync_ui_settings(
@@ -362,7 +395,9 @@ def project_sync_evidence(payload: Mapping[str, Any], *, redactor: EvidenceRedac
         for key, allowed in enums.items():
             if isinstance(ui.get(key), str) and ui[key] in allowed:
                 ui_schema[key] = PRESERVE_IDENTITY
-    projected: dict[str, Any] = redactor.redact(payload, schema={"ui": ui_schema})
+    ordinary = {key: value for key, value in payload.items() if key not in CONTROL_GROUPS}
+    projected: dict[str, Any] = redactor.redact(ordinary, schema={"ui": ui_schema})
+    projected.update(project_control_evidence(payload, redactor=redactor))
     return projected
 
 
@@ -390,16 +425,17 @@ _SYNC_BOOL_KEYS = ("reduced_motion", "mouse_capture")
 
 
 def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate and normalize an imported Tier 1 local-sync payload."""
-    unsupported_top_level_keys = sorted(set(payload) - {"ui"})
+    """Validate a partial UI/control transfer without adding omitted defaults."""
+    unsupported_top_level_keys = sorted(set(payload) - ({"ui"} | CONTROL_GROUPS))
     if unsupported_top_level_keys:
         unsupported = ", ".join(unsupported_top_level_keys)
         msg = f"Unsupported sync payload keys: {unsupported}"
         raise ValueError(msg)
 
+    controls = normalize_controls(payload)
     ui_value = payload.get("ui")
     if ui_value is None:
-        return {}
+        return controls
     if not isinstance(ui_value, Mapping):
         msg = "Sync payload field 'ui' must be a mapping"
         raise ValueError(msg)
@@ -435,9 +471,9 @@ def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         normalized_ui["keybindings"] = _clone_mapping(value)
     if "layout" in ui_value:
         normalized_ui["layout"] = _normalize_layout_mapping(ui_value["layout"])
-    if not normalized_ui:
-        return {}
-    return {"ui": normalized_ui}
+    if normalized_ui:
+        controls["ui"] = normalized_ui
+    return controls
 
 
 def _merge_sync_payload(target: dict[str, Any], sync_payload: Mapping[str, Any]) -> None:

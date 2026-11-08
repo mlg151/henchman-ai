@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit settings-control transfer** — Local export can include nonsecret
+  usage, operation persistence and verification controls with `--include-controls`.
+  Import requires `--accept-control-changes` and preserves partial mappings,
+  explicit defaults and decimal precision. Credential-bearing operational values
+  reject the whole transfer. Existing UI-only behavior, canonical writes and held
+  runtime authority remain intact.
+
 - **Opt-in editor stdio** — `headless --protocol-version 1 --project PATH` now
   serves one shared-runtime run through POSIX pipes. Early descriptor isolation,
   correlated input decisions, absolute frame-write deadlines and joined startup,

@@ -221,8 +221,11 @@ REPL/Textual now retain a shared live settings snapshot with accurate session
 origins for config/doctor inspection, provider switching and resume. Explicit file
 scopes remain independent, and theme/context shortcuts persist only named keys.
 Read-confirmation policy now reaches primary/scoped registries; unsupported
-Docker sandbox requests fail explicitly. Remaining context/UI consumers, control
-transfer and native qualification stay tracked under #14.
+Docker sandbox requests fail explicitly. File transfer now supports explicit
+opt-in usage, operation persistence and verification controls; credential-bearing
+operational values are refused without changing their meaning or live authority.
+Remaining context/UI consumers and native qualification stay tracked under #14.
+See [control transfer](docs/configuration.md#local-importexport-sync).
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.
 - [ ] Deliver shared controls, scoped repository instructions/context, fresh verification, controlled planning, review and recovery.

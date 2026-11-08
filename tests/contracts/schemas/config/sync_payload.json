@@ -1,0 +1,495 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/config/sync-payload/v1",
+  "title": "LocalSettingsTransfer",
+  "description": "Partial UI and explicitly accepted nonsecret controls. No permission, proof or runtime state is carried. Existing typed validators additionally check semantic limits.",
+  "type": "object",
+  "properties": {
+    "ui": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Terminal UI settings",
+      "properties": {
+        "output_style": {
+          "type": "string",
+          "enum": [
+            "verbose",
+            "concise",
+            "minimal",
+            "json"
+          ]
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "dark",
+            "light",
+            "monokai",
+            "dracula",
+            "nord",
+            "solarized-dark",
+            "solarized-light",
+            "one-dark",
+            "github-dark",
+            "github-light"
+          ]
+        },
+        "keybindings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "output_mode": {
+          "type": "string",
+          "enum": [
+            "rich",
+            "plain",
+            "quiet"
+          ]
+        },
+        "reduced_motion": {
+          "type": "boolean"
+        },
+        "detail_density": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "normal",
+            "detailed"
+          ]
+        },
+        "keyboard_mode": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "vim"
+          ]
+        },
+        "mouse_capture": {
+          "type": "boolean"
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "compact_tables": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": "object",
+      "description": "Shared run limits and an explicit provider/effective-model price catalog; never SDK request options.",
+      "properties": {
+        "persistence": {
+          "type": "string",
+          "enum": [
+            "process",
+            "durable"
+          ]
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "max_requests": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "max_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "max_seconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "max_cost": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?:\\+?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)|-(?:0+(?:\\.0*)?|\\.0+))(?:[eE][+-]?[0-9]+)?$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "prices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "provider",
+              "model"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "input_per_1k": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:\\+?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)|-(?:0+(?:\\.0*)?|\\.0+))(?:[eE][+-]?[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "output_per_1k": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:\\+?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)|-(?:0+(?:\\.0*)?|\\.0+))(?:[eE][+-]?[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cache_read_per_1k": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:\\+?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)|-(?:0+(?:\\.0*)?|\\.0+))(?:[eE][+-]?[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cache_write_per_1k": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:\\+?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)|-(?:0+(?:\\.0*)?|\\.0+))(?:[eE][+-]?[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "operations": {
+      "type": "object",
+      "properties": {
+        "persistence": {
+          "type": "string",
+          "enum": [
+            "process",
+            "durable"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "file_exists"
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 256,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                    }
+                  },
+                  "requirement_ids": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "file_contains"
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 256,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                    }
+                  },
+                  "requirement_ids": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path",
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "file_changed"
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 256,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                    }
+                  },
+                  "requirement_ids": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "command"
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 256,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                    }
+                  },
+                  "requirement_ids": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+                    }
+                  },
+                  "timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300
+                  },
+                  "argv": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[^\\u0000]*$"
+                    }
+                  },
+                  "expected_exit": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                },
+                "required": [
+                  "kind",
+                  "argv"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "pytest"
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 256,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096,
+                      "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                    }
+                  },
+                  "requirement_ids": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^(?!/)(?!-)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))(?=.*\\S)[^\\\\\\u0000]+$"
+                  },
+                  "timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

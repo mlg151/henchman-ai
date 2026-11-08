@@ -171,7 +171,13 @@ def create_config_import_command(*, project_root: Path | None = None) -> click.C
         show_default=True,
         help="Render the result as text or JSON.",
     )
-    def import_command(source_path: Path, scope_value: str, output_format: str) -> None:
+    @click.option(
+        "--accept-control-changes", is_flag=True,
+        help="Accept imported usage, operation persistence and verification changes, including less restrictive values.",
+    )
+    def import_command(
+        source_path: Path, scope_value: str, output_format: str, accept_control_changes: bool,
+    ) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
         redactor = _command_redactor(repository)
@@ -181,7 +187,10 @@ def create_config_import_command(*, project_root: Path | None = None) -> click.C
             _raise_prd_failure("HMN_SYNC_FILE_INVALID", error, redactor=redactor)
         _register_input_credentials(payload, redactor=redactor)
         try:
-            repository.import_settings(payload, scope=scope)
+            if accept_control_changes:
+                repository.import_settings(payload, scope=scope, accept_control_changes=True)
+            else:
+                repository.import_settings(payload, scope=scope)
         except (OSError, TypeError, ValueError, ValidationError) as error:
             failure_code = (
                 "HMN_SYNC_FILE_INVALID"
@@ -231,12 +240,21 @@ def create_config_export_command(*, project_root: Path | None = None) -> click.C
         show_default=True,
         help="Render the result as text or JSON.",
     )
-    def export_command(destination_path: Path, scope_value: str, output_format: str) -> None:
+    @click.option(
+        "--include-controls", is_flag=True,
+        help="Include nonsecret usage, operation persistence and verification controls; known credential echoes are refused.",
+    )
+    def export_command(
+        destination_path: Path, scope_value: str, output_format: str, include_controls: bool,
+    ) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
         redactor = _command_redactor(repository)
         try:
-            payload = repository.export_settings(scope=scope)
+            payload = (
+                repository.export_settings(scope=scope, include_controls=True)
+                if include_controls else repository.export_settings(scope=scope)
+            )
             _write_serialized_payload(destination_path, payload)
         except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
             _raise_prd_failure("HMN_SYNC_FILE_INVALID", error, redactor=redactor)
@@ -351,6 +369,8 @@ def _is_sync_payload_error(error: BaseException) -> bool:
             "Unsupported sync payload ui keys:",
             "Unsupported sync payload ui.layout keys:",
             "Sync payload field",
+            "Sync payload controls",
+            "Sync payload contains credential",
             "Config payload must contain a mapping:",
             "Unsupported config sync file format ",
         )

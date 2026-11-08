@@ -181,6 +181,13 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   before DNS. Other network tools, native qualification and custom-dispatch checks remain open. See
   [restricted tool access](docs/configuration.md#restricted-tool-access).
 
+- #14 local file transfer now supports explicit control export/import flags for
+  usage limits/prices/persistence, operation persistence and verification checks.
+  Imports require acceptance of all control changes; lists replace, omitted leaves
+  remain unchanged and known credential-bearing operational data is refused.
+  Held runtime and durable authority remain separate. See
+  [local transfer](docs/configuration.md#local-importexport-sync).
+
 - #14 configuration persistence now retains explicit default-valued overrides
   through set/import and subsequent edits; only unset removes them. REPL/Textual
   now retain live values and session origins for `/config view|get`, `/doctor`,

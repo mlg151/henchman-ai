@@ -108,7 +108,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "--scope global|project reads persisted file values. /doctor uses the same live "
             "state. Standalone CLI commands read a fresh startup snapshot. Provider/model "
             "switches retain conversation history and update session origins; file-only "
-            "import/export and canonical .henchman writes remain unchanged."
+            "import/export uses canonical .henchman writes. --include-controls exports nonsecret usage, "
+            "operation persistence and verification settings; --accept-control-changes is required "
+            "to import those groups. Transfers do not reload a held runtime or reset durable authority."
         ),
         aliases=("/config", "/doctor", "settings origins", "session overrides"),
     ),
