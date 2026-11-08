@@ -15,6 +15,11 @@ Cold offline startup now uses [packaged tokenizer vocabularies](docs/providers.m
 for context estimates and RAG chunking. Native artifact tests isolate user settings,
 interpreter lookup and empty token caches. Current model testing is local-only by
 user instruction; hosted-provider qualification remains unverified.
+The [v6 CPU readiness audit](docs/evaluations/2026-11-08-cpu-readiness-v6.md)
+records a no-go for both candidates: syntax readiness failed, all 24 corpus
+attempts stayed unrun, and sampled PSS exceeded 10 GiB on the 123.13 GiB host.
+The report preserves complete observed-request usage, setup failures and joined
+cleanup without claiming the required 16 GB-machine qualification.
 
 Repository retrieval under #17 now separates worktree caches and validates
 bounded semantic candidates against current tracked-file bytes before returning

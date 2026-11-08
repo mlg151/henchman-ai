@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Local CPU no-go evidence** — The v6 readiness audit records both syntax
+  failures, 24 unrun corpus attempts, exact artifacts, complete usage for 26
+  requests and joined cleanup. Sampled PSS exceeded 10 GiB; the required 16 GB
+  machine qualification and included-profile claim remain unmet.
+
 - **Scoped acceptance records** — Configuration, P0/P1 contracts, checkpoint
   services and the installed Neovim pilot now have issue closure evidence with
   explicit exclusions. Execution docs clarify inherited subprocess environments;

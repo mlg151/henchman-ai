@@ -1,0 +1,1518 @@
+{
+  "artifact_date_utc": "2026-11-08",
+  "audit": "Read-only review of retained artifacts; no new inference, scenario/oracle execution, management calls or harness mutation.",
+  "bounds": {
+    "automatic_compaction": false,
+    "context_tokens": 16384,
+    "conversation_input_tokens": 13926,
+    "corpus_requests_per_case": 24,
+    "cpu_parameters": {
+      "num_ctx": 16384,
+      "num_gpu": 0,
+      "num_thread": 14,
+      "temperature": 0
+    },
+    "http_timeouts_seconds": {
+      "connect": 5,
+      "pool": 5,
+      "read": 600,
+      "write": 600
+    },
+    "output_tokens_per_request": 512,
+    "profile": "engineer for syntax readiness",
+    "protocol_probe_seconds_each": 120,
+    "protocol_request_cap": 2,
+    "runtime_cleanup_grace_seconds": 30,
+    "sdk_retries": 0,
+    "syntax_readiness_request_cap": 12,
+    "tool_retries": 0,
+    "tool_rounds_per_turn": 10,
+    "whole_case_seconds": 600
+  },
+  "cleanup": {
+    "all_26_dispatches_settled": true,
+    "all_26_stream_closes_joined": true,
+    "all_four_workers_joined": true,
+    "both_owned_servers_joined": true,
+    "both_runtime_workspaces_removed": true,
+    "live_observed_owned_process_identities_at_audit": 0,
+    "supervisor_timeouts": 0
+  },
+  "cost": {
+    "amount_usd": 0,
+    "hardware_energy_cost": "not_estimated",
+    "hosted_calls": 0,
+    "source": "owned-local-model-no-hosted-billing"
+  },
+  "decision": {
+    "qualification_pass": false,
+    "reason": "Both frozen local profiles reached the ten-tool-round limit in syntax readiness; no planned corpus attempt was admitted.",
+    "remaining_acceptance": [
+      "six representative cases twice per candidate",
+      "named 16 GB CPU hardware and whole-application memory at most 10 GiB",
+      "native local-model setup/readiness/error/shutdown on Linux/macOS/Windows",
+      "redistribution review before any bundled weights"
+    ],
+    "result": "no_go",
+    "shipped_included_model": false
+  },
+  "denominators": {
+    "accepted_corpus_attempts": 0,
+    "accepted_syntax_readiness_attempts": 0,
+    "candidate_models": 2,
+    "corpus_success_rate": null,
+    "dispatched_provider_requests": 26,
+    "executed_corpus_attempts": 0,
+    "not_run_corpus_attempts": 24,
+    "passed_protocol_probes": 4,
+    "planned_cases_per_model": 6,
+    "planned_corpus_attempts": 24,
+    "planned_repeats_per_case": 2,
+    "protocol_probe_requests": 4,
+    "syntax_readiness_attempts": 2
+  },
+  "evidence": {
+    "cohort_id": "cohort-6ee824b-20261108-v6",
+    "cohort_manifest": {
+      "bytes": 162163,
+      "sha256": "4155e6338a724e14122c226c368e1a8996b5e11b6d03fd66fc6a7184ff528b52"
+    },
+    "frozen_harness_manifest": {
+      "bytes": 3363,
+      "sha256": "e1b292780855a17d5109043204f2006350aa8c14642de9abaab11e1ba446e4ed"
+    },
+    "harness_archive_id": "harness-20261108-v6",
+    "harness_file_sha256": {
+      "launch.py": "870f5bb0d30dd90b4414e1dd383e6aab30120bdbc961dab70f74d3a37a5afd61",
+      "memory_sampler.py": "b74d612e6d8bc18f8d545b48510583ce20468e36b3b0c4d61e921dd37ab6890d",
+      "owned_server.py": "917f815d7c951dc80410badc174c52cfa16d6de552351c38ecce9fd24fb8d5a2",
+      "prepare_cache.py": "c81c8538e29aaf835bd8acd2f4d22b67af66b630580ae0f95ea8e48a19fa4c07",
+      "qualification.py": "f5ff29af822a7529ff8ccde7d0569f309a4edf1117facc26df2b97ee2c515f91",
+      "test_boundaries.py": "3813ac6749793b78660e8e81fa0c949809dcf2bf087f703a8220bbecd26f9ac0",
+      "test_cache_input.py": "e08062a0a2bb2763cdfb4ff3a0752fd9c3bf3c5af49927dc4c42e7cb337ab45c",
+      "test_cohort.py": "17bce0ec04c28fdbe95e7cc4667b5bf9452c3cc35c3e9bf0893e5c537ee186d4",
+      "test_create_compatibility.py": "080c7b9e4536f996098f454732fabd4ff59455a32ea42da3ccef7a1d486fa0e8",
+      "test_processes.py": "91ae23fba45392ca0a85533757612424799bd4c72b414838f577ada6df28682f",
+      "test_receipt_finalization.py": "9e8a5d2519f7d31fedbaa078a9a158e69a81a5087ddae8e7efb5bd5ea27ff288",
+      "test_receipt_ownership.py": "96ca12ac221e8662d006077d286f1f3cf6802ccff68d0beb04ff45f1564aa5aa",
+      "test_transport_support.py": "e68d80ea47f6ef4ca4e3145ef6a4a25d5bc35a75a34c3befb7032125a48f2bee",
+      "test_v4.py": "1bf0dbd6b384d8e4fd85b264444c48b5772962e2fbc3cbd1c7c360e2958ac457",
+      "worker.py": "42d8dc6be11dd7a0c91a756eaa5ab76dc02734cefb31cebca029037beac2ab5f"
+    },
+    "harness_files_verified": 15,
+    "memory_jsonl": {
+      "bytes": 1860770,
+      "sha256": "c13af1089686876813a28501bdd58ba777c456fb0ea9cd3c1a5826b64bfc8c25"
+    },
+    "model_copy_audit": [
+      {
+        "all_distinct_inodes": true,
+        "all_hashes_match": true,
+        "blobs": 4,
+        "bytes": 6550813676,
+        "model": "ornith"
+      },
+      {
+        "all_distinct_inodes": true,
+        "all_hashes_match": true,
+        "blobs": 3,
+        "bytes": 8229921162,
+        "model": "spark"
+      }
+    ],
+    "neutral_tag_management_diagnostic": {
+      "bytes": 62736,
+      "cleanup_joined": true,
+      "model_generation_requests": 0,
+      "profile_create_status": 200,
+      "resident_models_after": 0,
+      "sha256": "280000a834e92d42436913a145a30f4c7be9aecfe6267b4f811e801da63503ef",
+      "source_show_status": 200
+    },
+    "raw_prompts_responses_and_environment_published": false,
+    "receipt_and_worker_artifacts": {
+      "ornith/readiness-protocol/evidence/requests/receipts-before-close.json": {
+        "bytes": 3097,
+        "sha256": "43f192765bd52cd62c445f9142348a07a598ce3447614ef473fc4e1ddf6a7501"
+      },
+      "ornith/readiness-protocol/evidence/requests/receipts.json": {
+        "bytes": 3095,
+        "sha256": "5e3ef431db9ad54cd4048965dddc6b84e3be8378ca05d0bd15d8f9a7b250953f"
+      },
+      "ornith/readiness-protocol/evidence/worker-before-close.json": {
+        "bytes": 5459,
+        "sha256": "93c376b33b29444c01e21d225b44fce161d6cbd11fddd58ca082a665b596387a"
+      },
+      "ornith/readiness-protocol/evidence/worker.json": {
+        "bytes": 5946,
+        "sha256": "017c1985f71d60f1623a8f963ce087690f09993831c415da22cf2c4ec0cd5188"
+      },
+      "ornith/readiness-syntax-fix/evidence/requests/receipts.json": {
+        "bytes": 14500,
+        "sha256": "ad3647483e5cda8c34ef9c81ff6a5030135f6b7a463ad2f3a1681fe7375f9f80"
+      },
+      "ornith/readiness-syntax-fix/evidence/worker-before-close.json": {
+        "bytes": 34117,
+        "sha256": "0fc06a907ca8d1154e67e948996577267d6cd6e320f9e0e8fdfd68ea7c952ed7"
+      },
+      "ornith/readiness-syntax-fix/evidence/worker.json": {
+        "bytes": 34143,
+        "sha256": "c6935b1514e5d308beb4d695742e9764d7126aaa97d45aefa5bf5dfdf75bd284"
+      },
+      "spark/readiness-protocol/evidence/requests/receipts-before-close.json": {
+        "bytes": 3099,
+        "sha256": "162a3b06ad5dfe9470a533b2117b669c6d0e3ac302fdb2fafd617ae7caba54b9"
+      },
+      "spark/readiness-protocol/evidence/requests/receipts.json": {
+        "bytes": 3097,
+        "sha256": "d378ddb36e29d23154b7d835da9543eec02ef2fe004757ed1d65f3a8b7f8eef1"
+      },
+      "spark/readiness-protocol/evidence/worker-before-close.json": {
+        "bytes": 2880,
+        "sha256": "c0ce797f5171ced3ad29b3a10970f1c947c50e8cdcc36b85c752dc14ed8dc6b2"
+      },
+      "spark/readiness-protocol/evidence/worker.json": {
+        "bytes": 3367,
+        "sha256": "ae66f3c0bd969813bc126f9455a0f736681459eb2b9d851a65918e034b285e82"
+      },
+      "spark/readiness-syntax-fix/evidence/requests/receipts.json": {
+        "bytes": 14470,
+        "sha256": "0f420b4a807189d516296c565da4c71c0d5f569a941de2e3efc65a174b9afdac"
+      },
+      "spark/readiness-syntax-fix/evidence/worker-before-close.json": {
+        "bytes": 26558,
+        "sha256": "55f498bcc961ae91be1cd978e74f5a2e5ed92a36234424876e8192bae88d0cdd"
+      },
+      "spark/readiness-syntax-fix/evidence/worker.json": {
+        "bytes": 26584,
+        "sha256": "12f71ccab2600e1cafc89e630c4a804766b7a77d362ee2ae09f72caa3e8ee324"
+      }
+    },
+    "request_files_verified": 26,
+    "response_files_verified": 26,
+    "source_files_verified": 469,
+    "spark_reconstructed_manifest": {
+      "bytes": 636,
+      "sha256": "c39c7bb372bda48de1e4d264bc079ebba3952a2749cd59797c68cd48b4696d27"
+    },
+    "spark_reconstruction_provenance": {
+      "bytes": 1130,
+      "sha256": "35c3608180dca60866e47439b7dcfe7623bdc0a69b495db32a5641e9caeb8439"
+    },
+    "workspace_files_verified": 11
+  },
+  "issue": "https://github.com/mlg151/henchman-ai/issues/28",
+  "kind": "local_cpu_readiness_gated_cohort",
+  "limitations": [
+    "No six-case cohort observations or repeat reliability/latency improvement claim.",
+    "Model self-reports, successful tool calls and archived candidate files do not override failed runtime acceptance or substitute for the independent oracle.",
+    "Header wait is client-observed latency including possible model load/prefill/server work; generation latency is not separately established.",
+    "Copy and integrity reads warm the OS page cache; this is not physically cold storage.",
+    "Provider traffic is restricted to the owned loopback endpoint; this is not a universal sandbox for arbitrary tool subprocess networking.",
+    "Private copied profiles and a Linux research harness are not a portable shipped included-model installation."
+  ],
+  "memory": {
+    "artifact": {
+      "bytes": 1860770,
+      "sha256": "c13af1089686876813a28501bdd58ba777c456fb0ea9cd3c1a5826b64bfc8c25"
+    },
+    "complete_continuous_coverage": false,
+    "complete_total_samples": 1526,
+    "coverage": "Launcher, captured owned server/worker roots and observed descendants, including llama-server. Short-lived or unobserved reparented processes may be missed.",
+    "error": null,
+    "host_physical_bytes": 132210106368,
+    "host_physical_gib": 123.13025665283203,
+    "host_swap_total_bytes": 8589930496,
+    "interpretation": "Same-sample sums. RSS double-counts shared pages; PSS apportions them. Not continuous/allocator peaks.",
+    "interval_seconds": 0.25,
+    "live_observed_owned_identities_at_audit": 0,
+    "missing_samples": 10,
+    "observed_gap_seconds": {
+      "maximum": 0.9267243940266781,
+      "mean": 0.5311371603830876,
+      "minimum": 0.2840974150458351
+    },
+    "observed_process_identities": 20,
+    "peak_pss_exceeds_10gib": true,
+    "qualification": false,
+    "read_error_types": {
+      "FileNotFoundError": 3,
+      "ProcessLookupError": 7
+    },
+    "requested_interval_seconds": 0.25,
+    "sample_span_seconds": 815.2955411880394,
+    "sampled_peak_pss_breakdown": [
+      {
+        "process_name": "python",
+        "pss_bytes": 42284032,
+        "role": "launcher"
+      },
+      {
+        "process_name": "ollama",
+        "pss_bytes": 26693632,
+        "role": "server"
+      },
+      {
+        "process_name": "llama-server",
+        "pss_bytes": 10790245376,
+        "role": "server"
+      },
+      {
+        "process_name": "python",
+        "pss_bytes": 233805824,
+        "role": "worker-readiness-syntax-fix"
+      }
+    ],
+    "sampled_peak_pss_gib": 10.331188201904297,
+    "sampled_peak_totals": {
+      "pss_bytes": 11093028864,
+      "rss_bytes": 11143000064,
+      "swap_pss_bytes": 0
+    },
+    "samples": 1536,
+    "swap_interpretation": "Observed owned SwapPss was zero; missing samples and active shared-host swap preclude a universal no-swap or 16 GB suitability claim.",
+    "target_hardware_16gb": false
+  },
+  "models": [
+    {
+      "cleanup": {
+        "joined": true,
+        "server": {
+          "errors": [],
+          "joined": true,
+          "output": {
+            "stderr": {
+              "bytes": 59592,
+              "eof_observed": true,
+              "omitted_bytes": 0
+            },
+            "stdout": {
+              "bytes": 2498,
+              "eof_observed": true,
+              "omitted_bytes": 0
+            }
+          },
+          "output_eof_observed": true,
+          "readers_joined": true,
+          "returncode": 0,
+          "started": true
+        }
+      },
+      "copy": {
+        "blobs": [
+          {
+            "bytes": 153,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-3d561cca0c790e33a88dd2ce5e4be9ee59176212b2fc62d7c4c2654821bc59d1",
+            "sha256": "3d561cca0c790e33a88dd2ce5e4be9ee59176212b2fc62d7c4c2654821bc59d1"
+          },
+          {
+            "bytes": 5629109056,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-852922174ee4f76621df26105333f1dfe2171cdfb60ebe5a4b013836681a8a77",
+            "sha256": "852922174ee4f76621df26105333f1dfe2171cdfb60ebe5a4b013836681a8a77"
+          },
+          {
+            "bytes": 921704448,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-2635637dd72b4d39a97331373a73366b69a0a6a14151b2a1da0a97b311e2461f",
+            "sha256": "2635637dd72b4d39a97331373a73366b69a0a6a14151b2a1da0a97b311e2461f"
+          },
+          {
+            "bytes": 19,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-a3fbc34974d387472cdac5c82359c3e7159b3ea58ca4b78c63b44035c09dd364",
+            "sha256": "a3fbc34974d387472cdac5c82359c3e7159b3ea58ca4b78c63b44035c09dd364"
+          }
+        ],
+        "bytes": 6550813676,
+        "manifest_sha256": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+        "os_cache_state": "Copy/hash verification reads source and destination; OS cache is warm/unspecified, never physically cold"
+      },
+      "effective_context_length": 16384,
+      "format": "gguf",
+      "key": "ornith",
+      "name": "ornith1.5:9b",
+      "observed_residency": [
+        {
+          "context_length": 16384,
+          "size": 6737341970,
+          "size_vram": 0
+        },
+        {
+          "context_length": 16384,
+          "size": 6737341970,
+          "size_vram": 0
+        }
+      ],
+      "ollama_version": "0.40.7",
+      "parameter_size": "9.0B",
+      "private_profile_sha256": "6d57525f268c4fdd177de88810082aaea7b61a4286c52e0ae3183fcba8a7c3d3",
+      "quantization": "Q4_K_M",
+      "readiness": {
+        "cpu_placement": true,
+        "protocol": true,
+        "syntax": false
+      },
+      "refusal_type": "ReadinessRefused",
+      "source_manifest_sha256": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+      "source_model_architecture_context_length": 262144,
+      "source_tag_suffix": "prepared"
+    },
+    {
+      "cleanup": {
+        "joined": true,
+        "server": {
+          "errors": [],
+          "joined": true,
+          "output": {
+            "stderr": {
+              "bytes": 56018,
+              "eof_observed": true,
+              "omitted_bytes": 0
+            },
+            "stdout": {
+              "bytes": 2497,
+              "eof_observed": true,
+              "omitted_bytes": 0
+            }
+          },
+          "output_eof_observed": true,
+          "readers_joined": true,
+          "returncode": 0,
+          "started": true
+        }
+      },
+      "copy": {
+        "blobs": [
+          {
+            "bytes": 119,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-b601238842e5bbd0d3571f160cdb829f247ebe3a1031974615d8a52d7e28cadb",
+            "sha256": "b601238842e5bbd0d3571f160cdb829f247ebe3a1031974615d8a52d7e28cadb"
+          },
+          {
+            "bytes": 8229921024,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-1fcf934d5baab142ea66a508e0ef423854659f223f72248d2de31476ff6954a7",
+            "sha256": "1fcf934d5baab142ea66a508e0ef423854659f223f72248d2de31476ff6954a7"
+          },
+          {
+            "bytes": 19,
+            "distinct_inode": true,
+            "method": "copy",
+            "name": "sha256-a3fbc34974d387472cdac5c82359c3e7159b3ea58ca4b78c63b44035c09dd364",
+            "sha256": "a3fbc34974d387472cdac5c82359c3e7159b3ea58ca4b78c63b44035c09dd364"
+          }
+        ],
+        "bytes": 8229921162,
+        "manifest_sha256": "c39c7bb372bda48de1e4d264bc079ebba3952a2749cd59797c68cd48b4696d27",
+        "os_cache_state": "Copy/hash verification reads source and destination; OS cache is warm/unspecified, never physically cold"
+      },
+      "effective_context_length": 16384,
+      "format": "gguf",
+      "key": "spark",
+      "name": "Spark-X2.6:4b",
+      "observed_residency": [
+        {
+          "context_length": 16384,
+          "size": 8609941421,
+          "size_vram": 0
+        },
+        {
+          "context_length": 16384,
+          "size": 8609941421,
+          "size_vram": 0
+        }
+      ],
+      "ollama_version": "0.40.7",
+      "parameter_size": "4.1B",
+      "private_profile_sha256": "d367acfd5b549200798d23d4e3776689605f0adc32aae9ca1e0b5dc24dd9b159",
+      "quantization": "BF16",
+      "readiness": {
+        "cpu_placement": true,
+        "protocol": true,
+        "syntax": false
+      },
+      "refusal_type": "ReadinessRefused",
+      "source_manifest_sha256": "c39c7bb372bda48de1e4d264bc079ebba3952a2749cd59797c68cd48b4696d27",
+      "source_model_architecture_context_length": 1048576,
+      "source_tag_suffix": "prepared"
+    }
+  ],
+  "next_gap": "Diagnose the retained edit-argument/formatting and task-ID/tool-output recovery failures offline; any changed profile needs separate review and must pass the unchanged bounded readiness gate before the two-repeat corpus and 16 GB/native qualification. No new run is promised or authorized by this report.",
+  "not_run": [
+    {
+      "case": "multi-file-edit",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "python-reuse",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "python-reuse",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "python-reuse",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "python-reuse",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "spark",
+      "repeat": 2
+    }
+  ],
+  "planned_attempts": [
+    {
+      "case": "multi-file-edit",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "python-reuse",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "ornith",
+      "repeat": 1
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "python-reuse",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "ornith",
+      "repeat": 2
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "python-reuse",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "spark",
+      "repeat": 1
+    },
+    {
+      "case": "multi-file-edit",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "python-reuse",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "semantic-bug-fix",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "package-lifecycle",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "tool-failure-recovery",
+      "model": "spark",
+      "repeat": 2
+    },
+    {
+      "case": "interruption-recovery",
+      "model": "spark",
+      "repeat": 2
+    }
+  ],
+  "prior_attempts": {
+    "v4": {
+      "bytes": 62394,
+      "cleanup_joined": true,
+      "failure_type": "OwnershipError",
+      "generation_stage_records": 0,
+      "not_run": 24,
+      "reason": "UV cache input contained an external symlink; refused before server start or generation.",
+      "sha256": "c492c4ed40272bb273242d29d2a4211a1ad012555f33c6eeecc059f82080399b"
+    },
+    "v5": {
+      "bytes": 65901,
+      "cleanup_joined": true,
+      "failure_type": "HTTPStatusError",
+      "generation_stage_records": 0,
+      "not_run": 24,
+      "reason": "Pinned Ollama 0.40.7 treated the private :local suffix as a reserved resolver path; profile creation returned HTTP 500 before generation. Separate owned management diagnostics identified the suffix problem.",
+      "sha256": "b40ef91405c940b8bb46da3195b5fb5dfd78b8bdbf27627d4f51a5e78a206c5a"
+    },
+    "v6_change": "Private source tags use neutral :prepared; local show and exact source digest are verified before profile creation. Earlier artifacts were not replaced."
+  },
+  "schema_version": 1,
+  "source": {
+    "commit": "6ee824bc36ffeaf51fce40fd025155fdd0faa178",
+    "execution": "source checkout, not installed-wheel qualification",
+    "file_count_verified": 469,
+    "manifest_sha256": "b7c1a4f7e2a65e8b19f198b20a8cd232a04af392b1b06d489cff21b2d047c5e8",
+    "qualification": "Frozen6ee824b is under release review; known full-suite fixture failures exist. This cohort is not full-release certification."
+  },
+  "spark_manifest_provenance": {
+    "audit_private_blob_hashes_verified": true,
+    "bytes": 636,
+    "existing_parameters_blob_sha256": "a3fbc34974d387472cdac5c82359c3e7159b3ea58ca4b78c63b44035c09dd364",
+    "kind": "digest-matched reconstructed alias manifest",
+    "method": "64 finite variants of existing parent manifest fields/order/newline; candidate matched the exact alias digest advertised by prior read-only local API observations.",
+    "no_parent_model_substitution": true,
+    "not_an_on_disk_alias_discovery": true,
+    "parent_manifest_sha256": "44ca4d700630e9a402cb439007132da135b2ca5329985b7f8944d04b7d59f43a",
+    "sha256": "c39c7bb372bda48de1e4d264bc079ebba3952a2749cd59797c68cd48b4696d27",
+    "user_model_store_written": false
+  },
+  "stages": [
+    {
+      "final_receipts": true,
+      "model": "ornith",
+      "passed": true,
+      "process_cleanup_joined": true,
+      "protocol_checks": [
+        {
+          "passed": true,
+          "stage": "exact-OK"
+        },
+        {
+          "passed": true,
+          "stage": "structured-read-file"
+        }
+      ],
+      "provider_usage": {
+        "admitted_requests": 2,
+        "all_dispatched_requests_have_complete_usage": true,
+        "cost": {
+          "amount_usd": 0,
+          "source": "owned-local-model-no-hosted-billing"
+        },
+        "dispatched_requests": 2,
+        "known_completion_tokens": 85,
+        "known_prompt_tokens": 544,
+        "scope": "All requests observed by this transport; missing usage remains unknown",
+        "usage_complete_requests": 2,
+        "usage_reported_requests": 2
+      },
+      "repeat": 0,
+      "requests": [
+        {
+          "request_bytes": 249,
+          "request_index": 1,
+          "request_sha256": "d1486af186c2202895ce735e5308948335247abfc6716cd0fc3a98147fd9ecd7",
+          "response_bytes": 1004,
+          "response_headers_after_ms": 13768.288257007953,
+          "response_sha256": "2742b6cdb8453732f5b21d14a849dc5250be618b393871b1d855214f0fce07e7",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 20,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 22
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 1554,
+          "request_index": 2,
+          "request_sha256": "9e2a0ce0d5c0e634f73033e7f97edd38ab7b60f83309fd732714062d4a75739b",
+          "response_bytes": 4006,
+          "response_headers_after_ms": 9663.845319009852,
+          "response_sha256": "ac3c7ae4695c5215d61224411c6366d84cdae798fb8845a67f84f88fb2b876f0",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 83,
+            "prompt_tokens": 524,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 607
+          },
+          "usage_complete": true
+        }
+      ],
+      "stage": "protocol",
+      "supervisor_duration_seconds": 44.236200986022595,
+      "supervisor_timeout": false,
+      "transport_cleanup_joined": true,
+      "worker_duration_ms": 39849.76075403392
+    },
+    {
+      "baseline_record": {
+        "case_id": "syntax-fix",
+        "duration_ms": 342463.5873109801,
+        "error": "Tool iteration limit (10) reached",
+        "outcome": "runtime_error",
+        "profile": "engineer",
+        "run_index": 1,
+        "task_verified": false,
+        "tokens_in": null,
+        "tokens_out": null
+      },
+      "baseline_usage_scope": "Final scenario/turn observation; NOT full-case token totals",
+      "final_receipts": true,
+      "model": "ornith",
+      "passed": false,
+      "process_cleanup_joined": true,
+      "provider_usage": {
+        "admitted_requests": 11,
+        "all_dispatched_requests_have_complete_usage": true,
+        "cost": {
+          "amount_usd": 0,
+          "source": "owned-local-model-no-hosted-billing"
+        },
+        "dispatched_requests": 11,
+        "known_completion_tokens": 721,
+        "known_prompt_tokens": 105569,
+        "scope": "All requests observed by this transport; missing usage remains unknown",
+        "usage_complete_requests": 11,
+        "usage_reported_requests": 11
+      },
+      "repeat": 0,
+      "requests": [
+        {
+          "request_bytes": 37921,
+          "request_index": 1,
+          "request_sha256": "9ede5ae83fe3ccb836127c174b1eb06186ce8ea451967357697b23e1259a6be0",
+          "response_bytes": 1208,
+          "response_headers_after_ms": 162474.09023798537,
+          "response_sha256": "e33c2a77f425bfac8383683be8da440ba14d63203907ff36726e8f426f4f2cad",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 26,
+            "prompt_tokens": 8823,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 8849
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 38249,
+          "request_index": 2,
+          "request_sha256": "4a13bd4060f72840c64a38fdd5151c3d7aee749313ac082d8cc7a6300f34d4ac",
+          "response_bytes": 8623,
+          "response_headers_after_ms": 2214.5711460034363,
+          "response_sha256": "c9aee80080010f7d98b65ae0aa03f73a91d38fe1a135a6826e38bbf3a53ad712",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 108,
+            "prompt_tokens": 8885,
+            "prompt_tokens_details": {
+              "cached_tokens": 8848
+            },
+            "total_tokens": 8993
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 39040,
+          "request_index": 3,
+          "request_sha256": "f402041106658359a52a4e4f4295eca3684d93c3437ceec40fc6e523f78814a7",
+          "response_bytes": 1382,
+          "response_headers_after_ms": 25564.761198998895,
+          "response_sha256": "605620b97c0abf23a4ca6055b02c787e5f134b328b1fc7e18bc1ae561ad459a2",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 101,
+            "prompt_tokens": 9065,
+            "prompt_tokens_details": {
+              "cached_tokens": 8881
+            },
+            "total_tokens": 9166
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 39737,
+          "request_index": 4,
+          "request_sha256": "626013d7f11aac0943fc92541fa0d073547ad15a16d1b66e5e62439cfd017139",
+          "response_bytes": 1349,
+          "response_headers_after_ms": 18789.674241037574,
+          "response_sha256": "98c71655bbf9c2d7a2087de85830011c7239c68bbecbb94ffbf7ba4c0d254fc9",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 77,
+            "prompt_tokens": 9237,
+            "prompt_tokens_details": {
+              "cached_tokens": 9165
+            },
+            "total_tokens": 9314
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 40393,
+          "request_index": 5,
+          "request_sha256": "f24f7991dca82985b6c2b92d99e067ab5e287a49beeee900c6fbb6a00715d587",
+          "response_bytes": 5424,
+          "response_headers_after_ms": 2751.2186969979666,
+          "response_sha256": "8bed30723d61572795179f177663126a395f6710082ff438ed0c4cb1a77f51ca",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 93,
+            "prompt_tokens": 9387,
+            "prompt_tokens_details": {
+              "cached_tokens": 9313
+            },
+            "total_tokens": 9480
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 41721,
+          "request_index": 6,
+          "request_sha256": "3e0f193839626646045266124303e5d871176a1eabca8d9151ae627b850e10c9",
+          "response_bytes": 8497,
+          "response_headers_after_ms": 7019.0019980072975,
+          "response_sha256": "9a32e117c2ecbf4404be224d040ca09d8e40dad5522f4f8391f437633b6f84db",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 56,
+            "prompt_tokens": 9769,
+            "prompt_tokens_details": {
+              "cached_tokens": 9479
+            },
+            "total_tokens": 9825
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 42194,
+          "request_index": 7,
+          "request_sha256": "7cf99a073d91c35646b76c4ee0296af60fd8f5a77dcd13135cd7645ce344bb91",
+          "response_bytes": 7855,
+          "response_headers_after_ms": 2250.4065230023116,
+          "response_sha256": "8a014158965d43fb5a820ca961ec00a6f3a26bd12e86ad4f0541a7dc4fa8f2c5",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 84,
+            "prompt_tokens": 9859,
+            "prompt_tokens_details": {
+              "cached_tokens": 9824
+            },
+            "total_tokens": 9943
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 42712,
+          "request_index": 8,
+          "request_sha256": "2c0ee75d08474e95cbff65be2957298c5de06cc8db71af2d812c01d07a2cc1bb",
+          "response_bytes": 1327,
+          "response_headers_after_ms": 12987.504566961434,
+          "response_sha256": "695feea263179c72d1ab841f6ea7701bf6bdc650495c8e43d56cf53821bf5291",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 51,
+            "prompt_tokens": 9969,
+            "prompt_tokens_details": {
+              "cached_tokens": 9942
+            },
+            "total_tokens": 10020
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 43385,
+          "request_index": 9,
+          "request_sha256": "db61c036234090b1ebcf4e48026446b1393925961d751ab176a6799f20473b93",
+          "response_bytes": 1216,
+          "response_headers_after_ms": 11315.667223010678,
+          "response_sha256": "5a222f0135a0591d9cabcae643c4d298c2c6d0b57ee636734da6c9a4fac65083",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 40,
+            "prompt_tokens": 10108,
+            "prompt_tokens_details": {
+              "cached_tokens": 10019
+            },
+            "total_tokens": 10148
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 43667,
+          "request_index": 10,
+          "request_sha256": "421f8f02790fb202323cfeb7360a47891fbf01ac2b6f8381917cc88314223fad",
+          "response_bytes": 4872,
+          "response_headers_after_ms": 1776.4587170095183,
+          "response_sha256": "2de33f129f51d270006bfedda4eb720f2d2e721bfb88feb036fe5862d6b7427c",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 44,
+            "prompt_tokens": 10167,
+            "prompt_tokens_details": {
+              "cached_tokens": 10147
+            },
+            "total_tokens": 10211
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 44325,
+          "request_index": 11,
+          "request_sha256": "6eccf6b0effc8096136a493b8ce3afc7506147a99be288caeb038dd9ee7c5dfb",
+          "response_bytes": 1229,
+          "response_headers_after_ms": 11967.159536026884,
+          "response_sha256": "7a7c47249bfbb008e8a423e09aeb65f6ced84041761f095273e0a7a13550b178",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 41,
+            "prompt_tokens": 10300,
+            "prompt_tokens_details": {
+              "cached_tokens": 10210
+            },
+            "total_tokens": 10341
+          },
+          "usage_complete": true
+        }
+      ],
+      "stage": "syntax-fix",
+      "supervisor_duration_seconds": 346.12252860702574,
+      "supervisor_timeout": false,
+      "tool_log_outcomes": [
+        {
+          "success": true,
+          "tool": "read_file"
+        },
+        {
+          "success": false,
+          "tool": "edit_file"
+        },
+        {
+          "success": false,
+          "tool": "edit_file"
+        },
+        {
+          "success": false,
+          "tool": "edit_file"
+        },
+        {
+          "success": false,
+          "tool": "edit_file"
+        },
+        {
+          "success": true,
+          "tool": "read_file"
+        },
+        {
+          "success": true,
+          "tool": "write_file"
+        },
+        {
+          "success": true,
+          "tool": "shell"
+        },
+        {
+          "success": true,
+          "tool": "task_output"
+        },
+        {
+          "success": true,
+          "tool": "shell"
+        },
+        {
+          "success": false,
+          "tool": "task_output"
+        }
+      ],
+      "transport_cleanup_joined": true,
+      "worker_duration_ms": 343374.1898610024
+    },
+    {
+      "final_receipts": true,
+      "model": "spark",
+      "passed": true,
+      "process_cleanup_joined": true,
+      "protocol_checks": [
+        {
+          "passed": true,
+          "stage": "exact-OK"
+        },
+        {
+          "passed": true,
+          "stage": "structured-read-file"
+        }
+      ],
+      "provider_usage": {
+        "admitted_requests": 2,
+        "all_dispatched_requests_have_complete_usage": true,
+        "cost": {
+          "amount_usd": 0,
+          "source": "owned-local-model-no-hosted-billing"
+        },
+        "dispatched_requests": 2,
+        "known_completion_tokens": 66,
+        "known_prompt_tokens": 360,
+        "scope": "All requests observed by this transport; missing usage remains unknown",
+        "usage_complete_requests": 2,
+        "usage_reported_requests": 2
+      },
+      "repeat": 0,
+      "requests": [
+        {
+          "request_bytes": 248,
+          "request_index": 1,
+          "request_sha256": "eece771f4d74d42d8f0cd3cdf72a83a53f1a477446bac6014af104c65fc569bb",
+          "response_bytes": 1022,
+          "response_headers_after_ms": 13986.785047047306,
+          "response_sha256": "50e19739847c4b57e055bdc1c6ebdcb372bba97a280eeff40d3546a1cde72524",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 24,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "total_tokens": 26
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 1552,
+          "request_index": 2,
+          "request_sha256": "4199938cc95be20aecbd85ec0bc802832a95763ce9d7a322396282feeba65732",
+          "response_bytes": 1328,
+          "response_headers_after_ms": 22755.555066047236,
+          "response_sha256": "034081da103c8a95739139caa53cf8c0a958b49dac34d8f68384251ef1d7861a",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 64,
+            "prompt_tokens": 336,
+            "prompt_tokens_details": {
+              "cached_tokens": 9
+            },
+            "total_tokens": 400
+          },
+          "usage_complete": true
+        }
+      ],
+      "stage": "protocol",
+      "supervisor_duration_seconds": 41.859060132002924,
+      "supervisor_timeout": false,
+      "transport_cleanup_joined": true,
+      "worker_duration_ms": 37038.658153032884
+    },
+    {
+      "baseline_record": {
+        "case_id": "syntax-fix",
+        "duration_ms": 272233.6879299837,
+        "error": "Tool iteration limit (10) reached",
+        "outcome": "runtime_error",
+        "profile": "engineer",
+        "run_index": 1,
+        "task_verified": false,
+        "tokens_in": null,
+        "tokens_out": null
+      },
+      "baseline_usage_scope": "Final scenario/turn observation; NOT full-case token totals",
+      "final_receipts": true,
+      "model": "spark",
+      "passed": false,
+      "process_cleanup_joined": true,
+      "provider_usage": {
+        "admitted_requests": 11,
+        "all_dispatched_requests_have_complete_usage": true,
+        "cost": {
+          "amount_usd": 0,
+          "source": "owned-local-model-no-hosted-billing"
+        },
+        "dispatched_requests": 11,
+        "known_completion_tokens": 567,
+        "known_prompt_tokens": 95491,
+        "scope": "All requests observed by this transport; missing usage remains unknown",
+        "usage_complete_requests": 11,
+        "usage_reported_requests": 11
+      },
+      "repeat": 0,
+      "requests": [
+        {
+          "request_bytes": 37920,
+          "request_index": 1,
+          "request_sha256": "73cb013bf42862dae1e8b2f5719939876ef769af88862da283d61252a9ba21dd",
+          "response_bytes": 3609,
+          "response_headers_after_ms": 103157.11612900486,
+          "response_sha256": "0cf2ce7d01624830f12a5c173df914504c0a0023ae2a71b32f33cfdd5cee1af3",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 22,
+            "prompt_tokens": 8193,
+            "prompt_tokens_details": {
+              "cached_tokens": 8
+            },
+            "total_tokens": 8215
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 38234,
+          "request_index": 2,
+          "request_sha256": "476e64fb0a55a0bd99c13c34bd66b36721b758a059df15ff7770a6234220d947",
+          "response_bytes": 1209,
+          "response_headers_after_ms": 4273.49478501128,
+          "response_sha256": "bb3074a429095bf32063b343fa9da6033dabee0358304598f1a55a1d87698370",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 12,
+            "prompt_tokens": 8225,
+            "prompt_tokens_details": {
+              "cached_tokens": 8214
+            },
+            "total_tokens": 8237
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 38562,
+          "request_index": 3,
+          "request_sha256": "68b43fcf1e518acec5e8313b82f27578a317fb9f1a97b6769a3f3abfa59d3f9c",
+          "response_bytes": 1219,
+          "response_headers_after_ms": 6633.9881750172935,
+          "response_sha256": "7785a4dc70ef36d6d7462912210826eac8496ad5926eb282c3568f250f338dd4",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 20,
+            "prompt_tokens": 8266,
+            "prompt_tokens_details": {
+              "cached_tokens": 8236
+            },
+            "total_tokens": 8286
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 38926,
+          "request_index": 4,
+          "request_sha256": "c0f284945dd7649028aaa9ffc86e613d6f8f29928300d70b49ccaec179d68c84",
+          "response_bytes": 10286,
+          "response_headers_after_ms": 2160.1414589677006,
+          "response_sha256": "4e8e41a652e9533a779420dafa8a15572a33a60ccb20ae09dab748ab7bf27173",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 99,
+            "prompt_tokens": 8323,
+            "prompt_tokens_details": {
+              "cached_tokens": 8285
+            },
+            "total_tokens": 8422
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 39702,
+          "request_index": 5,
+          "request_sha256": "f3098480eb542b72fe1f64319403f705a8b846071eb798ab199d3e25ea0484f3",
+          "response_bytes": 4251,
+          "response_headers_after_ms": 2532.5863899779506,
+          "response_sha256": "6c993a91c924b1f17720ea498942d23e2576e4ee2cdf2b5464e15b64e435a868",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 143,
+            "prompt_tokens": 8508,
+            "prompt_tokens_details": {
+              "cached_tokens": 8421
+            },
+            "total_tokens": 8651
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 40695,
+          "request_index": 6,
+          "request_sha256": "a75e0b4e24c9d867e375f113a6b1a006c13f4cfdf71736e2dd7bf9bd9f490645",
+          "response_bytes": 1216,
+          "response_headers_after_ms": 7693.119032017421,
+          "response_sha256": "717b5e1efe19a96b880cdcd46b69af2f1ab47d2c03c5afb3e9ebdb192cb2a12e",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 21,
+            "prompt_tokens": 8726,
+            "prompt_tokens_details": {
+              "cached_tokens": 8650
+            },
+            "total_tokens": 8747
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 41169,
+          "request_index": 7,
+          "request_sha256": "629170961cea0306568ec19d393c536017724b37a7f14787157e78e5a925f1cb",
+          "response_bytes": 1173,
+          "response_headers_after_ms": 3585.752108017914,
+          "response_sha256": "32a2a8813253d3cbd7895629e3bae688fee6058b6e29b68e30b0613a0078cb37",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 5,
+            "prompt_tokens": 8818,
+            "prompt_tokens_details": {
+              "cached_tokens": 8746
+            },
+            "total_tokens": 8823
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 41592,
+          "request_index": 8,
+          "request_sha256": "b4ebd545173796c1fcb5660e88e0c37780bc6a03aa7dd633e684f6fc512ab367",
+          "response_bytes": 1217,
+          "response_headers_after_ms": 7792.658549034968,
+          "response_sha256": "151a8467ac1f9ed408c608b39037464637edd5b840ea5c7b27bf118c68f6c7b2",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 21,
+            "prompt_tokens": 8918,
+            "prompt_tokens_details": {
+              "cached_tokens": 8822
+            },
+            "total_tokens": 8939
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 42066,
+          "request_index": 9,
+          "request_sha256": "ddd3aa7c25b76f3d8f7721acd3e54fddc8d0bf2cadbd9fcb88f88933c6130c95",
+          "response_bytes": 1447,
+          "response_headers_after_ms": 28633.2011030172,
+          "response_sha256": "4ec656193bdc1143f6a1a240040329f147d1db48171798060f0bba854d8f2fe8",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 103,
+            "prompt_tokens": 9010,
+            "prompt_tokens_details": {
+              "cached_tokens": 8938
+            },
+            "total_tokens": 9113
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 42878,
+          "request_index": 10,
+          "request_sha256": "a582c8063d93c8c98ecb5fad7d1eb8a139291d02cc057779a3cabe4457311a0e",
+          "response_bytes": 1470,
+          "response_headers_after_ms": 31247.879534959793,
+          "response_sha256": "a7b354efaa2efcb3e785c80a8b8f5f333cb05667d10808d77a10308e6c807834",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 109,
+            "prompt_tokens": 9192,
+            "prompt_tokens_details": {
+              "cached_tokens": 9112
+            },
+            "total_tokens": 9301
+          },
+          "usage_complete": true
+        },
+        {
+          "request_bytes": 43413,
+          "request_index": 11,
+          "request_sha256": "3ea835169e2ca57756ebf29a874c607a0d2f612ea044c3e4125a5a221f91b944",
+          "response_bytes": 1210,
+          "response_headers_after_ms": 3999.7884989716113,
+          "response_sha256": "bb73f28d4fb4c593e5acc7d07ba3614c9ca2f15f8665bf2edf98355e377784c5",
+          "stream_cleanup_joined": true,
+          "stream_complete": true,
+          "transport_eof": false,
+          "usage": {
+            "completion_tokens": 12,
+            "prompt_tokens": 9312,
+            "prompt_tokens_details": {
+              "cached_tokens": 9300
+            },
+            "total_tokens": 9324
+          },
+          "usage_complete": true
+        }
+      ],
+      "stage": "syntax-fix",
+      "supervisor_duration_seconds": 276.004395705997,
+      "supervisor_timeout": false,
+      "tool_log_outcomes": [
+        {
+          "success": true,
+          "tool": "glob"
+        },
+        {
+          "success": true,
+          "tool": "read_file"
+        },
+        {
+          "success": true,
+          "tool": "read_file"
+        },
+        {
+          "success": true,
+          "tool": "edit_file"
+        },
+        {
+          "success": true,
+          "tool": "python_exec"
+        },
+        {
+          "success": false,
+          "tool": "task_output"
+        },
+        {
+          "success": true,
+          "tool": "task_list"
+        },
+        {
+          "success": false,
+          "tool": "task_output"
+        },
+        {
+          "success": true,
+          "tool": "shell"
+        },
+        {
+          "success": true,
+          "tool": "shell"
+        },
+        {
+          "success": false,
+          "tool": "read_file"
+        }
+      ],
+      "transport_cleanup_joined": true,
+      "worker_duration_ms": 273164.6771749947
+    }
+  ],
+  "usage": {
+    "baseline_tokens_are_not_case_totals": true,
+    "complete_streams": 26,
+    "complete_usage_requests": 26,
+    "completion_tokens": 1439,
+    "prompt_tokens": 201964,
+    "raw_manifest_flag_meaning": "Launcher requires all 24 planned corpus attempts before setting its cohort usage_complete flag; false is retained without treating the 26 complete request receipts as missing usage.",
+    "raw_manifest_usage_complete": false,
+    "requests": 26,
+    "scope": "All 26 actually dispatched readiness requests; planned corpus attempts did not run.",
+    "transport_eof_observed": 0,
+    "usage_source": "local-server-reported-SSE-usage"
+  }
+}

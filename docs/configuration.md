@@ -88,6 +88,10 @@ Programmatic overrides still apply after the selected file and environment layer
 
 ## Settings File
 
+Selecting `ollama` configures the local adapter; it does not select a validated
+included CPU profile. Current [local qualification](evaluations/2026-11-08-cpu-readiness-v6.md)
+is no-go for both tested profiles, with the 16 GB machine target unqualified.
+
 Create a YAML file at `~/.henchman/settings.yaml`:
 
 ```yaml

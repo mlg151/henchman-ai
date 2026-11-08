@@ -519,6 +519,13 @@ finalization discrepancy without altering the original artifacts. Another
 cohort requires a separately tested harness correction. Resource samples do not
 establish whole-model peak memory or 16 GB hardware qualification.
 
+The later [v6 CPU readiness check](../docs/evaluations/2026-11-08-cpu-readiness-v6.md)
+records exact Ornith/Spark artifacts and 26 dispatched requests with complete
+reported usage. Both syntax checks hit the fixed tool-round limit; all 24 planned
+six-case/two-repeat corpus attempts remained unrun. The sampled PSS peak exceeded
+10 GiB on a 123.13 GiB host. This is a no-go with joined cleanup, not a corpus
+success-rate or 16 GB hardware qualification result.
+
 The separate [paired schema-cache comparison](../docs/evaluations/2026-11-08-paired-schema-latency.md)
 measures scripted local overhead with an HTTP mock transport, without model
 inference. All 20 pairs/80 observations passed its fixture correctness and

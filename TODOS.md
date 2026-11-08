@@ -33,6 +33,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - Current model testing is local-only by user instruction. Hosted qualification
   remains unverified; no hosted result is inferred from offline adapter checks.
+  The [v6 local readiness audit](docs/evaluations/2026-11-08-cpu-readiness-v6.md)
+  records both syntax failures, all 24 corpus attempts unrun and complete usage
+  for 26 observed requests. Sampled PSS exceeded 10 GiB on a 123.13 GiB host;
+  there is no qualified included CPU profile or 16 GB hardware result.
 
 - #26 now reuses only successful bounded schema meta-validation. Fresh schemas,
   arguments, policy/grants and verification remain authoritative. The

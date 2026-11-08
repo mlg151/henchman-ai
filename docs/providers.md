@@ -233,6 +233,12 @@ providers:
 
 Run models locally with Ollama.
 
+Local adapter support does not imply a qualified included model. The
+[v6 CPU readiness check](evaluations/2026-11-08-cpu-readiness-v6.md) rejected both
+tested profiles at the syntax gate; all 24 planned corpus attempts remained
+unrun. Sampled owned-process PSS exceeded 10 GiB on a 123.13 GiB host, so the
+16 GB CPU-machine target is unqualified. No included CPU default is advertised.
+
 ### Setup
 
 1. Install Ollama: https://ollama.ai/
