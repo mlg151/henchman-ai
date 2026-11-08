@@ -801,6 +801,17 @@ async def test_terminal_downgrade_cannot_overwrite_a_newer_repair_owner(tmp_path
     repair = session(service, plan, timeout_seconds=120.0)
     clock = [10.0]
     monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    capture = verification_repair.capture_inputs_async
+    first_capture = True
+
+    async def slow_first_capture(*args, **kwargs):
+        nonlocal first_capture
+        if first_capture:
+            first_capture = False
+            await asyncio.sleep(1.1)
+        return await capture(*args, **kwargs)
+
+    monkeypatch.setattr(verification_repair, "capture_inputs_async", slow_first_capture)
     save = service.save_repair_report
     replacement = []
 

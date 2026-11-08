@@ -25,3 +25,10 @@ control cases passed locally on Python 3.11 and 3.12. This change preserves the
 ownership assertions but has not yet been verified in a new Windows run. Both
 native logs are retained under `ci-c0cbe17-42496659440` in the local
 qualification cache.
+
+A controlled 1.1-second delay before the first input capture reproduced one
+plausible early-timeout path locally: the old one-second limit returned
+`incomplete/timeout` with zero replacements, before the intended deadline race.
+With the longer limit, both delayed race cases and four adjacent cases passed on
+Python 3.11 and 3.12. This supports the fixture adjustment but does not prove
+that the Windows failures followed the same path.
