@@ -56,17 +56,31 @@ class ChildProposalService:
 
     def __init__(self, project_root: Path, *, redactor: EvidenceRedactor | None = None,
                  max_file_bytes: int = 1_048_576, max_storage_bytes: int = 67_108_864,
-                 exclusions: tuple[str, ...] = (), fault: Callable[[str], None] | None = None) -> None:
+                 exclusions: tuple[str, ...] = (), fault: Callable[[str], None] | None = None,
+                 guard: Callable[[], None] | None = None) -> None:
         if any(type(value) is not int or value <= 0 for value in (max_file_bytes, max_storage_bytes)):
             raise ValueError("Proposal limits must be positive integers")
+        if guard is not None and not callable(guard):
+            raise ValueError("Proposal guard must be callable")
+        self._guard = guard if guard is not None else (lambda: None)
+        self._guard()
         self._policy = redactor if redactor is not None else EvidenceRedactor()
         self._files = WorkspaceFiles(project_root, self._policy, max_file_bytes, exclusions)
+        self._guard()
         self._store = CheckpointStore(self._files.root, max_storage_bytes, namespace="proposals")
+        self._guard()
         self._checkpoints = CheckpointService(self._files.root, redactor=self._policy,
                                               max_file_bytes=max_file_bytes, max_storage_bytes=max_storage_bytes,
                                               exclusions=exclusions)
         self._fault = fault or (lambda _stage: None)
-        self._publisher = _ProposalPublisher(self._files, self._store, self._fault)
+        self._publisher = _ProposalPublisher(self._files, self._store, self._boundary)
+        self._guard()
+
+    def _boundary(self, stage: str) -> None:
+        """Recheck held runtime authority around each native publication boundary."""
+        self._guard()
+        self._fault(stage)
+        self._guard()
 
     def _path(self, identity: str, *, plan: bool = False) -> Path:
         if not identifier(identity):
@@ -115,22 +129,29 @@ class ChildProposalService:
             raise ValueError("Invalid prior publication identity")
 
     def _load(self, identity: str, *, plan: bool = False) -> dict[str, Any]:
+        self._guard()
         self._files.check_root()
         payload = self._store.read(self._path(identity, plan=plan))
+        self._guard()
         try:
             self._validate(payload, identity, plan=plan)
         except (KeyError, TypeError, ValueError) as error:
             raise ValueError("Invalid persisted proposal authority") from error
+        self._guard()
         return payload
 
     def _save(self, payload: dict[str, Any], *, plan: bool = False) -> None:
+        self._guard()
         self._validate(payload, payload["id"], plan=plan)
+        self._guard()
         self._store.write(self._path(payload["id"], plan=plan), payload)
+        self._guard()
 
     def _plans(self) -> list[dict[str, Any]]:
         return [self._load(path.stem, plan=True) for path in (self._store.path / "plans").glob("*.json")]
 
     def _assert_idle(self) -> None:
+        self._guard()
         if any(plan["state"] == "prepared" for plan in self._plans()):
             raise CheckpointConflict(reason="An interrupted proposal publication requires recovery")
 
@@ -141,6 +162,7 @@ class ChildProposalService:
 
     def _check_content(self, payload: dict[str, Any]) -> None:
         for name in payload["before"]:
+            self._guard()
             if self._files.excluded(name):
                 raise ValueError("Proposal path is now excluded")
             for field in ("before", "proposed"):
@@ -160,7 +182,9 @@ class ChildProposalService:
             self._assert_idle()
             before = {}
             for name in sorted(paths):
+                self._guard()
                 state = self._files.state(name)
+                self._guard()
                 if not state.restorable or not state.parents:
                     raise ValueError("Proposal scope contains an unsupported file or missing parent")
                 before[name] = state.to_dict()
@@ -197,6 +221,21 @@ class ChildProposalService:
             proposal["revision"] += 1
             self._save(proposal)
 
+    def read_staged(self, proposal_id: str, path: str) -> str | None:
+        """Read a scoped staged text file; None represents a proposed absence."""
+        if not isinstance(path, str):
+            raise ValueError("Proposed path must be text")
+        with self._store.lock:
+            proposal = self._load(proposal_id)
+            if proposal["state"] not in {"draft", "sealed"}:
+                raise ValueError("Proposal is no longer available for staging")
+            if path not in proposal["proposed"]:
+                raise ValueError("Proposed file is outside the current scope")
+            self._check_content(proposal)
+            state = FileState.from_dict(proposal["proposed"][path])
+            self._guard()
+            return state.content.decode("utf-8") if state.content is not None else None
+
     def seal(self, proposal_id: str) -> None:
         """Freeze staging before a separate caller reviews the proposal."""
         with self._store.lock:
@@ -213,17 +252,22 @@ class ChildProposalService:
         """Read the frozen revision; this does not authorize or apply it."""
         with self._store.lock:
             proposal = self._load(proposal_id)
-            if proposal["state"] != "sealed":
-                raise ValueError("Proposal is not awaiting review")
-            self._check_content(proposal)
-            files = []
-            for name in sorted(proposal["before"]):
-                old = FileState.from_dict(proposal["before"][name])
-                new = FileState.from_dict(proposal["proposed"][name])
-                files.append(ReviewFile(name, old, new, _hunks(old, new), "pending"))
-            return ChildProposalReview(proposal_id, proposal["revision"], tuple(files))
+            return self._review_record(proposal)
 
-    def prepare(self, proposal_id: str, *, revision: int) -> str:
+    def _review_record(self, proposal: dict[str, Any]) -> ChildProposalReview:
+        if proposal["state"] != "sealed":
+            raise ValueError("Proposal is not awaiting review")
+        self._check_content(proposal)
+        files = []
+        for name in sorted(proposal["before"]):
+            old = FileState.from_dict(proposal["before"][name])
+            new = FileState.from_dict(proposal["proposed"][name])
+            files.append(ReviewFile(name, old, new, _hunks(old, new), "pending"))
+        self._guard()
+        return ChildProposalReview(proposal["id"], proposal["revision"], tuple(files))
+
+    def prepare(self, proposal_id: str, *, revision: int,
+                expected_review: ChildProposalReview | None = None) -> str:
         """Create a revision-bound publication plan after explicit review."""
         with self._store.lock:
             self._assert_idle()
@@ -231,6 +275,8 @@ class ChildProposalService:
             if proposal["state"] != "sealed" or type(revision) is not int or revision != proposal["revision"]:
                 raise CheckpointConflict(reason="Proposal changed or is no longer awaiting review")
             self._check_content(proposal)
+            if expected_review is not None and self._review_record(proposal) != expected_review:
+                raise CheckpointConflict(reason="Proposal content changed after review")
             identity = uuid4().hex
             plan = {"version": 1, "id": identity, "kind": "child-publication", "project": self._files.identity,
                     "repository": self._files.repository, "revision": revision, "state": "preview",
@@ -251,15 +297,20 @@ class ChildProposalService:
 
     def pending(self) -> tuple[str, ...]:
         with self._store.lock:
-            return tuple(sorted(plan["id"] for plan in self._plans() if plan["state"] == "prepared"))
+            self._guard()
+            pending = tuple(sorted(plan["id"] for plan in self._plans() if plan["state"] == "prepared"))
+            self._guard()
+            return pending
 
-    def apply(self, plan_id: str) -> ReviewResult:
+    def apply(self, plan_id: str, *, expected_review: ChildProposalReview | None = None) -> ReviewResult:
         """Publish only after every current target matches the captured original."""
         with self._checkpoints._store.lock, self._store.lock:
             plan = self._load(plan_id, plan=True)
             proposal = self._linked(plan)
             if plan["state"] == "done":
                 return ReviewResult(tuple(plan["changed"]), bool(plan["changed"]))
+            if expected_review is not None and self._review_record(proposal) != expected_review:
+                raise CheckpointConflict(reason="Proposal content changed after review")
             self._assert_no_checkpoint_restore()
             self._assert_idle()
             if plan["state"] != "preview":
@@ -274,7 +325,7 @@ class ChildProposalService:
             self._invalidate(plan)
             plan["state"] = "prepared"
             self._save(plan, plan=True)
-            self._fault("prepared")
+            self._boundary("prepared")
             return self._publish_with_invalidation(plan, proposal)
 
     def recover(self, plan_id: str) -> ReviewResult:
@@ -293,8 +344,10 @@ class ChildProposalService:
     def _invalidate(self, plan: dict[str, Any]) -> None:
         from henchman.advanced.plans import PlanExecutionService
 
+        self._guard()
         if any(plan["before"][name] != plan["proposed"][name] for name in plan["before"]):
             PlanExecutionService(self._files.root).invalidate_checks(reason="child_proposal_publication")
+        self._guard()
 
     def _publish_with_invalidation(self, plan: dict[str, Any], proposal: dict[str, Any]) -> ReviewResult:
         try:
@@ -309,6 +362,7 @@ class ChildProposalService:
         return result
 
     def _publish(self, plan: dict[str, Any], proposal: dict[str, Any]) -> ReviewResult:
+        self._guard()
         directory = self._store.path / "plans" / plan["id"]
         if self._files.windows is not None:
             self._files.windows.api.private_directory(directory)
@@ -317,7 +371,9 @@ class ChildProposalService:
         if directory.is_symlink():
             raise ValueError("Publication journal cannot be a symlink")
         self._store.sync_directory(directory.parent)
+        self._guard()
         for index, name in enumerate(sorted(plan["before"])):
+            self._guard()
             old = FileState.from_dict(plan["before"][name])
             new = FileState.from_dict(plan["proposed"][name])
             if name not in plan["applied"]:
@@ -333,18 +389,20 @@ class ChildProposalService:
         if proposal["state"] == "sealed":
             proposal["state"], proposal["last_plan"] = "integrated", plan["id"]
             self._save(proposal)
-            self._fault("recorded")
+            self._boundary("recorded")
         plan["state"] = "done"
         self._save(plan, plan=True)
-        self._fault("done")
+        self._boundary("done")
         return ReviewResult(tuple(plan["changed"]), bool(plan["changed"]))
 
     def retained_originals(self, plan_id: str) -> tuple[str, ...]:
         """Locate retained displaced originals without reading their content."""
         with self._store.lock:
             self._load(plan_id, plan=True)
-            return tuple(str(path.relative_to(self._files.root)) for path in sorted(
+            originals = tuple(str(path.relative_to(self._files.root)) for path in sorted(
                 (self._store.path / "plans" / plan_id).glob("*.old")))
+            self._guard()
+            return originals
 
     def discard(self, proposal_id: str) -> None:
         """Remove proposal evidence only when no publication needs recovery."""
@@ -354,7 +412,11 @@ class ChildProposalService:
             if any(plan["state"] == "prepared" for plan in plans):
                 raise CheckpointConflict(reason="Interrupted publication must be recovered before discarding originals")
             for plan in plans:
+                self._guard()
                 self._publisher._cleanup(plan["id"])
+                self._guard()
                 self._path(plan["id"], plan=True).unlink()
+            self._guard()
             self._path(proposal_id).unlink()
             self._store.sync_directory(self._store.path)
+            self._guard()

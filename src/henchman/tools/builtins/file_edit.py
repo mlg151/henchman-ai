@@ -17,8 +17,6 @@ from henchman.tools.security import (
 )
 from henchman.tools.utils import coerce_int
 
-"""Number of characters to show when previewing a not-found string."""
-
 _FILE_EDIT_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {

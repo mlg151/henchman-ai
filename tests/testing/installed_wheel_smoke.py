@@ -331,6 +331,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_background_subagents.py",
         "tests/agents/test_delegation_admission.py",
         "tests/agents/test_workspace_ownership.py",
+        "tests/agents/test_proposal_runtime.py",
+        "tests/agents/test_staged_tool_registry.py",
         "tests/agents/test_delegation_opt_in.py",
         "tests/agents/test_delegation_policies.py",
         "tests/providers/stream_helpers.py",

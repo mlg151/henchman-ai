@@ -337,6 +337,26 @@ class WorkspaceOwnership:
         """Validate a reader's live worker without granting any file access."""
         self._access(handle, actor)
 
+    def require_review(self, parent: WorkspaceLease, actor: object, child: WorkspaceLease) -> None:
+        """Validate parent authority over one joined child without releasing its scope."""
+        self._access(parent, actor)
+        record = self._direct_child(parent, child)
+        if record.state != "settled" or record.worker is None or not record.worker.done():
+            raise WorkspaceOwnershipError("not_settled")
+        if self._children(child):
+            raise WorkspaceOwnershipError("unresolved_descendants")
+        if record.outcome != "completed" or record.revoked:
+            raise WorkspaceOwnershipError("unsuccessful")
+
+    def require_discard(self, parent: WorkspaceLease, actor: object, child: WorkspaceLease) -> None:
+        """Validate that a direct child's entire subtree has settled before discard."""
+        self._access(parent, actor)
+        record = self._direct_child(parent, child)
+        if record.state == "released" and record.disposition == "discarded":
+            return
+        if any(self._record(handle).state != "settled" for handle in self._subtree(child)):
+            raise WorkspaceOwnershipError("not_settled")
+
     def require_write(self, handle: WorkspaceLease, actor: object, paths: Sequence[str]) -> None:
         """Validate one exact worker's targets; never imply unchanged file bytes."""
         record = self._access(handle, actor)

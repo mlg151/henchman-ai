@@ -124,10 +124,14 @@ after checking current file contents. Publication retains displaced originals,
 invalidates checks and requires recovery after an interruption. This service is
 content-focused: existing POSIX modes are preserved and new POSIX files use
 mode `0600`; arbitrary extended metadata is not restored. The Windows backend
-uses the checkpoint service's documented content/ACL limitations. It is
-not yet connected to delegated tool execution, worker identity or parent
-approval, and it is not a filesystem sandbox. Existing subagents still share the
-workspace and require coordination; issue #29 remains open.
+uses the checkpoint service's documented content/ACL limitations. An internal
+coordinator now binds staged operations to an exact child worker and holds the
+exact reviewed content for a live parent before publication. An internal tool
+adapter routes the builtin read, write and edit tools through the staged view;
+it rejects opaque tools and fails closed under restricted access policies. This
+cooperative mechanism is not yet connected to the dynamic subagent tool catalog
+and is not a filesystem sandbox. Existing subagents still share the workspace
+and require coordination; issue #29 remains open.
 
 ## Optional Named Roles
 

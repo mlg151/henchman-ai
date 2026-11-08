@@ -6,6 +6,10 @@ for commit `f59f51a` failed one test: the non-durable
 the parent run without setting its `answered` flag. The job reported **5,976
 passed, 242 skipped and one failed**. The assertion did not record child state,
 event output or a timeout, so its cause cannot be established from that log.
+The independently triggered [push job](https://github.com/mlg151/henchman-ai/actions/runs/42514224914/job/128833932416)
+later failed the same non-durable assertion, also with 5,976 passed and 242
+skipped. This repeated Windows result makes a platform-specific defect a live
+possibility; it still does not reveal the child state or root cause.
 
 A clean Linux checkout of that same commit passed 80 repetitions of the test
 in one pytest process with separate temporary workspaces: 40 each with
@@ -24,6 +28,8 @@ passes and any recurring failure is explained.
 The original job log is retained locally under
 `ci-f59f51a/windows-311.log` in the release-qualification cache; its SHA-256 is
 `de72ccb85cd5f53f708c210b6e04d3d17e2ef84e8a6a5b49bbcc1081ab99c210`.
+The push job log is retained alongside it as `push-windows-311.log` with SHA-256
+`c7db8dd676dbfc18723c17e5d6194bd76365968e7c9eb8218c09b67a962fed12`.
 The exact [repeat](../../evals/subagent_question_ci_f59/question_repeat_executed.txt)
 and [delay](../../evals/subagent_question_ci_f59/question_delay_executed.txt)
 probe files are archived separately. Their SHA-256 values are

@@ -74,6 +74,57 @@ async def test_sibling_transfer_remains_held_after_worker_completion_until_revie
     await ownership.close()
 
 
+async def test_parent_review_requires_exact_live_parent_and_joined_successful_child(tmp_path):
+    ownership, binding = controller(tmp_path)
+    parent_actor, child_actor = object(), object()
+    root = ownership.open_root(parent_actor, paths=["a"])
+    child = ownership.reserve(root, parent_actor, child_actor, paths=["a"])
+    release = asyncio.Event()
+
+    async def run():
+        await release.wait()
+
+    worker = asyncio.create_task(run())
+    ownership.bind_worker(root, parent_actor, child, worker)
+    with pytest.raises(WorkspaceOwnershipError, match="not_settled"):
+        ownership.require_review(root, parent_actor, child)
+    release.set()
+    await worker
+    ownership.require_review(root, parent_actor, child)
+    with pytest.raises(WorkspaceOwnershipError, match="wrong_actor"):
+        ownership.require_review(root, object(), child)
+
+    async def inherited():
+        with pytest.raises(WorkspaceOwnershipError, match="wrong_worker"):
+            ownership.require_review(root, parent_actor, child)
+
+    await asyncio.create_task(inherited())
+    binding[0] = object()
+    with pytest.raises(WorkspaceOwnershipError, match="binding_changed"):
+        ownership.require_review(root, parent_actor, child)
+    with pytest.raises(WorkspaceOwnershipError, match="retired"):
+        ownership.require_review(root, parent_actor, child)
+
+
+async def test_parent_review_rejects_failed_child(tmp_path):
+    ownership, _ = controller(tmp_path)
+    parent_actor, child_actor = object(), object()
+    root = ownership.open_root(parent_actor, paths=["a"])
+    child = ownership.reserve(root, parent_actor, child_actor, paths=["a"])
+
+    async def fail():
+        raise RuntimeError("failed child")
+
+    worker = asyncio.create_task(fail())
+    ownership.bind_worker(root, parent_actor, child, worker)
+    with pytest.raises(RuntimeError, match="failed child"):
+        await worker
+    with pytest.raises(WorkspaceOwnershipError, match="unsuccessful"):
+        ownership.require_review(root, parent_actor, child)
+    ownership.resolve(root, parent_actor, child, disposition="discarded")
+    await ownership.close()
+
+
 async def test_nested_subset_transfer_and_parent_join_do_not_release_unresolved_child(tmp_path):
     ownership, _ = controller(tmp_path)
     actor, child_actor, grand_actor = object(), object(), object()
@@ -106,6 +157,8 @@ async def test_nested_subset_transfer_and_parent_join_do_not_release_unresolved_
     await ready.wait()
     release.set()
     await task
+    with pytest.raises(WorkspaceOwnershipError, match="unresolved_descendants"):
+        ownership.require_review(root, actor, child)
     with pytest.raises(WorkspaceOwnershipError, match="unresolved_descendants"):
         ownership.resolve(root, actor, child, disposition="reviewed")
     # Discard is recursive only after every descendant worker has joined.

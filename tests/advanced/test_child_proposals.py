@@ -27,6 +27,10 @@ def test_staged_files_are_private_until_review_and_explicit_publication(tmp_path
     service.stage(proposal, "edit.txt", "revised\n")
     service.stage(proposal, "remove.txt", None)
     service.stage(proposal, "new.txt", "new\n")
+    assert service.read_staged(proposal, "edit.txt") == "revised\n"
+    assert service.read_staged(proposal, "remove.txt") is None
+    with pytest.raises(ValueError, match="scope"):
+        service.read_staged(proposal, "unrelated.txt")
 
     assert (tmp_path / "edit.txt").read_text() == "original\n"
     assert (tmp_path / "remove.txt").exists()
@@ -137,6 +141,46 @@ def test_forged_new_file_permissions_are_rejected(tmp_path: Path) -> None:
     assert not (tmp_path / "new").exists()
 
 
+def test_review_content_not_just_revision_is_checked_before_publication(tmp_path: Path) -> None:
+    from henchman.advanced.checkpoint_models import FileState
+
+    (tmp_path / "file").write_text("before")
+    service = ChildProposalService(tmp_path)
+    proposal = service.begin(["file"])
+    service.stage(proposal, "file", "reviewed")
+    service.seal(proposal)
+    review = service.review(proposal)
+    record = tmp_path / ".henchman/tungsten/proposals" / f"{proposal}.json"
+    payload = json.loads(record.read_text())
+    prior = FileState.from_dict(payload["proposed"]["file"])
+    payload["proposed"]["file"] = FileState("text", b"different", prior.mode, prior.parents).to_dict()
+    record.write_text(json.dumps(payload))
+    with pytest.raises(CheckpointConflict, match="after review"):
+        service.prepare(proposal, revision=review.revision, expected_review=review)
+    assert (tmp_path / "file").read_text() == "before"
+
+
+def test_matching_forged_record_and_plan_cannot_replace_reviewed_content(tmp_path: Path) -> None:
+    from henchman.advanced.checkpoint_models import FileState
+
+    (tmp_path / "file").write_text("before")
+    service = ChildProposalService(tmp_path)
+    proposal = service.begin(["file"])
+    service.stage(proposal, "file", "reviewed")
+    service.seal(proposal)
+    review = service.review(proposal)
+    plan = service.prepare(proposal, revision=review.revision, expected_review=review)
+    store = tmp_path / ".henchman/tungsten/proposals"
+    for path in (store / f"{proposal}.json", store / "plans" / f"{plan}.json"):
+        payload = json.loads(path.read_text())
+        prior = FileState.from_dict(payload["proposed"]["file"])
+        payload["proposed"]["file"] = FileState("text", b"different", prior.mode, prior.parents).to_dict()
+        path.write_text(json.dumps(payload))
+    with pytest.raises(CheckpointConflict, match="after review"):
+        service.apply(plan, expected_review=review)
+    assert (tmp_path / "file").read_text() == "before"
+
+
 def test_concurrent_write_at_displacement_is_preserved(tmp_path: Path) -> None:
     path = tmp_path / "file"
     path.write_text("before")
@@ -223,6 +267,44 @@ def test_invalidation_failure_does_not_hide_publication_failure(tmp_path: Path, 
         service.apply(plan)
     assert any("invalidation" in note for note in caught.value.__notes__)
     assert service.pending() == (plan,)
+
+
+def test_revoked_authority_at_publication_retains_original_for_recovery(tmp_path: Path) -> None:
+    path = tmp_path / "file"
+    path.write_text("before")
+    permitted = True
+
+    def guard() -> None:
+        if not permitted:
+            raise PermissionError("authority revoked")
+
+    def revoke(stage: str) -> None:
+        nonlocal permitted
+        if stage == "before_publish":
+            permitted = False
+
+    service = ChildProposalService(tmp_path, guard=guard, fault=revoke)
+    proposal = service.begin(["file"])
+    service.stage(proposal, "file", "after")
+    service.seal(proposal)
+    plan = service.prepare(proposal, revision=service.review(proposal).revision)
+    with pytest.raises(PermissionError, match="authority revoked"):
+        service.apply(plan)
+    assert not path.exists()
+    recovery = ChildProposalService(tmp_path)
+    assert recovery.pending() == (plan,)
+    assert (tmp_path / recovery.retained_originals(plan)[0]).read_text() == "before"
+    recovery.recover(plan)
+    assert path.read_text() == "after"
+
+
+def test_revoked_authority_cannot_create_proposal_storage(tmp_path: Path) -> None:
+    def guard() -> None:
+        raise PermissionError("authority revoked")
+
+    with pytest.raises(PermissionError, match="authority revoked"):
+        ChildProposalService(tmp_path, guard=guard)
+    assert not (tmp_path / ".henchman").exists()
 
 
 @pytest.mark.parametrize("stage", ["prepared", "displaced", "stage_linked", "staged", "linked", "published", "recorded", "done"])
@@ -339,7 +421,6 @@ def test_checkpoint_and_proposal_publication_wait_for_each_others_recovery(tmp_p
 
     if interrupted == "proposal":
         proposals._fault = fault
-        proposals._publisher._fault = fault
         with pytest.raises(RuntimeError, match="interrupted"):
             proposals.apply(publication)
         with pytest.raises(CheckpointConflict, match="proposal"):
