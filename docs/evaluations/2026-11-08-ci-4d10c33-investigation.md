@@ -10,6 +10,12 @@ job log has SHA-256
 retained in the local qualification cache. Other jobs were still running when
 this note was written; this is not a successful aggregate run.
 
+The run has since completed: **16 of 20 jobs succeeded**, the three Windows
+wheel jobs below failed, and the aggregate gate failed. All four Linux source
+jobs passed. Python 3.12 reported **12,644 passed, 91 skipped and 91.26% coverage**.
+The job metadata and coverage log are retained with the failure logs. These
+results apply to the stated earlier head, not to later changes.
+
 An initial Linux reproduction used the job's Anthropic SDK 2.6.0 but an
 incomplete temporary environment: the pytest subprocess could not import
 Henchman. In that invalid setup, fixture diagnostics exposed an assertion
