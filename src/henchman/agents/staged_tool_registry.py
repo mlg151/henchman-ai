@@ -1,8 +1,8 @@
 """A closed, policy-inheriting tool scope over one child's staged files.
 
-This adapter is not yet installed into dynamic subagents. It exposes only exact
-builtin file tools through a worker-bound overlay; shell, MCP and other opaque
-effects are deliberately unavailable. Restricted policies still fail closed.
+Opt-in dynamic subagents use this adapter to expose only exact builtin file
+tools through a worker-bound overlay. Shell, MCP and other opaque effects are
+deliberately unavailable. Restricted policies still fail closed.
 """
 
 from __future__ import annotations
