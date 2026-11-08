@@ -33,7 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recheck the bound project, session, task revision and in-process owner, then
   wait for existing cleanup. Stored PIDs cannot authorize a stop; the settled
   state does not imply task verification. The `task_stop` tool likewise reports
-  a non-stopped outcome as unsuccessful rather than claiming it stopped.
+  a non-stopped outcome as unsuccessful rather than claiming it stopped. The
+  task service preserves the monitor result across termination races and refuses
+  foreign-process or foreign-event-loop handles before signalling.
 
 - **Bounded delegation** — One configurable runtime limit covers executing
   descendants across dynamic, named, nested and parallel routes. Refusals are

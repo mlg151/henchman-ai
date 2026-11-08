@@ -435,3 +435,73 @@ async def test_monitor_cleanup_error_settles_waiter_but_retains_live_ownership(t
     finally:
         await native(process)
         await asyncio.gather(monitor, return_exceptions=True)
+
+
+@pytest.mark.parametrize('cleanup_fails', [False, True])
+async def test_stop_retains_monitor_outcome_when_waiter_is_removed_during_termination(tmp_path, monkeypatch, cleanup_fails):
+    from henchman.tools.builtins.tier6_tools import TaskStopTool
+
+    monkeypatch.chdir(tmp_path)
+    tool = TaskStopTool()
+    tool.bind_runtime(tool_registry=None, project_root=tmp_path)
+    service = tool._task_service
+    original_terminate = service._terminate_process
+    original_finish = service._finish_capture
+    record = await service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
+    process = service._runtime.processes[record.task_id]
+    monitor = service._runtime.monitors[record.task_id]
+    direct = None
+
+    async def fail_after_cleanup(child, output):
+        await original_finish(child, output)
+        if cleanup_fails:
+            raise OSError('monitor cleanup observation unavailable')
+
+    async def hold_direct_until_monitor_settles(child):
+        await original_terminate(child)
+        if asyncio.current_task() is direct:
+            async with asyncio.timeout(15):
+                while record.task_id in service._runtime.waiters:
+                    await asyncio.sleep(.01)
+
+    monkeypatch.setattr(service, '_finish_capture', fail_after_cleanup)
+    monkeypatch.setattr(service, '_terminate_process', hold_direct_until_monitor_settles)
+    try:
+        direct = asyncio.create_task(tool.execute(task_id=record.task_id))
+        result = await asyncio.wait_for(direct, 20)
+        if cleanup_fails:
+            assert not result.success and '[outcome_unknown]' in result.content
+            assert 'cleanup observation unavailable' in result.content
+        else:
+            assert result.success and '[stopped]' in result.content
+        assert process.returncode is not None and monitor.done()
+    finally:
+        if process.returncode is None:
+            await original_terminate(process)
+        await asyncio.gather(monitor, return_exceptions=True)
+
+
+@pytest.mark.parametrize('mismatch', ['process', 'loop'])
+async def test_stop_refuses_foreign_runtime_before_signalling(tmp_path, mismatch):
+    from henchman.advanced.tasks import TaskOwnershipError
+
+    service = TaskService(tmp_path)
+    record = await service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
+    runtime = service._runtime
+    process = runtime.processes[record.task_id]
+    original_process_id = runtime.process_id
+    original_waiter = runtime.waiters[record.task_id]
+    other_loop = asyncio.new_event_loop()
+    try:
+        if mismatch == 'process':
+            runtime.process_id = -1
+        else:
+            runtime.waiters[record.task_id] = other_loop.create_future()
+        with pytest.raises(TaskOwnershipError, match='runtime|loop'):
+            await service.stop_task(record.task_id)
+        assert process.returncode is None
+    finally:
+        runtime.process_id = original_process_id
+        runtime.waiters[record.task_id] = original_waiter
+        other_loop.close()
+        await service.stop_task(record.task_id)

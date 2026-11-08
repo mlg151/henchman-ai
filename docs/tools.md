@@ -810,6 +810,9 @@ work; no command is replayed from the saved argv.
 `task_stop` reports success only when the observed final state is `stopped`;
 already completed, failed, cancelled, still-running or outcome-unknown states
 are returned as unsuccessful stop results with their actual state.
+For an owned process, stop also requires the original runtime and event loop.
+The captured monitor result remains authoritative if its lookup entry is
+removed while termination is in progress; uncertain cleanup stays unknown.
 
 The versioned `.henchman/tasks/index.json` stores index and per-task revisions,
 a store identity and a damage-detection checksum. A stable `index.lock` protects

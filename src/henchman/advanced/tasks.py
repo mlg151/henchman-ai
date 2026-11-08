@@ -469,9 +469,14 @@ class TaskService:
                 f"Task {task_id} is not owned by this runtime; its outcome is unknown. "
                 "Inspect external process state and captured output before starting new work."
             )
+        waiter = self._runtime.waiters.get(task_id)
+        if self._runtime.process_id != os.getpid():
+            raise TaskOwnershipError("Task process is not owned by this runtime")
+        if waiter is not None and waiter.get_loop() is not asyncio.get_running_loop():
+            raise TaskOwnershipError("Task process is owned by a different event loop")
         self._runtime.stopping.add(task_id)
         await self._terminate_process(process)
-        if task_id not in self._runtime.waiters:
+        if waiter is None:
             # A failed launch acknowledgement may retain a live handle after
             # cleanup failed, before a regular monitor could be established.
             try:
@@ -480,7 +485,10 @@ class TaskService:
             finally:
                 self._runtime.processes.pop(task_id, None)
                 self._runtime.stopping.discard(task_id)
-        return await self.wait_for_task(task_id, timeout=5.0)
+        # The monitor may have settled and removed its map entry while the
+        # process was terminating. Preserve the captured result rather than
+        # mistaking it for an unmonitored failed launch.
+        return await asyncio.wait_for(asyncio.shield(waiter), timeout=5.0)
 
     async def wait_for_task(self, task_id: str, timeout: float | None = None) -> TaskRecord:
         """Await a local observation; an unowned queued/unknown record cannot run."""
