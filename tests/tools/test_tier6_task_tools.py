@@ -79,6 +79,37 @@ async def test_task_stop_reports_uncertain_cleanup_without_claiming_success(tmp_
             await service._terminate_process(process)
 
 
+async def test_unknown_task_with_live_owned_process_is_not_described_as_unowned(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskGetTool, TaskListTool
+
+    monkeypatch.chdir(tmp_path)
+    get_tool = TaskGetTool()
+    list_tool = TaskListTool()
+    service = get_tool._task_service
+    original = service._terminate_process
+    failed = False
+
+    async def fail_once(process):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError('cleanup temporarily unavailable')
+        await original(process)
+
+    monkeypatch.setattr(service, '_terminate_process', fail_once)
+    record = await service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'], timeout=.05)
+    process = service._runtime.processes[record.task_id]
+    try:
+        assert (await service.wait_for_task(record.task_id, timeout=15)).status == 'outcome_unknown'
+        assert process.returncode is None
+        for result in (await get_tool.execute(task_id=record.task_id),
+                       await list_tool.execute(status='outcome_unknown')):
+            assert result.success and 'owned process' in result.content.lower()
+            assert 'not owned' not in result.content.lower()
+    finally:
+        await service.stop_task(record.task_id)
+
+
 def test_builtin_surface_includes_tier6_task_tools() -> None:
     """The builtin surface should expose the Tier 6 task tool exports."""
 

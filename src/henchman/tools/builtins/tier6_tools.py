@@ -193,13 +193,14 @@ def _require_task_id(params: dict[str, object]) -> str:
     raise ValueError(msg)
 
 
-def _render_task(record: TaskRecord) -> str:
+def _render_task(record: TaskRecord, *, owned: bool = False) -> str:
     """Return a compact human-readable summary for one task."""
 
     return (
         f"{record.task_id} [{record.status}] {record.title} "
         f"(cwd={record.cwd}, rc={record.return_code})"
-        + (" Process not owned by this runtime; inspect external state before new work."
+        + ((" An owned process remains in this event loop; inspect or stop it before new work."
+            if owned else " Process not owned by this runtime and event loop; inspect external state before new work.")
            if record.status == TASK_STATUS_OUTCOME_UNKNOWN else "")
         + (" Not dispatched; requires explicit disposition and will not automatically start."
            if record.status == TASK_STATUS_QUEUED else "")
@@ -215,6 +216,10 @@ class _Tier6TaskToolBase(Tool):
 
         self._project_root = Path.cwd()
         self._task_service = TaskService(project_root=self._project_root)
+
+    def _task_summary(self, record: TaskRecord) -> str:
+        owned = record.status == TASK_STATUS_OUTCOME_UNKNOWN and self._task_service._owns_live_process(record.task_id)
+        return _render_task(record, owned=owned)
 
     def bind_runtime(
         self,
@@ -437,7 +442,7 @@ class TaskGetTool(_Tier6TaskToolBase):
         record = self._task_service.get_task(_require_task_id(params))
         if record is None:
             return ToolResult(content="Task not found.", success=False, error="Task not found")
-        return ToolResult(content=_render_task(record))
+        return ToolResult(content=self._task_summary(record))
 
 
 class TaskListTool(_Tier6TaskToolBase):
@@ -468,7 +473,7 @@ class TaskListTool(_Tier6TaskToolBase):
         records = self._task_service.list_tasks(status=status)
         if not records:
             return ToolResult(content="No tasks found.")
-        return ToolResult(content="\n".join(_render_task(record) for record in records))
+        return ToolResult(content="\n".join(self._task_summary(record) for record in records))
 
 
 class TaskOutputTool(_Tier6TaskToolBase):
@@ -591,7 +596,7 @@ class TaskUpdateTool(_Tier6TaskToolBase):
             )
         except KeyError as exc:
             return ToolResult(content=str(exc), success=False, error=str(exc))
-        return ToolResult(content=f"Updated task {_render_task(record)}")
+        return ToolResult(content=f"Updated task {self._task_summary(record)}")
 
 
 class McpAuthTool(_Tier6McpToolBase):

@@ -35,7 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state does not imply task verification. The `task_stop` tool likewise reports
   a non-stopped outcome as unsuccessful rather than claiming it stopped. The
   task service preserves the monitor result across termination races and refuses
-  foreign-process or foreign-event-loop handles before signalling.
+  foreign-process or foreign-event-loop handles before signalling. Task
+  inspection distinguishes a retained same-loop live handle from an unowned
+  unknown outcome.
 
 - **Bounded delegation** — One configurable runtime limit covers executing
   descendants across dynamic, named, nested and parallel routes. Refusals are

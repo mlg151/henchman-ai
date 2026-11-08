@@ -189,6 +189,20 @@ class TaskService:
             or any(not launch.done() for launch in runtime.launches.values())
         )
 
+    def _owns_live_process(self, task_id: str) -> bool:
+        """Observe an in-process, same-loop live handle without adopting a PID."""
+        runtime = self._runtime
+        process = runtime.processes.get(task_id)
+        record = runtime.records.get(task_id)
+        if (runtime.process_id != os.getpid() or process is None or process.returncode is not None
+            or record is None or record.owner_id != runtime.owner_id):
+            return False
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        return getattr(process, "_loop", None) is loop
+
     def _refresh_policy(self) -> None:
         self._runtime.policy.register_policy(
             SettingsRepository(project_root=self._project_root).evidence_redactor(),
