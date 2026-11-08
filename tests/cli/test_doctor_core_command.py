@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+import yaml
 from click.testing import CliRunner
 
 from henchman.cli.system_info import HealthSignal, InstallContext, SystemInfo
@@ -168,3 +170,111 @@ def test_doctor_core_command_renders_text_with_remediation() -> None:
     assert "Doctor status: WARN" in result.output
     assert "[warn] package-manager" in result.output
     assert "Use manual guidance" in result.output
+
+
+def _effective_controls(repository: SettingsRepository) -> dict[str, object]:
+    from henchman.cli.commands.doctor_core_command import collect_doctor_core_report
+
+    report = collect_doctor_core_report(
+        system_info=_make_system_info(), settings_repository=repository,
+        dependency_probe=lambda _: True,
+    )
+    configuration = next(check for check in report.checks if check.name == "configuration")
+    assert configuration.status == "pass"
+    return json.loads(configuration.detail.removeprefix("Effective settings: "))
+
+
+def test_doctor_runtime_controls_keep_one_snapshot_and_exact_origins(tmp_path, monkeypatch) -> None:
+    """Inspect held controls, including price provenance, without reloading files."""
+    from henchman.config.runtime import RuntimeSettingsState
+    from henchman.config.settings import load_settings_snapshot
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    global_file = home / ".henchman" / "settings.yaml"
+    global_file.parent.mkdir()
+    price = {"provider": "ollama", "model": "local-fixture", "input_per_1k": "0.125",
+             "output_per_1k": "0", "currency": "USD", "source": "local price catalog",
+             "as_of": "2026-11-07"}
+    global_file.write_text(yaml.safe_dump({"usage": {"prices": [price]}}))
+    project = tmp_path / "project"
+    project_file = project / ".henchman" / "settings.yaml"
+    project_file.parent.mkdir(parents=True)
+    project_file.write_text("operations: {persistence: durable}\n")
+    state = RuntimeSettingsState(load_settings_snapshot(project_root=project))
+    checks = [{"kind": "file_contains", "path": "result.txt", "text": "expected evidence"}]
+    state.update({"verification": {"checks": checks}})
+    before = state.snapshot()
+    held_usage = state.settings.usage
+    # Later file edits are independent of the active runtime snapshot.
+    project_file.write_text("operations: {persistence: process}\n")
+    reads = 0
+
+    def snapshot():
+        nonlocal reads
+        reads += 1
+        return state.snapshot()
+
+    controls = _effective_controls(SettingsRepository(project, snapshot_provider=snapshot))
+
+    assert controls["usage.persistence"] == {"value": "process", "resolved_scope": "default"}
+    prices = controls["usage.prices"]
+    assert prices["resolved_scope"] == "global"
+    assert prices["value"] == [before.settings.usage.prices[0].model_dump(mode="python")]
+    assert controls["operations.persistence"] == {"value": "durable", "resolved_scope": "project"}
+    assert controls["verification.checks"] == {"value": checks, "resolved_scope": "session"}
+    assert reads == 1
+    assert state.settings.usage is held_usage and state.snapshot() == before
+    assert yaml.safe_load(global_file.read_text()) == {"usage": {"prices": [price]}}
+    assert project_file.read_text() == "operations: {persistence: process}\n"
+
+
+def test_doctor_reports_default_empty_controls_explicitly(tmp_path) -> None:
+    from henchman.config.runtime import RuntimeSettingsState
+    from henchman.config.schema import Settings
+
+    state = RuntimeSettingsState.from_settings(Settings())
+    controls = _effective_controls(SettingsRepository(tmp_path, snapshot_provider=state.snapshot))
+    for key, value in {"usage.persistence": "process", "usage.prices": [],
+                       "operations.persistence": "process", "verification.checks": []}.items():
+        assert controls[key] == {"value": value, "resolved_scope": "default"}
+
+
+@pytest.mark.parametrize("output_format", ["text", "json"])
+def test_doctor_projects_control_evidence_without_changing_execution_values(tmp_path, output_format) -> None:
+    from henchman.cli.commands.doctor_core_command import create_doctor_core_command
+    from henchman.config.runtime import RuntimeSettingsState
+    from henchman.config.schema import Settings
+
+    secret = "doctor-runtime-credential-canary"
+    header_secret = "doctor-unknown-header-canary"
+    settings = Settings.model_validate({
+        "providers": {"deepseek": {"api_key": secret}},
+        "usage": {"prices": [{"provider": "deepseek", "model": secret,
+                              "source": f"price source {secret}", "input_per_1k": "0.125",
+                              "as_of": "2026-11-07"}], "persistence": "durable"},
+        "operations": {"persistence": "durable"},
+        "verification": {"checks": [{"kind": "file_contains", "path": f"{secret}.txt",
+                                     "text": f"{secret}\nAuthorization: {header_secret}"}]},
+    })
+    state = RuntimeSettingsState.from_settings(settings)
+    before = state.snapshot()
+    command = create_doctor_core_command(
+        system_info_provider=_make_system_info,
+        settings_repository_factory=lambda: SettingsRepository(tmp_path, snapshot_provider=state.snapshot),
+        dependency_probe=lambda _: True,
+    )
+
+    result = CliRunner().invoke(command, ["--format", output_format])
+
+    assert result.exit_code == 0, result.output
+    assert "usage.prices" in result.output and "verification.checks" in result.output
+    assert "usage.persistence" in result.output and "operations.persistence" in result.output
+    assert secret not in result.output and header_secret not in result.output
+    assert "[REDACTED]" in result.output
+    assert "2026-11-07" in result.output and "0.125" in result.output
+    assert "price source" in result.output and "session" in result.output
+    assert state.settings is settings and state.snapshot() == before
+    assert settings.usage.prices[0].model == secret
+    assert settings.verification.checks[0]["text"] == f"{secret}\nAuthorization: {header_secret}"

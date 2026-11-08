@@ -17,6 +17,7 @@ import yaml
 from pydantic import ValidationError
 
 from henchman.config.key_paths import flatten_key_paths
+from henchman.config.parsing import parse_settings_text
 from henchman.config.schema import Settings
 
 
@@ -133,8 +134,8 @@ def _load_file(path: Path) -> dict[str, Any]:
     """
     content = path.read_text()
     try:
-        data: dict[str, Any] = (
-            yaml.safe_load(content) if path.suffix in (".yaml", ".yml") else json.loads(content)
+        data: dict[str, Any] = parse_settings_text(
+            content, format="yaml" if path.suffix in (".yaml", ".yml") else "json",
         )
     except (yaml.YAMLError, json.JSONDecodeError) as e:
         msg = f"Failed to parse {path}: {e}"

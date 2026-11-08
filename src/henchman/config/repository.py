@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -18,6 +17,7 @@ from henchman.config.key_paths import (
 from henchman.config.key_paths import (
     flatten_key_values as _flatten_key_values,
 )
+from henchman.config.parsing import parse_settings_text
 from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
@@ -502,9 +502,9 @@ def _read_settings_file(settings_file: Path) -> dict[str, Any]:
     raw_text = settings_file.read_text(encoding="utf-8")
     parsed: Any
     if settings_file.suffix == ".json":
-        parsed = json.loads(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="json") if raw_text.strip() else {}
     else:
-        parsed = yaml.safe_load(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="yaml") if raw_text.strip() else {}
 
     if parsed is None:
         return {}

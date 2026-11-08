@@ -187,6 +187,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   before DNS. Other network tools, native qualification and custom-dispatch checks remain open. See
   [restricted tool access](docs/configuration.md#restricted-tool-access).
 
+- #14 monetary input now retains exact decimal spelling through startup, scoped
+  reads, CLI set and explicit imports, including positive rates below float range.
+  Doctor includes persistence, prices and required checks with their origins from
+  the same snapshot; its display projection never replaces executable values.
+
 - #14 local file transfer now supports explicit control export/import flags for
   usage limits/prices/persistence, operation persistence and verification checks.
   Imports require acceptance of all control changes; lists replace, omitted leaves

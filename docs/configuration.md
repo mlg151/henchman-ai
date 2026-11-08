@@ -425,10 +425,19 @@ unverified. Create a new plan and review its checks before verifying again.
 
 ## Usage limits and explicit prices
 
+`doctor` includes usage limits, persistence and prices, operation persistence and
+required verification checks with their resolved origins. It projects known
+credentials for display and never changes the runtime values. Standalone doctor
+reads startup settings; interactive `/doctor` uses the retained live snapshot.
+
 `usage.limits` accepts `max_requests`, `max_tokens`, `max_seconds`, `max_cost`
 and `currency` (default `USD`). Omitted limits are unlimited; zero is an explicit
 limit. Counts must be nonnegative integers, time must be finite and nonnegative,
-and money is stored as an exact decimal string.
+and money is stored as an exact decimal string. Numeric money literals in JSON,
+YAML and `config set` are parsed directly from their decimal spelling, including
+very small positive rates; they are never rounded through a binary float.
+Quoted decimal strings are also accepted. Ordinary numeric provider options
+retain their existing types.
 
 `usage.prices` is a list of entries keyed by exact `provider` configuration name
 and effective `model`. Each entry can set `input_per_1k`, `output_per_1k`,

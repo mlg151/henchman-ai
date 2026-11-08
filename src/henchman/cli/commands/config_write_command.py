@@ -12,6 +12,7 @@ import yaml
 from pydantic import ValidationError
 
 from henchman.cli.commands.config_redaction import is_secret_like_key_path
+from henchman.config.parsing import parse_settings_text
 from henchman.config.repository import SettingsRepository, SettingsScope, project_sync_evidence
 from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
@@ -66,7 +67,7 @@ def create_config_set_command(*, project_root: Path | None = None) -> click.Comm
         scope = SettingsScope(scope_value)
         redactor = _command_redactor(repository)
         try:
-            parsed_value = _parse_cli_value(raw_value)
+            parsed_value = _parse_cli_value(raw_value, key_path=key_path)
         except (TypeError, ValueError, yaml.YAMLError, ValidationError) as error:
             _raise_prd_failure("HMN_CFG_INVALID_VALUE", error, redactor=redactor)
         _register_input_credentials(parsed_value, redactor=redactor)
@@ -270,11 +271,11 @@ def create_config_export_command(*, project_root: Path | None = None) -> click.C
     return export_command
 
 
-def _parse_cli_value(raw_value: str) -> Any:
+def _parse_cli_value(raw_value: str, *, key_path: str = "") -> Any:
     """Parse a CLI value using YAML scalar and collection rules."""
     if raw_value == "":
         return ""
-    return yaml.safe_load(raw_value)
+    return parse_settings_text(raw_value, format="yaml", key_path=key_path)
 
 
 def _command_redactor(repository: SettingsRepository) -> EvidenceRedactor:
@@ -383,9 +384,9 @@ def _read_serialized_payload(path: Path) -> dict[str, Any]:
     serialization_format = _serialization_format_for_path(path)
     parsed: Any
     if serialization_format == "json":
-        parsed = json.loads(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="json") if raw_text.strip() else {}
     else:
-        parsed = yaml.safe_load(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="yaml") if raw_text.strip() else {}
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):

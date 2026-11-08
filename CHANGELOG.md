@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Exact configuration money inputs** — Startup files, scoped reads, CLI set
+  and explicit control import preserve numeric money literals before float
+  conversion. Tiny positive prices cannot become free, and long decimal limits
+  cannot silently widen, including accepted whitespace in dotted setting keys.
+  Ordinary provider numeric options retain their types. Doctor now includes usage
+  persistence/prices, operation persistence and required checks with origins and
+  existing credential projection from the same settings snapshot.
+
 - **Paired local latency evidence** — Twenty alternating pairs retain 80
   successful scripted observations with unprofiled p50/p95, correctness checks
   and source/harness identities. The schema-cache fixture passes its stated

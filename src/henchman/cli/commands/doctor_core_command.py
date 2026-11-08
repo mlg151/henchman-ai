@@ -270,7 +270,10 @@ def _configuration_details(repository: SettingsRepository) -> str:
     controls = {
         key: {"value": policy.redact(entry.value), "resolved_scope": entry.origin.scope}
         for key, entry in entries.items()
-        if key in ("providers.default", selected_model)
+        if key in (
+            "providers.default", selected_model,
+            "usage.persistence", "usage.prices", "operations.persistence", "verification.checks",
+        )
         or key.startswith(("context.", "ui.", "usage.limits.", "tools."))
         and not isinstance(entry.value, dict)
     }
