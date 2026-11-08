@@ -30,9 +30,11 @@ The same pinned guard now checks discovery and token exchange after connection
 setup, retaining uncertain post-boundary claims without replay.
 An owned browser helper now bounds desktop handoff and rechecks authority before
 transferring the URL, with cancellation and cleanup tested using synthetic launchers.
-Configured OAuth connections remain refused
-until interactive login and normal manager activation.
-Those flows and final native qualification remain open under #25.
+A runtime-only user-intent controller and explicit manager connection now bind
+actions to current frontend/session/project ownership, with one-shot admission,
+joined cancellation and guarded catalog publication. Automatic OAuth connections
+remain refused. Interactive submission wiring and final native qualification
+remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement
 tags. A read-only status API detects later edits and reports stale, incomplete or

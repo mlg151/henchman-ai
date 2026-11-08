@@ -226,9 +226,9 @@ logout also works after server configuration removal.
 Manager teardown invalidates pending OAuth operations before awaiting transport
 cleanup and blocks new login/refresh admission until cleanup settles. The caller
 still owns each flow's cancellation and deadline; teardown does not join those
-caller tasks. These manager APIs do not connect or replay MCP requests, and
-configured OAuth connections remain refused pending normal manager activation and
-interactive integration.
+caller tasks. These four manager APIs do not connect or replay MCP requests.
+An explicit connection API and user-intent controller are described below;
+interactive command integration remains pending.
 
 ### Owned browser handoff helper
 
@@ -251,8 +251,39 @@ authentication succeeded.
 
 Owned synthetic-launcher tests cover cancellation, stale guards, deadlines, output
 bounds and cleanup. No real browser/account or native Windows/macOS desktop flow is
-qualified. This helper is not yet wired into interactive commands; ordinary OAuth
-connections remain refused until the controller and frontend integration lands.
+qualified. The user-intent controller uses this helper, but interactive command
+routing remains pending and ordinary automatic OAuth connections remain refused.
+
+### Explicit user-intent controller
+
+Trusted frontend embeddings can create `henchman.cli.oauth.OAuthController` with a
+callback returning an `OAuthRuntimeView`. The view binds the frontend, session,
+held settings, startup project, manager, agent and lifecycle identity. Only an
+actual user submission may call `capture_user_intent(action, server)` for
+`status`, `login`, `refresh`, `logout` or `connect`, then pass its exact opaque
+ticket to `execute`. Tickets are process-local, single-use and cannot be copied
+or serialized; strings, imported commands and restored queues grant no authority.
+At most 32 tickets may await admission, and each expires after 60 seconds.
+
+Login, refresh and connect require an idle foreground runtime. Local status and
+logout remain available while work is active. Guards recheck runtime ownership,
+physical project identity, settings, policy and connection generation before
+effects; pending cancellation prevents admission and preserves its original
+reason. A successful connection retains its guard for later ordinary turns.
+`aclose()` revokes tickets and retained guards, then cancels and joins owned
+network actions. The frontend still disconnects its manager during normal teardown.
+
+`McpManager.connect_oauth_server(server, authorize=guard)` uses ready local
+credentials and the native HTTP client under the existing connection lock. It
+rechecks authority after awaits and before publishing the tool catalog, with a
+deadline covering lock wait, negotiation and catalog discovery plus ten seconds.
+It never logs in, refreshes or replays an MCP request. Ordinary `connect_server`
+and `connect_all` still refuse OAuth configurations, including when live settings
+have replaced an older unauthenticated configuration. The legacy stdio client
+factory remains supported.
+
+These APIs have local fixture coverage; REPL/Textual submission wiring and real
+browser/account qualification remain open.
 
 ### Explicit authenticated HTTP client
 

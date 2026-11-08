@@ -103,8 +103,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   conservative claim settlement and no implicit replay after uncertain dispatch.
   An owned browser helper now provides bounded, guarded desktop handoff; synthetic
   launcher tests do not qualify a real browser or authorization service.
-  Configured OAuth connections remain refused
-  pending interactive login and normal manager activation.
+  A runtime-only controller now binds explicit user intent to current
+  frontend/session/project ownership and joins cancelled actions; an explicit
+  manager connection publishes its catalog only under current authority.
+  Automatic OAuth connections remain refused; interactive submission wiring is
+  still pending.
   Remaining qualification gates are
   recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).

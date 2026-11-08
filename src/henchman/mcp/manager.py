@@ -27,6 +27,7 @@ _NativeMcpClient = McpClient
 MAX_CONTEXT_PREVIEWS = 16
 MAX_CONTEXT_PREVIEW_BYTES = 4 * 1024 * 1024
 CONTEXT_PREVIEW_TTL_SECONDS = 600.0
+OAUTH_CONNECT_CLEANUP_SECONDS = 10.0
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -213,12 +214,14 @@ class McpManager:
         return self._require_oauth_runtime().capture_http(server_name, authorize=authorize)
 
     async def oauth_login(
-        self, server_name: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]],
+        self, server_name: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]] | None = None,
+        guarded_browser_opener: Callable[[str, Callable[[], None]], Awaitable[None]] | None = None,
         challenge: str | None = None,
     ) -> OAuthStatus:
         """Request one explicit login; the caller owns its async browser opener."""
         return await self._require_oauth_runtime().login(server_name, authorize=authorize,
-                                                       browser_opener=browser_opener, challenge=challenge)
+                                                       browser_opener=browser_opener, guarded_browser_opener=guarded_browser_opener,
+                                                       challenge=challenge)
 
     async def oauth_refresh(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
         """Request one refresh without implicit login, connection or RPC replay."""
@@ -227,6 +230,97 @@ class McpManager:
     def oauth_logout(self, server_name: str, *, authorize: Callable[[], None]) -> OAuthStatus:
         """Revoke the local credential generation without claiming remote logout."""
         return self._require_oauth_runtime().logout(server_name, authorize=authorize)
+
+    async def connect_oauth_server(self, server_name: str, *, authorize: Callable[[], None]) -> None:
+        """Connect once under explicit trusted user authority, using the native client.
+
+        The legacy three-argument factory remains the unauthenticated/stdio path.
+        This API never logs in, refreshes credentials or retries an MCP request.
+        """
+        from henchman.mcp.oauth import OAuthError
+
+        started = asyncio.get_running_loop().time()
+        runtime = self._require_oauth_runtime()
+        config = runtime.connection_configuration(server_name, authorize=authorize)
+        deadline = started + config.negotiation_timeout_seconds + config.catalog_timeout_seconds + OAUTH_CONNECT_CLEANUP_SECONDS
+        identity = self._config_identity(config)
+        old_config = self.configs.get(server_name)
+        previous_identity = self._config_identity(old_config) if old_config is not None else None
+        generation = self._generations.get(server_name, 0)
+        epoch = runtime._http_epoch
+        published = False
+        client: McpClient | None = None
+
+        def guard() -> None:
+            current = runtime.connection_configuration(server_name, authorize=authorize)
+            registered = self.configs.get(server_name)
+            expected = identity if published else previous_identity
+            if (self._oauth_runtime is not runtime or runtime._http_epoch != epoch
+                or self._generations.get(server_name, 0) != generation
+                or self._config_identity(current) != identity
+                or (self._config_identity(registered) if registered is not None else None) != expected):
+                raise OAuthError("OAuth MCP connection authority changed")
+
+        async def checked() -> None:
+            guard()
+            current_task = asyncio.current_task()
+            if current_task is not None and current_task.cancelling():
+                # Healthy validation never yields between authority and effect.
+                # Deliver cancellation requested synchronously by a live guard.
+                await asyncio.sleep(0)
+                raise asyncio.CancelledError("OAuth MCP connection was cancelled")
+            if asyncio.get_running_loop().time() >= deadline:
+                raise OAuthError("Explicit OAuth MCP connection deadline exceeded; no automatic retry")
+
+        lock = self._connection_locks.setdefault(server_name, asyncio.Lock())
+        try:
+            async with asyncio.timeout_at(deadline), lock:
+                try:
+                    await checked()
+                    # This owned invalidation is the only generation change that the
+                    # new connection may absorb. Concurrent teardown stays stale.
+                    generation += 1
+                    await self.disconnect_server(server_name)
+                    await checked()
+                    authority = runtime.capture_http(server_name, authorize=authorize)
+                    client = _NativeMcpClient(server_name, config, verbose=self._verbose, oauth_authority=authority)
+                    client.connection_generation = generation - 1
+                    client.set_dispatch_guard(guard)
+                    client.set_access_guard(runtime._policy)
+                    self._connecting[server_name] = client
+                    await client.connect()
+                    await checked()
+                    if not client.is_connected:
+                        raise OAuthError("OAuth MCP connection closed before catalog publication")
+                    # No await from final validation through catalog registration.
+                    self.configs[server_name] = config
+                    published = True
+                    self.clients[server_name] = client
+                    self._guards[server_name] = guard
+                    self._update_bound_server(server_name)
+                    await checked()
+                except BaseException as primary:
+                    if client is not None:
+                        try:
+                            if self.clients.get(server_name) is client:
+                                await self.disconnect_server(server_name)
+                            else:
+                                await client.disconnect()
+                        except BaseException as cleanup:
+                            if isinstance(cleanup, asyncio.CancelledError) and isinstance(primary, Exception):
+                                primary = cleanup
+                            primary.add_note("OAuth MCP connection cleanup could not confirm remote closure.")
+                    if isinstance(primary, Exception) and not isinstance(primary, OAuthError):
+                        safe = OAuthError("Explicit OAuth MCP connection failed; no automatic retry")
+                        if getattr(primary, "__notes__", None):
+                            safe.add_note("OAuth MCP connection cleanup may require review.")
+                        raise safe from None
+                    raise primary
+                finally:
+                    if client is not None and self._connecting.get(server_name) is client:
+                        self._connecting.pop(server_name)
+        except TimeoutError:
+            raise OAuthError("Explicit OAuth MCP connection deadline exceeded; no automatic retry") from None
 
     async def connect_all(self) -> None:
         """Attempt to connect every configured MCP server."""
@@ -243,11 +337,14 @@ class McpManager:
 
     async def connect_server(self, server_name: str) -> None:
         """Connect one configured MCP server."""
+        self._require_automatic_connection(server_name)
         if self._access_guard is not None:
             self._access_guard()
         lock = self._connection_locks.setdefault(server_name, asyncio.Lock())
         async with lock:
+            self._require_automatic_connection(server_name)
             await self.disconnect_server(server_name)
+            self._require_automatic_connection(server_name)
             config = self._client_config(server_name)
             environment = resolve_environment(config.env)
             self._remember_environment(config.env, environment)
@@ -255,6 +352,9 @@ class McpManager:
             identity = self._config_identity(config)
 
             def guard() -> None:
+                # Live settings may require OAuth even while this manager still
+                # holds its detached, unauthenticated startup configuration.
+                self._require_automatic_connection(server_name)
                 if self._generations.get(server_name, 0) != generation:
                     raise RuntimeError("MCP credentials or connection changed; reconnect the server before dispatch")
                 try:
@@ -296,9 +396,16 @@ class McpManager:
             self._guards[server_name] = guard
             try:
                 self._update_bound_server(server_name)
+                guard()
             except BaseException:
                 await self.disconnect_server(server_name)
                 raise
+
+    def _require_automatic_connection(self, server_name: str) -> None:
+        """Check current authentication requirements before legacy effects."""
+        if (getattr(self.configs.get(server_name), "oauth", None) is not None
+            or (self._oauth_runtime is not None and self._oauth_runtime.requires_explicit_connection(server_name))):
+            raise RuntimeError("Automatic MCP OAuth connection is not yet supported; explicit user connection is required")
 
     def _client_config(self, server_name: str) -> McpServerConfig:
         config = self.configs[server_name]

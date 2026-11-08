@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit OAuth controller and connection** — Runtime-only, single-use user
+  intent binds status, login, refresh, logout and connect to current ownership.
+  Cancellation prevents unstarted effects, shutdown joins owned actions, and
+  explicit manager connections publish catalogs under retained guards. Automatic
+  OAuth activation remains refused; frontend wiring and real account qualification
+  remain pending.
+
 - **Textual reduced motion preference** — `ui.reduced_motion` takes effect at
   driver startup, completing transitions immediately and using static loading
   feedback and steady editor cursors. Essential streaming, approval, status,

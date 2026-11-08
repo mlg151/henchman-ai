@@ -191,13 +191,16 @@ def _failed_claim(store: OAuthCredentialStore, claim: OAuthClaim | None, attempt
 
 async def login_oauth(
     binding: OAuthBinding, store: OAuthCredentialStore, *, authorize: Callable[[], None],
-    browser_opener: Callable[[str], Awaitable[None]], evidence: EvidenceRedactor,
+    browser_opener: Callable[[str], Awaitable[None]] | None = None, evidence: EvidenceRedactor,
+    guarded_browser_opener: Callable[[str, Callable[[], None]], Awaitable[None]] | None = None,
     challenge: str | None = None, clock: Callable[[], float] = time.time,
 ) -> OAuthAuthority:
     """Perform one explicit native login, using only a caller-owned async browser opener."""
     claim = None
     attempt = _Attempt()
     try:
+        if (browser_opener is None) == (guarded_browser_opener is None):
+            raise OAuthError("OAuth login requires exactly one explicit browser opener")
         require_oauth_http_profile()
         with http_diagnostics(), anyio.fail_after(OAUTH_LOGIN_TIMEOUT):
             store.register_evidence(evidence)
@@ -225,7 +228,11 @@ async def login_oauth(
                 url = _authorization_url(discovery, redirect_uri=callback.redirect_uri, state=state,
                                          code_challenge=pkce.code_challenge, scopes=scopes)
                 guard()
-                await browser_opener(url)
+                if guarded_browser_opener is not None:
+                    await guarded_browser_opener(url, guard)
+                else:
+                    assert browser_opener is not None
+                    await browser_opener(url)
                 code = await callback.wait_code()
                 store.remember_evidence({"secret": code.code})
                 fields = {"grant_type": "authorization_code", "client_id": binding.client_id, "resource": binding.resource,

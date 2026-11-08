@@ -102,6 +102,18 @@ class McpOAuthRuntime:
 
         return OAuthHttpAuthority(binding, self._store, authority, common, active)
 
+    def connection_configuration(self, server: str, *, authorize: Callable[[], None]) -> McpServerConfig:
+        """Read current explicit-connect configuration before changing connections."""
+        self._caller(authorize)
+        self._policy()
+        if self._teardown_depth or server in self._pending:
+            raise OAuthError("OAuth connection is unavailable during a pending operation or teardown")
+        return self._configuration(server)
+
+    def requires_explicit_connection(self, server: str) -> bool:
+        """Live OAuth settings cannot use an older unauthenticated config clone."""
+        return getattr(self._settings.mcp_servers.get(server), "oauth", None) is not None
+
     def logout(self, server: str, *, authorize: Callable[[], None]) -> OAuthStatus:
         """Revoke locally even after configuration removal or network restriction."""
         self._caller(authorize)
@@ -146,16 +158,19 @@ class McpOAuthRuntime:
         return binding, guard
 
     async def login(
-        self, server: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]],
+        self, server: str, *, authorize: Callable[[], None], browser_opener: Callable[[str], Awaitable[None]] | None = None,
+        guarded_browser_opener: Callable[[str, Callable[[], None]], Awaitable[None]] | None = None,
         challenge: str | None = None,
     ) -> OAuthStatus:
         """Run one explicitly requested login with a caller-owned async browser."""
-        if not callable(browser_opener):
+        if ((browser_opener is None) == (guarded_browser_opener is None)
+            or not callable(browser_opener or guarded_browser_opener)):
             raise OAuthError("OAuth login requires an explicit async browser opener")
         binding, guard = self._prepare(server, authorize)
         self._pending.add(server)
         try:
             authority = await login_oauth(binding, self._store, authorize=guard, browser_opener=browser_opener,
+                                          guarded_browser_opener=guarded_browser_opener,
                                           evidence=self._evidence, challenge=challenge)
             guard()
             status, matching = self._store.bound_status(binding)
