@@ -203,6 +203,46 @@ async def test_detail_refresh_refuses_a_changed_selection(work, monkeypatch):
             work.app.core_context = None
 
 
+async def test_detail_refresh_discards_a_read_when_selection_changes(work, monkeypatch):
+    import henchman.cli.textual_work as module
+
+    first = await work.service.start_task(argv=[sys.executable, "-c", "print('first evidence')"])
+    second = await work.service.start_task(argv=[sys.executable, "-c", "print('second evidence')"])
+    await work.service.wait_for_task(first.task_id, timeout=15)
+    await work.service.wait_for_task(second.task_id, timeout=15)
+    entered, release, finished = Event(), Event(), Event()
+    original = module._task_details
+
+    def delayed(*args):
+        entered.set()
+        assert release.wait(15)
+        try:
+            return original(*args)
+        finally:
+            finished.set()
+
+    async with work.app.run_test(size=(120, 40)) as pilot:
+        try:
+            screen = await opened(work, pilot)
+            options = screen.query_one(OptionList)
+            options.highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == first.task_id)
+            await pilot.pause()
+            screen.action_inspect()
+            await screen._action_task
+            monkeypatch.setattr(module, "_task_details", delayed)
+            await pilot.press("f5")
+            assert await asyncio.to_thread(entered.wait, 15)
+            options.highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == second.task_id)
+            await pilot.pause()
+            release.set()
+            await asyncio.wait_for(screen._action_task, 15)
+            assert finished.is_set() and "selection changed" in screen._status.lower()
+            assert "first evidence" not in screen.query_one(TextArea).text
+        finally:
+            release.set()
+            work.app.core_context = None
+
+
 async def test_recovered_running_task_is_unknown_and_never_adopts_pid(work):
     from tests.advanced.test_task_store import record
     store = work.service._store

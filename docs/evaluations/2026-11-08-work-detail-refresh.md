@@ -22,3 +22,7 @@ the test log SHA-256 is
 `a7ac0b36893b10bee8866489d674660f1a3d7a139f8e0a175bdf29f689166a40`.
 The wheel is a 0.4.1 development artifact, not a native cross-platform or
 v0.4.2 release qualification.
+
+A later regression held the refresh read open while changing the selected item.
+The read joined and its result was discarded; that case passed separately on
+Python 3.11 and 3.12. It was added after the wheel run above.
