@@ -171,15 +171,18 @@ async def test_goal_continues_after_turn_and_prioritizes_user_steering(
     repl._get_input = inputs.get
     runner = asyncio.create_task(repl.run())
     try:
-        await asyncio.wait_for(first_started.wait(), 1)
+        # Every workflow transition persists the session, including when exit
+        # autosave is disabled. Slow native file flushes must not turn this
+        # ordering test into a one-second disk-latency benchmark.
+        await asyncio.wait_for(first_started.wait(), 10)
         await repl.process_input("steering")
         release.set()
-        await asyncio.wait_for(complete.wait(), 1)
+        await asyncio.wait_for(complete.wait(), 10)
         # The agent signals completion before the parent worker settles its
         # workflow input. Join that worker rather than assume one loop tick.
         worker = repl._turn_worker
         if worker is not None:
-            await asyncio.wait_for(asyncio.shield(worker), 1)
+            await asyncio.wait_for(asyncio.shield(worker), 10)
         assert len(calls) == 3
         assert calls[1] == "steering"
         assert "finish the task" in calls[0]
