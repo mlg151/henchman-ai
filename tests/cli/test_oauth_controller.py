@@ -137,32 +137,46 @@ async def test_shutdown_cancels_and_joins_owned_action_and_revokes_tickets(contr
         await owner.execute(pending)
 
 
-@pytest.mark.parametrize("revoke", ["manager", "store"])
-async def test_full_login_claim_guard_rechecked_after_browser_ready(tmp_path, monkeypatch, trusted_tls, synthetic_launcher, revoke):
+@pytest.mark.parametrize(("revoke", "metadata_delay"), [
+    pytest.param("manager", 0, id="manager"),
+    pytest.param("store", 0, id="store"),
+    pytest.param("manager", 2.1, id="slow-metadata"),
+])
+async def test_full_login_claim_guard_rechecked_after_browser_ready(
+    tmp_path, monkeypatch, trusted_tls, synthetic_launcher, revoke, metadata_delay,
+):
     from henchman.mcp.auth import McpAuthService
 
     monkeypatch.chdir(tmp_path)
     async with OAuthPeer(trusted_tls) as peer:
         peer.enable_oauth()
+        peer.routes[peer.resource_path] = (200, peer.resource, {}, metadata_delay)
         manager, settings = runtime(tmp_path, native_config(peer))
         view = OAuthRuntimeView(object(), None, settings, tmp_path, manager, object(), object(), True)
         owner = OAuthController(lambda: view)
         choose, _calls, processes = synthetic_launcher
         target = choose("wait_ready")
         operation = asyncio.create_task(owner.execute(owner.capture_user_intent("login", "fixture")))
-        await wait_until(lambda: bool(processes))
-        if revoke == "manager":
-            manager.oauth_logout("fixture", authorize=lambda: None)
-        else:
-            McpAuthService(tmp_path).oauth_store().logout("fixture")
-        Path(str(target) + ".ready").touch()
         try:
+            # This phase includes TLS metadata discovery before the launcher is
+            # spawned; allow loaded native runners time without hiding errors.
+            await wait_until(lambda: bool(processes), operation=operation, timeout=40)
+            if revoke == "manager":
+                manager.oauth_logout("fixture", authorize=lambda: None)
+            else:
+                McpAuthService(tmp_path).oauth_store().logout("fixture")
+            Path(str(target) + ".ready").touch()
             with pytest.raises(OAuthError):
                 await operation
             assert not target.exists() and not peer.token_forms
             assert_joined(processes)
         finally:
-            await owner.aclose()
+            try:
+                await owner.aclose()
+            finally:
+                if not operation.done():
+                    operation.cancel()
+                await asyncio.gather(operation, return_exceptions=True)
 
 
 def test_session_from_another_project_cannot_issue_auth_intent(controller):

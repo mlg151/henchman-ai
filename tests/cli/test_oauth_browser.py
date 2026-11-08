@@ -81,10 +81,44 @@ if mode == "flood":
     return choose, calls, processes
 
 
-async def wait_until(predicate):
-    async with asyncio.timeout(2):
+async def wait_until(predicate, *, operation=None, timeout=2):
+    async with asyncio.timeout(timeout):
         while not predicate():
+            if operation is not None and operation.done():
+                await operation
+                raise AssertionError("Operation completed before the expected event")
             await asyncio.sleep(.001)
+
+
+async def test_wait_until_can_allow_slow_owned_startup_without_hiding_early_failure():
+    ready = asyncio.Event()
+
+    async def delayed_start():
+        await asyncio.sleep(2.1)
+        ready.set()
+
+    startup = asyncio.create_task(delayed_start())
+    try:
+        await wait_until(ready.is_set, operation=startup, timeout=4)
+        await startup
+    finally:
+        if not startup.done():
+            startup.cancel()
+        await asyncio.gather(startup, return_exceptions=True)
+
+    async def fail_early():
+        raise RuntimeError("launcher setup failed")
+
+    failed = asyncio.create_task(fail_early())
+    with pytest.raises(RuntimeError, match="launcher setup failed"):
+        await wait_until(lambda: False, operation=failed, timeout=4)
+
+    async def complete_early():
+        return None
+
+    completed = asyncio.create_task(complete_early())
+    with pytest.raises(AssertionError, match="completed before the expected event"):
+        await wait_until(lambda: False, operation=completed, timeout=4)
 
 
 def assert_joined(processes):
