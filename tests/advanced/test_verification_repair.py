@@ -588,7 +588,6 @@ async def test_synchronous_persistence_expiry_denies_next_repair_transition(tmp_
 
 
 async def test_initial_persistence_consumes_the_same_async_deadline(tmp_path, monkeypatch):
-    import time
     from types import SimpleNamespace
 
     from henchman.advanced import verification_repair
@@ -596,9 +595,23 @@ async def test_initial_persistence_consumes_the_same_async_deadline(tmp_path, mo
     service, plan, _ = setup(tmp_path)
     repair = session(service, plan, timeout_seconds=5.0)
     elapsed = [0.0]
-    monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: time.monotonic() + elapsed[0]))
+    monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: elapsed[0]))
     save = service.save_repair_report
     joined = asyncio.Event()
+    remaining = []
+    deadlines = []
+
+    class ControlledAsyncio:
+        def __getattr__(self, name):
+            return getattr(asyncio, name)
+
+        def timeout(self, delay):
+            remaining.append(delay)
+            deadline = asyncio.timeout(None)
+            deadlines.append(deadline)
+            return deadline
+
+    monkeypatch.setattr(verification_repair, "asyncio", ControlledAsyncio())
 
     def delayed(identity, report, *, start=False):
         result = save(identity, report, start=start)
@@ -608,12 +621,18 @@ async def test_initial_persistence_consumes_the_same_async_deadline(tmp_path, mo
 
     async def adapter(_attempt):
         try:
+            # Observe the actual reduced allowance, then expire the real async
+            # timeout once owned work exists. CI speed cannot decide whether
+            # prerequisite verification reaches this adapter in half a second.
+            assert remaining == [0.5]
+            elapsed[0] = 5.0
+            deadlines[0].reschedule(asyncio.get_running_loop().time())
             await asyncio.Event().wait()
         finally:
             joined.set()
 
     monkeypatch.setattr(service, "save_repair_report", delayed)
-    report = await asyncio.wait_for(repair.run(adapter), timeout=2)
+    report = await asyncio.wait_for(repair.run(adapter), timeout=10)
     assert report.reason == "timeout" and report.status == "incomplete"
     assert joined.is_set()
 
