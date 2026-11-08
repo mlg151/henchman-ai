@@ -648,7 +648,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   support plain/quiet transcripts with visible decisions, answers and failures;
   quiet Textual keeps tool cards inspectable. Classic REPL `ui.keyboard_mode`
   now selects standard/Vim editing while preserving active cancellation. Other optional consumers
-  and native qualification remain open; see
+  and native qualification remain open. Pending decisions now expose F10 review,
+  selection/copy and bounded private TXT/Markdown export with current credential
+  projection and preserved draft/focus. External-editor composition and native
+  clipboard/remote/accessibility evidence remain open; see
   [UI settings](docs/configuration.md#settings-file).
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
   Compact correlated tool rows and bounded keyboard evidence inspection are

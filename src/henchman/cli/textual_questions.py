@@ -14,7 +14,7 @@ from textual.widgets import Button, Input, Label
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.textual_activity_state import PromptKind, activity_for
 from henchman.cli.textual_screens import ConfirmToolScreen
-from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from textual.app import App, ComposeResult
@@ -67,6 +67,7 @@ class QuestionScreen(_PromptLifetime, ModalScreen[str | None]):
     """
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         ("escape", "cancel", "Cancel"),
+        ("f10", "review", "Inspect / Export"),
     ]
 
     def __init__(self, question: str) -> None:
@@ -80,6 +81,7 @@ class QuestionScreen(_PromptLifetime, ModalScreen[str | None]):
             Label(self.question, markup=False, id="tool-question"),
             Input(placeholder="Your answer", id="question-answer"),
             Horizontal(
+                Button("Inspect / Export (F10)", id="decision-review"),
                 Button("Answer", variant="primary", id="question-submit"),
                 Button("Cancel", id="question-cancel"),
                 id="question-actions",
@@ -95,10 +97,17 @@ class QuestionScreen(_PromptLifetime, ModalScreen[str | None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Route answer and cancel buttons."""
         event.stop()
-        if event.button.id == "question-submit":
+        if event.button.id == "decision-review":
+            self.action_review()
+        elif event.button.id == "question-submit":
             self._submit()
         else:
             self.action_cancel()
+
+    def action_review(self) -> None:
+        from henchman.cli.textual_review import open_decision_review
+
+        open_decision_review(self)
 
     def _submit(self) -> None:
         answer = self.query_one(Input).value
@@ -120,14 +129,9 @@ class _ApprovalScreen(_PromptLifetime, ConfirmToolScreen):
 
 def _approval_evidence(request: ConfirmationRequest, policy: EvidenceRedactor) -> ConfirmationRequest:
     """Project all visible request fields, retaining only valid risk controls."""
-    safe = policy.redact({
-        "tool_name": request.tool_name, "description": request.description,
-        "params": request.params, "risk_level": request.risk_level,
-    }, schema={
-        "tool_name": None, "description": None, "params": None,
-        "risk_level": PRESERVE_IDENTITY if request.risk_level in ("low", "medium", "high") else None,
-    })
-    return replace(request, **safe)
+    from henchman.cli.textual_review import request_evidence
+
+    return replace(request, **request_evidence(request, policy))
 
 
 class ToolPromptChannel:

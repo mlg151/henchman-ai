@@ -62,8 +62,9 @@ class ConfirmToolScreen(ModalScreen[bool]):
         border: solid $warning;
         background: $surface;
         width: 70;
+        max-width: 95%;
         height: auto;
-        max-height: 20;
+        max-height: 95%;
     }
     #confirm-title {
         text-style: bold;
@@ -72,6 +73,12 @@ class ConfirmToolScreen(ModalScreen[bool]):
     #confirm-details {
         margin-bottom: 1;
         color: $text-muted;
+        max-height: 3;
+        overflow: hidden;
+    }
+    #confirm-params {
+        max-height: 5;
+        overflow: hidden;
     }
     #confirm-buttons {
         align: right middle;
@@ -84,6 +91,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         ("y", "approve", "Yes"),
         ("n", "deny", "No"),
         ("escape", "deny", "No"),
+        ("f10", "review", "Inspect / Export"),
     ]
 
     def __init__(self: ConfirmToolScreen, request: ConfirmationRequest) -> None:
@@ -110,6 +118,17 @@ class ConfirmToolScreen(ModalScreen[bool]):
             Vertical container with the dialog layout.
         """
         from rich.markup import escape
+        from textual._context import NoActiveAppError
+
+        from henchman.cli.textual_context import _current_policy
+        from henchman.cli.textual_questions import _approval_evidence
+        from henchman.utils.evidence_redaction import EvidenceRedactor
+
+        try:
+            policy = _current_policy(self.app)
+        except NoActiveAppError:
+            policy = EvidenceRedactor()
+        self._request = _approval_evidence(self._request, policy)
 
         colour = _RISK_COLOURS.get(self._request.risk_level, _DEFAULT_RISK_COLOUR)
         tool = escape(self._request.tool_name)
@@ -133,13 +152,14 @@ class ConfirmToolScreen(ModalScreen[bool]):
             id="confirm-dialog",
         )
 
-    def _build_action_buttons(self: ConfirmToolScreen) -> Vertical:
+    def _build_action_buttons(self: ConfirmToolScreen) -> Horizontal:
         """Build the approve/deny button group.
 
         Returns:
-            Vertical container with Yes and No buttons.
+            Horizontal container with review, Yes and No buttons.
         """
-        return Vertical(
+        return Horizontal(
+            Button("Review (F10)", id="decision-review"),
             Button("Yes  (y)", variant="success", id="btn-yes"),
             Button("No   (n)", variant="error", id="btn-no"),
             id="confirm-buttons",
@@ -160,7 +180,12 @@ class ConfirmToolScreen(ModalScreen[bool]):
         except (TypeError, ValueError):
             # Handle non-JSON-serializable parameters
             text = str(self._request.params)
-        return [Label(f"[dim]Parameters:[/]\n[yellow]{escape(text)}[/]")]
+        return [
+            Label(
+                f"[dim]Parameter preview; Review (F10) shows retained details:[/]\n[yellow]{escape(text)}[/]",
+                id="confirm-params",
+            )
+        ]
 
     def on_button_pressed(self: ConfirmToolScreen, event: Button.Pressed) -> None:
         """Dismiss with the user's choice.
@@ -171,7 +196,16 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             None
         """
-        self.dismiss(event.button.id == "btn-yes")
+        if event.button.id == "decision-review":
+            event.stop()
+            self.action_review()
+        else:
+            self.dismiss(event.button.id == "btn-yes")
+
+    def action_review(self) -> None:
+        from henchman.cli.textual_review import open_decision_review
+
+        open_decision_review(self)
 
     def action_approve(self: ConfirmToolScreen) -> None:
         """Approve the tool call.

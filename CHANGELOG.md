@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pending decision review** — Textual approvals and questions now offer F10
+  inspection, selection/copy and private TXT/Markdown export. Bounded snapshots
+  reproject credentials and reject stale publication while preserving drafts,
+  focus and unanswered decisions; native clipboard qualification remains open.
+
 - **Operation-safe session compaction** — Explicit compaction now retains typed
   completed request/result correlation through atomic save/load and remaps the
   active transcript. Unreconciled or corrupt bindings refuse before mutation;

@@ -257,6 +257,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_textual_density_settings.py",
         "tests/cli/test_textual_output_modes.py",
         "tests/cli/test_textual_context.py",
+        "tests/cli/test_textual_decision_review.py",
         "tests/cli/test_oauth_command_privacy.py",
         "tests/mcp/test_oauth_connect.py",
         "tests/mcp/test_oauth_manager.py",

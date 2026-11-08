@@ -337,7 +337,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "unless a first-class exposed surface is added. The Context tab's "
             "Context and usage inspector reads a bounded selected-session snapshot "
             "with explicit Refresh and unknown/estimated/reported distinctions; "
-            "it does not save, compact or resume a session."
+            "it does not save, compact or resume a session. Pending decisions expose "
+            "F10 review with bounded selectable evidence and explicit private TXT/Markdown "
+            "export under .henchman/exports. Review never answers a decision; clipboard "
+            "transfer is requested without a native receipt."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
     ),

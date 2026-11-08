@@ -20,10 +20,11 @@ transcript workflow; this first implementation slice changes Textual only.
 | Escape in the composer | Requests cancellation during work; otherwise dismisses search. It does not erase the draft. |
 | Escape in an approval/question | Denies/dismisses that decision according to the existing prompt channel; it does not approve work. |
 | Return to a pending decision | F4 focuses the existing answer field or approval's No button. An unrelated overlay stays open; close it first to return. |
+| Inspect a pending decision | F10 or Review opens a read-only snapshot with selection, Copy and TXT/Markdown export. Back/Escape returns to the unanswered decision. |
 | Saved input queue | F9 opens inspection and explicit edit, remove, reorder and Send controls. Opening or editing never grants dispatch permission. |
 | Context and usage | The Context tab opens a read-only snapshot. F5 explicitly refreshes; Escape/Back restores focus without changing the composer or session. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
-| Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained for this slice. |
+| Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained outside the decision review editor, where Ctrl+C requests copying the selection. |
 
 Hosts may intercept extended keys or encode them identically. The visible return
 button and ordinary Tab/Enter activation are the fallback when Alt+End does not
@@ -74,7 +75,7 @@ runtime boundaries.
 |---|---|---|
 | Follow/hold, concurrent streams, resize, expanded history | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), three viewport sizes | Native wheel/scrollbar, tmux and SSH/mosh |
 | Submit, multiline paste, history and unsent draft | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [integration](../tests/cli/test_textual_integration.py), [input bindings](../tests/cli/test_input_bindings.py) | Actual terminal paste, host key conflicts and IME |
-| Long plans, wrapped links, selection/copy while approval is pending | [Question channel](../tests/cli/test_textual_question_channel.py), [direct evidence](../tests/cli/test_textual_direct_evidence.py); richer inspection remains pending | Clipboard/selection, keyboard and remote-safe copy/export |
+| Long plans, wrapped links, selection/copy while approval is pending | [Decision review and export](../tests/cli/test_textual_decision_review.py), [question channel](../tests/cli/test_textual_question_channel.py), [direct evidence](../tests/cli/test_textual_direct_evidence.py) | Native clipboard/selection, terminal keys and remote behavior |
 | Questions and approval lifetime | [Question channel](../tests/cli/test_textual_question_channel.py), [lifecycle and F4](../tests/cli/test_textual_activity_state.py) | Screen-reader question/rationale and focus announcements |
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
 | Queued input and recovery | [F9 queue controls](../tests/cli/test_textual_queue.py), [shared workflow](../tests/core/test_session_workflow.py), [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py) | Cancellation/resume disposition and draft-loss observation |
@@ -90,9 +91,45 @@ messages reflow. The anchor uses the displayed row, including when focus scrolli
 has a fractional internal position. Deferred scrolling to the same position keeps
 that anchor through pending layout work; actual navigation selects a new anchor.
 Exact character anchoring within one rewrapped long message is
-not yet implemented. Full approval inspection, external-editor composition,
-clipboard behavior and the remaining UI settings are separate open work; this
+not yet implemented. External-editor composition, native clipboard behavior
+and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
+
+## Pending decision inspection and export
+
+Choose **Review / Inspect + Export (F10)** from an approval or question. The
+read-only editor includes the retained request and up to 64 recent mounted
+transcript rows, bounded to 64 KiB. It captures a snapshot; subsequent chunks are
+not included. Back/Escape restores the approval's No button or question input
+without answering, submitting the composer or losing its draft. Approval keys
+and Ctrl+Enter do not answer while reviewing.
+
+The display copy of approval data is bounded before traversal or JSON rendering
+to 32 KiB, 2,048 nodes and depth 16. Unsupported or oversized requests are omitted
+as a whole with an explanation. Oversized text items and already-clipped tool
+observations are also omitted rather than leaving credential prefixes that cannot
+be reprojected after rotation. Runtime arguments and stored evidence stay intact.
+Effective cwd and grant duration are explicitly unavailable when the request does
+not supply them; review does not change approval scope or policy.
+
+**Copy** requests transfer of the whole snapshot; selection and **Ctrl+C** copy a
+selected portion. Both refresh credential projection first. If a selection changes
+under reprojection, select it again before copying. The status reports a transfer
+request, because Henchman cannot confirm that a terminal clipboard received it.
+
+**TXT export** and **MD export** provide an explicit file fallback under the
+captured project's canonical `.henchman/exports/decision-UUID.{txt,md}` path.
+Exports use exclusive names and private files, reject stale decision/runtime or
+project identities, and recheck credential projection before acknowledging
+publication. Text is bounded to 64 KiB; Markdown adds literal fenced framing.
+POSIX uses directory-relative no-follow handles; Windows rejects observed
+reparse paths but does not provide the same atomic race protection. Closing joins
+owned export work before returning, including repeated cancellation.
+
+The rendered and filesystem fixtures cover selection, focus, draft/reading
+preservation, redaction, stale decisions, export faults and cancellation. Native
+clipboard, SSH/tmux/mosh, IME, screen-reader and responsiveness qualification
+remain open.
 
 ## Context and usage inspection
 
