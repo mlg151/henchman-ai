@@ -54,6 +54,14 @@ failed/unknown/interrupted outcomes expand unless the user already chose a state
 Answers, commands, warnings, compaction, decisions and cancellation/status remain
 visible. This does not alter stored evidence or qualify native accessibility.
 
+The classic REPL also captures `ui.keyboard_mode` at prompt creation: `standard`
+preserves its existing editing bindings and `vim` selects prompt-toolkit Vim
+editing. Idle Vim Escape preserves the draft and enters normal mode; active-turn
+Escape/Ctrl+C retain cancellation priority. Bracketed multiline paste does not
+submit automatically. The [pipe-key regressions](../tests/cli/test_repl_keyboard_mode.py)
+exercise actual dispatch, but do not qualify native terminals or screen readers.
+Textual's keyboard-profile consumer remains pending.
+
 ## Versioned scenarios
 
 The deterministic rendered [harness](../tests/cli/ui_scenarios.py) is version

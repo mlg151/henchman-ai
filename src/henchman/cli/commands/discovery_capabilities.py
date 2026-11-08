@@ -358,8 +358,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "currently affects classic REPL renderer tables. ui.output_mode selects rich, "
             "plain or quiet transcript/command rendering at REPL and Textual startup; "
             "answers, decisions, warnings and failures remain visible. Quiet Textual keeps "
-            "tool cards inspectable and preserves manual expansion. keyboard_mode and the "
-            "Textual compact_tables consumer remain pending in the terminal UI workstream; "
+            "tool cards inspectable and preserves manual expansion. ui.keyboard_mode selects "
+            "standard or Vim editing for the classic REPL composer at startup. Its Textual "
+            "consumer and Textual compact_tables remain pending in the terminal UI workstream; "
             "runtime-scoped discovery must not present them as generic commands."
         ),
         aliases=(

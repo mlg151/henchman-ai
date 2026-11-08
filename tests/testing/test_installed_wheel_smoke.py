@@ -204,6 +204,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/tools/test_execution_guard_inheritance.py",
         "tests/cli/test_output_mode_rendering.py",
         "tests/cli/test_repl_output_modes.py",
+        "tests/cli/test_repl_keyboard_mode.py",
         "tests/testing/test_eval_bytecode_freshness.py",
         "tests/config/test_ui_unknown_fields.py",
         "tests/config/test_settings_snapshot.py",

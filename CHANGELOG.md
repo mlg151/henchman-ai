@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Classic REPL keyboard profile** — `ui.keyboard_mode` now selects standard
+  or Vim editing at prompt startup. Vim Escape preserves idle drafts, active
+  cancellation retains priority and bracketed multiline paste stays unsubmitted.
+  Textual keyboard profiles and native accessibility qualification remain open.
+
 - **Handoff evidence privacy** — Generated prior-agent notes and earlier-failure
   quotations now project retained credentials before clipping and prompt
   injection, including rotated keys and clipped legacy prefixes. Caller inputs,

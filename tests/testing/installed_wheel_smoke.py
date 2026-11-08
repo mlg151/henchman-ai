@@ -176,6 +176,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/cli/test_output_stream_coverage.py",
         "tests/cli/test_output_mode_rendering.py",
         "tests/cli/test_repl_output_modes.py",
+        "tests/cli/test_repl_keyboard_mode.py",
         "tests/e2e/test_headless_team.py",
         "tests/cli/test_headless_orchestration.py",
         "tests/cli/test_headless_team_streaming.py",

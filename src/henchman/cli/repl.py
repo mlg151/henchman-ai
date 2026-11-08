@@ -464,6 +464,7 @@ class Repl:
             keybindings=keybindings,
             tool_registry=self.tool_registry,
             evidence_redactor=runtime_evidence_redactor(self),
+            keyboard_mode=self.settings.ui.keyboard_mode,
         )
         self.input_handler.initialize_prompt_session(
             bottom_toolbar=(

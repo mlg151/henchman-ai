@@ -142,7 +142,7 @@ described below; defaults preserve existing behavior:
 | `ui.output_mode` | `rich` (default), `plain`, `quiet` | Classic REPL and Textual transcript/command rendering |
 | `ui.reduced_motion` | `true`/`false` (default `false`) | Suppress non-essential animation and redraws |
 | `ui.detail_density` | `compact`, `normal` (default), `detailed` | Density of presented information |
-| `ui.keyboard_mode` | `standard` (default), `vim` | Keyboard behavior profile |
+| `ui.keyboard_mode` | `standard` (default), `vim` | Classic REPL editing profile; Textual consumer pending |
 | `ui.mouse_capture` | `true` (default) / `false` | Enable application mouse reporting when the next Textual driver starts |
 | `ui.layout.compact_tables` | `true`/`false` (default `false`) | Render denser tables and lists where supported |
 
@@ -192,8 +192,17 @@ position, evidence retention and execution authority are unchanged. Later mode
 changes require a new launch. This controls transcript presentation; application
 chrome and native screen-reader behavior have separate qualification.
 
+`ui.keyboard_mode` is captured when the classic REPL creates its main prompt.
+`standard` retains the existing prompt-toolkit Emacs editing and custom bindings;
+`vim` enables its Vim insert/normal editing. Idle Escape leaves insert mode
+without erasing the draft in Vim mode. During an active turn, Escape and Ctrl+C
+retain cancellation priority. Bracketed multiline paste remains one unsubmitted
+draft until Enter. Explicit custom bindings keep their precedence. Later setting
+changes require a new REPL launch; tool-question prompts keep their existing
+standard editing. Native terminal/assistive-technology qualification remains open.
+
 `ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
-tables. Its Textual consumer and keyboard mode remain pending in the UI workstream.
+tables. Its Textual consumer and Textual keyboard mode remain pending in the UI workstream.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove
 obsolete or misspelled fields from existing files; entries inside the declared

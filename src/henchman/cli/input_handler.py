@@ -48,6 +48,7 @@ class InputHandler:
         keybindings: dict[str, str] | None = None,
         tool_registry: ToolRegistry | None = None,
         evidence_redactor: EvidenceRedactor | None = None,
+        keyboard_mode: str = "standard",
     ) -> None:
         """Initialize the input handler.
 
@@ -58,6 +59,7 @@ class InputHandler:
             keybindings: Custom keybindings configuration.
             tool_registry: Optional tool registry for tool name completions.
             evidence_redactor: Shared policy for persisted prompt history.
+            keyboard_mode: Startup editing profile for the main composer.
         """
         self.config = config
         self.renderer = renderer
@@ -65,6 +67,7 @@ class InputHandler:
         self.keybindings = keybindings
         self.tool_registry = tool_registry
         self.evidence_redactor = evidence_redactor
+        self.keyboard_mode = keyboard_mode
         self.prompt_session: PromptSession[str] | None = None
 
     def initialize_prompt_session(
@@ -95,6 +98,7 @@ class InputHandler:
             keybindings=self.keybindings,
             completer=completer,
             evidence_redactor=self.evidence_redactor,
+            keyboard_mode=self.keyboard_mode,
         )
 
     async def get_input(self: Self) -> str:

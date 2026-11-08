@@ -641,7 +641,8 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   activity. `ui.detail_density` now controls transcript spacing and initial
   tool-row expansion while retaining manual choices. REPL and Textual `ui.output_mode`
   support plain/quiet transcripts with visible decisions, answers and failures;
-  quiet Textual keeps tool cards inspectable. Other optional consumers
+  quiet Textual keeps tool cards inspectable. Classic REPL `ui.keyboard_mode`
+  now selects standard/Vim editing while preserving active cancellation. Other optional consumers
   and native qualification remain open; see
   [UI settings](docs/configuration.md#settings-file).
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.

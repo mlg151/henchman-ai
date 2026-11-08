@@ -303,7 +303,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   settings require the next launch for changes. REPL and Textual `ui.output_mode`
   apply plain/quiet transcript rendering at startup while retaining decisions,
   answers, warnings and failures. Quiet Textual preserves inspectable tool cards
-  and manual expansion. Native accessibility, selection,
+  and manual expansion. Classic REPL `ui.keyboard_mode` selects standard/Vim
+  editing at prompt startup, with active-turn cancellation retaining priority.
+  Textual keyboard profiles remain pending. Native accessibility, selection,
   clipboard and remote behavior remain
   unqualified. Other UI
   settings consumers remain pending or partial as described in

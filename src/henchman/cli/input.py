@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from prompt_toolkit import PromptSession
+from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings, KeyPress
 from prompt_toolkit.keys import Keys
@@ -207,6 +208,7 @@ def create_session(
     keybindings: dict[str, str] | None = None,
     completer: Any = None,
     evidence_redactor: EvidenceRedactor | None = None,
+    keyboard_mode: str = "standard",
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
@@ -216,10 +218,13 @@ def create_session(
         keybindings: Dictionary of keybindings (key -> action).
         completer: Optional completer for tab completion.
         evidence_redactor: Shared policy for the persisted history copy.
+        keyboard_mode: Startup editing profile: standard or vim.
 
     Returns:
         Configured PromptSession.
     """
+    if keyboard_mode not in ("standard", "vim"):
+        raise ValueError("keyboard_mode must be standard or vim")
     bindings = KeyBindings()
 
     @bindings.add(Keys.ControlC)
@@ -227,15 +232,16 @@ def create_session(
         """Handle Ctrl+C: raise KeyboardInterrupt to exit cleanly."""
         raise KeyboardInterrupt
 
-    @bindings.add(Keys.Escape)
-    def _(event: Any) -> None:
-        """Handle Escape key: cancel input or clear buffer."""
-        buffer = event.current_buffer
-        if buffer.text:
-            buffer.text = ""
-        else:
-            with contextlib.suppress(Exception):
-                event.app.exit(result="")
+    if keyboard_mode == "standard":
+        @bindings.add(Keys.Escape)
+        def _(event: Any) -> None:
+            """Handle Escape key: cancel input or clear buffer."""
+            buffer = event.current_buffer
+            if buffer.text:
+                buffer.text = ""
+            else:
+                with contextlib.suppress(Exception):
+                    event.app.exit(result="")
 
     if keybindings:
         _register_custom_keybindings(bindings, keybindings)
@@ -252,6 +258,7 @@ def create_session(
         bottom_toolbar=bottom_toolbar,
         completer=completer,
         output=output,
+        editing_mode=EditingMode.VI if keyboard_mode == "vim" else EditingMode.EMACS,
     )
     original_accept = session.default_buffer.accept_handler
 

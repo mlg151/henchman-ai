@@ -36,6 +36,11 @@ decisions, failures and status. These settings leave explicit `--tui` selection
 unchanged. See
 [output controls](configuration.md#terminal-ui-controls) for the current runtime limits.
 
+For Vim editing in the classic REPL, set
+`henchman config set ui.keyboard_mode vim --scope global` and start a new session.
+Idle Escape enters normal mode while preserving the draft; active-turn Escape
+still requests cancellation. Use `standard` to restore the default editing profile.
+
 ## Prerequisites
 
 - **Python 3.11–3.14**: These are the currently supported and CI-tested Python versions
