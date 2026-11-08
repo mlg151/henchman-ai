@@ -32,6 +32,19 @@ Primary turns resumed by background notifications retain ordered transcript
 positions, including intervening text-only turns. Later replies cannot overwrite
 the requests associated with earlier tool effects.
 
+Explicit session compaction preserves completed request/result correlation in
+detached typed conversation archives and remaps the retained primary positions.
+Atomic save/load and subsequent recovery retain the original operation IDs,
+journal authority and consumed usage without dispatching completed tools again.
+Unreconciled or corrupt bindings stop compaction before it changes the session.
+Archives retain full evidence outside the active model context; this can duplicate
+evidence already held in compaction summaries and is not a disk-size reduction.
+Already-broken historical bindings remain errors rather than being reconstructed
+from display text. Automatic runtime compaction separately preserves the original
+turn evidence used by session synchronization.
+Full transcript reconstruction keeps the original non-user prefix before
+archived and active turns, including repeated compaction with no active turns.
+
 Durable storage is discovered independently of the transcript's saved reference.
 An older backup cannot reset known effects or authorize a second dispatch.
 Missing/corrupt stores, mismatched scope, missing request correlation and conflicting

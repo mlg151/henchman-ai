@@ -198,6 +198,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/core/test_session_run_accounting.py",
         "tests/core/test_operation_recovery.py",
         "tests/core/test_session_operations.py",
+        "tests/core/test_session_operation_compaction.py",
         "tests/core/test_workflow_state.py",
         "tests/core/test_session_workflow.py",
         "tests/core/test_goal_workflow_runtime.py",

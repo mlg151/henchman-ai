@@ -366,6 +366,12 @@ arguments, reasoning, and marked partial responses, subject to evidence redactio
 The model's compacted working
 context is separate from this persisted evidence.
 
+Explicit session compaction also retains typed operation-correlation archives
+outside the active conversation, so completed effects remain reconcilable after
+save/load. It refuses unreconciled or corrupt bindings before mutation; see
+[operation recovery](operation-recovery.md#lifetime-and-authority) for retention
+and authority limits.
+
 Resuming a session restores the configured agent's system prompt and the selected
 session's messages. Summaries from the previously active conversation are discarded.
 Direct-role sessions restore to the selected specialist. These behaviors have

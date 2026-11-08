@@ -91,6 +91,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   authority to saved requests/results and exposes `/recovery` user decisions.
   Primary turns resumed by background notifications now retain ordered correlation
   across child questions, parent replies and durable reload.
+  Explicit session compaction archives completed correlation outside active
+  context and refuses unresolved/corrupt bindings before mutation. Offline
+  restart checks preserve completed effects and consumed usage; final native
+  qualification of this repair remains open.
   Process mode remains the default. Versioned opaque continuation profiles are
   implemented; native/live acceptance, goal/queue persistence and background
   task restart authority remain open under #23.

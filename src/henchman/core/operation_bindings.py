@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from copy import deepcopy
+from dataclasses import asdict, dataclass, replace
 from typing import Any
+from uuid import uuid4
 
-from henchman.core.operation_recovery import OperationContext, _identity
+from henchman.core.operation_recovery import OperationContext, OperationRecoveryError, _identity
 from henchman.core.session_models import SessionMessage, message_from_dict
 
 
@@ -42,7 +44,7 @@ class OperationBinding:
 
 @dataclass(frozen=True)
 class OperationConversation:
-    """Specialist evidence kept out of the primary provider's conversation."""
+    """Specialist or archived evidence outside the primary provider conversation."""
 
     id: str
     messages: tuple[SessionMessage, ...]
@@ -115,3 +117,51 @@ class SessionOperationState:
             return cls(value["persistence"], reference, bindings, tuple(value["observed_ids"]), conversations)
         except (KeyError, TypeError) as exc:
             raise ValueError("Invalid operation session state") from exc
+
+
+def compact_operation_bindings(
+    state: SessionOperationState | None, messages: list[SessionMessage], *, start: int, stop: int,
+) -> SessionOperationState | None:
+    """Retain reconciled calls before removing a contiguous primary history slice.
+
+    This only relocates typed transcript correlation. Journal authority, identities
+    and observed outcomes remain unchanged, and unobserved work cannot be moved.
+    Return a detached candidate so validation failure never mutates the session.
+    """
+    if state is None:
+        return None
+    if any(binding.operation_id not in state.observed_ids for binding in state.bindings):
+        raise OperationRecoveryError("unreconciled_operation_compaction")
+    conversations = {item.id: item.messages for item in state.conversations}
+    for binding in state.bindings:
+        source = messages if binding.conversation_id is None else conversations[binding.conversation_id]
+        if binding.assistant_index >= len(source):
+            raise OperationRecoveryError("invalid_compaction_correlation")
+        assistant = source[binding.assistant_index]
+        if any(not isinstance(call, dict) for call in assistant.tool_calls or []):
+            raise OperationRecoveryError("invalid_compaction_correlation")
+        matches = [call for call in assistant.tool_calls or []
+                   if call.get("id") == binding.context.tool_call_id]
+        result_count = 0
+        for index in range(binding.assistant_index + 1, len(source)):
+            if source[index].role != "tool":
+                break
+            result_count += source[index].tool_call_id == binding.context.tool_call_id
+        if assistant.role != "assistant" or len(matches) != 1 or result_count != 1:
+            raise OperationRecoveryError("invalid_compaction_correlation")
+    archived = any(binding.conversation_id is None and start <= binding.assistant_index < stop
+                   for binding in state.bindings)
+    conversation_id = f"compaction:{uuid4().hex}" if archived else None
+    bindings = []
+    for binding in state.bindings:
+        if binding.conversation_id is None:
+            if start <= binding.assistant_index < stop:
+                binding = replace(binding, assistant_index=binding.assistant_index - start,
+                                  conversation_id=conversation_id)
+            elif binding.assistant_index >= stop:
+                binding = replace(binding, assistant_index=binding.assistant_index - (stop - start))
+        bindings.append(binding)
+    retained = state.conversations
+    if conversation_id is not None:
+        retained = (*retained, OperationConversation(conversation_id, tuple(deepcopy(messages[start:stop]))))
+    return replace(state, bindings=tuple(bindings), conversations=retained)

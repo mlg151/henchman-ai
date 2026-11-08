@@ -246,6 +246,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/advanced/test_verification_repair.py",
         "tests/agents/test_verification_repair_runtime.py",
         "tests/core/test_controller_operations.py",
+        "tests/core/test_session_operation_compaction.py",
         "tests/e2e/test_bounded_repair.py",
         "tests/tools/test_formatting_controls.py",
         "tests/metrics/test_evidence_redaction.py",

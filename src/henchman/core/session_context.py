@@ -12,6 +12,7 @@ from henchman.providers.continuation import copy_continuation
 from henchman.utils.tokens import TokenCounter
 from henchman.utils.tool_results import copy_tool_result_payload
 
+from .operation_bindings import compact_operation_bindings
 from .session_data import Session
 from .session_export import export_as_markdown
 from .session_helpers import _now_iso
@@ -346,6 +347,10 @@ class SessionContextService:
         )
         source_turns = list(range(prior_compacted + 1, prior_compacted + len(dropped_turns) + 1))
 
+        operations = compact_operation_bindings(
+            session.operations, session.messages, start=len(prefix), stop=len(prefix) + removed_messages,
+        )
+
         session.turn_summaries.append(
             TurnSummaryRecord(
                 turn_number=len(session.turn_summaries) + 1,
@@ -357,6 +362,7 @@ class SessionContextService:
             ),
         )
         session.messages = [*prefix, *_flatten(kept_turns)]
+        session.operations = operations
         session.last_updated = _now_iso()
 
         return SessionCompactionResult(
@@ -375,10 +381,13 @@ class SessionContextService:
         tool call/result pairs stay intact.
         """
 
-        restored: list[SessionMessage] = []
+        # Compaction leaves the non-user prefix in active context. It precedes
+        # every archived turn, including when no active user turns remain.
+        prefix, active_turns = _split_prefix_and_turns(session.messages)
+        restored: list[SessionMessage] = list(prefix)
         for record in session.turn_summaries:
             restored.extend(record.retained_messages)
-        restored.extend(session.messages)
+        restored.extend(_flatten(active_turns))
         return restored
 
     def rewind_session(self, session: Session, *, turns: int = 1) -> SessionRewindResult:

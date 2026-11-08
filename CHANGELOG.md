@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Operation-safe session compaction** — Explicit compaction now retains typed
+  completed request/result correlation through atomic save/load and remaps the
+  active transcript. Unreconciled or corrupt bindings refuse before mutation;
+  journal authority, completed effects and consumed usage remain unchanged.
+  Reconstructed history also keeps the original system prefix ahead of old turns.
+
 - **Classic REPL keyboard profile** — `ui.keyboard_mode` now selects standard
   or Vim editing at prompt startup. Vim Escape preserves idle drafts, active
   cancellation retains priority and bracketed multiline paste stays unsubmitted.

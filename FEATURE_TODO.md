@@ -91,6 +91,11 @@ qualified opaque profiles and refuses incompatible replay. Shared goal/queue
 authority now drives both interactive frontends, with explicit restored-input
 disposition, current-revision goal completion and correlated run/operation evidence.
 Native/live acceptance and further restart qualification remain under #23.
+Explicit session compaction now archives completed operation correlation and
+remaps retained positions before save/load. Unreconciled or corrupt bindings
+refuse compaction without changing the session; journal and budget authority stay
+unchanged. The repair has offline restart coverage; final native qualification
+remains open.
 Notification-driven primary turns now preserve ordered request/result correlation
 and text-only turns through child questions, parent replies and durable reload.
 Recovered running task records now expose unknown outcomes and refuse unowned
