@@ -123,6 +123,8 @@ def _render_stream_evidence(
             state.is_thinking = False
         output_handler.print_agent_content(_escape(event.data))
     elif event.type == EventType.THOUGHT:
+        if getattr(output_handler.renderer, "output_mode", "rich") == "quiet":
+            return
         if not state.is_thinking:
             output_handler.print_newline()
             output_handler.thinking("(thinking) ")
@@ -146,16 +148,24 @@ def display_tool_request(output_handler: OutputHandler, tool_call: ToolCall) -> 
     policy = runtime_evidence_redactor(output_handler)
     arguments = policy.redact(tool_call.arguments)
     name = policy.text(tool_call.name)
+    if getattr(output_handler.renderer, "output_mode", "rich") == "quiet":
+        return
     output_handler.muted(f"\n\\[tool] {_escape(name)}({_escape(str(arguments))})")
 
 
 def _display_tool_result(
     output_handler: OutputHandler,
     result_text: str,
-    success: bool,
+    success: object,
 ) -> None:
     """Render a tool result with appropriate styling."""
     preview = runtime_evidence_redactor(output_handler).text(result_text)[:MAX_RESULT_PREVIEW_LENGTH]
+    if getattr(output_handler.renderer, "output_mode", "rich") == "quiet":
+        if success is True:
+            return
+        if success is not False:
+            output_handler.warning(f"[result: unknown] {preview}")
+            return
     if success:
         output_handler.muted(f"\\[result] {_escape(preview)}...")
     else:
@@ -246,6 +256,8 @@ def _handle_tool_call_result(
     tc_id = result_data.get("tool_call_id", "")
     result_text = result_data.get("result", "")
     success = result_data.get("success", True)
+    if getattr(output_handler.renderer, "output_mode", "rich") == "quiet":
+        success = result_data.get("success")
     _display_tool_result(output_handler, result_text, success)
     if not state.is_own_event:
         return
@@ -271,6 +283,8 @@ def _handle_agent_routing(
     data = runtime_evidence_redactor(output_handler).redact(
         event_data(event.data), schema=dict.fromkeys(("from", "to", "task", "message")),
     )
+    if getattr(output_handler.renderer, "output_mode", "rich") == "quiet":
+        return
     if event.type == EventType.AGENT_DELEGATED:
         from_agent = _escape(data.get("from", "unknown"))
         to_agent = _escape(data.get("to", "unknown"))
@@ -301,9 +315,11 @@ def _handle_agent_completed(
     elif status == "failed":
         output_handler.error(f"\\[{agent_name}] failed")
     elif status == "completed":
-        output_handler.muted(f"\\[{agent_name}] finished execution")
+        if getattr(output_handler.renderer, "output_mode", "rich") != "quiet":
+            output_handler.muted(f"\\[{agent_name}] finished execution")
     elif status == "responded":
-        output_handler.muted(f"\\[{agent_name}] responded")
+        if getattr(output_handler.renderer, "output_mode", "rich") != "quiet":
+            output_handler.muted(f"\\[{agent_name}] responded")
     else:
         output_handler.warning(f"\\[{agent_name}] ended — outcome unknown")
 

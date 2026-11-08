@@ -336,7 +336,8 @@ class OutputHandler:
         if turn.is_spinning() or turn.is_approaching_limit(base_iterations):
             self.warning(status)
         else:
-            self.muted(status)
+            if getattr(self.renderer, "output_mode", "rich") != "quiet":
+                self.muted(status)
             self._start_rag_indexing()
 
     def start_background_indexing(self: Self) -> None:

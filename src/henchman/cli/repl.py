@@ -288,6 +288,7 @@ class Repl:
         self._turn_worker: asyncio.Task[None] | None = None
 
         self.renderer = self._init_renderer(renderer)
+        self.console = self.renderer.console
         self._init_mcp_manager()
         self.session_manager = ReplSessionManager(
             auto_save=self.config.auto_save,
@@ -323,6 +324,7 @@ class Repl:
             accessible_mode=ui.accessible_mode if ui else False,
             style_overrides=ui.style_overrides if ui else None,
             layout_settings=getattr(ui, "layout", None) if ui else None,
+            output_mode=ui.output_mode if ui and self.config.interactive else "rich",
         )
 
     def _init_tool_manager(self: Self) -> None:
@@ -464,7 +466,10 @@ class Repl:
             evidence_redactor=runtime_evidence_redactor(self),
         )
         self.input_handler.initialize_prompt_session(
-            bottom_toolbar=lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)),
+            bottom_toolbar=(
+                None if getattr(self.renderer, "output_mode", "rich") in ("plain", "quiet")
+                else lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self))
+            ),
         )
         prompt = self.input_handler.prompt_session
         if prompt is not None:

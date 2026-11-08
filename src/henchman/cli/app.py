@@ -212,12 +212,15 @@ def _prepare_runtime_context() -> RuntimeContext:
     )
 
 
-def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any, Any]:
+def _get_theme_and_renderer(
+    settings: Any, *, silent: bool = False, interactive: bool = False,
+) -> tuple[Any, Any]:
     """Initialize theme and UI renderer based on settings.
 
     Args:
         settings: Application settings.
         silent: Whether to suppress warnings about missing themes.
+        interactive: Capture the classic REPL's configured output mode.
 
     Returns:
         Tuple of (theme, renderer).
@@ -228,6 +231,8 @@ def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any
         "ThemeManager",
     )
     ui_renderer_class = _import_attr("henchman.cli.ui_renderer", "UIRenderer")
+    output_mode = getattr(settings.ui, "output_mode", "rich") if interactive and settings.ui else "rich"
+    mode_console = _import_attr("henchman.cli.console", "console_for_output_mode")(console, output_mode)
     # Create themed renderer based on settings
     theme_manager = theme_manager_class()
     theme_name = settings.ui.theme if settings.ui else "dark"
@@ -235,13 +240,13 @@ def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any
     # Validate theme exists, fall back to default if not
     if theme_name not in theme_manager.list_themes():
         if not silent:
-            console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
-            console.print("[dim]Falling back to default theme (dark)[/]")
+            mode_console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
+            mode_console.print("[dim]Falling back to default theme (dark)[/]")
         theme_name = "dark"
 
     theme = theme_manager.get_theme(theme_name)
-    output_renderer = output_renderer_class(console=console, theme=theme)
-    renderer = ui_renderer_class(console=console, renderer=output_renderer)
+    output_renderer = output_renderer_class(console=mode_console, theme=theme, output_mode=output_mode)
+    renderer = ui_renderer_class(console=mode_console, renderer=output_renderer, output_mode=output_mode)
 
     return theme, renderer
 
@@ -270,7 +275,7 @@ def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) 
     )
     return repl_class(
         provider=ctx.provider,
-        console=console,
+        console=renderer.console if renderer is not None else console,
         config=repl_config,
         settings=ctx.settings,
         settings_state=ctx.settings_state,
@@ -318,7 +323,7 @@ def _setup_repl_rag(repl: Any, settings: Any, *, headless: bool = False) -> None
     if headless:
         rag_system = initialize_rag(settings.rag, index=False)
     else:
-        rag_system = initialize_rag(settings.rag, console=console, index=False)
+        rag_system = initialize_rag(settings.rag, console=repl.renderer.console, index=False)
     if rag_system:
         repl.tool_registry.register(rag_system.search_tool)
         repl.rag_system = rag_system
@@ -366,7 +371,11 @@ def _dispatch_interactive_run(repl: Any, config: RunConfig) -> None:
         else:
             anyio.run(repl.run)
     else:  # pragma: no cover
-        console.print(
+        output_console = (
+            repl.renderer.console
+            if getattr(repl.renderer, "output_mode", "rich") in ("plain", "quiet") else console
+        )
+        output_console.print(
             "[yellow]Warning: JSON output formats not supported in interactive mode. "
             "Using text format.[/yellow]",
         )
@@ -380,7 +389,7 @@ def _run_interactive(config: RunConfig) -> None:
         config: Run configuration.
     """
     ctx = _prepare_runtime_context()
-    _, renderer = _get_theme_and_renderer(ctx.settings)
+    _, renderer = _get_theme_and_renderer(ctx.settings, interactive=True)
     repl = _build_repl_instance(ctx, config, renderer)
     _setup_repl_session(repl)
     _setup_repl_rag(repl, ctx.settings)

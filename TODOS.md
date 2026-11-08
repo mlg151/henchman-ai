@@ -246,7 +246,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   animated loading and focused editor cursor blinking without disabling streaming,
   decisions, status or cancellation. `ui.detail_density` controls transcript
   spacing and initial tool-row expansion while retaining manual choices. These
-  settings require the next launch for changes; native accessibility, selection,
+  settings require the next launch for changes. Classic REPL `ui.output_mode`
+  applies plain/quiet transcript rendering at startup while retaining decisions,
+  answers, warnings and failures. Textual output-mode consumption remains open;
+  native accessibility, selection,
   clipboard and remote behavior remain
   unqualified. Other UI
   settings consumers remain pending or partial as described in

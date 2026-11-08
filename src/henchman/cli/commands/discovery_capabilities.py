@@ -307,7 +307,7 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         name="terminal UI controls",
         classification="undiscoverable",
         summary=(
-            "Typed terminal UI settings are TUI-scoped controls; generic "
+            "Typed terminal UI settings are surface-specific controls; generic "
             "discovery/help surfaces intentionally do not advertise them as "
             "generic commands."
         ),
@@ -317,7 +317,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "are typed settings configured through the config command. "
             "ui.mouse_capture, ui.reduced_motion and ui.detail_density apply at Textual driver "
             "startup; density controls transcript spacing and initial tool-row expansion. compact_tables "
-            "currently affects classic REPL renderer tables. Other consumers "
+            "currently affects classic REPL renderer tables. ui.output_mode selects rich, "
+            "plain or quiet rendering at classic REPL startup; answers, decisions, warnings "
+            "and failures remain visible. Its Textual consumer and keyboard_mode "
             "remain pending in the terminal UI workstream; "
             "runtime-scoped discovery must not present them as generic commands."
         ),

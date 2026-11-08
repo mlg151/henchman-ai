@@ -590,7 +590,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   fallback and preserved drafts. `ui.reduced_motion` now suppresses transitions,
   loading animation and focused editor cursor blinking while retaining essential
   activity. `ui.detail_density` now controls transcript spacing and initial
-  tool-row expansion while retaining manual choices. Other optional consumers
+  tool-row expansion while retaining manual choices. Classic REPL `ui.output_mode`
+  now supports plain/quiet transcripts with visible decisions, answers and
+  failures; Textual consumption remains pending. Other optional consumers
   and native qualification remain open; see
   [UI settings](docs/configuration.md#settings-file).
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.

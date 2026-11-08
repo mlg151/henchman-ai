@@ -128,12 +128,14 @@ ui:
 replace an invalid existing value with one of these supported names. This uses
 the same schema when loading settings and validating configuration writes.
 
+### Terminal UI controls
+
 The settings schema accepts these terminal UI controls. Runtime support is
 described below; defaults preserve existing behavior:
 
 | Key | Values | Purpose |
 |----------|--------|---------|
-| `ui.output_mode` | `rich` (default), `plain`, `quiet` | Rendering mode: rich TUI, plain text, or minimal quiet output |
+| `ui.output_mode` | `rich` (default), `plain`, `quiet` | Classic REPL rendering mode; Textual consumer pending |
 | `ui.reduced_motion` | `true`/`false` (default `false`) | Suppress non-essential animation and redraws |
 | `ui.detail_density` | `compact`, `normal` (default), `detailed` | Density of presented information |
 | `ui.keyboard_mode` | `standard` (default), `vim` | Keyboard behavior profile |
@@ -162,9 +164,20 @@ redacted evidence. Thinking stays collapsed. Manual expansion/collapse remains
 your choice for that row through streaming and resizing. Changes require a new
 TUI and do not alter evidence retention, approvals or execution.
 
+`ui.output_mode` is captured when the classic REPL renderer starts. `plain`
+produces an unstyled, append-only transcript with literal Markdown, code and
+diffs, textual status labels, static progress and no bottom toolbar. `quiet`
+also suppresses routine thinking, tool-success and delegation chatter. Answers,
+explicit command output, permission/question prompts, warnings, failed or unknown
+tool results and cancellation feedback stay visible. All modes retain the same
+session evidence and execution policy. Changes take effect in a new REPL.
+Transcript rendering adds no ANSI styling or animation; line editing and native
+screen-reader behavior require separate qualification. JSON modes retain their
+existing contracts, and explicit `--tui` still opens Textual.
+
 `ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
-tables. Its Textual consumer and runtime behavior for output mode and
-keyboard mode remain pending in the UI workstream.
+tables. Its Textual consumer, Textual output-mode behavior and keyboard mode
+remain pending in the UI workstream.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove
 obsolete or misspelled fields from existing files; entries inside the declared

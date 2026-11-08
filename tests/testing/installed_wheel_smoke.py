@@ -167,6 +167,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/tools/test_execution_guard_inheritance.py",
         "tests/cli/test_input_output_portability.py",
         "tests/cli/test_output_stream_coverage.py",
+        "tests/cli/test_output_mode_rendering.py",
+        "tests/cli/test_repl_output_modes.py",
         "tests/e2e/test_headless_team.py",
         "tests/cli/test_headless_orchestration.py",
         "tests/cli/test_headless_team_streaming.py",

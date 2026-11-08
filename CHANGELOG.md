@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;
   failed checks invalidate prior receipts and join the owned process group.
 
+- **Plain and quiet REPL output** — `ui.output_mode` now controls classic REPL
+  rendering at startup. Plain output preserves literal text without styling or
+  animation; quiet output also hides routine chatter. Answers, explicit commands,
+  decisions, warnings, failed/unknown results and cancellation remain visible,
+  with identical session evidence. Textual consumption and native accessibility
+  qualification remain open.
+
 - **Textual transcript density** — `ui.detail_density` now selects compact
   spacing, the normal layout or initially expanded tool evidence at startup.
   Manual toggles, held reading position, drafts and approvals remain stable;
