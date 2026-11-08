@@ -227,6 +227,16 @@ class TestEditFileTool:
         assert corrected.success
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
+    async def test_unmatched_edit_does_not_echo_untrusted_old_text(self, tmp_path: Path) -> None:
+        path = tmp_path / "example.txt"
+        path.write_text("public content", encoding="utf-8")
+        secret = "unmatched-edit-credential-canary"
+        result = await EditFileTool().execute(path=str(path), old_str=secret, new_str="replacement")
+        assert not result.success
+        assert secret not in result.content
+        assert result.error and secret not in result.error
+        assert path.read_text(encoding="utf-8") == "public content"
+
     async def test_edit_file_multiple_matches_error(self) -> None:
         """Error when old_str matches multiple times."""
         tool = EditFileTool()
