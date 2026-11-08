@@ -88,8 +88,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   POSIX capture/review/restore service with private retention and crash recovery.
   CLI and interactive `/checkpoint` share review/preview/apply/recovery/retention.
   Restore invalidates plan checks and supersedes in-flight observations.
-  The Windows NTFS backend exposes a private-ACL content-only policy and awaits
-  native qualification. Runtime capture covers declared write/edit/patch/test
+  The Windows NTFS backend exposes a private-ACL content-only policy with
+  [completed native service regressions](docs/evaluations/2026-11-08-native-service-evidence.md).
+  The aggregate CI failure and final release qualification remain explicit.
+  Runtime capture covers declared write/edit/patch/test
   targets; unknown scopes are unavailable. Textual F8 provides dedicated review
   navigation; native usability and accessibility remain under #34/#36. Legacy
   metadata snapshots are explicitly non-restorable.
@@ -211,8 +213,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   keys only. Read-confirmation controls now reach primary/scoped registries, and
   unsupported Docker sandbox requests fail at setup. Automatic compaction controls
   now reach primary, specialist, dynamic child and API agents while retaining
-  explicit hard-capacity checks. Remaining context/UI consumers and
-  expanded nonsecret transfer remain open; see
+  explicit hard-capacity checks. Remaining Textual presentation consumers belong
+  to #33/#35. Transfer stays limited to UI and explicit usage/operations/verification
+  groups; excluded groups are refused rather than silently imported. See
   [effective settings](docs/configuration.md#inspecting-effective-settings).
 
 - [#24 is closed](https://github.com/mlg151/henchman-ai/issues/24): provider usage

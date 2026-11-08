@@ -1,9 +1,12 @@
 # Content checkpoints
 
-The content checkpoint service is a foundation for [#22](https://github.com/mlg151/henchman-ai/issues/22).
+The content checkpoint service implements the shared review scope of
+[#22](https://github.com/mlg151/henchman-ai/issues/22).
 It exposes a Python API and shared user commands with POSIX and native Windows
 restore backends, automatic capture for declared tool file scopes and dedicated
-Textual review navigation. Final native qualification remains required. Existing Tungsten metadata snapshots are explicitly
+Textual review navigation. Completed [native service regressions](evaluations/2026-11-08-native-service-evidence.md)
+cover the platform backends; aggregate release and native terminal qualification
+remain separate. Existing Tungsten metadata snapshots are explicitly
 versioned, non-restorable records; they cannot reconstruct file contents.
 
 ## User commands
@@ -171,4 +174,6 @@ the prepared plan to complete the content decision. POSIX reports `posix-mode`.
 
 Windows recovery covers process interruption. It does not promise POSIX directory
 fsync behavior after power loss or protection against another process acting as
-the same user or an administrator. Native CI qualification is still pending.
+the same user or an administrator. The [native service evidence](evaluations/2026-11-08-native-service-evidence.md)
+records actual Windows cases and the separate aggregate-CI failure; it does not
+qualify other filesystems or final release artifacts.

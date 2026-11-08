@@ -94,8 +94,9 @@ and concurrent-save authority; pending restores block verification. Runtime owne
 capture now covers declared write/edit/patch/test targets; unknown scopes remain
 explicitly unavailable. Textual F8 now provides staged file/hunk review, preview
 and idle-only Apply; native usability remains incomplete under #34/#36. The Windows
-NTFS content-only backend is implemented with explicit private-ACL semantics;
-native qualification remains pending.
+NTFS content-only backend has explicit private-ACL semantics and
+[completed native service regressions](docs/evaluations/2026-11-08-native-service-evidence.md).
+The recorded aggregate CI failure and final release qualification remain separate.
 
 The [v0.4.2 implementation epic #11](https://github.com/mlg151/henchman-ai/issues/11)
 turns [feature-demand research #10](https://github.com/mlg151/henchman-ai/issues/10)
@@ -223,7 +224,7 @@ MCP/schema foundations and their remaining #21/#25 qualification gates are
 recorded above and in the [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 Automatic compaction now respects the configured disable flag across primary,
 specialist, dynamic child and API agents while retaining explicit hard-capacity
-checks. Broader context/UI consumption remains under #14.
+checks. Remaining Textual presentation consumers belong to #33/#35.
 REPL/Textual now retain a shared live settings snapshot with accurate session
 origins for config/doctor inspection, provider switching and resume. Explicit file
 scopes remain independent, and theme/context shortcuts persist only named keys.
@@ -231,7 +232,9 @@ Read-confirmation policy now reaches primary/scoped registries; unsupported
 Docker sandbox requests fail explicitly. File transfer now supports explicit
 opt-in usage, operation persistence and verification controls; credential-bearing
 operational values are refused without changing their meaning or live authority.
-Remaining context/UI consumers and native qualification stay tracked under #14.
+Remaining Textual presentation consumers stay under #33/#35; final artifact
+qualification stays under #30. File transfer remains limited to the documented
+UI and explicit usage/operations/verification groups.
 See [control transfer](docs/configuration.md#local-importexport-sync).
 
 - [ ] Establish the actual Python/native-package baseline and independent coding-task evaluations.

@@ -2,8 +2,9 @@
 
 User-driven [checkpoint review commands](checkpoints.md#user-commands) inspect
 captured file/hunk changes and apply previewed conflict-checked decisions. They
-share a service across CLI, REPL and Textual command input; automatic agent capture
-and dedicated review navigation remain pending.
+share a service across CLI, REPL and Textual command input. Declared tool writes
+receive automatic capture, and Textual F8 opens dedicated file/hunk review.
+Unknown write scopes remain explicitly unavailable.
 
 Henchman-AI registers built-in tools according to the active runtime and agent preset. The table below documents the core tool set; use `/tools`, help search, doctor, or `tool_search` for the live inventory instead of relying on a hard-coded count.
 

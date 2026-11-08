@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "commit": "296b5564058475da2420de005ee6572fe4586987",
+  "workflow_run_id": 42441483455,
+  "workflow_url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455",
+  "scope": "Completed installed-wheel cohorts: subsystem evidence only; every overall job failed one goal-disclosure fixture.",
+  "subsystem_modules": [
+    "tests/advanced/test_checkpoints.py",
+    "tests/advanced/test_checkpoint_windows.py",
+    "tests/advanced/test_checkpoint_verification.py",
+    "tests/tools/test_checkpoint_capture.py",
+    "tests/cli/test_checkpoint_command.py",
+    "tests/cli/test_textual_checkpoints.py"
+  ],
+  "limitation": "Skipped tests are not passes. Native Windows cases are guarded by sys.platform; symlink privilege can cause an explicit skip. No native terminal/human accessibility or final release claim.",
+  "failure_repair_commit": "d8bf94d42d75f439bdc1ea50ec7bd77c52ab06f8",
+  "jobs": [
+    {
+      "platform_python": "linux311",
+      "job_id": 128611716888,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716888",
+      "failed": 1,
+      "passed": 5467,
+      "skipped": 25,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "linux312",
+      "job_id": 128611716907,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716907",
+      "failed": 1,
+      "passed": 5467,
+      "skipped": 25,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "linux313",
+      "job_id": 128611716842,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716842",
+      "failed": 1,
+      "passed": 5467,
+      "skipped": 25,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "linux314",
+      "job_id": 128611716932,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716932",
+      "failed": 1,
+      "passed": 5467,
+      "skipped": 25,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "mac311",
+      "job_id": 128611716879,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716879",
+      "failed": 1,
+      "passed": 5465,
+      "skipped": 27,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "mac312",
+      "job_id": 128611716870,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716870",
+      "failed": 1,
+      "passed": 5465,
+      "skipped": 27,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "mac313",
+      "job_id": 128611716865,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716865",
+      "failed": 1,
+      "passed": 5465,
+      "skipped": 27,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "mac314",
+      "job_id": 128611716890,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716890",
+      "failed": 1,
+      "passed": 5465,
+      "skipped": 27,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "win311",
+      "job_id": 128611716841,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716841",
+      "failed": 1,
+      "passed": 5370,
+      "skipped": 122,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "win312",
+      "job_id": 128611716852,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716852",
+      "failed": 1,
+      "passed": 5370,
+      "skipped": 122,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "win313",
+      "job_id": 128611716893,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716893",
+      "failed": 1,
+      "passed": 5370,
+      "skipped": 122,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    },
+    {
+      "platform_python": "win314",
+      "job_id": 128611716860,
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42441483455/job/128611716860",
+      "failed": 1,
+      "passed": 5370,
+      "skipped": 122,
+      "failures": [
+        "tests/cli/test_textual_background_goals.py::test_goal_command_runs_real_provider_tool_completion"
+      ]
+    }
+  ]
+}

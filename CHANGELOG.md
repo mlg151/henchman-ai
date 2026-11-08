@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Native checkpoint service evidence** — Completed installed-wheel cohorts
+  exercised Linux/macOS/Windows service behavior on Python 3.11–3.14. All twelve
+  jobs retained one unrelated goal-discovery fixture failure; the
+  [receipt](docs/evaluations/2026-11-08-native-service-evidence.md) separates passing
+  subsystem cases from aggregate CI and final release qualification.
+
 - **Stable held transcript position** — Reading anchors now use the row Textual
   actually displays, including fractional focus scrolling. Deferred no-op
   navigation preserves that anchor through streaming and resize; actual user
