@@ -69,7 +69,9 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
         ("discover", "tool_search", {"query": "pytest_run"}),
         ("inspect", "read_file", {"path": str(source)}),
         ("before", "pytest_run", {"path": str(tests), "timeout": 20}),
+        ("discover-edit", "tool_search", {"query": "edit_file"}),
         ("fix", "edit_file", {"path": str(source), "old_str": "return a - b", "new_str": "return a + b"}),
+        ("discover-test-again", "tool_search", {"query": "pytest_run"}),
         ("after", "pytest_run", {"path": str(tests), "timeout": 20}),
         None,
     ]
@@ -103,7 +105,7 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
         }
         if call:
             assert call[1] in names, f"Model call {call[1]} lacked a declared schema"
-        payload = {key: kwargs[key] for key in ("messages", "tools", "system") if key in kwargs}
+        payload = {key: kwargs[key] for key in ("messages", "system", "tools") if key in kwargs}
         assert kwargs["max_tokens"] == 1024
         assert estimate_serialized_input(payload, model="coding-test") + 1024 <= 8000
         return http.Response(
@@ -111,12 +113,21 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
             headers={"content-type": "text/event-stream"},
         )
 
+    fixture_errors = []
+
+    async def guarded_response(request: Any) -> Any:
+        try:
+            return await next_response(request)
+        except Exception as error:
+            fixture_errors.append(f"{type(error).__name__}: {error}")
+            raise
+
     # SDK with_options copies retain this transport, unlike resource-method mocks.
     client_class = type(provider._client)
     await provider._client.close()
     provider._client = client_class(
         api_key="offline-test", base_url="https://offline.invalid/v1",
-        http_client=http.AsyncClient(transport=http.MockTransport(next_response)),
+        http_client=http.AsyncClient(transport=http.MockTransport(guarded_response)),
     )
     manager = ToolManager()
     manager.bind_runtime(project_root=tmp_path)
@@ -136,7 +147,7 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
         await orch.aclose()
         await provider._client.close()
     errors = [event.data for event in events if event.type == EventType.ERROR]
-    assert not errors, errors
+    assert not errors, (errors, fixture_errors, len(requests), len(network_attempts))
     assert len(requests) == len(script)
     snapshot = orch.last_budget_scope.ledger.snapshot()
     assert snapshot.consumed_requests == len(script)
@@ -151,11 +162,21 @@ async def test_engineer_discovers_verification_tool_and_recovers_at_8k(
     }
     assert "pytest_run" not in first_names
     assert "pytest_run" in second_names
+    edit_names = {
+        tool["name"] if provider_name == "anthropic" else tool["function"]["name"]
+        for tool in requests[4]["tools"]
+    }
+    assert "edit_file" in edit_names
+    final_test_names = {
+        tool["name"] if provider_name == "anthropic" else tool["function"]["name"]
+        for tool in requests[6]["tools"]
+    }
+    assert "pytest_run" in final_test_names
     assert source.read_text(encoding="utf-8") == "def add(a, b):\n    return a + b\n"
     results = [event.data for event in events if event.type == EventType.TOOL_CALL_RESULT]
-    assert [result["success"] for result in results] == [True, True, False, True, True]
+    assert [result["success"] for result in results] == [True, True, False, True, True, True, True], results[-1]
     assert "1 failed" in results[2]["result"]
-    assert "1 passed" in results[4]["result"]
+    assert "1 passed" in results[6]["result"]
     # The repeated identical pytest run reuses the first approval grant.
     assert confirmations == ["pytest_run", "edit_file"]
     assert events[-1].data["status"] == "completed"
