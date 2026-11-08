@@ -701,6 +701,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   records three failed long-history cancellation p95 criteria. Input p95 met its
   target in all six scenarios. Software-display results do not qualify physical
   terminals or assistive technology; the performance failure remains open.
+  Finished ordinary transcript rows now use explicit 128-row pages with retained
+  chronology and pinned active/interactive rows; this is not a total memory cap.
+  A diagnostic GC outlier still exceeded 250 ms, so measured improvement remains
+  a separate gate.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).

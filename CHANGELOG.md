@@ -65,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1,000-message scenarios. Physical terminal and accessibility qualification
   remain open; see the dated evaluation report for measurement limits.
 
+- **Bounded transcript pages** — Textual retains ordinary-message history outside
+  the widget tree and mounts 128 finished rows per page plus pinned controls.
+  Earlier/later navigation, search, reading anchors and bounded decision-context
+  copy retain chronology and current credential projection. Shutdown joins the
+  rendering worker. The cancellation latency target remains unqualified.
+
 - **Local repair comparison** — Twelve fixed local-model attempts retain a
   negative result: direct execution passed 6/6 and bounded repair 2/6. Four
   controller-boundary failures exposed misleading tool disclosure despite

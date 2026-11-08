@@ -141,7 +141,7 @@ def _identity(app: Any) -> tuple[object, ...]:
 
 def _transcript(app: Any, policy: EvidenceRedactor) -> str:
     """Read existing retained rows, without altering or duplicating runtime history."""
-    from henchman.cli.textual_widgets import ChatPane, ToolMessage
+    from henchman.cli.textual_widgets import ChatPane
 
     panes = app.screen_stack[0].query(ChatPane)
     if not panes:
@@ -149,10 +149,10 @@ def _transcript(app: Any, policy: EvidenceRedactor) -> str:
     pane = panes.first()
     pieces: list[str] = []
     remaining = 30000
-    omitted = len(pane.children) > MAX_TRANSCRIPT_ROWS
-    for child in islice(reversed(pane.children), MAX_TRANSCRIPT_ROWS):
-        if isinstance(child, ToolMessage) and child.activity is not None:
-            activity = child.activity
+    omitted = len(pane._transcript.records) > MAX_TRANSCRIPT_ROWS
+    for row in islice(pane.iter_transcript_rows(reverse=True), MAX_TRANSCRIPT_ROWS):
+        if row.tool_activity is not None:
+            activity = row.tool_activity
             labels = (activity.agent, activity.call, activity.name, activity.target)
             if any(label.endswith("…") for label in labels) or any(entry.clipped for entry in activity.entries):
                 # Flattening would erase the truncation boundary needed for
@@ -162,14 +162,14 @@ def _transcript(app: Any, policy: EvidenceRedactor) -> str:
             else:
                 text = activity.evidence(policy)
         else:
-            text = getattr(child, "_content_text", "")
+            text = row.content
         if not isinstance(text, str) or not text:
             continue
         if remaining < 256:
             omitted = True
             break
         piece = _bounded(text, policy, min(8192, remaining - 80))
-        piece = f"\n--- {type(child).__name__} ---\n{piece}"
+        piece = f"\n--- {row.kind} ---\n{piece}"
         remaining -= len(piece.encode())
         pieces.append(piece)
     return ("Earlier retained rows omitted.\n" if omitted else "") + "\n".join(reversed(pieces))

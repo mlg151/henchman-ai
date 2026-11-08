@@ -107,6 +107,24 @@ not yet implemented. Native clipboard behavior, editor integration qualification
 and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
 
+Long transcripts retain ordinary messages independently of their mounted
+widgets. The current page mounts up to 128 finished ordinary messages; active
+streams, thought/tool controls, focused rows and the held reading anchor can add
+more. This is not a total widget or retained-text memory cap. **Earlier messages**
+and **Later messages** controls show retained counts, and the existing page keys
+move between pages at the boundary. **Return to live** restores the latest page.
+Paging and search preserve the draft and do not resume following implicitly.
+
+Search addresses stable retained rows and can reveal an older page. Pending
+decision context still reads the latest retained chronology under its existing
+64-row/30,000-byte limit, with explicit omissions, regardless of the displayed
+page. Credential projection runs again when ordinary rows mount or remount and
+before search navigation or bounded copying. Clear and shutdown invalidate
+pending mounts and join the owned rendering worker. The
+[mounted regressions](../tests/cli/test_textual_transcript_window.py) cover these
+boundaries. Native latency and accessibility remain separately qualified; the
+diagnostic prototype still observed a cancellation above 250 ms during GC.
+
 In F8 checkpoint review, **Checks** reads current declared-input status and keeps
 historical check results separate. Refresh rechecks through the shared service
 without executing checks. Changed runtime/project selection refuses publication;

@@ -28,9 +28,11 @@ from textual.widgets import RichLog, Static, TextArea
 
 from henchman.cli.evidence import runtime_evidence_redactor
 from henchman.cli.textual_tool_activity import ToolActivity, ToolActivityStore, ToolEvidenceScreen
+from henchman.cli.textual_transcript import TranscriptWindow
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from weakref import ReferenceType
 
     from textual import events
     from textual.geometry import Region
@@ -149,6 +151,10 @@ class _BaseTextualWidget(Static):
 class _BaseMessageWidget(_BaseTextualWidget):
     """Base class for message widgets with common append and set_content logic."""
 
+    _transcript_owner: ReferenceType[TranscriptWindow]
+    _transcript_row_id: int
+    _transcript_epoch: int
+
     DEFAULT_CSS = """
     _BaseMessageWidget {
         margin: 0 0 1 0;
@@ -164,6 +170,11 @@ class _BaseMessageWidget(_BaseTextualWidget):
         """
         super().__init__(text, **kwargs)
         self._content_text: str = text
+
+    def on_mount(self) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        if owner is not None and (window := owner()) is not None and not window.owns(self):
+            self.display = False
 
     def append(self: Self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
@@ -498,6 +509,25 @@ class ChatMessage(_BaseMessageWidget):
         self._is_markdown: bool = False
         self._renderable_text: str | RichMarkdown | Text = ""
         self._update_renderable()
+
+    def on_mount(self) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        if owner is not None and (window := owner()) is not None:
+            window.project_row(self)
+
+    def append(self, chunk: str | None) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        window = owner() if owner is not None else None
+        if chunk is None:
+            return
+        if window is None or not window.update_content(self, chunk, append=True):
+            super().append(chunk)
+
+    def set_content(self, content: str) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        window = owner() if owner is not None else None
+        if window is None or not window.update_content(self, content or "", append=False):
+            super().set_content(content)
 
     @property
     def renderable(self: Self) -> str | RichMarkdown | Text:
@@ -1040,6 +1070,46 @@ class ChatPane(VerticalScroll):
         self._viewport_refresh_pending = False
         self._restoring_viewport = False
         self._capture_after_scroll = False
+        self._transcript = TranscriptWindow(self)
+
+    def on_mount(self) -> None:
+        for child in list(self.children):
+            if isinstance(child, _BaseMessageWidget) and not hasattr(child, "_transcript_row_id"):
+                self._transcript.add(child, active=child in self._active.values())
+        self._transcript.schedule()
+        self.set_interval(0.5, self._transcript.project)
+
+    async def on_unmount(self) -> None:
+        await self._transcript.close()
+
+    def iter_transcript_rows(self, *, reverse: bool = False) -> Iterator[Any]:
+        """Read all chronological rows with current credential projection."""
+        return self._transcript.rows(reverse=reverse)
+
+    def action_previous_history(self) -> None:
+        self._transcript.page(-1)
+
+    def action_next_history(self) -> None:
+        self._transcript.page(1)
+
+    def scroll_page_up(self, **kwargs: Any) -> None:
+        if self.scroll_y <= 0 and self._transcript.can_page(-1):
+            self.action_previous_history()
+            if callback := kwargs.get("on_complete"):
+                self.call_after_refresh(callback)
+        else:
+            super().scroll_page_up(**kwargs)
+
+    def scroll_page_down(self, **kwargs: Any) -> None:
+        if self.scroll_y >= self.max_scroll_y and self._transcript.can_page(1):
+            self.action_next_history()
+            if callback := kwargs.get("on_complete"):
+                self.call_after_refresh(callback)
+        else:
+            super().scroll_page_down(**kwargs)
+
+    def reveal_transcript_row(self, row_id: int) -> None:
+        self._transcript.reveal(row_id)
 
     def _capture_reading_anchor(self) -> None:
         if not self.is_mounted:
@@ -1055,6 +1125,7 @@ class ChatPane(VerticalScroll):
 
     def hold_reading_position(self) -> None:
         """Hold history until the user explicitly returns live."""
+        self._transcript.hold()
         self.follow_live = False
         self._capture_reading_anchor()
         self.post_message(self.FollowChanged(self))
@@ -1089,6 +1160,7 @@ class ChatPane(VerticalScroll):
         self._reading_anchor = None
         self._capture_after_scroll = False
         self.post_message(self.FollowChanged(self))
+        self._transcript.live()
         self.refresh_reading_position()
 
     def action_scroll_end(self) -> None:
@@ -1259,6 +1331,7 @@ class ChatPane(VerticalScroll):
             _LOGGER.debug("Attempted to finish non-existent agent stream: %s", agent_name)
             return
         widget.finalize_as_markdown()
+        self._transcript.finish(widget)
         self.refresh_reading_position()
 
     def finish_thinking_stream(self: Self, agent_name: str) -> None:
@@ -1300,7 +1373,10 @@ class ChatPane(VerticalScroll):
         hidden = self.output_mode == "quiet" and (routine or isinstance(widget, ThinkingMessage))
         if hidden:
             widget.display = False
-        self._mount_widget(widget)
+        if self.is_mounted:
+            self._transcript.add(widget, active=tracking_dict is not None)
+        else:
+            self._mount_widget(widget)
         if not hidden:
             self._record_activity()
 
@@ -1395,9 +1471,13 @@ class ChatPane(VerticalScroll):
             None
         """
         self._active_thinking = {}
-        thinking = [child for child in self.children if isinstance(child, ThinkingMessage)]
+        thinking = [child for child in dict.fromkeys((*self.children, *self._transcript.owned_widgets()))
+                    if isinstance(child, ThinkingMessage)]
         for widget in thinking:
-            _perform_pane_operation(widget.remove, self, "_remove", widget)
+            owned = self._transcript.owns(widget)
+            self._transcript.discard(widget)
+            if not owned:
+                _perform_pane_operation(widget.remove, self, "_remove", widget)
 
     def clear_messages(self: Self) -> None:
         """Remove all messages from the pane.
@@ -1407,6 +1487,7 @@ class ChatPane(VerticalScroll):
         """
         self._active = {}
         self._active_thinking = {}
+        self._transcript.clear()
         self._tool_activity.clear()
         self._tool_rows = {}
         if self.is_mounted:

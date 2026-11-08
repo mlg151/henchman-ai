@@ -41,7 +41,6 @@ from henchman.cli.textual_config import (
 from henchman.cli.textual_questions import ToolPromptChannel
 from henchman.cli.textual_widgets import (
     AgentSummaryPanel,
-    ChatMessage,
     ChatPane,
     MemoryIndicator,
     SettingsPanel,
@@ -49,9 +48,7 @@ from henchman.cli.textual_widgets import (
     StatusBar,
     TaskListWidget,
     TeamPanel,
-    ThinkingMessage,
     ThinkingPane,
-    ToolMessage,
     ToolPane,
     _safe_markup,
 )
@@ -1988,14 +1985,11 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
-        for idx, widget in enumerate(chat.children):
-            content = ""
-            if isinstance(widget, (ChatMessage, ThinkingMessage, ToolMessage)):
-                content = _get_searchable_content(widget)
-            if content and query_lower in content.lower():
-                self._search_matches.append(
-                    ("chat", idx, content),
-                )
+        for row in chat.iter_transcript_rows():
+            if row.content and query_lower in row.content.lower():
+                # Keep navigation identity only; visible/copy text is reprojected
+                # from the retained record at use, including credential rotation.
+                self._search_matches.append(("chat", row.row_id, ""))
 
     def _search_richlog_panes(self: _SearchMixin, query_lower: str) -> None:
         """Search thinking and tool RichLog panes.
@@ -2032,7 +2026,7 @@ class _SearchMixin:
             text = _extract_line_text(item)
             if query_lower in text.lower():
                 self._search_matches.append(
-                    (pane_id, idx, text),
+                    (pane_id, idx, ""),
                 )
 
     def _scroll_to_match(self: _SearchMixin) -> None:
@@ -2056,6 +2050,7 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
+        chat._transcript.highlight = term
         for widget in chat.children:
             set_highlight = getattr(widget, "set_highlight", None)
             if callable(set_highlight):
@@ -2074,9 +2069,7 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
-        children = list(chat.children)
-        if 0 <= line_idx < len(children):
-            children[line_idx].scroll_visible(animate=False)
+        chat.reveal_transcript_row(line_idx)
 
     def _scroll_richlog_match(self: _SearchMixin, pane_id: str) -> None:
         """Scroll a RichLog pane to end for visibility.

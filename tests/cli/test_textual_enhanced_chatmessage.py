@@ -1,7 +1,5 @@
 """Tests for enhanced ChatMessage widget with syntax highlighting and markdown support."""
 
-from unittest.mock import MagicMock
-
 from henchman.cli.textual_widgets import ChatMessage
 
 
@@ -157,10 +155,10 @@ echo "Bash"
 
         from henchman.cli.textual_widgets import ChatPane
 
-        pane = MagicMock(spec=ChatPane)
+        pane = ChatPane()
         msg = ChatMessage(prefix="[bold]Agent:[/]", content="```python\nprint('hi')\n```")
         pane._active = {"agent": msg}
-        # Call real method on mock
+        # Include the real transcript lifecycle when finalizing the stream.
         ChatPane.finish_agent_stream(pane, "agent")
         assert msg._is_markdown
         assert "agent" not in pane._active
