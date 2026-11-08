@@ -18,6 +18,7 @@ from henchman.advanced.tasks import (
     TASK_STATUS_OUTCOME_UNKNOWN,
     TASK_STATUS_QUEUED,
     TASK_STATUS_STOPPED,
+    TaskNotFoundError,
     TaskOwnershipError,
 )
 from henchman.lsp import LspService
@@ -57,6 +58,11 @@ _TASK_OUTPUT_PARAMETERS: dict[str, object] = {
     },
     "required": ["task_id"],
 }
+
+_TASK_LOOKUP_MISSING = (
+    "Task not found. Use task_list for current project IDs and retry with the exact "
+    "ID, including the task- prefix."
+)
 
 _TASK_UPDATE_PARAMETERS: dict[str, object] = {
     "type": "object",
@@ -441,7 +447,7 @@ class TaskGetTool(_Tier6TaskToolBase):
 
         record = self._task_service.get_task(_require_task_id(params))
         if record is None:
-            return ToolResult(content="Task not found.", success=False, error="Task not found")
+            return ToolResult(content=_TASK_LOOKUP_MISSING, success=False, error="Task not found")
         return ToolResult(content=self._task_summary(record))
 
 
@@ -505,8 +511,8 @@ class TaskOutputTool(_Tier6TaskToolBase):
         lines = raw_lines if isinstance(raw_lines, int) else 25
         try:
             content = self._task_service.tail_output(task_id, lines=lines)
-        except KeyError as exc:
-            return ToolResult(content=str(exc), success=False, error=str(exc))
+        except TaskNotFoundError:
+            return ToolResult(content=_TASK_LOOKUP_MISSING, success=False, error="Task not found")
         return ToolResult(content=content or "(no output yet)")
 
 

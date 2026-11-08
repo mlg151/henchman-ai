@@ -16,6 +16,62 @@ async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
     return True
 
 
+@pytest.mark.parametrize("tool_name", ["task_get", "task_output"])
+async def test_missing_task_lookup_guides_exact_id_recovery_without_guessing(tmp_path, tool_name):
+    """A partial ID must not resolve to a job or expose submitted text."""
+    from henchman.advanced.tasks import TaskService
+
+    manager = ToolManager()
+    manager.bind_runtime(project_root=tmp_path)
+    manager.register_builtin_tools()
+    service = TaskService(project_root=tmp_path)
+    task = await service.start_task(argv=[sys.executable, "-c", "print('fixture output')"])
+    await service.wait_for_task(task.task_id, timeout=15)
+
+    partial = task.task_id.removeprefix("task-")
+    missing = await manager.registry.execute(tool_name, {"task_id": partial})
+    assert not missing.success
+    assert "task_list" in missing.content and "task-" in missing.content
+    assert "fixture output" not in missing.content
+    full = await manager.registry.execute(tool_name, {"task_id": task.task_id})
+    assert full.success
+    if tool_name == "task_output":
+        assert "fixture output" in full.content
+
+    secret = "untrusted-task-identifier-secret"
+    absent = await manager.registry.execute(tool_name, {"task_id": secret})
+    assert not absent.success
+    assert secret not in absent.content
+    assert absent.error and secret not in absent.error
+
+    other_root = tmp_path / "other-project"
+    other_root.mkdir()
+    other = ToolManager()
+    other.bind_runtime(project_root=other_root)
+    other.register_builtin_tools()
+    foreign = await other.registry.execute(tool_name, {"task_id": task.task_id})
+    assert not foreign.success
+    assert foreign.content == missing.content
+    assert "fixture output" not in foreign.content
+
+
+async def test_task_output_does_not_misreport_internal_key_error_as_missing(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskOutputTool
+
+    tool = TaskOutputTool()
+    tool.bind_runtime(project_root=tmp_path, tool_registry=None)
+    service = tool._task_service
+    task = await service.start_task(argv=[sys.executable, "-c", "pass"])
+    await service.wait_for_task(task.task_id, timeout=15)
+
+    def fail_migration(_record):
+        raise KeyError("corrupt evidence")
+
+    monkeypatch.setattr(service, "_migrate_log", fail_migration)
+    with pytest.raises(KeyError, match="corrupt evidence"):
+        await tool.execute(task_id=task.task_id)
+
+
 @pytest.mark.parametrize('status', ['stopped', 'completed', 'failed', 'cancelled', 'outcome_unknown', 'running'])
 async def test_task_stop_reports_only_observed_stopped_state_as_success(tmp_path, monkeypatch, status):
     from henchman.advanced.tasks import TaskRecord

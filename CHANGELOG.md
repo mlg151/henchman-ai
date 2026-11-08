@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tool recovery guidance** — Unmatched exact edits direct the caller to reread
+  the current file; missing task lookups explain how to find the complete ID.
+  Failed lookups do not guess a task or echo the submitted identifier.
+
 - **Background task inspection** — Task details state that interactive terminal
   attachment is unavailable while retained output remains inspectable. Textual
   Refresh re-reads the selected detail without returning to the list.

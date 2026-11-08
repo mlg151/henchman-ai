@@ -166,7 +166,9 @@ coordinates use the LF-normalized text returned by `read_file`.
 Supply either `old_str` or both line bounds. Mixed modes and incomplete line
 ranges are rejected. If a string has multiple matches, read the current file and
 include enough surrounding text to identify exactly one occurrence. Preserve
-that surrounding text in `new_str` except for the intended changes.
+that surrounding text in `new_str` except for the intended changes. If no
+match is found, the file is unchanged; reread it and copy the exact current text
+before retrying.
 
 For line edits, first use `read_file` with `line_numbers: true`. It returns absolute
 1-based prefixes such as `12: text`, including when reading a partial range.
@@ -783,7 +785,9 @@ an earlier one. A launch receipt means the process started, not that it passed.
 | `task_output(task_id=..., lines=25)` | Read captured output while running or after exit |
 | `task_stop(task_id=...)` | Stop a selected job without stopping other jobs |
 
-Use the ID from each launch when checking results. Python output is unbuffered
+Use the complete ID from each launch when checking results, including its
+`task-` prefix. An unknown ID is not guessed or expanded; use `task_list` to
+find the exact ID in the current project. Python output is unbuffered
 and UTF-8. Both tools retain `cwd` and timeout behavior (`0` means unlimited).
 Workspace formatting is skipped at background launch because the process may
 still be writing files. After completion, run `code_format` on changed Python

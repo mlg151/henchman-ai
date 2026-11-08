@@ -47,6 +47,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   records both syntax failures, all 24 corpus attempts unrun and complete usage
   for 26 observed requests. Sampled PSS exceeded 10 GiB on a 123.13 GiB host;
   there is no qualified included CPU profile or 16 GB hardware result.
+  Tool failures now guide rereading an unmatched edit and using the complete
+  task ID; live recovery and qualification remain to be measured.
 
 - #26 now reuses only successful bounded schema meta-validation. Fresh schemas,
   arguments, policy/grants and verification remain authoritative. The

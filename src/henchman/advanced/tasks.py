@@ -42,6 +42,10 @@ class TaskOwnershipError(RuntimeError):
     """Stored process evidence cannot authorize control of an unowned process."""
 
 
+class TaskNotFoundError(KeyError):
+    """The requested task identity is absent from the current project."""
+
+
 def _now_iso() -> str:
     """Return the current UTC time as an ISO-8601 string."""
 
@@ -396,7 +400,7 @@ class TaskService:
         record = self.get_task(task_id)
         if record is None:
             msg = f"Task {task_id} not found."
-            raise KeyError(msg)
+            raise TaskNotFoundError(msg)
 
         self._refresh_policy()
         self._migrate_log(record)

@@ -20,6 +20,9 @@ records a no-go for both candidates: syntax readiness failed, all 24 corpus
 attempts stayed unrun, and sampled PSS exceeded 10 GiB on the 123.13 GiB host.
 The report preserves complete observed-request usage, setup failures and joined
 cleanup without claiming the required 16 GB-machine qualification.
+The observed unmatched-edit and incomplete-task-ID failures now receive
+specific recovery guidance, with exact task identity still required. Whether
+that guidance improves live local-model outcomes remains unmeasured.
 
 Repository retrieval under #17 now separates worktree caches and validates
 bounded semantic candidates against current tracked-file bytes before returning

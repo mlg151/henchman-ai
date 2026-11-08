@@ -203,6 +203,30 @@ class TestEditFileTool:
             assert "not found" in result.error.lower()
         Path(f.name).unlink()
 
+    async def test_failed_exact_match_explains_safe_recovery_without_changing_file(self, tmp_path: Path) -> None:
+        """A mistyped snippet should lead back to current text, not guessed lines."""
+        path = tmp_path / "broken.py"
+        original = '\ndef greet(name):\n    print(f"Hello, {name}!"\n    return True\n'
+        path.write_text(original, encoding="utf-8")
+        result = await EditFileTool().execute(
+            path=str(path), old_str='    print(f"Hello, {name}"\n    return True',
+            new_str='    print(f"Hello, {name}!")\n    return True',
+        )
+        assert not result.success
+        assert path.read_text(encoding="utf-8") == original
+        assert "read_file" in result.content
+        assert "old_str" in result.content
+        assert "not changed" in result.content.lower()
+
+        reread = await ReadFileTool().execute(path=str(path))
+        assert reread.success and reread.content == original
+        corrected = await EditFileTool().execute(
+            path=str(path), old_str='    print(f"Hello, {name}!"\n    return True',
+            new_str='    print(f"Hello, {name}!")\n    return True',
+        )
+        assert corrected.success
+        compile(path.read_text(encoding="utf-8"), str(path), "exec")
+
     async def test_edit_file_multiple_matches_error(self) -> None:
         """Error when old_str matches multiple times."""
         tool = EditFileTool()
