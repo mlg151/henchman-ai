@@ -27,8 +27,11 @@ transcript workflow; this first implementation slice changes Textual only.
 Hosts may intercept extended keys or encode them identically. The visible return
 button and ordinary Tab/Enter activation are the fallback when Alt+End does not
 arrive. Shift+Enter/Ctrl+Enter availability, native selection, terminal scrollback
-and clipboard support require the native checks below. Application mouse capture
-is not made configurable by this slice.
+and clipboard support require the native checks below. `ui.mouse_capture: false`
+disables application mouse reporting at the next Textual launch; explicit Python
+`mouse=False` remains restrictive. It does not establish native clipboard or
+scrollback behavior. Keyboard history navigation and the return-to-live control
+remain available with capture disabled.
 
 ## Versioned scenarios
 
@@ -51,7 +54,7 @@ runtime boundaries.
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
 | Width, theme, Unicode and long paths | 80×24, 120×40 and 160×50 in the [new harness](../tests/cli/ui_scenarios.py) | Light/dark/no-color native contrast and focused narrow layout |
-| Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py) only; runtime consumers pending | Actual assistive technology, terminal/tmux/remote checks |
+| Quiet output, reduced motion, keyboard mode, mouse preference | [Typed settings](../tests/cli/test_config_ui_terminal_sync.py); [mouse startup and keyboard fallback](../tests/cli/test_textual_mouse_settings.py) implemented, other consumers pending | Actual assistive technology, terminal/tmux/remote checks |
 
 The implemented resize anchor retains a message and its visual row while earlier
 messages reflow. Exact character anchoring within one rewrapped long message is

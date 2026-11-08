@@ -123,6 +123,8 @@ from henchman.cli.ui_renderer import UIRenderer
 from henchman.config.runtime import RuntimeSettingsState
 
 if TYPE_CHECKING:
+    from textual.driver import Driver
+
     from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
 
@@ -285,6 +287,18 @@ class HenchmanTextualApp(
             settings_state,
         )
         self._init_state()
+
+    def _build_driver(
+        self, headless: bool, inline: bool, mouse: bool, size: tuple[int, int] | None,
+    ) -> Driver:
+        """Apply the held startup preference to each supported launch path.
+
+        Explicit API ``mouse=False`` remains restrictive. Changing the setting
+        after driver creation takes effect when a new TUI is started.
+        """
+        return super()._build_driver(
+            headless, inline, mouse and self.settings.ui.mouse_capture, size,
+        )
 
     async def _textual_question(self, question: str) -> str | None:
         """Collect an answer through the serialized Textual tool dialog."""

@@ -128,8 +128,8 @@ ui:
 replace an invalid existing value with one of these supported names. This uses
 the same schema when loading settings and validating configuration writes.
 
-The terminal UI also honors typed controls, with defaults preserving current
-behavior:
+The settings schema accepts these terminal UI controls. Runtime support is
+described below; defaults preserve existing behavior:
 
 | Key | Values | Purpose |
 |----------|--------|---------|
@@ -137,11 +137,20 @@ behavior:
 | `ui.reduced_motion` | `true`/`false` (default `false`) | Suppress non-essential animation and redraws |
 | `ui.detail_density` | `compact`, `normal` (default), `detailed` | Density of presented information |
 | `ui.keyboard_mode` | `standard` (default), `vim` | Keyboard behavior profile |
-| `ui.mouse_capture` | `true` (default) / `false` | TUI mouse capture; set `false` for native scrollback and SSH/mosh use |
+| `ui.mouse_capture` | `true` (default) / `false` | Enable application mouse reporting when the next Textual driver starts |
 | `ui.layout.compact_tables` | `true`/`false` (default `false`) | Render denser tables and lists where supported |
 
-All are validated with field attribution on error. Consumers for the optional
-layouts and density arrive with the UI workstream; unset keys keep today's behavior.
+All are validated with field attribution on error. `ui.mouse_capture` is applied
+when the Textual driver starts. Set it to `false` to disable application mouse
+reporting; an explicit Python `run`/`run_async` argument `mouse=False` also disables
+it. Changes during a running TUI take effect on the next launch. Alt+Page Up/Down
+reads transcript history and Alt+End returns to live output without replacing the
+composer draft. Host selection, scrollback, clipboard and remote-terminal behavior
+still depend on the terminal and require native testing.
+
+`ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
+tables. Its Textual consumer and runtime behavior for output mode, reduced motion,
+density and keyboard mode remain pending in the UI workstream.
 
 Unknown fields in typed groups are rejected rather than silently ignored. Remove
 obsolete or misspelled fields from existing files; entries inside the declared

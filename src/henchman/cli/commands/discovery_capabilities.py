@@ -311,8 +311,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         detail=(
             "ui.output_mode, ui.reduced_motion, ui.detail_density, "
             "ui.keyboard_mode, ui.mouse_capture, and ui.layout.compact_tables "
-            "are typed settings configured through the config command. Their "
-            "runtime consumers are delivered by the terminal UI workstream; "
+            "are typed settings configured through the config command. "
+            "ui.mouse_capture applies at Textual driver startup; compact_tables "
+            "currently affects classic REPL renderer tables. Other consumers "
+            "remain pending in the terminal UI workstream; "
             "runtime-scoped discovery must not present them as generic commands."
         ),
         aliases=(

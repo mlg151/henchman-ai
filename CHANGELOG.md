@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Textual mouse capture preference** — `ui.mouse_capture` controls mouse reporting
+  at driver startup while preserving explicit Python `mouse=False`. Keyboard
+  history/live navigation and composer selection remain available. Setting changes
+  apply at the next launch; native clipboard and scrollback qualification is pending.
+
 - **Owned OAuth browser handoff** — A bounded desktop helper receives authorization
   URLs through stdin after current authority and cancellation checks. It preserves
   original cancellation, joins its launcher and reports uncertain handoff without
