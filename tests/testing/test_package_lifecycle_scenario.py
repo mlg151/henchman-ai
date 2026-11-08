@@ -12,7 +12,7 @@ from henchman.config.schema import Settings
 
 @pytest.mark.asyncio
 async def test_package_lifecycle_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = Settings(context={"max_tokens": 32768})
+    settings = Settings(context={"max_tokens": 32768}, agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     rig = EvalTestRig(provider=script(), profile="team", settings=settings)
     actual_results: list[EvalResult] = []
@@ -38,7 +38,7 @@ async def test_package_lifecycle_scenario(monkeypatch: pytest.MonkeyPatch) -> No
 @pytest.mark.asyncio
 @pytest.mark.parametrize("defect", ["no_review", "late_edit", "failed_review"])
 async def test_package_lifecycle_scenario_defects(defect: str) -> None:
-    settings = Settings(context={"max_tokens": 32768})
+    settings = Settings(context={"max_tokens": 32768}, agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     rig = EvalTestRig(provider=script(defect), profile="team", settings=settings)
     try:
@@ -55,7 +55,7 @@ async def test_package_lifecycle_scenario_defects(defect: str) -> None:
 async def test_package_lifecycle_scenario_authoritative_runtime_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings(context={"max_tokens": 32768})
+    settings = Settings(context={"max_tokens": 32768}, agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     rig = EvalTestRig(provider=script(), profile="team", settings=settings)
 

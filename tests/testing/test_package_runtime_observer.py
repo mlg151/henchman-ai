@@ -12,7 +12,7 @@ from henchman.config.schema import Settings
 
 @pytest.mark.asyncio
 async def test_package_runtime_observer_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = Settings(context={"max_tokens": 32768})
+    settings = Settings(context={"max_tokens": 32768}, agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     rig = EvalTestRig(provider=script(), profile="team", settings=settings)
     observed: list[EvalResult] = []
