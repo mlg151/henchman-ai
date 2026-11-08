@@ -22,6 +22,7 @@ def synthetic_launcher(tmp_path, monkeypatch):
     script = tmp_path / "launcher.py"
     script.write_text('''import hashlib,json,os,pathlib,sys,time
 mode, target = sys.argv[1:]
+if mode == "windows_text_stream": sys.stdout.reconfigure(newline="\\r\\n")
 pathlib.Path(target + ".started").touch()
 if mode == "ignore_term":
     import signal
@@ -33,9 +34,15 @@ if mode == "bad_ready":
 if mode == "oversized_ready":
     print("x" * 4096, flush=True)
     time.sleep(30)
+if mode == "crlf_ready":
+    sys.stdout.buffer.write(b"READY\\r\\n")
+    sys.stdout.buffer.flush()
+    time.sleep(30)
 if mode == "wait_ready":
     while not pathlib.Path(target + ".ready").exists(): time.sleep(.005)
-print("READY", flush=True)
+# Match the real helper's binary control protocol on every platform.
+sys.stdout.buffer.write(b"READY\\n")
+sys.stdout.buffer.flush()
 value = sys.stdin.buffer.readline(9000)
 if value:
     pathlib.Path(target).write_text(json.dumps({"sha256":hashlib.sha256(value).hexdigest(),
@@ -84,9 +91,10 @@ def assert_joined(processes):
     assert not [task for task in asyncio.all_tasks() if task.get_name().startswith("henchman-oauth-browser")]
 
 
-async def test_native_child_receives_url_only_on_stdin_after_ready_and_is_reaped(synthetic_launcher, monkeypatch):
+@pytest.mark.parametrize("mode", ["success", "windows_text_stream"])
+async def test_native_child_receives_url_only_on_stdin_after_ready_and_is_reaped(synthetic_launcher, monkeypatch, mode):
     choose, calls, processes = synthetic_launcher
-    target = choose("success")
+    target = choose(mode)
     monkeypatch.setenv("OPENAI_API_KEY", "provider-private-canary")
     monkeypatch.setenv("HMN_MCP_AUTH_TOKEN", "mcp-private-canary")
     monkeypatch.setenv("BROWSER", "unsafe-shell-template %s")
@@ -141,7 +149,7 @@ async def test_authority_revoked_while_waiting_ready_never_hands_off_url(synthet
     assert_joined(processes)
 
 
-@pytest.mark.parametrize("mode", ["no_ready", "bad_ready", "oversized_ready", "hold", "failure", "flood"])
+@pytest.mark.parametrize("mode", ["no_ready", "bad_ready", "oversized_ready", "crlf_ready", "hold", "failure", "flood"])
 async def test_failure_timeout_and_output_bounds_settle_owned_child(synthetic_launcher, mode):
     choose, calls, processes = synthetic_launcher
     target = choose(mode)
