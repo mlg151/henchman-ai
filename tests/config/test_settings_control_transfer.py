@@ -235,12 +235,22 @@ def test_fixed_numeric_and_enum_meaning_survives_short_credential_policy(tmp_pat
     assert exported["usage"]["persistence"] == "process"
 
 
-def test_import_targets_canonical_project_preserves_layers_and_session_origin(tmp_path) -> None:
+def test_import_targets_canonical_project_preserves_layers_and_session_origin(tmp_path, monkeypatch) -> None:
     write(Path.home(), {"usage": {"limits": {"max_requests": 9, "max_tokens": 100}}})
     legacy = tmp_path / ".Henchman"
     legacy.mkdir()
     (legacy / "settings.yaml").write_text(yaml.safe_dump({"ui": {"theme": "light"}}))
     before = (legacy / "settings.yaml").read_bytes()
+    canonical_file = tmp_path / ".henchman" / "settings.yaml"
+    same_directory = canonical_file.exists() and canonical_file.samefile(legacy / "settings.yaml")
+    destinations: list[Path] = []
+    replace = Path.replace
+
+    def observe_replace(source: Path, target: Path) -> Path:
+        destinations.append(target)
+        return replace(source, target)
+
+    monkeypatch.setattr(Path, "replace", observe_replace)
     repository = SettingsRepository(tmp_path)
     repository.import_settings(
         {"usage": {"limits": {"max_requests": 0}}},
@@ -254,7 +264,13 @@ def test_import_targets_canonical_project_preserves_layers_and_session_origin(tm
     assert snapshot.origins["usage.limits.max_tokens"].scope == "session"
     saved = repository.view(scope=SettingsScope.PROJECT)
     assert saved["usage"] == {"limits": {"max_requests": 0}}
-    assert (legacy / "settings.yaml").read_bytes() == before
+    assert destinations == [canonical_file]
+    if same_directory:
+        # Case-insensitive filesystems expose one file through both spellings.
+        assert (legacy / "settings.yaml").samefile(canonical_file)
+        assert saved["ui"]["theme"] == "light"
+    else:
+        assert (legacy / "settings.yaml").read_bytes() == before
 
 
 def test_real_replace_error_is_preserved_and_existing_document_unchanged(
