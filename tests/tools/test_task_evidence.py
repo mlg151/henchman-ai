@@ -592,7 +592,10 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
         assert final.status == "completed"
         assert record.output_path.read_text() == "complete evidence\n"
     else:
-        assert final.status == "failed"
+        assert final.status == "failed", (
+            f"status={final.status!r}, metadata={final.metadata!r}, "
+            f"returncode={process.returncode!r}, capture_error={captures[0].error!r}"
+        )
         assert "capture" in final.metadata["error"]
         assert "close-failure-canary" not in repr(final)
         assert "reader-close-canary" not in repr(final)
