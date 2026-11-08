@@ -131,9 +131,20 @@ async def test_formatter_rechecks_owned_post_edit_target_and_live_authority(tmp_
 
     monkeypatch.setattr(formatting, "format_python_files", paused)
     task = asyncio.create_task(orch.repair_direct("engineer", "Repair", request))
+    ready = asyncio.create_task(entered.wait())
     peer_claim = None
     try:
-        await asyncio.wait_for(entered.wait(), 10)
+        # Exercise the authority race after the approved edit has completed.
+        # Verification and admission can exceed ten seconds under coverage;
+        # report an early task failure instead of hiding it as an event timeout.
+        done, _ = await asyncio.wait(
+            {task, ready}, return_when=asyncio.FIRST_COMPLETED,
+            timeout=request.timeout_seconds + 10,
+        )
+        if task in done:
+            report = await task
+            pytest.fail(f"Repair ended before formatter observation: {report.status}/{report.reason}")
+        assert ready in done, "Repair did not reach the formatter within its bounded run deadline"
         target = tmp_path / "target.py"
         assert "a + b" in target.read_text(), "The approved body must finish before the race"
         if change == "replacement":
@@ -177,7 +188,8 @@ async def test_formatter_rechecks_owned_post_edit_target_and_live_authority(tmp_
         release.set()
         if not task.done():
             task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        ready.cancel()
+        await asyncio.gather(task, ready, return_exceptions=True)
         if peer_claim is not None:
             peer_claim.__exit__(None, None, None)
         await orch.aclose()
