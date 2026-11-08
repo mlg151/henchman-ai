@@ -50,3 +50,16 @@ export task to settle in the two-format test. Native verification remains open.
 The revised tool-discovery fixture also passed all five scripted adapters on
 Linux with the 2.6.0 SDK and a longer temporary project path. This does not
 substitute for the Windows wheel jobs.
+
+For a later Linux installed-wheel check, a clean archive of commit
+`57aa1849b0c5dff38482e6a453ff133bba6b2d07` was built offline. The archive
+SHA-256 was `49b3b95d4b07ea2efb1162d2bd6edccba3041d596e9840a38f1d59e2ad703533`;
+the 0.4.1 wheel SHA-256 was
+`9ebab46d55145283918618b948fef4803e6f367ef6689c953d0768925e1ea794`.
+All 454 installed package files matched the wheel. With Anthropic SDK 2.6.0,
+**79/79** staged review, discovery and interruption tests passed on Python 3.11;
+the test log SHA-256 is
+`fcfcdf2c851d7e44e5a0e7ba0087b6a4e5ccb36100b67ef22ca49412e9769cc5`.
+The other dependencies were reused from the local development environment.
+The artifacts and log are retained in `ci-repair-wheel-57aa184` under the local
+qualification cache. This is not a final release artifact or native Windows run.
