@@ -35,3 +35,10 @@ cleanup; that log SHA-256 is
 `708695da23a1bce3be08ce4233323cf80c510ccb2aa536608d62764d6e44c41b`.
 The changed test copy was restored afterward. These development-wheel results
 do not qualify a release artifact.
+
+All 12 installed-wheel jobs in the original `4ba6f71` run later passed across
+Linux, macOS and Windows. The Windows 3.11 job, which had failed repair-owner
+tests on the earlier `c0cbe17` run, reported **5,965 passed, 242 skipped**;
+its log SHA-256 is
+`171de81047cf5f0121cc5ae81e1ed171129282d7b944ddb59d97259556144031`.
+The Python 3.12 coverage job remained in progress when this update was recorded.
