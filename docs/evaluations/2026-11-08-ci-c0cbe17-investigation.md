@@ -8,6 +8,12 @@ the retained log SHA-256 is
 This job includes the decision-review export tests that failed in the previous
 run. Other jobs were still active when this note was written.
 
+The run has since completed with **18 of 20 jobs successful**. The Windows
+3.11 wheel job and the aggregate gate failed; all other native wheel jobs and
+all four Linux source jobs passed. Python 3.12 reported **12,665 passed,
+91 skipped and 91.26% coverage**. Job metadata and the coverage log are retained
+with the native logs; these results apply to the stated head.
+
 The Windows/Python 3.11 wheel job failed two parameterizations of
 `test_terminal_downgrade_cannot_overwrite_a_newer_repair_owner`: **2 failed,
 5,963 passed and 236 skipped**. Neither expected exception was raised. The
