@@ -32,6 +32,10 @@ plausible early-timeout path locally: the old one-second limit returned
 With the longer limit, both delayed race cases and four adjacent cases passed on
 Python 3.11 and 3.12. This supports the fixture adjustment but does not prove
 that the Windows failures followed the same path.
+Two adjacent tests used the same one-second real timeout with an injected clock;
+their real allowances were likewise increased while keeping the simulated
+deadline transition. All eight cases across the three groups passed locally on
+both Python 3.11 and 3.12.
 
 A clean offline wheel built from `605365bf6ff25dcb659cc0d9a57ee87b07624533`
 also passed both delayed cases on Linux/Python 3.11 after all 454 installed

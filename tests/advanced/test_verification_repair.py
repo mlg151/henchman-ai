@@ -562,7 +562,7 @@ async def test_synchronous_persistence_expiry_denies_next_repair_transition(tmp_
     service, plan, _ = setup(tmp_path)
     if boundary == "observation":
         (tmp_path / "target.py").write_text("answer = 2\n")
-    repair = session(service, plan, timeout_seconds=1.0)
+    repair = session(service, plan, timeout_seconds=120.0)
     clock = [10.0]
     monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     save = service.save_repair_report
@@ -572,7 +572,7 @@ async def test_synchronous_persistence_expiry_denies_next_repair_transition(tmp_
         result = save(identity, report, start=start)
         crossed = report["repairs_started"] == 1 if boundary == "admission" else bool(report["observations"])
         if crossed and report["status"] == "running":
-            clock[0] = 12.0
+            clock[0] = 131.0
         return result
 
     async def adapter(attempt):
@@ -721,7 +721,7 @@ async def test_terminal_pass_acknowledgement_rechecks_controls_and_downgrades_ev
 
     service, plan, _ = setup(tmp_path)
     (tmp_path / "target.py").write_text("answer = 2\n")
-    repair = session(service, plan, timeout_seconds=1.0)
+    repair = session(service, plan, timeout_seconds=120.0)
     clock = [10.0]
     monkeypatch.setattr(verification_repair, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     save = service.save_repair_report
@@ -732,7 +732,7 @@ async def test_terminal_pass_acknowledgement_rechecks_controls_and_downgrades_ev
         if report["status"] == "scoped_pass":
             published.append(result)
             if control in {"deadline", "downgrade_cancellation"}:
-                clock[0] = 12.0
+                clock[0] = 131.0
             elif control == "queued_cancellation":
                 asyncio.get_running_loop().call_soon(asyncio.current_task().cancel, "cancel during terminal acknowledgement")
             else:
