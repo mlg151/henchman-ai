@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bounded delegation** — One configurable runtime limit covers executing
+  descendants across dynamic, named, nested and parallel routes. Refusals are
+  explicit, cleanup retains capacity until joined, and retired session work
+  cannot restart. The primary is excluded; `0` disables child execution.
+
 - **Fresh checkpoint copy** — Selected review text is reprojected before Ctrl+C
   transfer, with reselection after credential changes and refusal for stale
   runtime/project identity. Copying does not rerun checks or reread captures.

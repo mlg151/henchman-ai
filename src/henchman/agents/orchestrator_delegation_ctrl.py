@@ -61,6 +61,7 @@ class _StreamState:
     status: str = field(default="")
     completion_requirement: CompletionRequirement = CompletionRequirement.ACTIONS
     evidence: dict[str, Any] | None = None
+    admission: dict[str, object] | None = None
 
     @property
     def succeeded(self) -> bool:
@@ -231,7 +232,7 @@ class DelegationController(OrchestratorComponent):
             )
             final_state = state
 
-            if not state.had_error or attempt >= max_retries:
+            if state.admission is not None or not state.had_error or attempt >= max_retries:
                 break
 
             # Create a fresh ledger record for the next attempt
@@ -255,6 +256,8 @@ class DelegationController(OrchestratorComponent):
             agent, tool_call, submitted, success=final_state.succeeded,
         )
         event.data.update({"task_verified": False, "evidence": final_state.evidence})
+        if final_state.admission is not None:
+            event.data["admission"] = final_state.admission
         yield event
 
     async def _stream_delegation(
@@ -301,6 +304,8 @@ class DelegationController(OrchestratorComponent):
                     state.evidence = data.get("evidence")
                 if sub_event.type == EventType.ERROR:
                     state.had_error = True
+                    if isinstance(sub_event.data, dict) and isinstance(sub_event.data.get("admission"), dict):
+                        state.admission = sub_event.data["admission"]
                     if not state.error_message:
                         state.error_message = str(sub_event.data)
                 yield sub_event

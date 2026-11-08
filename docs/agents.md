@@ -67,9 +67,10 @@ interactive channel. Headless operation does not create a terminal input channel
 
 Delegated tools must be a subset of the caller's current scope. `tools: []`
 grants no tools. Nested spawning requires explicitly delegating `invoke_subagent`
-and remains subject to the child's own scope. There is no fixed roster/count
-limit; provider request limits, available memory, and per-agent execution budgets
-still apply. Notification-driven resumptions share the parent run's tool-round
+and remains subject to the child's own scope. Executing descendants share the
+runtime's `agents.max_concurrent_delegations` limit (default `4`); the primary is
+excluded. Provider request limits, available memory, and execution budgets also
+apply. Notification-driven resumptions share the parent run's tool-round
 and tool-call budgets; a new explicit follow-up starts a fresh run budget.
 Subagents inherit execution authorization and plan-mode restrictions.
 Runtime coordination remains responsive while a child executes a foreground
@@ -80,6 +81,30 @@ history reset, and session-resume commands cancel and join unfinished work befor
 releasing its runtime resources. Completed child histories are not durable session
 checkpoints, and background agents do not survive application exit. See the
 [tool reference](tools.md#background-subagent-tools) for call shapes.
+
+### Shared delegation capacity
+
+`agents.max_concurrent_delegations` accepts a nonnegative integer. Set it to `0`
+to disable child execution while retaining direct primary work. The runtime
+captures the value at construction; start a new runtime to apply a changed limit.
+Dynamic children, named specialists, parallel calls, nested children and the
+compatibility delegation manager all reserve from the same pool before creating
+their actors or workers. A child waiting for parent input retains its slot.
+Completed cached conversations release capacity; a follow-up must reserve again.
+
+When capacity is full, a request fails immediately with structured
+`delegation_capacity` evidence and `retryable: false`. It creates no waiting
+execution and does not trigger automatic delegation retries. The parent may
+continue directly or explicitly try after owned work finishes. Parallel calls
+start the admitted entries and report refusals for the remainder; output is
+consumed through a bounded buffer while the workers run.
+
+Cancellation retains capacity until worker and stream cleanup has joined.
+History/session reset retires old conversations and unstarted delegation streams;
+they cannot restart under the new session. Shutdown permanently retires the pool.
+This is a per-runtime execution bound, not a cross-process quota or workspace
+write-isolation mechanism. File ownership, explicit delegation policy and paired
+live-model effectiveness remain separate work under issue #29.
 
 ## Optional Named Roles
 

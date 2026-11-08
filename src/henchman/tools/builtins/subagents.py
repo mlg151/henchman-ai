@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from henchman.agents.delegation_admission import DelegationAdmissionError
 from henchman.agents.subagents import BackgroundSubagentManager
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -38,6 +39,9 @@ def _required_string(params: dict[str, object], name: str) -> str:
 
 def _failure(exc: Exception) -> ToolResult:
     message = str(exc)
+    if isinstance(exc, DelegationAdmissionError):
+        return ToolResult(content=json.dumps({"message": message, "admission": exc.payload}),
+                          success=False, error=message, metadata={"admission": exc.payload})
     return ToolResult(content=message, success=False, error=message)
 
 

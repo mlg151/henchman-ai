@@ -123,6 +123,7 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         runner=runner,
         available_tools=lambda _actor: acting_agent().tool_registry.list_tools(),
         parent_id="tech_lead",
+        admission=orchestrator.delegation_runner.admission,
     )
     orchestrator.subagents = manager
     for tool in (InvokeSubagentTool(), ManageSubagentsTool()):

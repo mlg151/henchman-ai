@@ -97,6 +97,12 @@ completion. The JSON adapter emits one final `finished` event and rejects a
 missing or unsuccessful outer outcome. Provider tool rounds have a finite budget
 for both lead and specialist agents, independent of delegation call/depth limits.
 
+One runtime-owned `DelegationAdmission` also bounds executing descendants across
+dynamic, named, nested, parallel and compatibility routes. Reservations precede
+actor/worker creation and remain held until cleanup joins. Reset revokes old
+generation authority before cancellation, and capacity refusal never enters the
+delegation retry loop. See [shared delegation capacity](agents.md#shared-delegation-capacity).
+
 Tool scopes use a live view of the runtime registry with fixed role allowlists.
 The leader uses the same scope mechanism as specialists. Allowed late tools and
 parent replacements are resolved through one lookup shared by declarations,

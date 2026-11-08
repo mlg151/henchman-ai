@@ -787,7 +787,8 @@ class TestRunParallelDelegations:
         from henchman.config.schema import Settings
         from henchman.core.events import AgentEvent, EventType
 
-        async def fake_run(params: DelegationParams) -> Any:
+        async def fake_run(params: DelegationParams, *, _lease: object) -> Any:
+            assert _lease is not None
             yield AgentEvent(
                 type=EventType.CONTENT,
                 data=f"result-{params.target_role}",

@@ -835,6 +835,9 @@ agents:
   # Max recursive delegation depth (default: 3)
   max_delegation_depth: 3
 
+  # Shared executing descendants; primary excluded. 0 disables children.
+  max_concurrent_delegations: 4
+
   # Max tokens for shared context between agents (default: 4000)
   shared_context_max_tokens: 4000
 

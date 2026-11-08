@@ -6,14 +6,16 @@ import asyncio
 import logging
 import time
 from collections import OrderedDict, deque
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from henchman.core.events import EventType
+from henchman.core.events import AgentEvent, EventType
 from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.utils.evidence_redaction import EvidenceRedactor
 from henchman.utils.exception_evidence import exception_text
 
+from .delegation_admission import DelegationAdmission, DelegationLease
 from .orchestrator_types import DelegationParams
 
 if TYPE_CHECKING:
@@ -45,6 +47,7 @@ class DelegationTask:
     error: str | None = None
     start_time: float = field(default_factory=time.monotonic)
     asyncio_task: asyncio.Task[None] | None = None
+    admission: DelegationLease | None = None
 
 
 class DelegationManager:
@@ -57,6 +60,8 @@ class DelegationManager:
             delegation_runner: The delegation runner to use for executing delegations.
         """
         self.delegation_runner = delegation_runner
+        candidate = getattr(delegation_runner, "admission", None)
+        self.admission = candidate if isinstance(candidate, DelegationAdmission) else DelegationAdmission()
         self.ongoing_tasks: dict[str, DelegationTask] = {}
         self.completed_tasks: OrderedDict[str, DelegationTask] = OrderedDict()
         self._task_counter = 0
@@ -82,6 +87,15 @@ class DelegationManager:
         Returns:
             Delegation task ID.
         """
+        lease = self.admission.reserve()
+        try:
+            return self._start_reserved(source_agent, tool_call, depth, lease)
+        except BaseException:
+            lease.release()
+            raise
+
+    def _start_reserved(self, source_agent: Agent, tool_call: ToolCall, depth: int,
+                        lease: DelegationLease) -> str:
         task_id = f"delegation_{self._task_counter}"
         self._task_counter += 1
 
@@ -103,13 +117,31 @@ class DelegationManager:
             source_agent=source_agent,
             depth=depth,
             task_future=task_future,
+            admission=lease,
         )
 
         # Store task
         self.ongoing_tasks[task_id] = delegation_task
 
         # Start delegation in background and store reference for cancellation
-        task = asyncio.create_task(self._run_delegation(delegation_task, tool_call))
+        worker = self._run_delegation(delegation_task, tool_call)
+        try:
+            task = asyncio.create_task(worker)
+        except BaseException:
+            worker.close()
+            del self.ongoing_tasks[task_id]
+            raise
+        def settled(worker: asyncio.Task[None]) -> None:
+            lease.release()
+            if worker.cancelled() and not delegation_task.completed:
+                delegation_task.completed = True
+                delegation_task.error = "Delegation cancelled before completion"
+                if not task_future.done():
+                    task_future.cancel()
+                self._add_completed_task(task_id, delegation_task)
+                self.ongoing_tasks.pop(task_id, None)
+        task.add_done_callback(settled)
+        lease.owner = task
         delegation_task.asyncio_task = task
 
         logger.info("Started asynchronous delegation %s: %s -> %s",
@@ -138,55 +170,54 @@ class DelegationManager:
                 depth=delegation_task.depth + 1,
             )
 
-            # Run delegation and capture output
-            result_content = ""
-            success = True
+            from .delegation import DelegationRunner
 
-            async for event in self.delegation_runner.run_delegation(delegation_params):
-                # Capture content events
-                if event.type == EventType.CONTENT:
-                    content = str(event.data)
-                    delegation_task.output_buffer.append(content)
-                    result_content += content
-                elif event.type == EventType.ERROR:
-                    error_msg = str(event.data)
-                    delegation_task.output_buffer.append(f"ERROR: {error_msg}")
-                    delegation_task.error = error_msg
-                    success = False
-                elif event.type == EventType.AGENT_COMPLETED:
-                    # Extract completion result
-                    if isinstance(event.data, dict) and "result" in event.data:
-                        completion_result = str(event.data["result"])
-                        delegation_task.output_buffer.append(f"COMPLETED: {completion_result}")
-                        result_content += f"\n\n{completion_result}"
+            events = (self.delegation_runner.run_delegation(delegation_params, _lease=delegation_task.admission)
+                      if isinstance(self.delegation_runner, DelegationRunner)
+                      else self.delegation_runner.run_delegation(delegation_params))
+            from .orchestrator_execution import closing_event_stream
 
-            # Mark as completed
-            delegation_task.completed = True
-
-            # Set future result
+            async with closing_event_stream(events) as stream:
+                await self._consume_delegation(delegation_task, stream)
+        except asyncio.CancelledError:
             if not delegation_task.task_future.done():
-                delegation_task.task_future.set_result((result_content, success))
-
-            # Move to completed tasks (with bounded cache)
-            self._add_completed_task(delegation_task.id, delegation_task)
-            del self.ongoing_tasks[delegation_task.id]
-
-            logger.info("Completed asynchronous delegation %s", delegation_task.id)
-
+                delegation_task.task_future.cancel()
+            raise
         except Exception as e:
+            delegation_task.error = str(e)
+            if not delegation_task.task_future.done():
+                delegation_task.task_future.set_exception(e)
             logger.error("Delegation %s failed: %s", delegation_task.id, exception_text(
                 e, self._diagnostic_policy(delegation_task.source_agent), include_traceback=True,
             ))
+        finally:
             delegation_task.completed = True
-            delegation_task.error = str(e)
-
-            if not delegation_task.task_future.done():
-                delegation_task.task_future.set_exception(e)
-
-            # Still move to completed (failed, with bounded cache)
             self._add_completed_task(delegation_task.id, delegation_task)
-            if delegation_task.id in self.ongoing_tasks:
-                del self.ongoing_tasks[delegation_task.id]
+            self.ongoing_tasks.pop(delegation_task.id, None)
+            if delegation_task.admission is not None:
+                delegation_task.admission.release()
+
+    async def _consume_delegation(self, delegation_task: DelegationTask, events: AsyncIterator[AgentEvent]) -> None:
+        result_content = ""
+        success = True
+        async for event in events:
+            if event.type == EventType.CONTENT:
+                content = str(event.data)
+                delegation_task.output_buffer.append(content)
+                result_content += content
+            elif event.type == EventType.ERROR:
+                error_msg = str(event.data)
+                delegation_task.output_buffer.append(f"ERROR: {error_msg}")
+                delegation_task.error = error_msg
+                success = False
+            elif event.type == EventType.AGENT_COMPLETED:
+                if isinstance(event.data, dict) and "result" in event.data:
+                    completion_result = str(event.data["result"])
+                    delegation_task.output_buffer.append(f"COMPLETED: {completion_result}")
+                    result_content += f"\n\n{completion_result}"
+        if not delegation_task.task_future.done():
+            delegation_task.task_future.set_result((result_content, success))
+        logger.info("Completed asynchronous delegation %s", delegation_task.id)
 
     def get_ongoing_delegations(self) -> list[DelegationTask]:
         """Get list of ongoing delegations.

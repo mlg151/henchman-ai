@@ -297,7 +297,9 @@ class SendMessageTool(_Tier5ToolBase):
                 )
                 return ToolResult(content=json.dumps({"conversation_id": target, "queued": True}))
             except (ValueError, PermissionError, RuntimeError) as exc:
-                return ToolResult(content=str(exc), success=False, error=str(exc))
+                from henchman.tools.builtins.subagents import _failure
+
+                return _failure(exc)
         workspace = _require_string(params, "workspace")
         recipients = _optional_string_list(params.get("recipients"))
         record = self._workspace_service.post_message(

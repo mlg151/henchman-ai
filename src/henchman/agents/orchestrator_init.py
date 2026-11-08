@@ -95,6 +95,9 @@ def _init_core(
     orch.tool_registry = config.tool_registry if config.tool_registry is not None else ToolRegistry()
     orch.event_bus = config.event_bus or EventBus()
     orch.settings = config.settings or Settings()
+    from henchman.agents.delegation_admission import DelegationAdmission
+
+    orch.delegation_admission = DelegationAdmission(orch.settings.agents.max_concurrent_delegations)
     orch.tool_registry.restrict_tool_settings(
         orch.settings.tools, project_root=Path.cwd(),
     )
@@ -137,6 +140,7 @@ def _init_agents(
         metrics=orch.metrics,
         run_agent_loop=orch.execution_controller.run_agent_loop,
         assess_completion=orch.execution_controller.assess_completion,
+        admission=orch.delegation_admission,
     )
     from henchman.agents.subagent_runtime import initialize_subagents
 

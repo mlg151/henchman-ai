@@ -562,6 +562,8 @@ class AgentSettings(_SettingsModel):
         team_preset: Which preset team to use ("default").
         agents: Custom agent configurations or overrides.
         max_delegation_depth: Maximum recursive delegation depth.
+        max_concurrent_delegations: Maximum executing descendants across all
+            delegation routes; zero disables descendants, not the primary.
         max_delegation_turns: Maximum tool-call turns per specialist delegation.
         shared_context_max_tokens: Max tokens for shared context between agents.
         max_delegation_retries: How many times to automatically retry a failed
@@ -571,6 +573,7 @@ class AgentSettings(_SettingsModel):
     team_preset: str = "default"
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     max_delegation_depth: int = Field(DEFAULT_MAX_DELEGATION_DEPTH, ge=1)
+    max_concurrent_delegations: int = Field(4, ge=0, strict=True)
     max_delegation_turns: int = Field(DEFAULT_MAX_DELEGATION_TURNS, ge=1)
     shared_context_max_tokens: int = Field(DEFAULT_SHARED_CONTEXT_TOKENS, ge=1)
     max_delegation_retries: int = Field(DEFAULT_MAX_DELEGATION_RETRIES, ge=0)

@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-import anyio
-
+from henchman.agents.delegation_admission import (
+    DelegationAdmission,
+    DelegationAdmissionError,
+    DelegationLease,
+    join_worker,
+)
 from henchman.agents.orchestrator_execution import _close_stream, closing_event_stream
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.agent_config import AgentConfig
@@ -884,6 +890,7 @@ class DelegationRunner:
         metrics: OrchestratorMetrics,
         run_agent_loop: AgentLoopRunner,
         assess_completion: Callable[[Agent], CompletionStatus],
+        admission: DelegationAdmission | None = None,
     ) -> None:
         self.pool = pool
         self.settings = settings
@@ -891,14 +898,57 @@ class DelegationRunner:
         self.metrics = metrics
         self._run_agent_loop = run_agent_loop
         self._assess_completion = assess_completion
+        self.admission = admission if admission is not None else DelegationAdmission(settings.agents.max_concurrent_delegations)
         self.ledger: TaskLedger | None = None
         self.instruction_snapshot: ContextSnapshot | None = None
 
     # -- Main entry point -------------------------------------------------
 
-    async def run_delegation(
+    def run_delegation(
         self: DelegationRunner,
         params: DelegationParams,
+        *, _lease: DelegationLease | None = None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Capture current admission authority before returning an owned stream."""
+        stream = self._admitted_delegation(params, self.admission.generation, _lease, lambda: stream)
+        return stream
+
+    async def _admitted_delegation(
+        self, params: DelegationParams, generation: int, lease: DelegationLease | None,
+        owned_stream: Callable[[], AsyncGenerator[AgentEvent, None]],
+    ) -> AsyncGenerator[AgentEvent, None]:
+        owned = lease is None
+        try:
+            if lease is None:
+                lease = self.admission.reserve(generation=generation)
+            lease.claim(self.admission)
+        except DelegationAdmissionError as error:
+            if owned and lease is not None:
+                lease.release()
+            yield AgentEvent(EventType.ERROR, {"message": str(error), "admission": error.payload}, source_agent="orchestrator")
+            return
+        if owned:
+            lease.stream = owned_stream()
+        try:
+            async with closing_event_stream(self._run_delegation(params)) as events:
+                while True:
+                    self.admission.require(lease.generation)
+                    try:
+                        if owned:
+                            lease.owner = asyncio.current_task()
+                        event = await anext(events)
+                    except StopAsyncIteration:
+                        break
+                    finally:
+                        if owned:
+                            lease.owner = None
+                    yield event
+        finally:
+            if owned:
+                lease.release()
+
+    async def _run_delegation(
+        self, params: DelegationParams,
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent.
 
@@ -1252,7 +1302,7 @@ class DelegationRunner:
 
     # -- Parallel delegation ----------------------------------------------
 
-    async def run_parallel_delegations(
+    def run_parallel_delegations(
         self: DelegationRunner,
         params_list: list[DelegationParams],
     ) -> AsyncIterator[AgentEvent]:
@@ -1274,25 +1324,73 @@ class DelegationRunner:
         Yields:
             AgentEvent: Events from all delegations merged by arrival order.
         """
-        # Use a large but bounded buffer to prevent memory exhaustion while
-        # avoiding deadlock. The consumer runs after the task group exits,
-        # so producers could fill the buffer before consumption starts.
-        # 10,000 events should be sufficient for most practical use cases.
-        send_stream, recv_stream = anyio.create_memory_object_stream[AgentEvent](
-            max_buffer_size=MAX_PARALLEL_DELEGATION_BUFFER,
-        )
+        return self._run_parallel_delegations(params_list, self.admission.generation)
 
-        async def _run_one(params: DelegationParams) -> None:
-            """Run a single delegation and forward its events to the stream."""
-            async for event in self.run_delegation(params):
-                await send_stream.send(event)
+    async def _run_parallel_delegations(
+        self, params_list: list[DelegationParams], generation: int,
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Admit only work belonging to the generation that created the stream."""
+        queue: asyncio.Queue[AgentEvent] = asyncio.Queue(MAX_PARALLEL_DELEGATION_BUFFER)
+        ready = asyncio.Event()
+        tasks: list[asyncio.Task[None]] = []
+        denials: list[AgentEvent] = []
 
-        async with anyio.create_task_group() as tg:
-            for p in params_list:
-                tg.start_soon(_run_one, p)
+        async def run_one(params: DelegationParams, lease: DelegationLease) -> None:
+            try:
+                async with closing_event_stream(self.run_delegation(params, _lease=lease)) as events:
+                    async for event in events:
+                        await queue.put(event)
+                        ready.set()
+            finally:
+                lease.release()
 
-        await send_stream.aclose()
+        def completed(_task: asyncio.Task[None], lease: DelegationLease) -> None:
+            lease.release()  # Includes cancellation before coroutine entry.
+            ready.set()
 
-        async with recv_stream:
-            async for event in recv_stream:
+        primary: BaseException | None = None
+        try:
+            for params in params_list:
+                try:
+                    lease = self.admission.reserve(generation=generation)
+                except DelegationAdmissionError as error:
+                    denials.append(AgentEvent(EventType.ERROR, {"message": str(error), "admission": error.payload}, source_agent="orchestrator"))
+                    continue
+                worker = run_one(params, lease)
+                try:
+                    task = asyncio.create_task(worker)
+                except BaseException:
+                    worker.close()
+                    lease.release()
+                    raise
+                lease.owner = task
+                task.add_done_callback(partial(completed, lease=lease))
+                tasks.append(task)
+            for event in denials:
                 yield event
+            while any(not task.done() for task in tasks) or not queue.empty():
+                await ready.wait()
+                ready.clear()
+                while not queue.empty():
+                    yield queue.get_nowait()
+                for task in tasks:
+                    if task.done():
+                        task.result()
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            cleanup: BaseException | None = None
+            for task in tasks:
+                try:
+                    await join_worker(task)
+                except BaseException as error:
+                    if cleanup is None:
+                        cleanup = error
+            if cleanup is not None:
+                if primary is None:
+                    raise cleanup
+                primary.add_note("Parallel delegation cleanup also failed; original interruption retained")
