@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **macOS task cleanup** — Recheck a process-group permission error after a
+  bounded wait for the owned child to exit. Persistent permission errors remain
+  explicit cleanup failures rather than being reported as a stopped group.
+
 - **Decision review cleanup** — Finishing an export no longer refreshes the
   review screen during teardown or after its widgets have been removed.
 

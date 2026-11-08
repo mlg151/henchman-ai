@@ -14,6 +14,67 @@ from henchman.advanced.task_store import TaskStore
 from henchman.advanced.tasks import TaskService
 
 
+@pytest.mark.skipif(os.name != "posix", reason="Process groups require POSIX")
+@pytest.mark.parametrize("after_reap", ["gone", "signalable", "denied"])
+async def test_darwin_group_permission_error_is_rechecked_after_owned_child_exit(
+    tmp_path, monkeypatch, after_reap,
+):
+    from henchman.advanced import tasks
+
+    service = TaskService(tmp_path)
+    signals = []
+    child = SimpleNamespace(pid=12345, returncode=None)
+
+    async def reap():
+        child.returncode = 0
+        return 0
+
+    child.wait = reap
+
+    def signal_group(pid, signum):
+        assert pid == child.pid
+        signals.append(signum)
+        if len(signals) == 1 or after_reap == "denied":
+            raise PermissionError(1, "Operation not permitted")
+        assert child.returncode == 0
+        if after_reap == "gone" or len(signals) > 2:
+            raise ProcessLookupError
+
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "platform", "darwin")
+        patch.setattr(tasks.os, "killpg", signal_group)
+        if after_reap == "denied":
+            with pytest.raises(PermissionError):
+                await service._terminate_process(child)
+        else:
+            await service._terminate_process(child)
+    assert child.returncode == 0
+    assert len(signals) >= 2
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Process groups require POSIX")
+async def test_darwin_group_permission_error_does_not_claim_live_child_stopped(tmp_path, monkeypatch):
+    from henchman.advanced import tasks
+
+    service = TaskService(tmp_path)
+    child = SimpleNamespace(pid=12345, returncode=None)
+
+    async def wait_forever():
+        await asyncio.Event().wait()
+
+    def denied(_pid, _signal):
+        raise PermissionError(1, "Operation not permitted")
+
+    child.wait = wait_forever
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "platform", "darwin")
+        patch.setattr(tasks.os, "killpg", denied)
+        patch.setattr(tasks, "_DARWIN_EXIT_SETTLE_SECONDS", 0.01, raising=False)
+        with pytest.raises(PermissionError):
+            await service._terminate_process(child)
+    assert child.returncode is None
+
+
 def _observe(project, result):
     service = TaskService(Path(project))
     records = service.list_tasks()

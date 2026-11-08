@@ -586,7 +586,8 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
             await asyncio.wait_for(asyncio.shield(captures[0].failure), timeout=15)
         final = await service.wait_for_task(record.task_id, timeout=15 if fault == "short_write" else 5)
     finally:
-        await service.stop_task(record.task_id)
+        if record.task_id in service._runtime.processes:
+            await service.stop_task(record.task_id)
     assert process.returncode is not None
     if fault == "short_write":
         assert final.status == "completed"
@@ -601,6 +602,52 @@ async def test_capture_short_writes_and_cleanup_faults_settle_owned_process(
         assert "reader-close-canary" not in repr(final)
     assert not service._runtime.monitors
     assert not [task for task in asyncio.all_tasks() if task.get_name().startswith("henchman-task-output")]
+
+
+@pytest.mark.anyio
+@pytest.mark.skipif(os.name != "posix", reason="Process groups require POSIX")
+async def test_capture_failure_rechecks_darwin_group_after_child_exit(tmp_path, monkeypatch):
+    from henchman.advanced.task_output import TaskOutput
+
+    service = TaskService(tmp_path)
+    initialize = TaskOutput.__init__
+    signal_group = os.killpg
+    signals = []
+
+    class ZeroWrite:
+        def __init__(self, output):
+            self.output = output
+
+        def write(self, _data):
+            return 0
+
+        def close(self):
+            self.output.close()
+
+    def install_fault(output, path, policy):
+        initialize(output, path, policy)
+        output._output = ZeroWrite(output._output)
+
+    def race_once(pid, signum):
+        signals.append(signum)
+        if len(signals) == 1:
+            raise PermissionError(1, "Operation not permitted")
+        signal_group(pid, signum)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(TaskOutput, "__init__", install_fault)
+        patch.setattr(sys, "platform", "darwin")
+        patch.setattr(os, "killpg", race_once)
+        record = await service.start_task(argv=[sys.executable, "-u", "-c", "print('evidence')"])
+        try:
+            final = await service.wait_for_task(record.task_id, timeout=15)
+            assert final.status == "failed"
+            assert "capture" in final.metadata["error"]
+            assert len(signals) >= 2
+        finally:
+            if record.task_id in service._runtime.processes:
+                await service.stop_task(record.task_id)
+    assert not service._runtime.monitors
 
 
 def test_oversized_legacy_input_is_preserved_with_explicit_limit(tmp_path: Path) -> None:

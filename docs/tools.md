@@ -813,6 +813,9 @@ are returned as unsuccessful stop results with their actual state.
 For an owned process, stop also requires the original runtime and event loop.
 The captured monitor result remains authoritative if its lookup entry is
 removed while termination is in progress; uncertain cleanup stays unknown.
+On macOS, a process-group permission error is rechecked after a bounded wait
+for the owned child to exit. A persistent permission error remains uncertain;
+it is not treated as successful cleanup.
 When cleanup is uncertain but a live same-loop process handle remains,
 `task_get`, `task_list` and `task_update` say that an owned process remains instead of
 describing it as unowned. This is a current observation, not PID adoption.

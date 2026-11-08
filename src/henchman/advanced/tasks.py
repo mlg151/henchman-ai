@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import os
 import signal
+import sys
 from asyncio.subprocess import Process
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
@@ -34,6 +35,7 @@ TASK_STATUS_STOPPED = "stopped"
 TASK_STATUS_OUTCOME_UNKNOWN = "outcome_unknown"
 _FINAL_TASK_STATUSES = FINAL_STATES
 _TERMINATE_TIMEOUT_SECONDS = 1.0
+_DARWIN_EXIT_SETTLE_SECONDS = 0.25
 
 
 class TaskOwnershipError(RuntimeError):
@@ -530,10 +532,27 @@ class TaskService:
 
     async def _terminate_process(self, process: Process) -> None:
         """Terminate the owned process group and reap its direct child."""
-        with contextlib.suppress(ProcessLookupError):
-            if os.name == "posix":
+        if os.name == "posix":
+            try:
                 os.killpg(process.pid, signal.SIGTERM)
-            else:
+            except ProcessLookupError:
+                pass
+            except PermissionError as error:
+                if sys.platform != "darwin":
+                    raise
+                # Darwin may report EPERM for an exited, unreaped group leader.
+                # Recheck the group after observing this owned child's exit;
+                # an unchanged permission failure still means unknown cleanup.
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=_DARWIN_EXIT_SETTLE_SECONDS)
+                except TimeoutError:
+                    raise error from None
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    return
+        else:
+            with contextlib.suppress(ProcessLookupError):
                 process.terminate()
         try:
             if process.returncode is None:
