@@ -164,7 +164,8 @@ registry authorization checks cover the qualified fetch implementation, with
 explicit refusal when per-socket mediation is unavailable. Native qualification,
 other network tools and custom dispatcher boundaries remain open under #20; see
 [restricted access](docs/configuration.md#restricted-tool-access).
-Provider usage under #24 now preserves reported/unknown provenance and cache
+Provider usage under [closed #24](https://github.com/mlg151/henchman-ai/issues/24)
+preserves reported/unknown provenance and cache
 subsets, including Anthropic and compatible trailing usage snapshots. Explicit
 prices distinguish estimates from provider billing; unknown costs stay unknown
 and zero prices remain valid. A reviewed process-lifetime ledger now implements
@@ -182,8 +183,9 @@ API binding fails explicitly. A [local budget probe](docs/evaluations/2026-11-07
 retained one failed request and unknown token hold across restart, with both
 follow-ups denied before HTTP. A separate [CPU request](docs/evaluations/2026-11-07-cpu-budget-reconciliation.md)
 settled 29 reported tokens, released its hold and retained usage through restart;
-both follow-ups were denied before HTTP at USD 0 spend. Final artifact/native
-qualification and remaining UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
+both follow-ups were denied before HTTP at USD 0 spend. Its usage/budget criteria
+are complete; final artifact/native qualification remains under #30 and remaining
+UI presentation under #35. See [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
 Current model testing is local-only by user instruction; hosted-provider
 qualification remains explicitly unverified.

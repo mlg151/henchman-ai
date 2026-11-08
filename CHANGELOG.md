@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Closes
 
+- Close [issue #24](https://github.com/mlg151/henchman-ai/issues/24) — shared usage
+  and budget criteria have provider/durable regression coverage, a passed native
+  artifact cohort, and live local reconciliation plus restart-denial evidence.
+  Final release and wider UI acceptance remain tracked separately.
+
 - Close [issue #2](https://github.com/mlg151/henchman-ai/issues/2) —
   the single primary coding agent with the full live tool catalog, plus
   dynamically spawned background subagents with custom roles/prompts/scoped

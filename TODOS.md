@@ -177,7 +177,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   expanded nonsecret transfer remain open; see
   [effective settings](docs/configuration.md#inspecting-effective-settings).
 
-- #24 provider usage and explicit pricing: compatible and Anthropic adapters
+- [#24 is closed](https://github.com/mlg151/henchman-ai/issues/24): provider usage
+  and shared-budget acceptance are complete. Compatible and Anthropic adapters
   preserve cumulative request counts, cache subsets and availability provenance.
   Compatible requests ask for usage by default with an explicit opt-out for
   unsupported servers. Cost records distinguish configured estimates from
@@ -198,8 +199,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   confirms failed-request/unknown-hold retention and pre-HTTP denial after restart.
   A separate [CPU request](docs/evaluations/2026-11-07-cpu-budget-reconciliation.md)
   now qualifies successful final-usage settlement and restart retention for one
-  local request at USD 0 spend. Final artifact/native qualification and remaining
-  UI presentation stay open; see [task accounting](docs/providers.md#automatic-task-accounting).
+  local request at USD 0 spend. Final artifact/native qualification remains under
+  #30 and remaining UI presentation under #35; see [task accounting](docs/providers.md#automatic-task-accounting).
 
 - #20 session lookup boundaries: full IDs, prefixes and stale current pointers
   now follow the current project's scope across root commands, REPL/Textual slash
