@@ -4,7 +4,8 @@ The [CI run on `4ba6f71`](https://github.com/mlg151/henchman-ai/actions/runs/425
 reported a failure in the Linux Python 3.11 source job:
 `test_concurrent_subagents_reactively_resume_primary_and_preserve_transcript`
 timed out after three seconds. The job reported **12,670 passed, 91 skipped,
-one failed**. The run was still in progress when this report was written. The
+one failed**. The run finished with **18 of 20 jobs passing**; this source job
+and the aggregate gate failed. The
 retained job log SHA-256 is
 `5513b86fc67e692d9837841c3186f84997afa41f4c5a0ba82b6c1b6b50286689`.
 
@@ -52,4 +53,6 @@ Linux, macOS and Windows. The Windows 3.11 job, which had failed repair-owner
 tests on the earlier `c0cbe17` run, reported **5,965 passed, 242 skipped**;
 its log SHA-256 is
 `171de81047cf5f0121cc5ae81e1ed171129282d7b944ddb59d97259556144031`.
-The Python 3.12 coverage job remained in progress when this update was recorded.
+The Python 3.12 source job passed **12,671 tests, 91 skipped**, with 91.26%
+coverage. Its log SHA-256 is
+`59a8ad04af125e25c77f13a7945a50a745e4ea2c938ba5f3b192b42f5e529912`.
