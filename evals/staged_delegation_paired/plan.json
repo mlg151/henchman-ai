@@ -1,0 +1,42 @@
+{
+  "kind": "staged_delegation_local_paired_v1",
+  "source_commit": "c8b0e435eceb229dde930402aab47b628670c139",
+  "wheel_sha256": "5534d3efb54da5f27b697274fa7eab1113ac6c4f6901f45dae7e0bfcbcd94dec",
+  "endpoint": "http://127.0.0.1:8081",
+  "model": "qwen38-27b-iq3s",
+  "request_limit": 12,
+  "output_token_ceiling": 4096,
+  "timeout_seconds": 240,
+  "repeats": 2,
+  "fixtures": [
+    {
+      "id": "addition",
+      "path": "target.py",
+      "initial": "def add(a, b):\n    return a - b\n",
+      "expected": "def add(a, b):\n    return a + b\n",
+      "task": "Fix target.py so add(a, b) returns the sum of its two arguments. Make no unrelated changes."
+    },
+    {
+      "id": "name_normalization",
+      "path": "target.py",
+      "initial": "def normalize(name):\n    return name.strip()\n",
+      "expected": "def normalize(name):\n    return name.strip().lower()\n",
+      "task": "Fix target.py so normalize(name) removes surrounding whitespace and returns lowercase text. Make no unrelated changes."
+    },
+    {
+      "id": "age_boundary",
+      "path": "target.py",
+      "initial": "def can_vote(age):\n    return age > 18\n",
+      "expected": "def can_vote(age):\n    return age >= 18\n",
+      "task": "Fix target.py so can_vote(age) is true for age 18 and older and false for younger ages. Make no unrelated changes."
+    }
+  ],
+  "arm_order": [
+    ["addition", 1, "direct"], ["addition", 1, "staged"],
+    ["addition", 2, "staged"], ["addition", 2, "direct"],
+    ["name_normalization", 1, "staged"], ["name_normalization", 1, "direct"],
+    ["name_normalization", 2, "direct"], ["name_normalization", 2, "staged"],
+    ["age_boundary", 1, "direct"], ["age_boundary", 1, "staged"],
+    ["age_boundary", 2, "staged"], ["age_boundary", 2, "direct"]
+  ]
+}
