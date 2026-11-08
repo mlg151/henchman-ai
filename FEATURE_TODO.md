@@ -716,6 +716,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   A later [instrumented diagnostic](docs/evaluations/2026-11-08-vte-cancel-gc-v2.md)
   observed generation-2 collections overlapping all three slow cancellations
   in one process; the cause and a validated fix remain open.
+  An [intrusive type follow-up](docs/evaluations/2026-11-08-vte-gc-types-v3.md)
+  records Textual geometry, style and cache types, with cumulative debug-retained
+  counts that cannot attribute normal-operation pauses.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).
