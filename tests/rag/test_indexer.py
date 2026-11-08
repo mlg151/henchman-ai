@@ -6,7 +6,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from henchman.rag.indexer import GitFileIndexer, IndexManifest, IndexStats
+from henchman.rag.repo_id import compute_repository_id
 
 
 class TestIndexManifest:
@@ -38,12 +41,12 @@ class TestIndexManifest:
             assert loaded.model_name == ""
 
     def test_load_invalid_json(self) -> None:
-        """Loading invalid JSON returns empty manifest."""
+        """A corrupt existing manifest must not become an empty successful index."""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "invalid.json"
             path.write_text("not valid json {{{")
-            loaded = IndexManifest.load(path)
-            assert loaded.files == {}
+            with pytest.raises(ValueError, match="manifest"):
+                IndexManifest.load(path)
 
     def test_save_creates_parent_dirs(self) -> None:
         """Save creates parent directories."""
@@ -73,6 +76,7 @@ class TestGitFileIndexer:
     def _create_mock_components(self) -> tuple[MagicMock, MagicMock, MagicMock]:
         """Create mock store, embedder, and chunker."""
         store = MagicMock()
+        store.collection_id = "00000000-0000-0000-0000-000000000001"
         store.count.return_value = 0
         store.delete_by_file = MagicMock()
         store.add_chunks = MagicMock()
@@ -218,6 +222,7 @@ class TestGitFileIndexer:
                 store=store,
                 embedder=embedder,
                 chunker=chunker,
+                manifest_path=manifest_path,
             )
 
             stats = indexer.get_stats()
@@ -226,7 +231,7 @@ class TestGitFileIndexer:
 
     @patch("subprocess.run")
     def test_get_tracked_files_git_error(self, mock_run: MagicMock) -> None:
-        """Git error returns empty list."""
+        """Git failure cannot authorize deleting every indexed file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             git_root = Path(tmpdir)
             store, embedder, chunker = self._create_mock_components()
@@ -240,8 +245,8 @@ class TestGitFileIndexer:
                 chunker=chunker,
             )
 
-            files = indexer.get_tracked_files()
-            assert files == []
+            with pytest.raises(ValueError, match="enumerate"):
+                indexer.get_tracked_files()
 
 
 class TestGitFileIndexerIndex:
@@ -250,6 +255,7 @@ class TestGitFileIndexerIndex:
     def _create_mock_components(self) -> tuple[MagicMock, MagicMock, MagicMock]:
         """Create mock store, embedder, and chunker."""
         store = MagicMock()
+        store.collection_id = "00000000-0000-0000-0000-000000000001"
         store.count.return_value = 0
         store.delete_by_file = MagicMock()
         store.add_chunks = MagicMock()
@@ -378,6 +384,10 @@ class TestGitFileIndexerIndex:
                 json.dumps(
                     {
                         "files": {"deleted.py": "hash123"},
+                        "evidence_version": 1,
+                        "collection_id": "00000000-0000-0000-0000-000000000001",
+                        "generation_id": "00000000-0000-0000-0000-000000000001",
+                        "repository_id": compute_repository_id(git_root),
                         "model_name": "test-model",
                         "chunk_size": 512,
                     }
@@ -413,6 +423,10 @@ class TestGitFileIndexerIndex:
                 json.dumps(
                     {
                         "files": {"test.py": "old_hash_value"},
+                        "evidence_version": 1,
+                        "collection_id": "00000000-0000-0000-0000-000000000001",
+                        "generation_id": "00000000-0000-0000-0000-000000000001",
+                        "repository_id": compute_repository_id(git_root),
                         "model_name": "test-model",
                         "chunk_size": 512,
                     }

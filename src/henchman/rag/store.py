@@ -14,6 +14,7 @@ import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 from henchman.rag.concurrency import retry_on_locked
+from henchman.rag.evidence import EvidenceUnavailable, validate_query
 
 if TYPE_CHECKING:
     from henchman.rag.chunker import Chunk
@@ -46,6 +47,10 @@ class SearchResult:
     end_line: int
     score: float
     chunk_id: str
+    source_sha256: str | None = None
+    repository_id: str | None = None
+    indexed_revision: str | None = None
+    evidence_version: int = 0
 
     def format_for_llm(self: SearchResult) -> str:
         """Format result for LLM consumption.
@@ -128,6 +133,14 @@ class VectorStore:
             if last_error:  # pragma: no cover
                 raise last_error  # pragma: no cover
 
+    @property
+    def collection_id(self) -> str:
+        """Verify the held Chroma handle still names the current collection."""
+        current = self.client.get_collection(name=self.collection_name)
+        if current.id != self.collection.id:
+            raise EvidenceUnavailable("index_collection_changed_reinitialize_required")
+        return str(current.id)
+
     @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
     def add_chunks(self: VectorStore, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         """Add chunks with their embeddings to the store.
@@ -147,15 +160,7 @@ class VectorStore:
             ids=[chunk.id for chunk in chunks],
             embeddings=embeddings,  # type: ignore[arg-type]
             documents=[chunk.content for chunk in chunks],
-            metadatas=[
-                {
-                    "file_path": chunk.file_path,
-                    "start_line": chunk.start_line,
-                    "end_line": chunk.end_line,
-                    "chunk_index": chunk.chunk_index,
-                }
-                for chunk in chunks
-            ],
+            metadatas=[chunk.to_metadata() for chunk in chunks],
         )
 
     @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
@@ -169,7 +174,8 @@ class VectorStore:
         Returns:
             List of SearchResult objects, sorted by similarity.
         """
-        # Embed the query
+        validate_query(query, top_k)
+        # Embed the query only after validating its input bounds.
         query_embedding = self.embedder.embed_query(query)
 
         # Query the collection
@@ -194,6 +200,10 @@ class VectorStore:
                 # Extract values with proper type handling
                 start_line_val = metadata.get("start_line", 0)
                 end_line_val = metadata.get("end_line", 0)
+                source_hash = metadata.get("source_sha256")
+                repository_id = metadata.get("repository_id")
+                indexed_revision = metadata.get("indexed_revision")
+                evidence_version = metadata.get("evidence_version")
 
                 search_results.append(
                     SearchResult(
@@ -207,6 +217,10 @@ class VectorStore:
                         else 0,
                         score=score,
                         chunk_id=chunk_id,
+                        source_sha256=source_hash if isinstance(source_hash, str) else None,
+                        repository_id=repository_id if isinstance(repository_id, str) else None,
+                        indexed_revision=indexed_revision if isinstance(indexed_revision, str) else None,
+                        evidence_version=evidence_version if type(evidence_version) is int else 0,
                     ),
                 )
 

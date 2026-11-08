@@ -22,7 +22,8 @@
     "top_k": {
       "type": "integer",
       "description": "Number of results to return from search",
-      "minimum": 1
+      "minimum": 1,
+      "maximum": 20
     },
     "embedding_model": {
       "type": "string",

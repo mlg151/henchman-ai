@@ -330,14 +330,16 @@ class TestIndexerMissingLines:
         from henchman.rag.indexer import GitFileIndexer
 
         git_root = Path(tmpdir)
+        subprocess.run(["git", "init"], cwd=git_root, check=True, capture_output=True)
         store = MagicMock()
+        store.collection_id = "00000000-0000-0000-0000-000000000001"
         store.count.return_value = 0
         embedder = MagicMock()
         embedder.model_name = "test-model"
         embedder.embed.return_value = [[0.1] * 384]
         chunker = MagicMock()
         chunker.target_tokens = 512
-        chunker.chunk_file.return_value = []
+        chunker.chunk_text.return_value = []
 
         return GitFileIndexer(
             git_root=git_root,
@@ -347,15 +349,14 @@ class TestIndexerMissingLines:
         )
 
     def test_get_tracked_files_subprocess_error(self) -> None:
-        """Lines 167->163: CalledProcessError returns empty list."""
+        """Repository enumeration errors stay explicit, preserving the existing index."""
         with tempfile.TemporaryDirectory() as tmpdir:
             indexer = self._make_indexer(tmpdir)
             with patch(
                 "subprocess.run",
                 side_effect=subprocess.CalledProcessError(1, "git"),
-            ):
-                result = indexer.get_tracked_files()
-                assert result == []
+            ), pytest.raises(ValueError, match="enumerate"):
+                indexer.get_tracked_files()
 
     def test_index_files_unchanged_count(self) -> None:
         """Line 270: files_unchanged is incremented when file hash matches."""
@@ -367,6 +368,7 @@ class TestIndexerMissingLines:
             # Create a temp file
             test_file = Path(tmpdir) / "test.py"
             test_file.write_text("def foo(): pass")
+            subprocess.run(["git", "add", "test.py"], cwd=tmpdir, check=True)
 
             # Compute hash of the file
             import hashlib
@@ -374,18 +376,27 @@ class TestIndexerMissingLines:
             content_hash = hashlib.sha256(test_file.read_bytes()).hexdigest()
 
             # Manifest has this file with same hash
-            manifest = IndexManifest(files={"test.py": content_hash})
+            manifest = IndexManifest(
+                files={"test.py": content_hash},
+                model_name="test-model",
+                evidence_version=1,
+                collection_id="00000000-0000-0000-0000-000000000001",
+                generation_id="00000000-0000-0000-0000-000000000001",
+                repository_id=indexer._binding.repository_id,
+            )
             indexer.manifest = manifest
 
             # Mock get_tracked_files to return this file
             indexer.get_tracked_files = MagicMock(return_value=[test_file])
 
-            with patch.object(indexer, "_index_files"), patch(
-                "henchman.rag.indexer.IndexManifest.load", return_value=manifest
+            with (
+                patch.object(indexer, "_index_files"),
+                patch("henchman.rag.indexer.IndexManifest.load", return_value=manifest),
             ):
                 stats = indexer.index()
                 # files_unchanged should be > 0 since hash matches
-                assert stats.files_unchanged >= 0  # confirms path was hit
+                assert stats.files_unchanged == 1
+                indexer._index_files.assert_not_called()
 
     def test_index_files_with_console(self) -> None:
         """Lines 331-342: _index_files uses Rich progress when console is given."""
@@ -394,9 +405,10 @@ class TestIndexerMissingLines:
 
             test_file = Path(tmpdir) / "test.py"
             test_file.write_text("print('hello')")
+            subprocess.run(["git", "add", "test.py"], cwd=tmpdir, check=True)
 
             # Mock the chunker to return no chunks (avoids embedding)
-            indexer.chunker.chunk_file.return_value = []
+            indexer.chunker.chunk_text.return_value = []
 
             mock_console = MagicMock()
             mock_console.is_jupyter = False
@@ -434,7 +446,10 @@ class TestRagSystemMissingLines:
 
         with (
             patch("henchman.rag.embedder.FastEmbedProvider.__init__", return_value=None),
-            patch("henchman.rag.embedder.FastEmbedProvider.model_name", new_callable=lambda: property(lambda _self: "test")),
+            patch(
+                "henchman.rag.embedder.FastEmbedProvider.model_name",
+                new_callable=lambda: property(lambda _self: "test"),
+            ),
             patch("henchman.rag.store.VectorStore.__init__", return_value=None),
             patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
             patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
@@ -543,8 +558,8 @@ class TestRagSystemMissingLines:
             result = initialize_rag(settings)
             assert result is None
 
-    def test_initialize_rag_migrated_with_console(self) -> None:
-        """Line 279: initialize_rag prints migration message when console provided."""
+    def test_initialize_rag_does_not_migrate_legacy_cache(self) -> None:
+        """Startup does not copy unqualified legacy cache data into current authority."""
         from henchman.rag.system import initialize_rag
 
         settings = self._make_settings()
@@ -555,12 +570,13 @@ class TestRagSystemMissingLines:
         with (
             patch("henchman.rag.system.find_git_root", return_value=Path("/tmp/fake")),
             patch("henchman.rag.system.get_repository_index_dir", return_value=Path("/tmp/idx")),
-            patch("henchman.rag.system.migrate_old_index", return_value=True),
+            patch("henchman.rag.repo_id.migrate_old_index") as migrate,
             patch("henchman.rag.system.RagSystem", return_value=mock_rag),
         ):
             mock_console = MagicMock()
             result = initialize_rag(settings, console=mock_console, index=False)
-            mock_console.print.assert_called()
+            migrate.assert_not_called()
+            mock_console.print.assert_not_called()
             assert result is mock_rag
 
     def test_initialize_rag_returns_system(self) -> None:
@@ -581,7 +597,6 @@ class TestRagSystemMissingLines:
         with (
             patch("henchman.rag.system.find_git_root", return_value=Path("/tmp/fake")),
             patch("henchman.rag.system.get_repository_index_dir", return_value=Path("/tmp/idx")),
-            patch("henchman.rag.system.migrate_old_index", return_value=False),
             patch("henchman.rag.system.RagSystem", return_value=mock_rag),
         ):
             result = initialize_rag(settings, console=MagicMock())
@@ -596,7 +611,6 @@ class TestRagSystemMissingLines:
         with (
             patch("henchman.rag.system.find_git_root", return_value=Path("/tmp/fake")),
             patch("henchman.rag.system.get_repository_index_dir", return_value=Path("/tmp/idx")),
-            patch("henchman.rag.system.migrate_old_index", return_value=False),
             patch("henchman.rag.system.RagSystem", side_effect=RuntimeError("init failed")),
         ):
             result = initialize_rag(settings, console=MagicMock())
@@ -619,7 +633,6 @@ class TestVectorStoreMissingLines2:
 
     def test_init_all_retries_exhausted(self) -> None:
         """Lines 125-129: all retries exhausted raises last error."""
-
 
         with tempfile.TemporaryDirectory() as tmpdir:
             embedder = self._create_mock_embedder()
@@ -804,14 +817,16 @@ class TestIndexerProgressCallback:
         from henchman.rag.indexer import GitFileIndexer
 
         git_root = Path(tmpdir)
+        subprocess.run(["git", "init"], cwd=git_root, check=True, capture_output=True)
         store = MagicMock()
+        store.collection_id = "00000000-0000-0000-0000-000000000001"
         store.count.return_value = 0
         embedder = MagicMock()
         embedder.model_name = "test-model"
         embedder.embed.return_value = [[0.1] * 384]
         chunker = MagicMock()
         chunker.target_tokens = 512
-        chunker.chunk_file.return_value = []
+        chunker.chunk_text.return_value = []
 
         return GitFileIndexer(
             git_root=git_root,
@@ -827,7 +842,8 @@ class TestIndexerProgressCallback:
 
             test_file = Path(tmpdir) / "test.py"
             test_file.write_text("print('hello')")
-            indexer.chunker.chunk_file.return_value = []
+            subprocess.run(["git", "add", "test.py"], cwd=tmpdir, check=True)
+            indexer.chunker.chunk_text.return_value = []
 
             callback_calls = []
 
@@ -869,7 +885,10 @@ class TestRagSystemInit:
             patch("henchman.rag.indexer.GitFileIndexer.__init__", return_value=None),
             patch("henchman.tools.builtins.rag_search.RagSearchTool.__init__", return_value=None),
             patch("henchman.rag.system.get_repository_index_dir", return_value=Path(tmpdir)),
-            patch("henchman.rag.system.get_repository_manifest_path", return_value=Path(tmpdir) / "manifest.json"),
+            patch(
+                "henchman.rag.system.get_repository_manifest_path",
+                return_value=Path(tmpdir) / "manifest.json",
+            ),
         ):
             settings = MagicMock()
             settings.embedding_model = "test"

@@ -9,6 +9,12 @@ for context estimates and RAG chunking. Native artifact tests isolate user setti
 interpreter lookup and empty token caches. Current model testing is local-only by
 user instruction; hosted-provider qualification remains unverified.
 
+Repository retrieval under #17 now separates worktree caches and validates
+bounded semantic candidates against current tracked-file bytes before returning
+snippets. Legacy/stale indexes require explicit reindexing; see
+[current-file RAG evidence](docs/tools.md#rag_search). Structural discovery,
+cross-source evidence packaging and broader performance qualification remain open.
+
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed results through provider text projection and session
 retention while invalidating stale handles and keeping scoped allowlists. Broader
@@ -105,7 +111,7 @@ The reviewed evaluator increment connects twelve independent scenarios, includin
 syntax repair, semantic bug repair, tool-failure recovery, interruption/recovery,
 Fibonacci implementation, package lifecycle and test/documentation delivery with
 independent correctness and runtime checks. The complete twelve-case corpus is
-frozen; hosted baseline requirements remain in progress. The baseline runner now
+frozen; hosted baselines remain unverified under local-only testing. The baseline runner now
 applies one deadline to the complete scenario; iteration caps remain per turn.
 Expired work cannot be recorded as verified success, though cooperative cleanup
 can extend elapsed time. Reported latency includes setup and cleanup for all

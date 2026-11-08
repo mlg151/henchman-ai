@@ -29,6 +29,10 @@ class Chunk:
     start_line: int
     end_line: int
     chunk_index: int
+    source_sha256: str | None = None
+    repository_id: str | None = None
+    indexed_revision: str | None = None
+    evidence_version: int = 0
 
     @property
     def id(self: Chunk) -> str:
@@ -39,18 +43,24 @@ class Chunk:
         """
         return f"{self.file_path}::{self.chunk_index}"
 
-    def to_metadata(self: Chunk) -> dict[str, object]:
+    def to_metadata(self: Chunk) -> dict[str, str | int]:
         """Convert to metadata dict for vector store.
 
         Returns:
             Dictionary with chunk metadata.
         """
-        return {
+        metadata: dict[str, str | int] = {
             "file_path": self.file_path,
             "start_line": self.start_line,
             "end_line": self.end_line,
             "chunk_index": self.chunk_index,
         }
+        for name in ("source_sha256", "repository_id", "indexed_revision"):
+            value = getattr(self, name)
+            if value is not None:
+                metadata[name] = value
+        metadata["evidence_version"] = self.evidence_version
+        return metadata
 
 
 class TextChunker:

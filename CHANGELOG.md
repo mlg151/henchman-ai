@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;
   failed checks invalidate prior receipts and join the owned process group.
 
+- **Current-file RAG evidence** — Worktree-specific caches and source provenance
+  now prevent stale or foreign snippets from being presented as current.
+  Retrieval returns bounded JSON evidence with path, hash, revision and
+  diagnostic fields. Legacy caches remain untouched; `/rag reindex` populates
+  the new cache. `rag.top_k` is limited to 20 and manifests use bounded atomic
+  replacement. Collection/generation/model checks reject missing or partial
+  indexes before publication; Git environment overrides cannot redirect source
+  provenance. Broader repository discovery and performance qualification remain open.
+
 - **Retained twelve-case CPU corpus** — All twelve frozen local cases ran once:
   eight independent oracle passes, three timeouts and one tool-round-limit
   failure. The report preserves partial usage, the failed qualification target,

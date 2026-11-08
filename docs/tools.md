@@ -972,18 +972,38 @@ Update the project knowledge graph.
 
 #### rag_search
 
-Search the codebase using semantic similarity.
+Search indexed Git-tracked files using semantic similarity, then verify each
+candidate against the current workspace before returning its text. The JSON
+result includes path/line range, source SHA256, workspace identity, indexed and
+current revisions, retrieval reason, diagnostics and limits. An unchanged file
+may retain a historical similarity ranking; ranking does not cover every current
+file, and no matches do not prove absence.
 
 ```json
 {
   "name": "rag_search",
   "kind": "READ",
   "parameters": {
-    "query": "string (required) - Natural language query to search for",
-    "top_k": "integer (optional) - Number of results to return"
+    "query": "string (required) - Nonblank query, at most 2048 characters",
+    "top_k": "integer (optional) - Number of candidates, from 1 through 20"
   }
 }
 ```
+
+The runtime binds the tool to one resolved worktree. Missing, legacy, foreign,
+changed or malformed evidence produces explicit unavailable/incomplete results;
+stale cached text is excluded. Use `/rag reindex` to refresh the worktree index.
+Queries do not trigger indexing, model downloads or fallback searches. Existing
+startup embedding initialization and background indexing retain their prior
+behavior.
+
+Source validation reads at most 1 MiB per file and 5 MiB in aggregate, with a
+separate 5 MiB publication recheck allowance. Output is capped at 32 KiB by
+omitting whole candidates with a diagnostic. Unsupported encodings, symlinks,
+hardlinks, untracked paths and source limits fail explicitly. Rechecking is an
+observation rather than an atomic filesystem snapshot or task verification.
+Restricted tool scopes still refuse unqualified semantic search before
+enumeration. See [cache migration and settings](configuration.md#repository-search-settings).
 
 #### research_notes
 

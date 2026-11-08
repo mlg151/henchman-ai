@@ -175,7 +175,7 @@
         "enabled": { "type": "boolean" },
         "chunk_size": { "type": "integer", "minimum": 1 },
         "chunk_overlap": { "type": "integer", "minimum": 0 },
-        "top_k": { "type": "integer", "minimum": 1 },
+        "top_k": { "type": "integer", "minimum": 1, "maximum": 20 },
         "embedding_model": { "type": "string" },
         "cache_dir": { "type": ["string", "null"] },
         "file_extensions": { "type": "array", "items": { "type": "string" } }

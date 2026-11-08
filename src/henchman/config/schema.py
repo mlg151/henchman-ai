@@ -609,7 +609,7 @@ class RagSettings(_SettingsModel):
     enabled: bool = True
     chunk_size: int = Field(DEFAULT_RAG_CHUNK_SIZE, ge=1)
     chunk_overlap: int = Field(DEFAULT_RAG_CHUNK_OVERLAP, ge=0)
-    top_k: int = Field(DEFAULT_RAG_TOP_K, ge=1)
+    top_k: int = Field(DEFAULT_RAG_TOP_K, ge=1, le=20)
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     cache_dir: str | None = None
 

@@ -12,10 +12,15 @@ from henchman.rag.chunker import Chunk
 from henchman.rag.embedder import EmbeddingProvider, FastEmbedProvider
 from henchman.rag.indexer import IndexManifest, IndexStats
 from henchman.rag.store import SearchResult
-from tests.contracts.helpers import assert_contract_matches, serialize_contract_value
+from tests.contracts.helpers import (
+    assert_contract_matches,
+    load_contract_schema,
+    serialize_contract_value,
+)
 
 
-def test_chunk_matches_contract(contract_suite) -> None:
+@pytest.mark.parametrize("version", [0, 1])
+def test_chunk_matches_contract(contract_suite, version: int) -> None:
     """Serialised Chunk payloads should satisfy their contract."""
     chunk = Chunk(
         content="test content",
@@ -24,6 +29,11 @@ def test_chunk_matches_contract(contract_suite) -> None:
         end_line=10,
         chunk_index=0,
     )
+    if version:
+        chunk.evidence_version = version
+        chunk.source_sha256 = "a" * 64
+        chunk.repository_id = "b" * 16
+        chunk.indexed_revision = "c" * 40
     assert_contract_matches(
         payload=serialize_contract_value(chunk),
         schema_name="rag/chunk",
@@ -31,7 +41,8 @@ def test_chunk_matches_contract(contract_suite) -> None:
     )
 
 
-def test_search_result_matches_contract(contract_suite) -> None:
+@pytest.mark.parametrize("version", [0, 1])
+def test_search_result_matches_contract(contract_suite, version: int) -> None:
     """Serialised SearchResult payloads should satisfy their contract."""
     result = SearchResult(
         content="test content",
@@ -41,6 +52,11 @@ def test_search_result_matches_contract(contract_suite) -> None:
         score=0.95,
         chunk_id="src/main.py:1-10:0",
     )
+    if version:
+        result.evidence_version = version
+        result.source_sha256 = "a" * 64
+        result.repository_id = "b" * 16
+        result.indexed_revision = "c" * 40
     assert_contract_matches(
         payload=serialize_contract_value(result),
         schema_name="rag/search_result",
@@ -48,13 +64,19 @@ def test_search_result_matches_contract(contract_suite) -> None:
     )
 
 
-def test_index_manifest_matches_contract(contract_suite) -> None:
+@pytest.mark.parametrize("version", [0, 1])
+def test_index_manifest_matches_contract(contract_suite, version: int) -> None:
     """Serialised IndexManifest payloads should satisfy their contract."""
     manifest = IndexManifest(
         files={"src/main.py": "abcdef123456"},
         model_name="all-MiniLM-L6-v2",
         chunk_size=1000,
     )
+    if version:
+        manifest.evidence_version = version
+        manifest.repository_id = "b" * 16
+        manifest.collection_id = "00000000-0000-0000-0000-000000000001"
+        manifest.generation_id = "00000000-0000-0000-0000-000000000001"
     assert_contract_matches(
         payload=serialize_contract_value(manifest),
         schema_name="rag/index_manifest",
@@ -481,3 +503,49 @@ def test_text_chunker_chunk_to_metadata() -> None:
     assert meta["start_line"] == 1
     assert meta["end_line"] == 10
     assert meta["chunk_index"] == 0
+
+
+@pytest.mark.parametrize("schema_name", ["rag/chunk", "rag/search_result", "rag/index_manifest"])
+def test_provenance_contract_validates_versions_and_rejects_unknown_fields(
+    schema_name: str,
+) -> None:
+    from jsonschema import Draft7Validator
+
+    schema = load_contract_schema(schema_name)
+    Draft7Validator.check_schema(schema)
+    value = {
+        "rag/chunk": Chunk("x", "x.py", 1, 1, 0),
+        "rag/search_result": SearchResult("x", "x.py", 1, 1, 0.8, "x.py::0"),
+        "rag/index_manifest": IndexManifest(),
+    }[schema_name]
+    payload = serialize_contract_value(value)
+    validator = Draft7Validator(schema)
+    assert not list(validator.iter_errors(payload))
+    assert list(validator.iter_errors({**payload, "evidence_version": 2}))
+    assert list(validator.iter_errors({**payload, "evidence_version": True}))
+    assert list(validator.iter_errors({**payload, "repository_id": "unqualified"}))
+    assert list(validator.iter_errors({**payload, "extra_authority": "unexpected"}))
+    if schema_name == "rag/index_manifest":
+        assert list(validator.iter_errors({**payload, "collection_id": "unknown"}))
+        assert list(validator.iter_errors({**payload, "generation_id": "unknown"}))
+    else:
+        assert list(validator.iter_errors({**payload, "source_sha256": "not a digest"}))
+        assert list(validator.iter_errors({**payload, "indexed_revision": "branch-name"}))
+
+
+@pytest.mark.parametrize("top_k", [0, -1, 21, True, 1.5, "2"])
+@pytest.mark.parametrize("schema_name", ["config/rag_settings", "config/settings"])
+def test_rag_query_bounds_are_real_json_schema_constraints(top_k, schema_name: str) -> None:
+    from jsonschema import Draft7Validator
+
+    from henchman.config.schema import RagSettings, Settings
+
+    schema = load_contract_schema(schema_name)
+    Draft7Validator.check_schema(schema)
+    value = RagSettings() if schema_name == "config/rag_settings" else Settings()
+    payload = serialize_contract_value(value)
+    validator = Draft7Validator(schema)
+    assert not list(validator.iter_errors(payload))
+    target = payload if schema_name == "config/rag_settings" else payload["rag"]
+    target["top_k"] = top_k
+    assert list(validator.iter_errors(payload))

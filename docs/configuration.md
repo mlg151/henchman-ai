@@ -185,6 +185,33 @@ provider options, UI keybindings, and style dictionaries remain customizable.
 Remove previously ignored keys including `tools.auto_approve`,
 `session.auto_save` and `session.sessions_dir` from existing files.
 
+## Repository search settings
+
+`rag.top_k` accepts integers from 1 through 20; existing values above 20 must be
+reduced before startup. `rag.chunk_size` must stay positive and
+`rag.chunk_overlap` must be nonnegative and smaller than the chunk size.
+
+RAG caches now use a versioned identity derived from the resolved worktree path.
+Clones and linked worktrees have separate indexes even when they share a remote;
+commits and remote changes keep the same workspace cache. Old remote/revision
+and project-local caches are left untouched and are not imported automatically.
+Use `/rag reindex` to populate current source provenance. Cache manifests are
+limited to 4 MiB and replaced atomically. Standalone `GitFileIndexer` uses the
+same canonical cache by default; an explicit manifest path remains the caller's
+choice.
+
+The manifest binds the backing collection, index generation and embedding model.
+Indexing marks that generation unavailable before changing stored chunks and
+publishes readiness only after success. Queries reject missing collections,
+interrupted indexing, changed generations and incompatible embedding models;
+they recheck readiness before returning evidence. Inherited Git repository/index
+overrides cannot replace the bound worktree's provenance.
+
+Queries require an explicitly bound workspace and return
+[bounded current-file evidence](tools.md#rag_search), including diagnostics for
+stale or unsupported sources. This does not establish full-index enumeration
+bounds or native responsiveness of synchronous embedding/store/filesystem work.
+
 ## Session project boundaries
 
 Session selection uses the resolved working-directory identity. `resume`,

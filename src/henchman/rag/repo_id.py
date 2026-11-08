@@ -66,9 +66,9 @@ def get_git_revision(git_root: Path) -> str | None:
 def compute_repository_id(git_root: Path) -> str:
     """Compute a unique identifier for a git repository.
 
-    Uses a combination of remote URL and local path to create a
-    deterministic identifier that's consistent across different
-    checkouts of the same repository.
+    Version 2 binds the resolved worktree path. Clones and linked worktrees
+    must not share source evidence; commits and remote changes keep the same
+    cache. Legacy remote/revision-derived directories are never selected.
 
     Args:
         git_root: Root directory of the git repository.
@@ -76,24 +76,8 @@ def compute_repository_id(git_root: Path) -> str:
     Returns:
         Unique identifier string (SHA256 hash).
     """
-    # Try to use remote URL first (most stable)
-    remote_url = get_git_remote_url(git_root)
-    if remote_url:
-        # Normalize URL (remove .git suffix, normalize protocols)
-        normalized = remote_url.lower().removesuffix(".git")
-        if normalized.startswith(("http://", "https://", "git@")):
-            # Use normalized remote URL as base
-            base = normalized
-        else:
-            # Fall back to path-based ID
-            base = str(git_root.resolve())
-    else:
-        # No remote, use path with git revision if available
-        revision = get_git_revision(git_root)
-        base = f"{git_root.resolve()}:{revision}" if revision else str(git_root.resolve())
-
-    # Compute SHA256 hash
-    return hashlib.sha256(base.encode()).hexdigest()[:16]  # 16 chars is enough
+    base = f"henchman-rag-worktree-v2\0{git_root.resolve()}"
+    return hashlib.sha256(base.encode()).hexdigest()[:16]
 
 
 def get_rag_cache_dir(base_cache_dir: Path | None = None) -> Path:

@@ -4,6 +4,10 @@
   "title": "Chunk",
   "type": "object",
   "properties": {
+    "repository_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
+    "evidence_version": { "type": "integer", "enum": [0, 1] },
+    "source_sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "indexed_revision": { "type": ["string", "null"], "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$" },
     "content": { "type": "string" },
     "file_path": { "type": "string" },
     "start_line": { "type": "integer" },

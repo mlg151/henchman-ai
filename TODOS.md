@@ -4,6 +4,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- #17 now binds semantic retrieval to separate worktree caches and checks source
+  bytes, paths and revisions before returning bounded snippets. Legacy/stale
+  evidence requires explicit reindexing. Structural discovery and combined
+  evidence packaging remain open; see [RAG evidence](docs/tools.md#rag_search).
+
 - #20 baseline evaluation exports now use shared credential projection before
   JSON serialization, including short/escaped secrets and observed rotations
   across attempts. Only validated report identities are preserved. See the
