@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Scoped acceptance records** — Configuration, P0/P1 contracts, checkpoint
+  services and the installed Neovim pilot now have issue closure evidence with
+  explicit exclusions. Execution docs clarify inherited subprocess environments;
+  final release and broader privacy/UI/model qualification remain open.
+
 - **Context and usage inspection** — Textual's Context tab now opens a bounded
   read-only view of the selected session's context, retention and run accounting.
   Explicit Refresh rejects stale selections, rechecks credential rotation and

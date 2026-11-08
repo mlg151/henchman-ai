@@ -4,6 +4,13 @@ Organized by priority tiers. Each item is a discrete feature to implement.
 
 ## v0.4.2 delivery plan (in progress)
 
+Configuration [#14](https://github.com/mlg151/henchman-ai/issues/14), P0/P1 contracts
+[#21](https://github.com/mlg151/henchman-ai/issues/21), checkpoint services
+[#22](https://github.com/mlg151/henchman-ai/issues/22) and the installed Neovim pilot
+[#27](https://github.com/mlg151/henchman-ai/issues/27) are closed against their
+scoped acceptance evidence. This does not complete the remaining UI, privacy,
+live evaluation or final-release requirements; each closure records its limits.
+
 Cold offline startup now uses [packaged tokenizer vocabularies](docs/providers.md#offline-token-estimates)
 for context estimates and RAG chunking. Native artifact tests isolate user settings,
 interpreter lookup and empty token caches. Current model testing is local-only by

@@ -384,6 +384,9 @@ directory-handle primitives, including Windows, reject restricted file operation
 This is mediated tool access, not OS isolation against hostile host processes or
 mount changes. `network_access: disabled` applies to tool dispatch, not model SDK
 traffic. Other network tools and OS enforcement remain separate work.
+Without these restrictions, `shell` and `python_exec` inherit the full parent
+environment, including credential variables. Redacting their evidence does not
+isolate the subprocess or remove its environment values.
 
 ### Exact network host restrictions
 

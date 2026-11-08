@@ -747,6 +747,12 @@ modules or applying the sudo rewrite. `python_exec` is useful for portable Pytho
 snippets: it uses the current interpreter directly and captures UTF-8 stdout/stderr
 independently of the inherited console encoding.
 
+Unrestricted `shell` and `python_exec` subprocesses inherit the parent process
+environment, including any credentials present there. Evidence redaction does
+not remove values from the child process's environment. Configured
+[restricted tool access](configuration.md#restricted-tool-access) refuses these
+unqualified execution tools; ordinary execution does not provide OS isolation.
+
 ```json
 {
   "name": "shell",

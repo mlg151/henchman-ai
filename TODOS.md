@@ -4,6 +4,14 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- Scoped acceptance is complete for configuration [#14](https://github.com/mlg151/henchman-ai/issues/14),
+  P0/P1 contracts [#21](https://github.com/mlg151/henchman-ai/issues/21), checkpoint
+  services [#22](https://github.com/mlg151/henchman-ai/issues/22) and the installed
+  Neovim pilot [#27](https://github.com/mlg151/henchman-ai/issues/27). Their closure
+  comments record exact evidence and exclusions. Remaining UI consumers/native
+  usability, broader privacy, real-account/model quality and final release
+  qualification stay with their respective open issues.
+
 - #17 now binds semantic retrieval to separate worktree caches and checks source
   bytes, paths and revisions before returning bounded snippets. Legacy/stale
   evidence requires explicit reindexing. Explicit repository-mode
