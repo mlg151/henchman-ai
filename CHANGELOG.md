@@ -66,6 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installed checks of the wheel and a wheel built from its source archive.
   Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;
   failed checks invalidate prior receipts and join the owned process group.
+  A [development checkpoint](docs/evaluations/2026-11-08-artifact-qualification.md)
+  passed 5,460 installed tests for each artifact and produced a matching receipt;
+  final v0.4.2 qualification and publication remain pending.
 
 - **Current-file RAG evidence** — Worktree-specific caches and source provenance
   now prevent stale or foreign snippets from being presented as current.
@@ -75,6 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacement. Collection/generation/model checks reject missing or partial
   indexes before publication; Git environment overrides cannot redirect source
   provenance. Broader repository discovery and performance qualification remain open.
+  Windows source reads compare stable creation timestamps across path/descriptor
+  APIs while retaining descriptor change-time checks during the read.
 
 - **Retained twelve-case CPU corpus** — All twelve frozen local cases ran once:
   eight independent oracle passes, three timeouts and one tool-round-limit
