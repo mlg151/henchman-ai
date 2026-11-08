@@ -12,3 +12,10 @@ a paired performance gate or physical-terminal/accessibility qualification.
 For a new experiment, use a separate private directory, review paths,
 dependencies and cleanup, prepare a clean source snapshot, and freeze a new
 plan before observing results.
+
+Ruff checked both v2 and v3 archives together and reported 22 findings in
+these as-run copies (including import ordering, GI's required import sequence,
+semicolon style, and a synchronously called loop-local helper). They are kept
+byte-identical to the executed evidence. The combined log is retained in each
+local qualification-cache directory with SHA-256
+`82432a27da51fd5d3ceaf6c32d3f55b2e21943f37c3362e32c17844edc8d8927`.

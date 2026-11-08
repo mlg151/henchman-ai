@@ -11,3 +11,7 @@ The debug mode retains otherwise unreachable cycles and can cause repeated
 counts, so this is not a performance measurement or object-ownership proof.
 A new experiment requires a separate private directory, reviewed source and
 cleanup, and a newly frozen plan before observations.
+
+The combined Ruff check for the v2 and v3 archives reported 22 findings in
+the as-run copies. See the [v2 archive note](../vte_cancel_gc_v2/README.md)
+for the retained log identity. The executed scripts remain byte-identical.
