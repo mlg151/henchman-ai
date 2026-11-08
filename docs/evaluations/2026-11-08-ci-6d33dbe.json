@@ -1,0 +1,189 @@
+{
+  "commit": "6d33dbea06a0b29542eea210c0b1fc68405a96af",
+  "run_id": 42445861482,
+  "run_url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482",
+  "overall_conclusion": "failure",
+  "source_coverage_percent": 91.39,
+  "scope": "Development checkpoint only; later fixes and features need their own qualification.",
+  "known_failures": [
+    {
+      "jobs": [
+        128624759627
+      ],
+      "test": "tests/mcp/test_oauth_callback.py::test_cancellation_joins_slow_accepted_callback_connections",
+      "cause": "Native accepted transport may close with ConnectionResetError instead of EOF.",
+      "fix_commit": "2e2e3a4",
+      "local_verification": "17 focused tests passed; Ruff passed."
+    },
+    {
+      "jobs": [
+        128624759621,
+        128624759598,
+        128624759681,
+        128624759824
+      ],
+      "test": "tests/cli/test_doctor_core_command.py::test_collect_doctor_core_report_surfaces_invalid_configuration",
+      "cause": "Fixture changed HOME only; native Windows Path.home uses USERPROFILE.",
+      "fix_commit": "b8e0bf7",
+      "local_verification": "8 focused tests passed; Ruff passed."
+    }
+  ],
+  "jobs": [
+    {
+      "id": 128624520906,
+      "name": "Lint & Style",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624520906"
+    },
+    {
+      "id": 128624521116,
+      "name": "Test (Python 3.13)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624521116",
+      "test_summary": "========== 12180 passed, 90 skipped, 3 warnings in 1400.52s (0:23:20) =========="
+    },
+    {
+      "id": 128624521138,
+      "name": "Type Check",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624521138"
+    },
+    {
+      "id": 128624521149,
+      "name": "Test (Python 3.14)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624521149",
+      "test_summary": "========== 12179 passed, 91 skipped, 1 warning in 1483.63s (0:24:43) ==========="
+    },
+    {
+      "id": 128624521157,
+      "name": "Test (Python 3.12)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624521157",
+      "test_summary": "========== 12180 passed, 90 skipped, 7 warnings in 1642.75s (0:27:22) =========="
+    },
+    {
+      "id": 128624521160,
+      "name": "Test (Python 3.11)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624521160",
+      "test_summary": "========== 12180 passed, 90 skipped, 4 warnings in 1366.84s (0:22:46) =========="
+    },
+    {
+      "id": 128624679598,
+      "name": "Build & Package Validation",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624679598"
+    },
+    {
+      "id": 128624759548,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.11)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759548",
+      "test_summary": "5629 passed, 81 skipped, 15 warnings in 756.00s (0:12:35)"
+    },
+    {
+      "id": 128624759591,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.13)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759591",
+      "test_summary": "5629 passed, 81 skipped, 15 warnings in 882.29s (0:14:42)"
+    },
+    {
+      "id": 128624759598,
+      "name": "Installed Wheel Smoke (windows-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759598",
+      "test_summary": "1 failed, 5491 passed, 218 skipped, 15 warnings in 1335.04s (0:22:15)"
+    },
+    {
+      "id": 128624759621,
+      "name": "Installed Wheel Smoke (windows-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759621",
+      "test_summary": "1 failed, 5491 passed, 218 skipped, 15 warnings in 1459.32s (0:24:19)"
+    },
+    {
+      "id": 128624759627,
+      "name": "Installed Wheel Smoke (macos-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759627",
+      "test_summary": "1 failed, 5626 passed, 83 skipped, 15 warnings in 721.41s (0:12:01)"
+    },
+    {
+      "id": 128624759629,
+      "name": "Installed Wheel Smoke (macos-latest-3.13)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759629",
+      "test_summary": "5627 passed, 83 skipped, 15 warnings in 594.09s (0:09:54)"
+    },
+    {
+      "id": 128624759657,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.12)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759657",
+      "test_summary": "5629 passed, 81 skipped, 15 warnings in 923.17s (0:15:23)"
+    },
+    {
+      "id": 128624759670,
+      "name": "Installed Wheel Smoke (macos-latest-3.12)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759670",
+      "test_summary": "5627 passed, 83 skipped, 15 warnings in 740.17s (0:12:20)"
+    },
+    {
+      "id": 128624759681,
+      "name": "Installed Wheel Smoke (windows-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759681",
+      "test_summary": "1 failed, 5491 passed, 218 skipped, 15 warnings in 1209.23s (0:20:09)"
+    },
+    {
+      "id": 128624759682,
+      "name": "Installed Wheel Smoke (macos-latest-3.14)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759682",
+      "test_summary": "5627 passed, 83 skipped, 16 warnings in 793.88s (0:13:13)"
+    },
+    {
+      "id": 128624759704,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.14)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759704",
+      "test_summary": "5629 passed, 81 skipped, 16 warnings in 963.56s (0:16:03)"
+    },
+    {
+      "id": 128624759824,
+      "name": "Installed Wheel Smoke (windows-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128624759824",
+      "test_summary": "1 failed, 5491 passed, 218 skipped, 16 warnings in 1478.25s (0:24:38)"
+    },
+    {
+      "id": 128634217372,
+      "name": "Aggregate Readiness Gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42445861482/job/128634217372"
+    }
+  ]
+}
