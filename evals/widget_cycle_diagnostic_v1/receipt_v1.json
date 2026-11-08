@@ -1,0 +1,26 @@
+{
+  "python": "3.11.15",
+  "textual": "8.0.0",
+  "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+  "widget_module": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source/src/henchman/cli/textual_widgets.py",
+  "normal": {
+    "widgets": 100,
+    "alive_before_collect": 100,
+    "alive_after_collect": 0,
+    "collected_objects": 5600,
+    "style_node_identity_changes": 0
+  },
+  "weak_node_experiment": {
+    "widgets": 100,
+    "alive_before_collect": 0,
+    "alive_after_collect": 0,
+    "collected_objects": 0,
+    "style_node_identity_changes": 300
+  },
+  "limitations": [
+    "Synthetic unmounted widgets only",
+    "One process and one Textual version",
+    "Private Textual attributes and weak proxies change object identity",
+    "No production behavior or performance was tested"
+  ]
+}

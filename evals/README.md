@@ -36,6 +36,9 @@ An [intrusive object-type follow-up](../docs/evaluations/2026-11-08-vte-gc-types
 found Textual geometry, style and cache types among retained unreachable objects.
 Debug retention makes counts cumulative and does not prove their ownership or
 their role in normal-operation pauses.
+The [synthetic widget-cycle diagnostic](widget_cycle_diagnostic_v1/README.md)
+isolates three Textual style references on unmounted chat widgets. Its weak
+proxy experiment changes identity semantics and is not a production fix.
 
 The offline [repository reuse oracle prototype](repository_reuse_oracle_v1/README.md)
 checks small fixtures and rejects copied helper logic with an injected call

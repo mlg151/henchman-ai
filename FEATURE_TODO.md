@@ -719,6 +719,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   An [intrusive type follow-up](docs/evaluations/2026-11-08-vte-gc-types-v3.md)
   records Textual geometry, style and cache types, with cumulative debug-retained
   counts that cannot attribute normal-operation pauses.
+  A [synthetic widget-cycle probe](evals/widget_cycle_diagnostic_v1/README.md)
+  isolates three style back-references on unmounted chat widgets; the weak-proxy
+  experiment changes identity and is not a qualified fix.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).
