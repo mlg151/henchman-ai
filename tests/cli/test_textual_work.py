@@ -136,6 +136,73 @@ async def test_real_failed_task_evidence_and_current_process_remain_untouched(wo
             work.app.core_context = None
 
 
+@pytest.mark.parametrize("size", [(80, 24), (120, 40)])
+async def test_refresh_updates_inspected_task_output_without_leaving_detail(work, size):
+    from henchman.cli.textual_widgets import HenchmanTextArea
+
+    release = work.root / "release-output"
+    code = (
+        "import pathlib,time; print('first output',flush=True); "
+        f"p=pathlib.Path({str(release)!r}); "
+        "exec('while not p.exists(): time.sleep(.01)'); print('second output',flush=True)"
+    )
+    task = await work.service.start_task(argv=[sys.executable, "-u", "-c", code])
+    work.tasks.append(task.task_id)
+    async with asyncio.timeout(15):
+        while "first output" not in work.service.tail_output(task.task_id):
+            await asyncio.sleep(.01)
+    async with work.app.run_test(size=size) as pilot:
+        composer = work.app.query_one(HenchmanTextArea)
+        composer.load_text("unsent draft")
+        try:
+            screen = await opened(work, pilot)
+            options = screen.query_one(OptionList)
+            options.highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == task.task_id)
+            await pilot.pause()
+            screen.action_inspect()
+            await screen._action_task
+            area = screen.query_one(TextArea)
+            area.focus()
+            assert "first output" in area.text
+            release.touch()
+            await work.service.wait_for_task(task.task_id, timeout=15)
+            await pilot.press("f5")
+            await screen._action_task
+            assert screen._stage == "detail" and area.has_focus
+            assert "first output" in area.text and "second output" in area.text
+            assert "State: completed" in area.text
+            assert screen.query_one("#work-stop", Button).disabled
+            assert composer.text == "unsent draft"
+        finally:
+            release.touch()
+            work.app.core_context = None
+
+
+async def test_detail_refresh_refuses_a_changed_selection(work, monkeypatch):
+    first = await work.service.start_task(argv=[sys.executable, "-c", "print('first task')"])
+    second = await work.service.start_task(argv=[sys.executable, "-c", "print('second task')"])
+    await work.service.wait_for_task(first.task_id, timeout=15)
+    await work.service.wait_for_task(second.task_id, timeout=15)
+    async with work.app.run_test(size=(120, 40)) as pilot:
+        try:
+            screen = await opened(work, pilot)
+            options = screen.query_one(OptionList)
+            options.highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == first.task_id)
+            await pilot.pause()
+            screen.action_inspect()
+            await screen._action_task
+            options.highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == second.task_id)
+            await pilot.pause()
+            import henchman.cli.textual_work as module
+            monkeypatch.setattr(module, "_task_details", lambda *_args: pytest.fail("Changed selection was read"))
+            await pilot.press("f5")
+            await pilot.pause()
+            assert "selection changed" in screen._status.lower()
+            assert "second task" not in screen.query_one(TextArea).text
+        finally:
+            work.app.core_context = None
+
+
 async def test_recovered_running_task_is_unknown_and_never_adopts_pid(work):
     from tests.advanced.test_task_store import record
     store = work.service._store

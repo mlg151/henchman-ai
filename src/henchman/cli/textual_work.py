@@ -83,6 +83,7 @@ class WorkInspector(ModalScreen[None]):
         self._work_closing = False
         self._stale = False
         self._selection = 0
+        self._detail_selection: tuple[int, int] | None = None
         self._stop_target: tuple[str, int, int, int] | None = None
         self._agent_stop_target: tuple[str, SubagentRecord, asyncio.Task[Any], int, int] | None = None
 
@@ -178,11 +179,22 @@ class WorkInspector(ModalScreen[None]):
         self._render_view()
 
     def action_refresh(self) -> None:
+        if self._busy or self._work_closing:
+            return
+        if self._stage == "detail":
+            current = (self.query_one(OptionList).highlighted, self._selection)
+            if self._detail_selection != current:
+                self._status = "Selection changed; inspect the work item again."
+                self._render_view()
+                return
+            self.action_inspect()
+            return
         async def refresh() -> None:
             rows, notice = await self._inspection.catalog(limit=_ROWS)
             self._admit()
             self._rows = rows
             self._fields = ()
+            self._detail_selection = None
             self._stop_target = None
             self._agent_stop_target = None
             self._stage = "list"
@@ -197,6 +209,7 @@ class WorkInspector(ModalScreen[None]):
         row, selection = self._rows[index], self._selection
         async def inspect() -> None:
             self._fields = ()
+            self._detail_selection = None
             self._stop_target = None
             self._agent_stop_target = None
             self._output_interrupted = False
@@ -206,6 +219,7 @@ class WorkInspector(ModalScreen[None]):
             if self._selection != selection or self.query_one(OptionList).highlighted != index:
                 raise ValueError("Selection changed during inspection; inspect it again")
             self._fields = fields
+            self._detail_selection = (index, selection)
             self._stage = "detail"
             values = dict(fields)
             if (row.kind == "task" and (values.get("State") == "running"

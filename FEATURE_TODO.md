@@ -697,7 +697,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   refusal; drafts and held queue/goal disposition are preserved. Workspace now
   inspects existing task/child state and evidence at narrow/wide sizes, with
   actual-owner summary values and no new execution authority. Both frontends now
-  expose shared `/work` listing and exact task/agent inspection. The selected
+  expose shared `/work` listing and exact task/agent inspection. In Textual,
+  refreshing detail re-reads the same selected item without returning to the list.
+  The selected
   work control and `/work stop agent|task <exact-id>` stop only live in-process
   owned work after identity checks and joined cleanup. Child cancellation includes
   descendants and discards pending follow-ups. Task controls include settled

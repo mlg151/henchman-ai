@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Background task inspection** — Task details state that interactive terminal
-  attachment is unavailable while retained output remains inspectable.
+  attachment is unavailable while retained output remains inspectable. Textual
+  Refresh re-reads the selected detail without returning to the list.
 
 - **Changed-file checks** — Checkpoint review highlights project plans that
   explicitly declare the selected file as an input, with plan-level and eligible

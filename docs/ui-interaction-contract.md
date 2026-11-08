@@ -219,6 +219,9 @@ owner again after joined reads, and prints literal text with current and retaine
 credential policies. Missing owners remain unavailable; inspection does not
 construct or migrate task storage. Task details say that interactive attachment
 is unavailable; background processes receive no interactive input.
+In the Textual inspector, F5 or **Refresh** re-reads the same work item while its
+detail is open; changed selection requires inspection again. Go Back to the list
+before refreshing the catalog.
 
 To stop a live task owned by this process, inspect it and use **Stop work**
 or F6; both frontends also accept `/work stop task <exact-id>`. A retained
