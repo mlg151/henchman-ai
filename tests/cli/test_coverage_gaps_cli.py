@@ -2655,60 +2655,37 @@ class TestInputMissingLines:
         assert session is not None
 
     def test_create_session_abort_callback_body(self) -> None:
-        """Line 184: 'abort' key binding callback body is invoked via captured bindings."""
+        """The configured abort binding asks the real prompt session to exit."""
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import DummyInput
+        from prompt_toolkit.keys import Keys
+        from prompt_toolkit.output import DummyOutput
+
         from henchman.cli.input import create_session
 
-        captured_bindings: Any = None
-
-        class CapturingSession:
-            def __init__(self, *a: Any, key_bindings: Any = None, **kw: Any) -> None:
-                nonlocal captured_bindings
-                captured_bindings = key_bindings
-
-        with patch("henchman.cli.input.PromptSession", CapturingSession):
-            create_session(keybindings={"c-c": "abort"})
-
-        # Invoke the registered handler to cover line 184
-        if captured_bindings and hasattr(captured_bindings, "bindings"):
-            for binding in captured_bindings.bindings:
-                if hasattr(binding, "handler"):
-                    mock_event = MagicMock()
-                    mock_event.app.exit = MagicMock()  # Safe mock, won't raise
-                    try:
-                        binding.handler(mock_event)
-                    except (EOFError, SystemExit):
-                        pass
-                    except KeyboardInterrupt:
-                        pass  # Default ControlC handler raises this
-                    except Exception:
-                        pass
+        with create_app_session(input=DummyInput(), output=DummyOutput()):
+            session = create_session(keybindings={"c-c": "abort"})
+        bindings = session.key_bindings.get_bindings_for_keys((Keys.ControlC,))
+        assert bindings
+        event = MagicMock()
+        bindings[-1].handler(event)
+        event.app.exit.assert_called_once_with(exception=KeyboardInterrupt, style="class:aborting")
 
     def test_create_session_exit_callback_body(self) -> None:
-        """Line 189: 'exit' key binding callback raises EOFError when invoked."""
+        """The configured exit binding raises EOFError through the real session."""
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import DummyInput
+        from prompt_toolkit.keys import Keys
+        from prompt_toolkit.output import DummyOutput
+
         from henchman.cli.input import create_session
 
-        captured_bindings: Any = None
-
-        class CapturingSession:
-            def __init__(self, *a: Any, key_bindings: Any = None, **kw: Any) -> None:
-                nonlocal captured_bindings
-                captured_bindings = key_bindings
-
-        with patch("henchman.cli.input.PromptSession", CapturingSession):
-            create_session(keybindings={"c-d": "exit"})
-
-        # Invoke the registered handler to cover line 189
-        if captured_bindings and hasattr(captured_bindings, "bindings"):
-            for binding in captured_bindings.bindings:
-                if hasattr(binding, "handler"):
-                    try:
-                        binding.handler(MagicMock())
-                    except EOFError:
-                        pass  # Expected - this IS the coverage we need
-                    except KeyboardInterrupt:
-                        pass  # Default ControlC handler
-                    except Exception:
-                        pass
+        with create_app_session(input=DummyInput(), output=DummyOutput()):
+            session = create_session(keybindings={"c-d": "exit"})
+        bindings = session.key_bindings.get_bindings_for_keys((Keys.ControlD,))
+        assert bindings
+        with pytest.raises(EOFError):
+            bindings[-1].handler(MagicMock())
 
     def test_create_session_unknown_action(self) -> None:
         """Line 185->176: keybindings with unknown action type skips binding body."""
