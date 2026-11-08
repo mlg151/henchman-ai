@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Internal editor protocol foundation** — A bounded v1 JSON-line codec and
+  connection state machine validate requests and correlate session/run/decision
+  identities without granting execution authority. Runtime and stdio wiring,
+  cleanup/delivery guarantees and the Neovim pilot remain pending.
+
 - **Bounded schema meta-validation cache** — Repeated identical schemas reuse
   successful meta-checks within a 64-entry, 4 MiB key-payload bound. Validators,
   current arguments, authorization and verification remain fresh. Offline

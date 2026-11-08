@@ -22,6 +22,23 @@ escaped newlines and literal emoji aliases regardless of console width.
 runtime outcomes are unchanged; see [headless team execution](agents.md#headless-team-execution).
 These legacy formats are not yet a versioned bidirectional editor protocol.
 
+### Internal editor protocol foundation
+
+`cli.headless_protocol` and `cli.headless_control` provide an inactive v1 codec
+and connection state machine. They validate bounded UTF-8 JSON lines, explicit
+new/resume selection, monotonic request IDs and exact session/run/decision
+correlation. Frames are limited to 1 MiB, decoder feeds to 64 KiB and nesting to
+16 levels. Duplicate keys, non-finite numbers and malformed input fail with
+value-free codes. Request parameters retain execution input and are excluded
+from object representations.
+
+These modules perform no I/O and grant no runtime authority. An embedding must
+serialize control calls, bind actual core identities, validate project-scoped
+session lookup, project outbound evidence and join owned work before claiming
+one terminal result. A cancellation request alone proves neither cleanup nor
+delivery; a completed runtime result does not verify the user's task. The CLI
+bridge, pipe lifecycle and Neovim pilot remain pending under #27.
+
 ## HTTP service health
 
 The FastAPI service exposes two operational endpoints under `/v1`:

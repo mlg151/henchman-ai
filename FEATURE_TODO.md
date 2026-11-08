@@ -212,8 +212,9 @@ transfer and native qualification stay tracked under #14.
 - [ ] Validate privacy boundaries, shared usage budgets, responsiveness and bounded delegation.
 - [ ] Deliver the scoped MCP client work and one Neovim pilot; qualify an optional CPU-local profile.
   Legacy headless JSON framing now preserves long and Unicode payloads regardless
-  of console width. The versioned editor protocol and Neovim pilot remain open
-  under #27; see [JSON output](docs/api.md#headless-json-output).
+  of console width. An inactive bounded v1 codec and connection state machine
+  now enforce identity and decision correlation. The runtime/stdio bridge and
+  Neovim pilot remain open under #27; see [JSON output](docs/api.md#headless-json-output).
 - [ ] Deliver UI-0–UI-4: interaction baselines, reliable terminal controls, work visibility, workspace navigation and native/accessibility qualification.
 - [ ] Verify integrated outcomes and the exact release artifacts before publication.
 

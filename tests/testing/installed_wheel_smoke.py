@@ -151,6 +151,8 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/contracts/test_tool_executor_contracts.py",
         "tests/cli/test_tool_executor_asyncio_gather.py",
         "tests/cli/test_headless_loop.py",
+        "tests/cli/test_headless_protocol.py",
+        "tests/cli/test_headless_control.py",
         "tests/cli/test_input_output_portability.py",
         "tests/cli/test_output_stream_coverage.py",
         "tests/e2e/test_headless_team.py",
