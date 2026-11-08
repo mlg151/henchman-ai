@@ -340,7 +340,9 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "it does not save, compact or resume a session. Pending decisions expose "
             "F10 review with bounded selectable evidence and explicit private TXT/Markdown "
             "export under .henchman/exports. Review never answers a decision; clipboard "
-            "transfer is requested without a native receipt."
+            "transfer is requested without a native receipt. Context > Sessions searches "
+            "project-scoped saved metadata, inspects recovery and requires an explicit "
+            "save-or-switch choice; it preserves drafts and holds queues/goals."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),
     ),
@@ -364,7 +366,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "tool cards inspectable and preserves manual expansion. ui.keyboard_mode selects "
             "standard or Vim editing for the classic REPL composer at startup. Its Textual "
             "consumer and Textual compact_tables remain pending in the terminal UI workstream; "
-            "runtime-scoped discovery must not present them as generic commands."
+            "runtime-scoped discovery must not present them as generic commands. "
+            "F11 edits an idle unsent draft using VISUAL or EDITOR in both interactive "
+            "composers, with a visible Textual button. It requires a POSIX foreground "
+            "terminal and unrestricted non-plan policy; it never submits the draft."
         ),
         aliases=(
             "ui.output_mode",

@@ -250,6 +250,7 @@ class HenchmanTextualApp(
         Binding("f8", "review_changes", "Review", show=True),
         Binding("f4", "pending_decision", "Decision", show=True, priority=True),
         Binding("f9", "input_queue", "Queue", show=True, priority=True),
+        Binding("f11", "external_editor", "Editor", show=True),
         Binding(
             "f2",
             "switch_provider",
@@ -340,12 +341,14 @@ class HenchmanTextualApp(
                 with Horizontal(id="chat-navigation"):
                     yield Static("Live", id="chat-follow-state")
                     yield Button("Return to live", id="chat-return-live", disabled=True)
+                    yield Button("External editor", id="external-editor")
             with TabPane("Thinking", id="tab-thinking"):
                 yield ThinkingPane(id="thinking-pane")
             with TabPane("Tools", id="tab-tools"):
                 yield ToolPane(id="tool-pane")
             with TabPane("Context", id="tab-context"):
                 yield Button("Context and usage", id="context-inspect")
+                yield Button("Sessions", id="context-sessions")
                 yield Tree("Context Files", id="context-tree")
             with TabPane("Workspace", id="tab-workspace"):
                 yield VerticalScroll(
@@ -375,6 +378,23 @@ class HenchmanTextualApp(
     def action_follow_live(self) -> None:
         """Return the transcript to live without moving composer focus."""
         self.query_one(ChatPane).return_to_live()
+
+    def action_external_editor(self) -> None:
+        """Compose an unsubmitted draft using the configured local editor."""
+        from henchman.cli.textual_editor import start_external_editor
+
+        start_external_editor(self)
+
+    @on(Button.Pressed, "#external-editor")
+    def _external_editor_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_external_editor()
+
+    def action_cancel_or_clear(self) -> None:
+        from henchman.cli.textual_editor import cancel_external_editor
+
+        if not cancel_external_editor(self):
+            super().action_cancel_or_clear()
 
     def action_pending_decision(self) -> None:
         """Return focus to the actual decision without resolving it."""
@@ -416,6 +436,17 @@ class HenchmanTextualApp(
     def _context_inspect_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         self.action_context_inspector()
+
+    def action_session_browser(self) -> None:
+        """Browse project sessions without changing the composer or a decision."""
+        from henchman.cli.textual_sessions import open_session_browser
+
+        open_session_browser(self)
+
+    @on(Button.Pressed, "#context-sessions")
+    def _sessions_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_session_browser()
 
     def action_review_changes(self) -> None:
         """Open file review without submitting or replacing the composer draft."""
@@ -507,14 +538,19 @@ class HenchmanTextualApp(
             # still settle before that original error leaves the frontend.
             try:
                 try:
-                    oauth = getattr(self, "_oauth", None)
-                    if oauth is not None:
-                        await oauth.aclose()
+                    from henchman.cli.textual_editor import close_external_editor
+
+                    await close_external_editor(self)
                 finally:
-                    if task is not None and task is not asyncio.current_task():
-                        task.cancel()
-                        with suppress(asyncio.CancelledError):
-                            await task
+                    try:
+                        oauth = getattr(self, "_oauth", None)
+                        if oauth is not None:
+                            await oauth.aclose()
+                    finally:
+                        if task is not None and task is not asyncio.current_task():
+                            task.cancel()
+                            with suppress(asyncio.CancelledError):
+                                await task
             finally:
                 ctx = self.core_context
                 if ctx:

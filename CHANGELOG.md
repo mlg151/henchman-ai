@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Searchable saved sessions** — Textual's Context → Sessions now searches
+  project-scoped metadata, shows persisted/recovery state and requires explicit
+  save-or-switch resume. Stale selections and changed saved bytes refuse;
+  composer drafts, held queues/goals and settled usage remain intact.
+
+- **External-editor drafts** — F11 now opens VISUAL/EDITOR for an idle unsent
+  draft in the classic REPL and Textual, with a visible Textual button. POSIX
+  foreground ownership, bounded private files and joined cleanup preserve the
+  composer on failure/cancellation; stale results need explicit recovery.
+  Windows, restricted/plan policy and native editor qualification remain outside
+  the supported scope.
+
 - **Chat reply privacy** — Received-message and history previews project before
   clipping; streamed and final replies retain credential masking across chunks,
   rotation and interruption. Delivered assistant summaries store projected text

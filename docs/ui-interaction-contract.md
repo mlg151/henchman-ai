@@ -23,6 +23,8 @@ transcript workflow; this first implementation slice changes Textual only.
 | Inspect a pending decision | F10 or Review opens a read-only snapshot with selection, Copy and TXT/Markdown export. Back/Escape returns to the unanswered decision. |
 | Saved input queue | F9 opens inspection and explicit edit, remove, reorder and Send controls. Opening or editing never grants dispatch permission. |
 | Context and usage | The Context tab opens a read-only snapshot. F5 explicitly refreshes; Escape/Back restores focus without changing the composer or session. |
+| Saved sessions | Context → Sessions searches project-scoped saved metadata. Enter inspects; Resume requires an explicit save-or-switch choice. Back preserves the draft. |
+| External editor | F11, or Textual's External editor button, edits an idle unsent draft through the configured local editor. Returning never submits it. |
 | Cancellation | `Cancelling...` is acknowledgement only. Completion is shown after the existing worker cleanup finishes. |
 | Quit | Existing Ctrl+Q/Ctrl+C quit behavior is retained outside the decision review editor, where Ctrl+C requests copying the selection. |
 
@@ -80,7 +82,8 @@ runtime boundaries.
 | Cancellation acknowledgement and cleanup | [Interaction tests](../tests/cli/test_textual_interaction_contract.py), [Escape](../tests/cli/test_escape_cancellation.py), [background execution](../tests/tools/test_background_execution.py) | Native visual acknowledgement latency, runtime cleanup |
 | Queued input and recovery | [F9 queue controls](../tests/cli/test_textual_queue.py), [shared workflow](../tests/core/test_session_workflow.py), [Textual goals](../tests/cli/test_textual_background_goals.py), [REPL goals](../tests/cli/test_repl_background_goals.py) | Cancellation/resume disposition and draft-loss observation |
 | Failure, large output, tool evidence and identity | [Tool inspection](../tests/cli/test_textual_tool_activity.py), [completion](../tests/cli/test_completion_rendering.py); compact correlated rows and bounded evidence | Find a failed check and explain its actual evidence |
-| Sessions, tasks and project boundaries | [Sessions](../tests/cli/test_textual_session_management.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); interactive inspectors remain pending | Find/resume the intended session, Back navigation |
+| Sessions, tasks and project boundaries | [Session browser](../tests/cli/test_textual_session_resume.py), [shared activation](../tests/cli/test_session_activation.py), [workspace evidence](../tests/cli/test_textual_workspace_evidence.py); task drill-down remains pending | Find/resume the intended session, Back navigation |
+| External-editor draft composition | [Owned POSIX PTY](../tests/cli/test_draft_editor.py), [classic prompt](../tests/cli/test_repl_draft_editor.py), [Textual adapter](../tests/cli/test_textual_draft_editor.py) | Actual editor applications, native host keys, tmux/remote and assistive technology |
 | Checkpoint file/hunk review | [F8 review](../tests/cli/test_textual_checkpoints.py), narrow/wide navigation, preview/Apply, conflicts, draft/focus and joined shutdown | Native keys, screen-reader navigation and evidence comprehension |
 | Provider/context/budget truth | [Context inspector](../tests/cli/test_textual_context.py), [provider display](../tests/cli/test_active_provider_display.py), [usage](../tests/cli/test_usage_command.py) | Distinguish unknown, estimated and reported values |
 | Width, theme, Unicode and long paths | 80×24, 120×40 and 160×50 in the [new harness](../tests/cli/ui_scenarios.py) | Light/dark/no-color native contrast and focused narrow layout |
@@ -91,9 +94,68 @@ messages reflow. The anchor uses the displayed row, including when focus scrolli
 has a fractional internal position. Deferred scrolling to the same position keeps
 that anchor through pending layout work; actual navigation selects a new anchor.
 Exact character anchoring within one rewrapped long message is
-not yet implemented. External-editor composition, native clipboard behavior
+not yet implemented. Native clipboard behavior, editor integration qualification
 and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
+
+## External-editor composition
+
+Set `VISUAL` or `EDITOR` to a foreground editor command, then press **F11** in
+the idle classic prompt or use **External editor** in Textual. `VISUAL` takes
+precedence. The command is parsed as arguments and receives one private draft
+filename; shell expansion and pipelines are not supported. The editor must wait
+for editing to finish. This implementation requires an attached POSIX foreground
+terminal; Windows, detached terminals and restricted or plan-mode policies refuse
+with the existing draft intact.
+
+Composition reserves the idle frontend and refuses active tasks, pending
+decisions and open Textual dialogs. It binds the session, project directory and
+runtime identity, then rechecks before execution and publication. Success updates
+only the composer. It never sends a message, adds prompt history, arms a queue or
+creates model permission. Failure, timeout or cancellation preserves the original
+draft and selection. A result that becomes stale after editing is held in memory
+for explicit use or discard through the same editor action; it is not saved for
+restart recovery.
+
+Drafts are UTF-8 and limited to 1 MiB, with a 30-minute editor deadline. Henchman
+uses a private temporary directory/file, rejects links and nonregular results,
+joins owned process-group cleanup and restores terminal ownership and attributes
+before returning. Child environment inheritance is limited to standard terminal,
+locale, home/path and `XDG_*` variables. The configured editor is a user program,
+not a sandbox: its plugins, own files and detached descendants remain outside
+these guarantees. The [owned PTY tests](../tests/cli/test_draft_editor.py) exercise
+real process and terminal cleanup; they do not qualify arbitrary editors or
+native keyboard, remote-session and screen-reader behavior.
+
+## Saved session browsing
+
+Open **Context → Sessions**, search by saved ID or tag, and press Enter or
+**Inspect**. Search and inspection do not switch sessions. Details show the
+persisted project/session identity, update time, message count, any backup-recovery
+notice and the shared workflow recovery report. Current autosave configuration
+is separate from unverified in-memory save freshness. The composer remains an
+unsent local draft. Process-only workflow history that cannot survive reload is
+reported as unavailable, rather than as an empty recovered queue.
+
+Choose **Resume**, then **Save current + resume** or **Resume without save**.
+The latter may leave current in-memory changes unsaved. Both keep the composer
+draft and leave queued inputs and goals held for their existing explicit controls.
+The current session cannot be reloaded over its own unsaved history. Selection,
+project/runtime identity and exact saved storage version are checked across reads
+and a save; changed state requires fresh inspection. Failed activation restores
+the prior live selectors and history without reissuing dispatch grants or rolling
+back durable accounting. Earlier visible transcript rows keep their chronology;
+a system notice identifies the switch while the selected history becomes active.
+
+Inspection uses existing project-scoped session readers and does not rewrite
+session or journal payloads. Those readers can create lockfiles and remove their
+abandoned temporary files. Displays are bounded to 200 matching rows and bounded
+projected details; the underlying metadata enumeration has no fixed count or
+latency bound. Read workers are joined on close. The
+[browser regressions](../tests/cli/test_textual_session_resume.py) exercise 80×24
+and 120×40 layouts, keyboard navigation, stale reads, save failures, privacy and
+held recovery. Native terminal/accessibility qualification and task inspection
+remain separate work.
 
 ## Pending decision inspection and export
 

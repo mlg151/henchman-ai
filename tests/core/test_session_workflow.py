@@ -16,6 +16,41 @@ from henchman.core.session_workflow import SessionWorkflow
 from henchman.core.workflow_state import WorkflowError
 
 
+def test_saved_workflow_inspection_does_not_select_write_or_arm(tmp_path):
+    runtime, current, settings = controller(tmp_path)
+    original = runtime.submit("current held input")
+    other = Session("other", current.project_hash, "now", "now")
+    writer = SessionWorkflow(settings, lambda: other, lambda _: None, tmp_path / "ops.db")
+    writer.attach(other)
+    item = writer.submit("saved input")
+    writer.next_input()  # A different owner must see uncertain effects.
+    before = (tmp_path / "ops.db").read_bytes()
+    bindings = dict(runtime._bindings)
+    report = runtime.inspect_session(session_from_json(other.to_json()))
+    assert report.persistence == "durable" and report.blocking_input_ids == (item.id,)
+    assert runtime.current() is current and runtime._bindings == bindings
+    assert runtime.queue_view().eligible == ((original.id, original.revision),)
+    assert (tmp_path / "ops.db").read_bytes() == before
+
+
+def test_saved_workflow_inspection_rejects_foreign_project_before_storage(tmp_path, monkeypatch):
+    from henchman.ops.workflow_store import WorkflowStore
+
+    runtime, _, _ = controller(tmp_path, durable=False)
+    monkeypatch.setattr(WorkflowStore, "inspect", lambda *_a, **_k: pytest.fail("foreign storage read"))
+    with pytest.raises(WorkflowError, match="project"):
+        runtime.inspect_session(Session("foreign", "other-project", "now", "now"))
+
+
+def test_saved_process_workflow_is_unavailable_without_creating_empty_authority(tmp_path):
+    runtime, current, _ = controller(tmp_path, durable=False)
+    report = runtime.inspect_session(Session("saved", current.project_hash, "now", "now"))
+    assert report.persistence == "process"
+    assert report.failure_reason == "process_history_unavailable"
+    assert not (tmp_path / "ops.db").exists()
+    assert len(runtime._bindings) == 1
+
+
 @pytest.mark.parametrize("durable", [False, True])
 async def test_queue_control_view_observes_eligibility_without_rearming(tmp_path, durable):
     runtime, _, _ = controller(tmp_path, durable=durable)

@@ -465,11 +465,12 @@ class Repl:
             tool_registry=self.tool_registry,
             evidence_redactor=runtime_evidence_redactor(self),
             keyboard_mode=self.settings.ui.keyboard_mode,
+            editor_frontend=self,
         )
         self.input_handler.initialize_prompt_session(
             bottom_toolbar=(
                 None if getattr(self.renderer, "output_mode", "rich") in ("plain", "quiet")
-                else lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self))
+                else lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)) + [("", "  F11 External editor")]
             ),
         )
         prompt = self.input_handler.prompt_session
@@ -488,7 +489,7 @@ class Repl:
 
     def _has_active_turn(self) -> bool:
         """Enable turn cancellation bindings while interactive work is running."""
-        return (self._turn_worker is not None and not self._turn_worker.done()) or (
+        return self.input_handler.editor_active or (self._turn_worker is not None and not self._turn_worker.done()) or (
             hasattr(self, "_oauth") and self._oauth.has_pending_actions())
 
 
@@ -589,7 +590,10 @@ class Repl:
         """Join owned agent work before disconnecting its external tools."""
         try:
             try:
-                await self._oauth.aclose()
+                try:
+                    await self.input_handler.close_editor()
+                finally:
+                    await self._oauth.aclose()
             finally:
                 await self._stop_turn_worker()
         finally:
@@ -827,6 +831,8 @@ class Repl:
 
     def interrupt_agent(self) -> None:
         """Pause autonomous work and cancel the current interactive turn."""
+        if self.input_handler.cancel_editor():
+            return
         if self._oauth.cancel():
             runtime = self._workflow()
             if runtime is not None:

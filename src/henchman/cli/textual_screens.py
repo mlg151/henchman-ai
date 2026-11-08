@@ -16,13 +16,13 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select
 
 from henchman.cli.textual_messages import SwitchProviderMessage
+from henchman.cli.textual_sessions import SessionScreen as SessionScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import Binding
 
     from henchman.cli.textual_app import HenchmanTextualApp
-    from henchman.core.session import SessionMetadata
     from henchman.tools.base import ConfirmationRequest
 
 # Map risk level to Rich colour for the confirmation dialog.
@@ -274,6 +274,9 @@ class HelpScreen(ModalScreen[None]):
             Label("  F4                Return to pending question or approval"),
             Label("  F9                Inspect and control saved input queue"),
             Label("  F8                Review captured file changes"),
+            Label("  F10              Inspect/export a pending decision"),
+            Label("  F11              Edit unsent draft in VISUAL/EDITOR"),
+            Label("  Context → Sessions    Search, inspect and explicitly resume"),
             Label("  Ctrl+Shift+T       Clear thinking messages in chat"),
             Label("  Ctrl+Shift+Y       Clear tool messages in chat"),
             Label("  /               Slash command palette"),
@@ -429,123 +432,6 @@ class ProviderScreen(ModalScreen[None]):
 # ------------------------------------------------------------------ #
 # Session management screen                                            #
 # ------------------------------------------------------------------ #
-
-
-class SessionScreen(ModalScreen[str | None]):
-    """Session management modal.
-
-    Lists saved sessions and lets the user resume or delete them.
-    Dismisses with the session tag/id to resume, or ``None`` if cancelled.
-    """
-
-    DEFAULT_CSS = """
-    SessionScreen {
-        align: center middle;
-    }
-    #session-dialog {
-        padding: 2;
-        border: solid $accent;
-        background: $surface;
-        width: 75;
-        height: auto;
-        max-height: 30;
-    }
-    #session-list {
-        height: auto;
-        max-height: 18;
-        overflow-y: auto;
-        margin: 1 0;
-    }
-    .session-entry {
-        margin-bottom: 1;
-    }
-    """
-
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        ("escape", "cancel", "Close"),
-    ]
-
-    def __init__(self: SessionScreen, sessions: list[SessionMetadata] | None = None) -> None:
-        """Initialize with an optional pre-loaded session list.
-
-        Args:
-            sessions: List of ``SessionMetadata`` (or dicts) to display.
-                      Pass ``None`` to show an empty state.
-        """
-        super().__init__()
-        self._sessions: list[SessionMetadata] = sessions or []
-
-    def compose(self: SessionScreen) -> ComposeResult:
-        """Build the session management dialog.
-
-        Returns:
-            ComposeResult with session list and action buttons.
-        """
-        entries = self._build_entries()
-        options = [(label, sid) for label, sid in entries] if entries else []
-        select_value = Select.NULL
-
-        yield Vertical(
-            Label("[bold]Session Management[/bold]"),
-            Label(f"[dim]{len(self._sessions)} saved session(s)[/dim]"),
-            Select(
-                options or [("No sessions", "none")],
-                id="session-select",
-                allow_blank=True,
-                value=select_value,
-            ),
-            Vertical(
-                Button("Resume", variant="success", id="btn-resume"),
-                Button("Delete", variant="error", id="btn-delete"),
-                Button("Cancel", variant="default", id="btn-cancel"),
-            ),
-            id="session-dialog",
-        )
-
-    def _build_entries(self: SessionScreen) -> list[tuple[str, str]]:
-        """Build display entries from session list.
-
-        Returns:
-            List of (display_label, session_id) tuples.
-        """
-        entries: list[tuple[str, str]] = []
-        for sess in self._sessions:
-            tag = getattr(sess, "tag", None) or getattr(sess, "id", "unknown")
-            ts = getattr(sess, "updated_at", None) or getattr(sess, "created_at", "")
-            count = getattr(sess, "message_count", 0)
-            label = f"{tag}  [{ts}]  ({count} messages)"
-            sid = str(getattr(sess, "id", tag))
-            entries.append((label, sid))
-        return entries
-
-    def on_button_pressed(self: SessionScreen, event: Button.Pressed) -> None:
-        """Handle button presses.
-
-        Args:
-            event: Button press event.
-
-        Returns:
-            None
-        """
-        if event.button.id == "btn-cancel":
-            self.dismiss(None)
-            return
-        sel = self.query_one("#session-select", Select)
-        value = str(sel.value) if sel.value and sel.value != Select.BLANK else None
-        if event.button.id == "btn-resume" and value and value != "none":
-            self.dismiss(f"resume:{value}")
-        elif event.button.id == "btn-delete" and value and value != "none":
-            self.dismiss(f"delete:{value}")
-        else:
-            self.dismiss(None)
-
-    def action_cancel(self: SessionScreen) -> None:
-        """Cancel and close.
-
-        Returns:
-            None
-        """
-        self.dismiss(None)
 
 
 # ------------------------------------------------------------------ #

@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -209,6 +210,7 @@ def create_session(
     completer: Any = None,
     evidence_redactor: EvidenceRedactor | None = None,
     keyboard_mode: str = "standard",
+    editor_action: Callable[[], None] | None = None,
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
@@ -219,6 +221,7 @@ def create_session(
         completer: Optional completer for tab completion.
         evidence_redactor: Shared policy for the persisted history copy.
         keyboard_mode: Startup editing profile: standard or vim.
+        editor_action: User-only external composition action for the main prompt.
 
     Returns:
         Configured PromptSession.
@@ -242,6 +245,11 @@ def create_session(
             else:
                 with contextlib.suppress(Exception):
                     event.app.exit(result="")
+
+    if editor_action is not None:
+        @bindings.add("f11")
+        def _external_editor(_event: Any) -> None:
+            editor_action()
 
     if keybindings:
         _register_custom_keybindings(bindings, keybindings)

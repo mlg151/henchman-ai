@@ -201,6 +201,14 @@ draft until Enter. Explicit custom bindings keep their precedence. Later setting
 changes require a new REPL launch; tool-question prompts keep their existing
 standard editing. Native terminal/assistive-technology qualification remains open.
 
+Both interactive composers offer explicit **F11** external editing; Textual also
+has an **External editor** button. `VISUAL`, then `EDITOR`, supplies the foreground
+command as arguments, without a shell. This edits only the idle unsent draft and
+currently requires a POSIX foreground terminal with unrestricted, non-plan policy.
+There is no new persisted setting or model tool. See the
+[composition contract](ui-interaction-contract.md#external-editor-composition)
+for temporary-file, environment, cancellation and recovery boundaries.
+
 `ui.layout.compact_tables` currently affects the classic REPL's `OutputRenderer`
 tables. Its Textual consumer and Textual keyboard mode remain pending in the UI workstream.
 

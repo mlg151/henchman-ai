@@ -659,8 +659,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   now selects standard/Vim editing while preserving active cancellation. Other optional consumers
   and native qualification remain open. Pending decisions now expose F10 review,
   selection/copy and bounded private TXT/Markdown export with current credential
-  projection and preserved draft/focus. External-editor composition and native
-  clipboard/remote/accessibility evidence remain open; see
+  projection and preserved draft/focus. F11 external-editor composition now uses
+  VISUAL/EDITOR for idle unsent drafts in both frontends, with owned POSIX terminal
+  cleanup and explicit stale-result recovery. Native editor/clipboard/remote/
+  accessibility evidence remain open; see
   [UI settings](docs/configuration.md#settings-file).
 - [ ] [UI-2 / #34](https://github.com/mlg151/henchman-ai/issues/34): Improve existing tool summaries, blocked/error visibility, queued-input controls and changes/diff/verification navigation.
   Compact correlated tool rows and bounded keyboard evidence inspection are
@@ -672,7 +674,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
   The Context tab now provides bounded read-only context, retention and usage
   inspection with explicit Refresh, current credential projection and preserved
-  drafts/focus. Session/task navigation and native qualification remain open;
+  drafts/focus. Context → Sessions now provides project-scoped search, recovery
+  inspection and explicit save-or-switch resume with stale-selection/storage
+  refusal; drafts and held queue/goal disposition are preserved. Task navigation
+  and native qualification remain open;
   see the [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
 

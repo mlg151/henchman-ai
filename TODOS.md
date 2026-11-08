@@ -336,12 +336,21 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   credential reprojection preserve decisions and drafts; closing joins owned
   exports. Native clipboard/remote/accessibility qualification remains open. See
   [decision inspection](docs/ui-interaction-contract.md#pending-decision-inspection-and-export).
+- #33 F11 now composes idle unsent drafts through VISUAL/EDITOR in both frontends,
+  with a visible Textual button. The POSIX foreground process/terminal owner joins
+  cleanup and rejects cancellation/deadline races before execution/publication.
+  Stale results require explicit recovery; restricted/plan policies refuse.
+  Actual editor, remote and accessibility qualification remains open. See the
+  [composition contract](docs/ui-interaction-contract.md#external-editor-composition).
 
 - #35 now has a bounded read-only Context/Retention/Usage inspector with explicit
   Refresh, stale-selection refusal, credential reprojection and joined reads.
   It distinguishes configured capacity, estimated history, observed usage and
-  reported billing; it does not acknowledge disk saves or verify tasks. Broader
-  session/task navigation and native qualification remain open; see the
+  reported billing; it does not acknowledge disk saves or verify tasks. Context →
+  Sessions now searches project-scoped saved metadata, inspects recovery and
+  requires an explicit save-or-switch choice. Selection/storage revisions bind
+  reads and saves; drafts, held queues/goals and settled usage are preserved.
+  Task navigation and native qualification remain open; see the
   [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - The portable `AGENTS.md` instruction increment is integrated under [#15](https://github.com/mlg151/henchman-ai/issues/15): default discovery keeps `HENCHMAN.md` primary, boundary and alias rejection is enforced before reads, and immutable provenance snapshots feed content-free session records and a bounded delegation appendix (paths/scopes/digests only). Runtime refresh now covers primary/delegated requests, supported input/output paths, parsed patches and formatter descendants. Mutations defer until new guidance reaches the model, with fresh checks after approval and formatter waits. Directory lint fixes require explicit files; shell/Python embedded paths remain cwd-scoped. [Native CI qualification](https://github.com/mlg151/henchman-ai/actions/runs/42386583146) passed all 12 platform/Python wheel combinations; #15 is complete. Final release qualification remains under #30. See [runtime refresh](docs/configuration.md#context-files-henchmanmd-and-agentsmd).
 - The plan-mode transition authority increment is delivered under [#18](https://github.com/mlg151/henchman-ai/issues/18): sessions persist `plan_mode_origin` (`user`/`model`, legacy sessions default to `user`), a model-callable `exit_plan_mode` closes only model-proposed planning and cannot lift a user-imposed `/plan` boundary, user/runtime transitions retain the widening right for both states, interactive/headless startup re-applies a resumed session's plan mode to the live registry and agent prompt while preserving its persisted origin, dynamic subagents inherit the active plan-mode boundary in their system prompt, and plan mode now classifies each invocation by effective operation effect (read-only shell/`python_exec` sources are `READ`, trusted MCP server tools stay `NETWORK` so they cannot bypass the boundary, and `mcp`/`mcp_auth` introspection actions are `READ`). The effective policy now resolves through one shared `PolicyDecision` evaluator that `ToolRegistry.evaluate_policy()` exposes and that `authorize()` (and therefore `execute()`, batch execution, and orchestrated delegation) consumes, so late-registered tools and scoped subagent registries cannot bypass the boundary. Approval reuse is now scoped to the granted action/path/session policy: user confirmations are recorded as session-scoped grants keyed to (tool, effective effect, canonical parameter digest, risk), reused for identical still-valid authorizations without re-prompting, invalidated on any changed argument or risk, shared across a registry ancestry but never across separate registries or persisted, and cleared when a different session is activated. Headless confirmation is now explicit: when confirmation is required, no grant is active, and no confirmation handler exists in the registry ancestry, `authorize()` returns an explicit needs-input denial (distinct from a user denial) and records no grant.

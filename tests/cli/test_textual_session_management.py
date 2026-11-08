@@ -1,10 +1,9 @@
 """Tests for session management screen in textual UI."""
 
-from unittest.mock import MagicMock
-
 from henchman.cli.textual_screens import (
     SessionScreen,
 )
+from henchman.core.session_models import SessionMetadata
 
 
 class TestSessionManagementScreen:
@@ -17,11 +16,7 @@ class TestSessionManagementScreen:
 
     def test_session_list_display(self):
         """Test that session list shows name, datetime, and message count."""
-        sess = MagicMock()
-        sess.tag = "my-feature"
-        sess.id = "abc123"
-        sess.updated_at = "2025-01-15T10:30:00"
-        sess.message_count = 12
+        sess = SessionMetadata("abc123", "project", "2025-01-14", "2025-01-15T10:30:00", 12, "my-feature")
         screen = SessionScreen(sessions=[sess])
         entries = screen._build_entries()
         assert len(entries) == 1
@@ -41,11 +36,7 @@ class TestSessionManagementScreen:
         """Test session screen with multiple sessions."""
         sessions = []
         for i in range(3):
-            s = MagicMock()
-            s.tag = f"session-{i}"
-            s.id = f"id-{i}"
-            s.updated_at = f"2025-01-{15 + i}T10:00:00"
-            s.message_count = i * 5
+            s = SessionMetadata(f"id-{i}", "project", "2025-01-14", f"2025-01-{15 + i}T10:00:00", i * 5, f"session-{i}")
             sessions.append(s)
         screen = SessionScreen(sessions=sessions)
         entries = screen._build_entries()

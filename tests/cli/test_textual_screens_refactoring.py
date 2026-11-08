@@ -342,114 +342,46 @@ def test_session_screen_compose_return_type():
 
 
 def test_session_screen_build_entries_type_hints():
-    """Test that _build_entries has proper type hints."""
-    from types import SimpleNamespace
+    """Real saved metadata supplies canonical timestamps and IDs."""
+    from henchman.core.session_models import SessionMetadata
 
-    # Test with empty sessions
-    screen = SessionScreen([])
-    result = screen._build_entries()
-    assert isinstance(result, list)
-    assert len(result) == 0
-
-    # Test with session objects (using SimpleNamespace for proper attribute access)
-    session1 = SimpleNamespace(
-        id="1",
-        tag="session1",
-        updated_at="2024-01-01",
-        message_count=3
-    )
-
-    session2 = SimpleNamespace(
-        id="2",
-        tag=None,
-        created_at="2024-01-02",
-        message_count=5
-    )
-
-    screen = SessionScreen([session1, session2])
-    result = screen._build_entries()
-
-    assert len(result) == 2
-    assert "session1" in result[0][0]
-    assert "[2024-01-01]" in result[0][0]
-    assert "(3 messages)" in result[0][0]
-    assert result[0][1] == "1"
-    assert "2" in result[1][0]  # When tag is None, it uses id
-    assert "[2024-01-02]" in result[1][0]
-    assert "(5 messages)" in result[1][0]
-    assert result[1][1] == "2"
-
-    # Test with session objects that have no timestamps
-    session3 = SimpleNamespace(
-        id="3",
-        tag="no-timestamp",
-        message_count=1
-    )
-    # No updated_at or created_at attributes
-
-    screen = SessionScreen([session3])
-    result = screen._build_entries()
-
-    assert len(result) == 1
-    assert "no-timestamp" in result[0][0]
-    assert "[]" in result[0][0]  # Empty timestamp
-    assert "(1 messages)" in result[0][0]
-    assert result[0][1] == "3"
+    screen = SessionScreen([
+        SessionMetadata("1", "project", "2024-01-01", "2024-01-02", 3, "session1"),
+        SessionMetadata("2", "project", "2024-01-01", "2024-01-03", 5),
+    ])
+    entries = screen._build_entries()
+    assert len(entries) == 2
+    assert "session1" in entries[0][0] and "2024-01-02" in entries[0][0]
+    assert "3 messages" in entries[0][0] and entries[0][1] == "1"
+    assert "2024-01-03" in entries[1][0] and entries[1][1] == "2"
 
 
-def test_session_screen_on_button_pressed_type_hints():
-    """Test that SessionScreen.on_button_pressed has proper type hints."""
-    screen = SessionScreen([])
+async def test_session_screen_on_button_pressed_type_hints():
+    """Visible Back closes the metadata-only compatibility view."""
+    from textual.app import App
 
-    # Mock dismiss method
-    screen.dismiss = MagicMock()
-
-    # Create a mock select widget
-    mock_select = MagicMock()
-    mock_select.value = "session-id"
-    screen.query_one = MagicMock(return_value=mock_select)
-
-    # Test cancel button
-    mock_button = MagicMock()
-    mock_button.id = "btn-cancel"
-    mock_event = MagicMock()
-    mock_event.button = mock_button
-
-    screen.on_button_pressed(mock_event)
-    screen.dismiss.assert_called_once_with(None)
-
-    # Test resume button with valid selection
-    screen.dismiss.reset_mock()
-    mock_button.id = "btn-resume"
-    mock_event.button = mock_button
-
-    screen.on_button_pressed(mock_event)
-    screen.dismiss.assert_called_once_with("resume:session-id")
-
-    # Test delete button with valid selection
-    screen.dismiss.reset_mock()
-    mock_button.id = "btn-delete"
-    mock_event.button = mock_button
-
-    screen.on_button_pressed(mock_event)
-    screen.dismiss.assert_called_once_with("delete:session-id")
-
-    # Test with "none" selection (should dismiss with None)
-    screen.dismiss.reset_mock()
-    mock_select.value = "none"
-    mock_button.id = "btn-resume"
-
-    screen.on_button_pressed(mock_event)
-    screen.dismiss.assert_called_once_with(None)
+    app = App()
+    async with app.run_test() as pilot:
+        screen = SessionScreen([])
+        await app.push_screen(screen)
+        await pilot.pause()
+        assert await pilot.click("#sessions-back")
+        await pilot.pause()
+        assert screen not in app.screen_stack
 
 
-def test_session_screen_action_cancel_type_hints():
-    """Test that action_cancel has proper type hints."""
-    screen = SessionScreen([])
-    screen.dismiss = MagicMock()
+async def test_session_screen_action_cancel_type_hints():
+    """Keyboard Back settles the owned screen before returning."""
+    from textual.app import App
 
-    screen.action_cancel()
-    screen.dismiss.assert_called_once_with(None)
+    app = App()
+    async with app.run_test() as pilot:
+        screen = SessionScreen([])
+        await app.push_screen(screen)
+        await pilot.pause()
+        await pilot.press("escape")
+        await pilot.pause()
+        assert screen not in app.screen_stack
 
 
 def test_long_method_compose_refactoring():

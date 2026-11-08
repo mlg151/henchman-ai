@@ -274,6 +274,28 @@ class SessionWorkflow:
                                   or state.goal.policy != self._policy(session)),
                               binding.failure if binding is not None else None)
 
+    def inspect_session(self, session: Session) -> WorkflowReport:
+        """Inspect a saved candidate in the current project without selecting it.
+
+        Only the exact live session may use local dispatch state. Saved process
+        authority cannot be reconstructed from a transcript or treated as an
+        empty recovered queue. Durable inspection never creates or binds it.
+        """
+        current = self._session()
+        if session.project_hash != current.project_hash:
+            raise WorkflowError("session_project_changed")
+        if session is current:
+            return self.report()
+        key = self._key(session)
+        state = WorkflowStore.inspect(self.path, *key, reference=session.workflow)
+        if state is None:
+            return WorkflowReport(WorkflowState(project_hash=session.project_hash, session_id=session.id),
+                                  "process", (), False, "process_history_unavailable")
+        state = WorkflowJournal(*key, state=state, redactor=session.evidence_redactor).report()
+        blocking = tuple(item.id for item in state.inputs if item.state == "outcome_unknown" and item.resolution is None)
+        return WorkflowReport(state, "durable", blocking,
+                              state.goal is not None and state.goal.status == "active")
+
     def queue_view(self) -> QueueControlView:
         """Read current evidence and local eligibility without creating authority."""
         session, generation = self._session(), self._queue_generation

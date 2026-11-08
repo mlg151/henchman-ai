@@ -24,6 +24,17 @@ context estimate, retention policy and run usage. Refresh explicitly with F5;
 Back/Escape preserves your draft. Unknown costs and save acknowledgement stay
 unavailable. See the [inspection contract](ui-interaction-contract.md#context-and-usage-inspection).
 
+Use **Context → Sessions** to search saved sessions in the current project.
+Enter inspects; **Resume** offers saving the current session first or switching
+without saving. Your composer draft stays intact, and queued inputs and goals
+remain held. See [session browsing](ui-interaction-contract.md#saved-session-browsing).
+
+To compose in a local editor, set `VISUAL` or `EDITOR` to a command that waits
+for editing to finish, then press **F11** in the idle classic prompt or choose
+**External editor** in Textual. Returning updates the unsent draft for review.
+This currently requires a POSIX foreground terminal and unrestricted, non-plan
+policy. See [editor behavior and limits](ui-interaction-contract.md#external-editor-composition).
+
 ## Plain or quiet output
 
 Set `henchman config set ui.output_mode plain --scope global`, then start a new
