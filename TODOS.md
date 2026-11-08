@@ -48,7 +48,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   for 26 observed requests. Sampled PSS exceeded 10 GiB on a 123.13 GiB host;
   there is no qualified included CPU profile or 16 GB hardware result.
   Tool failures now guide rereading an unmatched edit and using the complete
-  task ID; live recovery and qualification remain to be measured.
+  task ID. A [one-step replay](docs/evaluations/2026-11-08-recovery-guidance-replay.md)
+  retained all results but does not qualify live recovery.
 
 - #26 now reuses only successful bounded schema meta-validation. Fresh schemas,
   arguments, policy/grants and verification remain authoritative. The
