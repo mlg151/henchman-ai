@@ -6,8 +6,8 @@ for changes to system prompts, tool definitions, and other model-steering
 mechanisms.
 
 The [staged delegation local pilot](../docs/evaluations/2026-11-08-staged-local-pilot.md)
-records three incomplete attempts, including one published AST-matching edit
-followed by request-budget exhaustion. It is not a paired qualification.
+records three incomplete attempts and one completed, separately budgeted
+AST-matching edit. It is not a paired qualification.
 
 ## Why Behavioral Evals?
 

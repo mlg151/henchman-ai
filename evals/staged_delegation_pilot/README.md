@@ -1,6 +1,6 @@
 # Staged delegation local pilot snapshots
 
-The `.py.txt` files are exact copies of the scripts used for the three attempts
+The `.py.txt` files are exact copies of the scripts used for the four attempts
 documented in the [pilot report](../../docs/evaluations/2026-11-08-staged-local-pilot.md).
 They are evidence snapshots, not a general evaluation runner. Their SHA-256
 digests are recorded in the [summary](../../docs/evaluations/2026-11-08-staged-local-pilot.json).
