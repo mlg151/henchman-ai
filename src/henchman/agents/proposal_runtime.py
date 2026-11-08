@@ -1,8 +1,8 @@
 """Bind private child proposals to exact workers and parent review authority.
 
-This internal coordinator does not yet route the dynamic subagent tool catalog.
-The runner and its completion callback are trusted runtime components; neither
-model-supplied labels nor persisted proposal IDs grant these capabilities.
+The opt-in staged dynamic-subagent route uses this internal coordinator. Its
+runner and completion callback are trusted runtime components; neither model-
+supplied labels nor persisted proposal IDs grant these capabilities.
 """
 
 from __future__ import annotations
