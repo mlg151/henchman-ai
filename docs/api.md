@@ -31,7 +31,8 @@ TTYs and regular-file stdin/stdout are unsupported. The bootstrap captures priva
 non-inheritable protocol descriptors before CLI imports. It redirects ordinary
 stdout to stderr and exposes EOF on ordinary stdin, including native descriptor
 access by plugins and child processes. Existing chat commands retain their output
-contracts.
+contracts. Invalid protocol command arguments produce a value-free diagnostic
+and exit status 2 without echoing rejected values or paths.
 
 Send one UTF-8 JSON object followed by a newline per request. Start with:
 

@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MCP and provider cleanup keep delivery failures explicit. Both aliases and
   Python module execution share the bootstrap. Windows transport is unsupported; the Neovim
   pilot remains pending; completed execution does not claim task verification.
+  Invalid protocol command arguments now use value-free errors, so rejected
+  values, option names and project paths cannot echo known credentials.
 
 - **Evaluation report credential projection** — Baseline exports now redact
   short and escaped credentials before JSON serialization and retain observed

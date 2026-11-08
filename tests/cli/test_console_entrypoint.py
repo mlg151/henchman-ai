@@ -195,7 +195,7 @@ def intercept(name, *args, **kwargs):
         os.write(1, b"native startup diagnostic\n")
         assert os.read(pipes.input_fd, 100) == b"owned input\n"
         os.write(pipes.output_fd, b'{"isolated":true}\n')
-        return types.SimpleNamespace(main=lambda: None)
+        return types.SimpleNamespace(main=lambda: None, cli=lambda **kwargs: None)
     return original(name, *args, **kwargs)
 builtins.__import__ = intercept
 sys.argv = ["henchman", "headless", "--protocol-version", "1", "--project", "."]
@@ -239,3 +239,23 @@ finally:
     result = subprocess.run([sys.executable, "-c", script], input=b"", capture_output=True, timeout=20, check=False)
     assert result.returncode == 2 and result.stdout == b""
     assert b"requires POSIX pipes" in result.stderr
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX protocol argument parsing")
+@pytest.mark.parametrize("invalid", ["version", "option", "project"])
+def test_protocol_argument_errors_do_not_echo_known_credentials(tmp_path, monkeypatch, invalid):
+    marker = "headless-argument-private-canary"
+    monkeypatch.setenv("OPENAI_API_KEY", marker)
+    arguments = ["headless", "--protocol-version", "1", "--project", str(tmp_path)]
+    if invalid == "version":
+        arguments[2] = marker
+    elif invalid == "option":
+        arguments.append("--" + marker)
+    else:
+        arguments[-1] = str(tmp_path / marker)
+    result = subprocess.run([sys.executable, "-m", "henchman", *arguments], input=b"",
+                            capture_output=True, timeout=20, check=False)
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert marker.encode() not in result.stderr
+    assert b"headless --help" in result.stderr

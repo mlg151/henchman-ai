@@ -79,9 +79,25 @@ def main() -> None:
             print(str(error) if isinstance(error, RuntimeError) else "Unable to isolate protocol pipes.", file=sys.stderr)
             raise SystemExit(2) from None
     try:
+        from henchman.cli.app import cli
         from henchman.cli.app import main as cli_main
 
-        cli_main()
+        if protocol and not help_only:
+            import click
+
+            try:
+                # The explicit command needs no legacy argv normalization.
+                # Click's default error rendering includes rejected values.
+                cli(standalone_mode=False)
+            except click.ClickException as error:
+                print("Invalid headless arguments. Use 'henchman headless --help' for supported options.",
+                      file=sys.stderr)
+                raise SystemExit(error.exit_code) from None
+            except click.Abort:
+                print("Headless startup interrupted.", file=sys.stderr)
+                raise SystemExit(130) from None
+        else:
+            cli_main()
     finally:
         if _pipes is not None:
             _pipes.close()
