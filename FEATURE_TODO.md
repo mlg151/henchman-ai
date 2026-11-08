@@ -6,7 +6,8 @@ Organized by priority tiers. Each item is a discrete feature to implement.
 
 Cold offline startup now uses [packaged tokenizer vocabularies](docs/providers.md#offline-token-estimates)
 for context estimates and RAG chunking. Native artifact tests isolate user settings,
-interpreter lookup and empty token caches; final hosted qualification remains required.
+interpreter lookup and empty token caches. Current model testing is local-only by
+user instruction; hosted-provider qualification remains unverified.
 
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed results through provider text projection and session
