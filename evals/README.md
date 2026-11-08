@@ -7,6 +7,11 @@ mechanisms.
 
 ## Why Behavioral Evals?
 
+The [local bounded-repair comparison](../docs/evaluations/2026-11-08-repair-paired-v1.md)
+retains all 12 live attempts, including four candidate controller-boundary
+failures. Its [archived harness](repair_paired_v1/REPRODUCE.md) preserves fixed
+inputs and independent oracles. This negative result does not qualify #16.
+
 For the separate, model-free terminal resource workload, see
 [`ui_resource_baseline.py`](ui_resource_baseline.py) and its
 [recorded method and limits](../docs/evaluations/2026-11-08-ui-resource-baseline.md).

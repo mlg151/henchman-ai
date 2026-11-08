@@ -1,0 +1,156 @@
+{
+  "version": "bounded-repair-paired-v1",
+  "source_commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+  "endpoint": "http://127.0.0.1:8081/v1",
+  "model": "qwen38-27b-iq3s",
+  "attempts": [
+    {
+      "attempt_id": "addition-repair-1-direct",
+      "fixture": "addition-repair",
+      "repeat": 1,
+      "arm": "direct"
+    },
+    {
+      "attempt_id": "addition-repair-1-repair",
+      "fixture": "addition-repair",
+      "repeat": 1,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "addition-repair-2-repair",
+      "fixture": "addition-repair",
+      "repeat": 2,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "addition-repair-2-direct",
+      "fixture": "addition-repair",
+      "repeat": 2,
+      "arm": "direct"
+    },
+    {
+      "attempt_id": "pricing-repair-1-direct",
+      "fixture": "pricing-repair",
+      "repeat": 1,
+      "arm": "direct"
+    },
+    {
+      "attempt_id": "pricing-repair-1-repair",
+      "fixture": "pricing-repair",
+      "repeat": 1,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "pricing-repair-2-repair",
+      "fixture": "pricing-repair",
+      "repeat": 2,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "pricing-repair-2-direct",
+      "fixture": "pricing-repair",
+      "repeat": 2,
+      "arm": "direct"
+    },
+    {
+      "attempt_id": "already-correct-1-direct",
+      "fixture": "already-correct",
+      "repeat": 1,
+      "arm": "direct"
+    },
+    {
+      "attempt_id": "already-correct-1-repair",
+      "fixture": "already-correct",
+      "repeat": 1,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "already-correct-2-repair",
+      "fixture": "already-correct",
+      "repeat": 2,
+      "arm": "repair"
+    },
+    {
+      "attempt_id": "already-correct-2-direct",
+      "fixture": "already-correct",
+      "repeat": 2,
+      "arm": "direct"
+    }
+  ],
+  "settings": {
+    "providers": {
+      "default": "openai_compat",
+      "openai_compat": {
+        "api_key": "local-paired-experiment-no-hosted-credential",
+        "base_url": "http://127.0.0.1:8081/v1",
+        "model": "qwen38-27b-iq3s",
+        "temperature": 0,
+        "max_tokens": 4096
+      }
+    },
+    "context": {
+      "max_tokens": 32768,
+      "compaction_threshold": 0.85,
+      "auto_compact": false
+    },
+    "agents": {
+      "max_delegation_retries": 0,
+      "max_delegation_turns": 10,
+      "agents": {
+        "engineer": {
+          "name": "Comparison engineer",
+          "role": "engineer",
+          "description": "Edit only held arithmetic source using protected criteria",
+          "tools": [
+            "read_file",
+            "edit_file",
+            "write_file",
+            "verify_plan_execution"
+          ]
+        }
+      }
+    },
+    "usage": {
+      "persistence": "process",
+      "limits": {
+        "max_requests": 12,
+        "max_seconds": 300
+      }
+    },
+    "operations": {
+      "persistence": "process"
+    }
+  },
+  "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+  "fixtures": {
+    "addition-repair": {
+      "initial": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "correct": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "criteria": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd"
+    },
+    "pricing-repair": {
+      "initial": "e5fffee1b180ddcbb7b2f7cb8fba439f589f7a1ea578637fcc27e2011bacf93e",
+      "correct": "32d76e466e06bc8185797c599a60ec16e88c7c92ee4bf9c2c12828ce6fcc10cf",
+      "criteria": "dd2e39f84e19423fb92cb126fddc6ed7353dca19b6ec1b4fbf1fcaf3d1311605"
+    },
+    "already-correct": {
+      "initial": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "correct": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "criteria": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd"
+    }
+  },
+  "bounds": {
+    "attempt_seconds": 300,
+    "cleanup_seconds": 30,
+    "requests": 12,
+    "tool_rounds": 10,
+    "repairs": 2,
+    "identical_failure_limit": 2,
+    "output_tokens": 4096,
+    "context_tokens": 32768,
+    "serialized_input_budget": 27852,
+    "SDK_retries": 0,
+    "delegation_retries": 0
+  },
+  "interpretation": "Separate arithmetic paired comparison, not canonical recovery-corpus qualification. Independent current-byte oracle determines acceptance; scoped_pass does not. Two repeats do not establish reliability. Ties establish no improvement. Warm shared server; no hardware/physical-cold/CPU claims."
+}

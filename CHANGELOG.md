@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1,000-message scenarios. Physical terminal and accessibility qualification
   remain open; see the dated evaluation report for measurement limits.
 
+- **Local repair comparison** — Twelve fixed local-model attempts retain a
+  negative result: direct execution passed 6/6 and bounded repair 2/6. Four
+  controller-boundary failures exposed misleading tool disclosure despite
+  correct final files. All workers joined; live improvement remains unproven.
+
 - **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
   copying a selection. Credential or evidence changes require reselection,
   preserving masked text, draft/focus and chronological observations.
