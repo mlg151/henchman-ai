@@ -33,6 +33,10 @@ _EVIDENCE_BYTES = 32768
 def _agent_stopping(manager: BackgroundSubagentManager, identity: str) -> bool:
     return manager._is_cancelling(identity) or any(
         manager._descendant(other, identity) for other in manager._cancelling
+    ) or any(
+        (other == identity or manager._descendant(other, identity))
+        and item.task is not None and not item.task.done() and item.task.cancelling()
+        for other, item in manager._conversations.items()
     )
 
 
@@ -209,7 +213,7 @@ class WorkInspection:
             conversation = manager._conversations.get(identity)
             if (conversation is None or conversation.record is not expected
                 or expected.conversation_id != identity or conversation.task is not expected_worker
-                or expected_worker is None or expected_worker.done()
+                or expected_worker is None or expected_worker.done() or expected_worker.cancelling()
                 or expected_worker.get_loop() is not asyncio.get_running_loop()
                 or expected.status not in {"running", "idle", "waiting_for_input"}
                 or _agent_stopping(manager, identity)):

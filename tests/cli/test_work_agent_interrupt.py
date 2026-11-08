@@ -143,6 +143,49 @@ async def test_interrupt_refuses_when_a_stop_is_already_active(work):
         work.agents._cancelling.remove(identity)
 
 
+@pytest.mark.parametrize("scope", ["selected", "descendant"])
+async def test_interrupt_refuses_worker_already_cancelling_outside_manager(work, scope):
+    inspection = WorkInspection(frontend(work))
+    identity = work.records[0].conversation_id
+    conversation = work.agents._conversations[identity]
+    target = conversation if scope == "selected" else work.agents._conversations[work.records[2].conversation_id]
+    original, original_record = target.task, target.record
+    if scope == "descendant":
+        target.record = replace(original_record, parent_id=identity)
+    started, cleaning, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def worker_body():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cleaning.set()
+            await release.wait()
+            raise
+
+    worker = asyncio.create_task(worker_body())
+    target.task = worker
+    request = None
+    try:
+        await started.wait()
+        worker.cancel()
+        await cleaning.wait()
+        request = asyncio.create_task(inspection.interrupt_agent(identity, expected=conversation.record,
+                                                                 expected_worker=conversation.task))
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert request.done(), "A second stop must refuse before joining someone else's cleanup"
+        with pytest.raises(ValueError, match="already stopping"):
+            await request
+        assert not worker.done()
+    finally:
+        release.set()
+        if request is not None:
+            await asyncio.gather(request, return_exceptions=True)
+        await asyncio.gather(worker, return_exceptions=True)
+        target.task, target.record = original, original_record
+
+
 async def test_interrupt_refuses_while_descendant_cleanup_is_active(work):
     inspection = WorkInspection(frontend(work))
     identity, descendant = (work.records[i].conversation_id for i in (0, 2))

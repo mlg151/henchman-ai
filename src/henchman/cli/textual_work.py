@@ -215,6 +215,7 @@ class WorkInspector(ModalScreen[None]):
             elif row.kind == "agent" and self.agents is not None:
                 conversation = self.agents._conversations.get(row.identity)
                 if (conversation is not None and conversation.task is not None and not conversation.task.done()
+                    and not conversation.task.cancelling()
                     and conversation.task.get_loop() is asyncio.get_running_loop()
                     and conversation.record.status in {"running", "idle", "waiting_for_input"}
                     and self.agents.actor_id == self.agents.parent_id and not self.agents._closed
