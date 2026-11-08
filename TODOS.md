@@ -33,8 +33,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - #27's legacy JSON renderer now preserves long/Unicode payloads and literal
   emoji aliases at narrow console widths. The inactive v1 codec/control
-  foundation validates bounded frames and exact decision identities; runtime
-  wiring, pipe lifecycle and the Neovim pilot remain pending. See
+  foundation validates bounded frames and exact decision identities. Its internal
+  runtime adapter now binds real workflow/session/accounting authority, permission
+  decisions and joined cleanup under exclusive context ownership. The CLI/pipe
+  lifecycle and Neovim pilot remain pending. See
   [JSON output](docs/api.md#headless-json-output).
 
 - Context token estimates and RAG chunking use packaged verified vocabularies;

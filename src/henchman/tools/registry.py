@@ -134,6 +134,18 @@ class ToolRegistry:
             self._policy_generation += 1
         self._execution_guard = guard
 
+    def _check_execution_guards(self, tool: Tool, params: dict[str, object]) -> ToolResult | None:
+        """Retain live ancestor deferrals in every scoped dispatch boundary."""
+        registry: ToolRegistry | None = self
+        while registry is not None:
+            guard = registry._execution_guard
+            if guard is not None:
+                deferred = guard(tool, params)
+                if deferred is not None:
+                    return deferred
+            registry = registry._policy_parent
+        return None
+
     def set_access_policy(self, policy: ToolAccessPolicy) -> None:
         """Bind trusted runtime restrictions; local changes never widen ancestors."""
         policies = (policy,) if policy.restricted else ()
@@ -544,10 +556,9 @@ class ToolRegistry:
         repair = current_repair()
         if repair is not None:
             repair.paths(tool, params)
-        if self._execution_guard is not None:
-            deferred = self._execution_guard(tool, params)
-            if deferred is not None:
-                return deferred
+        deferred = self._check_execution_guards(tool, params)
+        if deferred is not None:
+            return deferred
 
         confirmation_request = authorization.confirmation
         if confirmation_request is not None:
@@ -568,10 +579,9 @@ class ToolRegistry:
                     authorization.grants.grant(key)
                     # Instructions may change while the user considers approval.
                     # Retain that approval if fresh context defers this attempt.
-                    if self._execution_guard is not None:
-                        deferred = self._execution_guard(tool, params)
-                        if deferred is not None:
-                            return deferred
+                    deferred = self._check_execution_guards(tool, params)
+                    if deferred is not None:
+                        return deferred
                 else:
                     # Headless input is never fabricated: a confirmation
                     # requirement with no input channel is an explicit
@@ -665,11 +675,8 @@ class ToolRegistry:
             if (authorization.confirmation is not None
                 and not authorization.grants.is_granted(authorization.key)):
                 raise RepairControlError("Repair approval was withdrawn")
-            parent: ToolRegistry | None = self
-            while stale is None and parent is not None:
-                if parent._execution_guard is not None:
-                    stale = parent._execution_guard(tool, params)
-                parent = parent._policy_parent
+            if stale is None:
+                stale = self._check_execution_guards(tool, params)
             if stale is not None or self._revalidate_authorization(current, params, require_grant=formatter_authorization is None) is not None:
                 raise RepairControlError("Repair tool approval, instructions or live policy changed")
         if operation is not None:
@@ -693,10 +700,9 @@ class ToolRegistry:
             stale = self._revalidate_authorization(authorization, params)
             if stale is not None:
                 return stale
-            if self._execution_guard is not None:
-                deferred = self._execution_guard(tool, params)
-                if deferred is not None:
-                    return deferred
+            deferred = self._check_execution_guards(tool, params)
+            if deferred is not None:
+                return deferred
             stale = self._revalidate_authorization(authorization, params)
             if stale is not None:
                 return stale
@@ -716,8 +722,8 @@ class ToolRegistry:
                 # authority: policy, tool identity, targets and guards must all
                 # still permit this invocation immediately before its effect.
                 stale = self._revalidate_authorization(authorization, params)
-                if stale is None and self._execution_guard is not None:
-                    stale = self._execution_guard(tool, params)
+                if stale is None:
+                    stale = self._check_execution_guards(tool, params)
                 if stale is None:
                     stale = self._revalidate_authorization(authorization, params)
                 if stale is not None:
@@ -744,12 +750,8 @@ class ToolRegistry:
                         stale = self._revalidate_authorization(authorization, params)
                         if stale is not None or getattr(tool.execute, "__func__", None) is not implementation:
                             raise ToolAccessError("Network operation authorization changed; retry for fresh approval")
-                        registry: ToolRegistry | None = self
-                        while registry is not None:
-                            guard = registry._execution_guard
-                            if guard is not None and guard(tool, params) is not None:
-                                raise ToolAccessError("Network operation deferred by the current execution guard")
-                            registry = registry._policy_parent
+                        if self._check_execution_guards(tool, params) is not None:
+                            raise ToolAccessError("Network operation deferred by the current execution guard")
                         # A trusted repeatable guard can itself update policy.
                         if (self._revalidate_authorization(authorization, params) is not None
                             or getattr(tool.execute, "__func__", None) is not implementation):

@@ -20,8 +20,10 @@ _DATA_FIELDS: dict[str, Any] = dict.fromkeys((
 ))
 _DATA_FIELDS.update(dict.fromkeys(("id", "tool_call_id", "tool_name", "name", "from", "to", "agent", "agent_id")))
 _EVENT_IDENTITIES = {
-    EventType.TOOL_CALL_REQUEST: ("id", "name"),
-    EventType.TOOL_CALL_RESULT: ("id", "tool_call_id", "tool_name", "name"),
+    # Tool names are provider-controlled display evidence, including unknown
+    # names. Only call IDs carry request/result correlation authority here.
+    EventType.TOOL_CALL_REQUEST: ("id",),
+    EventType.TOOL_CALL_RESULT: ("id", "tool_call_id"),
     EventType.AGENT_DELEGATED: ("from", "to"),
     EventType.AGENT_MESSAGE: ("from", "to"),
     EventType.AGENT_STARTED: ("agent", "agent_id"),

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields, is_dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -22,6 +23,17 @@ class RunInvocation:
 
     claimed: bool = False
     budget_scope: RunBudgetScope | None = None
+    on_admitted: Callable[[RunAdmissionIdentity], Awaitable[None]] | None = field(default=None, repr=False)
+    admission: RunAdmissionIdentity | None = None
+
+
+@dataclass(frozen=True)
+class RunAdmissionIdentity:
+    """Observed core identities; notification grants no additional authority."""
+
+    operation_run_id: str
+    session_id: str
+    project_hash: str
 
 
 def new_run_budget(settings: Settings, provider: ModelProvider) -> RunBudgetScope | None:

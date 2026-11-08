@@ -49,10 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   action. Shutdown still joins owned work after queue-save failures. Real
   browser/account and native desktop qualification remain open.
 
+- **Internal editor runtime adapter** — One-run protocol sessions now bind shared
+  workflow, session, admission and usage authority, exact permission/question
+  decisions and bounded output. Scoped tool registries retain live ancestor
+  execution guards. Concurrent or cancelled shutdown callers join owned cleanup;
+  runtime settlement remains distinct from delivery and task verification.
+  Model-supplied tool names now receive credential projection while call IDs
+  retain correlation. CLI pipes and the Neovim pilot remain pending.
+
 - **Internal editor protocol foundation** — A bounded v1 JSON-line codec and
   connection state machine validate requests and correlate session/run/decision
-  identities without granting execution authority. Runtime and stdio wiring,
-  cleanup/delivery guarantees and the Neovim pilot remain pending.
+  identities without granting execution authority. The internal runtime adapter
+  is described above; stdio wiring and the Neovim pilot remain pending.
 
 - **Bounded schema meta-validation cache** — Repeated identical schemas reuse
   successful meta-checks within a 64-entry, 4 MiB key-payload bound. Validators,

@@ -144,6 +144,21 @@ def test_cancellation_before_admission_does_not_create_runtime_identity():
     assert state.claim_result("cancelled").admitted is False
 
 
+def test_unobserved_run_identity_can_cancel_only_exact_owned_request():
+    state = running()
+    token = state.begin_decision("decision", "permission")
+    with pytest.raises(ProtocolError, match="connection_mismatch"):
+        state.receive(request(3, "cancel", {"run_request_id": 2, "run_id": None}, connection="foreign"))
+    with pytest.raises(ProtocolError, match="run_mismatch"):
+        state.receive(request(4, "cancel", {"run_request_id": 99, "run_id": None}))
+    with pytest.raises(ProtocolError, match="run_mismatch"):
+        state.receive(request(5, "cancel", {"run_request_id": 2, "run_id": "different-run"}))
+    assert state.pending_decision is token and not state.cancellation_requested
+    state.receive(request(6, "cancel", {"run_request_id": 2, "run_id": None}))
+    assert state.cancellation_requested and state.pending_decision is None
+    assert state.run_id == "operation-run" and state.result is None
+
+
 def test_completed_result_requires_actual_admission_and_no_second_run():
     state = initialized()
     state.receive(request(2, "run", {"session_id": "session", "prompt": "work", "agent": None}))

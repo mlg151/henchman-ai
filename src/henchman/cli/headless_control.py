@@ -132,8 +132,11 @@ class HeadlessControl:
         if request.method == "cancel":
             if self._run_request is None:
                 raise ProtocolError("run_not_reserved")
+            # Admission may be ahead of a blocked client output stream. The
+            # exact connection-owned request remains a cancellation target even
+            # before the client observes its actual runtime identity.
             if (request.params["run_request_id"] != self._run_request
-                or request.params["run_id"] != self._run_id):
+                or (request.params["run_id"] is not None and request.params["run_id"] != self._run_id)):
                 raise ProtocolError("run_mismatch")
             if self._result is not None:
                 raise ProtocolError("run_finished")

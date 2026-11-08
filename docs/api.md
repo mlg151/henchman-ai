@@ -32,12 +32,32 @@ correlation. Frames are limited to 1 MiB, decoder feeds to 64 KiB and nesting to
 value-free codes. Request parameters retain execution input and are excluded
 from object representations.
 
-These modules perform no I/O and grant no runtime authority. An embedding must
-serialize control calls, bind actual core identities, validate project-scoped
-session lookup, project outbound evidence and join owned work before claiming
-one terminal result. A cancellation request alone proves neither cleanup nor
-delivery; a completed runtime result does not verify the user's task. The CLI
-bridge, pipe lifecycle and Neovim pilot remain pending under #27.
+The codec and control modules perform no I/O and grant no runtime authority.
+The internal `cli.headless_runtime.HeadlessRuntime` adapter now binds one run to
+the shared orchestrator, workflow, session store and usage ledger. A trusted
+embedding transfers an idle `CoreContext` exclusively, serializes control calls
+and supplies a cancellable asynchronous byte sink. Existing shared-runtime
+claims are checked; concurrent direct calls into raw context components are
+outside this ownership contract. Resume lookup requires the exact session ID
+and current project scope.
+
+Admission supplies the actual operation identity before provider work. Permission
+and question replies require a live matching decision, generation, connection,
+session and run; clients without the corresponding capability receive an explicit
+unavailable result. Cancellation always names the run request; a null operation
+ID means admission has not yet been observed, while a supplied ID must match.
+Fresh ancestor execution guards also apply to scoped registries. Background task
+launch and LSP process lifecycle are unavailable; shell/Python execution requires
+explicit `background=false`.
+
+Evidence uses the shared credential projection and bounded, serialized writes
+(at most eight writers, four control replies and four waiting prompts). Execution
+settlement is separate from output delivery. Runtime results follow persistence
+and owned cleanup, retain incomplete failures, and never claim task verification.
+Transport loss aborts delivery; concurrent or cancelled `aclose()` callers still
+join the same owned cleanup. This is an internal adapter with no CLI route or
+OS sandbox. The stdio bridge, delivery deadlines, process exit semantics and
+Neovim pilot remain pending under #27.
 
 ## HTTP service health
 

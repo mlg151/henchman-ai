@@ -295,6 +295,14 @@ class Orchestrator:
                 try:
                     correlate_workflow(operation_run.session, operation_run_id=operation_run.run_id,
                                        budget_run_id=scope.ledger.run_id if scope is not None else None)
+                    if invocation is not None:
+                        from henchman.core.run_accounting import RunAdmissionIdentity
+
+                        invocation.admission = RunAdmissionIdentity(
+                            operation_run.run_id, operation_run.session.id, operation_run.session.project_hash,
+                        )
+                        if invocation.on_admitted is not None:
+                            await invocation.on_admitted(invocation.admission)
                     yield admitted
                 except BaseException as exc:
                     primary = exc

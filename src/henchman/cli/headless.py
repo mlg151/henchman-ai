@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any
 
 from henchman.agents.orchestrator import Orchestrator
@@ -17,16 +18,16 @@ from henchman.utils.evidence_redaction import EvidenceRedactor
 
 
 @dataclass
-class _RenderedRun:
+class HeadlessRunObservation:
     completion: dict[str, Any] | None = None
     renderer_failed: bool = False
 
 
-async def _forward_events(
+async def forward_headless_events(
     stream: AsyncIterator[AgentEvent],
     role: str,
-    render_event: Callable[[AgentEvent], None],
-    outcome: _RenderedRun,
+    render_event: Callable[[AgentEvent], None | Awaitable[None]],
+    outcome: HeadlessRunObservation,
 ) -> None:
     """Forward nested activity while retaining only marked root completion."""
     primary_error: BaseException | None = None
@@ -43,7 +44,9 @@ async def _forward_events(
             ):
                 outcome.completion = event.data
             try:
-                render_event(event)
+                published = render_event(event)
+                if isawaitable(published):
+                    await published
             except BaseException:
                 outcome.renderer_failed = True
                 raise
@@ -103,7 +106,7 @@ async def run_orchestrator_json(
 ) -> bool:
     """Reuse the configured team runtime and close it on every exit path."""
     role = agent_role or "tech_lead"
-    outcome = _RenderedRun()
+    outcome = HeadlessRunObservation()
     policy = budget_evidence_redactor(orchestrator)
     invocation = RunInvocation()
     try:
@@ -112,7 +115,7 @@ async def run_orchestrator_json(
             if agent_role
             else orchestrator.run(prompt, invocation=invocation)
         )
-        await _forward_events(stream, role, render_event, outcome)
+        await forward_headless_events(stream, role, render_event, outcome)
     except Exception as exc:
         if outcome.renderer_failed:
             raise
