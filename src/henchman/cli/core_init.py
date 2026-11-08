@@ -64,6 +64,7 @@ class CoreContext:
     settings_state: RuntimeSettingsState | None = None
     instruction_snapshot: ContextSnapshot | None = None
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
+    project_root: Path = field(default_factory=lambda: Path.cwd().resolve())
 
 
 def create_core_context(
@@ -95,6 +96,7 @@ def create_core_context(
     Returns:
         Initialized CoreContext with all core components.
     """
+    project_root = Path.cwd().resolve()
     if settings_state is None:
         settings_state = RuntimeSettingsState.from_settings(settings or Settings())
         capture_startup_provider_settings(settings_state, provider, injected=True)
@@ -103,7 +105,7 @@ def create_core_context(
     mcp_manager: McpManager | None = None
     if settings and settings.mcp_servers:
         mcp_logging = settings.ui.mcp_logging if settings and settings.ui else False
-        mcp_manager = McpManager.create_from_settings(settings, mcp_logging_enabled=mcp_logging)
+        mcp_manager = McpManager.create_from_settings(settings, mcp_logging_enabled=mcp_logging, project_root=project_root)
 
     # Runtime dependencies must exist before builtins are registered so every
     # tool's bind_runtime hook receives the live objects it will use.
@@ -170,6 +172,7 @@ def create_core_context(
         settings=settings,
         instruction_snapshot=instruction_snapshot,
         settings_state=settings_state,
+        project_root=project_root,
     )
 
 

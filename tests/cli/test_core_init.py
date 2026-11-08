@@ -254,7 +254,7 @@ class TestCreateCoreContext:
         # Verify MCP manager was created
         assert context.mcp_manager == mock_mcp_manager
         mock_mcp_manager_cls.create_from_settings.assert_called_once_with(
-            mock_settings, mcp_logging_enabled=False
+            mock_settings, mcp_logging_enabled=False, project_root=context.project_root
         )
 
         # Verify orchestrator was created with MCP manager

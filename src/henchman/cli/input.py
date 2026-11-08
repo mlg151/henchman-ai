@@ -19,9 +19,13 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.output.plain_text import PlainTextOutput
 from rich.prompt import Confirm, IntPrompt, Prompt
 
+from henchman.cli.oauth_frontend import OAUTH_ACCEPTED_LABEL, is_oauth_command
 from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from prompt_toolkit.buffer import Buffer
     from rich.console import Console
 
 try:
@@ -186,7 +190,15 @@ class EvidenceFileHistory(FileHistory):
         self._redactor = redactor
 
     def store_string(self, string: str) -> None:
-        super().store_string(self._redactor.text(string))
+        if not is_oauth_command(string):
+            super().store_string(self._redactor.text(string))
+
+    def append_string(self, string: str) -> None:
+        if not is_oauth_command(string):
+            super().append_string(string)
+
+    def load_history_strings(self) -> Iterable[str]:
+        return (value for value in super().load_history_strings() if not is_oauth_command(value))
 
 
 def create_session(
@@ -234,13 +246,27 @@ def create_session(
     if sys.stdout is not None and not sys.stdout.isatty():
         output = PlainTextOutput(sys.stdout)
 
-    return PromptSession(
+    session: PromptSession[str] = PromptSession(
         history=history,
         key_bindings=bindings,
         bottom_toolbar=bottom_toolbar,
         completer=completer,
         output=output,
     )
+    original_accept = session.default_buffer.accept_handler
+
+    def accept(buffer: Buffer) -> bool:
+        # The original handler captures the transient result before replacing
+        # the accepted display and history copy. Already typed terminal output
+        # cannot be erased by this application boundary.
+        private = is_oauth_command(buffer.text)
+        keep = original_accept(buffer) if original_accept is not None else False
+        if private:
+            buffer.text = OAUTH_ACCEPTED_LABEL
+        return bool(keep)
+
+    session.default_buffer.accept_handler = accept
+    return session
 
 
 class InputHandler:

@@ -91,17 +91,19 @@ An owned Streamable HTTP adapter now supports the four revisions from 2025-03-26
 through 2026-07-28. Independent HTTP/TLS peers cover JSON/SSE, parameter/session
 headers, bounded bodies, cancellation, deadlines, policy changes and single
 dispatch. HTTPS or literal loopback HTTP is required; redirects, inherited auth,
-cookies, compression and automatic resumption are refused. HTTP authentication
-remains unsupported. See [HTTP behavior and qualification limits](mcp.md#streamable-http).
+cookies, compression and automatic resumption are refused. OAuth uses the
+separate explicit guarded path below. See [HTTP behavior and qualification limits](mcp.md#streamable-http).
 
 Typed OAuth configuration, guarded metadata discovery and a separate versioned
 credential store now provide a foundation for the pre-registered public native
 client profile. Exact issuer/resource binding, persistent generations and
 one-use login/refresh claims have focused local tests. Explicit library flows now
 own the loopback callback, S256 exchange and persisted-endpoint refresh, including
-bounded cancellation and generation races. Configured OAuth still refuses
-connection until interactive login and authenticated transport integration are
-implemented. See [OAuth foundation and storage limits](mcp.md#oauth-configuration-and-storage-foundation).
+bounded cancellation and generation races. Authenticated transport rechecks
+authority after connection setup and before headers. Fresh REPL/Textual commands
+own explicit login/refresh/status/logout and separate connection; automatic
+activation remains refused. Local TLS and frontend fixtures do not qualify real
+accounts or native desktop handoff. See [interactive OAuth and storage limits](mcp.md#interactive-oauth-commands).
 
 Explicit resource/template/prompt catalogs and previews now share bounded
 single-dispatch requests over both transports. The raw result boundary rejects

@@ -167,6 +167,8 @@ class McpCommand(BaseCommand):
         "  /mcp prompts <server> - Explicitly refresh and preview prompt declarations",
         "  /mcp prompt <server> <name> [JSON-object] - Preview a declared prompt",
         "  /mcp attach <preview-id> - Attach captured data to the idle current session",
+        "  /mcp auth <status|login|refresh|logout> <server> - Explicit interactive OAuth action",
+        "  /mcp connect <server> - Explicitly connect using ready OAuth credentials",
     ]
 
     @property
@@ -182,7 +184,7 @@ class McpCommand(BaseCommand):
     @property
     def usage(self: McpCommand) -> str:
         """Command usage."""
-        return "/mcp <list|status|refresh|logging|resources|templates|read|prompts|prompt|attach>"
+        return "/mcp <list|status|refresh|logging|resources|templates|read|prompts|prompt|attach|auth|connect>"
 
     async def execute(self: McpCommand, ctx: CommandContext) -> None:
         """Execute the mcp command.
@@ -198,7 +200,11 @@ class McpCommand(BaseCommand):
             return
 
         subcommand = ctx.args[0].lower()
-        if subcommand == "list":
+        if subcommand in {"auth", "connect"}:
+            from henchman.cli.oauth_frontend import OAUTH_COMMAND_GUIDANCE
+
+            ctx.console.print(OAUTH_COMMAND_GUIDANCE, markup=False)
+        elif subcommand == "list":
             await self._list(ctx)
         elif subcommand == "status":
             await self._status(ctx)

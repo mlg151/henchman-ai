@@ -33,7 +33,9 @@ transferring the URL, with cancellation and cleanup tested using synthetic launc
 A runtime-only user-intent controller and explicit manager connection now bind
 actions to current frontend/session/project ownership, with one-shot admission,
 joined cancellation and guarded catalog publication. Automatic OAuth connections
-remain refused. Interactive submission wiring and final native qualification
+remain refused. Fresh REPL/Textual submissions now own login/refresh/status/logout
+and a separate connect action, with private command history and shutdown joins
+even after queue-save failures. Real browser/account and final native qualification
 remain open under #25.
 
 Configured plan checks now retain explicit input fingerprints and requirement

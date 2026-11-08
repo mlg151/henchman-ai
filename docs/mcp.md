@@ -180,9 +180,9 @@ An optional `oauth` group is accepted only for Streamable HTTP servers. It binds
 an exact HTTPS `issuer`, a pre-registered public `client_id`, an optional canonical
 `resource` URI (defaulting to the server endpoint), and up to 16 additional HTTPS
 `allowed_endpoint_origins`. The resource must contain the endpoint under the same
-origin and path. Configuring this group alone currently refuses connection:
-interactive login and normal manager connection activation are not yet wired.
-Python embedders can use the explicit authenticated transport described below.
+origin and path. Configuring this group alone refuses automatic connection.
+Use the explicit interactive commands below to log in and then connect, or use
+the guarded Python APIs when embedding the runtime.
 
 The library's `discover_oauth` performs credential-free metadata discovery under
 a caller-supplied authorization guard. It checks exact issuer/resource identity,
@@ -227,8 +227,8 @@ Manager teardown invalidates pending OAuth operations before awaiting transport
 cleanup and blocks new login/refresh admission until cleanup settles. The caller
 still owns each flow's cancellation and deadline; teardown does not join those
 caller tasks. These four manager APIs do not connect or replay MCP requests.
-An explicit connection API and user-intent controller are described below;
-interactive command integration remains pending.
+An explicit connection API, user-intent controller and interactive commands are
+described below.
 
 ### Owned browser handoff helper
 
@@ -251,8 +251,8 @@ authentication succeeded.
 
 Owned synthetic-launcher tests cover cancellation, stale guards, deadlines, output
 bounds and cleanup. No real browser/account or native Windows/macOS desktop flow is
-qualified. The user-intent controller uses this helper, but interactive command
-routing remains pending and ordinary automatic OAuth connections remain refused.
+qualified. Fresh interactive submissions use this helper through the user-intent
+controller; ordinary automatic OAuth connections remain refused.
 
 ### Explicit user-intent controller
 
@@ -282,8 +282,41 @@ and `connect_all` still refuse OAuth configurations, including when live setting
 have replaced an older unauthenticated configuration. The legacy stdio client
 factory remains supported.
 
-These APIs have local fixture coverage; REPL/Textual submission wiring and real
-browser/account qualification remain open.
+These APIs and their REPL/Textual submissions have local fixture coverage;
+real browser/account qualification remains open.
+
+### Interactive OAuth commands
+
+Submit these directly in the REPL prompt or Textual composer for a configured
+OAuth server:
+
+```text
+/mcp auth status <server>
+/mcp auth login <server>
+/mcp auth refresh <server>
+/mcp auth logout <server>
+/mcp connect <server>
+```
+
+Login acquires credentials; a separate connect command publishes the server's
+tools. Login, refresh and connect require idle work. Status and logout remain
+available while work is active. Saved, imported, headless or programmatic command
+execution only displays guidance and cannot authorize a browser or connection.
+
+Authentication reserves the foreground until it settles. Normal messages can be
+queued; work-starting controls require a fresh submission afterward. Success may
+release already accepted messages, but never starts an autonomous goal. Cancel
+holds pending work and joins the owned action; shutdown joins it before MCP
+teardown, including when saving the queue fails. Cancellation cannot close a
+browser page already handed off.
+
+Accepted authentication commands omit their arguments from application echo and
+recall history, including malformed commands. Existing matching history entries
+are filtered from recall without rewriting their files. Text already typed into
+the terminal cannot be erased by this boundary. Outcomes show fixed diagnostics
+and credential state without authorization URLs or tokens. Local TLS and mounted
+frontend tests cover these flows; native desktop and real-account qualification
+remain pending.
 
 ### Explicit authenticated HTTP client
 
@@ -324,8 +357,8 @@ and rotated credentials, plus credential fields from parsed responses, with boun
 evidence policies before credential validation or replacement; historical values
 remain in runtime memory only.
 Callback responses and flow errors omit credential values. Local TLS/browser
-fixtures exercise these library flows; they do not enable interactive login or
-qualify a remote authorization service.
+fixtures exercise these library and interactive flows; they do not qualify a
+remote authorization service.
 
 `McpAuthService.oauth_store()` uses a separate versioned
 `.henchman/mcp/oauth.json`; legacy stdio tokens are never promoted. Project/server/
@@ -340,7 +373,7 @@ and retained revocation tombstones. POSIX storage uses private files and pinned
 directory descriptors. Windows rejects existing reparse points and checks opened
 file identities; confidentiality depends on directory ACLs, and a concurrent
 parent-directory swap is not prevented. Filesystem rollback is outside this store's
-authority. Interactive login and transport integration remain tracked under #25.
+authority. Real browser/account and final native qualification remain under #25.
 
 ## Trust Levels
 

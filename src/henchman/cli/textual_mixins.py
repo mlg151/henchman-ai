@@ -29,6 +29,7 @@ from textual.widgets import (
 
 from henchman.advanced import TaskService
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
+from henchman.cli.oauth_frontend import FrontendOAuth, is_oauth_command, oauth_command_evidence
 from henchman.cli.output_handler import resolve_active_agent
 from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.textual_activity_state import Outcome, activity_for, refresh_activity
@@ -539,6 +540,9 @@ class _InitMixin:
         initializer.initialize_all()
         self._transfer_components(initializer)
         self._initialize_session()
+        if self.core_context is not None:
+            self._oauth = FrontendOAuth(self, self.core_context.project_root,
+                                       emit=self._oauth_emit, settled=self._oauth_settled)  # type: ignore[attr-defined]
         self._initialize_mcp()
         self._install_confirmation_handler()
         self._update_status_bar()  # type: ignore[attr-defined]
@@ -830,7 +834,7 @@ class _HistoryMixin:
             return
         try:
             lines = hf.read_text().splitlines()
-            self.command_history = [ln for ln in lines if ln.strip()]
+            self.command_history = [ln for ln in lines if ln.strip() and not is_oauth_command(ln)]
             self.history_index = len(self.command_history)
         except OSError:
             return
@@ -841,6 +845,8 @@ class _HistoryMixin:
         Args:
             entry: History line to persist.
         """
+        if is_oauth_command(entry):
+            return
         handler = self.input_handler  # type: ignore[attr-defined]
         if not handler:
             return
@@ -1021,11 +1027,38 @@ class _InputHandlerMixin:
     history_index: int
     is_processing: bool
 
+    def _oauth_emit(self, text: str) -> None:
+        """Show fixed authentication diagnostics without echoing user arguments."""
+        self.query_one("#chat-pane", ChatPane).add_system_message(text)  # type: ignore[attr-defined]
+
+    def _oauth_settled(self, success: bool) -> None:
+        """Release only accepted input; authentication never starts a goal."""
+        runtime = self._workflow()
+        if not success:
+            if runtime is not None:
+                runtime.hold_pending()
+            return
+        if runtime is not None:
+            self._schedule_queue_dispatch(runtime)
+        elif not self.is_processing and self._queued_inputs():
+            self.is_processing = True
+            self.process_user_input(self._queued_inputs().pop(0))
+
     def action_submit_message(self: _InputHandlerMixin) -> None:
         """Extract text from the input widget and process it."""
         input_widget = self.query_one("#input", TextArea)  # type: ignore[attr-defined]
         user_input = input_widget.text.strip()
         if not user_input:
+            return
+        oauth = getattr(self, "_oauth", None)
+        if is_oauth_command(user_input):
+            if isinstance(oauth, FrontendOAuth):
+                oauth.submit(user_input)
+            else:
+                self._oauth_emit("MCP authentication is unavailable until the interactive runtime is initialized.")
+            input_widget.load_text("")
+            return
+        if isinstance(oauth, FrontendOAuth) and oauth.defer_work_control(user_input):
             return
         runtime = self._workflow()
         route = command_route(user_input)
@@ -1062,7 +1095,7 @@ class _InputHandlerMixin:
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
                 chat.add_system_message("Message saved for the next agent turn.")
             return
-        if self.is_processing:
+        if self.is_processing or idle_control_active(self):
             self._queued_inputs().append(user_input)
             chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
             chat.add_system_message("Message queued for the next agent turn.")
@@ -1102,7 +1135,7 @@ class _InputHandlerMixin:
             if dispatch is None:
                 return
             if dispatch.kind != "goal":
-                chat.add_user_message(runtime_evidence_redactor(self).text(dispatch.text))
+                chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(dispatch.text)))
 
             async def run(text: str = dispatch.text) -> bool:
                 if command_route(text) in {"control", "idle"}:
@@ -1136,7 +1169,7 @@ class _InputHandlerMixin:
     async def _process_live_command(self, text: str) -> None:
         """Run user controls while held, without acquiring dispatch permission."""
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        chat.add_user_message(runtime_evidence_redactor(self).text(text))
+        chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(text)))
         await self._handle_command(text, chat)
         self._schedule_after_control(text)
 
@@ -1175,7 +1208,7 @@ class _InputHandlerMixin:
             assert user_input is not None
             chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
             if show_message:
-                chat.add_user_message(runtime_evidence_redactor(self).text(user_input))
+                chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(user_input)))
             await self._handle_command(user_input, chat)
             if (not command_starts_work(user_input) or getattr(self, "current_agent_task", None) is not None
                 or idle_control_active(self)):
@@ -1205,7 +1238,7 @@ class _InputHandlerMixin:
             if route == "idle":
                 assert user_input is not None
                 if show_message:
-                    chat.add_user_message(runtime_evidence_redactor(self).text(user_input))
+                    chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(user_input)))
                 with idle_command(self):
                     await self._handle_command(user_input, chat)
                 return
@@ -1217,7 +1250,7 @@ class _InputHandlerMixin:
             next_input: str | None = user_input
             while next_input is not None:
                 if show_message:
-                    chat.add_user_message(runtime_evidence_redactor(self).text(next_input))
+                    chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(next_input)))
                 await self._route_input(next_input, chat)
                 await asyncio.sleep(0.05)
                 show_message = bool(self._queued_inputs())
@@ -1859,6 +1892,12 @@ class _SearchMixin:
 
     def action_cancel_or_clear(self: _SearchMixin) -> None:
         """Cancel processing or clear search."""
+        oauth = getattr(self, "_oauth", None)
+        if isinstance(oauth, FrontendOAuth) and oauth.cancel():
+            runtime = self._workflow()  # type: ignore[attr-defined]
+            if runtime is not None:
+                runtime.hold_pending()
+            return
         if self.is_processing and hasattr(self, "current_agent_task"):  # type: ignore[attr-defined]
             owner = getattr(self, "_activity_worker_owner", None)
             if owner is not None:

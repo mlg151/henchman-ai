@@ -208,7 +208,10 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "2025-03-26 through 2026-07-28. Interactive resources/templates/prompts/read/prompt commands "
             "explicitly preview bounded untrusted context without changing conversation history. "
             "Explicit attach consumes a session-bound preview as untrusted user context while idle, "
-            "without a new retrieval or model turn. Active SDK telemetry is refused; OAuth remains pending."
+            "without a new retrieval or model turn. Fresh REPL/Textual submissions support explicit OAuth "
+            "status/login/refresh/logout and a separate connect action; saved and programmatic commands "
+            "cannot authorize authentication. Automatic OAuth activation and active SDK telemetry are refused. "
+            "Real browser/account and final native qualification remain pending."
         ),
         aliases=("mcp_auth", "/mcp", "model context protocol"),
         runtime_tool_names=("mcp", "mcp_auth"),

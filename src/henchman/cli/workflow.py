@@ -31,6 +31,10 @@ def command_route(text: str) -> CommandRoute | None:
     if name in {"/chat", "/session"}:
         return "idle"
     if name == "/mcp":
+        if action in {"auth", "connect"}:
+            # Generic execution only prints guidance; fresh UI submission owns
+            # separate transient intent and never persists a queue command.
+            return "control"
         if action == "attach":
             return "idle"
         if action in {"", "list", "status", "resources", "templates", "read", "prompts", "prompt"}:
@@ -70,13 +74,17 @@ def idle_control_active(frontend: Any) -> bool:
     return isinstance(task, asyncio.Task) and not task.done()
 
 
-def frontend_has_active_work(frontend: Any) -> bool:
+def frontend_has_active_work(frontend: Any, *, _oauth_owner: object | None = None) -> bool:
     """Inspect local execution ownership without creating/recovering authority."""
     from henchman.advanced.tasks import TaskService
+    from henchman.cli.oauth_frontend import FrontendOAuth
 
     owner = asyncio.current_task()
     tasks = [getattr(frontend, name, None) for name in ("_turn_worker", "current_agent_task", "_idle_control_task")]
-    if any(isinstance(task, asyncio.Task) and task is not owner and not task.done() for task in tasks):
+    def own_oauth(task: object) -> bool:
+        return type(_oauth_owner) is FrontendOAuth and _oauth_owner.owns_network_task(frontend, task)
+
+    if any(isinstance(task, asyncio.Task) and task is not owner and not task.done() and not own_oauth(task) for task in tasks):
         return True
     if getattr(frontend, "is_processing", False) and owner not in tasks:
         return True

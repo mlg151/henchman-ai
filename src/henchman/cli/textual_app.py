@@ -468,37 +468,46 @@ class HenchmanTextualApp(
         """
         from henchman.cli.textual_activity_state import activity_for
 
-        activity_for(self).shutdown()
-        self._cleanup_confirm_futures()
-        runtime = self._workflow()
-        if runtime is not None:
-            runtime.hold_pending()
-        else:
-            self._queued_inputs().clear()
         task = getattr(self, "current_agent_task", None)
         try:
-            if task is not None and task is not asyncio.current_task():
-                task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
+            activity_for(self).shutdown()
+            self._cleanup_confirm_futures()
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.hold_pending()
+            else:
+                self._queued_inputs().clear()
         finally:
-            ctx = self.core_context
-            if ctx:
-                for background in ctx.background_tasks:
-                    background.cancel()
-                if ctx.background_tasks:
-                    await asyncio.gather(*ctx.background_tasks, return_exceptions=True)
-                    ctx.background_tasks.clear()
+            # Persistence or prompt retirement can fail. Owned execution must
+            # still settle before that original error leaves the frontend.
+            try:
                 try:
-                    await ctx.orchestrator.aclose()
+                    oauth = getattr(self, "_oauth", None)
+                    if oauth is not None:
+                        await oauth.aclose()
                 finally:
+                    if task is not None and task is not asyncio.current_task():
+                        task.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await task
+            finally:
+                ctx = self.core_context
+                if ctx:
+                    for background in ctx.background_tasks:
+                        background.cancel()
+                    if ctx.background_tasks:
+                        await asyncio.gather(*ctx.background_tasks, return_exceptions=True)
+                        ctx.background_tasks.clear()
                     try:
-                        if ctx.mcp_manager:
-                            await ctx.mcp_manager.disconnect_all()
+                        await ctx.orchestrator.aclose()
                     finally:
-                        if ctx.session_manager:
-                            self._pause_active_goal()
-                            ctx.session_manager.auto_save_session()
+                        try:
+                            if ctx.mcp_manager:
+                                await ctx.mcp_manager.disconnect_all()
+                        finally:
+                            if ctx.session_manager:
+                                self._pause_active_goal()
+                                ctx.session_manager.auto_save_session()
 
 
 # ------------------------------------------------------------------ #

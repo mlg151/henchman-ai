@@ -129,8 +129,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   A runtime-only controller now binds explicit user intent to current
   frontend/session/project ownership and joins cancelled actions; an explicit
   manager connection publishes its catalog only under current authority.
-  Automatic OAuth connections remain refused; interactive submission wiring is
-  still pending.
+  Fresh REPL/Textual submissions now own explicit authentication and separate
+  connection, omit command arguments from echo/history and join owned actions
+  even after queue-save failures. Automatic OAuth connections remain refused;
+  real browser/account and final native qualification stay open.
   Remaining qualification gates are
   recorded in the recovery baseline above and the
   [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).

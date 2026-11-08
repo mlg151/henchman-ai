@@ -25,6 +25,7 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.command_processor import CommandProcessor
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.input_handler import InputHandler
+from henchman.cli.oauth_frontend import FrontendOAuth
 from henchman.cli.output_handler import OutputHandler, resolve_active_agent
 from henchman.cli.plugins import PluginManager
 from henchman.cli.provider_switch import capture_startup_provider_settings
@@ -265,6 +266,7 @@ class Repl:
             renderer: Custom UI renderer to use.
         """
         self.provider = provider
+        self.project_root = Path.cwd().resolve()
         self.console = console or Console()
         self.config = config or ReplConfig()
         self.settings_state = settings_state or RuntimeSettingsState.from_settings(settings or Settings())
@@ -300,6 +302,16 @@ class Repl:
         self._init_handlers()
         self._init_tool_executor()
         self._init_input_handler()
+        self._oauth = FrontendOAuth(self, self.project_root,
+            emit=lambda text: self.renderer.console.print(text, markup=False), settled=self._oauth_settled)
+
+    def _oauth_settled(self, success: bool) -> None:
+        """Resume only already accepted input after successful authentication."""
+        runtime = self._workflow()
+        if not success and runtime is not None:
+            runtime.hold_pending()
+        if success and self._has_pending_input():
+            self._ensure_turn_worker()
 
     def _init_renderer(self: Self, renderer: UIRenderer | None) -> UIRenderer:
         """Create UI renderer with settings-based configuration."""
@@ -373,6 +385,7 @@ class Repl:
             self.mcp_manager = McpManager.create_from_settings(
                 self.settings,
                 mcp_logging_enabled=mcp_logging,
+                project_root=self.project_root,
             )
 
     def _init_plugin_manager(self: Self) -> None:
@@ -469,7 +482,8 @@ class Repl:
 
     def _has_active_turn(self) -> bool:
         """Enable turn cancellation bindings while interactive work is running."""
-        return self._turn_worker is not None and not self._turn_worker.done()
+        return (self._turn_worker is not None and not self._turn_worker.done()) or (
+            hasattr(self, "_oauth") and self._oauth.has_pending_actions())
 
 
     def set_session(self: Self, session: Session) -> None:
@@ -568,7 +582,10 @@ class Repl:
     async def aclose(self) -> None:
         """Join owned agent work before disconnecting its external tools."""
         try:
-            await self._stop_turn_worker()
+            try:
+                await self._oauth.aclose()
+            finally:
+                await self._stop_turn_worker()
         finally:
             try:
                 await self.orchestrator.aclose()
@@ -584,9 +601,11 @@ class Repl:
         """
         try:
             user_input = await self._get_input()
+            if self._oauth.submit(user_input) or self._oauth.defer_work_control(user_input):
+                return True
             return await self.process_input(user_input)
         except KeyboardInterrupt:
-            if self._turn_worker is not None and not self._turn_worker.done():
+            if self._has_active_turn():
                 self.interrupt_agent()
                 return True
             self._pause_goal()
@@ -802,6 +821,11 @@ class Repl:
 
     def interrupt_agent(self) -> None:
         """Pause autonomous work and cancel the current interactive turn."""
+        if self._oauth.cancel():
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.hold_pending()
+            return
         runtime = self._workflow()
         if runtime is not None:
             runtime.hold_pending()

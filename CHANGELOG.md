@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Interactive MCP OAuth actions** — Fresh REPL/Textual submissions support
+  status, login, refresh, logout and separate connect. Saved commands grant no
+  authority; argument-free echo/history and joined cancellation protect each
+  action. Shutdown still joins owned work after queue-save failures. Real
+  browser/account and native desktop qualification remain open.
+
 - **Internal editor protocol foundation** — A bounded v1 JSON-line codec and
   connection state machine validate requests and correlate session/run/decision
   identities without granting execution authority. Runtime and stdio wiring,
