@@ -68,6 +68,7 @@ def test_primary_has_full_live_workspace_tools() -> None:
     assert orch.tech_lead.tool_registry.get("late_mcp_tool") is registry.get("late_mcp_tool")
     assert orch.tech_lead.tool_registry.get("invoke_subagent") is not None
     assert orch.tech_lead.tool_registry.get("manage_subagents") is not None
+    assert orch.tech_lead.tool_registry.get("publish_subagent_proposal") is not None
 
 
 def test_explicit_primary_allowlist_remains_a_boundary() -> None:
@@ -85,6 +86,7 @@ def test_explicit_primary_allowlist_remains_a_boundary() -> None:
     assert orch.tech_lead.tool_registry.get("read_file") is not None
     assert orch.tech_lead.tool_registry.get("write_file") is None
     assert orch.tech_lead.tool_registry.get("invoke_subagent") is None
+    assert orch.tech_lead.tool_registry.get("publish_subagent_proposal") is None
 
 
 def test_subagent_discovery_requires_runtime_tools_and_retains_binding_caveat() -> None:
@@ -95,6 +97,10 @@ def test_subagent_discovery_requires_runtime_tools_and_retains_binding_caveat() 
         registered = classify_registered_tool(name, registered_tool_names=names)
         assert registered is not None and registered.classification == "runtime-dependent"
         assert "bound orchestrator" in registered.detail
+    missing = classify_registered_tool("publish_subagent_proposal", registered_tool_names=names)
+    assert missing is not None and missing.classification == "unavailable"
+    staged = classify_registered_tool("publish_subagent_proposal", registered_tool_names=(*names, "publish_subagent_proposal"))
+    assert staged is not None and staged.classification == "runtime-dependent"
 
 
 @pytest.mark.asyncio

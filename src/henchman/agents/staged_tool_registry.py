@@ -13,6 +13,7 @@ from io import StringIO
 from pathlib import Path
 
 from henchman.agents.proposal_runtime import StagedWorkspace
+from henchman.agents.workspace_ownership import WorkspaceOwnershipError
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.builtins.file_edit import (
     EditFileTool,
@@ -67,6 +68,12 @@ class _StagedFileTool(Tool):
         return ()  # Staging does not mutate a live workspace file.
 
     async def execute(self, **params: object) -> ToolResult:
+        try:
+            return self._execute(params)
+        except (WorkspaceOwnershipError, ValueError) as error:
+            return ToolResult(content=f"Staged file operation refused: {error}", success=False, error=str(error))
+
+    def _execute(self, params: dict[str, object]) -> ToolResult:
         path = params.get("path")
         if not isinstance(path, str) or not path:
             return ToolResult(content="A scoped file path is required.", success=False, error="Invalid path")

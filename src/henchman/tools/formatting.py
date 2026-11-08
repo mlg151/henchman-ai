@@ -339,7 +339,7 @@ class PythonAutoFormatter:
         scoped = capture is not None and capture.paths is not None
         # Runtime coordination must remain available while a child holds the
         # mutation lock, especially when the parent needs to cancel that child.
-        if not scoped and (tool.name in {"invoke_subagent", "manage_subagents"} or (
+        if not scoped and (tool.name in {"invoke_subagent", "manage_subagents", "publish_subagent_proposal"} or (
             tool.name == "send_message" and "conversation_id" in params
         )):
             return await execute()

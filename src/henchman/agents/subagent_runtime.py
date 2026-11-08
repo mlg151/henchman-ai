@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 import json
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from henchman.agents.identity import AgentIdentity
@@ -27,13 +28,19 @@ from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.agents.staged_delegation import StagedConversation
     from henchman.agents.subagents import SubagentNotification
+    from henchman.tools.registry import ToolRegistry
 
 
 def initialize_subagents(orchestrator: Orchestrator) -> None:
     """Bind one runtime-owned manager and its real builtin implementations."""
     from henchman.agents.subagents import BackgroundSubagentManager, current_subagent_actor
-    from henchman.tools.builtins.subagents import InvokeSubagentTool, ManageSubagentsTool
+    from henchman.tools.builtins.subagents import (
+        InvokeSubagentTool,
+        ManageSubagentsTool,
+        PublishSubagentProposalTool,
+    )
 
     conversations: dict[str, Orchestrator] = {}
 
@@ -119,15 +126,52 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         async for event in run_with_notifications(facade, params):
             yield event
 
+    def staged_factory(conversation_id: str, paths: list[str], tools: list[str],
+                       completed: Callable[[], bool]) -> StagedConversation:
+        from henchman.agents.staged_delegation import StagedConversation
+        from henchman.agents.workspace_ownership import WorkspaceBinding, WorkspaceOwnershipError
+
+        run = current_operation_run()
+        if run is None:
+            raise RuntimeError("Staged delegation requires a live operation session")
+        run._require_session()
+        admission = orchestrator.delegation_runner.admission
+        generation = admission.generation
+        parent_registry = acting_agent().tool_registry
+
+        def current_binding() -> WorkspaceBinding:
+            run._require_session()
+            admission.require(generation)
+            if current_operation_run() is not run:
+                raise WorkspaceOwnershipError("binding_changed")
+            if parent_registry._effective_access_policies or parent_registry._effective_read_confirmation:
+                raise WorkspaceOwnershipError("policy_changed")
+            return WorkspaceBinding(Path.cwd().resolve(), run.runtime.current_session, admission.generation)
+
+        def install(agent: Agent, registry: ToolRegistry) -> None:
+            agent.tool_registry = registry
+            conversations[conversation_id].tool_registry = registry
+
+        def staged_completed() -> bool:
+            facade = conversations.get(conversation_id)
+            state = getattr(facade.tech_lead, "_orchestrator_loop_state", None) if facade is not None else None
+            return (completed() and isinstance(state, LoopState) and state.response_complete
+                    and not state.failed and not state.timed_out and not state.tool_errors)
+
+        return StagedConversation(conversation_id=conversation_id, paths=paths, tools=tools,
+                                  parent_registry=parent_registry, run=run, generation=generation,
+                                  current_binding=current_binding, completed=staged_completed, install=install)
+
     manager = BackgroundSubagentManager(
         factory=factory,
         runner=runner,
         available_tools=lambda _actor: acting_agent().tool_registry.list_tools(),
         parent_id="tech_lead",
         admission=orchestrator.delegation_runner.admission,
+        staged_factory=staged_factory,
     )
     orchestrator.subagents = manager
-    for tool in (InvokeSubagentTool(), ManageSubagentsTool()):
+    for tool in (InvokeSubagentTool(), ManageSubagentsTool(), PublishSubagentProposalTool()):
         if orchestrator.tool_registry.get(tool.name) is None:
             orchestrator.tool_registry.register(tool)
     message_tool = orchestrator.tool_registry.get("send_message")
@@ -151,7 +195,7 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         bound_ask = copy.copy(ask_tool)
         bound_ask._subagent_manager = manager
         scoped.register(bound_ask)
-    for bound_tool in (InvokeSubagentTool(manager), ManageSubagentsTool(manager)):
+    for bound_tool in (InvokeSubagentTool(manager), ManageSubagentsTool(manager), PublishSubagentProposalTool(manager)):
         if scoped.get(bound_tool.name) is not None:
             scoped.register(bound_tool)
 

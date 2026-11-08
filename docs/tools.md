@@ -1139,9 +1139,10 @@ tool explicitly in scope. Normal plan-mode and execution-approval policies apply
 
 | Tool | Parameters | Result and policy |
 | --- | --- | --- |
-| `invoke_subagent` | Required `task`, `role`, `system_prompt`, and `tools` array | Returns a new `conversation_id` immediately; EXECUTE policy |
+| `invoke_subagent` | Required `task`, `role`, `system_prompt`, and `tools` array; optional `write_paths` | Returns a new `conversation_id` immediately; EXECUTE policy |
 | `send_message` | `conversation_id`, `message` | Queues a follow-up or parent reply; WRITE policy |
-| `manage_subagents` | `action: list` (default), or `get`/`cancel` with `conversation_id` | Returns live records/bounded output; list/get READ, cancel WRITE |
+| `manage_subagents` | `action: list` (default), or `get`/`cancel`/`review` with `conversation_id` | List, get and review use READ policy; cancel uses WRITE policy |
+| `publish_subagent_proposal` | `conversation_id` and `review_token` | Publishes the acknowledged staged proposal under its own WRITE approval policy |
 
 Example tool arguments for an independent inspection task:
 
@@ -1149,6 +1150,16 @@ Child execution first requires the user's startup `agents.allow_delegation`
 opt-in and available shared capacity. The default is disabled; tool arguments,
 custom prompts and ordinary auto-approval cannot enable the held runtime. See
 [shared delegation capacity](agents.md#shared-delegation-capacity).
+
+For staged file-only work, provide a nonempty `write_paths` array of explicit
+project-relative files whose parent directories already exist, and select only
+`read_file`, `write_file` and `edit_file`.
+After the child completes, `manage_subagents(action="review")` returns the full
+bounded proposal and a `review_token`; pass that token to
+`publish_subagent_proposal` to request conflict-checked publication. The tool's
+own WRITE policy and confirmation settings apply. Staged children cannot receive follow-ups or use opaque tools, and
+the route refuses restricted access or required read-confirmation policies.
+See [staged delegation limitations](agents.md#shared-delegation-capacity).
 
 ```json
 {

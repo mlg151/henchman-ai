@@ -164,6 +164,18 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
         runtime_tool_names=("invoke_subagent", "manage_subagents", "send_message"),
     ),
     _CapabilitySpec(
+        name="staged subagent publication",
+        classification="runtime-dependent",
+        summary="A parent can publish an acknowledged staged child proposal.",
+        detail=(
+            "The primary may invoke a file-only staged child with explicit write_paths, review its "
+            "complete proposal through manage_subagents, then use publish_subagent_proposal. "
+            "Publication has its own WRITE approval policy; ordinary delegation still shares the workspace."
+        ),
+        aliases=("publish_subagent_proposal", "staged subagent"),
+        runtime_tool_names=("invoke_subagent", "manage_subagents", "publish_subagent_proposal"),
+    ),
+    _CapabilitySpec(
         name="background shell",
         classification="runtime-wired",
         summary="Shell commands return tracked background task IDs by default; redirects are supported.",
@@ -409,6 +421,7 @@ _TOOL_NAME_TO_CAPABILITY_NAME: Final[dict[str, str]] = {
     "pattern_search": "repository evidence",
     "invoke_subagent": "background subagents",
     "manage_subagents": "background subagents",
+    "publish_subagent_proposal": "staged subagent publication",
     "send_message": "background subagents",
     "ask_user": "ask_user",
     "goal_status": "goal",

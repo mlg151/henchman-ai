@@ -28,10 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Delegated edit foundation** — An internal proposal service stages bounded
-  text files for explicit review and conflict-checked, recoverable publication.
-  A cooperative coordinator binds child and parent workers to exact reviewed
-  content; delegated tools and user-facing approval are not connected yet.
+- **Staged dynamic edits** — An opt-in dynamic child can stage explicitly
+  scoped text files for parent review and conflict-checked, recoverable
+  publication. Other delegation routes still share the workspace.
 
 - **Tool recovery guidance** — Unmatched exact edits direct the caller to reread
   the current file; missing task lookups explain how to find the complete ID.

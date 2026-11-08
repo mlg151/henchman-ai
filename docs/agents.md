@@ -113,9 +113,9 @@ consumed through a bounded buffer while the workers run.
 Cancellation retains capacity until worker and stream cleanup has joined.
 History/session reset retires old conversations and unstarted delegation streams;
 they cannot restart under the new session. Shutdown permanently retires the pool.
-This is a per-runtime execution bound, not a cross-process quota or workspace
-write-isolation mechanism. Conflict-safe file ownership and paired live-model
-effectiveness remain separate work under issue #29. Trusted low-level embedders
+This is a per-runtime execution bound, not a cross-process quota. Conflict-safe
+integration across all delegation routes and paired live-model effectiveness
+remain separate work under issue #29. Trusted low-level embedders
 must explicitly supply an allowed admission controller; its default is denied.
 
 An internal `ChildProposalService` can stage a bounded set of text-file changes
@@ -124,18 +124,24 @@ after checking current file contents. Publication retains displaced originals,
 invalidates checks and requires recovery after an interruption. This service is
 content-focused: existing POSIX modes are preserved and new POSIX files use
 mode `0600`; arbitrary extended metadata is not restored. The Windows backend
-uses the checkpoint service's documented content/ACL limitations. An internal
-coordinator now binds staged operations to an exact child worker and holds the
-exact reviewed content for a live parent before publication. An internal tool
-adapter routes the builtin read, write and edit tools through the staged view;
-it rejects opaque tools and fails closed under restricted access policies. A
-separate internal review interface refuses oversized previews instead of
-silently truncating file content and requires an acknowledgement before it
-publishes. This cooperative mechanism is not yet connected to the dynamic
-subagent tool catalog and is not a filesystem sandbox.
-Existing subagents still share the workspace and require coordination; issue
-#29 remains open. See the [review validation record](evaluations/2026-11-08-child-review-validation.md)
-for exact commits, tested environments and outstanding qualification.
+uses the checkpoint service's documented content/ACL limitations. The primary
+may opt one dynamic child into this mechanism by supplying explicit
+`write_paths` to `invoke_subagent`. The child may use only the scoped builtin
+`read_file`, `write_file` and `edit_file` tools, and the parent can use
+`manage_subagents` to review the complete proposal, then pass its token to
+`publish_subagent_proposal`. Publication has its own WRITE approval policy. A
+changed workspace causes a conflict instead of an
+overwrite. Existing checks are invalidated; the caller must verify the result.
+
+This staged route is limited to the current primary run and does not support
+nested children, follow-up messages, shell, MCP or other opaque tools. It fails
+closed under restricted access policies or required read confirmation, and
+refuses reviews larger than its 32 KiB encoded limit. Failed or cancelled child
+work cannot be published; cancellation and shutdown join the worker and retain
+unresolved private evidence. It is cooperative rather than a filesystem
+sandbox. Ordinary dynamic and named-role delegates still share the workspace,
+so issue #29 remains open. See the [review validation record](evaluations/2026-11-08-child-review-validation.md)
+for earlier exact-commit evidence and outstanding qualification.
 
 ## Optional Named Roles
 

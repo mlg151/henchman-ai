@@ -6,7 +6,11 @@ import json
 
 from henchman.agents.delegation_admission import DelegationAdmissionError
 from henchman.agents.subagents import BackgroundSubagentManager
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
+from henchman.providers.continuation import ProviderContinuationError
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.repair_scope import RepairControlError
 
 
 class _SubagentTool(Tool):
@@ -38,6 +42,8 @@ def _required_string(params: dict[str, object], name: str) -> str:
 
 
 def _failure(exc: Exception) -> ToolResult:
+    if isinstance(exc, (OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError)):
+        raise exc
     message = str(exc)
     if isinstance(exc, DelegationAdmissionError):
         return ToolResult(content=json.dumps({"message": message, "admission": exc.payload}),
@@ -58,7 +64,8 @@ class InvokeSubagentTool(_SubagentTool):
             "Launch a background subagent with a custom role, system prompt, task, and explicit "
             "tool subset. Returns a conversation_id immediately; results and requests for input "
             "arrive as parent notifications. Requires prior user/runtime delegation opt-in "
-            "and shared capacity. Use send_message for follow-ups."
+            "and shared capacity. Supply write_paths for staged file-only work that requires "
+            "parent review before publication. Use send_message for ordinary follow-ups."
         )
 
     @property
@@ -78,6 +85,10 @@ class InvokeSubagentTool(_SubagentTool):
                     "items": {"type": "string"},
                     "description": "Explicit subset of your available tools; [] grants no tools.",
                 },
+                "write_paths": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Optional explicit project-relative files for staged child work.",
+                },
             },
             "required": ["task", "role", "system_prompt", "tools"],
             "additionalProperties": False,
@@ -90,19 +101,21 @@ class InvokeSubagentTool(_SubagentTool):
             tools = params.get("tools")
             if not isinstance(tools, list) or not all(isinstance(name, str) for name in tools):
                 raise ValueError("tools must be an explicit list of tool names")
-            record = manager.spawn(
-                _required_string(params, "task"),
-                role=_required_string(params, "role"),
-                system_prompt=_required_string(params, "system_prompt"),
-                tools=tools,
-            )
+            task, role, prompt = (_required_string(params, name) for name in ("task", "role", "system_prompt"))
+            if "write_paths" in params:
+                paths = params["write_paths"]
+                if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+                    raise ValueError("write_paths must be a list of paths")
+                record = manager.spawn(task, role=role, system_prompt=prompt, tools=tools, write_paths=paths)
+            else:
+                record = manager.spawn(task, role=role, system_prompt=prompt, tools=tools)
             return ToolResult(content=json.dumps(record.as_dict()))
         except (ValueError, PermissionError, RuntimeError) as exc:
             return _failure(exc)
 
 
 class ManageSubagentsTool(_SubagentTool):
-    """Inspect descendants or cancel and join one background worker."""
+    """Inspect or cancel children and review staged proposals."""
 
     @property
     def name(self) -> str:
@@ -113,7 +126,8 @@ class ManageSubagentsTool(_SubagentTool):
         return (
             "List background subagents, inspect one conversation's status and bounded output, "
             "or cancel a subagent. Results and assistance requests arrive reactively; polling "
-            "is unnecessary. Completed conversations accept follow-ups through send_message."
+            "is unnecessary. For staged children, review the complete proposal and use "
+            "publish_subagent_proposal with its review_token; staged children do not accept follow-ups."
         )
 
     @property
@@ -121,16 +135,16 @@ class ManageSubagentsTool(_SubagentTool):
         return ToolKind.WRITE
 
     def execution_kind(self, params: dict[str, object]) -> ToolKind:
-        """Keep status reads available while applying policy to cancellation."""
-        return ToolKind.READ if params.get("action", "list") in ("list", "get") else ToolKind.WRITE
+        """Keep inspection and review read-only; apply write policy to effects."""
+        return ToolKind.READ if params.get("action", "list") in ("list", "get", "review") else ToolKind.WRITE
 
     @property
     def parameters(self) -> dict[str, object]:
         return {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["list", "get", "cancel"], "default": "list"},
-                "conversation_id": {"type": "string", "description": "Required for get or cancel."},
+                "action": {"type": "string", "enum": ["list", "get", "cancel", "review"], "default": "list"},
+                "conversation_id": {"type": "string", "description": "Required for every action except list."},
             },
             "additionalProperties": False,
         }
@@ -150,8 +164,42 @@ class ManageSubagentsTool(_SubagentTool):
                     else manager.get(conversation_id)
                 )
                 value = record.as_dict()
+            elif action == "review":
+                return ToolResult(content=await manager.review_staged(_required_string(params, "conversation_id")))
             else:
-                raise ValueError("action must be list, get, or cancel")
+                raise ValueError("action must be list, get, cancel, or review")
             return ToolResult(content=json.dumps(value))
+        except (ValueError, PermissionError, RuntimeError) as exc:
+            return _failure(exc)
+
+
+class PublishSubagentProposalTool(_SubagentTool):
+    """Publish one complete parent-reviewed child proposal under WRITE policy."""
+
+    @property
+    def name(self) -> str:
+        return "publish_subagent_proposal"
+
+    @property
+    def description(self) -> str:
+        return "Publish a completed staged child's exact reviewed proposal using its review_token."
+
+    @property
+    def kind(self) -> ToolKind:
+        return ToolKind.WRITE
+
+    @property
+    def parameters(self) -> dict[str, object]:
+        return {"type": "object", "properties": {
+            "conversation_id": {"type": "string", "description": "The directly owned staged child."},
+            "review_token": {"type": "string", "description": "Token from the complete parent review."},
+        }, "required": ["conversation_id", "review_token"], "additionalProperties": False}
+
+    async def execute(self, **params: object) -> ToolResult:
+        try:
+            result = self._require_manager().publish_staged(_required_string(params, "conversation_id"),
+                                                            _required_string(params, "review_token"))
+            return ToolResult(content=json.dumps({"changed_paths": list(result.changed_paths),
+                                                  "invalidate_checks": result.invalidate_checks}))
         except (ValueError, PermissionError, RuntimeError) as exc:
             return _failure(exc)

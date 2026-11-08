@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from henchman.agents.delegation_admission import DelegationAdmission, DelegationLease, join_worker
@@ -94,6 +94,16 @@ class _Conversation:
     inbox: asyncio.Queue[str] = field(default_factory=asyncio.Queue)
     task: asyncio.Task[None] | None = None
     events: deque[AgentEvent] = field(default_factory=lambda: deque(maxlen=32))
+    staged: _StagedConversation | None = None
+
+
+class _StagedConversation(Protocol):
+    def bind(self, worker: asyncio.Task[Any]) -> None: ...
+    def activate(self, agent: Any) -> None: ...
+    def abort(self) -> None: ...
+    def preview(self) -> str: ...
+    def publish(self, token: str) -> Any: ...
+    async def close(self) -> None: ...
 
 
 class BackgroundSubagentManager:
@@ -114,6 +124,7 @@ class BackgroundSubagentManager:
         parent_id: str = "tech_lead",
         max_output_chars: int = 32768,
         admission: DelegationAdmission | None = None,
+        staged_factory: Callable[[str, list[str], list[str], Callable[[], bool]], _StagedConversation] | None = None,
     ) -> None:
         """Initialize one runtime's independent conversations and notifications."""
         if max_output_chars < 1:
@@ -122,6 +133,7 @@ class BackgroundSubagentManager:
         self._factory = factory
         self._runner = runner
         self._available_tools = available_tools
+        self._staged_factory = staged_factory
         self._max_output_chars = max_output_chars
         self.admission = admission if admission is not None else DelegationAdmission()
         self._conversations: dict[str, _Conversation] = {}
@@ -248,6 +260,7 @@ class BackgroundSubagentManager:
         role: str,
         system_prompt: str,
         tools: list[str],
+        write_paths: list[str] | None = None,
     ) -> SubagentRecord:
         """Start a distinct conversation immediately within the caller's scope."""
         if self._closed:
@@ -271,21 +284,44 @@ class BackgroundSubagentManager:
             raise ValueError(
                 f"Requested tools outside caller scope: {', '.join(sorted(disallowed))}"
             )
+        if write_paths is not None:
+            if self.actor_id != self.parent_id or self._staged_factory is None:
+                raise ValueError("Staged delegation is unavailable for this caller")
+            if not isinstance(write_paths, list) or not write_paths or not all(
+                isinstance(path, str) and path for path in write_paths
+            ):
+                raise ValueError("write_paths must be a non-empty list of explicit file paths")
+            if not set(tools) <= {"read_file", "write_file", "edit_file"}:
+                raise ValueError("Staged delegation supports only scoped file tools")
         asyncio.get_running_loop()
+        conversation_id = f"subagent-{uuid4().hex}"
         lease = self.admission.reserve()
+        staged: _StagedConversation | None = None
         try:
-            conversation_id = f"subagent-{uuid4().hex}"
             tools = list(dict.fromkeys(tools))
+            if write_paths is not None:
+                assert self._staged_factory is not None
+                def completed() -> bool:
+                    item = self._conversations.get(conversation_id)
+                    return (item is not None and item.record.status == "done"
+                            and not item.record.cancelled and item.record.error is None)
+                staged = self._staged_factory(conversation_id, write_paths, tools, completed)
             agent = self._factory(role, system_prompt, tools, conversation_id)
             self.admission.require(lease.generation)
             record = SubagentRecord(conversation_id, self.actor_id, role, system_prompt, tuple(tools))
-            conversation = _Conversation(record=record, agent=agent, generation=lease.generation)
+            conversation = _Conversation(record=record, agent=agent, generation=lease.generation, staged=staged)
             conversation.inbox.put_nowait(task)
             self._conversations[conversation_id] = conversation
             self._start_worker(conversation, lease)
-        except BaseException:
+        except BaseException as primary:
             self._conversations.pop(conversation_id, None)
-            lease.release()
+            if staged is not None:
+                try:
+                    staged.abort()
+                except BaseException as cleanup:
+                    primary.add_note(f"Staged reservation cleanup also failed: {type(cleanup).__name__}")
+            if lease.owner is None or lease.owner.done():
+                lease.release()
             raise
         return record
 
@@ -326,6 +362,8 @@ class BackgroundSubagentManager:
                 self._publish(source, message)
                 return None
         conversation = self._require_access(conversation_id)
+        if conversation.staged is not None:
+            raise ValueError("Staged subagents do not accept follow-up messages")
         self.admission.require(conversation.generation)
         if conversation.task is None or conversation.task.done():
             lease = self.admission.reserve(generation=conversation.generation)
@@ -398,6 +436,26 @@ class BackgroundSubagentManager:
             if active or conversation.record.status not in ("done", "errored"):
                 conversation.record = replace(conversation.record, status="done", cancelled=True)
                 self._publish(conversation, "Subagent cancelled.")
+            if conversation.staged is not None:
+                await conversation.staged.close()
+
+    async def review_staged(self, conversation_id: str) -> str:
+        """Join one successful staged child before returning its complete preview."""
+        conversation = self._require_access(conversation_id, control=True)
+        if conversation.record.parent_id != self.actor_id or conversation.staged is None:
+            raise ValueError("No staged proposal belongs to this parent")
+        if conversation.record.status != "done" or conversation.record.cancelled or conversation.record.error:
+            raise ValueError("Staged child has not completed successfully")
+        if conversation.task is not None:
+            await join_worker(conversation.task)
+        return conversation.staged.preview()
+
+    def publish_staged(self, conversation_id: str, token: str) -> Any:
+        """Apply the exact parent-acknowledged staged review."""
+        conversation = self._require_access(conversation_id, control=True)
+        if conversation.record.parent_id != self.actor_id or conversation.staged is None:
+            raise ValueError("No staged proposal belongs to this parent")
+        return conversation.staged.publish(token)
 
     async def close(self) -> None:
         """Prevent new work and cancel/join every worker before runtime shutdown."""
@@ -487,19 +545,34 @@ class BackgroundSubagentManager:
         queue.put_nowait(notification)
 
     def _start_worker(self, conversation: _Conversation, lease: DelegationLease) -> None:
-        worker = self._worker(conversation, lease)
+        gate = asyncio.Event()
+
+        async def gated() -> None:
+            await gate.wait()
+            await self._worker(conversation, lease)
+
+        worker = gated() if conversation.staged is not None else self._worker(conversation, lease)
+        created: asyncio.Task[None] | None = None
         try:
-            conversation.task = asyncio.create_task(worker)
-            lease.owner = conversation.task
+            created = asyncio.create_task(worker)
+            conversation.task = created
+            lease.owner = created
+            created.add_done_callback(lambda _task: lease.release())
+            if conversation.staged is not None:
+                conversation.staged.bind(created)
+                gate.set()
         except BaseException:
-            worker.close()
+            if created is not None:
+                created.cancel()
+            else:
+                worker.close()
             raise
-        # Cancellation before the coroutine's first step skips its finally.
-        conversation.task.add_done_callback(lambda _task: lease.release())
 
     async def _worker(self, conversation: _Conversation, lease: DelegationLease) -> None:
         with subagent_actor(conversation.record.conversation_id):
             try:
+                if conversation.staged is not None:
+                    conversation.staged.activate(conversation.agent)
                 while not conversation.inbox.empty():
                     self.admission.require(lease.generation)
                     prompt = conversation.inbox.get_nowait()
