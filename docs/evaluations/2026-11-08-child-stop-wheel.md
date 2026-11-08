@@ -24,3 +24,17 @@ an offline `uv` environment. The wheel, archive, staged tree, environment and
 repeat log remain in the local release-qualification cache. This focused Linux
 observation does not replace native cross-platform CI or verification of the
 final release commit and artifacts.
+
+## Later tree-cleanup refusal check
+
+After adding refusal for a selected child or descendant already in cancellation
+cleanup, a separate clean archive of commit
+`702760edf4891f11bef08a549ed98cf1b21072fa` was built offline. The archive
+SHA-256 was `016e9b5eaaaf409f2e811e12af593f51840bb41bde51b455c67cdc1192f825f1`;
+the wheel SHA-256 was
+`0c0650de587dec5e838907b99f4c409f5f51e159a0bf338e149eddd9cd8abbc7`.
+In a fresh Python 3.11 environment, all 454 package files matched the wheel and
+**37/37 staged interruption tests passed**, including both new cleanup cases.
+The same local dependency reuse and release-qualification limits above apply.
+The separate archive, wheel, staged tree and test log are retained under the
+`child-stop-wheel-702760e` qualification-cache directory.
