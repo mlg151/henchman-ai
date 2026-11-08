@@ -1,0 +1,445 @@
+{
+  "budget": {
+    "executed_runs": 24,
+    "planned_runs": 24
+  },
+  "cohort": "local",
+  "cost": {
+    "amount_usd": 0.0,
+    "billing": "none",
+    "source": "local"
+  },
+  "generated_at": "2026-11-08T00:22:44.206055+00:00",
+  "kind": "baseline_repeat_runs",
+  "requested": {
+    "cases": [
+      "add-method-class",
+      "counter-refactor",
+      "fibonacci",
+      "interruption-recovery",
+      "multi-file-edit",
+      "package-lifecycle",
+      "python-reuse",
+      "rename-variable",
+      "semantic-bug-fix",
+      "syntax-fix",
+      "test-docs",
+      "tool-failure-recovery"
+    ],
+    "max_iterations": 10,
+    "model": "qwen38-27b-iq3s",
+    "provider": "openai-compatible",
+    "runs_per_case": 2,
+    "timeout": 120.0
+  },
+  "runs": [
+    {
+      "case_id": "add-method-class",
+      "duration_ms": 120002.94291303726,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "add-method-class",
+      "duration_ms": 50898.053090961184,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 9854,
+      "tokens_out": 172
+    },
+    {
+      "case_id": "counter-refactor",
+      "duration_ms": 76617.30350798462,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 9975,
+      "tokens_out": 191
+    },
+    {
+      "case_id": "counter-refactor",
+      "duration_ms": 85255.57829102036,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 10044,
+      "tokens_out": 230
+    },
+    {
+      "case_id": "fibonacci",
+      "duration_ms": 120004.12512302864,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "fibonacci",
+      "duration_ms": 53619.59722300526,
+      "error": null,
+      "outcome": "success",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 2597,
+      "tokens_out": 180
+    },
+    {
+      "case_id": "interruption-recovery",
+      "duration_ms": 71779.8920859932,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 10093,
+      "tokens_out": 144
+    },
+    {
+      "case_id": "interruption-recovery",
+      "duration_ms": 80805.66812399775,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 10235,
+      "tokens_out": 248
+    },
+    {
+      "case_id": "multi-file-edit",
+      "duration_ms": 65566.84878998203,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 9992,
+      "tokens_out": 187
+    },
+    {
+      "case_id": "multi-file-edit",
+      "duration_ms": 84469.87164800521,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 10030,
+      "tokens_out": 206
+    },
+    {
+      "case_id": "package-lifecycle",
+      "duration_ms": 120014.73641797202,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "team",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "package-lifecycle",
+      "duration_ms": 120006.4504549955,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "team",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "python-reuse",
+      "duration_ms": 120002.96011799946,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "python-reuse",
+      "duration_ms": 120001.78461399628,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "rename-variable",
+      "duration_ms": 102501.36660604039,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 10239,
+      "tokens_out": 308
+    },
+    {
+      "case_id": "rename-variable",
+      "duration_ms": 89880.54955902044,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 10444,
+      "tokens_out": 159
+    },
+    {
+      "case_id": "semantic-bug-fix",
+      "duration_ms": 120001.56181299826,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "semantic-bug-fix",
+      "duration_ms": 120002.03684798907,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 50168.445563002024,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 9595,
+      "tokens_out": 173
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 46256.79084600415,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": true,
+      "tokens_in": 9621,
+      "tokens_out": 180
+    },
+    {
+      "case_id": "test-docs",
+      "duration_ms": 120002.9872910236,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "test-docs",
+      "duration_ms": 120002.61943304213,
+      "error": "Scenario timed out after its 120s wall-clock budget",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "tool-failure-recovery",
+      "duration_ms": 92572.1946110134,
+      "error": null,
+      "outcome": "success",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": true,
+      "tokens_in": 10113,
+      "tokens_out": 296
+    },
+    {
+      "case_id": "tool-failure-recovery",
+      "duration_ms": 104085.10891802143,
+      "error": "Missing failed python_exec followed by successful python_exec",
+      "outcome": "verification_failure",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  ],
+  "summary": {
+    "cases": {
+      "add-method-class": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 1,
+          "timeout": 1,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 1
+      },
+      "counter-refactor": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 2,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 2
+      },
+      "fibonacci": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 1,
+          "timeout": 1,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 1
+      },
+      "interruption-recovery": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 2,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 2
+      },
+      "multi-file-edit": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 2,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 2
+      },
+      "package-lifecycle": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "python-reuse": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "rename-variable": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 2,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 2
+      },
+      "semantic-bug-fix": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "syntax-fix": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 2,
+          "timeout": 0,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 2
+      },
+      "test-docs": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "tool-failure-recovery": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 1,
+          "timeout": 0,
+          "verification_failure": 1
+        },
+        "runs": 2,
+        "successes": 1
+      }
+    },
+    "failures": 11,
+    "latency_ms": {
+      "max": 120014.73641797202,
+      "min": 46256.79084600415,
+      "p50": 97536.7806085269,
+      "p95": 120006.10165520047
+    },
+    "outcome_counts": {
+      "runtime_error": 0,
+      "success": 13,
+      "timeout": 10,
+      "verification_failure": 1
+    },
+    "successes": 13,
+    "total_runs": 24,
+    "usage": {
+      "available": true,
+      "tokens_in": 122832,
+      "tokens_out": 2674
+    }
+  }
+}
