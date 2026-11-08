@@ -1,0 +1,637 @@
+{
+  "commit": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+  "checkout_commit": "a7850e8240b62d5f9a6230f066737a51ccb7afae",
+  "pr_base_commit": "3437c1c502c425f3d2754194ad46ea0094ee7cd1",
+  "run_id": 42449443674,
+  "run_url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674",
+  "event": "pull_request",
+  "attempt": 1,
+  "created_at": "2026-11-08T05:06:23Z",
+  "scope": "Development CI checkpoint for this PR merge only; later changes are not qualified by this run.",
+  "duplicate_push": {
+    "id": 42449439704,
+    "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449439704",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "qualification": "Excluded; cancellation and partial completed jobs are not a passing qualification."
+  },
+  "overall_conclusion": "failure",
+  "completed_at": "2026-11-08T05:54:54Z",
+  "primary_jobs": 19,
+  "aggregate_jobs": 1,
+  "source_coverage_percent": 91.29,
+  "source_coverage_requirement_percent": 90,
+  "known_failures": [
+    {
+      "tests": [
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_build_entries",
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_action_cancel",
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_cancel",
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_resume_valid",
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_delete_valid",
+        "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_no_selection"
+      ],
+      "cause": "Legacy tests supplied untyped MagicMock session entries and invoked retired button/cancel contracts instead of current read/inspect/resume controls.",
+      "later_fix_commit": "a48840d2d110e67bd47d4dfdd5c912e8bc525761",
+      "repair_scope": "Tests only; exercise the current browser contract.",
+      "jobs": [
+        128635300578,
+        128635300582,
+        128635300602,
+        128635300637
+      ]
+    },
+    {
+      "tests": [
+        "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity"
+      ],
+      "cause": "The fixture supplied bare object() where the retained evidence policy requires an attribute-bearing provider object.",
+      "later_fix_commit": "0b89e598ad1c4340694257e842ed6e73ff67dd60",
+      "repair_scope": "Tests only; SimpleNamespace provider fixture.",
+      "jobs": [
+        128635300578,
+        128635300582,
+        128635300602,
+        128635300637,
+        128635557781,
+        128635557793,
+        128635557809,
+        128635557810,
+        128635557828,
+        128635557848,
+        128635557869,
+        128635557882,
+        128635557894,
+        128635557902,
+        128635557923,
+        128635557950
+      ]
+    },
+    {
+      "tests": [
+        "tests/cli/test_textual_decision_review.py::test_long_pending_decision_keeps_visible_review_and_answer_controls"
+      ],
+      "cause": "Long question created a 112-row dialog; review button visibility depended on deferred autofocus scrolling.",
+      "later_fix_commit": "06828897485caad09899606e98d8318d0ff9c715",
+      "repair_scope": "Bound question preview/dialog and strengthen actual viewport/click/resize assertions.",
+      "jobs": [
+        128635557781
+      ]
+    },
+    {
+      "tests": [
+        "tests/tools/test_bounded_subprocess.py::test_descendant_holding_pipes_cannot_hang_timeout"
+      ],
+      "cause": "The 0.5-second timed capture could expire before the nested interpreter created the descendant premise.",
+      "later_fix_commit": "06828897485caad09899606e98d8318d0ff9c715",
+      "repair_scope": "Tests only; establish ready descendant, exited parent and inherited pipes before testing the unchanged timeout.",
+      "jobs": [
+        128635557902
+      ]
+    },
+    {
+      "tests": [
+        "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[xterm-256color]",
+        "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[dumb]"
+      ],
+      "cause": "Darwin transient PENDIN state affected terminal snapshots, including no-editor diagnostic controls; editor boundary snapshots matched.",
+      "later_fix_commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+      "repair_scope": "Tests only; settle native input bookkeeping before exact complete termios comparisons.",
+      "separate_diagnostic_run_url": "https://github.com/mlg151/henchman-ai/actions/runs/42451663048",
+      "qualification": "Later diagnostic/fix evidence is separate and does not change this run.",
+      "jobs": [
+        128635557793,
+        128635557902,
+        128635557923,
+        128635557950
+      ]
+    }
+  ],
+  "validated_distribution_artifacts": [
+    {
+      "id": 13605310966,
+      "name": "validated-distributions-a7850e8240b62d5f9a6230f066737a51ccb7afae-attempt-1",
+      "url": "https://api.github.com/repos/mlg151/henchman-ai/actions/artifacts/13605310966",
+      "size_in_bytes": 9623057,
+      "github_reported_archive_digest": "sha256:c4eb22c591a6269948221d09ebc547bf7029f9aca93cb0c4388edf725f6e4725",
+      "expired_at_inspection": false
+    }
+  ],
+  "artifact_note": "GitHub-reported artifact archive identity; no local download/requalification was performed for this receipt.",
+  "jobs": [
+    {
+      "id": 128635300344,
+      "name": "Lint & Style",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300344"
+    },
+    {
+      "id": 128635300506,
+      "name": "Type Check",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300506"
+    },
+    {
+      "id": 128635300578,
+      "name": "Test (Python 3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300578",
+      "test_summary": "===== 7 failed, 12356 passed, 91 skipped, 7 warnings in 1554.52s (0:25:54) =====",
+      "test_counts": {
+        "passed": 12356,
+        "failed": 7,
+        "skipped": 91,
+        "warnings": 7,
+        "reported_total": 12454
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_build_entries",
+          "summary": "TypeError: expected string or bytes-like object, got 'MagicMock'"
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_action_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_resume_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_delete_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_no_selection",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635300582,
+      "name": "Test (Python 3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300582",
+      "test_summary": "===== 7 failed, 12357 passed, 90 skipped, 9 warnings in 1031.50s (0:17:11) =====",
+      "test_counts": {
+        "passed": 12357,
+        "failed": 7,
+        "skipped": 90,
+        "warnings": 9,
+        "reported_total": 12454
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_build_entries",
+          "summary": "TypeError: expected string or bytes-like object, got 'MagicMock'"
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_action_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_resume_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_delete_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_no_selection",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635300602,
+      "name": "Test (Python 3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300602",
+      "test_summary": "==== 7 failed, 12357 passed, 90 skipped, 10 warnings in 1346.98s (0:22:26) =====",
+      "test_counts": {
+        "passed": 12357,
+        "failed": 7,
+        "skipped": 90,
+        "warnings": 10,
+        "reported_total": 12454
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_build_entries",
+          "summary": "TypeError: expected string or bytes-like object, got 'MagicMock'"
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_action_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_resume_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_delete_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_no_selection",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635300637,
+      "name": "Test (Python 3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635300637",
+      "test_summary": "==== 7 failed, 12357 passed, 90 skipped, 13 warnings in 2878.24s (0:47:58) =====",
+      "test_counts": {
+        "passed": 12357,
+        "failed": 7,
+        "skipped": 90,
+        "warnings": 13,
+        "reported_total": 12454
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_build_entries",
+          "summary": "TypeError: expected string or bytes-like object, got 'MagicMock'"
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_action_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_cancel",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_resume_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_delete_valid",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/cli/test_textual_coverage.py::TestSessionScreen::test_on_button_pressed_no_selection",
+          "summary": "AssertionError: Expected 'mock' to be called once. Called 0 times."
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ],
+      "coverage_summary": [
+        "TOTAL                                                       53943   3524  16412   2061    91%",
+        "Required test coverage of 90% reached. Total coverage: 91.29%"
+      ]
+    },
+    {
+      "id": 128635475920,
+      "name": "Build & Package Validation",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635475920"
+    },
+    {
+      "id": 128635557781,
+      "name": "Installed Wheel Smoke (windows-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557781",
+      "test_summary": "2 failed, 5662 passed, 233 skipped, 15 warnings in 1024.30s (0:17:04)",
+      "test_counts": {
+        "passed": 5662,
+        "failed": 2,
+        "skipped": 233,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_textual_decision_review.py::test_long_pending_decision_keeps_visible_review_and_answer_controls",
+          "summary": "textual.pilot.OutOfBounds: Target offset is outside of currently-visible screen region."
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557793,
+      "name": "Installed Wheel Smoke (macos-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557793",
+      "test_summary": "3 failed, 5811 passed, 83 skipped, 15 warnings in 707.12s (0:11:47)",
+      "test_counts": {
+        "passed": 5811,
+        "failed": 3,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[xterm-256color]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[dumb]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557809,
+      "name": "Installed Wheel Smoke (windows-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557809",
+      "test_summary": "1 failed, 5663 passed, 233 skipped, 16 warnings in 1400.39s (0:23:20)",
+      "test_counts": {
+        "passed": 5663,
+        "failed": 1,
+        "skipped": 233,
+        "warnings": 16,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635557810,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557810",
+      "test_summary": "1 failed, 5815 passed, 81 skipped, 16 warnings in 704.85s (0:11:44)",
+      "test_counts": {
+        "passed": 5815,
+        "failed": 1,
+        "skipped": 81,
+        "warnings": 16,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635557828,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557828",
+      "test_summary": "1 failed, 5815 passed, 81 skipped, 15 warnings in 1019.18s (0:16:59)",
+      "test_counts": {
+        "passed": 5815,
+        "failed": 1,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557848,
+      "name": "Installed Wheel Smoke (windows-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557848",
+      "test_summary": "1 failed, 5663 passed, 233 skipped, 15 warnings in 1471.23s (0:24:31)",
+      "test_counts": {
+        "passed": 5663,
+        "failed": 1,
+        "skipped": 233,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557869,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557869",
+      "test_summary": "1 failed, 5815 passed, 81 skipped, 15 warnings in 678.30s (0:11:18)",
+      "test_counts": {
+        "passed": 5815,
+        "failed": 1,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635557882,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557882",
+      "test_summary": "1 failed, 5815 passed, 81 skipped, 15 warnings in 808.74s (0:13:28)",
+      "test_counts": {
+        "passed": 5815,
+        "failed": 1,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557894,
+      "name": "Installed Wheel Smoke (windows-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557894",
+      "test_summary": "1 failed, 5663 passed, 233 skipped, 15 warnings in 1474.47s (0:24:34)",
+      "test_counts": {
+        "passed": 5663,
+        "failed": 1,
+        "skipped": 233,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635557902,
+      "name": "Installed Wheel Smoke (macos-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557902",
+      "test_summary": "4 failed, 5810 passed, 83 skipped, 15 warnings in 869.99s (0:14:29)",
+      "test_counts": {
+        "passed": 5810,
+        "failed": 4,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[xterm-256color]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[dumb]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/tools/test_bounded_subprocess.py::test_descendant_holding_pipes_cannot_hang_timeout",
+          "summary": "AssertionError: assert False"
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor'"
+        }
+      ]
+    },
+    {
+      "id": 128635557923,
+      "name": "Installed Wheel Smoke (macos-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557923",
+      "test_summary": "3 failed, 5811 passed, 83 skipped, 15 warnings in 871.93s (0:14:31)",
+      "test_counts": {
+        "passed": 5811,
+        "failed": 3,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[xterm-256color]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[dumb]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128635557950,
+      "name": "Installed Wheel Smoke (macos-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128635557950",
+      "test_summary": "3 failed, 5811 passed, 83 skipped, 16 warnings in 773.94s (0:12:53)",
+      "test_counts": {
+        "passed": 5811,
+        "failed": 3,
+        "skipped": 83,
+        "warnings": 16,
+        "reported_total": 5897
+      },
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[xterm-256color]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/cli/test_draft_editor.py::test_classic_f11_real_pty_restores_prompt_without_submitting[dumb]",
+          "summary": "AssertionError: assert {'text': 'edi...tored': False} == {'text': 'edi...stored': True}"
+        },
+        {
+          "test": "tests/utils/test_context_attachment_compaction.py::test_repeated_summary_stays_user_data_and_retains_source_identity",
+          "summary": "AttributeError: 'object' object has no attribute '_failure_evidence_redactor' and no __dict__ for setting new attributes"
+        }
+      ]
+    },
+    {
+      "id": 128644801065,
+      "name": "Aggregate Readiness Gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42449443674/job/128644801065",
+      "gate_summary": [
+        "Job test did not succeed (status: {'result': 'failure', 'outputs': {}})"
+      ]
+    }
+  ],
+  "limitations": [
+    "All source and native test suites failed; reaching the coverage threshold is not a passing release gate.",
+    "Later fixes and all subsequent implementation require their own exact-artifact qualification.",
+    "Skipped cases, native interactive/accessibility behavior and model quality remain unqualified by this receipt.",
+    "No inference was performed while assembling this receipt; model testing remains local-only."
+  ]
+}
