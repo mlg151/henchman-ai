@@ -1,0 +1,14 @@
+import asyncio
+import pytest
+from henchman.tools.builtins.subagents import InvokeSubagentTool
+from tests.agents.test_primary_subagent_runtime import test_child_question_and_parent_answer_use_real_queued_messages as question_case
+
+@pytest.mark.parametrize('durable', [False, True])
+async def test_child_runs_while_parent_launch_result_is_delayed(monkeypatch, tmp_path, durable):
+    original = InvokeSubagentTool.execute
+    async def delayed(self, **params):
+        result = await original(self, **params)
+        await asyncio.sleep(.05)
+        return result
+    monkeypatch.setattr(InvokeSubagentTool, 'execute', delayed)
+    await question_case(monkeypatch, tmp_path, durable)

@@ -271,8 +271,12 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     for name in ("invoke_subagent", "send_message"):
         registry.add_auto_approve_policy(name)
     try:
-        await asyncio.wait_for(_collect(orch, "Review requested file"), 3)
-        assert answered
+        events = await asyncio.wait_for(_collect(orch, "Review requested file"), 3)
+        assert answered, (
+            f"parent_calls={parent_calls}; completion={orch.last_completion_status}; "
+            f"children={[record.as_dict() for record in orch.subagents.list()]}; "
+            f"events={[(event.type.value, str(event.data)[:500]) for event in events]}"
+        )
         assert orch.subagents.list()[0].status == "done"
         assert session.operations is not None
         primary = [item for item in session.operations.bindings if item.conversation_id is None]
