@@ -17,8 +17,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   evidence requires explicit reindexing. Explicit repository-mode
   [pattern search](docs/tools.md#pattern_search) adds fresh Python definitions,
   static test/reference candidates and scoped instruction evidence, retaining
-  hashes and partial results through sessions. Live retrieval comparisons and
-  broader performance qualification remain open.
+  hashes and partial results through sessions. A separate
+  [local supplied-evidence comparison](docs/evaluations/2026-11-08-reuse-paired-v2.md)
+  accepted 3/6 combined-search and 5/6 repository-evidence attempts, including
+  two baseline timeouts and guard-denied attempts. It is limited to one model
+  and three fixtures; broader performance and workflow qualification remain open.
 
 - #20 baseline evaluation exports now use shared credential projection before
   JSON serialization, including short/escaped secrets and observed rotations

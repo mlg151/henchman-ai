@@ -28,8 +28,10 @@ snippets. Legacy/stale indexes require explicit reindexing; see
 [`pattern_search` repository mode](docs/tools.md#pattern_search) now adds fresh
 Python implementation, test/reference and scoped instruction evidence with
 current-byte provenance and retained typed results. Static relationships remain
-candidates; live retrieval comparisons and broader performance qualification
-remain open.
+candidates. A separate [local supplied-evidence comparison](docs/evaluations/2026-11-08-reuse-paired-v2.md)
+accepted 3/6 combined-search and 5/6 repository-evidence attempts, with two
+baseline timeouts and guard-denied attempts. One model and three fixtures do not
+establish broader reliability or performance qualification.
 
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed results through provider text projection and session
