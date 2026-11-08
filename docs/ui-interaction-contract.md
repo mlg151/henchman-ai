@@ -177,6 +177,14 @@ list or detail is shown; wide layouts show both. Drafts and transcript chronolog
 are preserved. Opening inspection never creates an agent/provider, launches or
 stops a task, changes approval/queue permission, or adds accounting usage.
 
+In either frontend's command input, `/work` or `/work list` lists these same
+existing observations. `/work inspect agent <exact-id>` and
+`/work inspect task <exact-id>` show bounded retained evidence through the shared
+inspection helpers. The classic command checks the selected project, session and
+owner again after joined reads, and prints literal text with current and retained
+credential policies. Missing owners remain unavailable; inspection does not
+construct or migrate task storage.
+
 Child states come from their runtime owner: waiting for input is explicitly
 blocked, errors remain errors, and cancelled `done` records do not become
 successful completion. These conversations are process-only. Project task
@@ -203,9 +211,10 @@ reads can use lockfiles but do not rewrite index or log payloads.
 
 The [mounted tests](../tests/cli/test_textual_work.py) use actual task owners,
 owned child processes and scripted background agents at 80×24/120×40. They do
-not qualify native accessibility, remote input or human comprehension. Classic
-text drill-down and task interrupt controls remain separate work; this inspector
-does not introduce a scheduler or execution service.
+not qualify native accessibility, remote input or human comprehension. The
+[command tests](../tests/cli/test_work_command.py) cover shared-owner inspection,
+credential changes and cancellation during reads. Task interrupt controls remain
+separate work; neither surface introduces a scheduler or execution service.
 
 ## Pending decision inspection and export
 

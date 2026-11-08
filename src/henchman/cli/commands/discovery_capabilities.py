@@ -44,6 +44,19 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="work inspection",
+        classification="implemented",
+        summary="/work lists existing tasks and agents and inspects exact retained identities.",
+        detail=(
+            "Classic REPL and Textual /work list and /work inspect agent|task <exact-id> "
+            "share bounded read-only evidence with Workspace > Tasks and agents. "
+            "Existing project/session owners are required; unavailable owners and unknown "
+            "outcomes remain explicit. Inspection does not create storage, dispatch, stop, "
+            "retry, resume work or establish task verification."
+        ),
+        aliases=("/work", "tasks and agents", "task inspection", "agent inspection"),
+    ),
+    _CapabilitySpec(
         name="repository evidence",
         classification="runtime-dependent",
         summary="pattern_search strategy=repository returns fresh bounded Python reuse evidence.",

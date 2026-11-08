@@ -38,8 +38,8 @@ display outcomes never authorize execution or establish task acceptance.
 The separate [activity display](ui-interaction-contract.md#activity-status-and-pending-decisions)
 uses worker and prompt ownership to retain cancellation through cleanup and
 ignore stale callbacks. F4 focuses a pending decision without granting approval.
-The [Workspace inspector](ui-interaction-contract.md#task-and-agent-inspection)
-reads existing child-conversation and bound project-task owners. Its bounded
+The [Workspace inspector and `/work` command](ui-interaction-contract.md#task-and-agent-inspection)
+share framework-free reads of existing child-conversation and bound project-task owners. Their bounded
 observations, explicit refresh and Back navigation do not create execution,
 storage or accounting authority; instantiated actors are distinct from running work.
 

@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   owners, blocked/failed/cancelled/unknown states, bounded evidence and actual
   selected provider/model are shown without execution or accounting changes.
   Overview counts distinguish unavailable from zero and avoid ambient task storage.
+  Both frontends also expose `/work [list]` and exact task/agent inspection through
+  shared bounded reads, credential projection and stale-owner checks.
 
 - **Current check freshness in review** — Checkpoint review now shows current
   declared-input status separately from historical results. Inspection uses held
