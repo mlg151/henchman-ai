@@ -17,6 +17,7 @@ from henchman.tools.access_policy import (
     current_access_policies,
     use_access_policies,
     use_network_authorization,
+    use_repository_read_authorization,
 )
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.checkpoint_capture import MutationCheckpoint, use_checkpoint
@@ -739,8 +740,32 @@ class ToolRegistry:
             if capture is not None and permit is not None:
                 capture.dispatched = True
             with use_access_policies(self._effective_access_policies):
+                from henchman.tools.builtins.pattern_search import PatternSearchTool
                 from henchman.tools.builtins.web_fetch import WebFetchTool
 
+                if (type(tool) is PatternSearchTool and params.get("strategy") == "repository"
+                    and getattr(tool.execute, "__func__", None) is PatternSearchTool.execute):
+                    implementation = getattr(tool.execute, "__func__", None)
+                    repository_binding = tool._workspace
+                    repository_session = tool._session_manager
+
+                    def check_repository_authorization() -> None:
+                        if (self._revalidate_authorization(authorization, params) is not None
+                            or getattr(tool.execute, "__func__", None) is not implementation
+                            or tool._workspace is not repository_binding
+                            or tool._session_manager is not repository_session):
+                            raise ToolAccessError("Repository search authorization changed")
+                        if self._check_execution_guards(tool, params) is not None:
+                            raise ToolAccessError("Repository search deferred by execution guard")
+                        if (self._revalidate_authorization(authorization, params) is not None
+                            or getattr(tool.execute, "__func__", None) is not implementation
+                            or tool._workspace is not repository_binding
+                            or tool._session_manager is not repository_session):
+                            raise ToolAccessError("Repository search authorization changed")
+
+                    with use_repository_read_authorization(check_repository_authorization):
+                        repository_execute: Callable[..., Awaitable[ToolResult]] = tool.execute
+                        return await repository_execute(**params)
                 if type(tool) is WebFetchTool and getattr(tool.execute, "__func__", None) is WebFetchTool.execute:
                     implementation = getattr(tool.execute, "__func__", None)
 

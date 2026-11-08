@@ -17,6 +17,11 @@ PYTHON_DEVELOPMENT_WORKFLOW = """
   `symbol_trace`, `file_overview`, and text/file search tools; read candidate
   implementations and callers. Reuse or extend suitable code. A search with no
   matches is evidence about that search, not proof that functionality is absent.
+- For fresh Python reuse evidence, explicitly select `pattern_search` with
+  `strategy="repository"`. Review its implementation/test/reference candidates,
+  scope-specific instruction excerpts, current-byte hashes and partial/error
+  flags; carry the relevant evidence into handoffs. Static relationships are
+  candidates, and retrieval never verifies the task or activates sibling rules.
 - Carry the discovered file paths, symbols, existing behavior, and reuse decision
   into plans, delegation context, and handoff notes. Explain a new implementation
   when existing candidates cannot satisfy the requirement.

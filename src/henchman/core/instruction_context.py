@@ -56,6 +56,11 @@ def _format_targets(target: Path) -> tuple[Path, ...]:
 
 def _tool_targets(tool: Tool, params: dict[str, object]) -> tuple[Path, ...]:
     """Use structured paths, including the patch tool's own parser, never shell text."""
+    if tool.name == "pattern_search" and params.get("strategy") == "repository":
+        root = getattr(tool, "_project_root", None)
+        raw = params.get("path", ".")
+        if isinstance(root, Path) and isinstance(raw, str):
+            return ((root / raw).resolve(),)
     if tool.name == "patch_apply" and isinstance(params.get("patch"), str):
         from henchman.tools.builtins.patch_apply import PatchParser
 

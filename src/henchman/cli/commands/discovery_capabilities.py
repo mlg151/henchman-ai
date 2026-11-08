@@ -44,6 +44,20 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="repository evidence",
+        classification="runtime-dependent",
+        summary="pattern_search strategy=repository returns fresh bounded Python reuse evidence.",
+        detail=(
+            "A bound Git workspace supplies current functions/methods, static test/reference candidates "
+            "and scoped instruction excerpts with byte hashes and revision provenance. "
+            "Explicit partial/unavailable results preserve source and authority limits. "
+            "Restricted tool policies are unsupported; retrieval does not activate instructions, "
+            "resolve runtime call edges or verify the task."
+        ),
+        aliases=("pattern_search", "repository search", "reuse evidence", "scoped instructions"),
+        runtime_tool_names=("pattern_search",),
+    ),
+    _CapabilitySpec(
         name="editor stdio protocol",
         classification="runtime-wired",
         summary="headless --protocol-version 1 --project PATH serves one run over POSIX pipes.",
@@ -354,6 +368,7 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
 )
 
 _TOOL_NAME_TO_CAPABILITY_NAME: Final[dict[str, str]] = {
+    "pattern_search": "repository evidence",
     "invoke_subagent": "background subagents",
     "manage_subagents": "background subagents",
     "send_message": "background subagents",

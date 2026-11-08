@@ -163,6 +163,7 @@ async def run_bounded_subprocess(
     cwd: Path,
     timeout: float,
     max_output_bytes: int = 65536,
+    env: dict[str, str] | None = None,
 ) -> BoundedProcessResult:
     """Run argv with bounded capture and cleanup; this is not a process sandbox.
 
@@ -184,7 +185,7 @@ async def run_bounded_subprocess(
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        env={**(os.environ if env is None else env), "PYTHONIOENCODING": "utf-8"},
         start_new_session=owned_process_group,
     )
     communication = asyncio.create_task(_capture_bounded(process, max_output_bytes))

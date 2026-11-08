@@ -218,6 +218,43 @@ def current_access_policies() -> tuple[ToolAccessPolicy, ...]:
     return _POLICIES.get()
 
 
+@dataclass
+class _RepositoryReadAuthorization:
+    check: Callable[[], None]
+    active: bool = True
+
+    def require_current(self) -> None:
+        if not self.active:
+            raise ToolAccessError("Repository read authorization is closed")
+        self.check()
+
+
+_REPOSITORY_READ_AUTHORITY: ContextVar[tuple[_RepositoryReadAuthorization, ...]] = ContextVar(
+    "henchman_repository_read_authority", default=(),
+)
+
+
+@contextmanager
+def use_repository_read_authorization(check: Callable[[], None]) -> Iterator[None]:
+    """Lease only an admitted fresh repository search; revoke on every exit."""
+    authority = _RepositoryReadAuthorization(check)
+    token = _REPOSITORY_READ_AUTHORITY.set((*_REPOSITORY_READ_AUTHORITY.get(), authority))
+    try:
+        yield
+    finally:
+        authority.active = False
+        _REPOSITORY_READ_AUTHORITY.reset(token)
+
+
+def check_repository_read_authorization() -> None:
+    """Recheck current invocation authority before reads and after cooperative waits."""
+    for authority in _REPOSITORY_READ_AUTHORITY.get():
+        authority.require_current()
+    # This checkpoint does not qualify repository traversal under restrictions.
+    if any(policy.restricted for policy in current_access_policies()):
+        raise ToolAccessError("Repository search is unsupported under restricted tool policy")
+
+
 @contextmanager
 def use_access_policies(policies: tuple[ToolAccessPolicy, ...]) -> Iterator[None]:
     """Bind restrictions to this operation and its child tasks without widening."""

@@ -6,8 +6,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 - #17 now binds semantic retrieval to separate worktree caches and checks source
   bytes, paths and revisions before returning bounded snippets. Legacy/stale
-  evidence requires explicit reindexing. Structural discovery and combined
-  evidence packaging remain open; see [RAG evidence](docs/tools.md#rag_search).
+  evidence requires explicit reindexing. Explicit repository-mode
+  [pattern search](docs/tools.md#pattern_search) adds fresh Python definitions,
+  static test/reference candidates and scoped instruction evidence, retaining
+  hashes and partial results through sessions. Live retrieval comparisons and
+  broader performance qualification remain open.
 
 - #20 baseline evaluation exports now use shared credential projection before
   JSON serialization, including short/escaped secrets and observed rotations

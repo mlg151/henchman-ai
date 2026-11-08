@@ -6,9 +6,12 @@ import contextlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+
+if TYPE_CHECKING:
+    from henchman.rag.evidence import WorkspaceBinding
 
 _MAX_RESULTS = 200
 _MAX_OUTPUT_CHARS = 50_000
@@ -345,6 +348,22 @@ class PatternSearchTool(Tool):
     patterns described in plain English.
     """
 
+    def __init__(self, *, project_root: Path | None = None) -> None:
+        self._project_root: Path | None = None
+        self._workspace: WorkspaceBinding | None = None
+        self._session_manager: object | None = None
+        if project_root is not None:
+            self.bind_runtime(project_root=project_root)
+
+    def bind_runtime(self, *, project_root: Path | None, session_manager: object = None,
+                     **kwargs: object) -> None:
+        """Capture a trusted physical workspace; model parameters cannot rebind it."""
+        from henchman.rag.evidence import WorkspaceBinding
+
+        self._workspace = WorkspaceBinding.bind(project_root) if project_root is not None else None
+        self._project_root = self._workspace.root if self._workspace is not None else None
+        self._session_manager = session_manager
+
     _parameters: ClassVar[dict[str, object]] = {
         "type": "object",
         "properties": {
@@ -371,9 +390,9 @@ class PatternSearchTool(Tool):
                 "description": (
                     "Search strategy: 'semantic' (keyword-based), "
                     "'structural' (structural pattern extraction), "
-                    "or 'combined' (both)"
+                    "'combined' (both), or 'repository' (bounded fresh Python evidence pack)"
                 ),
-                "enum": ["semantic", "structural", "combined"],
+                "enum": ["semantic", "structural", "combined", "repository"],
                 "default": "combined",
             },
         },
@@ -420,6 +439,21 @@ class PatternSearchTool(Tool):
         Returns:
             ToolResult with ranked pattern search results.
         """
+        if strategy == "repository":
+            from henchman.analysis.repository_search import search_repository
+            from henchman.rag.evidence import validate_query
+
+            try:
+                validate_query(description, top_k)
+            except ValueError as exc:
+                return ToolResult(content=str(exc), success=False, error=str(exc))
+            if self._workspace is None:
+                return ToolResult(content="Repository search requires a bound workspace",
+                                  success=False, error="Repository search requires a bound workspace")
+            return await search_repository(
+                self._workspace, description=description, path=path, top_k=top_k,
+                instruction_snapshot=getattr(self._session_manager, "instruction_snapshot", None),
+            )
         if not description:
             return ToolResult(
                 content="Error: description is required",

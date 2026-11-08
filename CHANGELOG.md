@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fresh repository evidence packs** — Explicit `pattern_search` repository
+  mode finds bounded Python implementations, static test/reference candidates
+  and scoped instruction excerpts from current Git worktree bytes. Typed results
+  retain provenance through sessions and compaction; late changes or revoked
+  authority discard evidence. Partial coverage is explicit and retrieval never
+  claims task verification. Live comparative qualification remains open.
+
 - **Explicit settings-control transfer** — Local export can include nonsecret
   usage, operation persistence and verification controls with `--include-controls`.
   Import requires `--accept-control-changes` and preserves partial mappings,

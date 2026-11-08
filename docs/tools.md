@@ -436,10 +436,39 @@ Search code using natural language descriptions. Extracts keywords and structura
     "description": "string (required) - Natural language description of what to find, e.g. 'functions that handle HTTP errors', 'classes that inherit from Tool'",
     "path": "string (optional) - Root directory or file to search (defaults to current directory)",
     "top_k": "integer (optional) - Maximum number of results to return",
-    "strategy": "string (optional) - Search strategy: 'semantic' (keyword-based), 'structural' (structural pattern extraction), or 'combined' (both)"
+    "strategy": "string (optional) - 'semantic' (keywords), 'structural' (patterns), 'combined' (both, default), or 'repository' (fresh Python evidence)"
   }
 }
 ```
+
+With `strategy="repository"`, the runtime must bind a physical Git workspace.
+The tool freshly enumerates tracked and untracked nonignored Python files and
+returns a typed JSON evidence pack: ranked functions/methods, candidate tests and
+static references, plus applicable ancestor instruction excerpts. Each source
+carries its literal path, line range, full-byte SHA-256 and observed revision;
+instruction records link to the implementations they apply to. Excerpts remain
+untrusted evidence and do not activate sibling or global instructions. These
+records survive tool-result persistence, handoffs and session compaction.
+
+For example, `{"description":"normalize labels","path":".","top_k":5,
+"strategy":"repository"}` looks for existing implementations before an edit.
+Ranking uses identifier/docstring keywords. Static references, including import
+aliases, are candidates rather than resolved runtime call edges; classes, types
+and non-Python implementations are outside this strategy.
+
+The scan bounds Git output to 1 MiB per command and 20,000 entries across the
+three listings, reads at most 256 Python files (256 KiB each, 4 MiB total), and
+returns at most 20 implementations and eight instruction sources in 48 KiB of
+JSON. Current bytes, membership, revision and instruction discovery are rechecked
+before publication; the byte recheck has a separate 4 MiB allowance. A cooperative
+10-second deadline includes owned Git execution, whose cleanup may extend elapsed
+time. This is neither a hard filesystem deadline nor an atomic snapshot.
+
+Malformed or omitted sources produce explicit partial evidence with
+`success=false`; stale sources or revoked authority discard the pack. Restricted
+tool policies are unsupported. No index, embedding service, model or network is
+required. Retrieval always leaves `task_verified=false`; inspect the evidence
+and run the relevant checks before claiming a task is correct.
 
 #### symbol_trace
 

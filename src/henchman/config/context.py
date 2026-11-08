@@ -136,6 +136,40 @@ DEFAULT_FILENAMES: tuple[str, ...] = (
 """Default context filenames to search for, in priority order."""
 
 
+def repository_instruction_candidates(
+    root: Path, target: Path, filenames: tuple[str, ...] = DEFAULT_FILENAMES,
+    *, max_checks: int = 512,
+) -> tuple[tuple[Path, Path], ...]:
+    """Discover bounded ancestor instruction paths without reading their contents.
+
+    This repository-only evidence view never loads global instructions or makes
+    sibling instructions active. Content capture and path safety belong to the
+    caller. Filename priority and root-first scope order match ContextLoader.
+    """
+    if not target.is_relative_to(root) or len(filenames) > 32:
+        raise ValueError("instruction_discovery_unavailable")
+    for filename in filenames:
+        path = Path(filename)
+        if (not filename or len(filename) > 512 or path.is_absolute()
+            or ".." in path.parts or "\\" in filename or "\0" in filename):
+            raise ValueError("instruction_filename_invalid")
+    scopes: list[Path] = []
+    current = target.parent
+    while current.is_relative_to(root):
+        scopes.append(current)
+        if len(scopes) * max(1, len(filenames)) > max_checks:
+            raise ValueError("instruction_discovery_budget_exceeded")
+        if current == root or (current / ".git").exists():
+            break
+        current = current.parent
+    return tuple(
+        (scope / filename, scope)
+        for scope in reversed(scopes)
+        for filename in filenames
+        if (scope / filename).exists() or (scope / filename).is_symlink()
+    )
+
+
 def _load_gitignore_patterns(base_dir: Path) -> list[str]:
     """Load simple gitignore-style patterns from ``base_dir/.gitignore``.
 

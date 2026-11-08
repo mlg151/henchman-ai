@@ -6,6 +6,7 @@ import hashlib
 import os
 import stat
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -169,7 +170,9 @@ class WorkspaceSnapshot:
             raise EvidenceUnavailable("repository_revision_changed")
 
 
-def _source_path(workspace: WorkspaceSnapshot, relative: str) -> Path:
+def _source_path(
+    workspace: WorkspaceSnapshot, relative: str, *, require_tracked: bool = True,
+) -> Path:
     if (
         not isinstance(relative, str)
         or not relative
@@ -190,9 +193,10 @@ def _source_path(workspace: WorkspaceSnapshot, relative: str) -> Path:
             raise EvidenceUnavailable("source_symlink_unavailable")
     if not current.resolve(strict=True).is_relative_to(workspace.binding.root):
         raise EvidenceUnavailable("source_path_outside_repository")
-    tracked = _git(workspace.binding.root, "ls-files", "--error-unmatch", "--", relative)
-    if tracked.returncode != 0:
-        raise EvidenceUnavailable("source_not_tracked")
+    if require_tracked:
+        tracked = _git(workspace.binding.root, "ls-files", "--error-unmatch", "--", relative)
+        if tracked.returncode != 0:
+            raise EvidenceUnavailable("source_not_tracked")
     return current
 
 
@@ -209,9 +213,10 @@ class SourceSnapshot:
     text: str
     size: int
     identity: tuple[int, ...]
+    require_tracked: bool = True
 
     def check(self, workspace: WorkspaceSnapshot) -> None:
-        current = read_source(workspace, self.relative_path)
+        current = read_source(workspace, self.relative_path, require_tracked=self.require_tracked)
         if current.identity != self.identity or current.sha256 != self.sha256:
             raise EvidenceUnavailable("source_changed_during_retrieval")
 
@@ -221,9 +226,11 @@ def read_source(
     relative: str,
     *,
     max_bytes: int = MAX_FILE_BYTES,
+    require_tracked: bool = True,
+    byte_observer: Callable[[int], None] | None = None,
 ) -> SourceSnapshot:
-    """Read only a tracked regular source, checking path and descriptor identities."""
-    path = _source_path(workspace, relative)
+    """Read bounded regular bytes; callers may supply independently checked membership."""
+    path = _source_path(workspace, relative, require_tracked=require_tracked)
     before = path.stat()
     if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
         raise EvidenceUnavailable("source_type_unavailable")
@@ -238,11 +245,13 @@ def read_source(
         if not stat.S_ISREG(opened.st_mode) or _file_identity(opened) != _file_identity(before):
             raise EvidenceUnavailable("source_changed_during_read")
         raw = stream.read(limit + 1)
+        if byte_observer is not None:
+            byte_observer(len(raw))
         after = os.fstat(stream.fileno())
     if len(raw) > limit:
         raise EvidenceUnavailable("source_byte_budget_exceeded")
     if _file_identity(after) != _file_identity(before) or _file_identity(
-        _source_path(workspace, relative).stat()
+        _source_path(workspace, relative, require_tracked=require_tracked).stat()
     ) != _file_identity(after):
         raise EvidenceUnavailable("source_changed_during_read")
     try:
@@ -250,5 +259,6 @@ def read_source(
     except UnicodeError as exc:
         raise EvidenceUnavailable("source_encoding_unavailable") from exc
     return SourceSnapshot(
-        relative, hashlib.sha256(raw).hexdigest(), text, len(raw), _file_identity(after)
+        relative, hashlib.sha256(raw).hexdigest(), text, len(raw), _file_identity(after),
+        require_tracked,
     )

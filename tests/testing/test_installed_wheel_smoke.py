@@ -196,6 +196,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/cli/test_headless_stdio.py",
         "tests/cli/test_console_entrypoint.py",
         "tests/rag/test_current_evidence.py",
+        "tests/tools/test_repository_pattern_search.py",
         "tests/core/test_event_evidence_identity.py",
         "tests/tools/test_execution_guard_inheritance.py",
         "tests/cli/test_output_mode_rendering.py",

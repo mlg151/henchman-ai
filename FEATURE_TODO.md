@@ -12,8 +12,12 @@ user instruction; hosted-provider qualification remains unverified.
 Repository retrieval under #17 now separates worktree caches and validates
 bounded semantic candidates against current tracked-file bytes before returning
 snippets. Legacy/stale indexes require explicit reindexing; see
-[current-file RAG evidence](docs/tools.md#rag_search). Structural discovery,
-cross-source evidence packaging and broader performance qualification remain open.
+[current-file RAG evidence](docs/tools.md#rag_search). Explicit
+[`pattern_search` repository mode](docs/tools.md#pattern_search) now adds fresh
+Python implementation, test/reference and scoped instruction evidence with
+current-byte provenance and retained typed results. Static relationships remain
+candidates; live retrieval comparisons and broader performance qualification
+remain open.
 
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed results through provider text projection and session
