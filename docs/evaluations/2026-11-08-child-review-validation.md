@@ -32,3 +32,19 @@ focused tests, importing Henchman from `site-packages`. These include scripted
 dynamic child execution, overlapping child proposals, user-edit conflicts,
 policy changes, cancellation, stale review authority and separate publication
 approval. They do not establish native-platform behavior or live-model quality.
+
+The later CI runs on `303167c` exposed an Anthropic headless-team test failure
+on multiple platform jobs. Using the installed `c8b0e43` wheel and a scripted
+transport on Linux Python 3.12 with the same long temporary path, the estimated
+input was 8,259 tokens plus the 8,192-token output reservation, exceeding the
+test's 16,384-token context window. The earlier `cbd99de` wheel passed the same
+scenario with 8,085 input tokens. A shorter path passed on the newer wheel with
+only 58 tokens remaining. These are local reproductions, not measurements of
+the CI machines' exact inputs.
+
+The headless workflow test now uses a 32,768-token window because it tests team
+execution and its prompts include variable temporary paths and the evolving tool
+catalog. Both previously failing Anthropic output modes passed locally with the
+long path; 49 focused request-budget, tool-disclosure and evaluation-harness
+tests also passed. This test change does not remove the real 16K capacity
+limitation or qualify the fix on Windows and macOS; new CI results are needed.

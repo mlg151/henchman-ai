@@ -10,6 +10,7 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import click
 import pytest
 from rich.console import Console
 from tests.e2e.provider_transport import bind_scripted_transport
@@ -104,9 +105,10 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         return True
 
     registry.set_confirmation_handler(approve)
-    # Canonical team prompts, tool schemas and output reservations exceed 8K.
-    # Exercise a declared 16K request window rather than relying on input-only accounting.
-    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 16384})
+    # This integration test exercises the team workflow, not a fixed context
+    # limit. Its prompts include temporary paths and grow with the tool catalog;
+    # request-budget tests separately check that oversized requests are rejected.
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     if attempt_unlisted_write:
         # The primary is unrestricted by default; this scenario tests an explicit user scope.
@@ -123,13 +125,21 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         if output_mode == "json-complete":
             output = io.StringIO()
             monkeypatch.setattr(app, "console", Console(file=output, width=10000, highlight=False, markup=False))
-            await app._run_headless_json_complete(repl, "Repair totals using existing code with specialist review")
+            try:
+                await app._run_headless_json_complete(repl, "Repair totals using existing code with specialist review")
+            except click.ClickException as error:
+                try:
+                    captured = json.loads(output.getvalue())
+                    failures = [event for event in captured if event.get("type") == "error"]
+                except (ValueError, TypeError, AttributeError):
+                    failures = []
+                pytest.fail(f"Headless JSON failed: {error}; error events: {failures}", pytrace=False)
             events = json.loads(output.getvalue())
         else:
             raw = []
-            assert await app._run_headless_json_mode(repl, "Repair totals with specialist review", raw.append), [
-                event_to_dict(event) for event in raw if event.type.value == "error"
-            ]
+            if not await app._run_headless_json_mode(repl, "Repair totals with specialist review", raw.append):
+                failures = [event_to_dict(event) for event in raw if event.type.value == "error"]
+                pytest.fail(f"Headless event mode failed: {failures}", pytrace=False)
             events = [event_to_dict(event) for event in raw]
     finally:
         await orch.aclose()
