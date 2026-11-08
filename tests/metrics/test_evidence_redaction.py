@@ -166,9 +166,8 @@ def test_export_filesystem_failures_project_path_and_keep_errno(tmp_path, format
     path.mkdir()
     # Windows reports a directory write as PermissionError; compare the native
     # error instead of requiring POSIX's IsADirectoryError/EISDIR spelling.
-    with pytest.raises(OSError) as original:
-        with path.open("w"):
-            pass
+    with pytest.raises(OSError) as original, path.open("w"):
+        pass
     with pytest.raises(type(original.value)) as caught:
         getattr(MetricsExporter(storage), "export_to_" + format_name)(path)
     assert caught.value.errno == original.value.errno
