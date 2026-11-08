@@ -242,15 +242,17 @@ finally:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX protocol argument parsing")
-@pytest.mark.parametrize("invalid", ["version", "option", "project"])
+@pytest.mark.parametrize("invalid", ["version", "option", "option_help", "project"])
 def test_protocol_argument_errors_do_not_echo_known_credentials(tmp_path, monkeypatch, invalid):
     marker = "headless-argument-private-canary"
     monkeypatch.setenv("OPENAI_API_KEY", marker)
     arguments = ["headless", "--protocol-version", "1", "--project", str(tmp_path)]
     if invalid == "version":
         arguments[2] = marker
-    elif invalid == "option":
+    elif invalid in {"option", "option_help"}:
         arguments.append("--" + marker)
+        if invalid == "option_help":
+            arguments.append("--help")
     else:
         arguments[-1] = str(tmp_path / marker)
     result = subprocess.run([sys.executable, "-m", "henchman", *arguments], input=b"",

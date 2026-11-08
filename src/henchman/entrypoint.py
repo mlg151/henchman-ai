@@ -79,11 +79,10 @@ def main() -> None:
             print(str(error) if isinstance(error, RuntimeError) else "Unable to isolate protocol pipes.", file=sys.stderr)
             raise SystemExit(2) from None
     try:
-        from henchman.cli.app import cli
-        from henchman.cli.app import main as cli_main
-
-        if protocol and not help_only:
+        if protocol:
             import click
+
+            from henchman.cli.app import cli
 
             try:
                 # The explicit command needs no legacy argv normalization.
@@ -97,6 +96,8 @@ def main() -> None:
                 print("Headless startup interrupted.", file=sys.stderr)
                 raise SystemExit(130) from None
         else:
+            from henchman.cli.app import main as cli_main
+
             cli_main()
     finally:
         if _pipes is not None:
