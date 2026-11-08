@@ -36,6 +36,17 @@ cleanup; that log SHA-256 is
 The changed test copy was restored afterward. These development-wheel results
 do not qualify a release artifact.
 
+Five separate Python 3.11 pytest processes subsequently passed the ordinary
+concurrent case; the combined log SHA-256 is
+`a4c92fcf545c286d75f770ad40be3a1977a0c4a5cf45b6d6911335389bef3a76`.
+Two earlier attempts to repeat selected nodes in one pytest process executed
+only the two distinct parameter cases, so they are not counted as repeated
+trials. Their respective log SHA-256 values are
+`e7c31dc78759ef7d74503bb21c3dc7c069ff6b805936020aac642dbbdf79cc03` and
+`f598b76ba24dc91179e08ac7fb4d40c0ed9808d6e755343978dc63ccc49f0847`.
+These short local repetitions do not reproduce the full CI environment or prove
+the intermittent failure cannot recur.
+
 All 12 installed-wheel jobs in the original `4ba6f71` run later passed across
 Linux, macOS and Windows. The Windows 3.11 job, which had failed repair-owner
 tests on the earlier `c0cbe17` run, reported **5,965 passed, 242 skipped**;
