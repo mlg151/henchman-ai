@@ -32,7 +32,9 @@ instrumented trials do not replace the paired result or establish a fix.
 
 The offline [repository reuse oracle prototype](repository_reuse_oracle_v1/README.md)
 checks small fixtures and rejects copied helper logic with an injected call
-recorder. It is preparation for a comparison, not a completed model evaluation.
+recorder. A separate [paired experiment harness](repository_reuse_paired_v1/README.md)
+has passed a [synthetic preflight](../docs/evaluations/2026-11-08-reuse-preflight-v2.md);
+that preflight does not measure model quality.
 
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
