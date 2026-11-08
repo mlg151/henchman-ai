@@ -101,7 +101,9 @@ def test_selected_cached_role_is_actual_provider_and_inspection_never_constructs
 
 
 @pytest.mark.parametrize("durable", [False, True])
-def test_shared_usage_preserves_sources_coverage_currencies_and_session_scope(context_app, durable):
+def test_shared_usage_preserves_sources_coverage_currencies_and_session_scope(context_app, durable, monkeypatch):
+    from dataclasses import replace
+
     app, session, _, accounting = context_app
     accounting.settings.usage.persistence = "durable" if durable else "process"
     scope = accounting.begin(AccountingProvider())
@@ -115,17 +117,29 @@ def test_shared_usage_preserves_sources_coverage_currencies_and_session_scope(co
     third = scope.ledger.reserve(RequestEstimate(10, 10), provider="local", model="three")
     scope.ledger.start(third.request_id)
     scope.ledger.reconcile(third.request_id, UsageReport(total_tokens=7, source="estimated"), final=True)
+    original_snapshot = accounting.usage_snapshot
+
+    def snapshot_with_elapsed(selected_session):
+        snapshot = original_snapshot(selected_session)
+        return replace(snapshot, elapsed_seconds=0.3) if snapshot is not None else None
+
+    monkeypatch.setattr(accounting, "usage_snapshot", snapshot_with_elapsed)
     text = inspect_context(capture_context(app)).sections["Usage"]
+    assert "Time: 0.3s elapsed; unlimited" in text
     assert f"Accounting: {'durable' if durable else 'process'}" in text
     assert "3 dispatched" in text
     assert f"Uncertain usage: {scope.ledger.snapshot().unknown_dispatched_requests} dispatched requests" in text
     assert "reported: 12 observed tokens; 1/1 requests have totals" in text
     assert "estimated: 7 observed tokens" in text
     assert "unknown: tokens unavailable; 0/1 requests have totals" in text
-    assert "Reported billing: USD 0.1" in text and "Reported billing: EUR 0.2" in text
-    assert "Estimated cost: unavailable" in text and "0.3" not in text
+    money_rows = [line for line in text.splitlines()
+                  if line.startswith(("Reported billing:", "Estimated cost:", "Held estimate:"))]
+    assert sorted(money_rows) == sorted([
+        "Reported billing: USD 0.1", "Reported billing: EUR 0.2",
+        "Estimated cost: unavailable", "Estimated cost: unavailable",
+        "Held estimate: unavailable", "Held estimate: unavailable",
+    ])
     # A real different Session, rather than reusing a previous global last scope.
-    from dataclasses import replace
     app.core_context.session_manager.session = replace(session, id="different-session", accounting=None)
     assert "No run accounting" in inspect_context(capture_context(app)).sections["Usage"]
 
