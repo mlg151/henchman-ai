@@ -1,4 +1,4 @@
-"""Bounded, read-only inspection of already owned project work."""
+"""Bounded inspection and explicit interruption of owned project tasks."""
 from __future__ import annotations
 
 import asyncio
@@ -41,7 +41,7 @@ class _WorkDetails(TextArea):
 
 
 class WorkInspector(ModalScreen[None]):
-    """Inspect explicit snapshots without dispatch, cancellation, or grants."""
+    """Inspect work and stop an explicitly selected, locally owned task."""
 
     DEFAULT_CSS = """
     WorkInspector { background: $surface; }
@@ -59,6 +59,7 @@ class WorkInspector(ModalScreen[None]):
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("escape", "back", "Back", priority=True),
         Binding("f5", "refresh", "Refresh", priority=True),
+        Binding("f6", "stop_task", "Stop task", priority=True),
     ]
 
     def __init__(self, runtime: Any) -> None:
@@ -80,6 +81,7 @@ class WorkInspector(ModalScreen[None]):
         self._work_closing = False
         self._stale = False
         self._selection = 0
+        self._stop_target: tuple[str, int, int, int] | None = None
 
     def _identity(self) -> tuple[Any, ...]:
         return self._inspection.identity()
@@ -106,7 +108,8 @@ class WorkInspector(ModalScreen[None]):
                 yield Button("Refresh", id="work-refresh")
                 yield Button("Inspect", id="work-inspect")
                 yield Button("Copy", id="work-copy")
-            yield Static("Enter inspects · Esc returns to list, then closes · F5 refreshes", markup=False, id="work-hint")
+                yield Button("Stop task", id="work-stop")
+            yield Static("Enter inspects · Esc goes back · F5 refreshes · F6 stops selected task", markup=False, id="work-hint")
 
     def on_mount(self) -> None:
         self.query_one(OptionList).focus()
@@ -143,6 +146,11 @@ class WorkInspector(ModalScreen[None]):
         for name in ("refresh", "inspect"):
             self.query_one("#work-" + name, Button).disabled = self._busy or self._stale or self._work_closing
         self.query_one("#work-copy", Button).disabled = not self._fields
+        target = self._stop_target
+        self.query_one("#work-stop", Button).disabled = (
+            self._busy or self._stale or self._work_closing or self._stage != "detail"
+            or target is None or target[2] != options.highlighted or target[3] != self._selection
+        )
         self._layout()
 
     def _run(self, action: Any) -> None:
@@ -169,6 +177,7 @@ class WorkInspector(ModalScreen[None]):
             self._admit()
             self._rows = rows
             self._fields = ()
+            self._stop_target = None
             self._stage = "list"
             self._selection += 1
             self._status = notice
@@ -181,6 +190,7 @@ class WorkInspector(ModalScreen[None]):
         row, selection = self._rows[index], self._selection
         async def inspect() -> None:
             self._fields = ()
+            self._stop_target = None
             self._output_interrupted = False
             self._render_view()
             fields, self._output_interrupted = await self._inspection.inspect(row.kind, row.identity, task_reader=_task_details)
@@ -189,10 +199,48 @@ class WorkInspector(ModalScreen[None]):
                 raise ValueError("Selection changed during inspection; inspect it again")
             self._fields = fields
             self._stage = "detail"
+            values = dict(fields)
+            if row.kind == "task" and values.get("State") == "running":
+                self._stop_target = (row.identity, int(values["Revision"]), index, selection)
             self._status = "Captured observation. Work continues independently; Refresh reads current state."
             self._render_view()
             self.query_one(TextArea).focus()
         self._run(inspect)
+
+    def action_stop_task(self) -> None:
+        target = self._stop_target
+        if target is None:
+            return
+        identity, revision, index, selection = target
+
+        def selection_current() -> None:
+            self._admit()
+            if (self._stage != "detail" or self._stop_target != target
+                or self._selection != selection or self.query_one(OptionList).highlighted != index):
+                raise ValueError("Selection changed; inspect the task again")
+
+        async def stop() -> None:
+            selection_current()
+            self._status = "Checking task ownership before stopping."
+            self._render_view()
+
+            def requested() -> None:
+                self._status = "Stop requested; checking owner, then waiting for cleanup."
+                self._render_view()
+
+            result = await self._inspection.interrupt_task(
+                identity, expected_revision=revision, selection_current=selection_current, on_requested=requested,
+            )
+            self._stop_target = None
+            self._fields = (("Task", identity), ("State", result.status))
+            self._output_interrupted = result.status != "completed"
+            self._status = (
+                "Task stopped; owned process and capture cleanup completed."
+                if result.status == "stopped"
+                else f"Stop request settled with state {result.status}; refresh for details."
+            )
+
+        self._run(stop)
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         event.stop()
@@ -249,6 +297,8 @@ class WorkInspector(ModalScreen[None]):
             self.action_inspect()
         elif event.button.id == "work-copy":
             self.action_copy()
+        elif event.button.id == "work-stop":
+            self.action_stop_task()
 
 
 def open_work_inspector(runtime: Any) -> None:

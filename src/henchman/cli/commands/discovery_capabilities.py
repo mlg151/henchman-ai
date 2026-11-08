@@ -46,13 +46,14 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
         name="work inspection",
         classification="implemented",
-        summary="/work lists existing tasks and agents and inspects exact retained identities.",
+        summary="/work inspects existing tasks and agents and can stop an owned task by exact ID.",
         detail=(
             "Classic REPL and Textual /work list and /work inspect agent|task <exact-id> "
             "share bounded read-only evidence with Workspace > Tasks and agents. "
             "Existing project/session owners are required; unavailable owners and unknown "
-            "outcomes remain explicit. Inspection does not create storage, dispatch, stop, "
-            "retry, resume work or establish task verification."
+            "outcomes remain explicit. /work stop task <exact-id> and the selected task "
+            "control stop only a current in-process owner and wait for cleanup. Inspection "
+            "does not create storage, retry, resume work or establish task verification."
         ),
         aliases=("/work", "tasks and agents", "task inspection", "agent inspection"),
     ),
@@ -360,7 +361,8 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
             "project-scoped saved metadata, inspects recovery and requires an explicit "
             "save-or-switch choice; it preserves drafts and holds queues/goals. "
             "Workspace > Tasks and agents inspects existing runtime children and bound "
-            "project tasks with explicit Refresh and Back; it does not execute work. "
+            "project tasks with explicit Refresh and Back, and can stop a selected "
+            "locally owned task; it does not start work. "
             "Unavailable owners and unknown outcomes remain explicit."
         ),
         aliases=("tier10", "tier 10", "textual", "dialog", "dialogs"),

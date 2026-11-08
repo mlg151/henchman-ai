@@ -1,4 +1,4 @@
-"""Read-only task and agent inspection over existing frontend owners."""
+"""Task and agent inspection and explicit owned-task interruption."""
 from __future__ import annotations
 
 from typing import Literal
@@ -12,7 +12,7 @@ from henchman.utils.exception_evidence import exception_text
 
 
 class WorkCommand(Command):
-    """Inspect observed work without dispatch, cancellation, recovery or grants."""
+    """Inspect observed work or explicitly stop a locally owned task."""
 
     @property
     def name(self) -> str:
@@ -20,16 +20,17 @@ class WorkCommand(Command):
 
     @property
     def description(self) -> str:
-        return "List existing tasks and agents or inspect their retained evidence"
+        return "Inspect tasks and agents or stop an owned task by exact ID"
 
     @property
     def usage(self) -> str:
-        return "/work [list] | /work inspect agent|task <exact-id>"
+        return "/work [list] | /work inspect agent|task <exact-id> | /work stop task <exact-id>"
 
     async def execute(self, ctx: CommandContext) -> None:
         listing = not ctx.args or ctx.args == ["list"]
         inspecting = len(ctx.args) == 3 and ctx.args[0] == "inspect" and ctx.args[1] in {"agent", "task"}
-        if not listing and not inspecting:
+        stopping = len(ctx.args) == 3 and ctx.args[:2] == ["stop", "task"]
+        if not listing and not inspecting and not stopping:
             ctx.console.print(Text(f"Usage: {self.usage}"))
             return
         runtime = ctx.repl if ctx.repl is not None else ctx
@@ -42,10 +43,20 @@ class WorkCommand(Command):
             if listing:
                 rows, notice = await inspection.catalog()
                 text = inspection.catalog_text(rows, notice)
-            else:
+            elif inspecting:
                 kind: Literal["agent", "task"] = "agent" if ctx.args[1] == "agent" else "task"
                 fields, interrupted = await inspection.inspect(kind, ctx.args[2])
                 text = inspection.details(fields, interrupted=interrupted)
+            else:
+                result = await inspection.interrupt_current_task(
+                    ctx.args[2],
+                    on_requested=lambda: ctx.console.print(Text("Stop requested; checking owner, then waiting for cleanup.")),
+                )
+                text = inspection.details(
+                    (("Task", result.task_id), ("State", result.status),
+                     ("Outcome", "Stop request settled; refresh for retained evidence.")),
+                    interrupted=result.status != "completed",
+                )
             inspection.admit()
             ctx.console.print(Text(text))
         except Exception as error:

@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Owned task interruption** — Workspace task details provide **Stop task**
+  and F6, and both frontends accept `/work stop task <exact-id>`. Controls
+  recheck the bound project, session, task revision and in-process owner, then
+  wait for existing cleanup. Stored PIDs cannot authorize a stop; the settled
+  state does not imply task verification.
+
 - **Bounded delegation** — One configurable runtime limit covers executing
   descendants across dynamic, named, nested and parallel routes. Refusals are
   explicit, cleanup retains capacity until joined, and retired session work

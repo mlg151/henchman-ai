@@ -215,6 +215,18 @@ owner again after joined reads, and prints literal text with current and retaine
 credential policies. Missing owners remain unavailable; inspection does not
 construct or migrate task storage.
 
+To stop a running task owned by this process, inspect it and use **Stop task**
+or F6; both frontends also accept `/work stop task <exact-id>`. The inspector
+rechecks the selected task revision, project, session and owner before issuing
+the request, including the task's owning event loop. The command captures and
+rechecks the current revision. Stored
+PIDs and recovered unowned tasks never grant authority to signal a process.
+The interface acknowledges the request while cleanup is pending and reports
+the settled state afterward; closing an inspector joins an already-started stop.
+Stopping execution is not task verification, and child-agent interruption is
+not provided by these controls. Revision checks are observations; they do not
+lock out other processes from changing task metadata after the check.
+
 Child states come from their runtime owner: waiting for input is explicitly
 blocked, errors remain errors, and cancelled `done` records do not become
 successful completion. These conversations are process-only. Project task

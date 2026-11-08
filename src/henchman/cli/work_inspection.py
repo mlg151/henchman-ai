@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,7 +94,7 @@ def _task_details(service: TaskService, identity: str) -> tuple[TaskRecord, str]
 
 
 class WorkInspection:
-    """Read existing owners without dispatch, persistence, recovery or grants."""
+    """Inspect existing owners and explicitly stop a locally owned task."""
 
     def __init__(self, runtime: Any) -> None:
         self.runtime = runtime
@@ -179,6 +180,83 @@ class WorkInspection:
             lines.append(label)
             size += length
         return "\n".join(lines)
+
+    async def interrupt_task(
+        self, identity: str, *, expected_revision: int,
+        selection_current: Callable[[], None] | None = None,
+        on_requested: Callable[[], None] | None = None,
+    ) -> TaskRecord:
+        """Stop a selected, still-owned task and join its existing cleanup."""
+        requester = asyncio.current_task()
+
+        def admit() -> None:
+            self.admit()
+            if selection_current is not None:
+                selection_current()
+
+        admit()
+        if (not identity or len(identity) > 512 or any(ord(char) < 32 for char in identity)
+            or type(expected_revision) is not int or expected_revision < 0):
+            raise ValueError("Invalid task identity or revision")
+        service = self.service
+        if service is None:
+            raise ValueError("Bound project task service unavailable")
+        record = await _joined(asyncio.create_task(asyncio.to_thread(service.get_task, identity)))
+        admit()
+        if record is None or record.revision != expected_revision:
+            raise ValueError("Task changed; refresh the selection before stopping it")
+        runtime = service._runtime
+        process = runtime.processes.get(identity)
+        waiter = runtime.waiters.get(identity)
+        loop = asyncio.get_running_loop()
+        if (runtime.process_id != os.getpid() or record.owner_id != runtime.owner_id
+            or record.status != "running" or process is None or process.returncode is not None
+            or waiter is None or waiter.done() or waiter.get_loop() is not loop):
+            raise ValueError("Task is not a running process owned by this runtime")
+
+        async def stop() -> TaskRecord:
+            # Recheck after scheduling and before TaskService can signal a
+            # process. Stored PIDs never confer authority to stop anything.
+            def check() -> None:
+                if requester is None or requester.cancelling():
+                    raise asyncio.CancelledError
+                admit()
+                latest = runtime.records.get(identity)
+                if (runtime.process_id != os.getpid() or runtime.processes.get(identity) is not process
+                    or process.returncode is not None or latest is None
+                    or runtime.waiters.get(identity) is not waiter or waiter.done() or waiter.get_loop() is not loop
+                    or latest.revision != expected_revision or latest.owner_id != runtime.owner_id):
+                    raise ValueError("Task changed; refresh the selection before stopping it")
+
+            check()
+            if on_requested is not None:
+                on_requested()
+            check()
+            refreshed = await _joined(asyncio.create_task(asyncio.to_thread(service.get_task, identity)))
+            if (refreshed is None or refreshed.revision != expected_revision
+                or refreshed.owner_id != runtime.owner_id or refreshed.status != "running"):
+                raise ValueError("Task changed; refresh the selection before stopping it")
+            check()
+            return await service.stop_task(identity)
+
+        result = await _joined(asyncio.create_task(stop()))
+        admit()
+        return result
+
+    async def interrupt_current_task(
+        self, identity: str, *, on_requested: Callable[[], None] | None = None,
+    ) -> TaskRecord:
+        """Capture the current revision for a direct exact-ID stop request."""
+        self.admit()
+        if not identity or len(identity) > 512 or any(ord(char) < 32 for char in identity):
+            raise ValueError("Invalid task identity")
+        if self.service is None:
+            raise ValueError("Bound project task service unavailable")
+        record = await _joined(asyncio.create_task(asyncio.to_thread(self.service.get_task, identity)))
+        self.admit()
+        if record is None:
+            raise ValueError("Task is no longer available")
+        return await self.interrupt_task(identity, expected_revision=record.revision, on_requested=on_requested)
 
     async def catalog(self, *, limit: int = _ROWS) -> tuple[tuple[WorkRow, ...], str]:
         self.admit()
