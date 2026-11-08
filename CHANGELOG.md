@@ -713,6 +713,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Workflow import order** — Importing session workflow in a fresh Python
+  process no longer cycles through the CLI updater. The public `AutoUpdater`
+  export remains available.
+
 - **Windows repeated-failure detection** — Normalize pytest elapsed summaries
   with CRLF endings so identical failures stop at the configured repeat limit.
   Assertion values, test identities and failure counts remain significant.

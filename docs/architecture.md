@@ -487,6 +487,9 @@ rearming settled input. Session selection cannot transfer an active input permit
 Restored goals require explicit resumption under current policy, and model
 completion checks exact goal revision and current evidence from user-bound plans.
 Explicit user completion retains separate acknowledgement provenance.
+An independent process-death regression covers an owned started input, a held
+queued input and goal identity through durable reopen; it does not establish
+native-platform or live-provider qualification on its own.
 
 Textual F9 consumes an ephemeral `QueueControlView` from the same service. Edits,
 removal and reordering bind the observed workflow revision, session reference and
