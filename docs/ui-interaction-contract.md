@@ -130,7 +130,10 @@ target at 160×50 with 1,000 messages.
 
 In F8 checkpoint review, **Checks** reads current declared-input status and keeps
 historical check results separate. Refresh rechecks through the shared service
-without executing checks. Changed runtime/project selection refuses publication;
+without executing checks. From a file's detail or preview, plans that explicitly
+declare that file as an input appear first. Other plans remain visible; exact
+declared-input matches do not establish complete coverage, and each displayed
+current status describes its entire plan. Changed runtime/project selection refuses publication;
 removing the review screen also revokes publication before its unmount callback.
 Outstanding reads remain joined during close. These are project-wide observations, not proof that a
 selected checkpoint or task meets its requirements. See

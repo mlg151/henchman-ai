@@ -6,7 +6,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar, TypeVar
 
 from rich.text import Text
@@ -18,6 +18,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, OptionList, Static, TextArea
 from textual.widgets.option_list import Option
 
+from henchman.advanced.acceptance_checks import check_input_paths
 from henchman.advanced.checkpoint_models import CheckpointRecord, CheckpointReview, ReviewPlan
 from henchman.advanced.checkpoints import CheckpointConflict, CheckpointService
 from henchman.advanced.plans import PlanExecutionService, PlanRecord
@@ -126,6 +127,7 @@ class CheckpointReviewScreen(ModalScreen[None]):
         self._return_stage = "catalog"
         self._plan: ReviewPlan | None = None
         self._checks = ""
+        self._checks_file: str | None = None
         self._status = "Loading captures…"
         self._action_task: asyncio.Task[None] | None = None
         self._busy = False
@@ -465,6 +467,9 @@ class CheckpointReviewScreen(ModalScreen[None]):
         if self._busy:
             return
         self._checks = ""
+        selected_file = self._checks_file if self._stage == "checks" else None
+        if self._stage in {"detail", "preview"} and self._review is not None and self._review.files:
+            selected_file = self._review.files[self._file_index].path
         async def checks() -> None:
             self._require_checks_binding()
             assert self._checks_settings is not None
@@ -489,14 +494,30 @@ class CheckpointReviewScreen(ModalScreen[None]):
             lines = ["PROJECT CHECKS — not bound to the selected checkpoint or operation.",
                      "Read-only freshness observations over declared inputs; Refresh rechecks without executing checks.",
                      "Historical outcomes are retained separately. Task acceptance is not established."]
+            if selected_file is not None:
+                lines.extend([f"Selected file: {selected_file}",
+                              "Current status applies to the entire plan. Exact declared input matches do not prove coverage; "
+                              "other dependencies may be undeclared."])
             if omitted:
                 lines.append(f"{omitted} earlier plan(s) omitted; inspecting the most recent {_CHECK_PLAN_LIMIT}.")
+            def match(plan: PlanRecord) -> bool:
+                paths, _ = check_input_paths(plan.checks)
+                return selected_file is not None and any(
+                    PurePosixPath(path).as_posix() == selected_file for path in paths
+                )
+
+            if selected_file is not None:
+                observations.sort(key=lambda item: not match(item[0]))
             for plan, current in observations:
                 report = plan.last_verification
                 status = str(report.get("status", "unknown")) if report else "not-run"
                 if status == "finished":
                     status = "recorded pass" if report and report.get("checks_passed") is True else "recorded fail"
-                lines.extend([f"\n{plan.plan_id}: {plan.title}",
+                label = ""
+                if selected_file is not None:
+                    label = ("[Inputs unavailable] " if plan.checks_unavailable is not None else
+                             "[Declares selected file] " if match(plan) else "[No exact declared input] ")
+                lines.extend([f"\n{label}{plan.plan_id}: {plan.title}",
                               f"Current status: {current['status']} · freshness: {current['freshness']} · configuration: {current['configuration_status']}",
                               json.dumps(self._checks_policy.redact(current), ensure_ascii=True, indent=2),
                               f"Historical result: {status}",
@@ -504,6 +525,7 @@ class CheckpointReviewScreen(ModalScreen[None]):
             if not observations:
                 lines.append("No recorded project checks.")
             self._checks = self._checks_policy.text("\n".join(lines))
+            self._checks_file = selected_file
             self._status = "Check freshness inspected without execution. Refresh to inspect current contents again."
             self._return_stage = self._stage if self._stage != "checks" else self._return_stage
             if self._return_stage == "preview":

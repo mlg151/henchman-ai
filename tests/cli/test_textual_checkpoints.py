@@ -169,6 +169,80 @@ async def test_checks_recheck_declared_files_without_rewriting_historical_pass(t
         assert (tmp_path / ".henchman/plans/verification.json").read_bytes() == saved
 
 
+@pytest.mark.parametrize("size", [(80, 24), (120, 40)])
+async def test_selected_file_checks_show_declared_scope_and_current_plan_status(tmp_path, monkeypatch, size):
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    (tmp_path / "other.txt").write_text("other")
+    plans = PlanExecutionService(tmp_path)
+    unrelated = plans.create_plan(title="Other file", steps=["Inspect"],
+                                  checks=[{"kind": "file_exists", "path": "other.txt"}])
+    declared = plans.create_plan(title="Command with input", steps=["Inspect"],
+                                 checks=[{"kind": "command", "argv": ["true"], "inputs": ["./file.txt"]}])
+    implicit = plans.create_plan(title="Test target is not an input declaration", steps=["Inspect"],
+                                 checks=[{"kind": "pytest", "path": "file.txt"}])
+    relevant = plans.create_plan(title="Selected file", steps=["Inspect"],
+                                 checks=[{"kind": "file_contains", "path": "file.txt", "text": "FIRST"}])
+    await plans.verify_plan(relevant.plan_id)
+    saved = (tmp_path / ".henchman/plans/verification.json").read_bytes()
+    app = InteractionApp(tmp_path)
+    async with app.run_test(size=size) as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("preserved draft")
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert "Selected file: file.txt" in text
+        assert "Current status applies to the entire plan" in text
+        assert f"[Declares selected file] {relevant.plan_id}" in text
+        assert f"[Declares selected file] {declared.plan_id}" in text
+        assert f"[No exact declared input] {unrelated.plan_id}" in text
+        assert f"[No exact declared input] {implicit.plan_id}" in text
+        assert text.index(relevant.plan_id) < text.index(unrelated.plan_id)
+        assert "Current status: pass" in text and "Current status: not_run" in text
+        (tmp_path / "file.txt").write_text("changed after verification")
+        await pilot.press("f5")
+        await ready(pilot)
+        assert "Current status: stale" in screen.query_one(TextArea).text
+        assert (tmp_path / ".henchman/plans/verification.json").read_bytes() == saved
+        await pilot.press("escape")
+        assert screen._stage == "detail" and "File: file.txt" in screen.query_one(TextArea).text
+        await pilot.press("escape", "escape", "escape")
+        await ready(pilot)
+        assert composer.text == "preserved draft"
+
+
+async def test_selected_file_checks_do_not_infer_scope_from_redacted_plan(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.cli.evidence import runtime_evidence_redactor
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    secret = "later-registered-check-secret"
+    plans = PlanExecutionService(tmp_path)
+    plan = plans.create_plan(title="Sensitive check", steps=["Inspect"],
+                             checks=[{"kind": "file_contains", "path": "file.txt", "text": secret}])
+    runtime_evidence_redactor(app).register_secret(secret)
+    async with app.run_test() as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("enter")
+        await ready(pilot)
+        await pilot.press("enter", "v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert f"[Inputs unavailable] {plan.plan_id}" in text
+        assert secret not in text
+        assert "Current status: unavailable" in text
+
+
 @pytest.mark.parametrize("state", ["pass", "fail", "not_run", "unavailable", "incomplete"])
 async def test_checks_show_shared_current_status_without_executing_or_saving(tmp_path, monkeypatch, state):
     from henchman.advanced import acceptance_checks

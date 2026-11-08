@@ -57,7 +57,10 @@ and incomplete states remain distinct. It uses the held runtime settings and
 rechecks selected project/session identity before publication. Refresh reads
 again without executing checks or rewriting plan records. At most 64 recent
 plans receive freshness inspection; omitted plans are counted, while the existing
-initial index enumeration retains its own limits. This does not bind a plan to
+initial index enumeration retains its own limits. From file detail or preview,
+plans with an exact declared-input match appear first, while other plans remain
+visible. Status applies to the whole plan; a match does not prove coverage and a
+nonmatch does not rule out undeclared dependencies. This does not bind a plan to
 the selected capture or establish task acceptance. Rendered keyboard and resize tests cover
 80×24 and 120×40; native terminal and accessibility qualification remain open.
 

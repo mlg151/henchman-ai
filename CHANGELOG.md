@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Changed-file checks** — Checkpoint review highlights project plans that
+  explicitly declare the selected file as an input, with current plan-level
+  status and a reminder that declared inputs may omit dependencies.
+
 - **macOS task cleanup** — Recheck a process-group permission error after a
   bounded wait for the owned child to exit. Persistent permission errors remain
   explicit cleanup failures rather than being reported as a stopped group.
