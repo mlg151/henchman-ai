@@ -220,21 +220,41 @@ async def test_initial_save_lost_acknowledgement_records_failure_without_effect(
     assert stored["repairs_started"] == 0
 
 
-async def test_overall_timeout_joins_owned_repair_and_retains_failure(tmp_path):
+async def test_overall_timeout_joins_owned_repair_and_retains_failure(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from henchman.advanced import verification_repair
+
     service, plan, _ = setup(tmp_path)
-    repair = session(service, plan, timeout_seconds=0.5)
+    repair = session(service, plan)
     stopped = asyncio.Event()
+    timeouts = []
+
+    def capture_timeout(delay):
+        context = asyncio.timeout(delay)
+        timeouts.append(context)
+        return context
+
+    local_asyncio = SimpleNamespace(**vars(asyncio))
+    local_asyncio.timeout = capture_timeout
+    monkeypatch.setattr(verification_repair, "asyncio", local_asyncio)
 
     async def blocked(_attempt):
+        # Initial verification and durable admission may be slow on native
+        # runners. Expire the actual overall timeout only after this owned
+        # adapter starts; no production clock or cancellation handler is mocked.
+        assert len(timeouts) == 1
+        timeouts[0].reschedule(asyncio.get_running_loop().time())
         try:
             await asyncio.Event().wait()
         finally:
             stopped.set()
 
-    report = await repair.run(blocked)
-    assert stopped.is_set()
+    report = await asyncio.wait_for(repair.run(blocked), repair.request.timeout_seconds + 10)
+    assert timeouts[0].expired() and stopped.is_set()
     assert report.status == "incomplete" and report.reason == "timeout"
     assert len(report.observations) == 1
+    assert service.get_plan(plan.plan_id).last_repair == report.to_dict()
 
 
 async def test_cancellation_stays_primary_when_terminal_storage_fails(tmp_path, monkeypatch):

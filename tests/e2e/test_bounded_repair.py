@@ -160,8 +160,19 @@ async def test_repair_cancelled_model_iteration_closes_ownership(tmp_path, monke
             await asyncio.Event().wait()
 
     task = asyncio.create_task(orch.repair_direct("engineer", "Repair", request, on_event=observe))
+    ready = asyncio.create_task(entered.wait())
     try:
-        await asyncio.wait_for(entered.wait(), 5)
+        # Real verification, admission and persistence precede model content.
+        # Race the owned task so an early failure is not hidden as an event
+        # timeout; startup speed is not the cancellation behavior under test.
+        done, _ = await asyncio.wait(
+            {task, ready}, return_when=asyncio.FIRST_COMPLETED,
+            timeout=request.timeout_seconds + 10,
+        )
+        if task in done:
+            report = await task
+            pytest.fail(f"Repair ended before model observation: {report.status}/{report.reason}")
+        assert ready in done, "Repair did not reach model observation within its bounded run deadline"
         task.cancel("stop repair")
         with pytest.raises(asyncio.CancelledError, match="stop repair"):
             await task
@@ -173,7 +184,8 @@ async def test_repair_cancelled_model_iteration_closes_ownership(tmp_path, monke
     finally:
         if not task.done():
             task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        ready.cancel()
+        await asyncio.gather(task, ready, return_exceptions=True)
         await orch.aclose()
         await provider._client.close()
 
