@@ -110,7 +110,8 @@ slice does not complete issue #33.
 In F8 checkpoint review, **Checks** reads current declared-input status and keeps
 historical check results separate. Refresh rechecks through the shared service
 without executing checks. Changed runtime/project selection refuses publication;
-reads finish before close. These are project-wide observations, not proof that a
+removing the review screen also revokes publication before its unmount callback.
+Outstanding reads remain joined during close. These are project-wide observations, not proof that a
 selected checkpoint or task meets its requirements. See
 [checkpoint review](checkpoints.md#user-commands).
 Selected-copy in that review also reprojects retained evidence first and requires

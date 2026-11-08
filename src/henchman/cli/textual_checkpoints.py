@@ -156,7 +156,8 @@ class CheckpointReviewScreen(ModalScreen[None]):
                 Path.cwd(), root, info.st_dev, info.st_ino)
 
     def _require_checks_binding(self) -> None:
-        if self._review_closing or self._checks_identity() != self._checks_binding:
+        if (not self.is_mounted or self.app.screen is not self
+                or self._review_closing or self._checks_identity() != self._checks_binding):
             raise ValueError("Check inspection runtime or project changed. Close and reopen review.")
         context = getattr(self.runtime, "core_context", None)
         bound_root = getattr(context, "project_root", None) or getattr(self.runtime, "project_root", None)

@@ -311,6 +311,73 @@ async def test_checks_join_reads_and_refuse_stale_runtime_publication(tmp_path, 
             app.core_context = None
 
 
+async def test_removed_screen_refuses_checks_before_delayed_unmount(tmp_path, monkeypatch):
+    """Screen removal revokes publication before Textual delivers Unmount."""
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    PlanExecutionService(tmp_path).create_plan(
+        steps=["Observe"], checks=[{"kind": "file_exists", "path": "file.txt"}],
+    )
+    entered, release, finished = Event(), Event(), Event()
+    original = PlanExecutionService.verification_status
+
+    def blocked(service, plan_id):
+        entered.set()
+        assert release.wait(10), "Test failed to release the owned read"
+        try:
+            return original(service, plan_id)
+        finally:
+            finished.set()
+
+    monkeypatch.setattr(PlanExecutionService, "verification_status", blocked)
+    app = InteractionApp(tmp_path)
+
+    async def close():
+        pass
+
+    async with app.run_test() as pilot:
+        app.core_context = SimpleNamespace(
+            settings=app.settings, project_root=tmp_path,
+            session_manager=SimpleNamespace(current=object()),
+            orchestrator=SimpleNamespace(aclose=close), background_tasks=[], mcp_manager=None,
+        )
+        closing = None
+        unmount_allowed, close_started = asyncio.Event(), asyncio.Event()
+        try:
+            await pilot.press("f8")
+            screen = await ready(pilot)
+            screen.action_checks()
+            assert await asyncio.to_thread(entered.wait, 5)
+            original_replace = app._replace_screen
+
+            async def delayed_replace(previous):
+                if previous is screen:
+                    close_started.set()
+                    await unmount_allowed.wait()
+                await original_replace(previous)
+
+            monkeypatch.setattr(app, "_replace_screen", delayed_replace)
+
+            async def pop():
+                await app.pop_screen()
+
+            closing = asyncio.create_task(pop())
+            await asyncio.wait_for(close_started.wait(), 5)
+            assert app.screen is not screen and not screen._review_closing
+            assert not finished.is_set() and not closing.done()
+            release.set()
+            await asyncio.wait_for(asyncio.shield(screen._action_task), 5)
+            assert finished.is_set() and screen._checks == ""
+        finally:
+            release.set()
+            unmount_allowed.set()
+            if closing is not None:
+                await asyncio.wait_for(closing, 5)
+            app.core_context = None
+
+
 async def test_checks_bound_additional_freshness_reads_and_make_omission_explicit(tmp_path, monkeypatch):
     from henchman.advanced.plans import PlanExecutionService
     from henchman.cli import textual_checkpoints
@@ -716,9 +783,14 @@ async def test_checkpoint_copy_refuses_stale_selected_runtime_or_project(copy_re
                 other.mkdir()
                 monkeypatch.chdir(other)
             elif change == "root_replaced":
+                original_root = root.resolve()
+                original_identity = (root.stat().st_dev, root.stat().st_ino)
+                monkeypatch.chdir(root.parent)
                 root.rename(root.with_name(root.name + "-old"))
                 root.mkdir()
                 monkeypatch.chdir(root)
+                assert root.resolve() == original_root
+                assert (root.stat().st_dev, root.stat().st_ino) != original_identity
             elif change == "closed":
                 screen._review_closing = True
             elif change == "busy":
