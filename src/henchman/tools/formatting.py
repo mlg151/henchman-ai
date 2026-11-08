@@ -261,11 +261,14 @@ def _expand_paths(paths: list[Path], cwd: Path, stop: Event) -> list[Path]:
     return sorted(sources)
 
 
-async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
+async def format_python_files(
+    paths: list[Path], *, cwd: Path, authorize: Callable[[tuple[Path, ...]], None] | None = None,
+) -> None:
     """Run trusted Black on bounded files/directories, preserving timeout/cancellation.
 
-    Standard project configuration is honored. This is formatting, not an OS
-    sandbox or a guarantee that project-configured exclusions were formatted.
+    Standard project configuration is honored. The optional caller admission is
+    rechecked after expansion and around each formatter process. This is not an
+    OS sandbox or a guarantee that project-configured exclusions were formatted.
     """
     repair = current_repair()
     if repair is not None:
@@ -274,10 +277,14 @@ async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
             repair.deny("Repair formatter targets escaped the explicit project scope")
         await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in paths))
         repair.check()
+    if authorize is not None:
+        authorize(tuple(paths))
     stop = Event()
     try:
         async with asyncio.timeout(FORMAT_TIMEOUT):
             sources = await asyncio.to_thread(_expand_paths, paths, cwd, stop)
+            if authorize is not None:
+                authorize(tuple(sources))
             for batch in _batches(sources):
                 _check_access()
                 repair = current_repair()
@@ -285,6 +292,8 @@ async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
                     await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in batch))
                     repair.check()
                 command = [*_BLACK_COMMAND, *(str(path) for path in batch)]
+                if authorize is not None:
+                    authorize(tuple(batch))
                 with owned_spawn(command, cwd):
                     result = await run_bounded_subprocess(
                         command, cwd=cwd, timeout=FORMAT_TIMEOUT, max_output_bytes=8192,
@@ -292,6 +301,8 @@ async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
                 if result.returncode != 0:
                     output = (result.stderr or result.stdout).decode("utf-8", errors="replace")
                     raise FormattingError(f"Black exited {result.returncode}: {output.strip()}")
+                if authorize is not None:
+                    authorize(tuple(batch))
     finally:
         stop.set()
 

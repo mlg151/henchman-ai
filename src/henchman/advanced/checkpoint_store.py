@@ -11,14 +11,17 @@ import threading
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from henchman.utils.file_lock import FileLock
 
 
 class CheckpointStore:
-    def __init__(self, project: Path, max_bytes: int) -> None:
-        self.path = project / ".henchman" / "tungsten" / "checkpoints"
+    def __init__(self, project: Path, max_bytes: int, *,
+                 namespace: Literal["checkpoints", "proposals"] = "checkpoints") -> None:
+        if type(namespace) is not str or namespace not in {"checkpoints", "proposals"}:
+            raise ValueError("Unsupported checkpoint storage namespace")
+        self.path = project / ".henchman" / "tungsten" / namespace
         self.max_bytes = max_bytes
         self._directories: dict[Path, tuple[int, int]] = {}
         self._windows = None

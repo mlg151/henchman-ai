@@ -142,6 +142,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/advanced/test_task_authority.py",
         "tests/contracts/test_task_authority_contract.py",
         "tests/advanced/test_checkpoints.py",
+        "tests/advanced/test_child_proposal_helpers.py",
         "tests/advanced/test_checkpoint_verification.py",
         "tests/advanced/test_checkpoint_windows.py",
         "tests/cli/test_checkpoint_command.py",
