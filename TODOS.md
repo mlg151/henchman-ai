@@ -65,8 +65,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   input/output validation and typed results. Explicit refresh updates owned
   registry entries and invalidates stale handles without widening agent scopes.
   Provider text projections, events, chat and session retention preserve typed
-  evidence with explicit binary/omission limits. Modern transport and final
-  contract qualification remain #21/#25 work; see
+  evidence with explicit binary/omission limits. P0/P1 has native fixture evidence;
+  modern auth/context qualification remains #25 work and final artifacts remain
+  under #30. See
   [compatibility limits](docs/mcp.md#refresh-a-connected-catalog).
   Registry-wide schema compilation and output validation now cover local tools
   and extensions, including approval-time schema changes and completed failures.

@@ -21,9 +21,10 @@ remain open.
 
 MCP catalogs now refresh atomically across bounded pagination, preserving schemas,
 annotations and typed results through provider text projection and session
-retention while invalidating stale handles and keeping scoped allowlists. Broader
-[contract/transport qualification](docs/mcp.md#refresh-a-connected-catalog) remains
-under #21/#25.
+retention while invalidating stale handles and keeping scoped allowlists. P0/P1
+[schema/client compatibility](docs/standards.md#implemented-compatibility-foundation-v042-work)
+has native fixture evidence; modern auth/context and real-account qualification
+remain under #25, with final release qualification under #30.
 The exact SDK 2.3.0 pin now supports bounded native stdio across four legacy
 revisions and 2026-07-28, with no implicit mutating replay and explicit telemetry
 privacy refusal. Bounded unauthenticated Streamable HTTP now covers four
@@ -220,7 +221,7 @@ passed syntax repair with complete per-request usage and cleanup. The subsequent
 oracle passes, three timeouts and one tool-round-limit failure. Its 12/12 target
 was not met; partial usage and a late receipt-finalization discrepancy are
 retained explicitly. Model and target-hardware qualification remain outstanding.
-MCP/schema foundations and their remaining #21/#25 qualification gates are
+MCP/schema P0/P1 compatibility evidence and remaining #25 qualification gates are
 recorded above and in the [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 Automatic compaction now respects the configured disable flag across primary,
 specialist, dynamic child and API agents while retaining explicit hard-capacity

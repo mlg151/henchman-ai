@@ -10,7 +10,15 @@
     "tests/advanced/test_checkpoint_verification.py",
     "tests/tools/test_checkpoint_capture.py",
     "tests/cli/test_checkpoint_command.py",
-    "tests/cli/test_textual_checkpoints.py"
+    "tests/cli/test_textual_checkpoints.py",
+    "tests/tools/test_schema_contracts.py",
+    "tests/tools/test_registry_contracts.py",
+    "tests/providers/test_schema_projections.py",
+    "tests/providers/test_required_tool_schemas.py",
+    "tests/mcp/test_catalog_fidelity.py",
+    "tests/mcp/test_protocol_compat.py",
+    "tests/core/test_typed_tool_results.py",
+    "tests/contracts/test_mcp_contracts.py"
   ],
   "limitation": "Skipped tests are not passes. Native Windows cases are guarded by sys.platform; symlink privilege can cause an explicit skip. No native terminal/human accessibility or final release claim.",
   "failure_repair_commit": "d8bf94d42d75f439bdc1ea50ec7bd77c52ab06f8",

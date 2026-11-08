@@ -37,3 +37,11 @@ See [checkpoint behavior and platform limits](../checkpoints.md),
 This evidence does not establish native terminal usability, screen-reader
 behavior, arbitrary filesystem support, a clean aggregate suite, or final
 v0.4.2 artifact qualification. Those remain separate release requirements.
+
+The same staged cohorts also include canonical schema/registry contracts, all five
+provider projection profiles, independent MCP catalog/refresh fixture servers,
+actual SDK stdio protocol negotiation, and typed tool-result retention. Those
+modules had no failures in these completed cohorts. The
+[supported compatibility scope](../standards.md#implemented-compatibility-foundation-v042-work)
+remains bounded to its explicit schemas, SDK and protocol profiles; hosted model
+quality, real OAuth accounts and general external conformance are separate.

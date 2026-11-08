@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **P0/P1 compatibility evidence** — The standards roadmap now records implemented
+  canonical schemas, five explicit provider projections, bounded MCP refresh and
+  typed results with native fixture evidence. Real-account and final-release
+  qualification remain separate; the historical research baseline is preserved.
+
 - **Native checkpoint service evidence** — Completed installed-wheel cohorts
   exercised Linux/macOS/Windows service behavior on Python 3.11–3.14. All twelve
   jobs retained one unrelated goal-discovery fixture failure; the
