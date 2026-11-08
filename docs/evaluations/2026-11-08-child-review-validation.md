@@ -33,8 +33,9 @@ dynamic child execution, overlapping child proposals, user-edit conflicts,
 policy changes, cancellation, stale review authority and separate publication
 approval. They do not establish native-platform behavior or live-model quality.
 
-The later CI runs on `303167c` exposed an Anthropic headless-team test failure
-on multiple platform jobs. Using the installed `c8b0e43` wheel and a scripted
+The PR CI run on `303167c` exposed the same Anthropic headless-team test
+failure in six installed-wheel jobs on Linux, macOS and Windows. Using the
+installed `c8b0e43` wheel and a scripted
 transport on Linux Python 3.12 with the same long temporary path, the estimated
 input was 8,259 tokens plus the 8,192-token output reservation, exceeding the
 test's 16,384-token context window. The earlier `cbd99de` wheel passed the same
@@ -45,6 +46,7 @@ the CI machines' exact inputs.
 The headless workflow test now uses a 32,768-token window because it tests team
 execution and its prompts include variable temporary paths and the evolving tool
 catalog. Both previously failing Anthropic output modes passed locally with the
-long path; 49 focused request-budget, tool-disclosure and evaluation-harness
-tests also passed. This test change does not remove the real 16K capacity
+long path; all 20 headless-team cases passed from a clean Linux Python 3.11
+source archive, and 49 focused request-budget, tool-disclosure and
+evaluation-harness tests also passed. This test change does not remove the real 16K capacity
 limitation or qualify the fix on Windows and macOS; new CI results are needed.
