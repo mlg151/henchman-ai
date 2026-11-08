@@ -201,7 +201,11 @@ def _source_path(
 
 
 def _file_identity(info: os.stat_result) -> tuple[int, ...]:
-    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_nlink
+    # Windows path stat may expose creation time through ctime while fstat
+    # exposes change time (CPython #157671). Compare birth time across APIs;
+    # the held descriptor's change time is checked separately around the read.
+    timestamp = getattr(info, "st_birthtime_ns", info.st_ctime_ns) if os.name == "nt" else info.st_ctime_ns
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, timestamp, info.st_nlink
 
 
 @dataclass(frozen=True)
@@ -248,6 +252,8 @@ def read_source(
         if byte_observer is not None:
             byte_observer(len(raw))
         after = os.fstat(stream.fileno())
+        if after.st_ctime_ns != opened.st_ctime_ns:
+            raise EvidenceUnavailable("source_changed_during_read")
     if len(raw) > limit:
         raise EvidenceUnavailable("source_byte_budget_exceeded")
     if _file_identity(after) != _file_identity(before) or _file_identity(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -78,6 +79,46 @@ def test_same_remote_clones_have_distinct_cache_authorities(
         git(root, "remote", "remove", "origin") if root == clone else None
         git(root, "remote", "add", "origin", "https://example.invalid/shared/repo.git")
     assert compute_repository_id(repository) != compute_repository_id(clone)
+
+
+@pytest.mark.parametrize("changed_during_read", [False, True])
+def test_windows_path_creation_time_and_descriptor_change_time_are_distinct(
+    repository: Path, monkeypatch, changed_during_read: bool,
+) -> None:
+    from henchman.rag import evidence
+
+    path_info = (repository / "source.py").stat()
+    creation_time = getattr(path_info, "st_birthtime_ns", path_info.st_ctime_ns)
+
+    class WindowsStatOs:
+        name = "nt"
+
+        def __init__(self):
+            self.observations = 0
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+        def fstat(self, descriptor):
+            info = os.fstat(descriptor)
+            self.observations += 1
+            fields = {name: getattr(info, name) for name in dir(info) if name.startswith("st_")}
+            # CPython Windows path stat keeps creation time in ctime, whereas
+            # descriptor fstat can expose last change time (cpython#157671).
+            fields["st_birthtime_ns"] = creation_time
+            fields["st_ctime_ns"] = creation_time + 100
+            if changed_during_read and self.observations > 1:
+                fields["st_ctime_ns"] += 100
+            return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(evidence, "os", WindowsStatOs())
+    workspace = evidence.WorkspaceBinding.bind(repository).snapshot()
+    if changed_during_read:
+        with pytest.raises(evidence.EvidenceUnavailable, match="source_changed_during_read"):
+            evidence.read_source(workspace, "source.py")
+    else:
+        snapshot = evidence.read_source(workspace, "source.py")
+        assert snapshot.sha256 == hashlib.sha256((repository / "source.py").read_bytes()).hexdigest()
 
 
 def test_cache_identity_is_stable_across_local_commits(repository: Path) -> None:
@@ -481,7 +522,7 @@ async def test_source_budget_does_not_read_an_extra_candidate(repository: Path) 
     digest = hashlib.sha256(content.encode()).hexdigest()
     for index in range(6):
         name = f"large-{index}.py"
-        (repository / name).write_text(content)
+        (repository / name).write_bytes(content.encode())
         git(repository, "add", name)
         items.append(
             candidate(
