@@ -1,6 +1,7 @@
 """Compaction cannot promote attached remote data into system instructions."""
 
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -43,8 +44,9 @@ async def test_repeated_summary_stays_user_data_and_retains_source_identity(monk
     monkeypatch.setattr(MessageSummarizer, "summarize", summary)
     original = attachment_message()
     messages = [original]
+    provider = SimpleNamespace()
     for _ in range(3):
-        result = await _attempt_summarization(CompactionResult(messages=[], was_compacted=True), messages, object())
+        result = await _attempt_summarization(CompactionResult(messages=[], was_compacted=True), messages, provider)
         assert len(result.messages) == 1
         message = result.messages[0]
         assert message.role == "user"
