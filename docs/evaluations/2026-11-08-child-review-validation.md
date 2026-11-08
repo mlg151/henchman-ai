@@ -23,3 +23,12 @@ The cross-platform CI run on the earlier commit `cbd99de` does not qualify
 these later commits. Native Windows and macOS
 coverage, qualification of later live tool routing and parent approval, and
 paired local-model delegation evaluation remain outstanding.
+
+At `c8b0e43`, the new opt-in dynamic route passed 257 focused tests with one
+skip on Linux Python 3.11.15 and 258 tests on Linux Python 3.12.13 from a clean
+source archive. The Python 3.11 skip is the Python 3.12 eager-task-factory
+case. A separately installed Linux Python 3.12 development wheel passed 188
+focused tests, importing Henchman from `site-packages`. These include scripted
+dynamic child execution, overlapping child proposals, user-edit conflicts,
+policy changes, cancellation, stale review authority and separate publication
+approval. They do not establish native-platform behavior or live-model quality.
