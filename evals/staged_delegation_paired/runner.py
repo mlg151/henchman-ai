@@ -90,7 +90,7 @@ def run_live(plan: dict[str, Any], output: Path, wheel: Path) -> None:
     fixtures = {item["id"]: item for item in plan["fixtures"]}
     rows = [{"case": case, "repeat": repeat, "arm": arm, "status": "not_run"}
             for case, repeat, arm in plan["arm_order"]]
-    report: dict[str, Any] = {"kind": plan["kind"], "plan_sha256": PLAN_SHA256,
+    report: dict[str, Any] = {"kind": plan["kind"], "harness_version": "v2-primary-actor-guard", "plan_sha256": PLAN_SHA256,
         "source_commit": plan["source_commit"], "wheel_sha256": plan["wheel_sha256"],
         "worker_sha256": worker_hash, "runner_sha256": runner_hash,
         "endpoint": plan["endpoint"], "model": plan["model"], "planned": len(rows), "rows": rows,

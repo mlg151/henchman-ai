@@ -25,7 +25,8 @@
       "transport": "concurrent pilot transport with idle-slot preflight",
       "raw_result_sha256": "505fb4f74f215806445158753bf99fa960a5db5b4232da7f2f0c99fd44ffc32f",
       "exact_script_sha256": "ae8132dc57af6e7f0d82f1dce62c3a95ff2656b11ce392d22defec8c72f995a3",
-      "request_limit": 10
+      "request_limit": 10,
+      "primary_route_guard_enforced": false
     },
     {
       "attempt": "v3",
@@ -49,7 +50,8 @@
       "transport": "concurrent pilot transport with idle-slot preflight",
       "raw_result_sha256": "fc83cc11ade12b4fd97cf845cf19f4d1323ee0c7adeeeb7725e043992306fd3a",
       "exact_script_sha256": "c954d0ae5fe52b3fa7a885cd341713e5bf4cc4b8b07636abc8052c3aa3a5aa13",
-      "request_limit": 10
+      "request_limit": 10,
+      "primary_route_guard_enforced": false
     },
     {
       "attempt": "v4",
@@ -73,7 +75,8 @@
       "transport": "serialized pilot transport",
       "raw_result_sha256": "d0d9d4c263895f048120de33d00f77e8ed6fcebabe4d8f5475dcb7841d66a031",
       "exact_script_sha256": "909e0bcd708c8435abf57031c63378ca706b2e7cc05f6b6ba7dbe829e9575777",
-      "request_limit": 10
+      "request_limit": 10,
+      "primary_route_guard_enforced": false
     },
     {
       "attempt": "v5",
@@ -97,8 +100,10 @@
       "transport": "serialized pilot transport",
       "request_limit": 12,
       "raw_result_sha256": "f2a24faf1b9c7d37f864eaa186c7d6487daf2b43df4fa4e17d1df5003c312c2d",
-      "exact_script_sha256": "b0720a0540e3b27ffee137af8ab6c29d997adb4cadcf0e6e2595ffc007139e32"
+      "exact_script_sha256": "b0720a0540e3b27ffee137af8ab6c29d997adb4cadcf0e6e2595ffc007139e32",
+      "primary_route_guard_enforced": false
     }
   ],
-  "interpretation": "Three ten-request runs were incomplete. A separately budgeted twelve-request run completed and published an AST-matching toy edit; this is not a paired qualification."
+  "interpretation": "Three ten-request runs were incomplete. A separately budgeted twelve-request run completed and published an AST-matching toy edit; this is not a paired qualification.",
+  "guard_limitation": "The pilot guard misclassified the primary tech_lead actor, so it did not enforce the intended prohibition on direct primary edits. Complete parent traces for v3-v5 contain no primary write or edit; the v2 trace ended early."
 }

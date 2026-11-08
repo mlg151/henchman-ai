@@ -1,0 +1,156 @@
+{
+  "kind": "staged_delegation_local_paired_v1",
+  "plan_sha256": "2ad6873979579a3769bcaf15e1751ccb1afbef6192e6435107069540c0ef59ae",
+  "source_commit": "c8b0e435eceb229dde930402aab47b628670c139",
+  "wheel_sha256": "5534d3efb54da5f27b697274fa7eab1113ac6c4f6901f45dae7e0bfcbcd94dec",
+  "worker_sha256": "5427b3e8f5c2e01a241a51af7e61383694cc3d2e0c34b99e463cbedc1f7a6382",
+  "runner_sha256": "9878da6dd24a46a83b473df24ad465f380dfb8a32105a632cc85ac7d35222203",
+  "endpoint": "http://127.0.0.1:8081",
+  "model": "qwen38-27b-iq3s",
+  "planned": 12,
+  "rows": [
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "failed",
+      "elapsed_seconds": 52.923,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 5,
+        "transport_errors": [],
+        "elapsed_seconds": 49.732,
+        "client_peak_rss_kib": 225488,
+        "result_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+        "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b",
+        "exact_ast": false,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": false
+          },
+          {
+            "event": "request",
+            "tool": "write_file"
+          },
+          {
+            "event": "result",
+            "tool": "write_file",
+            "success": false
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": false,
+      "independent_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "route_observed": false,
+      "input_matches_plan": true,
+      "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+      "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b"
+    },
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "interrupted_unknown",
+      "elapsed_seconds": 32.677
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "not_run"
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "not_run"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "not_run"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "not_run"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "not_run"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "not_run"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "not_run"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "not_run"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "not_run"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "not_run"
+    }
+  ],
+  "limitations": [
+    "Local provider route only; no hosted fallback.",
+    "Serialized test transport is not production provider scheduling.",
+    "Client peak RSS covers the worker process only; it excludes formatter subprocesses, the shared model server and GPU.",
+    "Request counts are recorded; complete token usage and hardware or electricity costs are not measured.",
+    "The AST oracle is deliberately narrow and does not execute generated code.",
+    "The shared server is checked for an idle slot but is not exclusively reserved."
+  ]
+}

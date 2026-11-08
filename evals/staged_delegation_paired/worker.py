@@ -136,7 +136,7 @@ def scope_guard(arm: str, target: str) -> Callable[[Tool, dict[str, object]], To
         if name in {"read_file", "write_file", "edit_file"}:
             if params.get("path") != target:
                 return ToolResult("Fixture path denied.", success=False, error="scope")
-            child = current_subagent_actor() is not None
+            child = current_subagent_actor() not in (None, "tech_lead")
             if name != "read_file" and (child != (arm == "staged")):
                 return ToolResult("Fixture execution route denied.", success=False, error="scope")
             return None

@@ -15,7 +15,11 @@ from evals.staged_delegation_paired import runner
 from evals.staged_delegation_paired.runner import oracle, route_observed
 from evals.staged_delegation_paired.worker import LocalTransport, load_plan, scope_guard
 
+from henchman.agents.orchestrator_run import primary_actor_events
 from henchman.agents.subagents import subagent_actor
+from henchman.core.events import AgentEvent, EventType
+from henchman.tools.builtins.file_write import WriteFileTool
+from henchman.tools.registry import ToolRegistry
 
 PLAN = Path(__file__).resolve().parents[2] / "evals/staged_delegation_paired/plan.json"
 
@@ -109,6 +113,9 @@ def test_scope_guard_separates_parent_and_child_and_denies_other_paths() -> None
     direct = scope_guard("direct", "target.py")
     assert staged(write, target) is not None
     assert direct(write, target) is None
+    with subagent_actor("tech_lead"):
+        assert staged(write, target) is not None
+        assert direct(write, target) is None
     with subagent_actor("child"):
         assert staged(write, target) is None
         assert direct(write, target) is not None
@@ -116,6 +123,40 @@ def test_scope_guard_separates_parent_and_child_and_denies_other_paths() -> None
     assert staged(invoke, {"write_paths": ["target.py"], "tools": ["edit_file"]}) is None
     assert staged(invoke, {"write_paths": ["target.py"], "tools": ["shell"]}) is not None
     assert direct(invoke, {"write_paths": ["target.py"], "tools": ["edit_file"]}) is not None
+
+
+async def test_scope_guard_recognizes_the_runtime_primary_actor() -> None:
+    write = SimpleNamespace(name="write_file")
+    target = {"path": "target.py", "content": "replacement"}
+
+    async def produce():
+        assert scope_guard("direct", "target.py")(write, target) is None
+        assert scope_guard("staged", "target.py")(write, target) is not None
+        yield AgentEvent(EventType.CONTENT, "ok")
+
+    async for _event in primary_actor_events(produce()):
+        pass
+
+
+async def test_primary_registry_can_write_only_in_the_direct_arm(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "target.py"
+    path.write_text("before\n")
+    registry = ToolRegistry()
+    registry.register(WriteFileTool())
+    registry.add_auto_approve_policy("write_file")
+
+    async def produce():
+        registry.bind_execution_guard(scope_guard("staged", "target.py"))
+        denied = await registry.execute("write_file", {"path": "target.py", "content": "staged\n"})
+        assert not denied.success and path.read_text() == "before\n"
+        registry.bind_execution_guard(scope_guard("direct", "target.py"))
+        allowed = await registry.execute("write_file", {"path": "target.py", "content": "direct\n"})
+        assert allowed.success and path.read_text() == "direct\n"
+        yield AgentEvent(EventType.CONTENT, "ok")
+
+    async for _event in primary_actor_events(produce()):
+        pass
 
 
 def test_oracle_reads_current_bytes_without_executing_generated_code(tmp_path: Path) -> None:

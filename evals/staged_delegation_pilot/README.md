@@ -11,3 +11,7 @@ running matching model at the fixed localhost endpoint, and the exact tested
 package environment. They contain a fixed dummy local API credential and deny
 other provider destinations. The scripts do not prove isolation of unrelated
 process traffic or exclusive access to the shared local server.
+
+The scripts' route guard misclassifies the primary `tech_lead` actor and does
+not enforce its intended ban on direct primary edits. See the report for the
+observed tool traces and the limits this places on the results.

@@ -9,6 +9,11 @@ repeats. The fixture task is identical across arms; the route instructions
 necessarily differ, so this is a workflow comparison rather than a pure code
 ablation.
 
+The [first cohort](../../docs/evaluations/2026-11-08-staged-paired-v1-invalid.md)
+was stopped after an actor-guard flaw invalidated its first attempt. This
+corrected harness retains the same frozen plan but identifies itself as v2 and
+must use a new output directory; the original rows remain unchanged.
+
 Each attempt runs in a separate process and a new private workspace with an
 empty home and no inherited API credentials or proxies. The transport admits
 only the fixed localhost endpoint and model, checks an idle slot and never

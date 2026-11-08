@@ -5,6 +5,13 @@ separately budgeted attempt completed the staged workflow and matched the
 narrow AST oracle. The incomplete attempts remain in the record; the successful
 single-fixture diagnostic does not qualify a release or a paired comparison.
 
+An audit later found that the pilot guard misclassified the primary
+`tech_lead` actor and did not enforce the intended prohibition on direct
+primary edits. The complete captured parent tool traces for v3–v5 contain no
+primary write or edit; v4 and v5 also show the review and publication calls.
+The v2 capture ended early and cannot establish its later tool sequence. This
+flaw limits the evidence and is retained in the archived scripts.
+
 | Attempt | Local requests sent | Runtime | Observed result |
 | --- | ---: | ---: | --- |
 | v2, concurrent | 9 | 132.144 s | Request limit reached; original file remained. Event capture stopped after the first 100 events, so later tool calls are not available in the report. |

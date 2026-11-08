@@ -7,9 +7,12 @@ mechanisms.
 
 The [staged delegation local pilot](../docs/evaluations/2026-11-08-staged-local-pilot.md)
 records three incomplete attempts and one completed, separately budgeted
-AST-matching edit. It is not a paired qualification.
+AST-matching edit. A subsequently identified guard flaw limits the evidence;
+it is not a paired qualification.
 The separate [frozen paired comparison](staged_delegation_paired/README.md)
 defines three fixtures and two repeats per arm; its plan makes no model calls.
+Its [first cohort](../docs/evaluations/2026-11-08-staged-paired-v1-invalid.md)
+was stopped after a guard error and is not valid paired evidence.
 
 ## Why Behavioral Evals?
 

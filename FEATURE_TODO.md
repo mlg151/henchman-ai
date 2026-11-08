@@ -341,7 +341,7 @@ primary integration while preserving independent provider adapters.
 ### Python development and team leadership
 
 - [x] Default to a primary coding agent with the full live tool suite; preserve explicit user scopes and named-role compatibility. Add custom background conversations, asynchronous messaging, lifecycle status, reactive parent notifications, and cancellation/join on CLI exit and history/session changes. See [dynamic subagents](docs/agents.md#dynamic-background-subagents).
-- [ ] Measure live-model dynamic delegation effectiveness, provider concurrency behavior, and whole-process memory under representative workloads; the [local staged pilot](docs/evaluations/2026-11-08-staged-local-pilot.md) completed one separately budgeted toy task and is not paired evidence.
+- [ ] Measure live-model dynamic delegation effectiveness, provider concurrency behavior, and whole-process memory under representative workloads; the [local staged pilot](docs/evaluations/2026-11-08-staged-local-pilot.md) completed one separately budgeted toy task but had a guard flaw and is not paired evidence.
 - [x] Bound executing descendants across all delegation routes with one runtime capacity, fail-fast structured refusals, joined cancellation and retired-session rejection. Default-off startup opt-in now preserves direct execution; conflict isolation and paired effectiveness remain open under #29. See [shared capacity](docs/agents.md#shared-delegation-capacity).
 - [ ] Extend staged file-only dynamic delegation to the remaining delegation routes; verify native behavior and matched live effectiveness before claiming delegated write isolation.
 
