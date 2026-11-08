@@ -30,3 +30,9 @@ environment reusing local dependencies. No hosted inference was used.
 Those focused results do not prove the native failure fixed; a fresh Windows
 wheel run is required. Logs for the local attempts are retained alongside the
 job log in `ci-4d10c33-42492539633` under the local qualification cache.
+
+The Windows/Python 3.14 wheel job subsequently failed the same test with the
+same surfaced connection error: **1 failed, 5,943 passed and 236 skipped**.
+Its retained job log SHA-256 is
+`11c16de8200daff1d5d3a124cad3e11272a820b263fb1ee5caf224a2b1c6133e`.
+The matching surface alone does not establish that both jobs share a cause.
