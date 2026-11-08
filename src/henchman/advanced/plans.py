@@ -10,7 +10,7 @@ import tempfile
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 from henchman.advanced.acceptance_checks import (
@@ -461,10 +461,14 @@ class PlanExecutionService:
     def _assert_no_pending_restore(self) -> None:
         """Refuse observations while a workspace restore is incomplete."""
         from henchman.advanced.checkpoints import CheckpointService
+        from henchman.advanced.child_proposals import ChildProposalService
 
         storage = resolve_project_settings_path(self._project_root) / "tungsten/checkpoints"
         if (storage.exists() or storage.is_symlink()) and CheckpointService(self._project_root).pending_restores():
             raise ValueError("Workspace restore is incomplete; recover it before running verification.")
+        proposals = resolve_project_settings_path(self._project_root) / "tungsten/proposals"
+        if (proposals.exists() or proposals.is_symlink()) and ChildProposalService(self._project_root).pending():
+            raise ValueError("Workspace proposal publication is incomplete; recover it before running verification.")
 
     def save_repair_report(self, plan_id: str, report: dict[str, object], *, start: bool = False) -> dict[str, object]:
         """Persist bounded advisory repair evidence with exact run/spec ownership.
@@ -523,8 +527,10 @@ class PlanExecutionService:
             assert result is not None
             return result
 
-    def invalidate_checks(self) -> None:
+    def invalidate_checks(self, *, reason: Literal["checkpoint_restore", "child_proposal_publication"] = "checkpoint_restore") -> None:
         """Retain observations but revoke their success and running-save authority."""
+        if not isinstance(reason, str) or reason not in {"checkpoint_restore", "child_proposal_publication"}:
+            raise ValueError("Unsupported verification invalidation reason")
         if not self._index_path.exists():
             return
         with FileLock(self._lock_path):
@@ -537,7 +543,7 @@ class PlanExecutionService:
                 report = dict(previous, status="stale", checks_passed=False, task_verified=False,
                               observed_run_id=previous.get("observed_run_id", previous.get("run_id")),
                               run_id=uuid4().hex, invalidated_at=_now_iso(),
-                              invalidation_reason="checkpoint_restore")
+                              invalidation_reason=reason)
                 self._records[identity] = replace(record, updated_at=_now_iso(), last_verification=report)
                 changed = True
             if changed:

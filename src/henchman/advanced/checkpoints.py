@@ -197,6 +197,17 @@ class CheckpointService:
         if any(plan["state"] == "prepared" for plan in self._plans()):
             raise CheckpointConflict(reason="An interrupted restore requires recovery before another mutation")
 
+    def _assert_no_pending_proposals(self) -> None:
+        """Check proposal journals while holding the checkpoint lock first."""
+        from henchman.advanced.child_proposals import ChildProposalService
+
+        storage = self._files.root / ".henchman/tungsten/proposals"
+        if (storage.exists() or storage.is_symlink()) and ChildProposalService(
+            self._files.root, redactor=self._policy, max_file_bytes=self._files.max_file_bytes,
+            max_storage_bytes=self._store.max_bytes, exclusions=self._files.exclusions,
+        ).pending():
+            raise CheckpointConflict(reason="An interrupted proposal publication requires recovery")
+
     def _prune(self, *, reserve: int = 0) -> None:
         records = self._records()
         plans = self._plans()
@@ -316,6 +327,7 @@ class CheckpointService:
             if plan["state"] == "done":
                 return ReviewResult(tuple(plan["changed"]), bool(plan["changed"]))
             self._assert_idle()
+            self._assert_no_pending_proposals()
             if plan["state"] != "preview" or payload["revision"] != plan["revision"]:
                 raise CheckpointConflict(reason="Review changed or restore requires explicit recovery")
             self._validate_decision(plan, payload)
@@ -345,6 +357,7 @@ class CheckpointService:
                 return ReviewResult(tuple(plan["changed"]), bool(plan["changed"]))
             if plan["state"] != "prepared":
                 raise ValueError("Plan is not an interrupted restore")
+            self._assert_no_pending_proposals()
             if payload["revision"] not in {plan["revision"], plan["revision"] + 1}:
                 raise CheckpointConflict(reason="Checkpoint revision changed during recovery")
             if payload["revision"] == plan["revision"] + 1 and payload.get("last_plan") != plan_id:

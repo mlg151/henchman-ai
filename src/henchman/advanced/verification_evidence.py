@@ -58,7 +58,7 @@ _RESULT.update(check=_CHECK, sha256=_hash, started_at=_time, checked_at=_time,
 _REPORT: dict[str, Any] = dict.fromkeys(("checks_passed", "current_checks_passed", "task_verified", "scope", "error", "proof_unavailable_reason"))
 _REPORT.update(run_id=_identity, observed_run_id=_identity, spec_digest=_hash, checked_at=_time,
                configuration_status=lambda value: value in {"current", "changed", "unbound"},
-               invalidated_at=_time, invalidation_reason=lambda value: value == "checkpoint_restore",
+               invalidated_at=_time, invalidation_reason=lambda value: isinstance(value, str) and value in {"checkpoint_restore", "child_proposal_publication"},
                status=lambda value: value in {"running", "finished", "cancelled", "error", "stale"},
                freshness=lambda value: value in {"current", "stale", "unverified"},
                input_evidence=_INPUT, results=[_RESULT])

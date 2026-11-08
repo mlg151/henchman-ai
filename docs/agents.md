@@ -118,6 +118,17 @@ write-isolation mechanism. Conflict-safe file ownership and paired live-model
 effectiveness remain separate work under issue #29. Trusted low-level embedders
 must explicitly supply an allowed admission controller; its default is denied.
 
+An internal `ChildProposalService` can stage a bounded set of text-file changes
+in private project storage, freeze a revision for review, and publish it only
+after checking current file contents. Publication retains displaced originals,
+invalidates checks and requires recovery after an interruption. This service is
+content-focused: existing POSIX modes are preserved and new POSIX files use
+mode `0600`; arbitrary extended metadata is not restored. The Windows backend
+uses the checkpoint service's documented content/ACL limitations. It is
+not yet connected to delegated tool execution, worker identity or parent
+approval, and it is not a filesystem sandbox. Existing subagents still share the
+workspace and require coordination; issue #29 remains open.
+
 ## Optional Named Roles
 
 All default roles include the existing read-only `file_overview`, `symbol_trace`,

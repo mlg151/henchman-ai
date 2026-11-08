@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Delegated edit foundation** — An internal proposal service stages bounded
+  text files for explicit review and conflict-checked, recoverable publication.
+  Delegated tools and parent approval are not connected to it yet.
+
 - **Tool recovery guidance** — Unmatched exact edits direct the caller to reread
   the current file; missing task lookups explain how to find the complete ID.
   Failed lookups do not guess a task or echo the submitted identifier.
