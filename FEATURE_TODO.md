@@ -713,6 +713,9 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   A [paired native VTE comparison](docs/evaluations/2026-11-08-vte-window-pair-v1.md)
   retained 480 observations; candidate cancellation p95 failed at 160×50 with
   1,000 messages, so the latency target remains open.
+  A later [instrumented diagnostic](docs/evaluations/2026-11-08-vte-cancel-gc-v2.md)
+  observed generation-2 collections overlapping all three slow cancellations
+  in one process; the cause and a validated fix remain open.
 
 See the [phase exit criteria](docs/terminal-ui-research.md#phased-implementation-roadmap)
 and [verification plan](docs/terminal-ui-research.md#verification-and-user-research-plan).

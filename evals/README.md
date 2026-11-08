@@ -29,6 +29,9 @@ are part of the result.
 The follow-up [GC attribution diagnostic](../docs/evaluations/2026-11-08-vte-gc-attribution-v1.md)
 records tracked history-widget liveness during two collections. Its six
 instrumented trials do not replace the paired result or establish a fix.
+A later [20-trial diagnostic](../docs/evaluations/2026-11-08-vte-cancel-gc-v2.md)
+observed main-thread generation-2 collections overlapping all three slow
+cancellations. It remains instrumented, single-process evidence, not a fix.
 
 The offline [repository reuse oracle prototype](repository_reuse_oracle_v1/README.md)
 checks small fixtures and rejects copied helper logic with an injected call
