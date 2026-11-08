@@ -189,6 +189,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
 
     paths = [
         "tests/testing/test_fibonacci_scenario.py",
+        "tests/testing/test_baseline_report_redaction.py",
         "tests/cli/test_headless_protocol.py",
         "tests/cli/test_headless_control.py",
         "tests/testing/test_eval_bytecode_freshness.py",

@@ -18,7 +18,7 @@ import os
 import tempfile
 import time
 from collections.abc import Iterator
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,6 +26,7 @@ from typing import Any
 from evals.helpers import EvalTestRig, get_eval_provider
 from evals.release_corpus import dispatch_case, get_case, list_cases
 from henchman.providers.base import ModelProvider
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 #: Outcomes every run is classified into.
 OUTCOMES: tuple[str, ...] = ("success", "verification_failure", "timeout", "runtime_error")
@@ -46,6 +47,31 @@ class RunRecord:
     tokens_out: int | None
     task_verified: bool
     error: str | None
+
+
+# Protect field names; only validated identities are restored after projection.
+_CASE_IDS = tuple(metadata.id for metadata in list_cases())
+_OUTCOME_SCHEMA = dict.fromkeys(OUTCOMES)
+_CASE_SUMMARY_SCHEMA = {"runs": None, "successes": None, "outcome_counts": _OUTCOME_SCHEMA}
+_REPORT_SCHEMA = {
+    "kind": None,
+    "generated_at": None,
+    "cohort": None,
+    "requested": {
+        "cases": None, "runs_per_case": None, "timeout": None,
+        "max_iterations": None, "provider": None, "model": None,
+    },
+    "budget": {"planned_runs": None, "executed_runs": None},
+    "cost": {"source": None, "amount_usd": None, "billing": None},
+    "summary": {
+        "total_runs": None, "successes": None, "failures": None,
+        "outcome_counts": _OUTCOME_SCHEMA,
+        "cases": dict.fromkeys(_CASE_IDS, _CASE_SUMMARY_SCHEMA),
+        "latency_ms": {"p50": None, "p95": None, "min": None, "max": None},
+        "usage": {"tokens_in": None, "tokens_out": None, "available": None},
+    },
+    "runs": [dict.fromkeys(field.name for field in fields(RunRecord))],
+}
 
 
 def cohort_for_provider(provider_name: str) -> str:
@@ -203,14 +229,19 @@ async def run_case_repeated(
     runs: int = 1,
     timeout: float = 120.0,
     max_iterations: int = 10,
+    evidence_redactor: EvidenceRedactor | None = None,
 ) -> list[RunRecord]:
-    """Execute one corpus case for ``runs`` bounded attempts, recording every attempt."""
+    """Record every attempt; a supplied report policy retains per-attempt credentials."""
     metadata, _ = get_case(case_id)
     records: list[RunRecord] = []
     for index in range(1, runs + 1):
+        if evidence_redactor is not None:
+            _refresh_policy(evidence_redactor, provider)
         records.append(
             await _run_once(case_id, metadata.profile, provider, index, timeout, max_iterations)
         )
+        if evidence_redactor is not None:
+            _refresh_policy(evidence_redactor, provider)
     return records
 
 
@@ -269,22 +300,58 @@ def build_report(
     }
 
 
-def _redact(text: str) -> str:
-    """Replace env-var secret values (credential-named, or long token-like values) in text."""
-    for name, value in os.environ.items():
-        if not value or len(value) < 8:
-            continue
-        upper = name.upper()
-        credential_name = any(marker in upper for marker in ("KEY", "TOKEN", "SECRET", "PASSWORD"))
-        token_like = len(value) >= 24 and " " not in value and "/" not in value and "\\" not in value
-        if (credential_name or token_like) and value in text:
-            text = text.replace(value, "[REDACTED]")
-    return text
+def _restore_known_identity(
+    source: Any, projected: Any, key: str, allowed: tuple[str, ...],
+) -> None:
+    """Retain only exact source-controlled enum values, never arbitrary labels."""
+    if isinstance(source, dict) and isinstance(projected, dict):
+        value = source.get(key)
+        if isinstance(value, str) and value in allowed:
+            projected[key] = value
 
 
-def write_report(path: Path, report: dict[str, Any]) -> None:
-    """Write the report atomically with env-var secret values redacted."""
-    text = _redact(json.dumps(report, indent=2, sort_keys=True))
+def _restore_report_identities(source: dict[str, Any], projected: dict[str, Any]) -> None:
+    """Keep validated protocol values intact after projecting all supplied evidence."""
+    _restore_known_identity(source, projected, "kind", ("baseline_repeat_runs",))
+    _restore_known_identity(source, projected, "cohort", ("local", "hosted"))
+    timestamp = source.get("generated_at")
+    if isinstance(timestamp, str) and 25 <= len(timestamp) <= 32:
+        with contextlib.suppress(ValueError):
+            parsed = datetime.fromisoformat(timestamp)
+            if parsed.tzinfo == UTC and parsed.isoformat() == timestamp:
+                projected["generated_at"] = timestamp
+    original_cost, projected_cost = source.get("cost"), projected.get("cost")
+    _restore_known_identity(original_cost, projected_cost, "source", ("local",))
+    _restore_known_identity(original_cost, projected_cost, "billing", ("none",))
+    requested, safe_requested = source.get("requested"), projected.get("requested")
+    if isinstance(requested, dict) and isinstance(safe_requested, dict):
+        cases, safe_cases = requested.get("cases"), safe_requested.get("cases")
+        if isinstance(cases, list) and isinstance(safe_cases, list):
+            for index, case_id in enumerate(cases):
+                if isinstance(case_id, str) and case_id in _CASE_IDS:
+                    safe_cases[index] = case_id
+    runs, safe_runs = source.get("runs"), projected.get("runs")
+    if isinstance(runs, list) and isinstance(safe_runs, list):
+        for record, safe_record in zip(runs, safe_runs, strict=True):
+            _restore_known_identity(record, safe_record, "case_id", _CASE_IDS)
+            _restore_known_identity(record, safe_record, "outcome", OUTCOMES)
+
+
+def write_report(
+    path: Path,
+    report: dict[str, Any],
+    *,
+    evidence_redactor: EvidenceRedactor | None = None,
+) -> None:
+    """Atomically publish a detached evidence projection, retaining report structure.
+
+    Pass a held policy to retain explicitly registered and rotated credentials.
+    Every write also refreshes credential-named environment values.
+    """
+    policy = evidence_redactor if evidence_redactor is not None else EvidenceRedactor()
+    projected = policy.redact(report, schema=_REPORT_SCHEMA)
+    _restore_report_identities(report, projected)
+    text = json.dumps(projected, indent=2, sort_keys=True)
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
@@ -296,6 +363,14 @@ def write_report(path: Path, report: dict[str, Any]) -> None:
         with contextlib.suppress(OSError):
             os.unlink(temporary)
         raise
+
+
+def _refresh_policy(policy: EvidenceRedactor, provider: ModelProvider) -> None:
+    """Retain actual provider and environment credentials at report boundaries."""
+    policy.register_environment()
+    key = getattr(provider, "api_key", None)
+    if isinstance(key, str):
+        policy.register_secret(key)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -343,6 +418,9 @@ def main(argv: list[str]) -> int:
     except RuntimeError as exc:
         parser.error(str(exc))
 
+    policy = EvidenceRedactor()
+    _refresh_policy(policy, provider)
+
     records: list[RunRecord] = []
     for case_id in case_ids:
         records.extend(
@@ -353,9 +431,11 @@ def main(argv: list[str]) -> int:
                     runs=args.runs,
                     timeout=args.timeout,
                     max_iterations=args.max_iterations,
+                    evidence_redactor=policy,
                 )
             )
         )
+        _refresh_policy(policy, provider)
 
     summary = summarize_runs(records)
     cohort = cohort_for_provider(provider.name)
@@ -368,7 +448,8 @@ def main(argv: list[str]) -> int:
         "model": getattr(provider, "default_model", None) or getattr(provider, "model", None),
     }
     report = build_report(cohort=cohort, requested=requested, summary=summary, records=records)
-    write_report(Path(args.report), report)
+    _refresh_policy(policy, provider)
+    write_report(Path(args.report), report, evidence_redactor=policy)
     return 0 if (records and all(record.outcome == "success" for record in records)) else 1
 
 

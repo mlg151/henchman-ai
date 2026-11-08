@@ -4,6 +4,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- #20 baseline evaluation exports now use shared credential projection before
+  JSON serialization, including short/escaped secrets and observed rotations
+  across attempts. Only validated report identities are preserved. See the
+  [evaluation contract](evals/README.md).
+
 - #30 now gates upload and tagging on matching hashes from separate installed
   wheel/source-archive checks. Failed attempts invalidate old receipts and retain
   logs. This adds the artifact gate; the final release and wider acceptance

@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Evaluation report credential projection** — Baseline exports now redact
+  short and escaped credentials before JSON serialization and retain observed
+  rotations across repeated attempts. Only validated report identities bypass
+  projection; numeric observations and atomic write behavior remain intact.
+
 - **Exact release-artifact qualification** — Publication now requires separate
   installed checks of the wheel and a wheel built from its source archive.
   Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;

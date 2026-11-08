@@ -380,6 +380,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "evals/release_corpus.py",
         "tests/testing/test_release_corpus.py",
         "tests/testing/test_baseline_runs.py",
+        "tests/testing/test_baseline_report_redaction.py",
         "tests/testing/test_syntax_scenario.py",
         "tests/testing/test_syntax_eval_contract.py",
         "evals/helpers.py",

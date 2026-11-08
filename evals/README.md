@@ -489,6 +489,13 @@ timeouts retain their own diagnostic text.
 Run latency includes setup, all scenario turns and owned cleanup for every
 outcome. A successful final turn's duration alone is not the scenario latency.
 
+Baseline reports apply the shared credential evidence policy before JSON
+serialization. The CLI retains observed provider/environment credentials around
+each attempt; embedding callers can supply a held `EvidenceRedactor` for explicit
+or rotated secrets. Fixed report keys, validated corpus identities and numeric
+observations remain intact. Unknown values under identity-labelled fields are
+projected normally. Atomic write failures retain their original error behavior.
+
 The [2026-11-07 local development cohort](../docs/evaluations/2026-11-07-local-baseline.md)
 retains all 22 attempts: all timed out at the declared 120-second turn limit, with
 no verified successes or reported token usage. Its invocation, raw report,
