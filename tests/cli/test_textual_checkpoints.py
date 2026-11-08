@@ -143,7 +143,7 @@ async def test_resize_keeps_selected_file_hunk_and_apply_requires_explicit_activ
         assert (tmp_path / "file.txt").read_text() == "FIRST\nkeep\nLAST\n"
 
 
-async def test_checks_remain_historical_and_refresh_shows_invalidation(tmp_path, monkeypatch):
+async def test_checks_recheck_declared_files_without_rewriting_historical_pass(tmp_path, monkeypatch):
     from henchman.advanced.plans import PlanExecutionService
 
     monkeypatch.chdir(tmp_path)
@@ -151,7 +151,6 @@ async def test_checks_remain_historical_and_refresh_shows_invalidation(tmp_path,
     plans = PlanExecutionService(tmp_path)
     plan = plans.create_plan(title="Check file", steps=["Inspect"], checks=[{"kind": "file_exists", "path": "file.txt"}])
     await plans.verify_plan(plan.plan_id)
-    (tmp_path / "file.txt").write_text("later external change")
     app = InteractionApp(tmp_path)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.press("f8")
@@ -159,13 +158,214 @@ async def test_checks_remain_historical_and_refresh_shows_invalidation(tmp_path,
         await pilot.press("v")
         await ready(pilot)
         text = screen.query_one(TextArea).text
-        assert "recorded pass" in text and "freshness unverified" in text
+        assert "Current status: pass" in text and "Historical result: recorded pass" in text
         assert "not bound to the selected checkpoint" in text
-        plans.invalidate_checks()
+        saved = (tmp_path / ".henchman/plans/verification.json").read_bytes()
+        (tmp_path / "file.txt").write_text("later external change")
         await pilot.press("f5")
         await ready(pilot)
-        assert "stale" in screen.query_one(TextArea).text
-        assert "recorded pass" not in screen.query_one(TextArea).text
+        assert "Current status: stale" in screen.query_one(TextArea).text
+        assert "Historical result: recorded pass" in screen.query_one(TextArea).text
+        assert (tmp_path / ".henchman/plans/verification.json").read_bytes() == saved
+
+
+@pytest.mark.parametrize("state", ["pass", "fail", "not_run", "unavailable", "incomplete"])
+async def test_checks_show_shared_current_status_without_executing_or_saving(tmp_path, monkeypatch, state):
+    from henchman.advanced import acceptance_checks
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.cli.evidence import runtime_evidence_redactor
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    app = InteractionApp(tmp_path)
+    policy = runtime_evidence_redactor(app)
+    service = PlanExecutionService(tmp_path, settings=app.settings, redactor=policy)
+    secret = "later-known-check-private"
+    check = {"kind": "file_contains", "path": "file.txt", "text": "FIRST" if state != "fail" else "absent"}
+    if state == "unavailable":
+        check["text"] = secret
+    if state == "incomplete":
+        check = {"kind": "command", "argv": ["offline-unavailable"], "inputs": ["file.txt"]}
+        async def unavailable(*_args):
+            raise FileNotFoundError("Owned fixture executable unavailable")
+        monkeypatch.setattr(acceptance_checks, "_command_result", unavailable)
+    plan = service.create_plan(title="Inspect declared scope", steps=["Check"], checks=[check])
+    if state not in {"not_run", "unavailable"}:
+        await service.verify_plan(plan.plan_id)
+    if state == "unavailable":
+        policy.register_secret(secret)
+    assert service.verification_status(plan.plan_id)["status"] == state
+    index = tmp_path / ".henchman/plans/verification.json"
+    before = index.read_bytes()
+    async def forbidden(*_args, **_kwargs):
+        raise AssertionError("Read-only Checks must not execute verification")
+    monkeypatch.setattr(PlanExecutionService, "verify_plan", forbidden)
+    async with app.run_test() as pilot:
+        composer = app.query_one(HenchmanTextArea)
+        composer.load_text("keep unsent draft")
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("v")
+        await ready(pilot)
+        text = screen.query_one(TextArea).text
+        assert f"Current status: {state}" in text
+        assert "Historical result:" in text and "Task acceptance is not established" in text
+        assert secret not in text and index.read_bytes() == before
+        assert screen._plan is None and screen.query_one("#checkpoint-apply", Button).disabled
+        await pilot.press("escape", "escape")
+        await ready(pilot)
+        assert composer.text == "keep unsent draft" and not app.submitted
+
+
+async def test_checks_use_held_context_settings_and_detect_required_config_changes(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.config.schema import Settings
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    settings = Settings(verification={"checks": [{"kind": "file_exists", "path": "file.txt"}]})
+    service = PlanExecutionService(tmp_path, settings=settings)
+    plan = service.create_plan(steps=["Check"])
+    await service.verify_plan(plan.plan_id)
+    app = InteractionApp(tmp_path)
+    async def close():
+        pass
+    async with app.run_test() as pilot:
+        app.core_context = SimpleNamespace(
+            settings=settings, project_root=tmp_path, session_manager=SimpleNamespace(current=object()),
+            orchestrator=SimpleNamespace(aclose=close), background_tasks=[], mcp_manager=None,
+        )
+        try:
+            await pilot.press("f8")
+            screen = await ready(pilot)
+            await pilot.press("v")
+            await ready(pilot)
+            assert "Current status: pass" in screen.query_one(TextArea).text
+            settings.verification.checks = [{"kind": "file_contains", "path": "file.txt", "text": "FIRST"}]
+            await pilot.press("f5")
+            await ready(pilot)
+            text = screen.query_one(TextArea).text
+            assert "Current status: stale" in text and "configuration: changed" in text
+            assert "Historical result: recorded pass" in text
+        finally:
+            app.core_context = None
+
+
+@pytest.mark.parametrize("change", ["session", "settings", "project", "configuration", "close"])
+async def test_checks_join_reads_and_refuse_stale_runtime_publication(tmp_path, monkeypatch, change):
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.config.schema import Settings
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    PlanExecutionService(tmp_path).create_plan(steps=["Observe"], checks=[{"kind": "file_exists", "path": "file.txt"}])
+    entered, release, finished = Event(), Event(), Event()
+    original = PlanExecutionService.verification_status
+    def blocked(service, plan_id):
+        entered.set()
+        assert release.wait(10), "Test failed to release the owned read"
+        try:
+            return original(service, plan_id)
+        finally:
+            finished.set()
+    monkeypatch.setattr(PlanExecutionService, "verification_status", blocked)
+    app = InteractionApp(tmp_path)
+    async def close():
+        pass
+    async with app.run_test() as pilot:
+        context = SimpleNamespace(
+            settings=app.settings, project_root=tmp_path, session_manager=SimpleNamespace(current=object()),
+            orchestrator=SimpleNamespace(aclose=close), background_tasks=[], mcp_manager=None,
+        )
+        app.core_context = context
+        closing = None
+        try:
+            await pilot.press("f8")
+            screen = await ready(pilot)
+            screen.action_checks()
+            assert await asyncio.to_thread(entered.wait, 5)
+            if change == "session":
+                context.session_manager.current = object()
+            elif change == "settings":
+                context.settings = Settings()
+            elif change == "project":
+                context.project_root = tmp_path / "different-project"
+            elif change == "configuration":
+                context.settings.verification.checks = [{"kind": "file_exists", "path": "file.txt"}]
+            else:
+                async def pop():
+                    await app.pop_screen()
+                closing = asyncio.create_task(pop())
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                assert not finished.is_set() and not closing.done()
+            release.set()
+            if closing is not None:
+                await asyncio.wait_for(closing, 10)
+            else:
+                await ready(pilot)
+                assert "changed" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+            assert finished.is_set() and screen._checks == ""
+        finally:
+            release.set()
+            app.core_context = None
+
+
+async def test_checks_bound_additional_freshness_reads_and_make_omission_explicit(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.cli import textual_checkpoints
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    service = PlanExecutionService(tmp_path)
+    plans = [service.create_plan(title=f"Plan {number}", steps=["Check"],
+                                 checks=[{"kind": "file_exists", "path": "file.txt"}])
+             for number in range(3)]
+    observed = []
+    original = PlanExecutionService.verification_status
+    def inspect(service, plan_id):
+        observed.append(plan_id)
+        return original(service, plan_id)
+    monkeypatch.setattr(PlanExecutionService, "verification_status", inspect)
+    monkeypatch.setattr(textual_checkpoints, "_CHECK_PLAN_LIMIT", 2)
+    app = InteractionApp(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("f8")
+        screen = await ready(pilot)
+        await pilot.press("v")
+        await ready(pilot)
+        assert observed == [plan.plan_id for plan in plans[-2:]]
+        assert "1 earlier plan(s) omitted" in screen.query_one(TextArea).text
+        assert "Plan 0" not in screen.query_one(TextArea).text
+
+
+async def test_checks_refuse_initial_root_mismatch_before_plan_inspection(tmp_path, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+
+    monkeypatch.chdir(tmp_path)
+    capture(tmp_path)
+    bound_root = tmp_path / "bound-project"
+    bound_root.mkdir()
+    reads = []
+    monkeypatch.setattr(PlanExecutionService, "list_plans", lambda _service: reads.append(True) or [])
+    app = InteractionApp(tmp_path)
+    async def close():
+        pass
+    async with app.run_test() as pilot:
+        app.core_context = SimpleNamespace(
+            settings=app.settings, project_root=bound_root, session_manager=None,
+            orchestrator=SimpleNamespace(aclose=close), background_tasks=[], mcp_manager=None,
+        )
+        try:
+            await pilot.press("f8")
+            screen = await ready(pilot)
+            await pilot.press("v")
+            await ready(pilot)
+            assert reads == []
+            assert screen._checks == ""
+            assert "project" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+        finally:
+            app.core_context = None
 
 
 async def test_revision_changed_before_preview_requires_refresh(tmp_path, monkeypatch):

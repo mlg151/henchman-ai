@@ -98,6 +98,13 @@ not yet implemented. Native clipboard behavior, editor integration qualification
 and the remaining UI settings are separate open work; this
 slice does not complete issue #33.
 
+In F8 checkpoint review, **Checks** reads current declared-input status and keeps
+historical check results separate. Refresh rechecks through the shared service
+without executing checks. Changed runtime/project selection refuses publication;
+reads finish before close. These are project-wide observations, not proof that a
+selected checkpoint or task meets its requirements. See
+[checkpoint review](checkpoints.md#user-commands).
+
 ## External-editor composition
 
 Set `VISUAL` or `EDITOR` to a foreground editor command, then press **F11** in

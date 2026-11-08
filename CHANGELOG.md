@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Current check freshness in review** — Checkpoint review now shows current
+  declared-input status separately from historical results. Inspection uses held
+  settings, rejects stale runtime/project selection and joins reads without
+  executing checks or implying checkpoint/task acceptance.
+
 - **Headless UI resource baseline** — Six fresh-process observations record
   long-transcript memory and idle CPU at three widths, with reproducible workload
   and future screening limits. Native paint latency, assistive technology and

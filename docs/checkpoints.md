@@ -50,10 +50,15 @@ uses the backend's revision/content conflict checks. A conflict requires refresh
 external writers are detected by those backend checks. Closing during filesystem
 work joins that work before the screen finishes closing.
 
-The **Checks** view (`v`) displays historical project-plan evidence and explicitly
-labels its freshness as unverified. It does not bind a plan to the selected capture
-or establish acceptance. Use the [verification status API](tools.md#declared-input-freshness)
-for current declared-input evidence. Rendered keyboard and resize tests cover
+The **Checks** view (`v`) reads current declared-input freshness through the
+shared [verification status API](tools.md#declared-input-freshness), alongside
+the unchanged historical results. Current pass/fail, not-run, stale, unavailable
+and incomplete states remain distinct. It uses the held runtime settings and
+rechecks selected project/session identity before publication. Refresh reads
+again without executing checks or rewriting plan records. At most 64 recent
+plans receive freshness inspection; omitted plans are counted, while the existing
+initial index enumeration retains its own limits. This does not bind a plan to
+the selected capture or establish task acceptance. Rendered keyboard and resize tests cover
 80×24 and 120×40; native terminal and accessibility qualification remain open.
 
 ## Automatic tool capture

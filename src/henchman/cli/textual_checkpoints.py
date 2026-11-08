@@ -20,12 +20,16 @@ from textual.widgets.option_list import Option
 
 from henchman.advanced.checkpoint_models import CheckpointRecord, CheckpointReview, ReviewPlan
 from henchman.advanced.checkpoints import CheckpointConflict, CheckpointService
-from henchman.advanced.plans import PlanExecutionService
+from henchman.advanced.plans import PlanExecutionService, PlanRecord
 from henchman.advanced.tasks import TaskService
 from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
+from henchman.cli.textual_context import _current_policy
+from henchman.config.schema import Settings
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 _T = TypeVar("_T")
 _TEXT_LIMIT = 65536
+_CHECK_PLAN_LIMIT = 64
 
 
 def require_idle(runtime: Any, root: Path) -> None:
@@ -117,6 +121,38 @@ class CheckpointReviewScreen(ModalScreen[None]):
         self._busy = False
         self._review_closing = False
         self._refresh_required = False
+        self._checks_policy = EvidenceRedactor()
+        self._checks_settings = self._runtime_settings()
+        self._checks_binding = self._checks_identity()
+
+    def _runtime_settings(self) -> Settings | None:
+        context = getattr(self.runtime, "core_context", None)
+        settings = getattr(context, "settings", None)
+        if settings is None:
+            settings = getattr(self.runtime, "settings", None)
+        return settings if isinstance(settings, Settings) else None
+
+    def _checks_identity(self) -> tuple[object, ...]:
+        """Bind read-only check observations to this selected runtime/project."""
+        context = getattr(self.runtime, "core_context", None)
+        manager = getattr(context, "session_manager", None) or getattr(self.runtime, "session_manager", None)
+        session = getattr(manager, "current", None)
+        root = self.root.resolve(strict=True)
+        info = root.stat()
+        return (id(context), id(manager), id(session), getattr(session, "id", None),
+                getattr(session, "project_hash", None), id(self._runtime_settings()),
+                getattr(context, "project_root", None), getattr(self.runtime, "project_root", None),
+                Path.cwd(), root, info.st_dev, info.st_ino)
+
+    def _require_checks_binding(self) -> None:
+        if self._review_closing or self._checks_identity() != self._checks_binding:
+            raise ValueError("Check inspection runtime or project changed. Close and reopen review.")
+        context = getattr(self.runtime, "core_context", None)
+        bound_root = getattr(context, "project_root", None) or getattr(self.runtime, "project_root", None)
+        if bound_root is not None and Path(bound_root).resolve(strict=True) != self.root.resolve(strict=True):
+            raise ValueError("Check inspection project does not match the selected runtime. Close and reopen review.")
+        if self._checks_settings is None:
+            raise ValueError("Held runtime settings are unavailable for check inspection.")
 
     def compose(self) -> ComposeResult:
         with Vertical(id="checkpoint-dialog"):
@@ -264,7 +300,7 @@ class CheckpointReviewScreen(ModalScreen[None]):
             return
         self.query_one("#checkpoint-title", Static).update(self._safe(f"Review changes · {self.root}"))
         self.query_one("#checkpoint-summary", Static).update(
-            "Project checks are historical; checkpoint acceptance is not established.\n"
+            "Checks inspect declared-input freshness; checkpoint acceptance is not established.\n"
             + ("No captures yet." if not self._records else f"{len(self._records)} capture(s) · {self._stage}"))
         self.query_one("#checkpoint-status", Static).update(self._safe("Working; closing waits for filesystem cleanup." if self._busy else self._status))
         content = self._checks if self._stage == "checks" else self._detail()
@@ -391,19 +427,47 @@ class CheckpointReviewScreen(ModalScreen[None]):
     def action_checks(self) -> None:
         if self._busy:
             return
+        self._checks = ""
         async def checks() -> None:
-            plans = await _joined(lambda: PlanExecutionService(self.root).list_plans())
+            self._require_checks_binding()
+            assert self._checks_settings is not None
+            settings = self._checks_settings
+            configuration = settings.verification.model_dump(mode="json")
+            self._checks_policy.register_policy(_current_policy(self.runtime))
+            def read() -> tuple[list[tuple[PlanRecord, dict[str, object]]], int]:
+                service = PlanExecutionService(self.root, settings=settings, redactor=self._checks_policy)
+                plans = service.list_plans()
+                observations = []
+                for plan in plans[-_CHECK_PLAN_LIMIT:]:
+                    current = service.verification_status(plan.plan_id)
+                    if service.get_plan(plan.plan_id) != plan:
+                        raise ValueError("Check evidence changed during inspection. Refresh to inspect it again.")
+                    observations.append((plan, current))
+                return observations, max(0, len(plans) - _CHECK_PLAN_LIMIT)
+            observations, omitted = await _joined(read)
+            self._require_checks_binding()
+            if settings.verification.model_dump(mode="json") != configuration:
+                raise ValueError("Required check configuration changed during inspection. Refresh to inspect it again.")
+            self._checks_policy.register_policy(_current_policy(self.runtime))
             lines = ["PROJECT CHECKS — not bound to the selected checkpoint or operation.",
-                     "Recorded outcomes only; freshness unverified. Task acceptance is not established."]
-            for plan in plans:
+                     "Read-only freshness observations over declared inputs; Refresh rechecks without executing checks.",
+                     "Historical outcomes are retained separately. Task acceptance is not established."]
+            if omitted:
+                lines.append(f"{omitted} earlier plan(s) omitted; inspecting the most recent {_CHECK_PLAN_LIMIT}.")
+            for plan, current in observations:
                 report = plan.last_verification
                 status = str(report.get("status", "unknown")) if report else "not-run"
                 if status == "finished":
                     status = "recorded pass" if report and report.get("checks_passed") is True else "recorded fail"
-                lines.extend([f"\n{plan.plan_id}: {plan.title} — {status}", json.dumps(self._policy.redact(report), ensure_ascii=True, indent=2) if report else "Checks have not run."])
-            if not plans:
+                lines.extend([f"\n{plan.plan_id}: {plan.title}",
+                              f"Current status: {current['status']} · freshness: {current['freshness']} · configuration: {current['configuration_status']}",
+                              json.dumps(self._checks_policy.redact(current), ensure_ascii=True, indent=2),
+                              f"Historical result: {status}",
+                              json.dumps(self._checks_policy.redact(report), ensure_ascii=True, indent=2) if report else "Checks have not run."])
+            if not observations:
                 lines.append("No recorded project checks.")
-            self._checks = "\n".join(lines)
+            self._checks = self._checks_policy.text("\n".join(lines))
+            self._status = "Check freshness inspected without execution. Refresh to inspect current contents again."
             self._return_stage = self._stage if self._stage != "checks" else self._return_stage
             if self._return_stage == "preview":
                 self._return_stage = "detail"

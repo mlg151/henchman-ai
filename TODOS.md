@@ -333,6 +333,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   inspection, with strict outcomes, visible omissions and credential reprojection.
   Tool-inspector copy now reprojects before selection and requires reselection
   after credential/evidence changes, retaining earlier credential policies.
+  F8 Checks now reads shared declared-input freshness with current and historical
+  states separated; refresh performs no verification execution and grants no
+  checkpoint/task acceptance.
   Owned lifecycle status now retains cancellation through cleanup and exposes
   F4 navigation to an actual pending question or approval without answering it.
   F9 now provides revision-bound inspect/edit/remove/reorder/Send controls with
