@@ -128,10 +128,12 @@ uses the checkpoint service's documented content/ACL limitations. An internal
 coordinator now binds staged operations to an exact child worker and holds the
 exact reviewed content for a live parent before publication. An internal tool
 adapter routes the builtin read, write and edit tools through the staged view;
-it rejects opaque tools and fails closed under restricted access policies. This
-cooperative mechanism is not yet connected to the dynamic subagent tool catalog
-and is not a filesystem sandbox. Existing subagents still share the workspace
-and require coordination; issue #29 remains open.
+it rejects opaque tools and fails closed under restricted access policies. A
+separate internal review formatter refuses oversized previews instead of
+silently truncating file content. This cooperative mechanism is not yet
+connected to the dynamic subagent tool catalog and is not a filesystem sandbox.
+Existing subagents still share the workspace and require coordination; issue
+#29 remains open.
 
 ## Optional Named Roles
 
