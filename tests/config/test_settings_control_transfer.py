@@ -264,7 +264,7 @@ def test_import_targets_canonical_project_preserves_layers_and_session_origin(tm
     assert snapshot.origins["usage.limits.max_tokens"].scope == "session"
     saved = repository.view(scope=SettingsScope.PROJECT)
     assert saved["usage"] == {"limits": {"max_requests": 0}}
-    assert destinations == [canonical_file]
+    assert [str(path) for path in destinations] == [str(canonical_file)]
     if same_directory:
         # Case-insensitive filesystems expose one file through both spellings.
         assert (legacy / "settings.yaml").samefile(canonical_file)
