@@ -34,7 +34,9 @@ The offline [repository reuse oracle prototype](repository_reuse_oracle_v1/READM
 checks small fixtures and rejects copied helper logic with an injected call
 recorder. A separate [paired experiment harness](repository_reuse_paired_v1/README.md)
 has passed a [synthetic preflight](../docs/evaluations/2026-11-08-reuse-preflight-v2.md);
-that preflight does not measure model quality.
+that preflight does not measure model quality. The subsequent
+[local-model run](../docs/evaluations/2026-11-08-reuse-paired-v1.md) stopped
+after one timeout and produced no paired comparison.
 
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
