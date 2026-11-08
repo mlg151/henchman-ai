@@ -18,7 +18,9 @@ def test_workflow_and_public_updater_import_in_either_order(first: str) -> None:
         "from henchman.ops.updater import AutoUpdater as ActualUpdater; "
         "assert 'AutoUpdater' in dir(henchman.ops); "
         "assert henchman.ops.AutoUpdater is ActualUpdater; "
-        "assert not hasattr(henchman.ops, 'missing_export')"
+        "assert not hasattr(henchman.ops, 'missing_export'); "
+        "namespace = {}; exec('from henchman.ops import *', namespace); "
+        "assert namespace['AutoUpdater'] is ActualUpdater"
     )
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode == 0, result.stderr

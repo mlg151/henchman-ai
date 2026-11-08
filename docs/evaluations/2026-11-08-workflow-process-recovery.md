@@ -9,6 +9,12 @@ reports the first input as outcome unknown, holds the second and refuses goal
 continuation until explicit user dispositions. The test does not execute the
 synthetic input or establish behavior of arbitrary external side effects.
 
+A later test-only extension also verifies that the saved goal policy and bound
+check identity survive process death. Changing a checked file after reopening
+makes the recorded pass stale and blocks model completion until verification
+is rerun. This extended case passed on Linux Python 3.11 from source and Python
+3.12 against the installed development wheel described below.
+
 On Linux Python 3.11.15 and 3.12.13, 93 focused workflow, session persistence,
 updater and import-order tests passed for the implementation. The strengthened
 two-order import assertions also passed separately on both versions. Another 17
@@ -26,3 +32,5 @@ It reports version 0.4.1 and is not a release artifact.
 The regression is included in the installed-wheel smoke matrix for future
 native runs. These local checks do not qualify Windows/macOS process handling,
 the complete session-recovery issue or a release candidate.
+An attempted offline Python 3.13 wheel setup could not resolve an `aiohttp`
+dependency from the local cache, so no Python 3.13 test ran in that environment.
