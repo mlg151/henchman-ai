@@ -338,6 +338,7 @@ async def test_export_completion_tolerates_removed_status_widget(app, tmp_path, 
                 return original(selector, *args, **kwargs)
 
             monkeypatch.setattr(review, "query_one", missing_status)
+            monkeypatch.setattr(review, "_valid", lambda: False)
             release.set()
             await asyncio.wait_for(review._export_task, 5)
         finally:
