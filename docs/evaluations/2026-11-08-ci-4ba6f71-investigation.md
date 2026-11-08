@@ -23,3 +23,15 @@ and joining the worker. Python 3.11 passed **30 related agent tests**; Python
 3.12 passed both concurrent cases. Ruff passed. This changes a test fixture,
 not the production runtime or its deadlines. A later native/full source run
 is still needed to evaluate the change.
+
+A clean wheel built from `536fcf7`, imported from isolated Python 3.12.13
+`site-packages`, passed all **30 related agent tests**. The wheel SHA-256 is
+`cd2c0887957719d9ea8d8c9430e74edec2385dc6327236256e1f247090afddd9` and its
+test log SHA-256 is
+`b934e22dc612e4d630f117643ec7849d5c70e352476b230263d0876432020d78`.
+Separately, an isolated test copy with its outer deadline forced to 0.01 seconds
+failed as intended and printed the child states and partial transcript before
+cleanup; that log SHA-256 is
+`708695da23a1bce3be08ce4233323cf80c510ccb2aa536608d62764d6e44c41b`.
+The changed test copy was restored afterward. These development-wheel results
+do not qualify a release artifact.
