@@ -235,7 +235,28 @@ class TestBug034DeadStreamingMessages:
 
 
 class TestBug035OnMountReinitializes:
-    """BUG-035: ChatPane.on_mount removed to avoid wiping state."""
+    """BUG-035: Mounting must not wipe pre-existing stream state."""
 
-    def test_on_mount_not_overridden(self):
-        assert "on_mount" not in ChatPane.__dict__
+    async def test_mount_preserves_active_streams_and_their_existing_content(self):
+        pane = ChatPane()
+        message = pane.begin_agent_stream("agent")
+        thought = pane.begin_thinking_stream("agent")
+        pane.append_agent_chunk("agent", "before ")
+        pane.append_thinking_chunk("agent", "thinking before ")
+        active, thinking = pane._active, pane._active_thinking
+
+        class ChatApp(App):
+            def compose(self):
+                yield pane
+
+        async with ChatApp().run_test() as pilot:
+            await pilot.pause()
+            assert pane._active is active and pane._active["agent"] is message
+            assert pane._active_thinking is thinking and pane._active_thinking["agent"] is thought
+            pane.append_agent_chunk("agent", "after")
+            pane.append_thinking_chunk("agent", "after")
+            assert message._content_text == "before after"
+            assert thought._content_text == "thinking before after"
+            assert [row.content for row in pane.iter_transcript_rows()] == [
+                "before after", "thinking before after",
+            ]
