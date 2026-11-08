@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from evals.staged_delegation_paired import runner
+from evals.staged_delegation_paired.audit import validate
 from evals.staged_delegation_paired.runner import oracle, route_observed
 from evals.staged_delegation_paired.worker import LocalTransport, load_plan, scope_guard
 
@@ -196,6 +197,7 @@ def test_launcher_records_all_fixed_attempts_without_network(tmp_path: Path, mon
         names = (["edit_file"] if args["--arm"] == "direct" else
                  ["invoke_subagent", "manage_subagents", "publish_subagent_proposal"])
         result = {"outcome": "completed", "completion": "completed", "transport_errors": [], "events_truncated": False,
+                  "transport_attempts": 1,
                   "result_sha256": hashlib.sha256(content.encode()).hexdigest(),
                   "initial_sha256": hashlib.sha256(fixture["initial"].encode()).hexdigest(),
                   "task_sha256": hashlib.sha256(fixture["task"].encode()).hexdigest(),
@@ -210,6 +212,11 @@ def test_launcher_records_all_fixed_attempts_without_network(tmp_path: Path, mon
     report = json.loads((output / "report.json").read_text())
     assert report["planned"] == report["executed"] == report["accepted"] == 12
     assert all(row["status"] == "accepted" and row["independent_exact_ast"] for row in report["rows"])
+    audit = validate(output)
+    assert audit["counts"]["direct"]["accepted"] == audit["counts"]["staged"]["accepted"] == 6
+    (output / "01-addition-1-direct/project/target.py").write_text("tampered\n")
+    with pytest.raises(ValueError, match="evidence"):
+        validate(output)
 
 
 def test_launcher_preserves_unrun_rows_if_interrupted(tmp_path: Path, monkeypatch) -> None:
@@ -226,3 +233,7 @@ def test_launcher_preserves_unrun_rows_if_interrupted(tmp_path: Path, monkeypatc
     assert report["planned"] == 12
     assert report["rows"][0]["status"] == "interrupted_unknown"
     assert all(row["status"] == "not_run" for row in report["rows"][1:])
+    audit = validate(output)
+    assert audit["counts"]["direct"]["unknown"] == 1
+    assert audit["counts"]["direct"]["not_run"] == 5
+    assert audit["counts"]["staged"]["not_run"] == 6

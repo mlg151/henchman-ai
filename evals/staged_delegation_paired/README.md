@@ -50,3 +50,6 @@ The launcher verifies the plan hash, wheel hash and installed package bytes
 before each attempt. The fixed route, fixture list, arm order and limits are in
 [plan.json](plan.json); local guard and oracle checks are in
 [`test_staged_delegation_paired.py`](../../tests/testing/test_staged_delegation_paired.py).
+The read-only [`audit.py`](audit.py) independently checks retained worker
+records, current fixture bytes, route evidence, statuses and the fixed
+denominator; running or interrupted attempts remain outcome-unknown.
