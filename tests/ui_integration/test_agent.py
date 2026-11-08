@@ -233,7 +233,8 @@ class TestAgentProcessing:
                 # Verify system prompt is included in messages
                 assert len(messages) >= 1
                 assert messages[0].role == "system"
-                assert messages[0].content == system_prompt
+                assert messages[0].content.startswith(system_prompt + "\n\n")
+                assert "Delegation is disabled." in messages[0].content
 
                 yield StreamChunk(content="System prompt verified")
                 yield StreamChunk(finish_reason=FinishReason.STOP)
@@ -246,6 +247,7 @@ class TestAgentProcessing:
             console=console_with_recording,
             config=ReplConfig(system_prompt=system_prompt),
         )
+        assert not repl.orchestrator.delegation_runner.admission.allowed
 
         # Run agent
         events = []

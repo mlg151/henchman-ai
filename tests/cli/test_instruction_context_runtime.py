@@ -12,6 +12,7 @@ from rich.console import Console
 from henchman.cli.core_init import create_core_context
 from henchman.cli.repl import Repl, ReplConfig
 from henchman.config.context import ContextLoader
+from henchman.config.schema import Settings
 from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.providers.base import FinishReason, Message, StreamChunk, ToolCall
 from tests.cli.test_repl import MockProvider
@@ -32,12 +33,15 @@ async def test_runtime_refresh_reaches_session_team_and_dynamic_agents(
     (child / "file.txt").write_text("data", encoding="utf-8")
     monkeypatch.chdir(root)
     snapshot = ContextLoader(start_dir=root).load_snapshot()
+    settings = Settings()
+    settings.agents.allow_delegation = True
     if surface == "core":
-        runtime = create_core_context(MockProvider(), instruction_snapshot=snapshot)
+        runtime = create_core_context(MockProvider(), settings=settings, instruction_snapshot=snapshot)
     else:
         with patch("henchman.cli.input.PromptSession"):
             runtime = Repl(
                 MockProvider(), console=Console(file=StringIO()),
+                settings=settings,
                 config=ReplConfig(interactive=False, instruction_snapshot=snapshot),
             )
     sessions = runtime.session_manager

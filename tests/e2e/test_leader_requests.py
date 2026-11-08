@@ -77,15 +77,17 @@ async def test_actual_leader_request_honors_role_configuration(
     assert request["max_tokens"] == 1024
     assert request["messages"][-1]["content"] == "Describe the current status."
     if isinstance(provider, AnthropicProvider):
-        assert request["system"] == "Configured leader instruction."
+        system_prompt = request["system"]
         assert [tool["name"] for tool in request["tools"]] == ["read_file"]
     else:
-        assert request["messages"][0] == {
-            "role": "system", "content": "Configured leader instruction.",
-        }
+        assert request["messages"][0]["role"] == "system"
+        system_prompt = request["messages"][0]["content"]
         assert request["temperature"] == 0.25
         assert [tool["function"]["name"] for tool in request["tools"]] == ["read_file"]
         assert provider.base_url == "https://offline.invalid/v1"
+    assert system_prompt.startswith("Configured leader instruction.\n\n")
+    assert "Delegation is disabled." in system_prompt
+    assert not orch.delegation_runner.admission.allowed
     assert orch.pool.get_agent("tech_lead") is leader
     assert provider is not default
     assert orch.default_provider is orch.pool.default_provider is default

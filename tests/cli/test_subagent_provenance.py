@@ -9,6 +9,7 @@ from rich.console import Console
 
 from henchman.cli.repl import Repl, ReplConfig
 from henchman.config.context import ContextLoader
+from henchman.config.schema import Settings
 from tests.cli.test_repl import MockProvider
 
 
@@ -27,6 +28,8 @@ async def test_spawned_subagent_receives_provenance_appendix(
     )
     monkeypatch.chdir(project)
     snapshot = ContextLoader(start_dir=project).load_snapshot()
+    settings = Settings()
+    settings.agents.allow_delegation = True
 
     with patch("henchman.cli.input.PromptSession"):
         console = Console(file=StringIO(), force_terminal=True)
@@ -36,7 +39,7 @@ async def test_spawned_subagent_receives_provenance_appendix(
             interactive=False,
             instruction_snapshot=snapshot,
         )
-        repl = Repl(provider=MockProvider(), console=console, config=config)
+        repl = Repl(provider=MockProvider(), console=console, config=config, settings=settings)
 
     assert repl.orchestrator.instruction_snapshot is snapshot
     manager = repl.orchestrator.subagents
@@ -58,7 +61,7 @@ async def test_spawned_subagent_receives_provenance_appendix(
 
 
 @pytest.mark.asyncio
-async def test_spawned_subagent_without_snapshot_gets_prompt_verbatim(
+async def test_spawned_subagent_without_snapshot_preserves_prompt_and_permission_note(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     home = tmp_path / "home"
@@ -68,6 +71,8 @@ async def test_spawned_subagent_without_snapshot_gets_prompt_verbatim(
     project.mkdir()
     (project / "AGENTS.md").write_text("Ignored without snapshot fixture", encoding="utf-8")
     monkeypatch.chdir(project)
+    settings = Settings()
+    settings.agents.allow_delegation = True
 
     with patch("henchman.cli.input.PromptSession"):
         console = Console(file=StringIO(), force_terminal=True)
@@ -76,7 +81,7 @@ async def test_spawned_subagent_without_snapshot_gets_prompt_verbatim(
             auto_save=False,
             interactive=False,
         )
-        repl = Repl(provider=MockProvider(), console=console, config=config)
+        repl = Repl(provider=MockProvider(), console=console, config=config, settings=settings)
 
     manager = repl.orchestrator.subagents
     record = manager.spawn(
@@ -86,5 +91,7 @@ async def test_spawned_subagent_without_snapshot_gets_prompt_verbatim(
         tools=[],
     )
     conversation = manager._conversations[record.conversation_id]  # noqa: SLF001
-    assert conversation.agent.system_prompt == "Review only."
+    assert conversation.agent.system_prompt.startswith("Review only.\n\n")
+    assert "Delegation is enabled by user/runtime opt-in." in conversation.agent.system_prompt
+    assert "Project instruction provenance" not in conversation.agent.system_prompt
     await manager.close()
