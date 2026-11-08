@@ -73,6 +73,8 @@ class ParentProposalReview:
             return self._preview
         record = json.loads(render_parent_review(review))
         token = secrets.token_hex(16)
+        # Keep the token last: prefix-only tool/context truncation that removes
+        # review content must also remove the acknowledgement capability.
         preview = json.dumps({"review": record, "review_token": token}, ensure_ascii=True, separators=(",", ":"))
         self._review, self._token, self._preview = review, token, preview
         return preview

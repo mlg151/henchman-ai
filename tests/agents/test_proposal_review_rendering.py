@@ -13,6 +13,8 @@ from henchman.advanced.child_proposals import ChildProposalReview
 from henchman.agents.proposal_review import ParentProposalReview, render_parent_review
 from henchman.agents.proposal_runtime import ProposalCoordinator
 from henchman.agents.workspace_ownership import WorkspaceBinding, WorkspaceOwnershipError
+from henchman.providers.base import Message
+from henchman.utils.compaction import _truncate_tool_message_content
 
 
 def _review(before: FileState, after: FileState) -> ChildProposalReview:
@@ -56,8 +58,10 @@ async def test_parent_must_request_complete_preview_and_acknowledge_it(tmp_path:
                                   current_binding=lambda: WorkspaceBinding(tmp_path, session, 0))
     handle = runtime.reserve(child, paths=["file"], completed=lambda: True)
 
+    content = "after" + ("x" * 1000) + "END_OF_REVIEW_CONTENT"
+
     async def run() -> None:
-        runtime.workspace(handle, child).stage("file", "after")
+        runtime.workspace(handle, child).stage("file", content)
 
     worker = asyncio.create_task(run())
     runtime.bind(handle, worker)
@@ -65,9 +69,15 @@ async def test_parent_must_request_complete_preview_and_acknowledge_it(tmp_path:
     parent = ParentProposalReview(runtime, handle)
     with pytest.raises(ValueError, match="review"):
         parent.publish("not-reviewed")
-    preview = json.loads(parent.preview())
-    assert preview["review"]["files"][0]["after"]["content"] == "after"
+    preview_text = parent.preview()
+    preview = json.loads(preview_text)
+    assert preview["review"]["files"][0]["after"]["content"] == content
     assert json.loads(parent.preview()) == preview
+    tail = preview_text.index("END_OF_REVIEW_CONTENT")
+    tokens_to_trim = (len(preview_text) - tail + 3) // 4
+    compacted = _truncate_tool_message_content(Message("tool", preview_text), tokens_to_trim)
+    assert "END_OF_REVIEW_CONTENT" not in (compacted.content or "")
+    assert preview["review_token"] not in (compacted.content or "")
     with pytest.raises(ValueError, match="review"):
         parent.publish("wrong-token")
     with pytest.raises(ValueError, match="review"):
@@ -80,7 +90,7 @@ async def test_parent_must_request_complete_preview_and_acknowledge_it(tmp_path:
     await asyncio.create_task(wrong_worker())
     assert path.read_text() == "before"
     assert parent.publish(preview["review_token"]).changed_paths == ("file",)
-    assert path.read_text() == "after"
+    assert path.read_text() == content
     with pytest.raises(ValueError, match="review"):
         parent.publish(preview["review_token"])
     await runtime.close()
