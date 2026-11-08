@@ -1,0 +1,24 @@
+{
+  "kind": "diagnostic-local-guidance-replay-v1",
+  "candidate_commit": "0c28f1e257e42a97f5c04d4f105daae0051234e5",
+  "baseline_commit": "f59f51a1d3f5955538d79e9994fdbc6d946d7589",
+  "provider": "http://127.0.0.1:8082/v1/chat/completions",
+  "model": "qwen38-27b-iq3s",
+  "temperature": 0,
+  "max_tokens": 256,
+  "timeout_seconds": 60,
+  "repeats_per_arm_and_case": 2,
+  "cases": ["unmatched-edit", "incomplete-task-id"],
+  "order": [
+    ["unmatched-edit", "baseline", 1],
+    ["unmatched-edit", "candidate", 1],
+    ["incomplete-task-id", "candidate", 1],
+    ["incomplete-task-id", "baseline", 1],
+    ["unmatched-edit", "candidate", 2],
+    ["unmatched-edit", "baseline", 2],
+    ["incomplete-task-id", "baseline", 2],
+    ["incomplete-task-id", "candidate", 2]
+  ],
+  "evaluation": "One next tool call only. An edit recovery is accepted when it calls read_file on broken.py or edit_file with the exact old and corrected new text. A task recovery is accepted when it calls task_list or task_output with the full observed ID. Any other response, malformed output, error or timeout is not accepted. No requested tool is executed.",
+  "limitations": "Synthetic one-step replay on one GPU-backed local model; not an end-to-end coding task, a 16 GB CPU qualification, or a release gate. Repeats are correlated and selection followed observed failures."
+}
