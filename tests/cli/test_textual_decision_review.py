@@ -468,9 +468,12 @@ async def test_already_clipped_tool_observation_is_explicitly_omitted(app, label
             assert prefix not in app.clipboard
             assert "already-clipped tool observation omitted" in app.clipboard.lower()
             review._export("text")
-            await asyncio.wait_for(review._export_task, 2)
-            for path in (review.snapshot.root / ".henchman" / "exports").glob("*.txt"):
-                assert prefix not in path.read_text()
+            # Export joins a real filesystem worker, including fsync. Allow for
+            # slow native storage while still requiring a completed publication.
+            await asyncio.wait_for(review._export_task, 10)
+            exports = list((review.snapshot.root / ".henchman" / "exports").glob("*.txt"))
+            assert len(exports) == 1
+            assert prefix not in exports[0].read_text()
             assert not task.done()
         finally:
             task.cancel()
