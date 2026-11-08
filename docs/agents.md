@@ -134,7 +134,8 @@ silently truncating file content and requires an acknowledgement before it
 publishes. This cooperative mechanism is not yet connected to the dynamic
 subagent tool catalog and is not a filesystem sandbox.
 Existing subagents still share the workspace and require coordination; issue
-#29 remains open.
+#29 remains open. See the [review validation record](evaluations/2026-11-08-child-review-validation.md)
+for exact commits, tested environments and outstanding qualification.
 
 ## Optional Named Roles
 
