@@ -135,10 +135,9 @@ async def test_export_both_formats_uses_current_redaction_and_canonical_private_
             runtime_evidence_redactor(app).register_secret(raw)
             for name, suffix in (("text", ".txt"), ("markdown", ".md")):
                 await pilot.click(f"#review-export-{name}")
-                for _ in range(30):
-                    await pilot.pause()
-                    if list((tmp_path / ".henchman" / "exports").glob(f"*{suffix}")):
-                        break
+                assert review._export_task is not None
+                await asyncio.wait_for(review._export_task, 10)
+                await pilot.pause()
                 paths = list((tmp_path / ".henchman" / "exports").glob(f"*{suffix}"))
                 assert len(paths) == 1, str(review.query_one("#review-status").render())
                 assert raw not in paths[0].read_text()
@@ -269,6 +268,44 @@ async def test_back_joins_export_worker_and_retains_pending_decision(app, tmp_pa
             await settle_layout(pilot)
             assert exited.is_set() and app.screen is origin
             assert not list((tmp_path / ".henchman" / "exports").glob("*"))
+        finally:
+            release.set()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_export_completion_does_not_refresh_closing_screen(app, tmp_path, monkeypatch):
+    from henchman.cli import textual_review
+
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed(*_args):
+        entered.set()
+        assert release.wait(5)
+        return tmp_path / "unused"
+
+    monkeypatch.setattr(textual_review, "export_review", delayed)
+    async with app.run_test(size=(80, 24)) as pilot:
+        task, _origin, review = await open_review(app, pilot, ConfirmationRequest("fixture", "Inspect"))
+        after_close = []
+        original = review.refresh_evidence
+
+        def observed():
+            if review._review_closing:
+                after_close.append(True)
+            else:
+                original()
+
+        monkeypatch.setattr(review, "refresh_evidence", observed)
+        try:
+            review._export("text")
+            assert await asyncio.to_thread(entered.wait, 2)
+            closing = asyncio.create_task(review.action_back())
+            await asyncio.sleep(0)
+            release.set()
+            await asyncio.wait_for(closing, 5)
+            await asyncio.sleep(0)
+            assert not after_close
         finally:
             release.set()
             task.cancel()

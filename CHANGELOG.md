@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Decision review cleanup** — Finishing an export no longer refreshes the
+  review screen during teardown or after its widgets have been removed.
+
 - **Owned work interruption** — Workspace details provide **Stop work**
   and F6, and both frontends accept `/work stop agent|task <exact-id>`. Child
   cancellation joins owned descendants and discards their pending follow-ups;

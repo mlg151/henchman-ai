@@ -36,3 +36,17 @@ same surfaced connection error: **1 failed, 5,943 passed and 236 skipped**.
 Its retained job log SHA-256 is
 `11c16de8200daff1d5d3a124cad3e11272a820b263fb1ee5caf224a2b1c6133e`.
 The matching surface alone does not establish that both jobs share a cause.
+
+The Windows/Python 3.12 wheel job failed a separate pending-decision export
+test: **1 failed, 5,943 passed and 236 skipped**. The test saw no export file,
+and an export completion callback raised `NoMatches` after review widgets were
+removed. The retained job log SHA-256 is
+`3218c360699b84721f5bb43b1969ac073520f8a4c9291a897e7fc3870ef8621d`.
+The log does not identify which format was missing or prove the cause of the
+missing file. A deterministic local regression reproduced a completion refresh
+after closing; the subsequent change guards that refresh and waits for each
+export task to settle in the two-format test. Native verification remains open.
+
+The revised tool-discovery fixture also passed all five scripted adapters on
+Linux with the 2.6.0 SDK and a longer temporary project path. This does not
+substitute for the Windows wheel jobs.

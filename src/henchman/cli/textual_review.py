@@ -19,6 +19,7 @@ from uuid import uuid4
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Static, TextArea
 
@@ -448,7 +449,13 @@ class DecisionReviewScreen(ModalScreen[None]):
         self.set_interval(0.5, self.refresh_evidence)
 
     def refresh_evidence(self) -> None:
-        area = self.query_one(TextArea)
+        if self._review_closing or not self.is_mounted:
+            return
+        try:
+            area = self.query_one(TextArea)
+        except NoMatches:
+            # Textual can remove children before the screen reports unmounted.
+            return
         text = self._text()
         if text != area.text:
             area.load_text(text)
@@ -502,12 +509,12 @@ class DecisionReviewScreen(ModalScreen[None]):
             except Exception as error:
                 self.query_one("#review-status", Static).update(self._error(error))
             finally:
-                if self.is_mounted:
+                if self.is_mounted and not self._review_closing:
                     self.refresh_evidence()
 
         self._export_task = asyncio.create_task(owned())
         self._export_task.add_done_callback(
-            lambda _task: self.refresh_evidence() if self.is_mounted else None
+            lambda _task: self.refresh_evidence() if self.is_mounted and not self._review_closing else None
         )
         self.refresh_evidence()
 
