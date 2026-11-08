@@ -24,6 +24,13 @@ guard. These are observed outcomes under this restricted harness, not proof
 that the generated code is generally correct or incorrect. The borrowed
 server was neither stopped nor reconfigured.
 
+A later, separate prototype correction added support for unshadowed empty
+`set()` calls. With that correction, the earlier version of the file (SHA-256
+`34a6e9a53e99d9bcbac7c9297749ea2e888fd570b32be9be9165fc7b4b6124c2`)
+passes the prototype oracle's finite behavior and helper-call checks. This
+post-run observation does not change the original verifier failure, the
+timeout, or the missing candidate-arm results.
+
 The retained receipt has SHA-256
 `ec628414281744197636ea11b00d98e1dbeb196d62a052d5c81298888cd1b92e`.
 An independent audit of the receipt, worker settlement, inputs, and 77 raw

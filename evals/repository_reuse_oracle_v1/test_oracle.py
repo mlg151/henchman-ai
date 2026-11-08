@@ -40,6 +40,27 @@ class OracleTests(unittest.TestCase):
         result = self.check('labels', text)
         self.assertTrue(result['accepted'], result)
 
+    def test_empty_set_constructor_supports_helper_reuse_without_shadow_bypass(self):
+        text = fixtures.spec('labels')['correct'].replace(
+            '    result = []\n', '    seen = set()\n    result = []\n',
+        ).replace(
+            '        if label and label not in result:\n',
+            '        if label and label not in seen:\n            seen.add(label)\n',
+        )
+        result = self.check('labels', text)
+        self.assertTrue(result['accepted'], result)
+        self.assertFalse(self.check('labels', text.replace('set()', 'set(values)'))['accepted'])
+        helper_alias = fixtures.spec('labels')['correct'].replace(
+            'from shared import normalization',
+            'from shared.normalization import normalize_label as set',
+        ).replace('normalization.normalize_label(value)', 'set(value)')
+        self.assertTrue(self.check('labels', helper_alias)['accepted'])
+        for replacement in ('    set = []\n    seen = set()\n',
+                            '    seen = set()\n    set = []\n'):
+            with self.subTest(replacement=replacement):
+                shadowed = text.replace('    seen = set()\n', replacement)
+                self.assertFalse(self.check('labels', shadowed)['accepted'])
+
     def test_mutation_during_iteration_is_not_evaluated_as_a_snapshot(self):
         text = fixtures.spec('labels')['correct'].replace(
             '    result = []\n', '    saved = ""\n    if values:\n        saved = values[1]\n    result = []\n',

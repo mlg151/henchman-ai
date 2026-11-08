@@ -43,6 +43,10 @@ class Program:
         if self.function.name!=function or self.function.decorator_list or self.function.type_comment or self.function.returns is not None or any(a.annotation is not None for a in args.args) or getattr(self.function,'type_params',[]): raise Unsupported('function_shape')
         if [a.arg for a in args.args]!=[argument] or args.posonlyargs or args.kwonlyargs or args.defaults or args.kw_defaults or args.vararg or args.kwarg: raise Unsupported('signature')
         self.argument=argument
+        # A local assignment makes Python treat the name as local throughout
+        # the function, even before the assignment has executed.
+        self.set_shadowed=any(isinstance(n,ast.Name) and n.id=='set' and isinstance(n.ctx,ast.Store)
+                              for n in ast.walk(self.function))
         for node in nodes:
             if isinstance(node,ast.Name) and node.id.startswith('_'): raise Unsupported('private_name')
             if isinstance(node,ast.Attribute) and node.attr.startswith('_'): raise Unsupported('private_attribute')
@@ -170,6 +174,11 @@ class Program:
         if isinstance(node,ast.Call):
             if node.keywords or len(node.args)>3:raise Unsupported('call_arguments')
             args=[get(a) for a in node.args]
+            if isinstance(node.func,ast.Name) and node.func.id=='set':
+                if self.set_shadowed:raise Unsupported('shadowed_set')
+                if 'set' not in env:
+                    if args:raise Unsupported('set_arguments')
+                    return self.bound(set())
             if isinstance(node.func,ast.Name):ref=get(node.func)
             elif isinstance(node.func,ast.Attribute):
                 obj=get(node.func.value);name=node.func.attr
