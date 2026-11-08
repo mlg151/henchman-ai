@@ -105,6 +105,8 @@ without executing checks. Changed runtime/project selection refuses publication;
 reads finish before close. These are project-wide observations, not proof that a
 selected checkpoint or task meets its requirements. See
 [checkpoint review](checkpoints.md#user-commands).
+Selected-copy in that review also reprojects retained evidence first and requires
+reselection after changes; stale runtime/project identity refuses transfer.
 
 ## External-editor composition
 

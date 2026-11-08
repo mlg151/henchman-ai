@@ -601,3 +601,218 @@ async def test_workspace_entry_and_existing_composer_selection_keys(tmp_path, mo
         await pilot.press("escape")
         await ready(pilot)
         assert composer.text == "first\nsecond"
+
+
+@pytest.fixture
+def copy_review(tmp_path, monkeypatch):
+    from henchman.core.session import Session
+
+    monkeypatch.chdir(tmp_path)
+    secret = "checkpoint-copy-later-private"
+    path = tmp_path / "copy.txt"
+    path.write_text("before")
+    service = CheckpointService(tmp_path)
+    record = service.begin([path.name], actor="fixture")
+    path.write_text("after " + secret)
+    service.complete(record.checkpoint_id)
+    app = InteractionApp(tmp_path)
+    session = Session("copy-session", "project", "now", "now")
+    actor = SimpleNamespace(provider=SimpleNamespace(api_key=""))
+    context = SimpleNamespace(
+        settings=app.settings, project_root=tmp_path, agent=actor,
+        session_manager=SimpleNamespace(current=session), orchestrator=None,
+        background_tasks=[], mcp_manager=None,
+    )
+    return SimpleNamespace(app=app, context=context, actor=actor, session=session, secret=secret, path=path)
+
+
+async def open_copy_review(case, pilot):
+    case.app.core_context = case.context
+    composer = case.app.query_one(HenchmanTextArea)
+    composer.load_text("keep unsent draft")
+    composer.focus()
+    await pilot.press("f8")
+    screen = await ready(pilot)
+    await pilot.press("enter")
+    await ready(pilot)
+    await pilot.press("enter")
+    await ready(pilot)
+    return screen, screen.query_one("#checkpoint-content", TextArea), composer
+
+
+@pytest.mark.parametrize("rotation", ["registered", "session", "actor"])
+async def test_checkpoint_copy_reprojects_before_selection_and_retains_known_values(copy_review, monkeypatch, rotation):
+    from henchman.cli.evidence import runtime_evidence_redactor
+    from henchman.utils.evidence_redaction import EvidenceRedactor
+
+    case = copy_review
+    copied = []
+    monkeypatch.setattr(case.app, "copy_to_clipboard", copied.append)
+    async with case.app.run_test() as pilot:
+        try:
+            screen, area, composer = await open_copy_review(case, pilot)
+            review = screen._review
+            assert case.secret in area.text
+            saved = {path: path.read_bytes() for path in (case.path.parent / ".henchman").rglob("*") if path.is_file()}
+            def forbidden(*_args, **_kwargs):
+                raise AssertionError("Copy must not read or mutate checkpoint authority")
+            monkeypatch.setattr(CheckpointService, "review", forbidden)
+            monkeypatch.setattr(CheckpointService, "apply", forbidden)
+            area.select_all()
+            if rotation == "registered":
+                runtime_evidence_redactor(case.app).register_secret(case.secret)
+            elif rotation == "session":
+                case.session.evidence_redactor.register_secret(case.secret)
+            else:
+                case.actor.provider.api_key = case.secret
+            # No render/timer opportunity between credential learning and copy.
+            area.action_copy()
+            assert copied == []
+            assert case.secret not in area.text and "[REDACTED]" in area.text
+            assert "select text again" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+            area.select_all()
+            await pilot.press("ctrl+c")
+            assert copied == [area.text]
+            assert "Before" in copied[-1] and "After" in copied[-1]
+            assert screen._review is review and case.path.read_text() == "after " + case.secret
+            assert all(path.read_bytes() == data for path, data in saved.items())
+            assert case.app.screen is screen and case.app.is_running and composer.text == "keep unsent draft"
+            case.actor.provider.api_key = ""
+            case.session.evidence_redactor = EvidenceRedactor()
+            case.app._evidence_redactor = EvidenceRedactor()
+            screen._render_view()
+            area.select_all()
+            area.action_copy()
+            assert case.secret not in copied[-1] and "[REDACTED]" in copied[-1]
+            await pilot.press("escape", "escape", "escape")
+            await ready(pilot)
+            assert case.app.focused is composer and composer.text == "keep unsent draft"
+        finally:
+            case.app.core_context = None
+
+
+@pytest.mark.parametrize("change", ["session", "actor", "project", "initial_project", "cwd", "root_replaced", "closed", "busy"])
+async def test_checkpoint_copy_refuses_stale_selected_runtime_or_project(copy_review, monkeypatch, change):
+    case = copy_review
+    copied = []
+    monkeypatch.setattr(case.app, "copy_to_clipboard", copied.append)
+    async with case.app.run_test() as pilot:
+        try:
+            if change == "initial_project":
+                other = case.path.parent / "different"
+                other.mkdir()
+                case.context.project_root = other
+            screen, area, composer = await open_copy_review(case, pilot)
+            area.select_all()
+            root = case.path.parent
+            if change == "session":
+                case.context.session_manager.current = object()
+            elif change == "actor":
+                case.context.agent = SimpleNamespace(provider=SimpleNamespace(api_key=""))
+            elif change == "project":
+                case.context.project_root = root / "different"
+            elif change == "cwd":
+                other = root / "different"
+                other.mkdir()
+                monkeypatch.chdir(other)
+            elif change == "root_replaced":
+                root.rename(root.with_name(root.name + "-old"))
+                root.mkdir()
+                monkeypatch.chdir(root)
+            elif change == "closed":
+                screen._review_closing = True
+            elif change == "busy":
+                screen._busy = True
+            area.action_copy()
+            assert copied == []
+            assert "reopen" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+            assert composer.text == "keep unsent draft" and case.app.is_running
+        finally:
+            case.app.core_context = None
+
+
+async def test_checkpoint_copy_reprojects_full_capture_before_display_clipping(copy_review, monkeypatch):
+    from henchman.cli import textual_checkpoints
+
+    case = copy_review
+    copied = []
+    monkeypatch.setattr(case.app, "copy_to_clipboard", copied.append)
+    async with case.app.run_test() as pilot:
+        try:
+            screen, area, _composer = await open_copy_review(case, pilot)
+            prefix = case.secret[:len(case.secret) // 2]
+            monkeypatch.setattr(textual_checkpoints, "_TEXT_LIMIT", area.text.index(case.secret) + len(prefix))
+            screen._render_view()
+            assert prefix in area.text and case.secret not in area.text
+            area.select_all()
+            case.session.evidence_redactor.register_secret(case.secret)
+            area.action_copy()
+            assert copied == [] and prefix not in area.text
+            area.select_all()
+            await pilot.press("ctrl+c")
+            assert copied == [area.text] and prefix not in copied[-1]
+            assert case.secret in screen._detail() and case.path.read_text() == "after " + case.secret
+        finally:
+            case.app.core_context = None
+
+
+async def test_checkpoint_copy_preserves_native_selection_and_projects_clipboard_failure(copy_review, monkeypatch):
+    from textual.document._document import Selection
+
+    from henchman.cli.evidence import runtime_evidence_redactor
+
+    case = copy_review
+    copied = []
+    monkeypatch.setattr(case.app, "copy_to_clipboard", copied.append)
+    async with case.app.run_test() as pilot:
+        try:
+            screen, area, _composer = await open_copy_review(case, pilot)
+            area.selection = Selection((0, 0), (0, 4))
+            await pilot.press("ctrl+c")
+            assert copied == ["File"] and area.selected_text == "File"
+            assert "requested" in str(screen.query_one("#checkpoint-status", Static).render()).lower()
+            secret = "clipboard-failure-private"
+            runtime_evidence_redactor(case.app).register_secret(secret)
+            def fail(_text):
+                raise OSError("clipboard unavailable " + secret)
+            monkeypatch.setattr(case.app, "copy_to_clipboard", fail)
+            area.action_copy()
+            status = str(screen.query_one("#checkpoint-status", Static).render())
+            assert "unavailable" in status and secret not in status
+            assert area.selected_text == "File" and case.app.screen is screen
+        finally:
+            case.app.core_context = None
+
+
+async def test_checkpoint_copy_reprojects_retained_check_history_without_reinspection(copy_review, monkeypatch):
+    from henchman.advanced.plans import PlanExecutionService
+
+    case = copy_review
+    service = PlanExecutionService(case.path.parent, settings=case.app.settings)
+    plan = service.create_plan(title=case.secret, steps=["Check"], checks=[{"kind": "file_exists", "path": case.path.name}])
+    await service.verify_plan(plan.plan_id)
+    saved = (case.path.parent / ".henchman/plans/verification.json").read_bytes()
+    copied = []
+    monkeypatch.setattr(case.app, "copy_to_clipboard", copied.append)
+    async with case.app.run_test() as pilot:
+        try:
+            screen, area, _composer = await open_copy_review(case, pilot)
+            await pilot.press("v")
+            await ready(pilot)
+            assert "Historical result: recorded pass" in area.text and case.secret in area.text
+            def forbidden(*_args, **_kwargs):
+                raise AssertionError("Copy must not inspect or execute checks")
+            monkeypatch.setattr(PlanExecutionService, "verification_status", forbidden)
+            monkeypatch.setattr(PlanExecutionService, "verify_plan", forbidden)
+            case.path.write_text("changed after observation")
+            area.select_all()
+            case.session.evidence_redactor.register_secret(case.secret)
+            area.action_copy()
+            assert copied == []
+            assert case.secret not in area.text
+            area.select_all()
+            await pilot.press("ctrl+c")
+            assert copied == [area.text] and "Historical result: recorded pass" in copied[-1]
+            assert (case.path.parent / ".henchman/plans/verification.json").read_bytes() == saved
+        finally:
+            case.app.core_context = None

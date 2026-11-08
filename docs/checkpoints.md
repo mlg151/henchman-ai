@@ -61,6 +61,12 @@ initial index enumeration retains its own limits. This does not bind a plan to
 the selected capture or establish task acceptance. Rendered keyboard and resize tests cover
 80×24 and 120×40; native terminal and accessibility qualification remain open.
 
+Ctrl+C copies selected review text only after reprojecting the retained view with
+current and earlier credential policies. Changed text requires reselection;
+changed runtime/project/actor identity or an active review operation refuses
+copying. This does not reread captures or execute checks. Clipboard transfer is
+requested without claiming acknowledgement from the terminal.
+
 ## Automatic tool capture
 
 During an active operation run, write/edit, patch application and test generation

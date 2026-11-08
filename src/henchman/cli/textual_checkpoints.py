@@ -22,10 +22,11 @@ from henchman.advanced.checkpoint_models import CheckpointRecord, CheckpointRevi
 from henchman.advanced.checkpoints import CheckpointConflict, CheckpointService
 from henchman.advanced.plans import PlanExecutionService, PlanRecord
 from henchman.advanced.tasks import TaskService
-from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
-from henchman.cli.textual_context import _current_policy
+from henchman.cli.evidence import runtime_exception_text
+from henchman.cli.textual_context import _binding, _current_policy
 from henchman.config.schema import Settings
 from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.exception_evidence import exception_text
 
 _T = TypeVar("_T")
 _TEXT_LIMIT = 65536
@@ -73,6 +74,14 @@ async def _joined(action: Callable[[], _T]) -> _T:
     return value
 
 
+class _CheckpointTextArea(TextArea):
+    """Keep native selected-copy behind current evidence projection."""
+
+    def action_copy(self) -> None:
+        if isinstance(self.screen, CheckpointReviewScreen):
+            self.screen.copy_evidence()
+
+
 class CheckpointReviewScreen(ModalScreen[None]):
     """Inspect one project with explicit preview and separately activated apply."""
 
@@ -105,7 +114,8 @@ class CheckpointReviewScreen(ModalScreen[None]):
     def __init__(self, runtime: Any, root: Path) -> None:
         super().__init__()
         self.runtime, self.root = runtime, root
-        self._policy = runtime_evidence_redactor(runtime)
+        self._policy = EvidenceRedactor()
+        self._policy.register_policy(_current_policy(runtime))
         self._records: tuple[CheckpointRecord, ...] = ()
         self._pending: tuple[str, ...] = ()
         self._review: CheckpointReview | None = None
@@ -124,6 +134,7 @@ class CheckpointReviewScreen(ModalScreen[None]):
         self._checks_policy = EvidenceRedactor()
         self._checks_settings = self._runtime_settings()
         self._checks_binding = self._checks_identity()
+        self._copy_binding = _binding(runtime)
 
     def _runtime_settings(self) -> Settings | None:
         context = getattr(self.runtime, "core_context", None)
@@ -161,7 +172,7 @@ class CheckpointReviewScreen(ModalScreen[None]):
             yield Static("", markup=False, id="checkpoint-status")
             with Horizontal(id="checkpoint-body"):
                 yield OptionList(id="checkpoint-list")
-                yield TextArea(read_only=True, soft_wrap=True, show_line_numbers=False, id="checkpoint-content")
+                yield _CheckpointTextArea(read_only=True, soft_wrap=True, show_line_numbers=False, id="checkpoint-content")
             with Horizontal(id="checkpoint-actions"):
                 yield Button("Back", id="checkpoint-back")
                 yield Button("Refresh", id="checkpoint-refresh")
@@ -189,13 +200,38 @@ class CheckpointReviewScreen(ModalScreen[None]):
         return CheckpointService(self.root, redactor=self._policy)
 
     def _safe(self, text: str) -> str:
-        text = runtime_evidence_redactor(self.runtime).text(text)
+        self._policy.register_policy(_current_policy(self.runtime))
+        text = self._policy.text(text)
         return text if len(text) <= _TEXT_LIMIT else text[:_TEXT_LIMIT] + "\n[Display truncated; decisions use full captured bytes.]"
+
+    def copy_evidence(self) -> None:
+        """Reproject retained evidence without rereading checks or captures."""
+        status = self.query_one("#checkpoint-status", Static)
+        try:
+            context = getattr(self.runtime, "core_context", None)
+            bound_root = getattr(context, "project_root", None) or getattr(self.runtime, "project_root", None)
+            if (self._review_closing or self._busy or self.app.screen is not self
+                    or self._checks_identity() != self._checks_binding
+                    or _binding(self.runtime) != self._copy_binding
+                    or (bound_root is not None and Path(bound_root).resolve(strict=True) != self.root.resolve(strict=True))):
+                raise ValueError("Copy runtime or project changed or is busy. Close and reopen review.")
+            area = self.query_one(TextArea)
+            before = area.text
+            self._render_view()
+            if area.text != before:
+                self._status = "Evidence or credential projection changed; select text again before copying."
+            elif area.selected_text:
+                self.app.copy_to_clipboard(area.selected_text)
+                self._status = "Clipboard transfer requested; terminal confirmation is unavailable."
+        except Exception as error:
+            self._policy.register_policy(_current_policy(self.runtime))
+            self._status = exception_text(error, self._policy)
+        status.update(self._safe(self._status))
 
     def _launch(self, action: Callable[[], Awaitable[None]]) -> None:
         if self._busy:
             return
-        self._policy = runtime_evidence_redactor(self.runtime)
+        self._policy.register_policy(_current_policy(self.runtime))
         self._busy = True
         self._render_view()
 

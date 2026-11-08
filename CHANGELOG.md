@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fresh checkpoint copy** — Selected review text is reprojected before Ctrl+C
+  transfer, with reselection after credential changes and refusal for stale
+  runtime/project identity. Copying does not rerun checks or reread captures.
+
 - **Task and agent inspection** — Textual's Workspace now opens existing child
   and project-task observations with keyboard detail/Back navigation. Current
   owners, blocked/failed/cancelled/unknown states, bounded evidence and actual

@@ -675,7 +675,8 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   sends saved input through revision-bound shared workflow controls. Native
   qualification and other controls remain open. F8 Checks now reads current
   declared-input freshness separately from historical observations, without
-  executing checks or claiming task acceptance. See the
+  executing checks or claiming task acceptance. Checkpoint selected-copy refreshes
+  credential projection and rejects stale runtime/project identities. See the
   [queue contract](docs/ui-interaction-contract.md#saved-input-queue).
 - [ ] [UI-3 / #35](https://github.com/mlg151/henchman-ai/issues/35): Validate session/task/context navigation, runtime-aware discovery and optional layouts across terminal widths.
   The Context tab now provides bounded read-only context, retention and usage
