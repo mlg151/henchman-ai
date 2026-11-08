@@ -5,6 +5,10 @@ behavior in response to specific prompts. They serve as a critical feedback loop
 for changes to system prompts, tool definitions, and other model-steering
 mechanisms.
 
+The [staged delegation local pilot](../docs/evaluations/2026-11-08-staged-local-pilot.md)
+records three incomplete attempts, including one published AST-matching edit
+followed by request-budget exhaustion. It is not a paired qualification.
+
 ## Why Behavioral Evals?
 
 The [local bounded-repair comparison](../docs/evaluations/2026-11-08-repair-paired-v1.md)

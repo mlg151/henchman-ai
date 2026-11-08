@@ -1,0 +1,78 @@
+{
+  "kind": "local_staged_delegation_diagnostic",
+  "model": "qwen38-27b-iq3s",
+  "endpoint": "http://127.0.0.1:8081",
+  "provider_route": "local-only guarded transport; no hosted fallback",
+  "fixture": "one synthetic addition-function correction; exact AST oracle",
+  "request_limit": 10,
+  "timeout_seconds": 240,
+  "output_token_ceiling": 4096,
+  "setup_attempts": "Two earlier guard checks rejected the 4096-token runtime request under a 2048-token ceiling; zero model requests were sent.",
+  "attempts": [
+    {
+      "attempt": "v2",
+      "source_commit": "c8b0e43",
+      "model_requests_sent": 9,
+      "elapsed_seconds": 132.144,
+      "outcome": "BudgetExceeded",
+      "completion_status": "CompletionStatus.FAILED",
+      "accepted_exact_ast": false,
+      "tool_calls_observed": {
+        "read_file": 1
+      },
+      "child_statuses_observed": [],
+      "event_capture": "first 100 events including streamed thought; incomplete",
+      "transport_denials": null,
+      "transport": "concurrent pilot transport with idle-slot preflight",
+      "raw_result_sha256": "505fb4f74f215806445158753bf99fa960a5db5b4232da7f2f0c99fd44ffc32f",
+      "exact_script_sha256": "ae8132dc57af6e7f0d82f1dce62c3a95ff2656b11ce392d22defec8c72f995a3"
+    },
+    {
+      "attempt": "v3",
+      "source_commit": "c8b0e43",
+      "model_requests_sent": 8,
+      "elapsed_seconds": 123.357,
+      "outcome": "BudgetExceeded",
+      "completion_status": "CompletionStatus.FAILED",
+      "accepted_exact_ast": false,
+      "tool_calls_observed": {
+        "read_file": 1,
+        "invoke_subagent": 2,
+        "manage_subagents": 2
+      },
+      "child_statuses_observed": [
+        "errored",
+        "errored"
+      ],
+      "event_capture": "up to 200 events excluding streamed thought and content",
+      "transport_denials": null,
+      "transport": "concurrent pilot transport with idle-slot preflight",
+      "raw_result_sha256": "fc83cc11ade12b4fd97cf845cf19f4d1323ee0c7adeeeb7725e043992306fd3a",
+      "exact_script_sha256": "c954d0ae5fe52b3fa7a885cd341713e5bf4cc4b8b07636abc8052c3aa3a5aa13"
+    },
+    {
+      "attempt": "v4",
+      "source_commit": "c8b0e43",
+      "model_requests_sent": 10,
+      "elapsed_seconds": 102.52,
+      "outcome": "BudgetExceeded",
+      "completion_status": "CompletionStatus.FAILED",
+      "accepted_exact_ast": true,
+      "tool_calls_observed": {
+        "read_file": 2,
+        "invoke_subagent": 1,
+        "manage_subagents": 1,
+        "publish_subagent_proposal": 1
+      },
+      "child_statuses_observed": [
+        "done"
+      ],
+      "event_capture": "up to 200 events excluding streamed thought and content",
+      "transport_denials": [],
+      "transport": "serialized pilot transport",
+      "raw_result_sha256": "d0d9d4c263895f048120de33d00f77e8ed6fcebabe4d8f5475dcb7841d66a031",
+      "exact_script_sha256": "909e0bcd708c8435abf57031c63378ca706b2e7cc05f6b6ba7dbe829e9575777"
+    }
+  ],
+  "interpretation": "All runs ended at the request limit without a completed response. V4 published the AST-matching fixture but is not a completed or qualified task."
+}

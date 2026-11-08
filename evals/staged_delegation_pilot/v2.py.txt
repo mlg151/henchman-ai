@@ -1,0 +1,134 @@
+import ast
+import asyncio
+import json
+import os
+import time
+from pathlib import Path
+
+import httpx
+from openai import AsyncOpenAI
+from henchman.agents.orchestrator import Orchestrator
+from henchman.agents.subagents import current_subagent_actor
+from henchman.config.schema import Settings
+from henchman.providers.openai_compat import OpenAICompatibleProvider
+from henchman.tools.base import ToolResult
+from henchman.tools.builtins.file_read import ReadFileTool
+from henchman.tools.builtins.file_write import WriteFileTool
+from henchman.tools.builtins.file_edit import EditFileTool
+from henchman.tools.registry import ToolRegistry
+
+ROOT = Path(os.environ['PILOT_ROOT'])
+PROJECT = ROOT / 'project'
+ENDPOINT = 'http://127.0.0.1:8081'
+MODEL = 'qwen38-27b-iq3s'
+
+class LocalOnly(httpx.AsyncBaseTransport):
+    def __init__(self):
+        self.inner = httpx.AsyncHTTPTransport(retries=0, trust_env=False)
+        self.requests = 0
+
+    async def handle_async_request(self, request):
+        url = request.url
+        if (request.method != 'POST' or url.scheme != 'http' or url.host != '127.0.0.1'
+                or url.port != 8081 or url.path != '/v1/chat/completions' or url.query):
+            raise RuntimeError('Local-only transport denied the destination')
+        body = json.loads(request.content)
+        if body.get('model') != MODEL or not body.get('stream') or body.get('max_tokens', 0) > 4096:
+            raise RuntimeError('Local-only transport denied the request profile')
+        if self.requests >= 10:
+            raise RuntimeError('Local pilot request limit reached')
+        async with httpx.AsyncClient(trust_env=False, timeout=4, follow_redirects=False) as client:
+            models = (await client.get(ENDPOINT + '/v1/models')).json()
+            slots = (await client.get(ENDPOINT + '/slots')).json()
+        if MODEL not in {row.get('id') for row in models.get('data', [])}:
+            raise RuntimeError('Expected local model is unavailable')
+        if not isinstance(slots, list) or not any(not row.get('is_processing', True) for row in slots):
+            raise RuntimeError('Local model has no idle slot')
+        self.requests += 1
+        return await self.inner.handle_async_request(request)
+
+    async def aclose(self):
+        await self.inner.aclose()
+
+def guard(tool, params):
+    name = tool.name
+    if name in {'read_file', 'write_file', 'edit_file'}:
+        if params.get('path') != 'calculator.py':
+            return ToolResult(content='Pilot scope denies this path.', success=False, error='scope')
+        if name in {'write_file', 'edit_file'} and current_subagent_actor() is None:
+            return ToolResult(content='The primary must delegate this edit.', success=False, error='scope')
+        return None
+    if name == 'invoke_subagent':
+        if params.get('write_paths') != ['calculator.py'] or not set(params.get('tools', [])) <= {'read_file', 'write_file', 'edit_file'}:
+            return ToolResult(content='Pilot requires the staged file-only scope.', success=False, error='scope')
+        return None
+    if name in {'manage_subagents', 'publish_subagent_proposal'}:
+        return None
+    return ToolResult(content='Pilot scope denies this tool.', success=False, error='scope')
+
+async def main():
+    os.chdir(PROJECT)
+    target = PROJECT / 'calculator.py'
+    target.write_text('def add(a, b):\n    return a - b\n', encoding='utf-8')
+    settings = Settings.model_validate({
+        'agents': {'allow_delegation': True, 'max_delegation_turns': 8, 'max_delegation_retries': 0},
+        'usage': {'persistence': 'process', 'limits': {'max_requests': 10, 'max_seconds': 240.0}},
+        'operations': {'persistence': 'process'},
+        'context': {'max_tokens': 16384, 'auto_compact': False},
+    })
+    transport = LocalOnly()
+    provider = OpenAICompatibleProvider('local-only', ENDPOINT + '/v1', MODEL, temperature=0)
+    await provider._client.close()
+    provider._client = AsyncOpenAI(api_key='local-only', base_url=ENDPOINT + '/v1', max_retries=0,
+                                   http_client=httpx.AsyncClient(transport=transport, trust_env=False,
+                                                                 follow_redirects=False, timeout=httpx.Timeout(240, connect=4)))
+    registry = ToolRegistry()
+    for tool in (ReadFileTool(), WriteFileTool(), EditFileTool()):
+        registry.register(tool)
+    registry.bind_execution_guard(guard)
+    for name in ('invoke_subagent', 'manage_subagents', 'publish_subagent_proposal', 'write_file', 'edit_file'):
+        registry.add_auto_approve_policy(name)
+    orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    orch.tech_lead.max_tokens = 2048
+    orch.tech_lead.context_window = 16384
+    prompt = (
+        'Fix calculator.py so add(a, b) returns a + b. Use the staged child workflow: '
+        'call invoke_subagent with write_paths ["calculator.py"] and tools ["read_file", "edit_file", "write_file"]. '
+        'Instruct the child to inspect and edit only calculator.py. When the child completes, '
+        'use manage_subagents action review, inspect the complete proposal, then call '
+        'publish_subagent_proposal with its conversation_id and review_token. '
+        'Do not edit the file directly. Report the outcome briefly.'
+    )
+    started = time.monotonic()
+    events = []
+    outcome = 'completed'
+    error = None
+    try:
+        async def collect():
+            async for event in orch.run(prompt):
+                if len(events) < 100:
+                    events.append({'type': event.type.value, 'agent': event.source_agent,
+                                   'data': str(event.data)[:1500]})
+        await asyncio.wait_for(collect(), timeout=240)
+    except BaseException as exc:
+        outcome, error = type(exc).__name__, str(exc)[:500]
+    finally:
+        try:
+            await orch.aclose()
+        finally:
+            await provider._client.close()
+    text = target.read_text(encoding='utf-8')
+    try:
+        actual = ast.dump(ast.parse(text), include_attributes=False)
+        expected = ast.dump(ast.parse('def add(a, b):\n    return a + b\n'), include_attributes=False)
+        accepted = actual == expected
+    except SyntaxError:
+        accepted = False
+    result = {'source_commit': 'c8b0e43', 'model': MODEL, 'endpoint': ENDPOINT,
+              'elapsed_seconds': round(time.monotonic() - started, 3), 'request_count': transport.requests,
+              'outcome': outcome, 'error': error, 'accepted_exact_ast': accepted, 'final_text': text,
+              'completion': str(orch.last_completion_status), 'events': events}
+    (ROOT / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+    print(json.dumps({key: result[key] for key in ('outcome', 'error', 'accepted_exact_ast', 'elapsed_seconds', 'request_count', 'completion')}), flush=True)
+
+asyncio.run(main())
