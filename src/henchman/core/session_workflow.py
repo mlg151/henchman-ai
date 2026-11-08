@@ -187,6 +187,16 @@ class SessionWorkflow:
             cached.session = session
             binding = cached
         else:
+            # Validate legacy admission before opening durable authority or
+            # caching an empty binding. A retry must not bypass a failed goal.
+            goal = None
+            if existing is None and (raw := session.export_metadata.get("goal")) is not None:
+                if not isinstance(raw, dict):
+                    raise WorkflowError("invalid_legacy_goal")
+                try:
+                    goal = WorkflowGoal.model_validate_json(json.dumps({**raw, "policy": raw.get("policy", self._policy(session).model_dump())}))
+                except (TypeError, ValueError) as exc:
+                    raise WorkflowError("invalid_legacy_goal") from exc
             journal: Journal
             if existing is not None or self.settings.operations.persistence == "durable":
                 store = WorkflowStore(self.path, expected_store_id=existing.store_id if existing else None,
@@ -195,15 +205,9 @@ class SessionWorkflow:
             else:
                 journal = WorkflowJournal(*key, redactor=session.evidence_redactor)
             binding = _Binding(session, journal)
-            self._bindings[key] = binding
-            if existing is None and (raw := session.export_metadata.get("goal")) is not None:
-                if not isinstance(raw, dict):
-                    raise WorkflowError("invalid_legacy_goal")
-                try:
-                    goal = WorkflowGoal.model_validate_json(json.dumps({**raw, "policy": raw.get("policy", self._policy(session).model_dump())}))
-                except (TypeError, ValueError) as exc:
-                    raise WorkflowError("invalid_legacy_goal") from exc
+            if goal is not None:
                 journal.set_goal(goal, expected_revision=journal.snapshot().revision)
+            self._bindings[key] = binding
         session._workflow_runtime = self
         self._publish(binding)
 

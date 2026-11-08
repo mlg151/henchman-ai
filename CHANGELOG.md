@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Consistent failed session activation** — Interactive resume prepares history
+  and provenance before switching, and restores prior selectors/history on
+  activation failure. Invalid legacy goals refuse before workflow creation;
+  retry cannot silently drop them or reissue revoked dispatch permissions.
+
 - **Development artifact retry receipt** — Both installed profiles passed
   5,663 tests at `d8bf94d` after moving temporary storage off the exhausted
   filesystem. Earlier artifact/source failures remain recorded separately;

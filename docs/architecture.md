@@ -378,6 +378,14 @@ Direct-role sessions restore to the selected specialist. These behaviors have
 offline runtime coverage through save/load and a subsequent agent request;
 interactive terminal rendering and live provider execution require separate checks.
 
+Interactive session activation prepares detached history and instruction
+provenance before changing the selected session. Failed grant retirement or
+later activation restores the prior wrapper/core selectors and actor history;
+revoked grants and held dispatch eligibility are not automatically reissued.
+Durable journal commits remain authoritative. Invalid legacy goals are validated
+before creating or caching workflow authority, so retry cannot silently discard
+their failed admission.
+
 Disk sessions use storage version 1 with a SHA-256 payload integrity check. Saves
 flush a unique private temporary file, atomically replace the current JSON, and
 retain one verified prior copy in `<id>.json.bak`. POSIX saves also flush directory

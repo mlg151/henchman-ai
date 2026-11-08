@@ -100,6 +100,9 @@ remaps retained positions before save/load. Unreconciled or corrupt bindings
 refuse compaction without changing the session; journal and budget authority stay
 unchanged. The repair has offline restart coverage; final native qualification
 remains open.
+Failed interactive activation now preserves the prior session selectors and
+actor history without reissuing revoked permissions. Invalid legacy goals refuse
+before workflow creation and remain errors on retry.
 Notification-driven primary turns now preserve ordered request/result correlation
 and text-only turns through child questions, parent replies and durable reload.
 Recovered running task records now expose unknown outcomes and refuse unowned

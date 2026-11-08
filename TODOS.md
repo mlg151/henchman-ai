@@ -101,6 +101,8 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   context and refuses unresolved/corrupt bindings before mutation. Offline
   restart checks preserve completed effects and consumed usage; final native
   qualification of this repair remains open.
+  Failed interactive activation preserves prior selectors/history, and retry
+  cannot bypass malformed legacy-goal validation. Revoked permissions remain held.
   Process mode remains the default. Versioned opaque continuation profiles are
   implemented; native/live acceptance, goal/queue persistence and background
   task restart authority remain open under #23.

@@ -55,16 +55,10 @@ def _build_tool_call(tc: dict[str, Any]) -> ToolCall:
     )
 
 
-def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
-    """Restore session messages to the tech-lead agent's message history.
-
-    Args:
-        agent: Agent whose history is repopulated.
-        session: Session containing the messages to restore.
-    """
-    agent.clear_history()
+def _prepare_agent_messages(agent: Agent, session: Session) -> list[Message]:
+    """Validate and detach restored history before changing the live actor."""
     prompt = agent.system_prompt
-    agent.messages = [Message(role="system", content=prompt)] if prompt else []
+    messages = [Message(role="system", content=prompt)] if prompt else []
 
     for session_msg in session.messages:
         if session_msg.role == "system" and session_msg.content == prompt:
@@ -74,19 +68,27 @@ def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
             if session_msg.tool_calls
             else None
         )
-        agent.messages.append(
+        messages.append(
             Message(
                 role=session_msg.role,
                 content=session_msg.content,
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
-                reasoning_details=session_msg.reasoning_details,
+                reasoning_details=deepcopy(session_msg.reasoning_details),
                 continuation=copy_continuation(session_msg.continuation),
                 tool_result=deepcopy(session_msg.tool_result),
                 context_attachments=deepcopy(session_msg.context_attachments),
             ),
         )
+    return messages
+
+
+def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
+    """Restore detached history after validating the complete candidate."""
+    messages = _prepare_agent_messages(agent, session)
+    agent.clear_history()
+    agent.messages = messages
 
 
 def _record_session_entry(session: Session | None, **kwargs: Any) -> None:
@@ -204,24 +206,48 @@ class ReplSessionManager:
         Returns:
             None
         """
-        previous = self.session
-        self.session = session
-        try:
-            self.workflow_runtime.attach(session)
-        except BaseException:
-            self.session = previous
-            raise
-        # Session boundary: user approvals never carry over into another session.
+        target = history_agent if history_agent is not None else agent.tech_lead if agent else None
+        messages = _prepare_agent_messages(target, session) if target is not None else None
+        metadata = session.export_metadata
+        prepared_metadata = metadata
+        if self.instruction_snapshot is not None:
+            candidate = copy(session)
+            candidate.export_metadata = deepcopy(metadata)
+            InstructionProvenanceService().capture(candidate, self.instruction_snapshot)
+            prepared_metadata = candidate.export_metadata
+
+        # Revoking grants can fail, but must never select half of a new session.
+        # Grants already revoked by a failing boundary are deliberately not reissued.
         if self._tool_registry is not None:
             self._tool_registry.clear_grants()
-        self.session_manager.set_current(session)
-        if self.instruction_snapshot is not None:
-            InstructionProvenanceService().capture(session, self.instruction_snapshot)
-
-        if history_agent is not None:
-            _sync_messages_to_agent(history_agent, session)
-        elif agent:
-            self._sync_session_to_agent(session, agent)
+        previous, previous_core = self.session, self.session_manager.current
+        # These are precisely the history fields changed by Agent.clear_history.
+        # Keep provider/configuration and credential-policy ownership untouched.
+        history: dict[str, Any] = {}
+        if target is not None:
+            for name in ("messages", "current_turn_messages", "_turn_budget_scope", "turn"):
+                history[name] = getattr(target, name)
+            history["_stall"] = copy(target._stall)
+            history["_delegation_tool_errors"] = list(target._delegation_tool_errors)
+        self.session = session
+        try:
+            session.export_metadata = prepared_metadata
+            self.workflow_runtime.attach(session)
+            self.session_manager.set_current(session)
+            if target is not None:
+                target.clear_history()
+                assert messages is not None
+                target.messages = messages
+        except BaseException:
+            self.session = previous
+            # Restore the local selector directly; a failed setter must not be
+            # called again during rollback. Durable journal commits remain facts.
+            self.session_manager._current = previous_core
+            session.export_metadata = metadata
+            if target is not None:
+                for name, value in history.items():
+                    setattr(target, name, value)
+            raise
 
     def _sync_session_to_agent(self: Self, session: Session, agent: Orchestrator) -> None:
         """Restore session messages to agent history (delegates to module-level helper).
