@@ -1,4 +1,4 @@
-"""Bounded inspection and explicit interruption of owned project tasks."""
+"""Bounded inspection and explicit interruption of owned project work."""
 from __future__ import annotations
 
 import asyncio
@@ -12,12 +12,14 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, OptionList, Static, TextArea
 from textual.widgets.option_list import Option
 
+from henchman.agents.subagents import SubagentRecord
 from henchman.cli.inspection_runtime import _current_policy, _joined
 from henchman.cli.work_inspection import (
     _EVIDENCE_BYTES,
     _ROWS,
     WorkInspection,
     WorkRow,
+    _agent_stopping,
     _task_details,
 )
 from henchman.cli.work_inspection import (
@@ -41,7 +43,7 @@ class _WorkDetails(TextArea):
 
 
 class WorkInspector(ModalScreen[None]):
-    """Inspect work and stop an explicitly selected, locally owned task."""
+    """Inspect work and stop an explicitly selected, locally owned item."""
 
     DEFAULT_CSS = """
     WorkInspector { background: $surface; }
@@ -59,7 +61,7 @@ class WorkInspector(ModalScreen[None]):
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("escape", "back", "Back", priority=True),
         Binding("f5", "refresh", "Refresh", priority=True),
-        Binding("f6", "stop_task", "Stop task", priority=True),
+        Binding("f6", "stop_task", "Stop work", priority=True),
     ]
 
     def __init__(self, runtime: Any) -> None:
@@ -82,6 +84,7 @@ class WorkInspector(ModalScreen[None]):
         self._stale = False
         self._selection = 0
         self._stop_target: tuple[str, int, int, int] | None = None
+        self._agent_stop_target: tuple[str, SubagentRecord, asyncio.Task[Any], int, int] | None = None
 
     def _identity(self) -> tuple[Any, ...]:
         return self._inspection.identity()
@@ -108,8 +111,8 @@ class WorkInspector(ModalScreen[None]):
                 yield Button("Refresh", id="work-refresh")
                 yield Button("Inspect", id="work-inspect")
                 yield Button("Copy", id="work-copy")
-                yield Button("Stop task", id="work-stop")
-            yield Static("Enter inspects · Esc goes back · F5 refreshes · F6 stops selected task", markup=False, id="work-hint")
+                yield Button("Stop work", id="work-stop")
+            yield Static("Enter inspects · Esc goes back · F5 refreshes · F6 stops selected work", markup=False, id="work-hint")
 
     def on_mount(self) -> None:
         self.query_one(OptionList).focus()
@@ -147,9 +150,12 @@ class WorkInspector(ModalScreen[None]):
             self.query_one("#work-" + name, Button).disabled = self._busy or self._stale or self._work_closing
         self.query_one("#work-copy", Button).disabled = not self._fields
         target = self._stop_target
+        agent_target = self._agent_stop_target
+        current_task = target is not None and target[2] == options.highlighted and target[3] == self._selection
+        current_agent = agent_target is not None and agent_target[3] == options.highlighted and agent_target[4] == self._selection
         self.query_one("#work-stop", Button).disabled = (
             self._busy or self._stale or self._work_closing or self._stage != "detail"
-            or target is None or target[2] != options.highlighted or target[3] != self._selection
+            or not (current_task or current_agent)
         )
         self._layout()
 
@@ -178,6 +184,7 @@ class WorkInspector(ModalScreen[None]):
             self._rows = rows
             self._fields = ()
             self._stop_target = None
+            self._agent_stop_target = None
             self._stage = "list"
             self._selection += 1
             self._status = notice
@@ -191,6 +198,7 @@ class WorkInspector(ModalScreen[None]):
         async def inspect() -> None:
             self._fields = ()
             self._stop_target = None
+            self._agent_stop_target = None
             self._output_interrupted = False
             self._render_view()
             fields, self._output_interrupted = await self._inspection.inspect(row.kind, row.identity, task_reader=_task_details)
@@ -204,12 +212,23 @@ class WorkInspector(ModalScreen[None]):
                 or (values.get("State") == "outcome_unknown" and self.service is not None
                     and self.service._owns_live_process(row.identity)))):
                 self._stop_target = (row.identity, int(values["Revision"]), index, selection)
+            elif row.kind == "agent" and self.agents is not None:
+                conversation = self.agents._conversations.get(row.identity)
+                if (conversation is not None and conversation.task is not None and not conversation.task.done()
+                    and conversation.task.get_loop() is asyncio.get_running_loop()
+                    and conversation.record.status in {"running", "idle", "waiting_for_input"}
+                    and self.agents.actor_id == self.agents.parent_id and not self.agents._closed
+                    and not _agent_stopping(self.agents, row.identity)):
+                    self._agent_stop_target = (row.identity, conversation.record, conversation.task, index, selection)
             self._status = "Captured observation. Work continues independently; Refresh reads current state."
             self._render_view()
             self.query_one(TextArea).focus()
         self._run(inspect)
 
     def action_stop_task(self) -> None:
+        if self._agent_stop_target is not None:
+            self._stop_agent()
+            return
         target = self._stop_target
         if target is None:
             return
@@ -241,6 +260,39 @@ class WorkInspector(ModalScreen[None]):
                 if result.status == "stopped"
                 else f"Stop request settled with state {result.status}; refresh for details."
             )
+
+        self._run(stop)
+
+    def _stop_agent(self) -> None:
+        target = self._agent_stop_target
+        if target is None:
+            return
+        identity, record, worker, index, selection = target
+
+        def selection_current() -> None:
+            self._admit()
+            if (self._stage != "detail" or self._agent_stop_target != target
+                or self._selection != selection or self.query_one(OptionList).highlighted != index):
+                raise ValueError("Selection changed; inspect the agent again")
+
+        async def stop() -> None:
+            selection_current()
+            self._status = "Checking agent ownership before stopping."
+            self._render_view()
+
+            def requested() -> None:
+                self._status = "Stop requested; waiting for child cleanup."
+                self._render_view()
+
+            result = await self._inspection.interrupt_agent(
+                identity, expected=record, expected_worker=worker,
+                selection_current=selection_current, on_requested=requested,
+            )
+            self._agent_stop_target = None
+            self._fields = (("Agent", identity), ("State", result.status),
+                            ("Outcome", "Cancelled" if result.cancelled else "Not cancelled"))
+            self._output_interrupted = result.cancelled
+            self._status = "Child cleanup settled; refresh for retained evidence."
 
         self._run(stop)
 

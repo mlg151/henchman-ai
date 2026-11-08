@@ -696,10 +696,10 @@ controls stay open. Release issue #30 is blocked by the full phase criteria.
   inspects existing task/child state and evidence at narrow/wide sizes, with
   actual-owner summary values and no new execution authority. Both frontends now
   expose shared `/work` listing and exact task/agent inspection. The selected
-  task control and `/work stop task <exact-id>` stop only live in-process owned
-  tasks, including settled unknown outcomes with retained handles, after
-  owner/revision checks and joined cleanup. Child-agent interruption,
-  broader navigation and native qualification remain open;
+  work control and `/work stop agent|task <exact-id>` stop only live in-process
+  owned work after identity checks and joined cleanup. Child cancellation includes
+  descendants and discards pending follow-ups. Task controls include settled
+  unknown outcomes with retained handles. Broader navigation and native qualification remain open;
   see the [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - [ ] [UI-4 / #36](https://github.com/mlg151/henchman-ai/issues/36): Qualify visual consistency, onboarding, long-session performance and native accessibility/platform behavior with representative users.
   The [240-observation VTE baseline](docs/evaluations/2026-11-08-vte-latency-v1.md)

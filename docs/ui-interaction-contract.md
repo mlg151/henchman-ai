@@ -215,7 +215,7 @@ owner again after joined reads, and prints literal text with current and retaine
 credential policies. Missing owners remain unavailable; inspection does not
 construct or migrate task storage.
 
-To stop a live task owned by this process, inspect it and use **Stop task**
+To stop a live task owned by this process, inspect it and use **Stop work**
 or F6; both frontends also accept `/work stop task <exact-id>`. A retained
 same-loop process with an unknown outcome can be stopped after its launch and
 monitor have settled. The inspector
@@ -226,8 +226,15 @@ PIDs and recovered unowned tasks never grant authority to signal a process.
 An already-stopping task refuses another stop request until cleanup settles.
 The interface acknowledges the request while cleanup is pending and reports
 the settled state afterward; closing an inspector joins an already-started stop.
-Stopping execution is not task verification, and child-agent interruption is
-not provided by these controls. Revision checks are observations; they do not
+To stop a live child conversation, inspect it and use the same control, or run
+`/work stop agent <exact-id>`. The request binds to the observed conversation
+and worker; changed observations, selection, session or ownership require a
+fresh inspection. The existing manager cancels and joins the child and its
+descendants and discards their queued follow-ups. Sibling conversations continue.
+A stop in progress for any part of the selected tree must settle first. A child
+that finishes during descendant cleanup is reported with its actual outcome.
+
+Stopping execution is not task verification. Task revision checks are observations; they do not
 lock out other processes from changing task metadata after the check.
 
 Child states come from their runtime owner: waiting for input is explicitly

@@ -46,12 +46,12 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
         name="work inspection",
         classification="implemented",
-        summary="/work inspects existing tasks and agents and can stop an owned task by exact ID.",
+        summary="/work inspects tasks and agents and can stop owned work by exact ID.",
         detail=(
             "Classic REPL and Textual /work list and /work inspect agent|task <exact-id> "
             "share bounded read-only evidence with Workspace > Tasks and agents. "
             "Existing project/session owners are required; unavailable owners and unknown "
-            "outcomes remain explicit. /work stop task <exact-id> and the selected task "
+            "outcomes remain explicit. /work stop agent|task <exact-id> and the selected work "
             "control stop only a current in-process owner and wait for cleanup. Inspection "
             "does not create storage, retry, resume work or establish task verification."
         ),

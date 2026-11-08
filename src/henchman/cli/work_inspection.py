@@ -30,6 +30,12 @@ _TEXT_BYTES = 65536
 _EVIDENCE_BYTES = 32768
 
 
+def _agent_stopping(manager: BackgroundSubagentManager, identity: str) -> bool:
+    return manager._is_cancelling(identity) or any(
+        manager._descendant(other, identity) for other in manager._cancelling
+    )
+
+
 def _bounded(value: str, limit: int = _EVIDENCE_BYTES) -> str:
     if len(value) > limit or len(value.encode("utf-8", errors="replace")) > limit:
         return "[Evidence omitted: display limit]"
@@ -94,7 +100,7 @@ def _task_details(service: TaskService, identity: str) -> tuple[TaskRecord, str]
 
 
 class WorkInspection:
-    """Inspect existing owners and explicitly stop a locally owned task."""
+    """Inspect existing owners and explicitly stop locally owned work."""
 
     def __init__(self, runtime: Any) -> None:
         self.runtime = runtime
@@ -180,6 +186,64 @@ class WorkInspection:
             lines.append(label)
             size += length
         return "\n".join(lines)
+
+    async def interrupt_agent(
+        self, identity: str, *, expected: SubagentRecord,
+        expected_worker: asyncio.Task[Any] | None,
+        selection_current: Callable[[], None] | None = None,
+        on_requested: Callable[[], None] | None = None,
+    ) -> SubagentRecord:
+        """Cancel the observed child and join its owned descendant cleanup."""
+        requester = asyncio.current_task()
+        manager = self.agents
+
+        def check() -> None:
+            if requester is None or requester.cancelling():
+                raise asyncio.CancelledError
+            self.admit()
+            if selection_current is not None:
+                selection_current()
+            if (not identity or len(identity) > 512 or any(ord(char) < 32 for char in identity)
+                or manager is None or manager.actor_id != manager.parent_id or manager._closed):
+                raise ValueError("Agent owner changed or is unavailable")
+            conversation = manager._conversations.get(identity)
+            if (conversation is None or conversation.record is not expected
+                or expected.conversation_id != identity or conversation.task is not expected_worker
+                or expected_worker is None or expected_worker.done()
+                or expected_worker.get_loop() is not asyncio.get_running_loop()
+                or expected.status not in {"running", "idle", "waiting_for_input"}
+                or _agent_stopping(manager, identity)):
+                raise ValueError("Agent changed or is already stopping; inspect it again")
+
+        check()
+
+        async def stop() -> SubagentRecord:
+            check()
+            if on_requested is not None:
+                on_requested()
+            check()
+            assert manager is not None
+            return await manager.cancel(identity)
+
+        result = await _joined(asyncio.create_task(stop()))
+        self.admit()
+        return result
+
+    async def interrupt_current_agent(
+        self, identity: str, *, on_requested: Callable[[], None] | None = None,
+    ) -> SubagentRecord:
+        """Capture the current process-owned child for an exact-ID request."""
+        self.admit()
+        manager = self.agents
+        if manager is None or manager.actor_id != manager.parent_id:
+            raise ValueError("Background agent owner unavailable")
+        conversation = manager._conversations.get(identity)
+        if conversation is None:
+            raise ValueError("Agent is no longer available")
+        return await self.interrupt_agent(
+            identity, expected=conversation.record, expected_worker=conversation.task,
+            on_requested=on_requested,
+        )
 
     async def interrupt_task(
         self, identity: str, *, expected_revision: int,
