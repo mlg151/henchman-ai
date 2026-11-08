@@ -4,6 +4,15 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- Current model testing is local-only by user instruction. Hosted qualification
+  remains unverified; no hosted result is inferred from offline adapter checks.
+
+- #26 now reuses only successful bounded schema meta-validation. Fresh schemas,
+  arguments, policy/grants and verification remain authoritative. The
+  [offline profile](docs/evaluations/2026-11-07-schema-validation-profile.md)
+  attributes the reduction; unprofiled latency and native responsiveness gates
+  remain open.
+
 - The [CPU corpus readiness attempt](docs/evaluations/2026-11-07-cpu-corpus-readiness.md)
   passed two protocol probes but timed out before a coding response. The twelve
   cases did not run; the failed attempt, unknown usage and cleanup verification

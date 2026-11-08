@@ -15,6 +15,7 @@ from collections.abc import Iterator
 from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from jsonschema import Draft202012Validator, validators  # type: ignore[import-untyped]
@@ -29,6 +30,8 @@ if TYPE_CHECKING:
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 CONTRACT_VERSION = 1
 MAX_SCHEMA_BYTES = 65536
+MAX_SCHEMA_CACHE_ENTRIES = 64
+MAX_SCHEMA_CACHE_KEY_BYTES = 65536
 MAX_VALUE_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 16384
@@ -188,6 +191,29 @@ def _no_retrieval(uri: str) -> Any:
     raise NoSuchResource(uri)
 
 
+@lru_cache(maxsize=MAX_SCHEMA_CACHE_ENTRIES)
+def _check_schema_cached(canonical: bytes) -> None:
+    """Retain only successful meta-checks of bounded immutable JSON keys.
+
+    The caller bounds each key to 64KiB, so 64 entries retain at most 4MiB
+    of key payload. No schema object, validator, argument or authority is
+    shared. Concurrent first misses may repeat this pure validation safely.
+    """
+    Draft202012Validator.check_schema(json.loads(canonical))
+
+
+def _check_meta_schema(schema: Any) -> None:
+    canonical = json.dumps(
+        schema, ensure_ascii=True, allow_nan=False, sort_keys=True, separators=(",", ":"),
+    ).encode("ascii")
+    if len(canonical) <= MAX_SCHEMA_CACHE_KEY_BYTES:
+        _check_schema_cached(canonical)
+    else:
+        # Keep admission independent of the cache's memory bound if the
+        # accepted schema-size limit grows in a later version.
+        Draft202012Validator.check_schema(schema)
+
+
 class SchemaContract:
     """An immutable schema snapshot; values are validated without default insertion."""
 
@@ -195,7 +221,7 @@ class SchemaContract:
         self._schema = _json_copy(schema, MAX_SCHEMA_BYTES)
         nodes = _check_local_schema(self._schema)
         try:
-            Draft202012Validator.check_schema(self._schema)
+            _check_meta_schema(self._schema)
         except (SchemaError, RecursionError, re.error):
             raise SchemaContractError("invalid_schema") from None
         # referencing uses attrs-generated initializers, which this project's

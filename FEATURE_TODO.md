@@ -182,6 +182,12 @@ settled 29 reported tokens, released its hold and retained usage through restart
 both follow-ups were denied before HTTP at USD 0 spend. Final artifact/native
 qualification and remaining UI presentation are still required; see [task accounting](docs/providers.md#automatic-task-accounting).
 The release gates below are not yet satisfied.
+Current model testing is local-only by user instruction; hosted-provider
+qualification remains explicitly unverified.
+For #26, a bounded schema meta-validation cache removes repeated compilation
+while preserving fresh authorization and verification. The
+[profiled fixture](docs/evaluations/2026-11-07-schema-validation-profile.md)
+does not establish the required unprofiled p50/p95 or native latency results.
 A separate [CPU corpus readiness run](docs/evaluations/2026-11-07-cpu-corpus-readiness.md)
 passed two protocol probes but timed out before the first coding response; all
 twelve corpus cases remained unrun. Its failed evidence and cleanup verification

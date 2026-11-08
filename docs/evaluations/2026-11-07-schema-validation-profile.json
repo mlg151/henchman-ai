@@ -1,0 +1,74 @@
+{
+  "baseline_commit": "b465d4194b84e301028b49cb239c77cf09cca155",
+  "between_commits": "Only docs/evaluations/2026-11-07-local-baseline-8082.md changed between recorded commits.",
+  "candidate_base_commit": "96c1fdfa05ab6682a8132a247f28c2f989ee0860",
+  "candidate_change": "Uncommitted bounded meta-validation cache in src/henchman/tools/contracts.py",
+  "candidate_contracts_sha256": "6d05a5dc68f8680e7ea8dea2843a17d70f32dc28cd6db38fa595629aab688687",
+  "host_load_note": "Other corpus/readiness work was active; one-minute loads differed between baseline and candidate. Both ran same Python3.12 interpreter on same56-CPU host.",
+  "kind": "offline_profiled_schema_validation_comparison",
+  "network": "SDK parser exercised through MockTransport; no model inference or hosted call.",
+  "oracle": "Each runtime independently executed original fail then pass criteria,2 mocked SDK requests,3 completed operation records, unchanged protected criteria, and a rejected wrong-result mutant.",
+  "qualification": "Two attribution runs per revision under cProfile; not p50/p95 or a native/remote latency claim.",
+  "raw_artifacts": [
+    {
+      "affinity_cpus": 56,
+      "directory": "/tmp/henchman-small-edit-profile",
+      "files": {
+        "cold.prof": "d1ecaabf5d56df56246d41097462101802bd198d05bba4175a919c7906c5388b",
+        "imports.prof": "41b05c2cdc8beefd986038239ee5694b95b962225f462f71afbc945df2d2d0d2",
+        "report.json": "228b0944adfadc553b4fe01360590228ee345cbff2352adf65bd26a8cf59ef6c",
+        "warm.prof": "66276ad4269c41ce0230d8832504ecbbf5b93acbb1875e1136ed400b7f21edf2"
+      },
+      "interpreter": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+      "load_before": [
+        17.79345703125,
+        13.75244140625,
+        9.19140625
+      ],
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+      "transport": "OpenRouter actual SDK + httpx MockTransport"
+    },
+    {
+      "affinity_cpus": 56,
+      "directory": "/tmp/henchman-small-edit-profile-candidate",
+      "files": {
+        "cold.prof": "00eb65f2460baf4714776e988d1f99e6ab669003f5c914eff6d5cd1ab2dc5f7b",
+        "imports.prof": "7b5ddb900054b292352d2736159ab2a96a33c8a609d974d88300f183d64f8181",
+        "report.json": "a63a6a6ac33f3be9978ce0416b9fddb1a47ceef00d1a06bb564da9a1d59cf23a",
+        "warm.prof": "2ceef510101885a48a5f7c535f65e37558b54f53f34308d32f7f3f9d17597472"
+      },
+      "interpreter": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+      "load_before": [
+        5.50048828125,
+        7.74560546875,
+        8.072265625
+      ],
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+      "transport": "OpenRouter actual SDK + httpx MockTransport"
+    }
+  ],
+  "runs": [
+    {
+      "baseline_authorization_revalidations": 526,
+      "baseline_cpu": 32.971340612999995,
+      "baseline_meta_checks": 588,
+      "baseline_wall": 33.27224980399478,
+      "candidate_authorization_revalidations": 526,
+      "candidate_cpu": 11.267534521000002,
+      "candidate_meta_checks": 8,
+      "candidate_wall": 11.531118835962843,
+      "label": "cold"
+    },
+    {
+      "baseline_authorization_revalidations": 526,
+      "baseline_cpu": 31.8817905,
+      "baseline_meta_checks": 588,
+      "baseline_wall": 32.13215058401693,
+      "candidate_authorization_revalidations": 526,
+      "candidate_cpu": 11.253211424000003,
+      "candidate_meta_checks": 0,
+      "candidate_wall": 11.497842859011143,
+      "label": "warm"
+    }
+  ]
+}

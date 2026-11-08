@@ -131,6 +131,15 @@ are rejected. `format` remains an annotation. Unsupported contracts produce
 value-free diagnostics instead of changing meaning or disclosing rejected input.
 The original schema snapshot remains separate from its validation copy.
 
+Successful schema meta-validation is reused through a process-local LRU cache
+keyed by exact canonical JSON bytes. It retains at most 64 keys of 64 KiB each
+(4 MiB of key payload, plus object overhead), including schema annotations until
+eviction or process exit. Invalid schemas are not cached. Every contract still
+gets a detached validator and resolver, and local-reference restrictions, current
+arguments, validation budgets and live authorization are checked anew. This
+cache does not retain approvals or verification results. See the
+[offline attribution profile](evaluations/2026-11-07-schema-validation-profile.md).
+
 ### Provider schema projections
 
 All five adapters now use versioned client profiles in

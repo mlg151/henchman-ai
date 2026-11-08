@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bounded schema meta-validation cache** — Repeated identical schemas reuse
+  successful meta-checks within a 64-entry, 4 MiB key-payload bound. Validators,
+  current arguments, authorization and verification remain fresh. Offline
+  profiling and mutation/approval regressions are retained; p95 qualification
+  remains open.
+
 - **Revised CPU readiness evidence** — A separate diagnostic passed syntax repair
   in 347.65 seconds with complete usage across seven requests. Its 600-second
   request allowance, cleanup and limits are retained separately from the failed

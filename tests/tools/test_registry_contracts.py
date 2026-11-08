@@ -3,7 +3,7 @@
 import pytest
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
-from henchman.tools.contracts import SchemaContractError
+from henchman.tools.contracts import SchemaContract, SchemaContractError
 from henchman.tools.registry import ToolRegistry
 
 
@@ -165,3 +165,47 @@ async def test_invalid_output_is_journaled_as_completed_failure_without_repeatin
     with use_operation_call(invocation):
         replay = await registry.execute(call.name, call.arguments)
     assert replay == result and tool.calls == ["original"]
+
+
+@pytest.mark.parametrize("field", ["input_schema", "schema"])
+async def test_cached_nested_schema_change_during_approval_still_denies_dispatch(field):
+    original = {"type": "object", "properties": {"value": {"type": "integer"}}}
+    replacement = {"type": "object", "properties": {"value": {"type": "string"}}}
+    SchemaContract(original)
+    SchemaContract(replacement)
+    tool = ContractTool(result=ToolResult("typed", structured_content={"value": 1}, structured_content_present=True))
+    setattr(tool, field, original)
+    tool.kind = ToolKind.NETWORK
+    registry = ToolRegistry()
+    registry.register(tool)
+
+    async def approve(_request):
+        getattr(tool, field)["properties"]["value"]["type"] = "string"
+        return True
+
+    registry.set_confirmation_handler(approve)
+    result = await registry.execute(tool.name, {"value": 1})
+    assert not result.success and tool.calls == 0
+    assert "changed" in result.content
+
+
+async def test_warmed_schema_does_not_reuse_revoked_approval_or_skip_current_arguments():
+    tool = ContractTool()
+    tool.input_schema = {"type": "object", "properties": {"value": {"type": "integer"}}}
+    tool.kind = ToolKind.NETWORK
+    registry = ToolRegistry()
+    registry.register(tool)
+    prompts = []
+
+    async def approve_once(request):
+        prompts.append(request)
+        return len(prompts) == 1
+
+    registry.set_confirmation_handler(approve_once)
+    assert (await registry.execute(tool.name, {"value": 1})).success
+    registry.clear_grants()
+    refused = await registry.execute(tool.name, {"value": 1})
+    assert not refused.success and len(prompts) == 2 and tool.calls == 1
+    invalid = await registry.execute(tool.name, {"value": "invalid"})
+    assert not invalid.success and "contract" in invalid.content.lower()
+    assert len(prompts) == 2 and tool.calls == 1
