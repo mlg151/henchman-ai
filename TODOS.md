@@ -379,9 +379,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   refresh and Back; the overview uses actual selected actor and bound project
   task owners. `/work [list]` and `/work inspect agent|task <exact-id>` now share
   these read-only owners and evidence checks in both frontends. Unknown/unavailable
-  values remain explicit. Selected running tasks can now be stopped through F6
-  or `/work stop task <exact-id>`, with current owner/revision checks and joined
-  cleanup. Child-agent interruption, broader navigation and native qualification
+  values remain explicit. Live owned tasks, including retained handles after
+  uncertain cleanup, can now be stopped through F6 or `/work stop task <exact-id>`,
+  with current owner/revision checks and joined cleanup. Child-agent interruption,
+  broader navigation and native qualification
   remain open; see the
   [inspection contract](docs/ui-interaction-contract.md#context-and-usage-inspection).
 - #32/#36 now have a [frozen native VTE latency baseline](docs/evaluations/2026-11-08-vte-latency-v1.md)

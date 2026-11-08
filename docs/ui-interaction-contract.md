@@ -215,8 +215,10 @@ owner again after joined reads, and prints literal text with current and retaine
 credential policies. Missing owners remain unavailable; inspection does not
 construct or migrate task storage.
 
-To stop a running task owned by this process, inspect it and use **Stop task**
-or F6; both frontends also accept `/work stop task <exact-id>`. The inspector
+To stop a live task owned by this process, inspect it and use **Stop task**
+or F6; both frontends also accept `/work stop task <exact-id>`. A retained
+same-loop process with an unknown outcome can be stopped after its launch and
+monitor have settled. The inspector
 rechecks the selected task revision, project, session and owner before issuing
 the request, including the task's owning event loop. The command captures and
 rechecks the current revision. Stored
@@ -233,7 +235,9 @@ blocked, errors remain errors, and cancelled `done` records do not become
 successful completion. These conversations are process-only. Project task
 records are persisted observations and may belong to a different session; exact
 operation correlation is displayed when recorded. Stored PIDs are not adopted,
-and recovered unowned outcomes stay unknown. The selected child's existing
+and recovered unowned outcomes stay unknown. If an uncertain outcome still has
+a live same-loop owned process, the inspector says so instead of calling it
+unowned. The selected child's existing
 provider/model is shown, but per-child bills or current-run attribution are not
 inferred. **Context and usage** and `/usage` retain accounting authority.
 

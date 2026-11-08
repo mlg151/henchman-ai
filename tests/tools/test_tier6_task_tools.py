@@ -80,11 +80,12 @@ async def test_task_stop_reports_uncertain_cleanup_without_claiming_success(tmp_
 
 
 async def test_unknown_task_with_live_owned_process_is_not_described_as_unowned(tmp_path, monkeypatch):
-    from henchman.tools.builtins.tier6_tools import TaskGetTool, TaskListTool
+    from henchman.tools.builtins.tier6_tools import TaskGetTool, TaskListTool, TaskUpdateTool
 
     monkeypatch.chdir(tmp_path)
     get_tool = TaskGetTool()
     list_tool = TaskListTool()
+    update_tool = TaskUpdateTool()
     service = get_tool._task_service
     original = service._terminate_process
     failed = False
@@ -103,7 +104,8 @@ async def test_unknown_task_with_live_owned_process_is_not_described_as_unowned(
         assert (await service.wait_for_task(record.task_id, timeout=15)).status == 'outcome_unknown'
         assert process.returncode is None
         for result in (await get_tool.execute(task_id=record.task_id),
-                       await list_tool.execute(status='outcome_unknown')):
+                       await list_tool.execute(status='outcome_unknown'),
+                       await update_tool.execute(task_id=record.task_id, title='inspectable')):
             assert result.success and 'owned process' in result.content.lower()
             assert 'not owned' not in result.content.lower()
     finally:

@@ -211,11 +211,14 @@ class WorkInspection:
         loop = asyncio.get_running_loop()
         if identity in runtime.stopping:
             raise ValueError("Task is already stopping; wait for cleanup")
+        monitored = waiter is not None and not waiter.done() and waiter.get_loop() is loop
+        retained = (waiter is None and record.status == "outcome_unknown"
+                    and identity not in runtime.monitors and identity not in runtime.launches)
         if (runtime.process_id != os.getpid() or record.owner_id != runtime.owner_id
-            or record.status != "running" or process is None or process.returncode is not None
+            or record.status not in {"running", "outcome_unknown"} or process is None or process.returncode is not None
             or getattr(process, "_loop", None) is not loop
-            or waiter is None or waiter.done() or waiter.get_loop() is not loop):
-            raise ValueError("Task is not a running process owned by this runtime")
+            or not (monitored or retained)):
+            raise ValueError("Task is not a live process owned by this runtime")
 
         async def stop() -> TaskRecord:
             # Recheck after scheduling and before TaskService can signal a
@@ -230,8 +233,12 @@ class WorkInspection:
                 if (runtime.process_id != os.getpid() or runtime.processes.get(identity) is not process
                     or process.returncode is not None or latest is None
                     or getattr(process, "_loop", None) is not loop
-                    or runtime.waiters.get(identity) is not waiter or waiter.done() or waiter.get_loop() is not loop
-                    or latest.revision != expected_revision or latest.owner_id != runtime.owner_id):
+                    or runtime.waiters.get(identity) is not waiter
+                    or (waiter is not None and (waiter.done() or waiter.get_loop() is not loop))
+                    or (waiter is None and (record.status != "outcome_unknown"
+                                            or identity in runtime.monitors or identity in runtime.launches))
+                    or latest.revision != expected_revision or latest.owner_id != runtime.owner_id
+                    or latest.status != record.status):
                     raise ValueError("Task changed; refresh the selection before stopping it")
 
             check()
@@ -240,7 +247,7 @@ class WorkInspection:
             check()
             refreshed = await _joined(asyncio.create_task(asyncio.to_thread(service.get_task, identity)))
             if (refreshed is None or refreshed.revision != expected_revision
-                or refreshed.owner_id != runtime.owner_id or refreshed.status != "running"):
+                or refreshed.owner_id != runtime.owner_id or refreshed.status != record.status):
                 raise ValueError("Task changed; refresh the selection before stopping it")
             check()
             return await service.stop_task(identity)
@@ -374,6 +381,7 @@ class WorkInspection:
                 record.metadata.get("error")
             )
             context = record.operation_context
+            owned_unknown = record.status == "outcome_unknown" and self.service._owns_live_process(record.task_id)
             correlation = (
                 f"Session {context['session_id']} · Run {context['run_id']} · Agent {context['agent_id']} · Operation {context['operation_id']}"
                 if context is not None
@@ -398,7 +406,9 @@ class WorkInspection:
                 (
                     "Outcome",
                     (
-                        "Unowned process outcome is unknown; no PID is adopted."
+                        "An owned process remains; its cleanup outcome is unknown."
+                        if owned_unknown
+                        else "Unowned process outcome is unknown; no PID is adopted."
                         if record.status == "outcome_unknown"
                         else "Observed execution state only."
                     ),

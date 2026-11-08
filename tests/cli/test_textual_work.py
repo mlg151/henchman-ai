@@ -8,7 +8,7 @@ from threading import Event
 from types import SimpleNamespace
 
 import pytest
-from textual.widgets import OptionList, TextArea
+from textual.widgets import Button, OptionList, TextArea
 
 from henchman.advanced.tasks import TaskService
 from henchman.agents.delegation_admission import DelegationAdmission
@@ -152,6 +152,7 @@ async def test_recovered_running_task_is_unknown_and_never_adopts_pid(work):
             screen.action_inspect()
             await screen._action_task
             assert "no PID is adopted" in screen.query_one(TextArea).text
+            assert screen.query_one("#work-stop", Button).disabled
             assert store.path.read_bytes() == before
             assert raw["task_id"] not in work.service._runtime.processes
         finally:

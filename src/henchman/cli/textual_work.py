@@ -200,7 +200,9 @@ class WorkInspector(ModalScreen[None]):
             self._fields = fields
             self._stage = "detail"
             values = dict(fields)
-            if row.kind == "task" and values.get("State") == "running":
+            if (row.kind == "task" and (values.get("State") == "running"
+                or (values.get("State") == "outcome_unknown" and self.service is not None
+                    and self.service._owns_live_process(row.identity)))):
                 self._stop_target = (row.identity, int(values["Revision"]), index, selection)
             self._status = "Captured observation. Work continues independently; Refresh reads current state."
             self._render_view()

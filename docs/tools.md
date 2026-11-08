@@ -814,7 +814,7 @@ For an owned process, stop also requires the original runtime and event loop.
 The captured monitor result remains authoritative if its lookup entry is
 removed while termination is in progress; uncertain cleanup stays unknown.
 When cleanup is uncertain but a live same-loop process handle remains,
-`task_get` and `task_list` say that an owned process remains instead of
+`task_get`, `task_list` and `task_update` say that an owned process remains instead of
 describing it as unowned. This is a current observation, not PID adoption.
 
 The versioned `.henchman/tasks/index.json` stores index and per-task revisions,

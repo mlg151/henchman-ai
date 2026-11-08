@@ -93,6 +93,30 @@ async def test_interrupt_refuses_unknown_stored_pid(work, monkeypatch):
         await WorkInspection(frontend(work)).interrupt_task(raw['task_id'], expected_revision=raw['revision'])
 
 
+async def test_inspection_reports_retained_owned_process_when_outcome_unknown(work, monkeypatch):
+    original = work.service._terminate_process
+    failed = False
+
+    async def fail_once(process):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError('cleanup temporarily unavailable')
+        await original(process)
+
+    monkeypatch.setattr(work.service, '_terminate_process', fail_once)
+    record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'], timeout=.05)
+    work.tasks.append(record.task_id)
+    assert (await work.service.wait_for_task(record.task_id, timeout=15)).status == 'outcome_unknown'
+    fields, _ = await WorkInspection(frontend(work)).inspect('task', record.task_id)
+    outcome = dict(fields)['Outcome'].lower()
+    assert 'owned process' in outcome and 'unowned' not in outcome
+    current = work.service.get_task(record.task_id)
+    result = await WorkInspection(frontend(work)).interrupt_task(record.task_id, expected_revision=current.revision)
+    assert result.status == 'stopped'
+    assert record.task_id not in work.service._runtime.processes
+
+
 @pytest.mark.parametrize('mismatch', ['waiter', 'handle'])
 async def test_interrupt_refuses_a_task_owned_by_another_event_loop(work, mismatch):
     record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
@@ -282,6 +306,37 @@ async def test_textual_stop_refuses_changed_task_revision(work):
             await screen._action_task
             assert 'changed' in screen._status.lower()
             assert work.service._runtime.processes[record.task_id].returncode is None
+        finally:
+            work.app.core_context = None
+
+
+async def test_textual_can_stop_retained_owned_unknown_process(work, monkeypatch):
+    original = work.service._terminate_process
+    failed = False
+
+    async def fail_once(process):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError('cleanup temporarily unavailable')
+        await original(process)
+
+    monkeypatch.setattr(work.service, '_terminate_process', fail_once)
+    record = await work.service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'], timeout=.05)
+    work.tasks.append(record.task_id)
+    assert (await work.service.wait_for_task(record.task_id, timeout=15)).status == 'outcome_unknown'
+    async with work.app.run_test() as pilot:
+        try:
+            screen = await opened(work, pilot)
+            screen.query_one(OptionList).highlighted = next(i for i, row in enumerate(screen._rows) if row.identity == record.task_id)
+            await pilot.pause()
+            screen.action_inspect()
+            await screen._action_task
+            assert not screen.query_one('#work-stop', Button).disabled
+            await pilot.press('f6')
+            await screen._action_task
+            assert work.service.get_task(record.task_id).status == 'stopped'
+            assert record.task_id not in work.service._runtime.processes
         finally:
             work.app.core_context = None
 
