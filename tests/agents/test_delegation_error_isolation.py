@@ -36,7 +36,7 @@ def tool_response(failure: str | None) -> StreamChunk:
 
 
 def make_orchestrator(provider: ScriptedProvider) -> Orchestrator:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.agents["explorer"] = AgentConfig(
         name="Explorer",
         role="explorer",

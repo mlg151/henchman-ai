@@ -9,6 +9,7 @@ import pytest
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.agents.orchestrator_types import AgentLoopParams
+from henchman.config.schema import Settings
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
 from henchman.tools.base import ConfirmationRequest, Tool, ToolResult
@@ -57,7 +58,7 @@ def _orchestrator(chunks: list[StreamChunk], tool: RecordedTool) -> Orchestrator
         yield next(queue)
 
     provider.chat_completion_stream.side_effect = stream
-    orch = Orchestrator(default_provider=provider)
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     orch.settings.agents.max_delegation_retries = 0
     orch.tool_registry.register(tool)

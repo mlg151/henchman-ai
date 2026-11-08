@@ -16,6 +16,7 @@ import pytest
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+from henchman.config.schema import Settings
 from henchman.providers.base import FinishReason, Message, StreamChunk, ToolCall
 from henchman.providers.ollama import OllamaProvider
 from henchman.tools.registry import ToolRegistry
@@ -62,7 +63,7 @@ async def _spawn_and_collect_system_prompt(
     provider = OllamaProvider()
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.subagents.spawn("task", role="custom", system_prompt="custom child", tools=[])
     try:
         await asyncio.wait_for(started.wait(), 2)
@@ -94,7 +95,7 @@ async def test_dynamic_subagent_prompt_inherits_active_plan_mode(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.set_plan_mode(enabled=True)
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.subagents.spawn("task", role="custom", system_prompt="custom child", tools=[])
     try:
         await asyncio.wait_for(started.wait(), 2)

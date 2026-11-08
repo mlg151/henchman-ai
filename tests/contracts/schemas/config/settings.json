@@ -185,7 +185,7 @@
     "agents": {
       "type": "object",
       "description": "Multi-agent system settings",
-      "required": ["team_preset", "agents", "max_delegation_depth", "max_concurrent_delegations", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
+      "required": ["team_preset", "agents", "max_delegation_depth", "allow_delegation", "max_concurrent_delegations", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
       "properties": {
         "team_preset": { "type": "string" },
         "agents": {
@@ -210,6 +210,7 @@
           }
         },
         "max_delegation_depth": { "type": "integer", "minimum": 0 },
+        "allow_delegation": { "type": "boolean" },
         "max_concurrent_delegations": { "type": "integer", "minimum": 0 },
         "max_delegation_turns": { "type": "integer", "minimum": 0 },
         "shared_context_max_tokens": { "type": "integer", "minimum": 0 },

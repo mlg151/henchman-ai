@@ -11,6 +11,7 @@ import pytest
 from textual.widgets import OptionList, TextArea
 
 from henchman.advanced.tasks import TaskService
+from henchman.agents.delegation_admission import DelegationAdmission
 from henchman.agents.subagents import BackgroundSubagentManager
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.core.agent import Agent
@@ -45,7 +46,8 @@ async def work(tmp_path, monkeypatch):
         yield AgentEvent(EventType.CONTENT, "retained child output")
     def factory(_role, _prompt, _tools, _identity):
         return Agent(SimpleNamespace(name="actual-adapter", _accounting_provider_name="actual-alias", model="actual-model", api_key="actor-key"))
-    agents = BackgroundSubagentManager(factory, runner, available_tools=lambda _: [])
+    agents = BackgroundSubagentManager(factory, runner, available_tools=lambda _: [],
+                                       admission=DelegationAdmission(allowed=True))
     records = [agents.spawn(prompt, role=prompt, system_prompt="OPAQUE-SYSTEM-DO-NOT-DISPLAY", tools=[])
                for prompt in ("run", "fail", "block")]
     async def close():

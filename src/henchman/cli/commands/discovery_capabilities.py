@@ -135,9 +135,12 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
         name="background subagents",
         classification="runtime-dependent",
-        summary="The primary coding agent can launch dynamic background conversations.",
+        summary="Opted-in coding agents can launch dynamic background conversations.",
         detail=(
-            "invoke_subagent creates independent conversations with custom roles, prompts, and "
+            "Descendant execution requires startup agents.allow_delegation opt-in (default false). "
+            "The tools remain discoverable; a default request returns a structured disabled denial. "
+            "Shared max_concurrent_delegations capacity defaults to 4; the primary agent and direct "
+            "role execution are excluded. invoke_subagent creates independent conversations with custom roles, prompts, and "
             "delegated tool subsets. manage_subagents inspects or cancels them; send_message "
             "queues conversation messages. A bound orchestrator delivers results and input "
             "requests reactively at turn boundaries and joins unfinished work on shutdown. "

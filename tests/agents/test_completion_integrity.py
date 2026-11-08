@@ -45,7 +45,8 @@ def make_orchestrator(responses: list[StreamChunk | Exception]) -> Orchestrator:
         yield response
 
     provider.chat_completion_stream.side_effect = stream
-    orch = Orchestrator(default_provider=provider)
+    from henchman.config.schema import Settings
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     orch.settings.agents.max_delegation_retries = 0
     orch.tool_registry.register(ReadTool())

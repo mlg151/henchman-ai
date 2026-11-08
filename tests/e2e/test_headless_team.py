@@ -106,7 +106,7 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
     registry.set_confirmation_handler(approve)
     # Canonical team prompts, tool schemas and output reservations exceed 8K.
     # Exercise a declared 16K request window rather than relying on input-only accounting.
-    settings = Settings(providers=providers, context={"max_tokens": 16384})
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 16384})
     settings.agents.max_delegation_retries = 0
     if attempt_unlisted_write:
         # The primary is unrestricted by default; this scenario tests an explicit user scope.

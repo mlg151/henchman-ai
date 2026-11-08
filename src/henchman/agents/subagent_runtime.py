@@ -67,6 +67,7 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
 
             if PLAN_MODE_PROMPT not in prompt:
                 prompt = f"{prompt}{PLAN_MODE_PROMPT}"
+        prompt += "\n\n" + orchestrator.delegation_runner.admission.prompt_note()
         agent = Agent(
             provider=parent.provider,
             tool_registry=registry,

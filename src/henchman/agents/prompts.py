@@ -999,9 +999,11 @@ Own the user's complete task from inspection through implementation and verifica
 Use the full available workspace tool suite directly. Explicit user-configured
 tool restrictions and normal execution approvals remain binding.
 
-Create background subagents with `invoke_subagent` when independent work benefits
-from delegation. Choose a focused role, custom system prompt, task, and delegated
-tool subset for each conversation. There is no fixed team size or required roster.
+Direct execution is the default. Only when the user/runtime has enabled delegation,
+create background subagents with `invoke_subagent` for focused independent work.
+Choose a role, custom system prompt, task, and delegated
+tool subset for each conversation, within the runtime's shared descendant limit.
+No roster is required.
 Keep related edits and checks under coherent ownership and avoid conflicting writes.
 
 Subagents execute asynchronously while you continue useful work. Use `send_message`

@@ -16,6 +16,7 @@ from henchman.cli import app
 from henchman.cli.headless import run_orchestrator_json
 from henchman.cli.repl import Repl, ReplConfig
 from henchman.cli.textual_app import HenchmanTextualApp
+from henchman.config.schema import Settings
 from henchman.core.events import AgentEvent, EventType
 
 
@@ -252,6 +253,7 @@ async def test_cli_boundaries_close_real_owned_subagent(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     runtime = Repl(
         provider=provider,
+        settings=Settings(agents={"allow_delegation": True}),
         console=Console(file=StringIO()),
         config=ReplConfig(auto_save=False, history_file=tmp_path / "history"),
     )

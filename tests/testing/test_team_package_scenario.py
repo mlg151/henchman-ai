@@ -161,7 +161,7 @@ def script(defect: str | None = None) -> MockProvider:
 async def run(provider: MockProvider) -> dict[str, Any]:
     from evals.test_team_python_package import run_team_python_package
 
-    settings = Settings(context={"max_tokens": 32768})
+    settings = Settings(agents={"allow_delegation": True}, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     rig = EvalTestRig(provider=provider, profile="team", settings=settings)
     try:

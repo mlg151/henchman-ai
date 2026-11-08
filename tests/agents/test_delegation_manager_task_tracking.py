@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from henchman.agents.delegation_admission import DelegationAdmission
 from henchman.agents.delegation_manager import (
     DelegationManager,
     DelegationTask,
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
 def mock_runner() -> MagicMock:
     """Create a mock DelegationRunner."""
     runner = MagicMock()
+    runner.admission = DelegationAdmission(allowed=True)
     runner.run_delegation = MagicMock(return_value=iter([]))
     return runner
 

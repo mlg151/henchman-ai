@@ -57,7 +57,8 @@ class InvokeSubagentTool(_SubagentTool):
         return (
             "Launch a background subagent with a custom role, system prompt, task, and explicit "
             "tool subset. Returns a conversation_id immediately; results and requests for input "
-            "arrive as parent notifications. Use send_message for follow-ups."
+            "arrive as parent notifications. Requires prior user/runtime delegation opt-in "
+            "and shared capacity. Use send_message for follow-ups."
         )
 
     @property

@@ -162,7 +162,7 @@ async def test_orchestrator_cached_future_and_dynamic_read_controls(tmp_path: Pa
     registry = ToolRegistry()
     registry.register(ReadFileTool())
     provider = LocalProvider(target)
-    orchestrator = Orchestrator(provider, settings=Settings(tools={"auto_approve_read": False}), tool_registry=registry)
+    orchestrator = Orchestrator(provider, settings=Settings(agents={"allow_delegation": True}, tools={"auto_approve_read": False}), tool_registry=registry)
     try:
         cached = orchestrator.pool.get_agent("explorer")
         for agent in (orchestrator.tech_lead, cached, orchestrator.pool.get_agent("engineer")):

@@ -113,7 +113,7 @@ class TestExecuteLoop:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=bad_loop_runner,
@@ -153,7 +153,7 @@ class TestRunDelegationExecuteLoopError:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -208,7 +208,7 @@ class TestGetTargetAgentWithMockName:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -232,7 +232,7 @@ class TestProcessDelegationResultsValidation:
 
         return DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -327,7 +327,7 @@ class TestProcessDelegationResultsToolErrors:
 
         return DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -797,7 +797,7 @@ class TestRunParallelDelegations:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -827,7 +827,7 @@ class TestRunParallelDelegations:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),

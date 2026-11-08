@@ -231,6 +231,13 @@ provider/model overrides, context capacity and delegation limits. It rejects a
 standalone core `AgentConfig` or custom prompt instead of silently ignoring those
 options. Existing basic/engineer defaults and run limits remain unchanged.
 
+Selecting `team` without supplying settings explicitly opts that evaluator into
+delegation. Supplied settings retain their `agents.allow_delegation` value,
+including `false`; the profile never widens it. Basic/engineer profiles do not
+opt in. Team metadata reports the runtime's captured permission and shared
+concurrency limit. This evaluator choice does not enable automatic delegation
+in ordinary application runtimes or establish a measured benefit.
+
 Default team prompts include the CLI's shared startup environment snapshot for
 the actual temporary workspace: working directory, OS, Python version and
 detected commands. Explicit role prompts retain precedence. The snapshot is

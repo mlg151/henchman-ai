@@ -303,7 +303,8 @@ class EvalTestRig:
         if self._profile == "team" and (config is not None or system_prompt is not None):
             raise ValueError("The team profile rejects custom core config or system prompt")
         self._settings = (
-            settings.model_copy(deep=True) if settings is not None else Settings()
+            settings.model_copy(deep=True) if settings is not None
+            else Settings(agents={"allow_delegation": True})
         ) if self._profile == "team" else None
         self._config = replace(config) if config is not None else AgentConfig()
         if self._profile == "team":

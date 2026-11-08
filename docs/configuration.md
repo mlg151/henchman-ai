@@ -835,6 +835,9 @@ agents:
   # Max recursive delegation depth (default: 3)
   max_delegation_depth: 3
 
+  # Explicit startup opt-in; direct primary and /agent work remain available.
+  allow_delegation: false
+
   # Shared executing descendants; primary excluded. 0 disables children.
   max_concurrent_delegations: 4
 

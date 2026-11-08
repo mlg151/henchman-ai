@@ -31,7 +31,7 @@ async def test_background_unknown_effect_latches_across_notification_cleanup():
 
 
 async def test_delegated_unknown_effect_propagates_without_provider_retry(tmp_path):
-    orchestrator, provider, tool, _ = build(tmp_path)
+    orchestrator, provider, tool, _ = build(tmp_path, allow_delegation=True)
     chunks = [
         StreamChunk(tool_calls=[ToolCall("delegate", "delegate_task", {"agent": "engineer", "task": "perform effect"})], finish_reason=FinishReason.TOOL_CALLS),
         StreamChunk(tool_calls=[ToolCall("effect-call", "effect", {"value": "child"})], finish_reason=FinishReason.TOOL_CALLS),
@@ -54,7 +54,7 @@ async def test_delegated_unknown_effect_propagates_without_provider_retry(tmp_pa
 
 
 async def test_delegation_and_specialist_results_keep_separate_correlated_history(tmp_path):
-    orchestrator, provider, tool, session = build(tmp_path)
+    orchestrator, provider, tool, session = build(tmp_path, allow_delegation=True)
     chunks = [
         StreamChunk(tool_calls=[ToolCall("delegate", "delegate_task", {"agent": "engineer", "task": "perform effect"})], finish_reason=FinishReason.TOOL_CALLS),
         StreamChunk(tool_calls=[ToolCall("effect-call", "effect", {"value": "child"})], finish_reason=FinishReason.TOOL_CALLS),
@@ -81,7 +81,7 @@ async def test_delegation_and_specialist_results_keep_separate_correlated_histor
 
 
 async def test_reused_specialist_keeps_each_turn_and_result_for_recovery(tmp_path):
-    orchestrator, provider, tool, session = build(tmp_path)
+    orchestrator, provider, tool, session = build(tmp_path, allow_delegation=True)
     chunks = [
         StreamChunk(tool_calls=[ToolCall("first", "delegate_task", {"agent": "engineer", "task": "first"})], finish_reason=FinishReason.TOOL_CALLS),
         StreamChunk(tool_calls=[ToolCall("same-id", "effect", {"value": "first"})], finish_reason=FinishReason.TOOL_CALLS),

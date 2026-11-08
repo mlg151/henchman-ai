@@ -23,7 +23,7 @@ def test_configuration_requires_nonnegative_strict_integer(value: object) -> Non
 
 def test_default_and_zero_have_explicit_meaning() -> None:
     assert AgentSettings().max_concurrent_delegations == 4
-    admission = DelegationAdmission(0)
+    admission = DelegationAdmission(0, allowed=True)
     with pytest.raises(DelegationAdmissionError) as denied:
         admission.reserve()
     assert denied.value.payload == {
@@ -32,7 +32,7 @@ def test_default_and_zero_have_explicit_meaning() -> None:
 
 
 def test_retired_generation_cannot_reserve_and_release_is_idempotent() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     generation = admission.generation
     lease = admission.reserve()
     admission.retire()
@@ -62,7 +62,7 @@ def spawn(manager: BackgroundSubagentManager) -> str:
 
 
 async def test_racing_spawns_reserve_before_factory_and_nested_refuses_without_wait() -> None:
-    admission = DelegationAdmission(2)
+    admission = DelegationAdmission(2, allowed=True)
     created: list[str] = []
     nested: list[str] = []
     gate = asyncio.Event()
@@ -90,7 +90,7 @@ async def test_racing_spawns_reserve_before_factory_and_nested_refuses_without_w
 
 
 async def test_completed_followup_reacquires_without_queuing_denied_input() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     seen: list[str] = []
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         seen.append(prompt)
@@ -113,7 +113,7 @@ async def test_completed_followup_reacquires_without_queuing_denied_input() -> N
 
 
 async def test_cancel_before_worker_entry_releases_reservation() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     entered = False
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         nonlocal entered
@@ -128,7 +128,7 @@ async def test_cancel_before_worker_entry_releases_reservation() -> None:
 
 
 async def test_cancel_holds_slot_until_joined_cleanup_even_if_caller_cancelled() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     started, cleaning, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         started.set()
@@ -157,7 +157,7 @@ async def test_cancel_holds_slot_until_joined_cleanup_even_if_caller_cancelled()
 
 
 async def test_factory_failure_releases_and_reset_rejects_old_conversation() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         yield AgentEvent(EventType.CONTENT, prompt)
     manager = manager_for(admission, runner)
@@ -193,7 +193,7 @@ def runtime(*, limit: int = 1, retries: int = 0, steps: tuple[Any, ...] = ()) ->
             index = self.calls
             self.calls += 1
             yield steps[index] if index < len(steps) else StreamChunk(content="Done", finish_reason=FinishReason.STOP)
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_concurrent_delegations = limit
     settings.agents.max_delegation_retries = retries
     for role in ("tech_lead", "explorer", "engineer"):
@@ -301,7 +301,7 @@ async def test_parallel_reserves_before_start_and_streams_more_than_buffer(monke
 
 
 async def test_failed_worker_creation_leaves_no_active_record(monkeypatch: pytest.MonkeyPatch) -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         yield AgentEvent(EventType.CONTENT, prompt)
     manager = manager_for(admission, runner)
@@ -317,7 +317,7 @@ async def test_failed_worker_creation_leaves_no_active_record(monkeypatch: pytes
 
 
 async def test_waiting_for_input_retains_slot_until_execution_finishes() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         answer = await manager.request_input(prompt)
         yield AgentEvent(EventType.CONTENT, answer)
@@ -334,7 +334,7 @@ async def test_waiting_for_input_retains_slot_until_execution_finishes() -> None
 
 
 async def test_cancelling_tree_joins_every_child_after_caller_cancellation() -> None:
-    admission = DelegationAdmission(2)
+    admission = DelegationAdmission(2, allowed=True)
     running: dict[str, asyncio.Event] = {}
     cleaning: dict[str, asyncio.Event] = {}
     releases: dict[str, asyncio.Event] = {}
@@ -391,7 +391,7 @@ async def test_parallel_close_joins_buffer_blocked_producers(monkeypatch: pytest
 async def test_model_tools_return_structured_denials_without_queuing_followup() -> None:
     from henchman.tools.builtins.subagents import InvokeSubagentTool
     from henchman.tools.builtins.tier5_tools import SendMessageTool
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         yield AgentEvent(EventType.CONTENT, prompt)
     manager = manager_for(admission, runner)
@@ -429,7 +429,7 @@ async def test_stale_stream_rejected_before_actor_creation_after_reset(parallel:
 
 
 async def test_failed_cleanup_releases_capacity_and_retains_caller_cancellation() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     started, cleaning, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
     async def runner(_: str, prompt: str) -> AsyncIterator[AgentEvent]:
         started.set()
@@ -455,7 +455,7 @@ async def test_failed_cleanup_releases_capacity_and_retains_caller_cancellation(
 
 
 async def test_repeated_settlement_joins_one_stream_close_owner() -> None:
-    admission = DelegationAdmission(1)
+    admission = DelegationAdmission(1, allowed=True)
     lease = admission.reserve()
     cleaning, release = asyncio.Event(), asyncio.Event()
     async def stream() -> AsyncIterator[AgentEvent]:

@@ -36,7 +36,7 @@ def _orchestrator(chunks: list[StreamChunk]) -> Orchestrator:
     provider.chat_completion_stream.side_effect = stream
     orch = Orchestrator(
         default_provider=provider,
-        settings=Settings(agents=AgentSettings(max_delegation_retries=0)),
+        settings=Settings(agents=AgentSettings(max_delegation_retries=0, allow_delegation=True)),
     )
     orch.tool_registry.set_confirmation_handler(_approve)
     return orch

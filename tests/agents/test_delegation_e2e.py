@@ -163,7 +163,7 @@ class TestDelegateTaskEndToEnd:
 
     @pytest.fixture
     def settings(self) -> Settings:
-        return Settings()
+        return Settings(agents={"allow_delegation": True})
 
     async def test_tech_lead_delegates_to_coder_who_uses_tools(
         self,

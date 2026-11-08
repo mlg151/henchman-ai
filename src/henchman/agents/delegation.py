@@ -898,7 +898,9 @@ class DelegationRunner:
         self.metrics = metrics
         self._run_agent_loop = run_agent_loop
         self._assess_completion = assess_completion
-        self.admission = admission if admission is not None else DelegationAdmission(settings.agents.max_concurrent_delegations)
+        self.admission = admission if admission is not None else DelegationAdmission(
+            settings.agents.max_concurrent_delegations, allowed=settings.agents.allow_delegation,
+        )
         self.ledger: TaskLedger | None = None
         self.instruction_snapshot: ContextSnapshot | None = None
 

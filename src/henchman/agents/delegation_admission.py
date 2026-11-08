@@ -14,7 +14,10 @@ class DelegationAdmissionError(RuntimeError):
         self.payload: dict[str, object] = {
             "code": code, "limit": limit, "active": active, "retryable": False,
         }
-        super().__init__("Delegation capacity is unavailable; continue directly or explicitly try after owned work finishes."
+        super().__init__("Delegation is disabled in this runtime; continue directly. A user must explicitly enable "
+                         "agents.allow_delegation before starting a new runtime."
+                         if code == "delegation_disabled" else
+                         "Delegation capacity is unavailable; continue directly or explicitly try after owned work finishes."
                          if code == "delegation_capacity" else
                          "Delegation authority was retired; start fresh work in the current runtime.")
 
@@ -50,15 +53,32 @@ class DelegationAdmission:
     each execution has actually settled. The primary never reserves a slot.
     """
 
-    def __init__(self, limit: int = 4) -> None:
+    def __init__(self, limit: int = 4, *, allowed: bool = False) -> None:
         if type(limit) is not int or limit < 0:
             raise ValueError("Delegation capacity must be a nonnegative integer")
+        if type(allowed) is not bool:
+            raise ValueError("Delegation permission must be a boolean")
         self.limit = limit
+        self._allowed = allowed
         self.generation = 0
         self._leases: set[DelegationLease] = set()
         self._accepting = True
         self._closed = False
         self._settlement: asyncio.Task[None] | None = None
+
+    @property
+    def allowed(self) -> bool:
+        """Captured user/runtime permission, independent of execution capacity."""
+        return self._allowed
+
+    def prompt_note(self) -> str:
+        """Disclose held authority without granting it through model instructions."""
+        permission = "enabled by user/runtime opt-in" if self.allowed else "disabled"
+        return (
+            f"Delegation is {permission}. Shared descendant limit: {self.limit} "
+            "(0 disables children; primary/direct roles excluded). Permission is fixed for this runtime. "
+            "Continue directly on denial. No write isolation or proven benefit is implied."
+        )
 
     @property
     def active(self) -> int:
@@ -70,6 +90,8 @@ class DelegationAdmission:
     def require(self, generation: int) -> None:
         if self._closed or not self._accepting or generation != self.generation:
             raise self.denial("delegation_retired")
+        if not self.allowed:
+            raise self.denial("delegation_disabled")
 
     def reserve(self, *, generation: int | None = None) -> DelegationLease:
         self.require(self.generation if generation is None else generation)

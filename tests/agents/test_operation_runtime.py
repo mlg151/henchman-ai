@@ -30,14 +30,14 @@ class ToolProvider(ModelProvider):
             yield StreamChunk(content="Done.", finish_reason=FinishReason.STOP)
 
 
-def build(tmp_path, *, session=None):
+def build(tmp_path, *, session=None, allow_delegation=False):
     session = session or Session("session", "project", "today", "today")
     registry = ToolRegistry()
     tool = EffectTool()
     registry.register(tool)
     registry.set_confirmation_handler(lambda _request: approve())
     provider = ToolProvider()
-    settings = Settings.model_validate({"operations": {"persistence": "durable"}})
+    settings = Settings.model_validate({"agents": {"allow_delegation": allow_delegation}, "operations": {"persistence": "durable"}})
     orchestrator = Orchestrator(provider, tool_registry=registry, settings=settings)
     orchestrator.operation_runtime = SessionRunOperations(settings, lambda: session, lambda _: None, tmp_path / "ops.db")
     return orchestrator, provider, tool, session

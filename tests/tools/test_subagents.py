@@ -7,6 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+from henchman.agents.delegation_admission import DelegationAdmission
 from henchman.agents.subagents import BackgroundSubagentManager
 from henchman.core.events import AgentEvent, EventType
 from henchman.tools.base import ToolKind
@@ -19,6 +20,7 @@ def create_manager() -> BackgroundSubagentManager:
         yield AgentEvent(EventType.CONTENT, _prompt)
 
     return BackgroundSubagentManager(
+        admission=DelegationAdmission(allowed=True),
         factory=lambda *args: args,
         runner=runner,
         available_tools=lambda _actor: ["read_file"],

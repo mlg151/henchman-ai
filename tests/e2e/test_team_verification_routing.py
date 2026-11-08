@@ -100,7 +100,7 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     registry.register(PytestRunTool())
     registry.add_auto_approve_policy("delegate_task")
     registry.add_auto_approve_policy("pytest_run")
-    settings = Settings(providers=providers, context={"max_tokens": 32768})
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     # Team discovery is needed when a user explicitly excludes the required local tool.
     settings.agents.agents["tech_lead"] = AgentConfig(

@@ -117,7 +117,10 @@ async def test_delegation_failures_preserve_execution_inputs_and_correlations(ca
     failure = RuntimeError(f"delegation failed {OLD} {NEW}")
     source = SimpleNamespace(provider=SimpleNamespace(api_key=OLD))
 
+    from henchman.agents.delegation_admission import DelegationAdmission
+
     class Runner:
+        admission = DelegationAdmission(allowed=True)
         settings = SimpleNamespace(model_dump=lambda: {"api_key": NEW})
 
         async def run_delegation(self, params):

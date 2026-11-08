@@ -49,7 +49,7 @@ def starting_input(provider: CapturingProvider) -> str:
 
 async def test_first_specialist_request_discloses_distinct_runtime_limits() -> None:
     provider = CapturingProvider()
-    orch = Orchestrator(default_provider=provider, settings=Settings(context={"max_tokens": 32768}))
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}, context={"max_tokens": 32768}))
     orch.settings.agents.max_delegation_turns = 12
     agent = orch.pool.get_agent("explorer")
     agent.base_tool_iterations = 3
@@ -75,7 +75,7 @@ async def test_first_specialist_request_discloses_distinct_runtime_limits() -> N
 
 async def test_cached_agent_gets_fresh_limits_once_for_each_delegation() -> None:
     provider = CapturingProvider()
-    orch = Orchestrator(default_provider=provider, settings=Settings(context={"max_tokens": 32768}))
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}, context={"max_tokens": 32768}))
     agent = orch.pool.get_agent("explorer")
     orch.settings.agents.max_delegation_turns = 12
     agent.base_tool_iterations = 3
@@ -100,7 +100,7 @@ async def test_cached_agent_gets_fresh_limits_once_for_each_delegation() -> None
 @pytest.mark.parametrize("call_limit", [0, -1])
 async def test_low_level_disabled_call_limit_and_zero_batches_are_distinct(call_limit: int) -> None:
     provider = CapturingProvider()
-    orch = Orchestrator(default_provider=provider, settings=Settings(context={"max_tokens": 32768}))
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}, context={"max_tokens": 32768}))
     # Low-level callers can disable this cap; public Settings requires >=1.
     orch.settings.agents = orch.settings.agents.model_copy(
         update={"max_delegation_turns": call_limit}

@@ -1127,6 +1127,11 @@ tool explicitly in scope. Normal plan-mode and execution-approval policies apply
 
 Example tool arguments for an independent inspection task:
 
+Child execution first requires the user's startup `agents.allow_delegation`
+opt-in and available shared capacity. The default is disabled; tool arguments,
+custom prompts and ordinary auto-approval cannot enable the held runtime. See
+[shared delegation capacity](agents.md#shared-delegation-capacity).
+
 ```json
 {
   "task": "Inspect the parser and report concrete validation gaps.",
@@ -1154,6 +1159,10 @@ detached jobs or persistent session checkpoints. See
 ### Named-Role Delegation
 
 #### delegate_task
+
+Named-role delegation uses the same startup opt-in and shared capacity as dynamic
+children. Explicit direct `/agent ROLE ...` work remains available without that
+descendant permission.
 
 Delegate a task to a specialist agent. This is a **critical tool** for the multi-agent system that enables the Tech Lead to leverage specialized expertise for complex tasks. Each specialist agent starts with a CLEAN context, so you MUST provide all relevant information in the structured parameters.
 

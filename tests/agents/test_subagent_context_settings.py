@@ -32,7 +32,7 @@ class RecordingProvider(ModelProvider):
 
 async def test_dynamic_children_keep_context_policy_and_restored_history() -> None:
     provider = RecordingProvider()
-    settings = Settings(context={
+    settings = Settings(agents={"allow_delegation": True}, context={
         "max_tokens": 32768, "compaction_threshold": 0, "auto_compact": False,
         "intelligent_context": True, "importance_threshold": 0.25,
         "cluster_similarity_threshold": 0.9, "adaptive_compression": False,
@@ -80,7 +80,7 @@ async def test_dynamic_children_keep_context_policy_and_restored_history() -> No
 @pytest.mark.parametrize("auto_compact", [False, True])
 async def test_dynamic_child_uses_parent_hard_capacity(auto_compact: bool) -> None:
     provider = RecordingProvider()
-    orch = Orchestrator(provider, settings=Settings(context={
+    orch = Orchestrator(provider, settings=Settings(agents={"allow_delegation": True}, context={
         "max_tokens": 256, "compaction_threshold": 0.5, "auto_compact": auto_compact,
     }))
     try:
@@ -92,7 +92,7 @@ async def test_dynamic_child_uses_parent_hard_capacity(auto_compact: bool) -> No
         child.messages.extend([Message("user", "old task " * 300), Message("assistant", "answer")])
         await asyncio.wait_for(orch.subagents.wait_for_notification(), 2)
         if auto_compact:
-            assert provider.calls == [[Message("system", "child rules"), Message("user", "task")]]
+            assert provider.calls == [[Message("system", "child rules\n\n" + orch.delegation_runner.admission.prompt_note()), Message("user", "task")]]
         else:
             assert not provider.calls
             assert "automatic compaction is disabled" in str(orch.subagents.get(record.conversation_id))

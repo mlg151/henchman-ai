@@ -1,8 +1,9 @@
 # Primary Agent and Background Subagents
 
 Henchman-AI starts with one primary coding agent that can inspect, edit, execute,
-and verify work directly using the available workspace tools. It can launch
-focused background subagents with custom instructions and explicit tool subsets.
+and verify work directly using the available workspace tools. After explicit
+startup opt-in, it can launch focused background subagents with custom
+instructions and explicit tool subsets.
 Configured scopes and runtime policies still govern execution; completion
 metadata records observed outcomes.
 
@@ -84,6 +85,16 @@ checkpoints, and background agents do not survive application exit. See the
 
 ### Shared delegation capacity
 
+Descendant execution is disabled by default. To opt in for a project, run
+`henchman config set agents.allow_delegation true --scope project`, then start a
+new runtime. `agents.allow_delegation` is a strict boolean captured at startup.
+Changing settings or supplying model arguments cannot enable the held runtime;
+custom prompts and auto-approval do not override this boundary. With permission
+off, requests return `delegation_disabled` and `retryable: false` before creating
+an actor, worker or provider request. Inspection and cancellation remain available.
+Direct primary work and explicit `/agent ROLE ...` execution require no descendant
+permission. There is no automatic delegation mode qualified by live results.
+
 `agents.max_concurrent_delegations` accepts a nonnegative integer. Set it to `0`
 to disable child execution while retaining direct primary work. The runtime
 captures the value at construction; start a new runtime to apply a changed limit.
@@ -103,8 +114,9 @@ Cancellation retains capacity until worker and stream cleanup has joined.
 History/session reset retires old conversations and unstarted delegation streams;
 they cannot restart under the new session. Shutdown permanently retires the pool.
 This is a per-runtime execution bound, not a cross-process quota or workspace
-write-isolation mechanism. File ownership, explicit delegation policy and paired
-live-model effectiveness remain separate work under issue #29.
+write-isolation mechanism. Conflict-safe file ownership and paired live-model
+effectiveness remain separate work under issue #29. Trusted low-level embedders
+must explicitly supply an allowed admission controller; its default is denied.
 
 ## Optional Named Roles
 

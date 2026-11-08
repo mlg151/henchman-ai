@@ -162,9 +162,12 @@ class TeamEvalRuntime:
             "last_run_limits": deepcopy(self.last_run_limits),
         }
 
-    def _delegation_limits(self) -> dict[str, int]:
+    def _delegation_limits(self) -> dict[str, int | bool]:
         settings = self.orchestrator.settings.agents
+        admission = self.orchestrator.delegation_runner.admission
         return {
+            "allowed": admission.allowed,
+            "max_concurrent": admission.limit,
             "max_depth": settings.max_delegation_depth,
             "max_turns": settings.max_delegation_turns,
             "max_retries": settings.max_delegation_retries,

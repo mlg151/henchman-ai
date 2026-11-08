@@ -63,7 +63,7 @@ def delegate(target: str, call_id: str) -> StreamChunk:
 
 
 def orchestrator(provider: ModelProvider, *, retries: int = 0) -> Orchestrator:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = retries
     for role in ("tech_lead", "explorer"):
         settings.agents.agents[role] = AgentConfig(

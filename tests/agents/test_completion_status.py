@@ -330,7 +330,8 @@ class TestDelegationCompletionStatus:
 
         mock_provider.chat_completion_stream.side_effect = side_effect
 
-        orchestrator = Orchestrator(default_provider=mock_provider)
+        from henchman.config.schema import Settings
+        orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
         orchestrator.tool_registry.set_confirmation_handler(_approve)
 
         events = []

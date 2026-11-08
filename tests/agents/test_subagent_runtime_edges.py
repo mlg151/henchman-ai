@@ -79,7 +79,7 @@ async def test_dynamic_tools_are_exactly_the_explicit_subset(
     registry = ToolRegistry()
     for name in ("shell", "goal_status", "task_stop"):
         registry.register(_NamedTool(name))
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     try:
         orch.subagents.spawn("task", role="custom", system_prompt="custom", tools=["shell"])
@@ -94,7 +94,7 @@ async def test_restricted_static_agent_cannot_delegate_primary_tools(
 ) -> None:
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        if messages[0].content == "restricted static" and not any(
+        if (messages[0].content or "").split("\n\n", 1)[0] == "restricted static" and not any(
             message.role == "tool" for message in messages
         ):
             yield _launch("unauthorized child", ["shell"])
@@ -106,7 +106,7 @@ async def test_restricted_static_agent_cannot_delegate_primary_tools(
     registry = ToolRegistry()
     registry.register(_NamedTool("shell"))
     registry.add_auto_approve_policy("invoke_subagent")
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.agents["coder"] = AgentConfig(
         name="Restricted",
         role="coder",
@@ -131,7 +131,7 @@ async def test_nested_results_reactively_resume_each_parent(
 ) -> None:
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        system = messages[0].content or ""
+        system = (messages[0].content or "").split("\n\n", 1)[0]
         tool_results = [message for message in messages if message.role == "tool"]
         if system == "leaf":
             yield _response("Leaf result")
@@ -151,7 +151,7 @@ async def test_nested_results_reactively_resume_each_parent(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.add_auto_approve_policy("invoke_subagent")
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     try:
         async with asyncio.timeout(3):
@@ -174,7 +174,7 @@ async def test_cancel_primary_joins_child_and_releases_agent_claims(
 
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        if messages[0].content == "blocked child":
+        if (messages[0].content or "").split("\n\n", 1)[0] == "blocked child":
             child_started.set()
             await asyncio.Event().wait()
         elif not any(message.role == "tool" for message in messages):
@@ -186,7 +186,7 @@ async def test_cancel_primary_joins_child_and_releases_agent_claims(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.add_auto_approve_policy("invoke_subagent")
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
 
     async def collect() -> None:
@@ -217,9 +217,9 @@ async def test_shared_registry_keeps_managers_and_primary_scopes_independent(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(_NamedTool("shell"))
-    unrestricted = Orchestrator(provider, tool_registry=registry)
+    unrestricted = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     unrestricted.tool_registry.set_confirmation_handler(_approve)
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.agents["tech_lead"] = AgentConfig(
         name="Restricted primary",
         role="tech_lead",
@@ -262,7 +262,7 @@ async def test_subagent_control_stays_responsive_during_child_mutation(
 
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        if messages[0].content == "blocked child":
+        if (messages[0].content or "").split("\n\n", 1)[0] == "blocked child":
             yield StreamChunk(
                 tool_calls=[ToolCall(id="mutate", name="mutate", arguments={})],
                 finish_reason=FinishReason.TOOL_CALLS,
@@ -274,7 +274,7 @@ async def test_subagent_control_stays_responsive_during_child_mutation(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(BlockedMutation("mutate", ToolKind.WRITE))
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     try:
         child = orch.subagents.spawn(
@@ -314,7 +314,7 @@ async def test_notifications_do_not_reset_primary_tool_round_budget(
 
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        if messages[0].content == "leaf":
+        if (messages[0].content or "").split("\n\n", 1)[0] == "leaf":
             yield _response("Leaf result")
         elif messages[-1].role == "user" and (
             "Leaf result" in (messages[-1].content or "") or messages[-1].content == "next task"
@@ -332,7 +332,7 @@ async def test_notifications_do_not_reset_primary_tool_round_budget(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(RecordedRead("read_file"))
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     orch.tool_registry.set_confirmation_handler(_approve)
     orch.tech_lead.base_tool_iterations = 1
     try:
@@ -353,7 +353,7 @@ async def test_nested_notifications_preserve_dynamic_tool_call_limit(
 ) -> None:
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         del kwargs
-        system = messages[0].content or ""
+        system = (messages[0].content or "").split("\n\n", 1)[0]
         if system == "leaf":
             yield _response("Leaf result")
         elif system == "middle":
@@ -375,7 +375,7 @@ async def test_nested_notifications_preserve_dynamic_tool_call_limit(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(_NamedTool("read_file"))
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_turns = 2
     orch = Orchestrator(provider, tool_registry=registry, settings=settings)
     orch.tool_registry.set_confirmation_handler(_approve)

@@ -59,7 +59,8 @@ def test_primary_prompt_uses_dynamic_conversations_without_required_roster():
     assert "invoke_subagent" in prompt
     assert "manage_subagents" in prompt
     assert "send_message" in prompt
-    assert "no fixed team size or required roster" in prompt
+    assert "No roster is required" in prompt
+    assert "runtime's shared descendant limit" in prompt
     assert "DELEGATION DECISION MATRIX" not in prompt
 
 
@@ -107,7 +108,8 @@ def test_primary_prompt_uses_available_workspace_tools_without_mandatory_kg_step
     """Inspection tooling follows the task and actual available scope."""
     prompt = get_agent_prompt("tech_lead")
     assert "full available workspace tool suite" in prompt
-    assert "independent work benefits" in prompt
+    assert "Direct execution is the default" in prompt
+    assert "user/runtime has enabled delegation" in prompt
 
 
 def test_explorer_prompt_has_knowledge_graph():

@@ -97,7 +97,10 @@ def _init_core(
     orch.settings = config.settings or Settings()
     from henchman.agents.delegation_admission import DelegationAdmission
 
-    orch.delegation_admission = DelegationAdmission(orch.settings.agents.max_concurrent_delegations)
+    orch.delegation_admission = DelegationAdmission(
+        orch.settings.agents.max_concurrent_delegations,
+        allowed=orch.settings.agents.allow_delegation,
+    )
     orch.tool_registry.restrict_tool_settings(
         orch.settings.tools, project_root=Path.cwd(),
     )
@@ -160,6 +163,7 @@ def _create_pool(
         default_provider=default_provider,
         provider_registry=config.provider_registry,
         provider_settings=orch.settings.providers,
+        delegation_admission=orch.delegation_admission,
         parent_tool_registry=orch.tool_registry,
         event_bus=orch.event_bus,
         context_config=ContextConfig(

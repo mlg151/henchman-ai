@@ -112,7 +112,7 @@ class BackgroundFailureProvider(AccountingProvider):
         scope = current_run_budget()
         assert scope is not None
         system = messages[0].content or ""
-        if system == "failing child":
+        if system.startswith("failing child\n\n"):
             yield StreamChunk(content="partial child evidence")
             await self.sibling_started.wait()
             if self.blocked_parent:
@@ -120,7 +120,7 @@ class BackgroundFailureProvider(AccountingProvider):
             else:
                 await self.release_child.wait()
             raise self.error
-        if system == "waiting sibling":
+        if system.startswith("waiting sibling\n\n"):
             self.sibling_started.set()
             try:
                 await asyncio.Event().wait()
@@ -155,7 +155,8 @@ class BackgroundFailureProvider(AccountingProvider):
 @pytest.mark.parametrize("blocked_parent", [False, True])
 async def test_child_control_failure_stops_parent_and_siblings(blocked_parent):
     provider = BackgroundFailureProvider(blocked_parent=blocked_parent)
-    orchestrator = Orchestrator(provider)
+    from henchman.config.schema import Settings
+    orchestrator = Orchestrator(provider, settings=Settings(agents={"allow_delegation": True}))
 
     async def approve(_request):
         return True

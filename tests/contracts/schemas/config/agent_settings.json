@@ -3,7 +3,7 @@
   "title": "AgentSettings",
   "description": "Shape contract for the serialised AgentSettings model.",
   "type": "object",
-  "required": ["team_preset", "agents", "max_delegation_depth", "max_concurrent_delegations", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
+  "required": ["team_preset", "agents", "max_delegation_depth", "allow_delegation", "max_concurrent_delegations", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
   "properties": {
     "team_preset": {
       "type": "string",
@@ -35,6 +35,7 @@
       "description": "Maximum recursive delegation depth",
       "minimum": 0
     },
+    "allow_delegation": { "type": "boolean" },
     "max_concurrent_delegations": {
       "type": "integer",
       "description": "Maximum executing descendants shared by one runtime; primary excluded",

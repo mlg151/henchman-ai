@@ -12,6 +12,7 @@ from henchman.agents.orchestrator_execution import ExecutionController
 from henchman.agents.orchestrator_tools import ToolController
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.agents.pool import AgentPool
+from henchman.config.schema import Settings
 from henchman.core.agent import Agent
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
@@ -237,7 +238,7 @@ async def test_closing_public_delegation_releases_specialist_stream():
     from henchman.agents.orchestrator_types import DelegationParams
 
     provider = ControlledProvider(requests=True)
-    orchestrator = Orchestrator(default_provider=provider)
+    orchestrator = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}))
     orchestrator.tool_registry.set_confirmation_handler(_approve)
     stream = orchestrator.delegation_runner.run_delegation(
         DelegationParams(target_role="explorer", task="Work"),
@@ -326,7 +327,7 @@ async def test_specialist_provider_error_does_not_abort_parent_recovery():
     from henchman.config.schema import Settings
 
     provider = DelegatingProvider(fail_specialist=True)
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     orchestrator = Orchestrator(default_provider=provider, settings=settings)
     orchestrator.tool_registry.set_confirmation_handler(_approve)

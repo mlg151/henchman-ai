@@ -149,7 +149,7 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(_WorkspaceTool("read_file"))
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     registry.add_auto_approve_policy("invoke_subagent")
     try:
         events = await asyncio.wait_for(_collect(orch, "Review two parts"), timeout=3)
@@ -185,7 +185,7 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         nonlocal parent_calls, answered
         del kwargs
-        if messages[0].content == "question child":
+        if (messages[0].content or "").startswith("question child\n\n"):
             answers = [message.content for message in messages if message.role == "tool"]
             if not answers:
                 yield StreamChunk(
@@ -244,7 +244,7 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(AskUserTool())
-    settings = Settings.model_validate({"operations": {"persistence": "durable" if durable else "process"}})
+    settings = Settings.model_validate({"agents": {"allow_delegation": True}, "operations": {"persistence": "durable" if durable else "process"}})
     orch = Orchestrator(provider, tool_registry=registry, settings=settings)
     from henchman.core.session_data import Session, session_from_dict
     from henchman.core.session_operations import SessionRunOperations

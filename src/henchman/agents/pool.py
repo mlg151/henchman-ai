@@ -16,6 +16,7 @@ from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
     from henchman.agents.config import AgentConfig
+    from henchman.agents.delegation_admission import DelegationAdmission
     from henchman.config.context import ContextSnapshot
     from henchman.core.eventbus import EventBus
     from henchman.providers.base import ModelProvider
@@ -176,6 +177,7 @@ class AgentPool:
         adaptive_compression: bool = True,
         context_config: ContextConfig | None = None,
         provider_settings: ProviderSettings | None = None,
+        delegation_admission: "DelegationAdmission | None" = None,
     ) -> None:
         """Initialize the AgentPool.
 
@@ -193,11 +195,13 @@ class AgentPool:
             context_config: Preferred alternative to the four individual context
                 kwargs above.  When provided the individual kwargs are ignored.
             provider_settings: Saved provider configuration for per-agent overrides.
+            delegation_admission: Captured runtime authority to disclose in prompts.
         """
         self.configs = configs
         self.default_provider = default_provider
         self.provider_registry = provider_registry
         self.provider_settings = provider_settings or ProviderSettings()
+        self.delegation_admission = delegation_admission
         self.parent_tool_registry = parent_tool_registry
         self.event_bus = event_bus
 
@@ -356,6 +360,15 @@ class AgentPool:
             agent.set_context_limit(max_tokens, context_window=context_window)
 
     def _build_system_prompt(
+        self, role: str, config: "AgentConfig",
+    ) -> str:
+        """Retain the caller's prompt and disclose actual bound runtime authority."""
+        prompt = self._build_base_system_prompt(role, config)
+        if self.delegation_admission is not None:
+            prompt += "\n\n" + self.delegation_admission.prompt_note()
+        return prompt
+
+    def _build_base_system_prompt(
         self: "AgentPool",
         role: str,
         config: "AgentConfig",
