@@ -49,3 +49,15 @@ This was a development wheel reporting 0.4.1, not a v0.4.2 release artifact.
 The [Apple XNU source](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c)
 and [killpg manual](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/killpg.2.html)
 are useful context; neither substitutes for a fresh native run of the fix.
+
+## Native follow-up
+
+The installed-wheel jobs in the [subsequent CI run on `4ba6f71`](https://github.com/mlg151/henchman-ai/actions/runs/42504651298)
+passed on all four macOS Python versions. Each previously failing macOS 3.12 and
+3.14 job reported **6,124 passed, 83 skipped**. The retained 3.12 and 3.14 job
+log SHA-256 values are
+`51fd09f5827475ded8c1d1319dd4a9eb257600c3656ef0c971bd688637f15d3d` and
+`e6c481a86f08cfd0a3fa492855ee2365e97e7778e7f343cc67b41ccabc2781a1`.
+The jobs include the deterministic simulated race; they do not establish that
+the original intermittent kernel condition occurred again. The remainder of
+the run was still in progress when this follow-up was recorded.
