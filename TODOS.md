@@ -113,6 +113,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Process mode remains the default. Versioned opaque continuation profiles are
   implemented; native/live acceptance, goal/queue persistence and background
   task restart authority remain open under #23.
+  A [Linux process-death check](docs/evaluations/2026-11-08-workflow-process-recovery.md)
+  now exercises durable goal and queue recovery across an actual terminated
+  owner; broader native and live qualification remains open.
   Saved running task records are now reported as outcome-unknown without invented
   exit evidence; inspecting history does not establish child-process ownership.
 
