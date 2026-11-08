@@ -16,6 +16,7 @@ from henchman.utils.context_attachments import (
     context_attachment_omission,
     merge_context_attachments,
 )
+from henchman.utils.exception_evidence import exception_text
 from henchman.utils.tokens import TokenCounter
 from henchman.utils.tool_results import compact_tool_payload, tool_message_content
 
@@ -864,10 +865,12 @@ async def _generate_summary_with_provider(
     """
     formatted = format_func(messages)
     prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
+    from henchman.core.failure_evidence import failure_evidence_redactor
     from henchman.core.run_budget import BudgetControlError
     from henchman.core.runtime_accounting import require_accounted_provider
     from henchman.providers.continuation import ProviderContinuationError
 
+    evidence = failure_evidence_redactor(provider)
     try:
         require_accounted_provider(provider)
         summary_parts: list[str] = []
@@ -899,16 +902,21 @@ async def _generate_summary_with_provider(
                         # An ordinary summary failure must not hide failed accounting.
                         # Preserve an earlier control failure or explicit cancellation.
                         raise
-                    logger.warning("Summary cleanup failed after interruption", exc_info=True)
+                    logger.warning("Summary cleanup failed after interruption: %s", exception_text(
+                        cleanup_error, failure_evidence_redactor(provider, redactor=evidence),
+                        include_traceback=True,
+                    ))
 
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
     except (BudgetControlError, ProviderContinuationError):
         raise
-    except Exception:
+    except Exception as error:
         # Summarization failed, log warning and return None to fall back to simple dropping
-        logger.warning("Summarization with provider failed: %s", exc_info=True)
+        logger.warning("Summarization with provider failed: %s", exception_text(
+            error, failure_evidence_redactor(provider, redactor=evidence), include_traceback=True,
+        ))
 
     return None
 
@@ -1135,9 +1143,11 @@ async def _attempt_summarization(
         return result
 
     summarizer = MessageSummarizer(provider=provider)
+    from henchman.core.failure_evidence import failure_evidence_redactor
     from henchman.core.run_budget import BudgetControlError
     from henchman.providers.continuation import ProviderContinuationError
 
+    evidence = failure_evidence_redactor(provider)
     try:
         summary = await summarizer.summarize(dropped_messages)
         if summary:
@@ -1155,8 +1165,10 @@ async def _attempt_summarization(
             result.summary = summary
     except (BudgetControlError, ProviderContinuationError):
         raise
-    except Exception:
+    except Exception as error:
         # Summarization failed, continue with simple dropping
-        logger.warning("Failed to summarize dropped messages during compaction: %s", exc_info=True)
+        logger.warning("Failed to summarize dropped messages during compaction: %s", exception_text(
+            error, failure_evidence_redactor(provider, redactor=evidence), include_traceback=True,
+        ))
 
     return result

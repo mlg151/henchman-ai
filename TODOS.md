@@ -24,6 +24,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   JSON serialization, including short/escaped secrets and observed rotations
   across attempts. Only validated report identities are preserved. See the
   [evaluation contract](evals/README.md).
+  Direct-agent debug previews, summary/SDK cleanup and chat integration errors
+  now share retained diagnostic projection. Ordinary chat forwarding and final
+  native privacy qualification remain separate open work.
 
 - #30 now gates upload and tagging on matching hashes from separate installed
   wheel/source-archive checks. Failed attempts invalidate old receipts and retain

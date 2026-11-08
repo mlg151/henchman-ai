@@ -78,6 +78,10 @@ legacy reads remain non-mutating. Baseline evaluation reports now share that
 policy, retaining observed credentials
 around each attempt and validating identities before preserving them.
 Broader privacy qualification remains under #20.
+Direct-agent debug previews, summary failures, SDK stream cleanup and chat
+integration error paths now project held credentials before output. Regression
+checks preserve original inputs and cancellation; ordinary chat forwarding and
+final native privacy qualification remain open.
 
 Runtime registration now rejects invalid input/output contracts before publishing
 tools, binds schema snapshots to approval, and validates successful structured

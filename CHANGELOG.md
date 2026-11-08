@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Diagnostic credential coverage** — Direct-agent debug previews, summary
+  failures, SDK stream cleanup and chat integration error paths now project
+  known credentials before output. Original execution inputs and cancellation
+  remain intact; ordinary chat forwarding still requires privacy qualification.
+
 - **Pending decision review** — Textual approvals and questions now offer F10
   inspection, selection/copy and private TXT/Markdown export. Bounded snapshots
   reproject credentials and reject stale publication while preserving drafts,

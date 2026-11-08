@@ -15,6 +15,7 @@ from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
 from henchman.providers.utils import get_api_key_for_provider
 from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.exception_evidence import exception_text
 from henchman.utils.tool_results import (
     TOOL_RESULT_SCHEMA,
     tool_message_content,
@@ -115,6 +116,15 @@ class ChatManager:
         self._bots: dict[ChatPlatform, ChatBot] = {}
         self._user_agents: dict[str, Agent] = {}  # user_id -> Agent
         self._user_histories: dict[str, list[dict[str, Any]]] = {}  # user_id -> messages
+
+    def _evidence_policy(self, agent: Any = None) -> EvidenceRedactor:
+        """Refresh existing runtime/actor credentials without constructing authority."""
+        from henchman.core.failure_evidence import failure_evidence_redactor
+
+        policy = self._evidence_redactor
+        policy.register_config(self._settings.model_dump())
+        failure_evidence_redactor(agent, redactor=policy)
+        return policy
 
     def create_discord_bot(
         self,
@@ -324,6 +334,7 @@ class ChatManager:
         """
         iteration = 0
         had_tool_calls = False
+        self._evidence_policy(agent)
         async for event in stream:
             iteration += 1
             if iteration > max_iterations:
@@ -374,11 +385,13 @@ class ChatManager:
                 tool_name = getattr(tool_call, "name", "unknown")
                 tool_args = getattr(tool_call, "arguments", {})
                 tool_id = getattr(tool_call, "id", "unknown")
+                policy = self._evidence_policy(agent)
+                policy.register_config(tool_args)
 
                 # Notify user about the tool call
                 await bot.send_message(
                     user_id,
-                    f"🔧 Running: `{tool_name}`",
+                    policy.text(f"🔧 Running: `{tool_name}`"),
                 )
 
                 try:
@@ -386,8 +399,7 @@ class ChatManager:
                     result = await agent.tool_registry.execute(tool_name, tool_args)
 
                     # Truncate very long results for display
-                    policy = self._evidence_redactor
-                    policy.register_config(self._settings.model_dump())
+                    policy = self._evidence_policy(agent)
                     payload = tool_result_payload(result)
                     policy.register_config(payload)
                     result_content = tool_message_content(
@@ -410,18 +422,20 @@ class ChatManager:
                 except (BudgetControlError, OperationRecoveryError):
                     raise
                 except Exception as tool_err:
-                    logger.exception(
-                        "Tool execution failed: %s for user %s", tool_name, user_id
-                    )
-                    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
+                    policy = self._evidence_policy(agent)
+                    detail = exception_text(tool_err, policy, include_traceback=True)
+                    logger.error("%s", policy.text(
+                        f"Tool execution failed: {tool_name} for user {user_id}: {detail}"
+                    ))
+                    error_msg = policy.text(f"❌ Tool `{tool_name}` failed: {exception_text(tool_err, policy)}")
                     try:
                         await bot.send_message(user_id, error_msg)
                     except Exception as send_err:
-                        logger.warning(
-                            "Failed to send error message to user %s: %s",
-                            user_id,
-                            send_err,
-                        )
+                        policy = self._evidence_policy(agent)
+                        logger.warning("%s", policy.text(
+                            f"Failed to send error message to user {user_id}: "
+                            + exception_text(send_err, policy, include_traceback=True)
+                        ))
                         # Continue anyway - we still need to submit the tool result
 
                     # Submit error to agent so it can recover
@@ -436,8 +450,13 @@ class ChatManager:
                 break
 
             elif event.type == EventType.ERROR:
-                logger.error("Agent error for user %s: %s", user_id, event.data)
-                await bot.send_message(user_id, f"❌ Error: {event.data}")
+                policy = self._evidence_policy(agent)
+                detail = (
+                    exception_text(event.data, policy) if isinstance(event.data, BaseException)
+                    else str(policy.redact(event.data))
+                )
+                logger.error("%s", policy.text(f"Agent error for user {user_id}: {detail}"))
+                await bot.send_message(user_id, f"❌ Error: {detail}")
                 break
 
         return response_parts, current_chunk, had_tool_calls
@@ -484,6 +503,7 @@ class ChatManager:
 
         # Get or create agent for user
         agent = await self._get_or_create_agent(message.user_id)
+        self._evidence_policy(agent)
 
         # Get the bot for this platform
         bot = self._bots.get(message.platform)
@@ -506,8 +526,10 @@ class ChatManager:
                         await bot.send_typing(message.user_id)
                 except asyncio.CancelledError:
                     break
-                except Exception:
-                    logger.exception("Failed to refresh typing indicator")
+                except Exception as error:
+                    logger.error("Failed to refresh typing indicator: %s", exception_text(
+                        error, self._evidence_policy(agent), include_traceback=True,
+                    ))
                     break
 
         typing_task = asyncio.create_task(_refresh_typing())
@@ -556,8 +578,12 @@ class ChatManager:
                     ]
                 )
 
-        except Exception:
-            logger.exception("Error processing message from %s", message.user_id)
+        except Exception as error:
+            policy = self._evidence_policy(agent)
+            logger.error("%s", policy.text(
+                f"Error processing message from {message.user_id}: "
+                + exception_text(error, policy, include_traceback=True)
+            ))
             await bot.send_message(
                 message.user_id,
                 "❌ Sorry, an error occurred while processing your request. Please try again.",

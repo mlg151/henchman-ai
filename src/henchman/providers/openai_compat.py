@@ -43,6 +43,7 @@ from henchman.providers.runtime_budget import budget_attempt, prepare_budget_ope
 from henchman.providers.schema_projections import project_tool_parameters
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
+from henchman.utils.exception_evidence import exception_text
 
 __all__ = ["OpenAICompatibleProvider"]
 
@@ -365,6 +366,9 @@ class OpenAICompatibleProvider(ModelProvider):
         operation = prepare_budget_operation(
             self, params, output_fields=("max_tokens", "max_completion_tokens"),
         )
+        from henchman.core.failure_evidence import failure_evidence_redactor
+
+        evidence = failure_evidence_redactor(self)
         with budget_attempt(operation) as attempt:
             if attempt is not None:
                 attempt.start()
@@ -385,10 +389,12 @@ class OpenAICompatibleProvider(ModelProvider):
             finally:
                 try:
                     await response.close()
-                except Exception:
+                except Exception as error:
                     if primary_error is None:
                         raise
-                    logger.exception("Failed to close provider stream after an error")
+                    logger.error("Failed to close provider stream after an error: %s", exception_text(
+                        error, failure_evidence_redactor(self, redactor=evidence), include_traceback=True,
+                    ))
 
     def _repair_message_sequence_if_needed(
         self: OpenAICompatibleProvider,

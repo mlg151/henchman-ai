@@ -18,6 +18,7 @@ from henchman.core.agent_streaming import (
     record_message,
 )
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.core.run_budget import BudgetControlError
 from henchman.core.runtime_accounting import (
     agent_budget_scope,
@@ -624,7 +625,8 @@ class Agent:
         Yields:
             AgentEvent instances as the agent processes the input.
         """
-        logger.debug("Agent.run: Starting with input: %s", user_input[:LOG_TRUNCATE_LENGTH])
+        evidence = failure_evidence_redactor(self)
+        logger.debug("Agent.run: Starting with input: %s", evidence.text(user_input)[:LOG_TRUNCATE_LENGTH])
         source = self.identity.id if self.identity else None
         self._turn_budget_scope = agent_budget_scope(source)
         self._turn_number += 1

@@ -43,6 +43,7 @@ from henchman.providers.runtime_budget import budget_attempt, prepare_budget_ope
 from henchman.providers.schema_projections import project_tool_parameters
 from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
+from henchman.utils.exception_evidence import exception_text
 from henchman.utils.ratelimit import AsyncRateLimiter
 from henchman.utils.tokens import TokenCounter
 
@@ -321,8 +322,11 @@ def _raise_if_retries_exhausted(
 
 
 @asynccontextmanager
-async def _stream_context(manager: Any) -> AsyncIterator[Any]:
+async def _stream_context(manager: Any, *, provider: Any = None) -> AsyncIterator[Any]:
     """Preserve the primary stream error when SDK context cleanup also fails."""
+    from henchman.core.failure_evidence import failure_evidence_redactor
+
+    evidence = failure_evidence_redactor(provider)
     primary_error: BaseException | None = None
     try:
         async with manager as stream:
@@ -334,7 +338,9 @@ async def _stream_context(manager: Any) -> AsyncIterator[Any]:
     except Exception as exc:
         if primary_error is None or exc is primary_error:
             raise
-        logger.exception("Failed to close Anthropic stream after an error")
+        logger.error("Failed to close Anthropic stream after an error: %s", exception_text(
+            exc, failure_evidence_redactor(provider, redactor=evidence), include_traceback=True,
+        ))
         raise primary_error from None
 
 
@@ -378,7 +384,7 @@ class _AnthropicStreamProcessor:
         latest_usage: dict[str, int] | None = None
         accumulator = ContinuationAccumulator()
         try:
-            async with _stream_context(client.messages.stream(**params)) as stream:
+            async with _stream_context(client.messages.stream(**params), provider=self._provider) as stream:
                 pending_tool_calls: dict[str, dict[str, Any]] = {}
                 current_tool_id: str | None = None
 
