@@ -14,7 +14,7 @@ from henchman.core.run_budget import BudgetControlError
 from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
 from henchman.providers.utils import get_api_key_for_provider
-from henchman.utils.evidence_redaction import EvidenceRedactor
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 from henchman.utils.exception_evidence import exception_text
 from henchman.utils.tool_results import (
     TOOL_RESULT_SCHEMA,
@@ -334,7 +334,8 @@ class ChatManager:
         """
         iteration = 0
         had_tool_calls = False
-        self._evidence_policy(agent)
+        evidence = EvidenceStreamRedactor(self._evidence_policy(agent))
+        interrupted = True
         async for event in stream:
             iteration += 1
             if iteration > max_iterations:
@@ -346,7 +347,8 @@ class ChatManager:
                 break
 
             if event.type == EventType.CONTENT:
-                current_chunk += event.data
+                self._evidence_policy(agent)
+                current_chunk += evidence.feed(event.data)
 
                 # Check if we should flush the chunk
                 # We want to avoid splitting inside a code block if possible,
@@ -367,6 +369,7 @@ class ChatManager:
                         should_flush = True
 
                 if should_flush:
+                    current_chunk = self._evidence_policy(agent).text(current_chunk)
                     if await bot.send_message(user_id, current_chunk):
                         response_parts.append(current_chunk)
                     current_chunk = ""
@@ -374,19 +377,21 @@ class ChatManager:
             elif event.type == EventType.TOOL_CALL_REQUEST:
                 had_tool_calls = True
 
-                # Flush any pending content
-                if current_chunk:
-                    if await bot.send_message(user_id, current_chunk):
-                        response_parts.append(current_chunk)
-                    current_chunk = ""
-
-                # Execute the tool call
+                # Register marked values before publishing previously buffered
+                # text. Execution still receives the original call unchanged.
                 tool_call = event.data
                 tool_name = getattr(tool_call, "name", "unknown")
                 tool_args = getattr(tool_call, "arguments", {})
                 tool_id = getattr(tool_call, "id", "unknown")
                 policy = self._evidence_policy(agent)
                 policy.register_config(tool_args)
+
+                # Flush any pending content
+                if current_chunk:
+                    current_chunk = policy.text(current_chunk)
+                    if await bot.send_message(user_id, current_chunk):
+                        response_parts.append(current_chunk)
+                    current_chunk = ""
 
                 # Notify user about the tool call
                 await bot.send_message(
@@ -447,6 +452,9 @@ class ChatManager:
                 pass
 
             elif event.type == EventType.FINISHED:
+                reason = (event.data.get("finish_reason")
+                          if isinstance(event.data, dict) else event.data)
+                interrupted = reason not in (None, "stop", "tool_calls")
                 break
 
             elif event.type == EventType.ERROR:
@@ -459,6 +467,8 @@ class ChatManager:
                 await bot.send_message(user_id, f"❌ Error: {detail}")
                 break
 
+        policy = self._evidence_policy(agent)
+        current_chunk = policy.text(current_chunk + evidence.finish(interrupted=interrupted))
         return response_parts, current_chunk, had_tool_calls
 
     async def _handle_message(self, message: ChatMessage) -> None:
@@ -477,11 +487,12 @@ class ChatManager:
         Returns:
             None
         """
+        policy = self._evidence_policy(self._user_agents.get(message.user_id))
         logger.info(
             "Received message from %s (ID: %s): %s",
-            message.username,
-            message.user_id,
-            message.content[:100],
+            policy.text(message.username),
+            policy.text(message.user_id),
+            policy.text(message.content)[:100],
         )
 
         # Handle special commands
@@ -564,12 +575,13 @@ class ChatManager:
                 )
 
             # Send remaining content
+            current_chunk = self._evidence_policy(agent).text(current_chunk)
             if current_chunk and await bot.send_message(
                 message.user_id, current_chunk
             ):
                 response_parts.append(current_chunk)
 
-            # Store in history
+            # This delivery summary is separate from raw Agent.messages.
             if response_parts:
                 self._user_histories.setdefault(message.user_id, []).extend(
                     [
@@ -660,9 +672,11 @@ class ChatManager:
             # Show last 5 exchanges
             recent = history[-10:]  # Last 5 exchanges (user + assistant)
             history_text = "**Recent Conversation:**\n\n"
+            policy = self._evidence_policy(self._user_agents.get(message.user_id))
             for msg in recent:
                 role = "**You:**" if msg["role"] == "user" else "**Henchman:**"
-                content = msg["content"][:100] + ("..." if len(msg["content"]) > 100 else "")
+                projected = policy.text(msg["content"])
+                content = projected[:100] + ("..." if len(projected) > 100 else "")
                 history_text += f"{role} {content}\n\n"
 
             await bot.send_message(message.user_id, history_text)

@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Chat reply privacy** — Received-message and history previews project before
+  clipping; streamed and final replies retain credential masking across chunks,
+  rotation and interruption. Delivered assistant summaries store projected text
+  while raw user inputs and agent/tool execution data remain unchanged.
+
 - **Consistent failed session activation** — Interactive resume prepares history
   and provenance before switching, and restores prior selectors/history on
   activation failure. Invalid legacy goals refuse before workflow creation;

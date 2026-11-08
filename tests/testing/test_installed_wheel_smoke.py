@@ -252,6 +252,8 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/metrics/test_evidence_redaction.py",
         "tests/core/test_failure_evidence.py",
         "tests/core/test_diagnostic_evidence_boundaries.py",
+        "tests/chat/test_chat_content_evidence.py",
+        "tests/chat/test_chat_bug046_empty_content.py",
         "tests/agents/test_handoff_evidence.py",
         "tests/ops/test_ops_event_evidence_redaction.py",
         "tests/core/test_workflow_state.py",

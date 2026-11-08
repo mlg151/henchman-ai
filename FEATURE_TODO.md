@@ -80,7 +80,9 @@ around each attempt and validating identities before preserving them.
 Broader privacy qualification remains under #20.
 Direct-agent debug previews, summary failures, SDK stream cleanup and chat
 integration error paths now project held credentials before output. Regression
-checks preserve original inputs and cancellation; ordinary chat forwarding and
+checks preserve original inputs and cancellation. Chat received-message logs,
+history previews and streamed/final replies now project held credentials before
+publication while preserving raw execution data. Actual service delivery and
 final native privacy qualification remain open.
 
 Runtime registration now rejects invalid input/output contracts before publishing

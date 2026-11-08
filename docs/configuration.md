@@ -294,8 +294,13 @@ Direct-agent input debug previews now project before clipping. Summary failures
 and SDK cleanup diagnostics retain the actual provider's old and current keys.
 Chat integration error events, tool-failure notices and error logs use the actual
 actor's held policy while preserving execution inputs and original exceptions.
-This diagnostic coverage does not qualify ordinary chat content forwarding or
-received-message logging; those output paths remain under privacy qualification.
+Chat received-message logs and `/history` previews now project before clipping.
+Ordinary streamed and final replies use the shared incremental redactor and held
+actor policy, including conservative handling of interrupted credential prefixes.
+Successful-delivery summaries retain the projected replies sent to the bot;
+raw user inputs, agent conversations and tool execution data remain unchanged.
+Earlier external messages cannot be retracted by a later credential rotation.
+Actual bot-service delivery and other adapter surfaces remain separate checks.
 
 Operational analytics, telemetry, cost and diagnostic events are projected before
 SQLite writes and when returned or read. Embedded callers can supply their held

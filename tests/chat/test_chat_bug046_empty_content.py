@@ -37,7 +37,7 @@ async def test_empty_content_does_not_call_agent_run() -> None:
     manager._bots[ChatPlatform.DISCORD] = mock_bot
 
     # Mock agent
-    mock_agent = AsyncMock()
+    mock_agent = MagicMock()
     manager._user_agents["123"] = mock_agent
 
     message = ChatMessage(
@@ -72,7 +72,7 @@ async def test_whitespace_only_content_does_not_call_agent_run() -> None:
     mock_bot = AsyncMock()
     manager._bots[ChatPlatform.DISCORD] = mock_bot
 
-    mock_agent = AsyncMock()
+    mock_agent = MagicMock()
     manager._user_agents["123"] = mock_agent
 
     message = ChatMessage(
