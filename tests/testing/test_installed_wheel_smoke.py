@@ -219,6 +219,7 @@ def test_stage_workflow_tests_includes_new_regression_files(
         "tests/cli/test_textual_queue.py",
         "tests/cli/test_textual_mouse_settings.py",
         "tests/cli/test_textual_motion_settings.py",
+        "tests/cli/test_json_stdout.py",
         "tests/ops/test_workflow_store.py",
         "tests/contracts/test_workflow_contract.py",
         "tests/mcp/test_context_attachment_handles.py",

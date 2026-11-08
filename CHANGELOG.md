@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Headless JSON framing** — Long and Unicode event payloads remain valid JSON
+  at narrow console widths, and literal emoji aliases retain their original text.
+  JSONL and indented-array formats keep their existing event shapes; versioned
+  editor protocol work remains open.
+
 - **Explicit OAuth controller and connection** — Runtime-only, single-use user
   intent binds status, login, refresh, logout and connect to current ownership.
   Cancellation prevents unstarted effects, shutdown joins owned actions, and

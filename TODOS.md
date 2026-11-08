@@ -4,6 +4,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Recovery baseline
 
+- #27's legacy JSON renderer now preserves long/Unicode payloads and literal
+  emoji aliases at narrow console widths. The versioned editor protocol and
+  Neovim pilot remain pending; see [JSON output](docs/api.md#headless-json-output).
+
 - Context token estimates and RAG chunking use packaged verified vocabularies;
   fresh offline installs no longer depend on a warm tokenizer download cache.
   Native smoke runs isolate settings, interpreter lookup and cold token caches.

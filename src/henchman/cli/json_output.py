@@ -101,8 +101,10 @@ class JsonOutputRenderer:
             self._print_event(safe_event)
 
     def _print_event(self, event: AgentEvent) -> None:
+        # Terminal width and emoji aliases must not alter serialized JSON.
         self.console.print(
             json.dumps(event_to_dict(event), ensure_ascii=False), markup=False, highlight=False,
+            soft_wrap=True, emoji=False,
         )
 
     def flush(self) -> None:
@@ -138,6 +140,7 @@ class JsonOutputRenderer:
         output.extend(event_to_dict(event) for event in self.evidence.flush(interrupted=False))
         self.console.print(
             json.dumps(output, ensure_ascii=False, indent=2), markup=False, highlight=False,
+            soft_wrap=True, emoji=False,
         )
 
     def _event_to_dict(self: Self, event: AgentEvent) -> dict[str, Any]:

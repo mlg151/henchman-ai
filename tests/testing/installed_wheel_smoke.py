@@ -344,6 +344,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/agents/test_delegation_result_reporting.py",
         "tests/cli/test_completion_rendering.py",
         "tests/cli/test_json_output.py",
+        "tests/cli/test_json_stdout.py",
         "tests/core/test_agent_stall_lifecycle.py",
         "tests/tools/test_delegate.py",
         "tests/tools/test_bounded_subprocess.py",

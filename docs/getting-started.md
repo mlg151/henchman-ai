@@ -159,6 +159,10 @@ henchman chat -p "Explain @file.py"
 henchman chat --prompt "Review the Python code in @file.py"
 ```
 
+For scripts, `--output-format json` or `stream-json` produces one JSON event per
+line without terminal-width wrapping or emoji substitution. `json-complete`
+produces an indented array; see [the output contract](api.md#headless-json-output).
+
 ## Slash Commands
 
 | Command | Description |

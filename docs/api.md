@@ -13,6 +13,15 @@ separately from null, and metadata. Provider adapters project this to explicit
 portable text; binary transport is not implied. See [MCP result behavior](mcp.md#refresh-a-connected-catalog)
 and [operation recovery](operation-recovery.md) for persistence and replay limits.
 
+## Headless JSON output
+
+`henchman chat --prompt "..." --output-format json` and `stream-json` emit
+one JSON object per physical line. The renderer preserves long strings, Unicode,
+escaped newlines and literal emoji aliases regardless of console width.
+`json-complete` retains the existing indented JSON-array format. Event fields and
+runtime outcomes are unchanged; see [headless team execution](agents.md#headless-team-execution).
+These legacy formats are not yet a versioned bidirectional editor protocol.
+
 ## HTTP service health
 
 The FastAPI service exposes two operational endpoints under `/v1`:
