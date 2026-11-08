@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Development artifact retry receipt** — Both installed profiles passed
+  5,663 tests at `d8bf94d` after moving temporary storage off the exhausted
+  filesystem. Earlier artifact/source failures remain recorded separately;
+  this is a development checkpoint, not final `0.4.2` qualification.
+
 - **Diagnostic credential coverage** — Direct-agent debug previews, summary
   failures, SDK stream cleanup and chat integration error paths now project
   known credentials before output. Original execution inputs and cancellation

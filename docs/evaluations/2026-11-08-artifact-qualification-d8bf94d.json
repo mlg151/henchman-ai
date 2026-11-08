@@ -1,0 +1,96 @@
+{
+  "kind": "development_artifact_qualification",
+  "date_utc": "2026-11-08",
+  "attempt": 2,
+  "receipt": {
+    "artifacts": {
+      "henchman_ai-0.4.1-py3-none-any.whl": "0ef52006effa99ac9960648180e45f94c7f5188c788e66fb5c1fbe290d1521c8",
+      "henchman_ai-0.4.1.tar.gz": "ac2aac50504b097ae5d7c3fe1127daa98476461bf4aedf70e57420b4e87554c3"
+    },
+    "commit": "d8bf94d42d75f439bdc1ea50ec7bd77c52ab06f8",
+    "helper_sha256": "c94a73cb3262ccef00a51f90db65ebc0aa894e2426221da23e1fee5c61920d17",
+    "profile": "installed-wheel-smoke-v1",
+    "runs": {
+      "sdist": {
+        "artifact_sha256": "ac2aac50504b097ae5d7c3fe1127daa98476461bf4aedf70e57420b4e87554c3",
+        "installed_wheel_sha256": "0ef52006effa99ac9960648180e45f94c7f5188c788e66fb5c1fbe290d1521c8",
+        "passed": true,
+        "python": "3.12"
+      },
+      "wheel": {
+        "artifact_sha256": "0ef52006effa99ac9960648180e45f94c7f5188c788e66fb5c1fbe290d1521c8",
+        "installed_wheel_sha256": "0ef52006effa99ac9960648180e45f94c7f5188c788e66fb5c1fbe290d1521c8",
+        "passed": true,
+        "python": "3.12"
+      }
+    },
+    "schema_version": 1,
+    "version": "0.4.1"
+  },
+  "logs": {
+    "wheel": {
+      "sha256": "51940b5e9b650c093036d86f9f3bb7799e2abd0ce673bd01c791b29c53d03114",
+      "bytes": 42438,
+      "passed": 5663,
+      "skipped": 25,
+      "warnings": 15,
+      "suite_seconds": 967.58
+    },
+    "sdist": {
+      "sha256": "98b07d0178b9f414261f8d6c0f8fd2b9e34685d01ce27ff57567eeae53b7eedc",
+      "bytes": 42513,
+      "passed": 5663,
+      "skipped": 25,
+      "warnings": 15,
+      "suite_seconds": 965.57
+    }
+  },
+  "python": "3.12.13",
+  "platform": "Linux",
+  "source_tree_matches_receipt": true,
+  "publication_performed": false,
+  "failed_artifact_attempt": {
+    "source": "d8bf94d42d75f439bdc1ea50ec7bd77c52ab06f8",
+    "wheel": "5663 passed,25 skipped",
+    "sdist": "3204 passed,1 failed,9 errors,25 skipped; temporary filesystem inode exhaustion",
+    "qualified": false,
+    "files": {
+      "sdist.log": "6f7a4da0e9b8db2a9a0a1ec930b2686abbb4febe9ee6d03795ff1e9e15532e57",
+      "wheel.log": "df28e19ab21818e4cee340d002440876269c9615aa38962759fd819dbca9341f"
+    }
+  },
+  "failed_source_attempt": {
+    "source": "d8bf94d42d75f439bdc1ea50ec7bd77c52ab06f8",
+    "passed": 12150,
+    "failed": 4,
+    "errors": 20,
+    "skipped": 34,
+    "coverage_percent": 91.36,
+    "elapsed_seconds": 2392.57,
+    "qualified": false,
+    "failures": {
+      "cli_subprocess_timeout_10_seconds": 3,
+      "inode_exhaustion_failure": 1,
+      "inode_exhaustion_setup_errors": 20
+    },
+    "cli_focused_rerun": "27 passed; original timeouts retained, no timeout thresholds changed",
+    "log_sha256": "192c7c9b688bb1b9e29aa7689da62a9aaa1228d0e851165bdb8c554f6f41abe6"
+  },
+  "focused_source_reruns": {
+    "cli": {
+      "sha256": "7b88ce8fe75fe53d19c92a23bf9fe19a0cf4700616d8e8359e8984c015bd79f8",
+      "passed": 27,
+      "full_source_qualification": false
+    },
+    "eval_fixture": {
+      "sha256": "9eb05cdb951fe05dc1516015117b2a0ccf607354b730faef93c0cdb2c93c297e",
+      "passed": 59,
+      "full_source_qualification": false
+    }
+  },
+  "limitations": [
+    "Version0.4.1 development artifacts at d8bf94d; later source/UI/privacy changes and final v0.4.2 artifacts are outside this receipt.",
+    "Both artifact profiles passed on retry with main-filesystem temporary storage; first-attempt inode-exhaustion failures remain separate.",
+    "The complete source suite failed; focused passing reruns do not replace it. Native CI, model quality, terminal usability and accessibility are separate gates."
+  ]
+}

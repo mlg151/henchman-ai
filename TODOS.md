@@ -31,8 +31,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 - #30 now gates upload and tagging on matching hashes from separate installed
   wheel/source-archive checks. Failed attempts invalidate old receipts and retain
   logs. The [first passing checkpoint](docs/evaluations/2026-11-08-artifact-qualification.md)
-  passed 5,460 installed tests per artifact at `6ee824b`. The final release and wider acceptance
-  evidence remain outstanding. See the [release process](CONTRIBUTING.md#-release-process).
+  passed 5,460 installed tests per artifact at `6ee824b`. The
+  [later retry](docs/evaluations/2026-11-08-artifact-qualification-d8bf94d.md)
+  passed 5,663 per artifact at `d8bf94d`, retaining the failed first attempt and
+  failed full-source run separately. Final release and wider acceptance evidence
+  remain outstanding. See the [release process](CONTRIBUTING.md#-release-process).
 
 - Current model testing is local-only by user instruction. Hosted qualification
   remains unverified; no hosted result is inferred from offline adapter checks.

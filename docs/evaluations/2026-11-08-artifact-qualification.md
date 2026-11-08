@@ -19,6 +19,10 @@ pipeline, not a v0.4.2 release receipt. Both environments exercised the installe
 package outside the checkout, including aliases, CLI behavior, offline local RAG
 and the scripted workflow cohort.
 
+A [later development retry](2026-11-08-artifact-qualification-d8bf94d.md)
+passed 5,663 tests per artifact at `d8bf94d`; its earlier failures and incomplete
+source qualification are recorded separately.
+
 An earlier attempt at `de521a3` failed on seven outdated output-handler fixtures
 and produced no receipt. Those fixtures now provide the real default renderer;
 the passing attempt above used the corrected source. Failed and successful
