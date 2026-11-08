@@ -794,6 +794,8 @@ Keep commands in the foreground of their own subprocess (omit trailing `&`) so
 the task ID represents their lifetime. On POSIX, child processes in the owned
 process group are terminated when the parent exits or the task is stopped.
 Windows currently terminates the direct subprocess.
+Background tasks do not accept interactive input or support attaching a terminal;
+inspect retained output with `task_output` or `/work inspect task <exact-id>`.
 Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.

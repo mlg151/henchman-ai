@@ -217,7 +217,8 @@ existing observations. `/work inspect agent <exact-id>` and
 inspection helpers. The classic command checks the selected project, session and
 owner again after joined reads, and prints literal text with current and retained
 credential policies. Missing owners remain unavailable; inspection does not
-construct or migrate task storage.
+construct or migrate task storage. Task details say that interactive attachment
+is unavailable; background processes receive no interactive input.
 
 To stop a live task owned by this process, inspect it and use **Stop work**
 or F6; both frontends also accept `/work stop task <exact-id>`. A retained

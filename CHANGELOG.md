@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Background task inspection** — Task details state that interactive terminal
+  attachment is unavailable while retained output remains inspectable.
+
 - **Changed-file checks** — Checkpoint review highlights project plans that
   explicitly declare the selected file as an input, with plan-level and eligible
   individual check status and a reminder that inputs may omit dependencies.

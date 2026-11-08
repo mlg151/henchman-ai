@@ -470,6 +470,7 @@ class WorkInspection:
                 ),
                 ("Correlation", correlation),
                 ("Error", _bounded(record.metadata.get("error", "No error recorded"))),
+                ("Interactive attachment", "unavailable; background tasks do not accept interactive input"),
                 ("Retained output", output),
                 (
                     "Outcome",

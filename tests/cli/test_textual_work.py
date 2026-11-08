@@ -129,6 +129,7 @@ async def test_real_failed_task_evidence_and_current_process_remain_untouched(wo
             await screen._action_task
             assert "task failure output" in screen.query_one(TextArea).text
             assert "Return code: 3" in screen.query_one(TextArea).text
+            assert "Interactive attachment: unavailable" in screen.query_one(TextArea).text
             assert work.service._index_path.read_bytes() == before
             assert work.service._runtime.processes[running.task_id].returncode is None
         finally:

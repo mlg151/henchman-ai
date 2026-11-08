@@ -103,6 +103,7 @@ async def test_failed_task_inspection_preserves_index_and_interrupted_output(wor
     assert "failed" in text and "Return code: 3" in text
     assert prefix not in text and "[REDACTED]" in text
     assert "not execution authority or task verification" in text
+    assert "Interactive attachment: unavailable" in text
     assert path.read_bytes() == log and work.service._index_path.read_bytes() == before
 
 
@@ -218,7 +219,7 @@ async def test_awaited_read_refreshes_rotated_service_policy_before_publication(
     monkeypatch.setattr(work.service, "get_task", rotated)
     text = await render(work, ["inspect", "task", record.task_id])
     assert secret not in text and "[REDACTED]" in text
-    assert ("unavailable" in text) is failure
+    assert ("Work inspection unavailable:" in text) is failure
 
 
 async def test_unowned_task_remains_unknown_without_index_write_or_pid_adoption(work):
