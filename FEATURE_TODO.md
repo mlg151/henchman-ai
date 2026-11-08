@@ -70,7 +70,10 @@ configuration changes. A library repair coordinator now pins explicit edit and
 criterion scope, bounds attempts/repeated diagnostics and preserves incomplete
 outcomes. Explicit `Orchestrator.repair_direct` now enforces that scope through
 the existing registry, one usage budget and correlated model/controller operations.
-Interactive controls and live acceptance remain open under #16.
+Repair model schemas now expose only captured file tools, preserving controller
+verification. The [first paired local comparison](docs/evaluations/2026-11-08-repair-paired-v1.md)
+records direct 6/6 and repair 2/6; its four failed attempts remain retained.
+Interactive controls and demonstrated live improvement remain open under #16.
 Known credentials are now projected from verification evidence, with sensitive
 saved specifications unavailable for execution and explicit locked sanitation.
 Metric storage and exports now project known credentials and marked metadata;

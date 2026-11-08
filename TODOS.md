@@ -170,7 +170,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   A library repair coordinator now retains bounded observations under explicit
   edit/criterion scope. Explicit `repair_direct` now binds checks and model attempts
   to one public run, budget and operation journal with a foreground file-tool lease.
-  Interactive controls and live evaluation remain open. See
+  Model schemas now disclose only the captured file tools; verification stays
+  controller-owned. The [first paired local comparison](docs/evaluations/2026-11-08-repair-paired-v1.md)
+  retains all 12 attempts: direct 6/6 and repair 2/6, with four disclosure-boundary
+  failures. Interactive controls and demonstrated live improvement remain open. See
   [bounded repair](docs/tools.md#bounded-repair-library).
 
 - #21/#25 transport/schema foundations now include explicit resource/template/
