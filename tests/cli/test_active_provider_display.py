@@ -71,7 +71,7 @@ def runtime(default, active, *, direct=None):
         config=SimpleNamespace(agent_role="engineer" if direct else None, system_prompt=""),
         core_context=SimpleNamespace(
             agent=Agent(active),
-            orchestrator=SimpleNamespace(pool=SimpleNamespace(get_agent=agents.__getitem__)),
+            orchestrator=SimpleNamespace(pool=SimpleNamespace(_agents=agents, get_agent=agents.__getitem__)),
             session_manager=SimpleNamespace(current=None), mcp_manager=None,
             tool_manager=SimpleNamespace(auto_approve=False),
         ),
@@ -95,7 +95,12 @@ async def test_textual_status_welcome_and_workspace_use_actual_agent(providers, 
     assert f"{expected_provider}:{expected_model}" in status
     _ContextTreeMixin._show_welcome(obj)
     assert f"{expected_provider}:{expected_model}" in chat.add_system_message.call_args_list[0].args[0]
-    _WorkspaceMixin._refresh_workspace_widgets(obj)
+    with monkeypatch.context() as inspection:
+        inspection.setattr(
+            obj.core_context.orchestrator.pool, "get_agent",
+            lambda *_args: pytest.fail("Workspace refresh must not instantiate an agent"),
+        )
+        _WorkspaceMixin._refresh_workspace_widgets(obj)
     assert summary.update_summary.call_args.kwargs["provider_name"] == expected_provider
     assert summary.update_summary.call_args.kwargs["model_name"] == expected_model
     assert settings_panel.update_settings.call_args.kwargs["provider"] == expected_provider
