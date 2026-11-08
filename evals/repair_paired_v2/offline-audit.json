@@ -1,0 +1,308 @@
+{
+  "dry_output_root": "/home/matthew/.cache/henchman-release-qualification/paired-7141c1f-v2-offline-dry",
+  "dry_receipt_sha256": "a5c5a5cb90b5a2b2553688af20a4479df863697079ce456249d72e2f438117c9",
+  "fault_tests": [
+    {
+      "elapsed_seconds": 8.769,
+      "log": "fault-tests-3.11.log",
+      "python": "3.11",
+      "sha256": "94437971c69b26088b0af1b85fa9d55abc98e3b99ae67c7d39c76ea48bcb7b31",
+      "socket_connect_and_dns_guard": true,
+      "status": "passed",
+      "tests": 27
+    },
+    {
+      "elapsed_seconds": 9.071,
+      "log": "fault-tests-3.12.log",
+      "python": "3.12",
+      "sha256": "6c89e1aecae2f57e8fcb1f6102ed12bc26ca50883a381b72fe0fc7f021a7cf8c",
+      "socket_connect_and_dns_guard": true,
+      "status": "passed",
+      "tests": 27
+    }
+  ],
+  "harness_root": "/tmp/henchman-repair-paired-v2-7141c1f",
+  "limits": [
+    "Synthetic success does not measure model quality or establish benefit.",
+    "Full model messages are not asserted equal across different source commits.",
+    "This is not a source ablation; intervening production changes are retained.",
+    "No endpoint discovery, server/model calls, management/profile changes or inference."
+  ],
+  "offline_only": true,
+  "plan_equal_except_version_source": true,
+  "preservation": {
+    "v1_harness_files": 2293,
+    "v1_harness_inventory_sha256": "1e76c35a767945a2cd02a1c529c893abb7dce19b1a44c4549d720fd65bc51903",
+    "v1_harness_unchanged": true,
+    "v1_live_artifacts_unchanged": true,
+    "v1_live_files": 268,
+    "v1_live_inventory_sha256": "e462959ac6977fbf5469c6368c858968322d02f0654604e8be171941e5a4206f",
+    "v1_receipt_sha256": "8b7980ee1c2459855a4edc3b5cbe9a97b357fd958e7599d76da4e712f62ae81e"
+  },
+  "source_cache_reused": false,
+  "source_commit": "7141c1f342216b1a24defecb530931ca234f4c41",
+  "source_python_cache_count": 0,
+  "synthetic_dry": {
+    "accepted": 12,
+    "attempts": 12,
+    "cleanup_joined": 12,
+    "literal_input_parity": [
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "addition-repair-1-direct",
+        "case": "addition-repair",
+        "dispatched_synthetic_requests": 4,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8"
+        },
+        "input_file_sha256": "a2b3d03847c27ba0f52074a959d184a0a806b75921e68a011187abc801ab014c",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-8a4f369f2358",
+        "prompt_sha256": "976db3f68f3e8dd5d9474aec8eb9ac3d3230fd12161238e05060ecc5b808787a",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "a2b3d03847c27ba0f52074a959d184a0a806b75921e68a011187abc801ab014c"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "addition-repair-1-repair",
+        "case": "addition-repair",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8"
+        },
+        "input_file_sha256": "a2b3d03847c27ba0f52074a959d184a0a806b75921e68a011187abc801ab014c",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-8a4f369f2358",
+        "prompt_sha256": "976db3f68f3e8dd5d9474aec8eb9ac3d3230fd12161238e05060ecc5b808787a",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "a2b3d03847c27ba0f52074a959d184a0a806b75921e68a011187abc801ab014c"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "addition-repair-2-repair",
+        "case": "addition-repair",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8"
+        },
+        "input_file_sha256": "de670bdfe71036e22e4e749e7d8b6900021d8b2ed1f05d0a76fa22c631ad48ad",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-0f31ddbd17f1",
+        "prompt_sha256": "90e7c59712c7ba0e2f2244340d7e79385e6ae12485dd5c89082940eeecad9d0e",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "de670bdfe71036e22e4e749e7d8b6900021d8b2ed1f05d0a76fa22c631ad48ad"
+      },
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "addition-repair-2-direct",
+        "case": "addition-repair",
+        "dispatched_synthetic_requests": 4,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8"
+        },
+        "input_file_sha256": "de670bdfe71036e22e4e749e7d8b6900021d8b2ed1f05d0a76fa22c631ad48ad",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-0f31ddbd17f1",
+        "prompt_sha256": "90e7c59712c7ba0e2f2244340d7e79385e6ae12485dd5c89082940eeecad9d0e",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "de670bdfe71036e22e4e749e7d8b6900021d8b2ed1f05d0a76fa22c631ad48ad"
+      },
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "pricing-repair-1-direct",
+        "case": "pricing-repair",
+        "dispatched_synthetic_requests": 4,
+        "fixture_before": {
+          "criteria.py": "dd2e39f84e19423fb92cb126fddc6ed7353dca19b6ec1b4fbf1fcaf3d1311605",
+          "pricing.py": "e5fffee1b180ddcbb7b2f7cb8fba439f589f7a1ea578637fcc27e2011bacf93e"
+        },
+        "input_file_sha256": "dd7aa39457e9a01e9299606be9f3bc496decd5f0b8bea718ec7522ae6bb9b39f",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-2085ad40f34a",
+        "prompt_sha256": "39277e78258ce286172cfb83aeb1295e59acd95746e9d33b8ff9755929222555",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "dd7aa39457e9a01e9299606be9f3bc496decd5f0b8bea718ec7522ae6bb9b39f"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "pricing-repair-1-repair",
+        "case": "pricing-repair",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "dd2e39f84e19423fb92cb126fddc6ed7353dca19b6ec1b4fbf1fcaf3d1311605",
+          "pricing.py": "e5fffee1b180ddcbb7b2f7cb8fba439f589f7a1ea578637fcc27e2011bacf93e"
+        },
+        "input_file_sha256": "dd7aa39457e9a01e9299606be9f3bc496decd5f0b8bea718ec7522ae6bb9b39f",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-2085ad40f34a",
+        "prompt_sha256": "39277e78258ce286172cfb83aeb1295e59acd95746e9d33b8ff9755929222555",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "dd7aa39457e9a01e9299606be9f3bc496decd5f0b8bea718ec7522ae6bb9b39f"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "pricing-repair-2-repair",
+        "case": "pricing-repair",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "dd2e39f84e19423fb92cb126fddc6ed7353dca19b6ec1b4fbf1fcaf3d1311605",
+          "pricing.py": "e5fffee1b180ddcbb7b2f7cb8fba439f589f7a1ea578637fcc27e2011bacf93e"
+        },
+        "input_file_sha256": "2b22a804565c3129bd588395f409ac5cc6abaaa988a113bc8501e0505abf0185",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-24eb22b554f3",
+        "prompt_sha256": "55a01d16ccb720c7b454ce94f0d74cdb04641920051d9ceb43f3b5feb94df3df",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "2b22a804565c3129bd588395f409ac5cc6abaaa988a113bc8501e0505abf0185"
+      },
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "pricing-repair-2-direct",
+        "case": "pricing-repair",
+        "dispatched_synthetic_requests": 4,
+        "fixture_before": {
+          "criteria.py": "dd2e39f84e19423fb92cb126fddc6ed7353dca19b6ec1b4fbf1fcaf3d1311605",
+          "pricing.py": "e5fffee1b180ddcbb7b2f7cb8fba439f589f7a1ea578637fcc27e2011bacf93e"
+        },
+        "input_file_sha256": "2b22a804565c3129bd588395f409ac5cc6abaaa988a113bc8501e0505abf0185",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-24eb22b554f3",
+        "prompt_sha256": "55a01d16ccb720c7b454ce94f0d74cdb04641920051d9ceb43f3b5feb94df3df",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "2b22a804565c3129bd588395f409ac5cc6abaaa988a113bc8501e0505abf0185"
+      },
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "already-correct-1-direct",
+        "case": "already-correct",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+        },
+        "input_file_sha256": "4f966fa7de895e6caaa909f1c0c3a5fd92f3f37bfa2e2afbfe8bc19809c9ab7a",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-e145ced491ef",
+        "prompt_sha256": "3196e7be3edcca9c47a891bd779597767e7f062154921e59a95acb6c06506265",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "4f966fa7de895e6caaa909f1c0c3a5fd92f3f37bfa2e2afbfe8bc19809c9ab7a"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "already-correct-1-repair",
+        "case": "already-correct",
+        "dispatched_synthetic_requests": 0,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+        },
+        "input_file_sha256": "4f966fa7de895e6caaa909f1c0c3a5fd92f3f37bfa2e2afbfe8bc19809c9ab7a",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-e145ced491ef",
+        "prompt_sha256": "3196e7be3edcca9c47a891bd779597767e7f062154921e59a95acb6c06506265",
+        "repeat": 1,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "4f966fa7de895e6caaa909f1c0c3a5fd92f3f37bfa2e2afbfe8bc19809c9ab7a"
+      },
+      {
+        "accepted": true,
+        "arm": "repair",
+        "attempt_id": "already-correct-2-repair",
+        "case": "already-correct",
+        "dispatched_synthetic_requests": 0,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+        },
+        "input_file_sha256": "feb064bb1023975e98cc025df645c0db9867519608bc82559f739992a06b435b",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-5a20850b36c2",
+        "prompt_sha256": "8fabd14428ba5ed1d85211fbc70cd8ef9c0f0b69778996da6874d72c6443e414",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "feb064bb1023975e98cc025df645c0db9867519608bc82559f739992a06b435b"
+      },
+      {
+        "accepted": true,
+        "arm": "direct",
+        "attempt_id": "already-correct-2-direct",
+        "case": "already-correct",
+        "dispatched_synthetic_requests": 3,
+        "fixture_before": {
+          "criteria.py": "0de9e3f04a447d4ffe2b4eba3aacf1870a76531725366b543aa9914439a775cd",
+          "target.py": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+        },
+        "input_file_sha256": "feb064bb1023975e98cc025df645c0db9867519608bc82559f739992a06b435b",
+        "literal_input_equal_to_v1": true,
+        "owned_cleanup_joined": true,
+        "plan_id": "plan-5a20850b36c2",
+        "prompt_sha256": "8fabd14428ba5ed1d85211fbc70cd8ef9c0f0b69778996da6874d72c6443e414",
+        "repeat": 2,
+        "settings_sha256": "8d6f285adf1c8028942658c9d2bbe63c32a741f2202c0970fcf74831fb666c78",
+        "v1_input_file_sha256": "feb064bb1023975e98cc025df645c0db9867519608bc82559f739992a06b435b"
+      }
+    ],
+    "pairs": 6,
+    "requests_by_arm": {
+      "direct": 22,
+      "repair": 12
+    },
+    "wire_tools": {
+      "direct": [
+        [
+          "edit_file",
+          "read_file",
+          "verify_plan_execution",
+          "write_file"
+        ]
+      ],
+      "repair": [
+        [
+          "edit_file",
+          "read_file",
+          "write_file"
+        ]
+      ]
+    }
+  },
+  "v1_admission_refusal": {
+    "live_authority_reads": 0,
+    "reason": "Invalid explicit admission"
+  },
+  "v2_admission_template_approved": false,
+  "version": "bounded-repair-paired-v2"
+}

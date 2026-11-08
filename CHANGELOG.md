@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read/edit/write tools. Verification remains controller-owned, unexpected model
   verification calls still stop the run, and ordinary tool discovery is restored
   afterward. This corrects the disclosure failure found by the local comparison.
+  A separate local v2 cohort passed 6/6 in both arms, with six functional ties
+  and mixed timings. The complete receipt and exact harness preserve those
+  results alongside the original failures; broader benefit remains unproven.
 
 - **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
   copying a selection. Credential or evidence changes require reselection,

@@ -73,6 +73,9 @@ the existing registry, one usage budget and correlated model/controller operatio
 Repair model schemas now expose only captured file tools, preserving controller
 verification. The [first paired local comparison](docs/evaluations/2026-11-08-repair-paired-v1.md)
 records direct 6/6 and repair 2/6; its four failed attempts remain retained.
+The separate [v2 fix validation](docs/evaluations/2026-11-08-repair-paired-v2.md)
+passed 6/6 in both arms: six functional ties, with mixed timings. It validates
+the repaired path on these fixtures without establishing a broader advantage.
 Interactive controls and demonstrated live improvement remain open under #16.
 Known credentials are now projected from verification evidence, with sensitive
 saved specifications unavailable for execution and explicit locked sanitation.

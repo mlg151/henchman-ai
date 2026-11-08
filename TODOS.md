@@ -173,7 +173,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Model schemas now disclose only the captured file tools; verification stays
   controller-owned. The [first paired local comparison](docs/evaluations/2026-11-08-repair-paired-v1.md)
   retains all 12 attempts: direct 6/6 and repair 2/6, with four disclosure-boundary
-  failures. Interactive controls and demonstrated live improvement remain open. See
+  failures. A separate [v2 fix validation](docs/evaluations/2026-11-08-repair-paired-v2.md)
+  passed 6/6 in both arms, retaining six functional ties and mixed timings.
+  Interactive controls and demonstrated live improvement remain open. See
   [bounded repair](docs/tools.md#bounded-repair-library).
 
 - #21/#25 transport/schema foundations now include explicit resource/template/

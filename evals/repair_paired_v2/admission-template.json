@@ -1,0 +1,22 @@
+{
+  "version": "bounded-repair-paired-v2",
+  "approved": false,
+  "source_commit": "7141c1f342216b1a24defecb530931ca234f4c41",
+  "source_manifest_sha256": "da7f53e9f3bdaa1e6b5b113a6193e02a85885f16c5dcbcd5fe7ee700f58246d7",
+  "harness_sha256": "5de77297cf33b075a9b53ca2544538cb086b8d6849466e1a835e8bc86f93fade",
+  "endpoint": "http://127.0.0.1:8081/v1",
+  "model": "qwen38-27b-iq3s",
+  "expires_unix": null,
+  "server": {
+    "pid": null,
+    "start_ticks": null,
+    "cmdline_sha256": null
+  },
+  "model_file": {
+    "path": null,
+    "device": null,
+    "inode": null,
+    "size": null,
+    "mtime_ns": null
+  }
+}

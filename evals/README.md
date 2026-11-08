@@ -11,6 +11,10 @@ The [local bounded-repair comparison](../docs/evaluations/2026-11-08-repair-pair
 retains all 12 live attempts, including four candidate controller-boundary
 failures. Its [archived harness](repair_paired_v1/REPRODUCE.md) preserves fixed
 inputs and independent oracles. This negative result does not qualify #16.
+The separately versioned [v2 fix validation](../docs/evaluations/2026-11-08-repair-paired-v2.md)
+passed 6/6 in both arms, with all six pairs tied and mixed timings. Its
+[exact archive](repair_paired_v2/REPRODUCE.md) retains the new source and all
+attempts; it does not establish broader functional benefit or replace v1.
 
 For the separate, model-free terminal resource workload, see
 [`ui_resource_baseline.py`](ui_resource_baseline.py) and its
