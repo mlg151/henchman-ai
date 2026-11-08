@@ -90,8 +90,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   Restore invalidates plan checks and supersedes in-flight observations.
   The Windows NTFS backend exposes a private-ACL content-only policy and awaits
   native qualification. Runtime capture covers declared write/edit/patch/test
-  targets; unknown scopes are unavailable. Dedicated review navigation remains
-  open under #22; legacy metadata snapshots are explicitly non-restorable.
+  targets; unknown scopes are unavailable. Textual F8 provides dedicated review
+  navigation; native usability and accessibility remain under #34/#36. Legacy
+  metadata snapshots are explicitly non-restorable.
 
 - Declared runtime support: Python 3.11–3.14. The expanded CI matrix is configured; successful native execution is still required for release readiness. Python 3.12 enforces the 90% whole-project coverage floor.
 - Packaging dependency floors: `chromadb>=1.5.9` for RAG and direct `scipy>=1.11.2` for NetworkX PageRank queries.

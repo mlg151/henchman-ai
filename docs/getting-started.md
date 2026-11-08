@@ -1,9 +1,9 @@
 # Getting Started
 
-For API-created content captures, `henchman checkpoint` and interactive
-`/checkpoint` share file/hunk review, preview, apply and interrupted-restore
-recovery. See [commands and current platform limits](checkpoints.md#user-commands).
-Automatic agent capture remains pending.
+`henchman checkpoint` and interactive `/checkpoint` share file/hunk review,
+preview, apply and interrupted-restore recovery. Captures include explicit API
+scopes and declared automatic tool writes. Textual F8 opens the dedicated review.
+See [commands and current platform limits](checkpoints.md#user-commands).
 
 ## Textual input and reading history
 

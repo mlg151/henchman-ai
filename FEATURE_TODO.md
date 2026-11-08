@@ -93,7 +93,7 @@ apply, recovery and retention. Content-changing restores revoke plan-check succe
 and concurrent-save authority; pending restores block verification. Runtime ownership
 capture now covers declared write/edit/patch/test targets; unknown scopes remain
 explicitly unavailable. Textual F8 now provides staged file/hunk review, preview
-and idle-only Apply; native usability remains incomplete under #22. The Windows
+and idle-only Apply; native usability remains incomplete under #34/#36. The Windows
 NTFS content-only backend is implemented with explicit private-ACL semantics;
 native qualification remains pending.
 
