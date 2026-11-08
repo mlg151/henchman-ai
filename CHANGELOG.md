@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Memory roadmap status** — The living roadmap now reflects the closed #19
+  issue while retaining the separate pending Textual snapshot display.
+
 - **Retained CPU corpus readiness failure** — Two protocol probes passed, then
   canonical syntax repair timed out before a response. The corpus did not run;
   unknown usage, the shorter HTTP deadline and an independently resolved cleanup
