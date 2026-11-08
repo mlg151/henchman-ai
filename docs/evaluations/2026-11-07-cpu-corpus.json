@@ -1,0 +1,763 @@
+{
+  "cases": [
+    {
+      "attempts": 1,
+      "case_id": "counter-refactor",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 600890.02,
+      "evidence": {
+        "artifact_files": 156,
+        "artifact_manifest_sha256": "5473ecd0d4f824692931e5d67f2fcefe56c17bf86afd4b4f43956a43f8abf1ff",
+        "receipts_sha256": "201addc0e5efcf250b5337c570e0395050b7bda3ee92a8fdbd2bf4b401b15646",
+        "worker_sha256": "fa45f34dd8bf2ac7db33590400ee293f65556553fef1bbeb8948b5720689d1e8"
+      },
+      "failure": "Scenario timed out after its 600s wall-clock budget",
+      "final_scenario_turn_observation": {
+        "completion_tokens": null,
+        "prompt_tokens": null
+      },
+      "known_completion_tokens": 1370,
+      "known_prompt_tokens": 67445,
+      "observed_raw_done_and_usage_requests": 7,
+      "oracle_passed": false,
+      "outcome": "timeout",
+      "profile": "engineer",
+      "provider_requests": 8,
+      "qualification_passed": false,
+      "recorded_all_requests_have_complete_usage": false,
+      "recorded_incomplete_requests": [
+        {
+          "dispatch_error_after_ms": null,
+          "dispatch_error_type": null,
+          "http_status": 200,
+          "request_index": 8,
+          "response_bytes": 30352,
+          "stream_error_type": "CancelledError",
+          "usage_reported": false
+        }
+      ],
+      "recorded_requests_with_complete_usage": 7,
+      "requests_with_reported_usage": 7,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 10,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": true,
+      "worker_supervisor_duration_ms": 603144.639,
+      "workspace_archive": {
+        "captured_bytes": 6299392,
+        "captured_files": 134,
+        "omitted_or_truncated_entries": 4
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "add-method-class",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 206671.398,
+      "evidence": {
+        "artifact_files": 155,
+        "artifact_manifest_sha256": "e463a330f567b76bfd4e57f43d75a091df75ba4ba4dfd496b0779a39e081914c",
+        "receipts_sha256": "ef898e46dd74719539caef9f51995b0776f2ac7d265601026cacf4e4c13c23a0",
+        "worker_sha256": "7efa2ee04d325834a7ac138eb2ee305ef27f6a8fb2a5eec50737eaab24e5e5da"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 199,
+        "prompt_tokens": 10011
+      },
+      "known_completion_tokens": 819,
+      "known_prompt_tokens": 75367,
+      "observed_raw_done_and_usage_requests": 8,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 8,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 8,
+      "requests_with_reported_usage": 8,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 7,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 208565.855,
+      "workspace_archive": {
+        "captured_bytes": 6283512,
+        "captured_files": 133,
+        "omitted_or_truncated_entries": 4
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "rename-variable",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 148692.778,
+      "evidence": {
+        "artifact_files": 22,
+        "artifact_manifest_sha256": "6fa4eb0f2c2821ed4eefb30c9981921ec2b7d920578cb158ce240a7a437ede68",
+        "receipts_sha256": "c0b71b46ad851a8a110c4eaecb55802992ee7032d4b193612d0a34c6cf391f63",
+        "worker_sha256": "108f7e34613b8dbaf8b75fc1b9f5c4e132019e8260e1c54ef495baeefa465663"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 147,
+        "prompt_tokens": 9744
+      },
+      "known_completion_tokens": 570,
+      "known_prompt_tokens": 55792,
+      "observed_raw_done_and_usage_requests": 6,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 6,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 6,
+      "requests_with_reported_usage": 6,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 5,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 150486.366,
+      "workspace_archive": {
+        "captured_bytes": 1262,
+        "captured_files": 4,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "multi-file-edit",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 178928.658,
+      "evidence": {
+        "artifact_files": 23,
+        "artifact_manifest_sha256": "44ec29d6082d53f457af49e9b9e8d0ec177f256855935c0bd55c006e661cc4e3",
+        "receipts_sha256": "6356d03d2579dae6b3731c4d585ce3f52a2964849a0bca35b3a1c962e6d839e6",
+        "worker_sha256": "97d0a7162c0a5ed88bfe7fdf787afa828bbc01106cced3832545171db24405a5"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 162,
+        "prompt_tokens": 9868
+      },
+      "known_completion_tokens": 680,
+      "known_prompt_tokens": 56300,
+      "observed_raw_done_and_usage_requests": 6,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 6,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 6,
+      "requests_with_reported_usage": 6,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 8,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 180744.2,
+      "workspace_archive": {
+        "captured_bytes": 1765,
+        "captured_files": 5,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "python-reuse",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 302090.091,
+      "evidence": {
+        "artifact_files": 25,
+        "artifact_manifest_sha256": "ff973d8af3d613473f181e052dfbcafdb0925d32bf5d375a03340605a01d7fec",
+        "receipts_sha256": "57198469d2156969785b021cf4a73478566b2fb36b742cddfb629754c43ab612",
+        "worker_sha256": "e0b749d1bb1a1b24ee004ba3707fd8c463923782d64f792b9ff7442f33b3b78a"
+      },
+      "failure": "Evaluation timed out after 300s",
+      "final_scenario_turn_observation": {
+        "completion_tokens": null,
+        "prompt_tokens": null
+      },
+      "known_completion_tokens": 1023,
+      "known_prompt_tokens": 58704,
+      "observed_raw_done_and_usage_requests": 6,
+      "oracle_passed": false,
+      "outcome": "timeout",
+      "profile": "engineer",
+      "provider_requests": 7,
+      "qualification_passed": false,
+      "recorded_all_requests_have_complete_usage": false,
+      "recorded_incomplete_requests": [
+        {
+          "dispatch_error_after_ms": null,
+          "dispatch_error_type": null,
+          "http_status": 200,
+          "request_index": 7,
+          "response_bytes": 2780,
+          "stream_error_type": "CancelledError",
+          "usage_reported": false
+        }
+      ],
+      "recorded_requests_with_complete_usage": 6,
+      "requests_with_reported_usage": 6,
+      "scenario_turn_timeout_seconds": 300,
+      "tool_call_observations": 17,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 304023.827,
+      "workspace_archive": {
+        "captured_bytes": 1806,
+        "captured_files": 5,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "syntax-fix",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 231924.886,
+      "evidence": {
+        "artifact_files": 34,
+        "artifact_manifest_sha256": "9d0454467ceacf21911b0c828e439a03c02da9497b6319d29d13bd31f9067f20",
+        "receipts_sha256": "a77ffcff57d976a40a19a27e65e43aa6f3ed0200443b724e2de006cbfc07314d",
+        "worker_sha256": "b2091c8c7def4aed7a5bf116af83684ad5a6dd3ff18009798b66bed348728199"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 181,
+        "prompt_tokens": 10150
+      },
+      "known_completion_tokens": 891,
+      "known_prompt_tokens": 103908,
+      "observed_raw_done_and_usage_requests": 11,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 11,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 11,
+      "requests_with_reported_usage": 11,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 11,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 233751.127,
+      "workspace_archive": {
+        "captured_bytes": 2308,
+        "captured_files": 6,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "fibonacci",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 165705.564,
+      "evidence": {
+        "artifact_files": 26,
+        "artifact_manifest_sha256": "77bdc13ac8b55aa948cc3e7b9066bce51fcf9a77f23cec0fa8069d49fdfcd885",
+        "receipts_sha256": "b9c5013e6a641f3fe107e8c035172d40ec8777f331a92719a520e15e364a2367",
+        "worker_sha256": "baaa2a7333876cfe9c4aeea0df05508542d65ebf77fe75b5b85ac764a9c17704"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 115,
+        "prompt_tokens": 2952
+      },
+      "known_completion_tokens": 707,
+      "known_prompt_tokens": 17197,
+      "observed_raw_done_and_usage_requests": 7,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "basic",
+      "provider_requests": 7,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 7,
+      "requests_with_reported_usage": 7,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 6,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 167610.488,
+      "workspace_archive": {
+        "captured_bytes": 2608,
+        "captured_files": 6,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "test-docs",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 270129.856,
+      "evidence": {
+        "artifact_files": 39,
+        "artifact_manifest_sha256": "f7fef3f72d2f211bcfd2bfb89867232be3093fd0a51f5a02c12ea6df82e4a002",
+        "receipts_sha256": "101ace5ac8cf15ed0861b2b6bded83d36b5e6bfec7050fa4a4cf5c3781fb5deb",
+        "worker_sha256": "aa9cf0a6d22ebe74f41b5685812ea24ee75a5dee3ad7c123d4d704d5d53c591e"
+      },
+      "failure": "Tool iteration limit (10) reached",
+      "final_scenario_turn_observation": {
+        "completion_tokens": null,
+        "prompt_tokens": null
+      },
+      "known_completion_tokens": 1368,
+      "known_prompt_tokens": 31100,
+      "observed_raw_done_and_usage_requests": 11,
+      "oracle_passed": false,
+      "outcome": "runtime_error",
+      "profile": "basic",
+      "provider_requests": 11,
+      "qualification_passed": false,
+      "recorded_all_requests_have_complete_usage": false,
+      "recorded_incomplete_requests": [
+        {
+          "dispatch_error_after_ms": null,
+          "dispatch_error_type": null,
+          "http_status": 200,
+          "request_index": 11,
+          "response_bytes": 12015,
+          "stream_error_type": null,
+          "usage_reported": true
+        }
+      ],
+      "recorded_requests_with_complete_usage": 10,
+      "requests_with_reported_usage": 11,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 11,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 271952.712,
+      "workspace_archive": {
+        "captured_bytes": 7088,
+        "captured_files": 11,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "package-lifecycle",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 302642.334,
+      "evidence": {
+        "artifact_files": 17,
+        "artifact_manifest_sha256": "d87e61848cf7167f5f9f3450d930e4fa4147c2bc488d671f8bf9ba1441a92d43",
+        "receipts_sha256": "50cd5aadf0d3bc93c319c3dfe6165d44c1d7d196f66b20c979fae0263c1d3878",
+        "worker_sha256": "d8a0c259f3e1370afc883c3aa11fa91da64db1007d316765ae569b8e112e5ea6"
+      },
+      "failure": "Evaluation timed out after 300s",
+      "final_scenario_turn_observation": {
+        "completion_tokens": null,
+        "prompt_tokens": null
+      },
+      "known_completion_tokens": null,
+      "known_prompt_tokens": null,
+      "observed_raw_done_and_usage_requests": 0,
+      "oracle_passed": false,
+      "outcome": "timeout",
+      "profile": "team",
+      "provider_requests": 1,
+      "qualification_passed": false,
+      "recorded_all_requests_have_complete_usage": false,
+      "recorded_incomplete_requests": [
+        {
+          "dispatch_error_after_ms": 299711.907,
+          "dispatch_error_type": "CancelledError",
+          "http_status": null,
+          "request_index": 1,
+          "response_bytes": 0,
+          "stream_error_type": null,
+          "usage_reported": false
+        }
+      ],
+      "recorded_requests_with_complete_usage": 0,
+      "requests_with_reported_usage": 0,
+      "scenario_turn_timeout_seconds": 300,
+      "tool_call_observations": 0,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 304718.0,
+      "workspace_archive": {
+        "captured_bytes": 4910,
+        "captured_files": 10,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "semantic-bug-fix",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 62822.206,
+      "evidence": {
+        "artifact_files": 15,
+        "artifact_manifest_sha256": "d38394526b2f3872c1daa492e2cc59eb0c8c9dc1416e5def91ec91ace9745087",
+        "receipts_sha256": "91e477c84340f4befed77c56d3f10ad0ba5b2c36315a6d85350b4f3b17649171",
+        "worker_sha256": "aa2707d4d74ca8d04300dab4392cfeae7906165e559e21c4f0c82ba2362fcfcc"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 43,
+        "prompt_tokens": 2346
+      },
+      "known_completion_tokens": 220,
+      "known_prompt_tokens": 8374,
+      "observed_raw_done_and_usage_requests": 4,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "basic",
+      "provider_requests": 4,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 4,
+      "requests_with_reported_usage": 4,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 3,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 64936.784,
+      "workspace_archive": {
+        "captured_bytes": 518,
+        "captured_files": 1,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "tool-failure-recovery",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 154611.627,
+      "evidence": {
+        "artifact_files": 17,
+        "artifact_manifest_sha256": "3249d329ca61d0bcb35b03c0b96ab780e5adf217ad6c3671f676d326684c09c8",
+        "receipts_sha256": "9ad089ba064277ceb078267fdd84935028c04418e31ac33437929c34374189cb",
+        "worker_sha256": "fe1fad12c231258e7c797d0159ac584d67e04a62009da705eaa5e4c91d05aab6"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 251,
+        "prompt_tokens": 9482
+      },
+      "known_completion_tokens": 616,
+      "known_prompt_tokens": 36753,
+      "observed_raw_done_and_usage_requests": 4,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 4,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 4,
+      "requests_with_reported_usage": 4,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 5,
+      "tool_round_limit_per_turn": 10,
+      "turns_observed": 1,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 156533.901,
+      "workspace_archive": {
+        "captured_bytes": 356,
+        "captured_files": 3,
+        "omitted_or_truncated_entries": 0
+      }
+    },
+    {
+      "attempts": 1,
+      "case_id": "interruption-recovery",
+      "cleanup": {
+        "owned_work_joined": true,
+        "provider_close_error": null,
+        "workspace_removed": true
+      },
+      "duration_ms_including_runtime_cleanup": 239260.237,
+      "evidence": {
+        "artifact_files": 28,
+        "artifact_manifest_sha256": "e9135e3ecc903fe65df758588ee0a88c2af3b97dcdb286511e02955beaf4dbc0",
+        "receipts_sha256": "e0a47e0d694796f92a66f04c5d097b44107979d899d0104b31beb1581d923f77",
+        "worker_sha256": "a63e47eceeaeccdae256aa1f8a83624ee1dc4e04b7d37c24bfb6f47f31672ae1"
+      },
+      "failure": null,
+      "final_scenario_turn_observation": {
+        "completion_tokens": 224,
+        "prompt_tokens": 10287
+      },
+      "known_completion_tokens": 893,
+      "known_prompt_tokens": 66985,
+      "observed_raw_done_and_usage_requests": 7,
+      "oracle_passed": true,
+      "outcome": "success",
+      "profile": "engineer",
+      "provider_requests": 7,
+      "qualification_passed": true,
+      "recorded_all_requests_have_complete_usage": true,
+      "recorded_incomplete_requests": [],
+      "recorded_requests_with_complete_usage": 7,
+      "requests_with_reported_usage": 7,
+      "scenario_turn_timeout_seconds": 600,
+      "tool_call_observations": 8,
+      "tool_round_limit_per_turn": [
+        1,
+        10
+      ],
+      "turns_observed": 2,
+      "whole_case_deadline_exceeded": false,
+      "worker_supervisor_duration_ms": 241188.955,
+      "workspace_archive": {
+        "captured_bytes": 1605,
+        "captured_files": 8,
+        "omitted_or_truncated_entries": 0
+      }
+    }
+  ],
+  "cleanup": {
+    "base_digest_unchanged": true,
+    "case_workspaces_confirmed_removed": 12,
+    "cases_with_owned_work_joined_receipt": 12,
+    "final_resident_models": 0,
+    "hard_kills": 0,
+    "owned_alias_absent_from_final_tags": true,
+    "owned_alias_unload_acknowledged": true,
+    "provider_close_errors": 0,
+    "provider_gate_denials": 0,
+    "provider_violations": 0,
+    "recorded_cleanup_errors": 0,
+    "stream_receipt_finalization_gap": "test-docs request11; original receipt remains unchanged",
+    "supervisor_timeouts": 0,
+    "tool_gate_denials": 0
+  },
+  "corpus": {
+    "acceptance_target": "12 of 12 canonical independent oracles, all frozen bounds and cleanup conditions satisfied",
+    "attempts_per_case": 1,
+    "case_duration_sum_ms": 2864369.655,
+    "fixture_seed": 42,
+    "launcher_duration_seconds": 2899.67373,
+    "launcher_exit_code": 1,
+    "model_sampler_seed": "not_set",
+    "not_run_cases": 0,
+    "oracle_passes": 8,
+    "outcomes": {
+      "runtime_error": 1,
+      "success": 8,
+      "timeout": 3
+    },
+    "planned_cases": 12,
+    "qualification_passed": false,
+    "recorded_cases": 12,
+    "version": "0.4.2-eval-v1"
+  },
+  "cost": {
+    "amount_usd": 0,
+    "hardware_energy_cost": "not_estimated",
+    "source": "owned-local-model-no-hosted-billing"
+  },
+  "date_local": "2026-11-07",
+  "evidence": {
+    "additional_response_hash_computed": 1,
+    "all_case_artifact_manifest_sha256": "be1b69207a83e27e989fe64c81857994cd8965be413cbe742059601e12c31918",
+    "case_files_hashed": 557,
+    "harness_sha256": {
+      "launch.py": "e72edb5f437f2b18da0858e170e17ae6f00fa9e1fa6a2174c8278a18180cc429",
+      "qualification.py": "b418c33d5b041365967e20f6f045077efb62c3eb76d8d439a30a4309172503c8",
+      "worker.py": "38b4254065efc6d43a24affd9fd2abf051748ecd81118b93ed0167c34b326404"
+    },
+    "hash_manifest_algorithm": "SHA256 of UTF-8 json.dumps(mapping,sort_keys=True) with default separators; per-case mapping is relative artifact filename to file SHA256, combined mapping is case ID to that mapping",
+    "original_manifest_sha256": "065dc0e88ae9c2cadc2f2177fcf401fd1b1acb9f830d6f8c57622a16584563f1",
+    "original_request_hashes_verified": 80,
+    "original_response_hashes_verified": 78,
+    "public_projection": "bounded identifiers, counts, outcomes, limits and hashes only; no raw prompts, source payloads, private paths, environment, process IDs or credentials",
+    "raw_response_files": 79
+  },
+  "finished_utc": "2026-11-08T01:28:13.203733+00:00",
+  "frozen_bounds": {
+    "automatic_compaction": false,
+    "cleanup_grace_seconds": 30,
+    "context_window_tokens": 16384,
+    "corpus_request_admission_ceiling": 288,
+    "corpus_requested_output_ceiling_tokens": 147456,
+    "delegation_retries": 0,
+    "explicit_shorter_scenario_turn_seconds": {
+      "package-lifecycle": 300,
+      "python-reuse": 300
+    },
+    "http_connect_pool_timeout_seconds": 5,
+    "http_read_write_timeout_seconds": 600,
+    "input_budget_tokens": 13926,
+    "interruption_recovery_first_turn_rounds": 1,
+    "provider_requests_per_case": 24,
+    "raw_request_response_bytes_each": 2097152,
+    "reasoning_effort": "none",
+    "requested_output_tokens_per_request": 512,
+    "sdk_retries": 0,
+    "tool_retries": 0,
+    "tool_rounds_per_turn_maximum": 10,
+    "whole_case_seconds": 600,
+    "worker_final_close_cancellation_settlement_seconds": 2,
+    "worker_final_close_seconds": 10,
+    "worker_stdout_stderr_bytes_each": 2097152,
+    "worker_supervisor_seconds": 660,
+    "workspace_capture_bytes_maximum": 16777216,
+    "workspace_file_bytes_maximum": 524288,
+    "workspace_files_maximum": 512
+  },
+  "kind": "local_cpu_fixed_corpus_qualification",
+  "limits": [
+    "Single attempt per canonical case; no repeated-run reliability or paired improvement claim.",
+    "The 12-of-12 acceptance target failed; successful tool calls and generated tests do not replace canonical oracles.",
+    "Three requests have unknown usage; recorded final-turn usage is not a case aggregate.",
+    "The stream receipt finalization discrepancy remains preserved and requires a future harness sequencing fix.",
+    "Process and workspace cleanup evidence does not prove universal subprocess isolation.",
+    "Only the exact local provider endpoint was admitted; command guards and scrubbed credentials are not an OS network sandbox.",
+    "CPU placement observations do not establish peak memory, a 16 GB machine result, native setup coverage, hosted qualification, or redistributable model selection."
+  ],
+  "model": {
+    "base": "ornith1.5:9b",
+    "base_digest": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+    "format": "gguf",
+    "ollama_version": "0.40.7",
+    "owned_profile_digest": "e87507270d9f0a369588052ff73c6292068e8bae61215df72d5393cc95ef64f4",
+    "parameter_size": "9.0B",
+    "parameters": {
+      "num_ctx": 16384,
+      "num_gpu": 0,
+      "num_thread": 14,
+      "temperature": 0
+    },
+    "quantization": "Q4_K_M"
+  },
+  "prior_attempts": {
+    "aborted_corpus_launch": {
+      "alias_creation_reached": false,
+      "cache_copy_stderr_sha256": "6a36f5a97ebb6804b1ab1437338cec6c6efce2d5394111dee1049f2acf61b4a5",
+      "disposable_partial_cache_removed_by_operator": true,
+      "error_code": "ENOSPC",
+      "failure_reason": "temporary filesystem inode exhaustion",
+      "launcher_log_available_for_this_audit": false,
+      "launcher_log_sha256_recorded_by_audit": "03834bb08acd45da54a34d212352d9ac17900f10a58393132980ee8011ffbaff",
+      "model_case_attempts": 0,
+      "outcome": "cache_copy_preflight_failed",
+      "post_failure_audit_sha256": "f17a0f95050eae7cd2c20e5f9f9a77a221d42328d943e42e8e348edce541ec81",
+      "runner_manifest_written": false
+    },
+    "failed_readiness": {
+      "manifest_sha256": "dbf59d653b06920db68bb910fc369eeceef5a42b32bf504f3a992c4c917c018f",
+      "report": "2026-11-07-cpu-corpus-readiness.md",
+      "separate_cohort": true
+    },
+    "revised_readiness": {
+      "manifest_sha256": "6d5e5c953099206f7bd746f09df8750a682c57bc45f7aee74250298387366c90",
+      "report": "2026-11-07-cpu-corpus-readiness-v2.md",
+      "separate_cohort": true
+    }
+  },
+  "resources": {
+    "host_total_memory_bytes": 132210106368,
+    "maximum_sum_named_ollama_rss_bytes": 83824640,
+    "named_ollama_processes_per_sample": 2,
+    "observed_context_length": 16384,
+    "observed_model_allocation_bytes": 6485956360,
+    "observed_vram_bytes": 0,
+    "post_case_residency_observations": 12,
+    "rss_coverage": "comm==ollama name filter only; runner descendants and owned Python worker not established",
+    "rss_samples": 592,
+    "sixteen_gb_hardware_qualified": false,
+    "whole_application_peak_memory_bytes": null
+  },
+  "source": {
+    "clean_checkout_and_hashes_rechecked": true,
+    "commit": "add457cd2e6ae1b4debab303bf80d20ce1af5d9f",
+    "execution": "source checkout, not installed-wheel qualification",
+    "interpreter": "Python3.12.13; same fixed interpreter as retained readiness",
+    "platform": "Linux x86_64",
+    "source_manifest_sha256": "2ae18535d0bfcc36b2c2252e7038a4d1e3ff638c60842ee569390c484ff6f9f0",
+    "tracked_src_evals_files": 456
+  },
+  "started_utc": "2026-11-08T00:39:53.530003+00:00",
+  "timezone": "America/New_York",
+  "usage": {
+    "all_requests_have_complete_usage": false,
+    "final_scenario_turn_observations": "retained separately per case; never summed as full-case usage",
+    "known_completion_tokens": 9157,
+    "known_prompt_tokens": 577925,
+    "provider_requests": 80,
+    "raw_audited_done_and_usage_requests": 77,
+    "recorded_completion_discrepancies": [
+      {
+        "audited_response_sha256": "0e065787b0187c0c7c74a1ac9ecb4e68a0c17f9051b8a2f03bd51f5673d7d94c",
+        "case_id": "test-docs",
+        "raw_done_marker": true,
+        "raw_usage_present": true,
+        "recorded_response_sha256": null,
+        "recorded_stream_complete": false,
+        "recorded_usage_complete": false,
+        "request_index": 11
+      }
+    ],
+    "recorded_requests_with_complete_usage": 76,
+    "requests_with_reported_usage": 77,
+    "requests_without_usage": 3,
+    "scope": "all requests admitted by the exact local transport; known sums remain partial when any usage is missing"
+  }
+}

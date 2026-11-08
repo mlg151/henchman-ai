@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hash-bound receipts and retained logs gate both PyPI upload and GitHub tagging;
   failed checks invalidate prior receipts and join the owned process group.
 
+- **Retained twelve-case CPU corpus** — All twelve frozen local cases ran once:
+  eight independent oracle passes, three timeouts and one tool-round-limit
+  failure. The report preserves partial usage, the failed qualification target,
+  a late receipt-finalization discrepancy and resource/cleanup limitations;
+  [evidence](docs/evaluations/2026-11-07-cpu-corpus.md).
+
 - **Plain and quiet REPL output** — `ui.output_mode` now controls classic REPL
   rendering at startup. Plain output preserves literal text without styling or
   animation; quiet output also hides routine chatter. Answers, explicit commands,

@@ -201,8 +201,11 @@ passed two protocol probes but timed out before the first coding response; all
 twelve corpus cases remained unrun. Its failed evidence and cleanup verification
 are retained without changing the earlier cohorts.
 A [separate revised readiness diagnostic](docs/evaluations/2026-11-07-cpu-corpus-readiness-v2.md)
-passed syntax repair with complete per-request usage and cleanup. The full corpus
-and target-hardware qualification remain outstanding.
+passed syntax repair with complete per-request usage and cleanup. The subsequent
+[twelve-case CPU corpus](docs/evaluations/2026-11-07-cpu-corpus.md) retained eight
+oracle passes, three timeouts and one tool-round-limit failure. Its 12/12 target
+was not met; partial usage and a late receipt-finalization discrepancy are
+retained explicitly. Model and target-hardware qualification remain outstanding.
 MCP/schema foundations and their remaining #21/#25 qualification gates are
 recorded above and in the [compatibility foundation](docs/standards.md#implemented-compatibility-foundation-v042-work).
 Automatic compaction now respects the configured disable flag across primary,

@@ -510,3 +510,11 @@ diagnostic using the installed Ornith 9B model. It records context mismatches,
 effective profiles, model manifest digests and limitations; the temporary CPU
 profile was removed afterward. This is a small development check, not general
 model or 16-GB-machine qualification.
+
+The [twelve-case CPU corpus](../docs/evaluations/2026-11-07-cpu-corpus.md)
+retains all twelve attempts: eight independent oracle passes, three timeouts and
+one tool-round-limit failure. Its 12/12 target was not met. The report separates
+all-request usage from final-turn observations and retains a late receipt
+finalization discrepancy without altering the original artifacts. Another
+cohort requires a separately tested harness correction. Resource samples do not
+establish whole-model peak memory or 16 GB hardware qualification.

@@ -30,6 +30,10 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   The [revised diagnostic](docs/evaluations/2026-11-07-cpu-corpus-readiness-v2.md)
   passed syntax repair and cleanup with a 600-second request allowance. It is
   separate from the wider corpus and does not qualify a 16 GB machine.
+  The subsequent [full CPU corpus](docs/evaluations/2026-11-07-cpu-corpus.md)
+  ran all twelve cases once: eight oracle passes, three timeouts and one tool
+  iteration-limit failure. Partial usage, the receipt-finalization discrepancy,
+  resource-sampling limits and failed 12/12 target remain explicit.
 
 - #27's legacy JSON renderer now preserves long/Unicode payloads and literal
   emoji aliases at narrow console widths. The inactive v1 codec/control
