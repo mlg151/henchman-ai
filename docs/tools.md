@@ -1352,6 +1352,13 @@ Child tasks and event callbacks cannot borrow this lease. Session, settings,
 provider or tool changes, unknown effects, cancellation and accounting/journal
 control errors stop the run before another model request.
 
+During explicit repair, model-visible tool schemas expose only those captured
+file tools. The verifier stays registered for controller-owned checks and returns
+to the ordinary catalog outside repair. A model request for verification still
+terminates the repair; hiding its schema does not grant execution permission.
+Changed file-tool implementations or unavailable repair authority refuse schema
+disclosure before a provider request.
+
 Controller checks retain their own correlated operation evidence in a separate
 `runtime:verification` conversation. They are not fabricated model responses and
 do not alter the primary provider's tool-call history. Each reported observation

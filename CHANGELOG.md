@@ -70,6 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   controller-boundary failures exposed misleading tool disclosure despite
   correct final files. All workers joined; live improvement remains unproven.
 
+- **Repair tool disclosure** — Explicit repair now advertises only captured
+  read/edit/write tools. Verification remains controller-owned, unexpected model
+  verification calls still stop the run, and ordinary tool discovery is restored
+  afterward. This corrects the disclosure failure found by the local comparison.
+
 - **Fresh tool-evidence copy** — Ctrl+C reprojects retained tool evidence before
   copying a selection. Credential or evidence changes require reselection,
   preserving masked text, draft/focus and chronological observations.

@@ -114,6 +114,31 @@ class RepairScope:
             or getattr(tool.execute, "__func__", None) is not type(tool).execute):
             self.deny("Repair tool implementation changed or was not admitted")
 
+    def disclosed_tools(self, tools: Sequence[Tool]) -> list[Tool]:
+        """Expose only captured model tools; controller checks stay internal.
+
+        Disclosure never grants execution. Missing/replaced captured file tools
+        invalidate this lease instead of silently presenting a changed scope.
+        """
+        from henchman.tools.builtins.file_edit import EditFileTool
+        from henchman.tools.builtins.file_read import ReadFileTool
+        from henchman.tools.builtins.file_write import WriteFileTool
+
+        self.check()
+        if self.phase == "verify":
+            return []
+        if self.phase != "repair":
+            self.deny("Model tool disclosure requires the foreground repair phase")
+        qualified = {ReadFileTool, EditFileTool, WriteFileTool}
+        current = {tool.name: tool for tool in tools}
+        for name, (captured, _) in self.tools.items():
+            if type(captured) in qualified and current.get(name) is not captured:
+                self.deny("Repair tool implementation changed or was not admitted")
+        visible = [tool for tool in tools if type(tool) in qualified]
+        for tool in visible:
+            self.check_implementation(tool)
+        return visible
+
     async def admit(self, tool: Tool, params: dict[str, object]) -> None:
         paths = self.paths(tool, params)
         if paths:

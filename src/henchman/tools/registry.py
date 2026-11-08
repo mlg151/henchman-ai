@@ -364,11 +364,15 @@ class ToolRegistry:
         Returns:
             A list of ToolDeclaration objects suitable for passing to the LLM.
         """
-        return [
-            tool.to_declaration()
+        tools = [
+            tool
             for name in self.list_tools()
             if (tool := self.get(name)) is not None
         ]
+        repair = current_repair()
+        if repair is not None:
+            tools = repair.disclosed_tools(tools)
+        return [tool.to_declaration() for tool in tools]
 
     def set_confirmation_handler(self: ToolRegistry, handler: ConfirmationHandler) -> None:
         """Set the handler for tool confirmation requests.

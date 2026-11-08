@@ -223,6 +223,7 @@ def stage_workflow_tests(repository: Path, target: Path, *, include_package: boo
         "tests/advanced/test_verification_freshness.py",
         "tests/advanced/test_verification_repair.py",
         "tests/agents/test_verification_repair_runtime.py",
+        "tests/agents/test_repair_tool_disclosure.py",
         "tests/core/test_controller_operations.py",
         "tests/e2e/test_bounded_repair.py",
         "tests/tools/test_formatting_controls.py",
