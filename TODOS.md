@@ -200,6 +200,9 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   exception snapshots while preserving original failures and cancellation.
   Operational event SQLite writes and legacy read copies share the policy;
   execution and authority tables remain outside evidence projection.
+  Generated handoff summaries/file evidence and earlier-failure quotations now
+  project retained runner/specialist credentials before clipping and injection,
+  preserving current caller inputs and immutable prior snapshots.
 
 - #20 authorization now rechecks policy, registration, project and physical
   targets after approval, formatter waits and retry delays. This closes stale

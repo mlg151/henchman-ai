@@ -178,11 +178,14 @@ Provider/forwarded-stream cleanup and delegation diagnostics now use the shared
 exception projection while preserving original cancellation. Operational event
 SQLite writes and legacy read copies redact known credentials; execution and
 authority tables remain outside evidence projection.
+Generated prior-agent handoff summaries/file evidence and earlier-failure
+quotations now project known credentials before clipping and prompt injection;
+current caller inputs and prior snapshots stay unchanged.
 Config mutation responses and sync exports now redact credential echoes while
 retaining raw settings and runtime inputs. Background task output now redacts
 before disk capture, bounds private logs and safely migrates eligible indexed
 legacy evidence with explicit diagnostics; see [background execution](docs/tools.md#background-execution).
-Other logs/UI panels/metrics/handoffs
+Other logs/UI panels and remaining evidence paths
 and broader restricted filesystem/network execution still require implementation
 and qualification.
 Approval scope now includes registration, project and physical target identity,

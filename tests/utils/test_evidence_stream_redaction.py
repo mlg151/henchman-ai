@@ -112,3 +112,23 @@ def test_known_credential_matching_header_syntax_is_still_private(secret: str) -
     output = stream.feed("Authorization: unknown-value\n") + stream.finish()
     assert secret not in output
     assert "unknown-value" not in output
+
+
+@pytest.mark.parametrize("escaped", [False, True])
+@pytest.mark.parametrize("old_at_start", [False, True])
+@pytest.mark.parametrize("complete", [False, True])
+def test_interrupted_longer_secret_prefix_takes_precedence_over_retained_shorter_secret(
+    escaped: bool, old_at_start: bool, complete: bool,
+) -> None:
+    old = "previous-known-value"
+    prefix = old + "-private-prefix-" if old_at_start else "private-prefix-" + old
+    secret = prefix + '-"suffix"' + "z" * 80
+    value = json.dumps(secret)[1:-1] if escaped else secret
+    candidate = value if complete else value[:-20]
+    stream = EvidenceStreamRedactor(EvidenceRedactor([old, secret]))
+    assert stream.feed("Before! " + candidate) + stream.finish(interrupted=True) == "Before! [REDACTED]"
+
+
+def test_successful_finish_preserves_resolved_suffix_after_complete_shorter_secret() -> None:
+    stream = EvidenceStreamRedactor(EvidenceRedactor(["known", "known-longer-secret"]))
+    assert stream.feed("known-longer") + stream.finish(interrupted=False) == "[REDACTED]-longer"

@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Handoff evidence privacy** — Generated prior-agent notes and earlier-failure
+  quotations now project retained credentials before clipping and prompt
+  injection, including rotated keys and clipped legacy prefixes. Caller inputs,
+  completion results and prior snapshots remain unchanged. Interrupted streaming
+  also masks longer credential prefixes that overlap a known shorter key.
+
 - **Local CPU no-go evidence** — The v6 readiness audit records both syntax
   failures, 24 unrun corpus attempts, exact artifacts, complete usage for 26
   requests and joined cleanup. Sampled PSS exceeded 10 GiB; the required 16 GB

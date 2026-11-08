@@ -211,6 +211,15 @@ inspection, reuse, verification or review coverage. Requested detailed reports a
 project documentation rules still apply. These defaults do not alter custom
 system prompts or execution limits.
 
+Generated prior-agent notes use the retained credential policy before the
+800-character shared-summary limit and again before the 200-character prompt
+preview. The selected specialist's credentials join that policy before prompt
+assembly and finalization; rotated values stay known. Legacy summaries clipped
+at the old storage limit conservatively mask known trailing credential prefixes.
+Generated quotations of earlier failed tasks are also projected. The current
+caller task/brief, original completion result, ledger and prior snapshots remain
+unchanged. See [evidence privacy](configuration.md#session-evidence-redaction).
+
 `henchman chat --prompt "..."` uses the configured orchestrator in text, `json`,
 `stream-json`, and `json-complete` modes. The lead can delegate research,
 implementation, and review using the same provider settings and tool policies as

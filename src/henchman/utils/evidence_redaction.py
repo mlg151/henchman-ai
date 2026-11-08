@@ -252,6 +252,13 @@ class EvidenceStreamRedactor:
                         self._header_value = True
                         continue
                     break
+            # A clipped longer credential can contain a complete older one at
+            # this position. Interrupted finalization must mask the whole
+            # candidate before replacing that shorter match or a marker.
+            if interrupted and any(is_prefix(secret, position) for secret in secrets):
+                output.append(REDACTED)
+                consume(len(value) - position)
+                continue
             matched = next((secret for secret in secrets if value.startswith(secret, position)), None)
             if value.startswith(REDACTED, position) and (matched is None or len(matched) <= len(REDACTED)):
                 crossings = [
@@ -280,10 +287,6 @@ class EvidenceStreamRedactor:
             if matched is not None:
                 output.append(REDACTED)
                 consume(len(matched))
-                continue
-            if interrupted and any(is_prefix(secret, position) for secret in secrets):
-                output.append(REDACTED)
-                consume(len(value) - position)
                 continue
             # At line starts, consume whitespace separately so header names
             # following indentation are still recognized. Otherwise batch text

@@ -20,6 +20,7 @@ from henchman.core.failure_evidence import failure_evidence_redactor
 from henchman.core.operation_recovery import OperationRecoveryError
 from henchman.core.run_budget import BudgetControlError
 from henchman.providers.continuation import ProviderContinuationError
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
 from henchman.utils.exception_evidence import exception_text
 
 from .orchestrator_anchoring import (
@@ -276,11 +277,23 @@ def _check_agent_protocol_compliance(agent: Any, role: str) -> str | None:
     return None
 
 
+def _handoff_text(
+    value: str, policy: EvidenceRedactor, *, limit: int | None = None, incomplete: bool = False,
+) -> str:
+    """Project generated evidence before clipping, including old clipped prefixes."""
+    stream = EvidenceStreamRedactor(policy)
+    # Keep overlapping credential candidates intact until the streaming policy
+    # can resolve them; replacing a shorter secret first destroys that evidence.
+    projected = stream.feed(value) + stream.finish(interrupted=incomplete)
+    return projected if limit is None else projected[:limit]
+
+
 def _add_to_shared_context(
     shared_context: list[dict[str, Any]],
     target_role: str,
     summary: str,
     parsed: dict[str, str],
+    *, redactor: EvidenceRedactor | None = None,
 ) -> None:
     """Add delegation result to shared context with size limits.
 
@@ -302,12 +315,13 @@ def _add_to_shared_context(
     if not isinstance(parsed, dict):
         msg = f"parsed must be a dict, got {type(parsed).__name__}"
         raise TypeError(msg)
-    summary_text = summary[:MAX_CONTENT_LENGTH] if summary else ""
+    evidence = failure_evidence_redactor(redactor=redactor)
+    summary_text = _handoff_text(summary, evidence, limit=MAX_CONTENT_LENGTH) if summary else ""
     files_modified = parsed.get("files_modified", "") if parsed else ""
     entry = {
         "agent": target_role,
         "summary": summary_text,
-        "files_modified": files_modified,
+        "files_modified": evidence.text(files_modified) if isinstance(files_modified, str) else files_modified,
         "timestamp": datetime.now(tz=UTC).isoformat(),
     }
     shared_context.append(entry)
@@ -681,6 +695,8 @@ def _populate_execution_params(
     target_agent: Any,
 ) -> None:
     """Populate the fully rendered task and message bounds on *params*."""
+    evidence = failure_evidence_redactor(runner)
+    failure_evidence_redactor(target_agent, redactor=evidence)
     prepared_brief = runner._prepare_delegation_context(  # noqa: SLF001
         params.target_role,
         params.brief,
@@ -820,11 +836,14 @@ async def _finalize_execution(
         params.target_agent,
         params.msg_start,
     )
+    evidence = failure_evidence_redactor(runner)
+    failure_evidence_redactor(params.target_agent, redactor=evidence)
     _add_to_shared_context(
         runner.shared_context,
         params.target_role,
         summary,
         parsed,
+        redactor=evidence,
     )
     status_value = _get_status_value(status)
     yield AgentEvent(
@@ -1103,15 +1122,22 @@ class DelegationRunner:
         """
         if not self.shared_context:
             return
+        evidence = failure_evidence_redactor(self)
         scored = sorted(
             self.shared_context,
             key=lambda e: _score_context_relevance(e, task, target_role),
             reverse=True,
         )
         relevant = scored[:RECENT_CONTEXT_ENTRIES]
-        handoff_lines = [
-            f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}" for entry in relevant
-        ]
+        handoff_lines = []
+        for entry in relevant:
+            # Legacy entries may already end in a credential prefix at the old
+            # storage cutoff. Reproject without rewriting that prior snapshot.
+            summary = _handoff_text(
+                entry["summary"], evidence, limit=MAX_SUMMARY_LENGTH,
+                incomplete=len(entry["summary"]) >= MAX_CONTENT_LENGTH,
+            )
+            handoff_lines.append(f"- **{evidence.text(entry['agent'])}**: {summary}")
         handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
         existing_bg = brief.get("background") or ""
         brief["background"] = f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
@@ -1135,10 +1161,12 @@ class DelegationRunner:
         if not prior_failures:
             return
         last_fail = prior_failures[-1]
+        evidence = failure_evidence_redactor(self)
+        prior_task = _handoff_text(last_fail.task, evidence)
         fail_note = (
             f"### Prior Attempt Failed\n"
             f"A previous delegation to you for "
-            f'"{last_fail.task}" ended with status FAILED. '
+            f'"{prior_task}" ended with status FAILED. '
             f"Avoid repeating the same approach."
         )
         existing_bg = brief.get("background") or ""

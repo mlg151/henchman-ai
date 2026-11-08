@@ -310,6 +310,8 @@ an ambiguous suffix can be delayed until a later chunk or the terminal event.
 Successful completion resolves unmatched prefixes as ordinary text; failure or
 cancellation masks unresolved credential prefixes. Buffered output precedes the
 terminal event, and cancellation still propagates without claiming completion.
+An interrupted longer credential prefix takes precedence over a complete shorter
+credential inside it, so replacement cannot expose the remaining private suffix.
 An unfinished authentication-header prefix over 1,024 characters is conservatively
 masked through its next newline to bound retained whitespace. Complete JSON
 collects marked fields before projection; streaming cannot retract text emitted
@@ -348,8 +350,14 @@ credential-named environment values. Existing database files and earlier exports
 are not retroactively sanitized, and endpoint authorization is separate from
 evidence redaction. See the [metrics API](api.md#metrics).
 
+Generated prior-agent handoff summaries, file evidence and prior-failure
+quotations now use the retained runner/specialist policy before clipping and
+prompt injection, including credential rotation and already-clipped legacy
+prefixes. This leaves the current caller's raw task/brief and prior snapshots
+unchanged; see [agent handoffs](agents.md).
+
 This work does not establish full privacy or OS isolation. Remaining subsystem and
-third-party logging, handoffs and additional command outputs require the work and
+third-party logging and additional command outputs require the work and
 qualification in issue #20. Configuration exports and restricted tool access have
 their separate contracts below.
 
