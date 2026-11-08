@@ -359,8 +359,24 @@ async def run():
             prompt.cancel()
         await asyncio.gather(prompt, return_exceptions=True)
     snapshots['after_repl_close'] = snapshot()
+    # Darwin sets PENDIN when canonical input resumes. An empty nonblocking
+    # read processes that kernel state without discarding or injecting input.
+    flags = fcntl.fcntl(0, fcntl.F_GETFL)
+    empty_read = 'unexpected'
+    try:
+        fcntl.fcntl(0, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        try:
+            leftover = os.read(0, 1)
+            empty_read = 'eof' if not leftover else 'unexpected-bytes'
+        except BlockingIOError:
+            empty_read = 'would-block'
+    finally:
+        fcntl.fcntl(0, fcntl.F_SETFL, flags)
+    snapshots['after_empty_read'] = snapshot()
     report = dict(snapshots=snapshots, text=result, foreground_restored=os.tcgetpgrp(0) == original_group,
-                  terminal_restored=termios.tcgetattr(0) == original_attrs)
+                  terminal_restored=termios.tcgetattr(0) == original_attrs,
+                  editor_terminal_restored=not use_editor or snapshots['before_edit'] == snapshots['after_edit'],
+                  empty_read=empty_read, input_flags_restored=fcntl.fcntl(0, fcntl.F_GETFL) == flags)
     (root / 'classic-receipt.json').write_text(json.dumps(report))
 asyncio.run(run())
 '''
@@ -408,6 +424,9 @@ def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, termi
         print(json.dumps({"terminal": terminal_kind, "use_editor": use_editor, "report": report}), flush=True)
         assert report["text"] == ("edited\nterminal input\nUnicode café\n" if use_editor else "original\nUnicode café\n")
         assert report["foreground_restored"]
+        assert report["empty_read"] == "would-block", report
+        assert report["input_flags_restored"]
+        assert report["editor_terminal_restored"], report["snapshots"]
         assert report["terminal_restored"], report["snapshots"]
         assert not (tmp_path / "history").exists()
     finally:
