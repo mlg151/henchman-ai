@@ -36,10 +36,15 @@ expected a row after a single previous-page action; `test_pinned_stream_tool_and
 expected 128 completed rows plus the active stream; and
 `test_discarded_thought_cannot_publish_or_rejoin_after_awaited_boundaries[control_mount]`
 timed out waiting for its boundary. The first three failures reflect assertions
-that assume the existing page size; the timeout has not been resolved. The
-candidate therefore needs navigation and interaction review, adjusted tests
-where the contract deliberately changes, and the complete paired gate before it
-could be considered. The production page size remains 128.
+that assume the existing page size. In a subsequent local Python 3.12 run, the
+[test adjustments](../../evals/vte_window64_screen_v1/candidate-test-adjustments.patch.gz)
+changed those expectations and started the control-mount case below the new
+64-row threshold, so the test could exercise the intended mount boundary. All
+24 tests then passed; the [follow-up log](../../evals/vte_window64_screen_v1/candidate-adjusted-tests.txt)
+is retained. This supports the test-setup explanation for the timeout, but does
+not establish general usability. The candidate still needs navigation and
+interaction review and the complete paired gate before it could be considered.
+The production page size remains 128.
 
 The plan SHA-256 is
 `59f7e0abd5d7f128360a0a2b8260f6d07ee50f5d2c699b1e1f93403a1de2e3d9`,
@@ -47,3 +52,5 @@ the results SHA-256 is
 `906aef89b4bfb93160fd819865c45dd31366c2d36e5665a62fd4479abc2923ae`,
 and the uncompressed test log SHA-256 is
 `2fba66e4514f523f86b6c1a13a0fd69a2e835c729fa459274e66126f11347e18`.
+The follow-up log SHA-256 is
+`ec52690ccff813f42e6f00e33f5abde73feeb2f77dd23ff7f3132d6b10998c85`.
