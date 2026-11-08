@@ -99,10 +99,12 @@ class HeadlessRuntime:
     into its raw agents/components are outside this ownership contract.
     """
 
-    def __init__(self, context: CoreContext, sink: Callable[[bytes], Awaitable[None]]) -> None:
+    def __init__(self, context: CoreContext, sink: Callable[[bytes], Awaitable[None]], *,
+                 close_resources: Callable[[], Awaitable[None]] | None = None) -> None:
         if getattr(context, "_headless_runtime_owner", None) is not None:
             raise HeadlessRuntimeError("runtime_owned")
         self.context = context
+        self._close_resources = close_resources
         self._require_idle()
         self._root = context.project_root.resolve()
         stat = self._root.stat()
@@ -132,6 +134,7 @@ class HeadlessRuntime:
         self._transport_failure: BaseException | None = None
         self._settlement_failure: BaseException | None = None
         self._execution_failure: BaseException | None = None
+        self._input_failure: ProtocolError | None = None
         self._output_closed = False
         self._cleaned = False
         self._session: Any = None
@@ -205,13 +208,31 @@ class HeadlessRuntime:
             self._initializer.cancel()
 
     def _reply(self, request_id: int, payload: dict[str, object]) -> None:
+        self._queue_reply("response", request_id, payload)
+
+    def _queue_reply(self, kind: FrameKind, request_id: int | None, payload: dict[str, object]) -> None:
         if len(self._replies) >= _MAX_REPLIES:
             failure = HeadlessRuntimeError("output_limit")
             self._fail_transport(failure)
             raise failure
-        task = asyncio.create_task(self._send("response", request_id, lambda: self._project(payload)))
+        task = asyncio.create_task(self._send(kind, request_id, lambda: self._project(payload)))
         self._replies.add(task)
         task.add_done_callback(self._reply_done)
+
+    def stop_input(self, error: ProtocolError | None = None) -> None:
+        """Retire transport input, preserving joined execution and wire ownership.
+
+        A signal is an explicit stop request. Malformed input additionally makes
+        a still-running result incomplete; neither can rewrite an existing claim.
+        EOF/output loss instead uses ``aclose`` and cannot claim delivery.
+        """
+        if error is not None and self._input_failure is None:
+            self._input_failure = error
+            self._queue_reply("error", None, {"code": error.code, "message": "Protocol input rejected."})
+        self.control.disconnect()
+        self._cancel_owned()
+        if self._main is None or self._main.done():
+            self._main = asyncio.create_task(self._shutdown_idle())
 
     def _reply_done(self, task: asyncio.Task[None]) -> None:
         self._replies.discard(task)
@@ -494,6 +515,10 @@ class HeadlessRuntime:
                 status = "incomplete"
             if self._settlement_failure is not None:
                 status = "incomplete"
+            if self._input_failure is not None:
+                if primary is None or isinstance(primary, asyncio.CancelledError):
+                    primary = self._input_failure
+                status = "incomplete"
             self.failure = primary
             self.control.claim_result(status)
             self._settled.set()
@@ -534,15 +559,19 @@ class HeadlessRuntime:
                 if self.context.mcp_manager is not None:
                     await self.context.mcp_manager.disconnect_all()
             finally:
-                self._cleaned = True
-                registry = self.context.tool_registry
-                if registry._execution_guard is self._guard_callback:
-                    registry.bind_execution_guard(self._old_guard)
-                if registry._local_confirmation_handler is self._confirm_callback:
-                    registry.set_confirmation_handler(cast(Any, self._old_confirmation))
-                for tool, handler in self._questions:
-                    if tool._question_handler is self._question_callback:
-                        tool._question_handler = handler
+                try:
+                    if self._close_resources is not None:
+                        await self._close_resources()
+                finally:
+                    self._cleaned = True
+                    registry = self.context.tool_registry
+                    if registry._execution_guard is self._guard_callback:
+                        registry.bind_execution_guard(self._old_guard)
+                    if registry._local_confirmation_handler is self._confirm_callback:
+                        registry.set_confirmation_handler(cast(Any, self._old_confirmation))
+                    for tool, handler in self._questions:
+                        if tool._question_handler is self._question_callback:
+                            tool._question_handler = handler
         if TaskService.has_active_work(self._root):
             raise HeadlessRuntimeError("runtime_busy")
 

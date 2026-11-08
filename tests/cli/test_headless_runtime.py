@@ -808,3 +808,37 @@ async def test_unknown_tool_name_projects_known_credentials_without_changing_dis
         assert observed_result["success"] is False
     finally:
         await runtime.aclose()
+
+
+@pytest.mark.parametrize("fail", [False, True])
+async def test_owned_resource_close_finishes_before_result_and_runs_once(context, fail):
+    frames = []
+    entered, release = asyncio.Event(), asyncio.Event()
+    calls = []
+    async def emit(frame):
+        frames.append(json.loads(frame))
+    async def close_resources():
+        calls.append(True)
+        entered.set()
+        await release.wait()
+        if fail:
+            raise RuntimeError("owned close failed")
+    runtime = HeadlessRuntime(context, emit, close_resources=close_resources)
+    runtime.receive(request(1, "initialize", {"session": {"mode": "new"},
+                    "interactive": {"permissions": False, "questions": False}}))
+    await runtime.wait_initialized()
+    initial = frames[0]
+    start(runtime, initial["payload"]["connection_id"], initial["session_id"])
+    await asyncio.wait_for(entered.wait(), 5)
+    assert not any(frame["kind"] == "result" for frame in frames)
+    release.set()
+    await asyncio.wait_for(runtime.wait(), 5)
+    result = next(frame for frame in frames if frame["kind"] == "result")
+    assert result["payload"]["status"] == ("incomplete" if fail else "completed")
+    # Repeated transport close joins the already-owned failed/successful cleanup.
+    for _ in range(2):
+        try:
+            await runtime.aclose()
+        except RuntimeError:
+            assert fail
+    assert calls == [True]

@@ -84,7 +84,7 @@ Discovery surfaces share one capability matrix and distinguish these important b
 | `kg_update` | Knowledge Graph | WRITE | Update knowledge graph |
 | `rag_search` | RAG | READ | Semantic code search |
 | `research_notes` | Knowledge Graph | WRITE | Persistent note-taking scratchpad |
-| `ask_user` | Agent Interaction | READ | REPL/Textual input; headless calls report unavailable |
+| `ask_user` | Agent Interaction | READ | REPL/Textual or negotiated editor input; legacy headless calls report unavailable |
 | `delegate_task` | Agent Interaction | EXECUTE | Delegate tasks to specialist agents |
 
 ## Built-in Tools

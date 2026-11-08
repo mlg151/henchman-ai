@@ -41,12 +41,11 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
   resource-sampling limits and failed 12/12 target remain explicit.
 
 - #27's legacy JSON renderer now preserves long/Unicode payloads and literal
-  emoji aliases at narrow console widths. The inactive v1 codec/control
-  foundation validates bounded frames and exact decision identities. Its internal
-  runtime adapter now binds real workflow/session/accounting authority, permission
-  decisions and joined cleanup under exclusive context ownership. The CLI/pipe
-  lifecycle and Neovim pilot remain pending. See
-  [JSON output](docs/api.md#headless-json-output).
+  emoji aliases at narrow console widths. Opt-in v1 POSIX stdio now binds shared
+  workflow/session/accounting authority, correlated decisions and joined cleanup.
+  Early descriptor isolation, absolute output deadlines and distinct delivery
+  outcomes are covered by real-pipe fixtures. Windows transport is unsupported; the Neovim
+  pilot remains pending. See [editor stdio](docs/api.md#editor-stdio-protocol-v1).
 
 - Context token estimates and RAG chunking use packaged verified vocabularies;
   fresh offline installs no longer depend on a warm tokenizer download cache.
@@ -104,7 +103,7 @@ Living roadmap snapshot for Henchman-AI. `FEATURE_TODO.md` remains the tier-by-t
 
 ## Narrowed runtime scope
 
-- `ask_user` is connected to real REPL/Textual input with serialized prompts, timeout/cancellation cleanup, and actual-answer tool results. Headless remains unbound and fails explicitly. Native Windows/macOS UI behavior still needs verification.
+- `ask_user` is connected to real REPL/Textual input with serialized prompts, timeout/cancellation cleanup, and actual-answer tool results. Legacy headless remains unbound and fails explicitly; the editor protocol negotiates a question channel. Native Windows/macOS UI behavior still needs verification.
 - Tier 3 - Skills are local-only discovery/inspection surfaces; agent and plugin marketplace installs remain unavailable in this variant.
 - Tier 7 - Slack remains an export-only scaffold, not a shipped runtime integration.
 - Tier 8 - Remote infrastructure and operations backends are not claimed as shipped in this variant.

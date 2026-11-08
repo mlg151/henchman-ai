@@ -172,6 +172,11 @@ For scripts, `--output-format json` or `stream-json` produces one JSON event per
 line without terminal-width wrapping or emoji substitution. `json-complete`
 produces an indented array; see [the output contract](api.md#headless-json-output).
 
+Editor clients can use `henchman headless --protocol-version 1 --project PATH`
+with POSIX stdin/stdout pipes. This separate bidirectional interface requires
+explicit session selection and correlated approval replies; see the
+[editor protocol](api.md#editor-stdio-protocol-v1). The Neovim pilot is still pending.
+
 ## Slash Commands
 
 | Command | Description |

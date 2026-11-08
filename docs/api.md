@@ -20,12 +20,44 @@ one JSON object per physical line. The renderer preserves long strings, Unicode,
 escaped newlines and literal emoji aliases regardless of console width.
 `json-complete` retains the existing indented JSON-array format. Event fields and
 runtime outcomes are unchanged; see [headless team execution](agents.md#headless-team-execution).
-These legacy formats are not yet a versioned bidirectional editor protocol.
+These legacy formats remain separate from the bidirectional editor protocol below.
 
-### Internal editor protocol foundation
+### Editor stdio protocol v1
 
-`cli.headless_protocol` and `cli.headless_control` provide an inactive v1 codec
-and connection state machine. They validate bounded UTF-8 JSON lines, explicit
+An editor launches `henchman headless --protocol-version 1 --project PATH` with
+stdin and stdout connected to pipes. `mlg headless` and `python -m henchman
+headless` use the same entrypoint. The version and project are required; Windows,
+TTYs and regular-file stdin/stdout are unsupported. The bootstrap captures private,
+non-inheritable protocol descriptors before CLI imports. It redirects ordinary
+stdout to stderr and exposes EOF on ordinary stdin, including native descriptor
+access by plugins and child processes. Existing chat commands retain their output
+contracts.
+
+Send one UTF-8 JSON object followed by a newline per request. Start with:
+
+```json
+{"v":1,"id":1,"method":"initialize","params":{"session":{"mode":"new"},"interactive":{"permissions":true,"questions":true}}}
+```
+
+To resume, replace the session selection with `{"mode":"resume","id":"EXACT_SESSION_ID"}`.
+Wait for the initialization response, then use its `payload.connection_id` and
+`session_id` in subsequent requests:
+
+```json
+{"v":1,"id":2,"method":"run","connection_id":"CONNECTION_ID","params":{"session_id":"SESSION_ID","prompt":"Inspect the failing test","agent":null}}
+```
+
+Each process accepts one run. Request IDs must increase. Server frames contain
+`v`, `seq`, `kind`, `request_id`, `session_id`, `run_id` and `payload`; clients
+must retain their exact correlation and reject malformed or mismatched frames.
+Permission/question replies use the supplied decision ID and generation plus
+the current connection, session and run. Declaring an input capability requires
+the client to handle those requests; unavailable channels never fabricate answers.
+Use `cancel` with the original run request ID and observed operation ID, or
+`shutdown` with empty parameters. There is no automatic reconnect or replay.
+
+`cli.headless_protocol` and `cli.headless_control` supply the codec and connection
+state machine. They validate bounded UTF-8 JSON lines, explicit
 new/resume selection, monotonic request IDs and exact session/run/decision
 correlation. Frames are limited to 1 MiB, decoder feeds to 64 KiB and nesting to
 16 levels. Duplicate keys, non-finite numbers and malformed input fail with
@@ -33,7 +65,7 @@ value-free codes. Request parameters retain execution input and are excluded
 from object representations.
 
 The codec and control modules perform no I/O and grant no runtime authority.
-The internal `cli.headless_runtime.HeadlessRuntime` adapter now binds one run to
+The `cli.headless_runtime.HeadlessRuntime` adapter binds one run to
 the shared orchestrator, workflow, session store and usage ledger. A trusted
 embedding transfers an idle `CoreContext` exclusively, serializes control calls
 and supplies a cancellable asynchronous byte sink. Existing shared-runtime
@@ -55,9 +87,28 @@ Evidence uses the shared credential projection and bounded, serialized writes
 settlement is separate from output delivery. Runtime results follow persistence
 and owned cleanup, retain incomplete failures, and never claim task verification.
 Transport loss aborts delivery; concurrent or cancelled `aclose()` callers still
-join the same owned cleanup. This is an internal adapter with no CLI route or
-OS sandbox. The stdio bridge, delivery deadlines, process exit semantics and
-Neovim pilot remain pending under #27.
+join the same owned cleanup. The stdio owner also joins startup, configured MCP
+connections and owned provider SDK clients. Startup uses existing configured MCP
+policy; it does not launch an interactive OAuth flow.
+
+Pipe reads are nonblocking. Each complete frame has an absolute 30-second write
+deadline, including the terminal result; a slow reader cannot reset that deadline.
+A timeout, broken pipe or cancelled partial write retires output permanently.
+Input EOF stops the run and is a delivery failure, even if execution had already
+completed and persisted that outcome. `SIGINT`/`SIGTERM` request joined shutdown.
+The exit status reports delivery and cleanup as well as execution:
+
+| Exit | Meaning |
+|------|---------|
+| 0 | Completed runtime result fully delivered and cleanup joined, or explicit no-work shutdown |
+| 130 | Explicit cancellation delivered with cleanup joined, or interruption before a run |
+| 1 | Failed, incomplete or rejected execution; transport loss; or cleanup/delivery failure |
+| 2 | CLI, protocol or startup rejection |
+
+A delivered `completed` result retains `task_verified: false`; process exit does
+not certify task correctness. Persisted execution evidence is not rewritten to
+pretend a terminal frame reached its consumer. This transport is not an OS
+sandbox. The Neovim pilot remains pending under #27.
 
 ## HTTP service health
 

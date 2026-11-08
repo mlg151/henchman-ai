@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opt-in editor stdio** — `headless --protocol-version 1 --project PATH` now
+  serves one shared-runtime run through POSIX pipes. Early descriptor isolation,
+  correlated input decisions, absolute frame-write deadlines and joined startup,
+  MCP and provider cleanup keep delivery failures explicit. Both aliases and
+  Python module execution share the bootstrap. Windows transport is unsupported; the Neovim
+  pilot remains pending; completed execution does not claim task verification.
+
 - **Evaluation report credential projection** — Baseline exports now redact
   short and escaped credentials before JSON serialization and retain observed
   rotations across repeated attempts. Only validated report identities bypass
@@ -77,12 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   execution guards. Concurrent or cancelled shutdown callers join owned cleanup;
   runtime settlement remains distinct from delivery and task verification.
   Model-supplied tool names now receive credential projection while call IDs
-  retain correlation. CLI pipes and the Neovim pilot remain pending.
+  retain correlation. The stdio route is described above; the Neovim pilot remains pending.
 
 - **Internal editor protocol foundation** — A bounded v1 JSON-line codec and
   connection state machine validate requests and correlate session/run/decision
   identities without granting execution authority. The internal runtime adapter
-  is described above; stdio wiring and the Neovim pilot remain pending.
+  and stdio wiring are described above; the Neovim pilot remains pending.
 
 - **Bounded schema meta-validation cache** — Repeated identical schemas reuse
   successful meta-checks within a 64-entry, 4 MiB key-payload bound. Validators,

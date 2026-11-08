@@ -18,6 +18,7 @@ from rich.console import Console
 
 from henchman.cli.chat_serve import discordbot_command
 from henchman.cli.evidence import runtime_evidence_redactor
+from henchman.cli.headless_stdio import headless_command
 from henchman.cli.json_output import JsonOutputRenderer
 from henchman.cli.serve import serve_command
 from henchman.config.runtime import RuntimeSettingsState
@@ -166,7 +167,9 @@ def _show_team_info() -> None:
     console.print(table)
 
 
-def _prepare_runtime_context() -> RuntimeContext:
+def _prepare_runtime_context(
+    *, on_provider: Callable[[ModelProvider], None] | None = None,
+) -> RuntimeContext:
     """Prepare common runtime objects like provider, settings, and context.
 
     Returns:
@@ -189,6 +192,8 @@ def _prepare_runtime_context() -> RuntimeContext:
         message = runtime_evidence_redactor(SimpleNamespace()).text(str(exc))
         raise click.ClickException(f"Unable to configure provider: {message}") from exc
     provider = _get_provider(settings=settings)
+    if on_provider is not None:
+        on_provider(provider)
     from henchman.cli.provider_switch import capture_startup_provider_settings
 
     capture_startup_provider_settings(settings_state, provider)
@@ -886,6 +891,8 @@ def _execute_chat_command(config: RunConfig) -> None:
 # Add serve command to CLI group
 cli.add_command(discordbot_command)
 cli.add_command(serve_command)
+
+cli.add_command(headless_command)
 
 # Register Tier 1, Tier 4, and misc CLI commands
 from henchman.cli.commands.agents_platform_command import (  # noqa: E402

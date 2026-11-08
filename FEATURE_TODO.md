@@ -229,11 +229,12 @@ transfer and native qualification stay tracked under #14.
 - [ ] Validate privacy boundaries, shared usage budgets, responsiveness and bounded delegation.
 - [ ] Deliver the scoped MCP client work and one Neovim pilot; qualify an optional CPU-local profile.
   Legacy headless JSON framing now preserves long and Unicode payloads regardless
-  of console width. An inactive bounded v1 codec and connection state machine
-  now enforce identity and decision correlation. An internal one-run adapter
-  binds shared runtime authority and joins owned cleanup, including blocked
-  output and repeated cancellation. The CLI/stdio bridge and Neovim pilot remain
-  open under #27; see [JSON output](docs/api.md#headless-json-output).
+  of console width. The opt-in v1 editor protocol now binds shared one-run
+  authority over POSIX pipes, isolates descriptors before CLI imports and joins
+  runtime, startup and provider cleanup. Bounded frames, absolute write deadlines
+  and correlated decisions retain explicit delivery failures. Windows transport
+  is unsupported; the Neovim pilot remains open under #27; see
+  [editor stdio](docs/api.md#editor-stdio-protocol-v1).
 - [ ] Deliver UI-0–UI-4: interaction baselines, reliable terminal controls, work visibility, workspace navigation and native/accessibility qualification.
 - [ ] Verify integrated outcomes and the exact release artifacts before publication.
   The release workflow now requires installed wheel/source-archive checks and

@@ -84,8 +84,8 @@ dev = [
 ]
 
 [project.scripts]
-henchman = "henchman.cli.app:main"
-mlg = "henchman.cli.app:main"
+henchman = "henchman.entrypoint:main"
+mlg = "henchman.entrypoint:main"
 
 [project.urls]
 Homepage = "https://github.com/mlg151/henchman-ai"

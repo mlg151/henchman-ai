@@ -44,6 +44,20 @@ class _CapabilitySpec:
 
 _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
+        name="editor stdio protocol",
+        classification="runtime-wired",
+        summary="headless --protocol-version 1 --project PATH serves one run over POSIX pipes.",
+        detail=(
+            "Installed henchman/mlg and python -m henchman isolate protocol descriptors before CLI imports. "
+            "Explicit new/resume selection binds shared workflow, session and usage authority; "
+            "permission and question replies require live correlated decisions. Per-frame output has "
+            "a 30-second deadline; delivery failure never becomes successful process exit. "
+            "Windows and terminal/file stdio are unsupported. The Neovim pilot remains pending; "
+            "execution completion is not task verification or an OS sandbox."
+        ),
+        aliases=("headless", "editor", "stdio", "protocol version", "Neovim"),
+    ),
+    _CapabilitySpec(
         name="operation recovery",
         classification="runtime-dependent",
         summary="/recovery inspects interrupted tool attempts and accepts explicit user decisions.",
@@ -174,12 +188,13 @@ _DISCOVERY_CAPABILITY_SPECS: Final[tuple[_CapabilitySpec, ...]] = (
     _CapabilitySpec(
         name="ask_user",
         classification="runtime-dependent",
-        summary="REPL and Textual questions use bound input channels; headless calls remain unavailable.",
+        summary="REPL, Textual and opt-in editor protocol questions use bound input channels.",
         detail=(
             "The classic REPL and Textual TUI bind an input handler. Registration alone "
-            "does not establish a channel: headless and standalone tools remain "
+            "does not establish a channel: legacy headless and standalone tools remain "
             "unbound unless an embedder supplies an async handler. No response "
-            "is fabricated when input is unavailable."
+            "is fabricated when input is unavailable. The v1 editor protocol binds questions "
+            "only when the client explicitly advertises that capability."
         ),
         aliases=("ask user", "user input", "clarification"),
         runtime_tool_names=("ask_user",),

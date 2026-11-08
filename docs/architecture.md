@@ -44,7 +44,9 @@ Henchman-AI is built with a modular, component-based architecture that separates
 This architecture includes both shipped runtime paths and narrower integration seams. The shared discovery capability matrix is authoritative: local skills are local-only; integration blueprints (including Slack) are export-only; `schedule_cron` is metadata-only; remote agent/plugin installs are unavailable; the GitHub webhook helper is docs-only; and Tier 10 dialogs are intentionally absent from generic discovery even though they ship inside `henchman chat --tui`.
 
 `ask_user` is runtime-dependent: classic REPL and Textual supply asynchronous
-input handlers; headless and standalone tools remain unbound by default. See
+input handlers; legacy headless and standalone tools remain unbound by default.
+The opt-in v1 editor protocol binds questions only for clients advertising that
+capability. See
 [tool input behavior](tools.md#ask_user) for cancellation and session semantics.
 
 Response-format checks observe optional legacy planning metrics without adding
@@ -76,6 +78,12 @@ The UI therefore says “finished execution.” [Typed acceptance checks](tools.
 provide historical file, command, and pytest observations; whole-task correctness
 and requirements coverage remain roadmap work. See [orchestrator API](api.md#orchestrator)
 and [JSON output semantics](providers.md#streaming-reliability).
+
+The opt-in [editor stdio protocol](api.md#editor-stdio-protocol-v1) transfers an
+idle shared context to one run. A standard-library entrypoint isolates protocol
+pipes before CLI imports. The transport owns startup, pipe delivery and SDK client
+cleanup; the shared runtime owns admission, authorization, execution and saved
+outcomes. Terminal delivery and task verification remain separate claims.
 
 Headless JSON uses the same orchestrator as interactive execution, including
 specialist provider selection and delegation policy checks. Agent-attributed
