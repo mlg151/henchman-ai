@@ -6,6 +6,10 @@ repeats per arm. The independent oracle uses bounded AST interpretation and
 harness-defined helper behavior; it does not execute candidate code, prove
 general correctness, or measure the canonical recovery corpus. A tie does not
 establish improvement. Search results are untrusted data.
+Acceptance requires completed execution, joined cleanup, no guard or audit
+denials, an accepted current artifact, and fresh correlated verification after
+cleanup. A denied tool call makes the attempt unaccepted even if a later
+artifact passes the narrow oracle.
 
 The scripts and manifest freeze source commit
 `d195ac18d3c2d586e30f29f218c7813e97c97269`. They are an experimental Linux

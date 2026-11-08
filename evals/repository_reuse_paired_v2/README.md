@@ -10,6 +10,10 @@ access to the fixture's generated verification status while continuing to deny
 writes, links and oversized status files. Each attempt has a 450-second bound
 and 30 seconds for cleanup, with no retries or replacement attempts. The fixed
 request and tool-round limits remain 12 and 10 per attempt.
+Acceptance requires completed execution, joined cleanup, no guard or audit
+denials, an accepted current artifact, and fresh correlated verification after
+cleanup. A denied tool call therefore makes the attempt unaccepted even if a
+later artifact passes the narrow oracle; report those observations separately.
 
 The [manifest](manifest.json) freezes the complete 21-script harness and source
 commit. Reconstruct it by copying the unchanged v1 scripts first, then applying
