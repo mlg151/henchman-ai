@@ -306,6 +306,11 @@ os.environ['TERM'] = sys.argv[2]
 os.environ['VISUAL'] = shlex.join((sys.executable, '-I', str(root / 'editor with spaces.py'), 'literal;$(touch NEVER)'))
 original_group = os.tcgetpgrp(0)
 original_attrs = termios.tcgetattr(0)
+def snapshot():
+    attrs = termios.tcgetattr(0)
+    return [*attrs[:6], [v.hex() if isinstance(v, bytes) else v for v in attrs[6]]]
+snapshots = {'initial': snapshot()}
+use_editor = sys.argv[3] == 'editor'
 class OfflineProvider(ModelProvider):
     name = 'offline'
     async def chat_completion_stream(self, *args, **kwargs):
@@ -314,6 +319,16 @@ class OfflineProvider(ModelProvider):
 async def run():
     repl = Repl(provider=OfflineProvider(), settings=Settings(rag={'enabled': False}),
         config=ReplConfig(auto_save=False, history_file=root / 'history'))
+    snapshots['after_repl_init'] = snapshot()
+    from henchman.cli import input_handler
+    real_edit = input_handler.edit_draft
+    async def observed_edit(*args, **kwargs):
+        snapshots['before_edit'] = snapshot()
+        try:
+            return await real_edit(*args, **kwargs)
+        finally:
+            snapshots['after_edit'] = snapshot()
+    input_handler.edit_draft = observed_edit
     session = repl.input_handler.prompt_session
     signalled = False
     def ready(_app):
@@ -325,19 +340,26 @@ async def run():
     prompt = asyncio.create_task(session.prompt_async('> '))
     try:
         async with asyncio.timeout(10):
-            while repl.input_handler._editor_task is None:
-                await asyncio.sleep(.01)
-            await repl.input_handler._editor_task
+            if use_editor:
+                while repl.input_handler._editor_task is None:
+                    await asyncio.sleep(.01)
+                await repl.input_handler._editor_task
+            else:
+                while session.default_buffer.text != 'original\nUnicode café\n':
+                    await asyncio.sleep(.01)
+            snapshots['after_edit_task_or_control'] = snapshot()
         result = session.default_buffer.text
         assert not prompt.done() and repl._turn_worker is None
         prompt.cancel()
         await asyncio.gather(prompt, return_exceptions=True)
+        snapshots['after_prompt_cancel'] = snapshot()
     finally:
         await repl.aclose()
         if not prompt.done():
             prompt.cancel()
         await asyncio.gather(prompt, return_exceptions=True)
-    report = dict(text=result, foreground_restored=os.tcgetpgrp(0) == original_group,
+    snapshots['after_repl_close'] = snapshot()
+    report = dict(snapshots=snapshots, text=result, foreground_restored=os.tcgetpgrp(0) == original_group,
                   terminal_restored=termios.tcgetattr(0) == original_attrs)
     (root / 'classic-receipt.json').write_text(json.dumps(report))
 asyncio.run(run())
@@ -346,7 +368,8 @@ asyncio.run(run())
 
 @pytest.mark.skipif(os.name != "posix", reason="actual POSIX classic REPL terminal")
 @pytest.mark.parametrize("terminal_kind", ["xterm-256color", "dumb"])
-def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, terminal_kind):
+@pytest.mark.parametrize("use_editor", [True, False])
+def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, terminal_kind, use_editor):
     import fcntl
     import pty
     import struct
@@ -356,7 +379,7 @@ def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, termi
     (tmp_path / "editor with spaces.py").write_text(EDITOR)
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-    child = subprocess.Popen([sys.executable, "-c", CLASSIC_RUNNER, str(tmp_path), terminal_kind],
+    child = subprocess.Popen([sys.executable, "-c", CLASSIC_RUNNER, str(tmp_path), terminal_kind, "editor" if use_editor else "control"],
                              stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
     os.close(slave)
     output = b""
@@ -374,7 +397,7 @@ def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, termi
                 except OSError:
                     break
             if (b"COMPOSER_READY" in output or (terminal_kind == "dumb" and b"> " in output)) and not composed:
-                os.write(master, "\x1b[200~original\nUnicode café\n\x1b[201~\x1b[23~".encode())
+                os.write(master, ("\x1b[200~original\nUnicode café\n\x1b[201~" + ("\x1b[23~" if use_editor else "")).encode())
                 composed = True
             if b"EDITOR_READY" in output and not answered:
                 os.write(master, b"terminal input\n")
@@ -382,7 +405,10 @@ def test_classic_f11_real_pty_restores_prompt_without_submitting(tmp_path, termi
         child.wait(timeout=3)
         assert child.returncode == 0, output.decode(errors="replace")
         report = json.loads((tmp_path / "classic-receipt.json").read_text())
-        assert report == {"text": "edited\nterminal input\nUnicode café\n", "foreground_restored": True, "terminal_restored": True}
+        print(json.dumps({"terminal": terminal_kind, "use_editor": use_editor, "report": report}), flush=True)
+        assert report["text"] == ("edited\nterminal input\nUnicode café\n" if use_editor else "original\nUnicode café\n")
+        assert report["foreground_restored"]
+        assert report["terminal_restored"], report["snapshots"]
         assert not (tmp_path / "history").exists()
     finally:
         if child.poll() is None:
