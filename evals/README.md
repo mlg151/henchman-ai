@@ -26,6 +26,9 @@ The separate [paired VTE comparison](../docs/evaluations/2026-11-08-vte-window-p
 retains 480 native software-display observations and its exact scripts. The
 candidate still misses one cancellation p95 target; the host and workload limits
 are part of the result.
+The follow-up [GC attribution diagnostic](../docs/evaluations/2026-11-08-vte-gc-attribution-v1.md)
+records tracked history-widget liveness during two collections. Its six
+instrumented trials do not replace the paired result or establish a fix.
 
 Unlike traditional **integration tests** which verify that the system functions
 correctly (e.g., "does the file writer actually write to disk?"), behavioral
