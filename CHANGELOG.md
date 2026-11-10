@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Note on historical measurements and claims**: Versioned entries describe the state reported at the time of each release. Line counts, test totals, and coverage statements are preserved as historical records, not guarantees about the current tree. Line counts explicitly marked with "(historical snapshot)" likewise record the scale of earlier refactoring rather than current file sizes.
 
-## [Unreleased]
+## [v0.4.2] - 2026-11-10
 
 ### Closes
 

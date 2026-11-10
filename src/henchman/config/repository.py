@@ -62,9 +62,11 @@ _SYNC_UI_KEYS = (
 """UI keys eligible for the local sync payload (never includes credentials)."""
 _MISSING = object()
 
+
 @dataclass(frozen=True)
 class SettingInspection:
     """Representation of a single setting value with its origin information."""
+
     value: Any
     origin: SettingOrigin
 
@@ -117,7 +119,10 @@ class SettingsRepository:
         raise ValueError(msg)
 
     def inspect(
-        self, *, scope: SettingsScope = SettingsScope.MERGED, include_groups: bool = False,
+        self,
+        *,
+        scope: SettingsScope = SettingsScope.MERGED,
+        include_groups: bool = False,
     ) -> dict[str, SettingInspection]:
         """Inspect settings for a selected scope and return their origins.
 
@@ -610,7 +615,9 @@ def _prune_empty_mappings(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _add_group_inspections(
-    payload: Mapping[str, Any], entries: dict[str, SettingInspection], prefix: str = "",
+    payload: Mapping[str, Any],
+    entries: dict[str, SettingInspection],
+    prefix: str = "",
 ) -> None:
     """Add actual parent values, retaining unanimous or mixed leaf origins."""
     for key, value in payload.items():

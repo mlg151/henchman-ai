@@ -240,9 +240,7 @@ class TestSettingsContract:
 class TestProviderSettingsContract:
     """ProviderSettings payload must satisfy its contract."""
 
-    def test_provider_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_provider_settings_matches_contract(self, contract_suite: object) -> None:
         payload = ProviderSettings(
             default="anthropic",
             anthropic={"model": "claude-sonnet-4-20250514"},
@@ -258,9 +256,7 @@ class TestProviderSettingsContract:
 class TestToolSettingsContract:
     """ToolSettings payload must satisfy its contract."""
 
-    def test_tool_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_tool_settings_matches_contract(self, contract_suite: object) -> None:
         payload = ToolSettings(
             auto_approve_read=False, shell_timeout=120, sandbox="docker"
         ).model_dump(mode="json")
@@ -274,9 +270,7 @@ class TestToolSettingsContract:
 class TestUISettingsContract:
     """UISettings payload must satisfy its contract."""
 
-    def test_ui_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_ui_settings_matches_contract(self, contract_suite: object) -> None:
         payload = UISettings(
             output_style="verbose",
             theme="dracula",
@@ -294,9 +288,7 @@ class TestUISettingsContract:
 class TestContextSettingsContract:
     """ContextSettings payload must satisfy its contract."""
 
-    def test_context_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_context_settings_matches_contract(self, contract_suite: object) -> None:
         payload = ContextSettings(
             max_tokens=32000,
             compaction_threshold=0.9,
@@ -313,9 +305,7 @@ class TestContextSettingsContract:
 class TestMcpServerConfigContract:
     """McpServerConfig payload must satisfy its contract."""
 
-    def test_mcp_server_config_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_mcp_server_config_matches_contract(self, contract_suite: object) -> None:
         payload = McpServerConfig(
             command="uvx",
             args=["mcp-server", "--port", "8080"],
@@ -332,9 +322,7 @@ class TestMcpServerConfigContract:
 class TestAgentConfigContract:
     """AgentConfig payload must satisfy its contract."""
 
-    def test_agent_config_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_agent_config_matches_contract(self, contract_suite: object) -> None:
         payload = AgentConfig(
             name="Reviewer",
             role="reviewer",
@@ -357,9 +345,7 @@ class TestAgentConfigContract:
 class TestAgentSettingsContract:
     """AgentSettings payload must satisfy its contract."""
 
-    def test_agent_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_agent_settings_matches_contract(self, contract_suite: object) -> None:
         payload = AgentSettings(
             team_preset="custom",
             agents={
@@ -385,9 +371,7 @@ class TestAgentSettingsContract:
 class TestRagSettingsContract:
     """RagSettings payload must satisfy its contract."""
 
-    def test_rag_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_rag_settings_matches_contract(self, contract_suite: object) -> None:
         payload = RagSettings(
             enabled=True,
             chunk_size=2048,
@@ -407,9 +391,7 @@ class TestRagSettingsContract:
 class TestApiConfigContract:
     """ApiConfig payload must satisfy its contract."""
 
-    def test_api_config_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_api_config_matches_contract(self, contract_suite: object) -> None:
         payload = ApiConfig(
             require_auth=True,
             api_keys=["sk-xyz"],
@@ -426,9 +408,7 @@ class TestApiConfigContract:
 class TestDiscordSettingsContract:
     """DiscordSettings payload must satisfy its contract."""
 
-    def test_discord_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_discord_settings_matches_contract(self, contract_suite: object) -> None:
         payload = DiscordSettings(
             enabled=True,
             token="discord-token",
@@ -447,9 +427,7 @@ class TestDiscordSettingsContract:
 class TestVoiceSettingsContract:
     """VoiceSettings payload must satisfy its contract."""
 
-    def test_voice_settings_matches_contract(
-        self, contract_suite: object
-    ) -> None:
+    def test_voice_settings_matches_contract(self, contract_suite: object) -> None:
         payload = VoiceSettings(
             enabled=True,
             preferred_voice="en-US-JennyNeural",
