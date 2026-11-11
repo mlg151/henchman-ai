@@ -53,7 +53,7 @@ def test_settings_are_only_accepted_for_team(profile: str) -> None:
 def test_team_uses_copied_settings_production_scopes_and_redacted_metadata(
     make_rig: Any, primary_tools: list[str] | None,
 ) -> None:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     if primary_tools is not None:
         settings.agents.agents["tech_lead"] = AgentSettingsConfig(
             name="Primary", role="tech_lead", description="Restricted evaluation primary",
@@ -101,6 +101,30 @@ def test_orchestrator_property_rejects_nonteam_and_uninitialized() -> None:
         _ = EvalTestRig(provider=MockProvider(), profile="basic").orchestrator
     with pytest.raises(RuntimeError, match="set up"):
         _ = EvalTestRig(provider=MockProvider(), profile="team").orchestrator
+
+
+def test_selecting_team_profile_explicitly_opts_into_descendants(make_rig: Any) -> None:
+    rig = make_rig(profile="team")
+    assert rig.orchestrator.delegation_runner.admission.allowed is True
+    assert rig.profile_metadata["delegation"]["allowed"] is True
+    assert rig.profile_metadata["delegation"]["max_concurrent"] == 4
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+async def test_team_profile_preserves_supplied_permission_settings(make_rig: Any, allowed: bool) -> None:
+    settings = Settings(agents={"allow_delegation": allowed})
+    rig = make_rig(profile="team", settings=settings, provider=MockProvider([delegation(), "Continue directly"]))
+    assert rig.orchestrator.delegation_runner.admission.allowed is allowed
+    assert settings.agents.allow_delegation is allowed
+    assert rig.orchestrator.settings is not settings
+    rig.orchestrator.settings.agents.allow_delegation = not allowed
+    assert rig.profile_metadata["delegation"]["allowed"] is allowed
+    if not allowed:
+        result = await rig.run("Explicitly disabled team execution", timeout=5)
+        assert len(result.tool_logs) == 1
+        assert result.tool_logs[0].tool_name == "delegate_task"
+        assert result.tool_logs[0].success is False
+        assert "disabled" in result.tool_logs[0].result
 
 
 def delegation() -> list[ToolCall]:
@@ -201,7 +225,7 @@ class FailingOnceProvider(MockProvider):
 
 
 async def test_recovered_child_error_is_diagnostic_not_root_failure(make_rig: Any) -> None:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 1
     rig = make_rig(provider=MockProvider([delegation(), "LEADER_RECOVERED"]), settings=settings)
     rig.orchestrator.pool.get_agent("engineer").provider = FailingOnceProvider()
@@ -238,7 +262,7 @@ async def test_iteration_limit_applies_to_all_roles_and_restores_configuration(m
 
 
 async def test_specialist_cannot_exceed_evaluation_tool_round_limit(make_rig: Any) -> None:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     provider = MockProvider([
         delegation(),
@@ -335,7 +359,7 @@ def test_partial_role_setup_retains_providers_after_workspace_cleanup(
     default, child = MockProvider(), MockProvider()
     close = AsyncMock()
     monkeypatch.setattr(child, "_client", SimpleNamespace(close=close), raising=False)
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     presets = get_default_team()
     settings.agents.agents["planner"] = presets["planner"].model_copy(update={"provider": "ollama"})
     settings.agents.agents["explorer"] = presets["explorer"].model_copy(update={"provider": "invalid"})

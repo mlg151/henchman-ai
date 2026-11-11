@@ -68,7 +68,7 @@ async def test_environment_parity_preserves_explicit_role_prompt(
     role: str, request_index: int
 ) -> None:
     custom = "Use the supplied task; these are the exact custom role instructions."
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.agents[role] = AgentConfig(
         name=role, role=role, description="Custom prompt fixture", system_prompt=custom
     )
@@ -82,7 +82,7 @@ async def test_environment_parity_preserves_explicit_role_prompt(
             for message in provider.calls[request_index]["messages"]
             if message.role == "system"
         ]
-        assert system_messages == [custom]
+        assert system_messages == [custom + "\n\n" + rig.orchestrator.delegation_runner.admission.prompt_note()]
     finally:
         rig.cleanup()
 

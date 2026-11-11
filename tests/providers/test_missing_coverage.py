@@ -254,7 +254,7 @@ class TestOpenAICompatExtractUsage:
         """Baseline: returns usage dict when chunk.usage is set."""
         provider = self._make_provider()
 
-        usage = MagicMock()
+        usage = MagicMock(prompt_tokens_details=None, completion_tokens_details=None, prompt_cache_hit_tokens=None)
         usage.prompt_tokens = 10
         usage.completion_tokens = 5
         usage.total_tokens = 15

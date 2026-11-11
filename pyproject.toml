@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "henchman-ai"
-version = "0.4.1"
+version = "0.4.2"
 description = "A model-agnostic AI agent CLI - your AI henchman for the terminal"
 readme = "README.md"
 license = "MIT"
@@ -35,6 +35,8 @@ classifiers = [
 
 dependencies = [
     "httpx>=0.27",
+    "httpx2==2.16.0",  # OAuth trace boundary is qualified against this exact HTTP stack.
+    "httpcore2==2.16.0",
     "openai>=1.40",
     "anthropic>=0.40",
     "pydantic>=2.0",
@@ -43,7 +45,9 @@ dependencies = [
     "anyio>=4.0",
     "click>=8.0",
     "pyyaml>=6.0",
-    "mcp>=1.0",
+    "mcp==2.3.0",  # Bounded stdio adapter qualifies pinned SDK process helpers.
+    "jsonschema>=4.23,<5",
+    "referencing>=0.35,<1",
     "aiohttp>=3.9",
     "beautifulsoup4>=4.12",
     "tiktoken>=0.5",
@@ -80,8 +84,8 @@ dev = [
 ]
 
 [project.scripts]
-henchman = "henchman.cli.app:main"
-mlg = "henchman.cli.app:main"
+henchman = "henchman.entrypoint:main"
+mlg = "henchman.entrypoint:main"
 
 [project.urls]
 Homepage = "https://github.com/mlg151/henchman-ai"

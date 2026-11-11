@@ -1,13 +1,16 @@
 """Tests for Phase 1 Textual TUI improvements."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+from textual.widgets import TabbedContent, TabPane
 
 from henchman.cli.textual_app import (
     HenchmanTextualApp,
     TextualConfig,
 )
+from henchman.cli.textual_widgets import HenchmanTextArea
+from henchman.config.schema import Settings
 
 
 class TestTextualPhase1:
@@ -23,7 +26,7 @@ class TestTextualPhase1:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -39,55 +42,16 @@ class TestTextualPhase1:
         )
         return app
 
-    @patch("henchman.cli.textual_app.TabbedContent")
-    @patch("henchman.cli.textual_app.TabPane")
-    @patch("henchman.cli.textual_app.ChatPane")
-    @patch("henchman.cli.textual_app.ThinkingPane")
-    @patch("henchman.cli.textual_app.ToolPane")
-    @patch("henchman.cli.textual_app.Static")
-    @patch("henchman.cli.textual_app.HenchmanTextArea")
-    @patch("henchman.cli.textual_app.StatusBar")
-    @patch("henchman.cli.textual_app.Footer")
-    @patch("henchman.cli.textual_app.Header")
-    def test_tabbed_structure(
-        self,
-        mock_header,
-        mock_footer,
-        mock_status_bar,
-        mock_textarea,
-        mock_static,
-        mock_tool_pane,
-        mock_thinking_pane,
-        mock_chat_pane,
-        mock_tab_pane,
-        mock_tabbed_content,
-        textual_app,
-    ):
-        """Test that the app uses TabbedContent structure."""
-        # Mock the context manager behavior of TabbedContent and TabPane
-        mock_tabbed_content.return_value.__enter__.return_value = MagicMock()
-        mock_tab_pane.return_value.__enter__.return_value = MagicMock()
-
-        # Execute compose
-        list(textual_app.compose())
-
-        # Verify TabbedContent was used
-        mock_tabbed_content.assert_called_once()
-
-        # Verify HenchmanTextArea was used for input
-        mock_textarea.assert_called()
-        # Verify the ID was set to 'input' in one of the calls
-        input_call = [
-            call
-            for call in mock_textarea.call_args_list
-            if "id='input'" in str(call) or "id" in call.kwargs and call.kwargs["id"] == "input"
-        ]
-        assert input_call, "HenchmanTextArea with id='input' not found"
-
-    def test_textarea_input(self, textual_app):
-        """Test that Input is replaced by TextArea."""
-        # This is covered by test_tabbed_structure now via mocking
-        pass
+    async def test_tabbed_structure(self, textual_app):
+        """Mount the actual tabs, navigation, and multiline composer."""
+        async with textual_app.run_test() as pilot:
+            await pilot.pause()
+            tabs = textual_app.query_one(TabbedContent)
+            assert [pane.id for pane in tabs.query(TabPane)] == [
+                "tab-chat", "tab-thinking", "tab-tools", "tab-context", "tab-workspace",
+            ]
+            assert textual_app.query_one("#input", HenchmanTextArea).has_focus
+            assert textual_app.query_one("#chat-navigation").parent.id == "tab-chat"
 
     def test_history_navigation_init(self, textual_app):
         """Test history navigation initialization."""

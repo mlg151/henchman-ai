@@ -1,0 +1,2985 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-11-08",
+  "audit_at_utc": "2026-11-08T06:12:47.715183+00:00",
+  "title": "Native VTE synthetic key-to-sampled-pixels baseline v1",
+  "verdict": "MEASUREMENTS_COMPLETE_CRITERIA_NOT_MET",
+  "qualification": {
+    "issue_qualification": false,
+    "release_qualification": false,
+    "model_calls": 0,
+    "hosted_calls": 0,
+    "measurement_rerun_during_publication": false
+  },
+  "source_commit": "06828897485caad09899606e98d8318d0ff9c715",
+  "source_tracked_clean_at_audit": true,
+  "original_artifact_root": "/home/matthew/.cache/henchman-release-qualification/vte-latency-v1",
+  "original_cohort_manifest_sha256": "eb6e1c3a737f3fb2c38b137b71a56b7533c65059af2c92dd3953e84df099f0eb",
+  "original_cohort_results_sha256": "c37fffdee0eb42b6a39de61e757a4696445de30fb3c71d4d6948295cb1942329",
+  "frozen_cohort_manifest": {
+    "version": 1,
+    "frozen_at_utc": "2026-11-08T05:58:05Z",
+    "source_commit": "06828897485caad09899606e98d8318d0ff9c715",
+    "source_tracked_clean": true,
+    "harness": {
+      "measure.py": "74383732dde7f6efabe8ecf904100223a3b328d8337bcaeedea1306a911facc9",
+      "probe_app.py": "65bbe0570f56bd0f222a20cf381293238c999861183ef5bb4376ce618a74df96",
+      "run_measure.py": "b59ae6b7b803add2ba424c4dd994f35b2fe9fa18cc6b7985d135979804ee70a6"
+    },
+    "scenarios": [
+      [
+        80,
+        24,
+        40
+      ],
+      [
+        80,
+        24,
+        1000
+      ],
+      [
+        120,
+        40,
+        1000
+      ],
+      [
+        120,
+        40,
+        40
+      ],
+      [
+        160,
+        50,
+        40
+      ],
+      [
+        160,
+        50,
+        1000
+      ]
+    ],
+    "fixed_trials_per_scenario": {
+      "input": 20,
+      "cancel": 20
+    },
+    "p95_method": "nearest rank,ceil(.95*n),no missing or failed observation excluded",
+    "criteria": {
+      "input_ms_less_than": 100,
+      "cancel_ms_less_than": 250
+    },
+    "calibration": "One typed glyph and one cancelled blocked worker per fresh process; excluded, semantic screen text and pixel difference required",
+    "setup": "Existing VTE0.84.0/Gtk3.24.52 and Xvfb software virtual display; child production UI controls with service-free fixture,40or1000history,1s cancellation cleanup",
+    "excluded_prototypes": [
+      "smoke",
+      "smoke2",
+      "prototype-80x24-40",
+      "prototype2-80x24-40",
+      "prototype3-80x24-40"
+    ],
+    "host": {
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+      "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+      "logical_cpus": 56,
+      "meminfo_kb": 129111432,
+      "load_at_freeze": [
+        6.19189453125,
+        4.8408203125,
+        4.47509765625
+      ]
+    },
+    "notes": [
+      "Shared host; frozen source suite and development verification run concurrently",
+      "Synthetic key-command start includes process/X11/sampling overhead; physical monitor and AT not qualified",
+      "All six scenarios retained even if incomplete; no replacement or best-of"
+    ]
+  },
+  "frozen_cohort_results": [
+    {
+      "name": "cohort-0-80x24-40",
+      "exit_code": 0,
+      "elapsed_seconds": 30.105116290971637,
+      "load": [
+        6.1806640625,
+        5.0615234375,
+        4.57080078125
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 32.924386,
+        "max_ms": 33.512361,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 136.317913,
+        "max_ms": 138.250351,
+        "criterion_ms": 250,
+        "criterion_passed": true
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "6beac5a48bfcb113e2af7eca5234c56d5759998b311384e3383077aa50e47d54"
+    },
+    {
+      "name": "cohort-1-80x24-1000",
+      "exit_code": 0,
+      "elapsed_seconds": 37.29801678995136,
+      "load": [
+        5.74609375,
+        5.0966796875,
+        4.6025390625
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 36.984835,
+        "max_ms": 38.101769,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 372.766001,
+        "max_ms": 393.273011,
+        "criterion_ms": 250,
+        "criterion_passed": false
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "e854e50f4ddb3458468effd75df749e217e0b3996bcac3fa98efd1604e0b9c42"
+    },
+    {
+      "name": "cohort-2-120x40-1000",
+      "exit_code": 0,
+      "elapsed_seconds": 38.9511865079985,
+      "load": [
+        6.40869140625,
+        5.3388671875,
+        4.70556640625
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 34.834246,
+        "max_ms": 109.855469,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 534.107502,
+        "max_ms": 549.762647,
+        "criterion_ms": 250,
+        "criterion_passed": false
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "dfd4b8c3c6a536696e456c70b2834862f45a9ac49ffffa7e666a8cd164ba8f5b"
+    },
+    {
+      "name": "cohort-3-120x40-40",
+      "exit_code": 0,
+      "elapsed_seconds": 31.042545982985757,
+      "load": [
+        10.81591796875,
+        6.5048828125,
+        5.11328125
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 33.870962,
+        "max_ms": 40.540409,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 148.480757,
+        "max_ms": 227.740803,
+        "criterion_ms": 250,
+        "criterion_passed": true
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "cac02c17cf6245eb0f93dc312e1250d2a36b2f788ee0e203d3488c5485922967"
+    },
+    {
+      "name": "cohort-4-160x50-40",
+      "exit_code": 0,
+      "elapsed_seconds": 31.77721410995582,
+      "load": [
+        8.27587890625,
+        6.36376953125,
+        5.1181640625
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 42.531839,
+        "max_ms": 45.718922,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 150.260725,
+        "max_ms": 152.48624,
+        "criterion_ms": 250,
+        "criterion_passed": true
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "71ded572217d60934b024ec63cf7b9443647ebe7541873b110675e0784209cea"
+    },
+    {
+      "name": "cohort-5-160x50-1000",
+      "exit_code": 0,
+      "elapsed_seconds": 37.952046252030414,
+      "load": [
+        6.76708984375,
+        6.19580078125,
+        5.107421875
+      ],
+      "status": "COMPLETE",
+      "input_summary": {
+        "denominator": 20,
+        "p95_ms": 48.841419,
+        "max_ms": 49.15455,
+        "criterion_ms": 100,
+        "criterion_passed": true
+      },
+      "cancel_summary": {
+        "denominator": 20,
+        "p95_ms": 486.99768,
+        "max_ms": 536.21245,
+        "criterion_ms": 250,
+        "criterion_passed": false
+      },
+      "error": null,
+      "app_joined": true,
+      "receipt_sha256": "7c3d840548bc5736f10226420a22d453c20ccf0e97987d0225821c9ddbe6c333"
+    }
+  ],
+  "validation": {
+    "harness_hashes_verified": 3,
+    "receipt_hashes_verified": 6,
+    "calibration_pixel_hashes_verified": 18,
+    "summaries_independently_recomputed": 12,
+    "supervisor_publications_verified": 6,
+    "original_files_inventoried": 112,
+    "fixed_observations": 240,
+    "input_observations": 120,
+    "cancel_observations": 120,
+    "observation_status_pass": 240,
+    "missing_or_failed_fixed_observations": 0,
+    "per_action_per_scenario": 20,
+    "calibration_actions_excluded": 12,
+    "prototype_directories_excluded": 5,
+    "input_criteria_met": 6,
+    "cancel_criteria_met": 3,
+    "cancel_criteria_failed": 3,
+    "individual_input_observations_at_or_above_100_ms": 1,
+    "individual_cancel_observations_at_or_above_250_ms": 18,
+    "app_joined_scenarios": 6,
+    "xvfb_joined_scenarios": 6
+  },
+  "semantics": {
+    "observation_status_PASS": "The required semantic terminal text and calibrated native pixels were observed. This is not a latency-threshold result.",
+    "exit_code_0": "Measurement completed and the app was joined; it does not require p95 criteria to pass. Supervisor final publication also follows joined Xvfb shutdown.",
+    "p95": "Nearest-rank order statistic ceil(0.95*20)=19; strict p95 <100 ms input and <250 ms cancellation. No missing/failed observation excluded or replaced.",
+    "timing": "monotonic_ns immediately before launching xdotool to first matching semantic text and native sampled pixels after GTK event processing; includes command launch, X11 delivery, processing and sampling overhead. Upper-bound observation, not an instrumented paint timestamp or physical input/display latency.",
+    "cancel": "First visible Cancelling acknowledgement; joined_cleanup_ms is separate and includes the scripted 1-second worker cleanup delay.",
+    "sampling": "One fresh app/VTE/Xvfb scenario per initial history/viewport; 20 sequential input observations followed by 20 sequential cancellation observations. Within-scenario observations are not independent fresh processes; submitted cancellation turns may grow the transcript.",
+    "history": "40-message fixture includes Unicode and long paths; 1000-message fixture uses numbered readable-text messages. These are distinct scripted initial workloads, not a controlled history-length-only causal comparison.",
+    "host_memory": "129111432 KiB from frozen manifest, approximately 123.13025665283203 GiB host RAM; no application memory or 16 GiB device qualification."
+  },
+  "environment_limits": [
+    "Shared Linux Xeon Gold 6132 host, 56 logical CPUs, no CPU affinity/load isolation; concurrent verification was recorded.",
+    "Native VTE 0.84.0 / GTK 3.24.52; Xvfb software virtual display, Monospace 12, 10x19 pixels per cell.",
+    "LIBGL_ALWAYS_SOFTWARE=1 and GALLIUM_DRIVER=llvmpipe; Xvfb logs retain permission-denied /dev/dri warnings, not GPU qualification.",
+    "No physical monitor/input-device, Windows/macOS, AT/screen-reader, remote terminal, IME or clipboard qualification.",
+    "No model/provider/network performance, local-model usefulness, or 16 GiB memory qualification.",
+    "Only 20 samples per action/case; descriptive baseline, no confidence interval or causal optimization claim.",
+    "Historical harness copies retain host-specific paths and pre-existing style findings; repointing creates new harness hashes."
+  ],
+  "next_gap": "Attribute long-history acknowledgement delay across app rendering, terminal processing and measurement overhead, then evaluate a separately frozen candidate with the same retained protocol; this baseline alone does not establish the cause or qualify an issue/release.",
+  "harness_publication": {
+    "directory": "evals/vte_latency_v1",
+    "files": {
+      "measure.py": "74383732dde7f6efabe8ecf904100223a3b328d8337bcaeedea1306a911facc9",
+      "probe_app.py": "65bbe0570f56bd0f222a20cf381293238c999861183ef5bb4376ce618a74df96",
+      "run_measure.py": "b59ae6b7b803add2ba424c4dd994f35b2fe9fa18cc6b7985d135979804ee70a6"
+    },
+    "copy_mode": "Exact bytes of the three scripts named by the executed frozen manifest",
+    "historical_app_python": "/home/matthew/mlg-cli/.venv/bin/python",
+    "historical_gi_python": "/usr/bin/python3",
+    "historical_source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+    "preexisting_ruff_findings": {
+      "measure.py": [
+        "I001",
+        "E402",
+        "SIM105"
+      ],
+      "probe_app.py": [
+        "I001"
+      ],
+      "run_measure.py": []
+    }
+  },
+  "excluded_prototypes": [
+    {
+      "name": "smoke",
+      "included_in_fixed_denominator": false,
+      "reason": "Pre-freeze setup/prototype, explicitly excluded in the frozen cohort manifest.",
+      "status": "NO_COHORT_RECEIPT",
+      "error": null
+    },
+    {
+      "name": "smoke2",
+      "included_in_fixed_denominator": false,
+      "reason": "Pre-freeze setup/prototype, explicitly excluded in the frozen cohort manifest.",
+      "status": "NO_COHORT_RECEIPT",
+      "error": null
+    },
+    {
+      "name": "prototype-80x24-40",
+      "included_in_fixed_denominator": false,
+      "reason": "Pre-freeze setup/prototype, explicitly excluded in the frozen cohort manifest.",
+      "receipt_sha256": "48ddbaf2963319cf1863ae4d9fccfe6979357924656104bc81915566c79c6251",
+      "status": "INCOMPLETE",
+      "error": "TimeoutError: Required observation not available",
+      "app_joined": true
+    },
+    {
+      "name": "prototype2-80x24-40",
+      "included_in_fixed_denominator": false,
+      "reason": "Pre-freeze setup/prototype, explicitly excluded in the frozen cohort manifest.",
+      "receipt_sha256": "c434a506b26e440cc0ad1eb8b8628453d61a1c77e64c1a5648d9a175ac7ebc38",
+      "status": "INCOMPLETE",
+      "error": "TimeoutError: Required observation not available",
+      "app_joined": true
+    },
+    {
+      "name": "prototype3-80x24-40",
+      "included_in_fixed_denominator": false,
+      "reason": "Pre-freeze setup/prototype, explicitly excluded in the frozen cohort manifest.",
+      "receipt_sha256": "b4cf6ac2bf5fe116d356446fe167d995f0d389d1db22c40ecc08ee3918524d5f",
+      "status": "COMPLETE",
+      "error": null,
+      "app_joined": true
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "cohort-0-80x24-40",
+      "original_receipt_sha256": "6beac5a48bfcb113e2af7eca5234c56d5759998b311384e3383077aa50e47d54",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.803296
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.749393
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 31.87415
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 32.10637
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.395669
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.509103
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 31.883843
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 32.228012
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 32.924386
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 32.500949
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 32.197911
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 32.373585
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.565957
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 32.188715
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 33.512361
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 32.774159
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.673416
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.198334
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 30.690037
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 32.426931
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 119.288862,
+            "joined_cleanup_ms": 1126.199803
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 119.823635,
+            "joined_cleanup_ms": 1130.002555
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 124.915669,
+            "joined_cleanup_ms": 1133.409182
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 128.96513,
+            "joined_cleanup_ms": 1135.984514
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 131.14791,
+            "joined_cleanup_ms": 1136.635768
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 130.600578,
+            "joined_cleanup_ms": 1139.18237
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 133.76763,
+            "joined_cleanup_ms": 1139.465647
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 138.250351,
+            "joined_cleanup_ms": 1131.021362
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 125.381512,
+            "joined_cleanup_ms": 1134.120214
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 119.903438,
+            "joined_cleanup_ms": 1132.893003
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 131.475532,
+            "joined_cleanup_ms": 1142.912286
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 126.633691,
+            "joined_cleanup_ms": 1135.559506
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 126.465556,
+            "joined_cleanup_ms": 1135.906521
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 128.04152,
+            "joined_cleanup_ms": 1132.684095
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 122.182331,
+            "joined_cleanup_ms": 1131.69644
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 128.946481,
+            "joined_cleanup_ms": 1137.256219
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 130.670999,
+            "joined_cleanup_ms": 1135.55333
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 136.317913,
+            "joined_cleanup_ms": 1133.062016
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 123.293399,
+            "joined_cleanup_ms": 1135.743394
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 119.364496,
+            "joined_cleanup_ms": 1131.181611
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 32.924386,
+          "max_ms": 33.512361,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 136.317913,
+          "max_ms": 138.250351,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 32.924386,
+          "max_ms": 33.512361,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 136.317913,
+          "max_ms": 138.250351,
+          "criterion_ms": 250,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    },
+    {
+      "name": "cohort-1-80x24-1000",
+      "original_receipt_sha256": "e854e50f4ddb3458468effd75df749e217e0b3996bcac3fa98efd1604e0b9c42",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.24822
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.552299
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 33.466369
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 25.630528
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.856283
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.244004
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.58594
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 38.101769
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 36.984835
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 32.277612
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 28.113138
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 28.891691
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 29.523888
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 29.272976
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 27.021483
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 31.100233
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 24.959481
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 31.119564
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 33.003586
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 31.084812
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 372.766001,
+            "joined_cleanup_ms": 1335.489927
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 207.247504,
+            "joined_cleanup_ms": 1203.053674
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 296.600627,
+            "joined_cleanup_ms": 1307.419753
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 179.874236,
+            "joined_cleanup_ms": 1173.378009
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 183.381492,
+            "joined_cleanup_ms": 1178.635954
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 173.659811,
+            "joined_cleanup_ms": 1175.175482
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 182.029568,
+            "joined_cleanup_ms": 1234.109413
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 201.213758,
+            "joined_cleanup_ms": 1195.146776
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 201.293431,
+            "joined_cleanup_ms": 1178.064293
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 187.755419,
+            "joined_cleanup_ms": 1181.53199
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 200.573295,
+            "joined_cleanup_ms": 1198.076426
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 369.071697,
+            "joined_cleanup_ms": 1364.764643
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 188.056769,
+            "joined_cleanup_ms": 1176.852015
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 367.837602,
+            "joined_cleanup_ms": 1367.756896
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 196.465191,
+            "joined_cleanup_ms": 1201.020138
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 393.273011,
+            "joined_cleanup_ms": 1410.824594
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 194.493653,
+            "joined_cleanup_ms": 1187.203276
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 179.872069,
+            "joined_cleanup_ms": 1175.806865
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 171.901646,
+            "joined_cleanup_ms": 1166.790489
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 203.681657,
+            "joined_cleanup_ms": 1182.601123
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 36.984835,
+          "max_ms": 38.101769,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 372.766001,
+          "max_ms": 393.273011,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 36.984835,
+          "max_ms": 38.101769,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 372.766001,
+          "max_ms": 393.273011,
+          "criterion_ms": 250,
+          "criterion_passed": false,
+          "observations_at_or_above_criterion": 5
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    },
+    {
+      "name": "cohort-2-120x40-1000",
+      "original_receipt_sha256": "dfd4b8c3c6a536696e456c70b2834862f45a9ac49ffffa7e666a8cd164ba8f5b",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.129903
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.949622
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 31.752334
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 33.429174
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 31.843038
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.301289
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 31.044819
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 33.152077
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 28.89205
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 109.855469
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 34.834246
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 34.689794
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.54011
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 29.258586
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.011866
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 31.146293
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 30.698379
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 26.770653
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 33.117982
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 34.12494
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 202.526156,
+            "joined_cleanup_ms": 1203.434388
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 457.703237,
+            "joined_cleanup_ms": 1399.072622
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 246.166971,
+            "joined_cleanup_ms": 1247.712527
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 549.762647,
+            "joined_cleanup_ms": 1468.770259
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 212.742039,
+            "joined_cleanup_ms": 1214.112911
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 220.999878,
+            "joined_cleanup_ms": 1218.52999
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 465.824453,
+            "joined_cleanup_ms": 1168.346777
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 237.912446,
+            "joined_cleanup_ms": 1225.624626
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 534.107502,
+            "joined_cleanup_ms": 1532.820622
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 200.159891,
+            "joined_cleanup_ms": 1158.958954
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 415.226571,
+            "joined_cleanup_ms": 1397.57821
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 207.674631,
+            "joined_cleanup_ms": 1161.198597
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 193.911026,
+            "joined_cleanup_ms": 1162.786495
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 454.317067,
+            "joined_cleanup_ms": 1170.187615
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 222.222181,
+            "joined_cleanup_ms": 1215.363009
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 205.032967,
+            "joined_cleanup_ms": 1165.00534
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 209.144977,
+            "joined_cleanup_ms": 1263.532065
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 228.259326,
+            "joined_cleanup_ms": 1209.684646
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 442.146068,
+            "joined_cleanup_ms": 1422.77235
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 225.088912,
+            "joined_cleanup_ms": 1210.411505
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 34.834246,
+          "max_ms": 109.855469,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 534.107502,
+          "max_ms": 549.762647,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 34.834246,
+          "max_ms": 109.855469,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 1
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 534.107502,
+          "max_ms": 549.762647,
+          "criterion_ms": 250,
+          "criterion_passed": false,
+          "observations_at_or_above_criterion": 7
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    },
+    {
+      "name": "cohort-3-120x40-40",
+      "original_receipt_sha256": "cac02c17cf6245eb0f93dc312e1250d2a36b2f788ee0e203d3488c5485922967",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.990379
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 30.059743
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 32.519283
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 29.829018
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 33.870962
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 31.030727
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.320748
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 31.278896
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 30.777294
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 24.49061
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 31.103729
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 31.340038
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 30.390562
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 32.688059
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 31.326461
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 24.72824
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 30.975692
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 29.276863
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 40.540409
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 30.4362
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 141.28034,
+            "joined_cleanup_ms": 1145.033371
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 135.726572,
+            "joined_cleanup_ms": 1135.040955
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 126.556614,
+            "joined_cleanup_ms": 1135.154785
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 135.825872,
+            "joined_cleanup_ms": 1132.143957
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 138.269929,
+            "joined_cleanup_ms": 1134.168739
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 146.930035,
+            "joined_cleanup_ms": 1133.407963
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 139.942302,
+            "joined_cleanup_ms": 1137.311822
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 123.225643,
+            "joined_cleanup_ms": 1135.36672
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 124.674969,
+            "joined_cleanup_ms": 1132.123923
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 133.71485,
+            "joined_cleanup_ms": 1135.504209
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 129.797488,
+            "joined_cleanup_ms": 1147.567054
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 130.244098,
+            "joined_cleanup_ms": 1135.878917
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 140.919194,
+            "joined_cleanup_ms": 1137.031033
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 148.480757,
+            "joined_cleanup_ms": 1166.481945
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 227.740803,
+            "joined_cleanup_ms": 1193.75321
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 129.589275,
+            "joined_cleanup_ms": 1138.609206
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 132.071006,
+            "joined_cleanup_ms": 1141.336247
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 140.818238,
+            "joined_cleanup_ms": 1141.170392
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 135.119853,
+            "joined_cleanup_ms": 1148.764402
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 128.669495,
+            "joined_cleanup_ms": 1140.16418
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 33.870962,
+          "max_ms": 40.540409,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 148.480757,
+          "max_ms": 227.740803,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 33.870962,
+          "max_ms": 40.540409,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 148.480757,
+          "max_ms": 227.740803,
+          "criterion_ms": 250,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    },
+    {
+      "name": "cohort-4-160x50-40",
+      "original_receipt_sha256": "71ded572217d60934b024ec63cf7b9443647ebe7541873b110675e0784209cea",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 45.718922
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 27.463318
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 27.823343
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 32.949959
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.78634
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 31.016878
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 31.309294
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 31.119742
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 31.915415
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 31.696507
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 29.21216
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 33.126579
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 42.531839
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 30.349308
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 30.178864
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 31.659883
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.130498
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 33.833727
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 31.757615
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 30.474598
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 144.349506,
+            "joined_cleanup_ms": 1142.007352
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 135.065961,
+            "joined_cleanup_ms": 1140.780137
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 136.211151,
+            "joined_cleanup_ms": 1145.603567
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 134.61073,
+            "joined_cleanup_ms": 1139.909629
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 149.103022,
+            "joined_cleanup_ms": 1148.322834
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 143.930403,
+            "joined_cleanup_ms": 1152.620373
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 132.359371,
+            "joined_cleanup_ms": 1139.631141
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 139.164158,
+            "joined_cleanup_ms": 1148.064087
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 135.547772,
+            "joined_cleanup_ms": 1134.177801
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 138.17131,
+            "joined_cleanup_ms": 1145.666598
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 141.99963,
+            "joined_cleanup_ms": 1153.029165
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 147.345414,
+            "joined_cleanup_ms": 1155.751438
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 131.493099,
+            "joined_cleanup_ms": 1138.916597
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 140.727043,
+            "joined_cleanup_ms": 1147.214082
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 124.658749,
+            "joined_cleanup_ms": 1141.10832
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 127.991104,
+            "joined_cleanup_ms": 1139.175465
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 141.336076,
+            "joined_cleanup_ms": 1152.178313
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 142.875817,
+            "joined_cleanup_ms": 1154.057001
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 150.260725,
+            "joined_cleanup_ms": 1142.273134
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 152.48624,
+            "joined_cleanup_ms": 1179.529798
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 42.531839,
+          "max_ms": 45.718922,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 150.260725,
+          "max_ms": 152.48624,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 42.531839,
+          "max_ms": 45.718922,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 150.260725,
+          "max_ms": 152.48624,
+          "criterion_ms": 250,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    },
+    {
+      "name": "cohort-5-160x50-1000",
+      "original_receipt_sha256": "7c3d840548bc5736f10226420a22d453c20ccf0e97987d0225821c9ddbe6c333",
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling…                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 35.396304
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.114786
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 29.193334
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 33.496136
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 36.356085
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.825321
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 37.111283
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 30.125606
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 31.940459
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 31.785014
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 34.086084
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 33.822845
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 34.697333
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 31.339993
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 31.688736
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 31.864925
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 49.15455
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 36.7057
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 35.522459
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 48.841419
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 232.744003,
+            "joined_cleanup_ms": 1214.176157
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 360.95346,
+            "joined_cleanup_ms": 1320.760411
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 207.993086,
+            "joined_cleanup_ms": 1211.169896
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 216.587848,
+            "joined_cleanup_ms": 1224.304375
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 205.313892,
+            "joined_cleanup_ms": 1184.966069
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 189.269291,
+            "joined_cleanup_ms": 1182.799805
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 193.419938,
+            "joined_cleanup_ms": 1166.917285
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 163.528128,
+            "joined_cleanup_ms": 1168.974001
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 338.183742,
+            "joined_cleanup_ms": 1325.865065
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 196.726832,
+            "joined_cleanup_ms": 1209.058942
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 337.453071,
+            "joined_cleanup_ms": 1347.274559
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 233.898564,
+            "joined_cleanup_ms": 1168.857624
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 213.704078,
+            "joined_cleanup_ms": 1202.991684
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 186.488354,
+            "joined_cleanup_ms": 1180.208052
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 185.717512,
+            "joined_cleanup_ms": 1175.433712
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 359.195495,
+            "joined_cleanup_ms": 1349.861004
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 185.537953,
+            "joined_cleanup_ms": 1160.767641
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 536.21245,
+            "joined_cleanup_ms": 1480.845619
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 229.312367,
+            "joined_cleanup_ms": 1197.705299
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 486.99768,
+            "joined_cleanup_ms": 1438.02185
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 48.841419,
+          "max_ms": 49.15455,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 486.99768,
+          "max_ms": 536.21245,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "recomputed": {
+        "input": {
+          "denominator": 20,
+          "p95_ms": 48.841419,
+          "max_ms": 49.15455,
+          "criterion_ms": 100,
+          "criterion_passed": true,
+          "observations_at_or_above_criterion": 0
+        },
+        "cancel": {
+          "denominator": 20,
+          "p95_ms": 486.99768,
+          "max_ms": 536.21245,
+          "criterion_ms": 250,
+          "criterion_passed": false,
+          "observations_at_or_above_criterion": 6
+        }
+      },
+      "calibration_hash_verification": [
+        {
+          "receipt_field": "calibration.input.target_sha256",
+          "image": "calibration-input.png",
+          "rgb_crop_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.cancel.target_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a",
+          "verified": true
+        },
+        {
+          "receipt_field": "calibration.input.empty_sha256",
+          "image": "calibration-cancel.png",
+          "rgb_crop_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496",
+          "verified": true
+        }
+      ],
+      "xvfb_join_evidence": "Supervisor published its final receipt only after server.wait(timeout=5) returned; publication matches the receipt and exit_code is 0."
+    }
+  ],
+  "original_artifact_inventory": [
+    {
+      "path": "cohort-0-80x24-40/app-ready.json",
+      "bytes": 116,
+      "sha256": "fd8795ba75cc9dd9b832234eec618bef04a156c2eefbceac66622e1b01235dca"
+    },
+    {
+      "path": "cohort-0-80x24-40/calibration-cancel.png",
+      "bytes": 25125,
+      "sha256": "3c6fda9c5db2da1cf539b92c40949adeb20343800722e309a4d1206bd2a34acf"
+    },
+    {
+      "path": "cohort-0-80x24-40/calibration-input.png",
+      "bytes": 27370,
+      "sha256": "ffb61af3c4b914e4519687aaab4e2a3dbdda08034f4ed0000b5c15ce28e2ef4e"
+    },
+    {
+      "path": "cohort-0-80x24-40/owned-child.json",
+      "bytes": 37,
+      "sha256": "3d71952021bedbee935d1385a40e36046881dc4f6d912bdd38a519aad07b2d13"
+    },
+    {
+      "path": "cohort-0-80x24-40/receipt.json",
+      "bytes": 6079,
+      "sha256": "6beac5a48bfcb113e2af7eca5234c56d5759998b311384e3383077aa50e47d54"
+    },
+    {
+      "path": "cohort-0-80x24-40/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "3cec4f3dbf4462c86f30a8e34c8aacaf0827fd9ba338cc0edb40617864ef5250"
+    },
+    {
+      "path": "cohort-0-80x24-40/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-0-80x24-40/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-0-80x24-40-supervisor.log",
+      "bytes": 1040,
+      "sha256": "bf450913e56c41dd9d7633abb4dccee00915519593ab0af9873507a08cf4d14e"
+    },
+    {
+      "path": "cohort-0-80x24-40-xvfb.log",
+      "bytes": 132,
+      "sha256": "bcbdefb94a35a35b3a44ef90dceb363464f37c69d9721c282943c5746736b425"
+    },
+    {
+      "path": "cohort-0-80x24-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-1-80x24-1000/app-ready.json",
+      "bytes": 116,
+      "sha256": "c5ff099fa9cddf9d754143b8966971cdbfc07faeb61d0d729aabe3b240165fc8"
+    },
+    {
+      "path": "cohort-1-80x24-1000/calibration-cancel.png",
+      "bytes": 23621,
+      "sha256": "7ac52e5517783ad74e669eb62b62147d58a2a1ad6a8a42478eb550cffd8b7c3e"
+    },
+    {
+      "path": "cohort-1-80x24-1000/calibration-input.png",
+      "bytes": 25187,
+      "sha256": "dd80a001a53920c6714b308f00f2b18f44193101fedf5ea59ed296a0521d1f12"
+    },
+    {
+      "path": "cohort-1-80x24-1000/owned-child.json",
+      "bytes": 37,
+      "sha256": "346f242041bd216d3d0ae1e6554a06e6d9b77f09bd66335833ea6ff160d50a57"
+    },
+    {
+      "path": "cohort-1-80x24-1000/receipt.json",
+      "bytes": 6088,
+      "sha256": "e854e50f4ddb3458468effd75df749e217e0b3996bcac3fa98efd1604e0b9c42"
+    },
+    {
+      "path": "cohort-1-80x24-1000/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "526f9e4f8d10dedb33a94a75cbb6beb0eea8322a73e993b9a2d2fd82dbc179fb"
+    },
+    {
+      "path": "cohort-1-80x24-1000/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-1-80x24-1000/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-1-80x24-1000-supervisor.log",
+      "bytes": 1043,
+      "sha256": "bbcde8d64f92baac072c3295c54129ba1e7352a4e0330e802d2e82028ebd2937"
+    },
+    {
+      "path": "cohort-1-80x24-1000-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "cohort-1-80x24-1000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-2-120x40-1000/app-ready.json",
+      "bytes": 119,
+      "sha256": "4f714f2e4651e0be2855b1498ac5472ac25a0579b76195c6da940451d0c9b88d"
+    },
+    {
+      "path": "cohort-2-120x40-1000/calibration-cancel.png",
+      "bytes": 40373,
+      "sha256": "4851f48675e6bd824c65a0ab40d4ec4335ede956a940ccc1e9ad863c60b80a3b"
+    },
+    {
+      "path": "cohort-2-120x40-1000/calibration-input.png",
+      "bytes": 41044,
+      "sha256": "1cbe456ccb957e22b87d4cefbc889538227adff8af89784b83d8a3b8608ec55d"
+    },
+    {
+      "path": "cohort-2-120x40-1000/owned-child.json",
+      "bytes": 37,
+      "sha256": "20177bbea084b5e42a156925e2592d6314f603388bd83e22fca75cbec28c3c0b"
+    },
+    {
+      "path": "cohort-2-120x40-1000/receipt.json",
+      "bytes": 6127,
+      "sha256": "dfd4b8c3c6a536696e456c70b2834862f45a9ac49ffffa7e666a8cd164ba8f5b"
+    },
+    {
+      "path": "cohort-2-120x40-1000/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "61992203d5ba138e17ee6465692b9335ed2ef9ebfed8b0b40f6611236b9ee1f7"
+    },
+    {
+      "path": "cohort-2-120x40-1000/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-2-120x40-1000/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-2-120x40-1000-supervisor.log",
+      "bytes": 1045,
+      "sha256": "4baecd109eb8bc36e6c2a9d957ac7ee771d2b67251e6bbd80a1ea9088ed9bad0"
+    },
+    {
+      "path": "cohort-2-120x40-1000-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "cohort-2-120x40-1000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-3-120x40-40/app-ready.json",
+      "bytes": 119,
+      "sha256": "2580b43b027ac6c18be15ea8fa21439729e47ef499c72a24bfa751a94dd9054f"
+    },
+    {
+      "path": "cohort-3-120x40-40/calibration-cancel.png",
+      "bytes": 49622,
+      "sha256": "f67fd43c316cca60122b2103d1755c8fa6bcb6393f537d8fff0001906fe6cfa8"
+    },
+    {
+      "path": "cohort-3-120x40-40/calibration-input.png",
+      "bytes": 53771,
+      "sha256": "ccced2eb97c61c67264691786a557c8084f1a1b94a035cdd28f11a9b40853756"
+    },
+    {
+      "path": "cohort-3-120x40-40/owned-child.json",
+      "bytes": 37,
+      "sha256": "e8075e5b17b2b133b665fb42b8da3ea48aecbdba836138ae823ed0ce60a8e0ef"
+    },
+    {
+      "path": "cohort-3-120x40-40/receipt.json",
+      "bytes": 6120,
+      "sha256": "cac02c17cf6245eb0f93dc312e1250d2a36b2f788ee0e203d3488c5485922967"
+    },
+    {
+      "path": "cohort-3-120x40-40/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "168ab232717ff53a8361790d2684d07df19950e01df508050ec09bca1cc1d022"
+    },
+    {
+      "path": "cohort-3-120x40-40/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-3-120x40-40/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-3-120x40-40-supervisor.log",
+      "bytes": 1041,
+      "sha256": "c8d111c908676e1d65ebae712b8c974822796a244722a90664613c2c59361975"
+    },
+    {
+      "path": "cohort-3-120x40-40-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "cohort-3-120x40-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-4-160x50-40/app-ready.json",
+      "bytes": 119,
+      "sha256": "30a039633eeb28e4c6700426785e864b2da351be0ff6b117a5f1917421ff194f"
+    },
+    {
+      "path": "cohort-4-160x50-40/calibration-cancel.png",
+      "bytes": 66868,
+      "sha256": "d0332f1c401527465cde900e0da88d4c738225910394ed34d000d5a1db381b59"
+    },
+    {
+      "path": "cohort-4-160x50-40/calibration-input.png",
+      "bytes": 70991,
+      "sha256": "c9d5ef3e0d2a38ae28c6388e41b399a02ce6476f838409ba219891d9461ebd56"
+    },
+    {
+      "path": "cohort-4-160x50-40/owned-child.json",
+      "bytes": 37,
+      "sha256": "85193b4226e7f3ed1d4c47470f0e59148b5c7387268ec4dcdd54a6314c3d5ee7"
+    },
+    {
+      "path": "cohort-4-160x50-40/receipt.json",
+      "bytes": 6161,
+      "sha256": "71ded572217d60934b024ec63cf7b9443647ebe7541873b110675e0784209cea"
+    },
+    {
+      "path": "cohort-4-160x50-40/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "14b7a018502a8030dad6b30b24a17de16fe3cdffa1e39483bf62eac6728f72cc"
+    },
+    {
+      "path": "cohort-4-160x50-40/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-4-160x50-40/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-4-160x50-40-supervisor.log",
+      "bytes": 1040,
+      "sha256": "1e739b16d11fe62bac90a2f606a71df7568cc30b41e404685c22a8664ee4f122"
+    },
+    {
+      "path": "cohort-4-160x50-40-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "cohort-4-160x50-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-5-160x50-1000/app-ready.json",
+      "bytes": 119,
+      "sha256": "b4f66bd90a0461a3fcbad729dba5c18a9059369ebf9480fa323aec9e2b9a80d8"
+    },
+    {
+      "path": "cohort-5-160x50-1000/calibration-cancel.png",
+      "bytes": 50652,
+      "sha256": "e86fb1176bdf6458c1faea732d27549fb96b4ab2f7e63e5c090ee473292b13dc"
+    },
+    {
+      "path": "cohort-5-160x50-1000/calibration-input.png",
+      "bytes": 49733,
+      "sha256": "5e28b57ce4a9516d5156969d9f3d2c09f8706c6c62c27d1b30429c22fd8e2faa"
+    },
+    {
+      "path": "cohort-5-160x50-1000/owned-child.json",
+      "bytes": 37,
+      "sha256": "fb1c047f8e37a8f2ad89b175851a7bc0a2089105cb59d8c6b3fd6ae6d4695b97"
+    },
+    {
+      "path": "cohort-5-160x50-1000/receipt.json",
+      "bytes": 6162,
+      "sha256": "7c3d840548bc5736f10226420a22d453c20ccf0e97987d0225821c9ddbe6c333"
+    },
+    {
+      "path": "cohort-5-160x50-1000/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "cab0d5395bbd96b9be00721a6d6fdaf1afab37da0301d7924f7993ed2fd0215c"
+    },
+    {
+      "path": "cohort-5-160x50-1000/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-5-160x50-1000/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "cohort-5-160x50-1000-supervisor.log",
+      "bytes": 1041,
+      "sha256": "ce719131264f6bbaf8ad54063e731fb319d756ffd218c09ecca67fa8f6a514df"
+    },
+    {
+      "path": "cohort-5-160x50-1000-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "cohort-5-160x50-1000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cohort-manifest.json",
+      "bytes": 2001,
+      "sha256": "eb6e1c3a737f3fb2c38b137b71a56b7533c65059af2c92dd3953e84df099f0eb"
+    },
+    {
+      "path": "cohort-results.json",
+      "bytes": 4093,
+      "sha256": "c37fffdee0eb42b6a39de61e757a4696445de30fb3c71d4d6948295cb1942329"
+    },
+    {
+      "path": "measure.py",
+      "bytes": 10951,
+      "sha256": "74383732dde7f6efabe8ecf904100223a3b328d8337bcaeedea1306a911facc9"
+    },
+    {
+      "path": "probe_app.py",
+      "bytes": 1738,
+      "sha256": "65bbe0570f56bd0f222a20cf381293238c999861183ef5bb4376ce618a74df96"
+    },
+    {
+      "path": "prototype-80x24-40/app-ready.json",
+      "bytes": 116,
+      "sha256": "906d1c3a4bd3fa24b67908765a9d9d1cc0853337fdcbb1f0b5ac00627c589ab8"
+    },
+    {
+      "path": "prototype-80x24-40/calibration-input.png",
+      "bytes": 27370,
+      "sha256": "ffb61af3c4b914e4519687aaab4e2a3dbdda08034f4ed0000b5c15ce28e2ef4e"
+    },
+    {
+      "path": "prototype-80x24-40/failure.png",
+      "bytes": 24872,
+      "sha256": "298ef3465ccc1b38bd50688b2cc3dff67cc6a99566ca3b29dbecbd577fee5ca1"
+    },
+    {
+      "path": "prototype-80x24-40/owned-child.json",
+      "bytes": 16,
+      "sha256": "ead187714beed85c25ee99c3117c08b688b3e514566dcf69dbdb6a56900d86bc"
+    },
+    {
+      "path": "prototype-80x24-40/receipt.json",
+      "bytes": 4172,
+      "sha256": "48ddbaf2963319cf1863ae4d9fccfe6979357924656104bc81915566c79c6251"
+    },
+    {
+      "path": "prototype-80x24-40/terminal-on-failure.txt",
+      "bytes": 2573,
+      "sha256": "81767378f4f8d384dfa6bd99379946969ffbd7f4b055ebd72f6b11b7be831124"
+    },
+    {
+      "path": "prototype-80x24-40/worker-ready.json",
+      "bytes": 15,
+      "sha256": "2f0dc5a06f9f0d274cce98ca2c805d66669d6cb569001b60c4e751cfdace6fcb"
+    },
+    {
+      "path": "prototype-80x24-40-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "prototype-80x24-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prototype2-80x24-40/app-ready.json",
+      "bytes": 116,
+      "sha256": "01e2cdd8f19d548fe4f8b1b150dbfe940b4f4290932052e77a44b45106fa4d52"
+    },
+    {
+      "path": "prototype2-80x24-40/calibration-cancel.png",
+      "bytes": 25125,
+      "sha256": "3c6fda9c5db2da1cf539b92c40949adeb20343800722e309a4d1206bd2a34acf"
+    },
+    {
+      "path": "prototype2-80x24-40/calibration-input.png",
+      "bytes": 27370,
+      "sha256": "ffb61af3c4b914e4519687aaab4e2a3dbdda08034f4ed0000b5c15ce28e2ef4e"
+    },
+    {
+      "path": "prototype2-80x24-40/failure.png",
+      "bytes": 26114,
+      "sha256": "a4826c7a22ae47e0be68b3cecf22ac12521c20440e2b41eec4fceaa1f11d8035"
+    },
+    {
+      "path": "prototype2-80x24-40/owned-child.json",
+      "bytes": 16,
+      "sha256": "096c2790e153b70042e2293bad068147bae88941c87eb7e98da38ce4922ba91c"
+    },
+    {
+      "path": "prototype2-80x24-40/receipt.json",
+      "bytes": 4463,
+      "sha256": "c434a506b26e440cc0ad1eb8b8628453d61a1c77e64c1a5648d9a175ac7ebc38"
+    },
+    {
+      "path": "prototype2-80x24-40/terminal-on-failure.txt",
+      "bytes": 2576,
+      "sha256": "3ea59794269f731c92d5ba7c3d1d1340007d858bc52573d17c88f5e817982aff"
+    },
+    {
+      "path": "prototype2-80x24-40/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "9d0f82df19cf3f567f20ebecd336e0d128be0093ee3e60ecd9d37e199a640fa3"
+    },
+    {
+      "path": "prototype2-80x24-40/worker-finished.json",
+      "bytes": 24,
+      "sha256": "425cb24901c4e3483b0631e9700fbeefad3b1e245f9666e1fb5ed7935f5320b2"
+    },
+    {
+      "path": "prototype2-80x24-40/worker-ready.json",
+      "bytes": 24,
+      "sha256": "425cb24901c4e3483b0631e9700fbeefad3b1e245f9666e1fb5ed7935f5320b2"
+    },
+    {
+      "path": "prototype2-80x24-40-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "prototype2-80x24-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prototype3-80x24-40/app-ready.json",
+      "bytes": 116,
+      "sha256": "51bd33e68ece297d850d886ab66a6dfb866b16a37a13016fc328da0beb739994"
+    },
+    {
+      "path": "prototype3-80x24-40/calibration-cancel.png",
+      "bytes": 25125,
+      "sha256": "3c6fda9c5db2da1cf539b92c40949adeb20343800722e309a4d1206bd2a34acf"
+    },
+    {
+      "path": "prototype3-80x24-40/calibration-input.png",
+      "bytes": 27370,
+      "sha256": "ffb61af3c4b914e4519687aaab4e2a3dbdda08034f4ed0000b5c15ce28e2ef4e"
+    },
+    {
+      "path": "prototype3-80x24-40/owned-child.json",
+      "bytes": 16,
+      "sha256": "3885c90ed550cb448acee8efa028118dfef08ce2172f577bfa28ee513d2c658c"
+    },
+    {
+      "path": "prototype3-80x24-40/receipt.json",
+      "bytes": 6080,
+      "sha256": "b4cf6ac2bf5fe116d356446fe167d995f0d389d1db22c40ecc08ee3918524d5f"
+    },
+    {
+      "path": "prototype3-80x24-40/worker-cancelling.json",
+      "bytes": 33,
+      "sha256": "236ccd53eb547a9881b5c01a4042880350bfd5b27182ea1559665759e1243df4"
+    },
+    {
+      "path": "prototype3-80x24-40/worker-finished.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "prototype3-80x24-40/worker-ready.json",
+      "bytes": 20,
+      "sha256": "b1255d733bdfaa4863757cfd9e5794d99aa875632dabf291a03083494d23a4d2"
+    },
+    {
+      "path": "prototype3-80x24-40-xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    },
+    {
+      "path": "prototype3-80x24-40.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run_measure.py",
+      "bytes": 2492,
+      "sha256": "b59ae6b7b803add2ba424c4dd994f35b2fe9fa18cc6b7985d135979804ee70a6"
+    },
+    {
+      "path": "smoke/app-ready.json",
+      "bytes": 116,
+      "sha256": "5fe8bf3cb77cc1241baebc196cf048956ea166d11f67264ba3131cbee28a86a5"
+    },
+    {
+      "path": "smoke/terminal.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "smoke.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "smoke2/app-ready.json",
+      "bytes": 116,
+      "sha256": "954d03ede20ca1a910fb9ed30b53b62758ea9aeb0e7754588c815ad3af92ef92"
+    },
+    {
+      "path": "smoke2/smoke.png",
+      "bytes": 26347,
+      "sha256": "493a43dd623396f9c099d62ea3e271174ec320126787ff7aa6d6799a6e202f13"
+    },
+    {
+      "path": "smoke2/terminal.txt",
+      "bytes": 2574,
+      "sha256": "e501ff5485cf4decb7979310cda1566162ced699954aa24dab799801c2998a10"
+    },
+    {
+      "path": "smoke2/vte-ready.json",
+      "bytes": 95,
+      "sha256": "449263753aa2583c0866ec6517872976ef23f4d5831c8664de921a537d40775e"
+    },
+    {
+      "path": "supervise.py",
+      "bytes": 1275,
+      "sha256": "4277b1fcb62decbd030545550909d19081d0269bf37dd03d2a6b9e8656195af2"
+    },
+    {
+      "path": "vte_smoke.py",
+      "bytes": 2673,
+      "sha256": "7be5c2484af6b65ba4cdaf23d322670cd34b849ece9fcf3923a5e133029fb00a"
+    },
+    {
+      "path": "xvfb.log",
+      "bytes": 264,
+      "sha256": "4e6984f169ea0a18bc631729f4bc1b64ce1c02927d534ed788cfd61f0f48c35a"
+    }
+  ]
+}

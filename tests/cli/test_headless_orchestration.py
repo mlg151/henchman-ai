@@ -16,7 +16,12 @@ from henchman.cli import app
 from henchman.config.schema import AgentSettings, Settings
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.file_read import ReadFileTool
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _orchestrator(chunks: list[StreamChunk]) -> Orchestrator:
@@ -29,10 +34,12 @@ def _orchestrator(chunks: list[StreamChunk]) -> Orchestrator:
         yield next(responses)
 
     provider.chat_completion_stream.side_effect = stream
-    return Orchestrator(
+    orch = Orchestrator(
         default_provider=provider,
-        settings=Settings(agents=AgentSettings(max_delegation_retries=0)),
+        settings=Settings(agents=AgentSettings(max_delegation_retries=0, allow_delegation=True)),
     )
+    orch.tool_registry.set_confirmation_handler(_approve)
+    return orch
 
 
 async def test_headless_executes_real_delegation_and_finishes_once() -> None:
@@ -248,6 +255,7 @@ async def test_cancellation_closes_real_provider_without_success() -> None:
 
     provider.chat_completion_stream.side_effect = stream
     orchestrator = Orchestrator(default_provider=provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     repl = SimpleNamespace(orchestrator=orchestrator, agent=orchestrator.tech_lead)
     events: list[AgentEvent] = []
     task = asyncio.create_task(app._run_headless_json_mode(repl, "task", events.append))

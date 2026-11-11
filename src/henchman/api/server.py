@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -10,17 +11,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from henchman.agents.pool import effective_context_budget
 from henchman.api.endpoints import chat, health, remote
+from henchman.api.run_accounting import ApiChatRuns
 from henchman.api.state import state
 from henchman.config import load_settings
 from henchman.core import Agent
 from henchman.ops.rate_limits import RateLimiter
 from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
+from henchman.tools.access_policy import validate_tool_backend
 from henchman.version import VERSION
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Awaitable, Callable
+
+    from henchman.config.schema import Settings
 
 _OPERATIONAL_PROBE_PATHS = frozenset({"/v1/health", "/v1/ready"})
 
@@ -84,6 +90,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     print("Starting Henchman-AI API server...")
 
     state.api_keys = set()
+    state.chat_runs = None
     state.rate_limiter = None  # type: ignore[attr-defined]
     state._rate_limits = {}  # type: ignore[attr-defined]
     try:
@@ -98,15 +105,35 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Create default agent
         try:
+            validate_tool_backend(state.settings.tools)
             provider_name = state.settings.providers.default
             provider = create_configured_provider(
                 state.settings.providers,
                 registry=state.provider_registry,
             )
-            state.agent = Agent(
-                provider=provider,
-                system_prompt="",  # Empty system prompt for API server
-            )
+            startup_root = Path.cwd()
+
+            def create_chat_agent(settings: Settings) -> Agent:
+                context = settings.context
+                agent = Agent(
+                    provider=provider, system_prompt="",
+                    context_window=context.max_tokens,
+                    max_tokens=effective_context_budget(
+                        context.max_tokens, context.compaction_threshold,
+                    ),
+                    auto_compact=context.auto_compact,
+                    intelligent_context=context.intelligent_context,
+                    importance_threshold=context.importance_threshold,
+                    cluster_similarity_threshold=context.cluster_similarity_threshold,
+                    adaptive_compression=context.adaptive_compression,
+                )
+                agent.tool_registry.restrict_tool_settings(
+                    settings.tools, project_root=startup_root,
+                )
+                return agent
+
+            state.agent = create_chat_agent(state.settings)
+            state.chat_runs = ApiChatRuns(state.settings, create_chat_agent)
             print(f"Created agent with provider: {provider_name}")
         except Exception as e:
             print(f"Warning: Failed to create agent: {e}")
@@ -114,6 +141,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
         yield
     finally:
+        state.chat_runs = None
         state.rate_limiter = None  # type: ignore[attr-defined]
         state._rate_limits = {}  # type: ignore[attr-defined]
         print("Shutting down Henchman-AI API server...")
@@ -239,9 +267,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
-            error=exc.detail,
+            error=str(exc.detail.get("error", exc.detail)) if isinstance(exc.detail, dict) else exc.detail,
             code=f"HTTP_{exc.status_code}",
-            details={"path": request.url.path},
+            details={"path": request.url.path, **(exc.detail if isinstance(exc.detail, dict) else {})},
         ).model_dump(),
     )
 

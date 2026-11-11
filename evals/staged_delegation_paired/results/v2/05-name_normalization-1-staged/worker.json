@@ -1,0 +1,84 @@
+{
+  "outcome": "BudgetExceeded",
+  "error": "Run budget prevented dispatch: request_limit",
+  "completion": "failed",
+  "transport_attempts": 12,
+  "transport_errors": [],
+  "elapsed_seconds": 161.652,
+  "client_peak_rss_kib": 228084,
+  "result_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+  "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+  "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+  "prompt_sha256": "bfe8d8ab6237bec850ce06c8dcbab3e6f9fcccd478109c57269163652617b690",
+  "exact_ast": true,
+  "events": [
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "invoke_subagent"
+    },
+    {
+      "event": "result",
+      "tool": "invoke_subagent",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "manage_subagents"
+    },
+    {
+      "event": "result",
+      "tool": "manage_subagents",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "manage_subagents"
+    },
+    {
+      "event": "result",
+      "tool": "manage_subagents",
+      "success": true
+    },
+    {
+      "event": "child",
+      "status": "done"
+    },
+    {
+      "event": "request",
+      "tool": "manage_subagents"
+    },
+    {
+      "event": "result",
+      "tool": "manage_subagents",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "publish_subagent_proposal"
+    },
+    {
+      "event": "result",
+      "tool": "publish_subagent_proposal",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    }
+  ],
+  "events_truncated": false
+}

@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
+from henchman.core.event_evidence import EventEvidenceRedactor, event_data
 from henchman.core.events import EventType
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from henchman.core.events import AgentEvent
@@ -73,13 +75,18 @@ class JsonOutputRenderer:
         {"type": "content", "data": "Hello"}
     """
 
-    def __init__(self: Self, console: Console | None = None) -> None:
+    def __init__(
+        self: Self, console: Console | None = None, *, redactor: EvidenceRedactor | None = None,
+    ) -> None:
         """Initialize the JSON output renderer.
 
         Args:
             console: Rich console for output (optional).
         """
         self.console = console or Console()
+        # Headless execution filters intermediate completions; FINISHED closes
+        # the whole run even when its source is the synthetic orchestrator.
+        self.evidence = EventEvidenceRedactor(redactor or EvidenceRedactor(), finish_all=True)
 
     def render(self: Self, event: AgentEvent) -> None:
         """Render an agent event as JSON (one event per line).
@@ -90,7 +97,20 @@ class JsonOutputRenderer:
         Returns:
             None
         """
-        self.console.print(json.dumps(event_to_dict(event), ensure_ascii=False))
+        for safe_event in self.evidence.project(event):
+            self._print_event(safe_event)
+
+    def _print_event(self, event: AgentEvent) -> None:
+        # Terminal width and emoji aliases must not alter serialized JSON.
+        self.console.print(
+            json.dumps(event_to_dict(event), ensure_ascii=False), markup=False, highlight=False,
+            soft_wrap=True, emoji=False,
+        )
+
+    def flush(self) -> None:
+        """Safely publish buffered prefixes when a run ends or is interrupted."""
+        for event in self.evidence.flush():
+            self._print_event(event)
 
     def render_stream_json(self: Self, event: AgentEvent) -> None:
         """Render an agent event as streaming JSON (one event per line).
@@ -114,8 +134,14 @@ class JsonOutputRenderer:
         Returns:
             None
         """
-        output = [event_to_dict(event) for event in events]
-        self.console.print(json.dumps(output, ensure_ascii=False, indent=2))
+        for event in events:
+            self.evidence.redactor.register_config(event_data(event.data))
+        output = [event_to_dict(safe) for event in events for safe in self.evidence.project(event)]
+        output.extend(event_to_dict(event) for event in self.evidence.flush(interrupted=False))
+        self.console.print(
+            json.dumps(output, ensure_ascii=False, indent=2), markup=False, highlight=False,
+            soft_wrap=True, emoji=False,
+        )
 
     def _event_to_dict(self: Self, event: AgentEvent) -> dict[str, Any]:
         """Convert an agent event to a dictionary.

@@ -88,12 +88,25 @@ jobs:
           uv build --no-sources
           uv run --with twine twine check --strict dist/*
 
+      - name: Qualify the exact wheel and source archive
+        env:
+          RELEASE_MILESTONE: ${{ steps.milestone.outputs.title }}
+        run: uv run --no-project python src/henchman/ops/release.py qualify
+
       - name: Retain exact release distributions
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ steps.version.outputs.version }}-${{ github.event.workflow_run.head_sha }}-attempt-${{ github.run_attempt }}
           path: dist/
           if-no-files-found: error
+
+      - name: Retain release qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-${{ github.event.workflow_run.head_sha }}-attempt-${{ github.run_attempt }}
+          path: release-evidence/
+          if-no-files-found: ignore
 
       - name: Publish distributions using the PYPI configuration secret
         env:
@@ -112,6 +125,28 @@ jobs:
             const crypto = require('crypto');
             const tag = process.env.RELEASE_TAG;
             const sha = context.payload.workflow_run.head_sha;
+            const stem = 'henchman_ai-' + tag.slice(1);
+            const names = [stem + '-py3-none-any.whl', stem + '.tar.gz'];
+            const qualification = JSON.parse(fs.readFileSync('release-evidence/qualification.json', 'utf8'));
+            if (qualification.schema_version !== 1 || qualification.commit !== sha ||
+                qualification.version !== tag.slice(1) ||
+                qualification.profile !== 'installed-wheel-smoke-v1' ||
+                qualification.helper_sha256 !== crypto.createHash('sha256').update(
+                  fs.readFileSync('tests/testing/installed_wheel_smoke.py')).digest('hex') ||
+                Object.keys(qualification.runs || {}).sort().join(',') !== 'sdist,wheel' ||
+                qualification.runs?.wheel?.passed !== true || qualification.runs?.sdist?.passed !== true) {
+              throw new Error('Missing or mismatched release artifact qualification.');
+            }
+            for (const name of names) {
+              const digest = crypto.createHash('sha256').update(fs.readFileSync('dist/' + name)).digest('hex');
+              const kind = name.endsWith('.whl') ? 'wheel' : 'sdist';
+              const run = qualification.runs[kind];
+              if (qualification.artifacts?.[name] !== digest || run.artifact_sha256 !== digest ||
+                  run.python !== '3.12' || !/^[0-9a-f]{64}$/.test(run.installed_wheel_sha256) ||
+                  (kind === 'wheel' && run.installed_wheel_sha256 !== digest)) {
+                throw new Error('Distribution differs from release artifact qualification.');
+              }
+            }
             try {
               const ref = (await github.rest.git.getRef({...context.repo, ref: 'tags/' + tag})).data;
               if (ref.object.sha !== sha) throw new Error('Release tag belongs to another commit.');
@@ -132,9 +167,11 @@ jobs:
             const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
               ...context.repo, release_id: release.id, per_page: 100,
             });
-            const stem = 'henchman_ai-' + tag.slice(1);
-            for (const name of [stem + '-py3-none-any.whl', stem + '.tar.gz']) {
+            for (const name of names) {
               const data = fs.readFileSync('dist/' + name);
+              if (qualification.artifacts[name] !== crypto.createHash('sha256').update(data).digest('hex')) {
+                throw new Error('Distribution changed after release artifact qualification.');
+              }
               const existing = assets.find(asset => asset.name === name);
               if (existing) {
                 const digest = 'sha256:' + crypto.createHash('sha256').update(data).digest('hex');

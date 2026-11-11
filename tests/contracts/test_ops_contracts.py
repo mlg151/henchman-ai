@@ -26,7 +26,7 @@ from henchman.ops.observability import (
 from henchman.ops.rate_limits import ParsedRateLimit, RateLimiter, parse_rate_limit
 from henchman.ops.state import AppStateStore as AppState
 from henchman.ops.store import OpsStore
-from tests.contracts.helpers import assert_contract_matches
+from tests.contracts.helpers import assert_contract_matches, load_contract_schema
 
 
 @pytest.fixture
@@ -162,6 +162,12 @@ class TestObservabilityContract:
             completion_tokens=50,
         )
         summary = service.summary()
+        assert summary["total_cost"] is None
+        assert summary["unknown_cost_events"] == 1
+        assert summary["by_currency"]["USD"] == {
+            "estimated_cost": None, "reported_cost": None, "total_cost": None,
+            "unknown_cost_events": 1,
+        }
 
         assert_contract_matches(
             contract_suite=contract_suite,
@@ -175,12 +181,66 @@ class TestObservabilityContract:
         """CostTrackingService.summary() with no events should still comply."""
         service = CostTrackingService(store=ops_store)
         summary = service.summary()
+        assert summary == {
+            "events": 0, "total_cost": None, "currency": None,
+            "unknown_cost_events": 0, "by_currency": {},
+        }
 
         assert_contract_matches(
             contract_suite=contract_suite,
             payload=summary,
             schema_name="ops/cost_summary",
         )
+
+    @pytest.mark.parametrize("rate,reported,total", [(0, None, 0), (2, 0.25, 0.25)])
+    def test_cost_tracking_priced_summary_matches_contract(
+        self, contract_suite, ops_store: OpsStore, rate: float,
+        reported: float | None, total: float,
+    ) -> None:
+        service = CostTrackingService(store=ops_store)
+        service.record_usage(
+            provider="test", model="test", prompt_tokens=100, completion_tokens=50,
+            cost_per_1k_tokens=rate, reported_cost=reported,
+        )
+        summary = service.summary()
+        assert summary["total_cost"] == total
+        assert summary["by_currency"]["USD"] == {
+            "estimated_cost": 0.15 * rate, "reported_cost": reported,
+            "total_cost": total, "unknown_cost_events": 0,
+        }
+        assert_contract_matches(
+            contract_suite=contract_suite, payload=summary, schema_name="ops/cost_summary",
+        )
+
+    def test_cost_tracking_currencies_remain_separate_in_contract(
+        self, contract_suite, ops_store: OpsStore,
+    ) -> None:
+        service = CostTrackingService(store=ops_store)
+        for currency, cost in (("USD", 0.2), ("EUR", 0.3)):
+            service.record_usage(
+                provider="test", model="test", prompt_tokens=None, completion_tokens=None,
+                reported_cost=cost, currency=currency, usage_source="unknown",
+            )
+        summary = service.summary()
+        assert summary["total_cost"] is None and summary["currency"] is None
+        assert summary["unknown_cost_events"] == 0
+        assert summary["by_currency"]["USD"]["reported_cost"] == 0.2
+        assert summary["by_currency"]["EUR"]["reported_cost"] == 0.3
+        assert_contract_matches(
+            contract_suite=contract_suite, payload=summary, schema_name="ops/cost_summary",
+        )
+
+    @pytest.mark.parametrize("field,value", [
+        ("total_cost", -1), ("total_cost", "free"), ("unknown_cost_events", -1),
+        ("unexpected", 0),
+    ])
+    def test_cost_summary_contract_rejects_invalid_money_or_extra_fields(
+        self, contract_suite, ops_store: OpsStore, field: str, value: object,
+    ) -> None:
+        summary = CostTrackingService(store=ops_store).summary()
+        summary[field] = value
+        errors = contract_suite.validate_json_schema(summary, load_contract_schema("ops/cost_summary"))
+        assert any(field in error for error in errors)
 
     def test_diagnostic_event_matches_contract(
         self, contract_suite: object, ops_store: OpsStore

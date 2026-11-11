@@ -3,8 +3,20 @@
   "title": "Settings",
   "description": "Shape contract for the root Settings model — consumer-facing config contract.",
   "type": "object",
-  "required": ["providers", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
+  "required": ["providers", "usage", "operations", "verification", "tools", "ui", "context", "mcp_servers", "rag", "agents", "api", "chat", "voice"],
   "properties": {
+    "verification": {
+      "type": "object",
+      "required": ["checks"],
+      "properties": {"checks": {"type": "array", "maxItems": 20, "items": {"type": "object"}}},
+      "additionalProperties": false
+    },
+    "operations": {
+      "type": "object",
+      "required": ["persistence"],
+      "properties": {"persistence": {"type": "string", "enum": ["process", "durable"]}},
+      "additionalProperties": false
+    },
     "providers": {
       "type": "object",
       "description": "Provider configuration",
@@ -23,29 +35,89 @@
       },
       "additionalProperties": false
     },
+    "usage": {
+      "type": "object",
+      "description": "Shared run limits and an explicit provider/effective-model price catalog; never SDK request options.",
+      "required": ["limits", "prices", "persistence"],
+      "properties": {
+        "persistence": { "type": "string", "enum": ["process", "durable"] },
+        "limits": {
+          "type": "object",
+          "required": ["currency", "max_requests", "max_tokens", "max_seconds", "max_cost"],
+          "properties": {
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+            "max_requests": { "type": ["integer", "null"], "minimum": 0 },
+            "max_tokens": { "type": ["integer", "null"], "minimum": 0 },
+            "max_seconds": { "type": ["number", "null"], "minimum": 0 },
+            "max_cost": { "type": ["string", "null"], "description": "Exact finite nonnegative decimal amount." }
+          },
+          "additionalProperties": false
+        },
+        "prices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["provider", "model", "input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k", "currency", "source", "as_of"],
+            "properties": {
+              "provider": { "type": "string", "minLength": 1 },
+              "model": { "type": "string", "minLength": 1 },
+              "input_per_1k": { "type": ["string", "null"] },
+              "output_per_1k": { "type": ["string", "null"] },
+              "cache_read_per_1k": { "type": ["string", "null"] },
+              "cache_write_per_1k": { "type": ["string", "null"] },
+              "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+              "source": { "type": "string", "minLength": 1 },
+              "as_of": { "type": ["string", "null"], "format": "date" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "tools": {
       "type": "object",
       "description": "Tool behavior configuration",
-      "required": ["auto_approve_read", "shell_timeout", "sandbox"],
+      "required": ["auto_approve_read", "shell_timeout", "sandbox", "filesystem_read_roots", "filesystem_write_roots", "network_access", "network_allowed_hosts"],
       "properties": {
         "auto_approve_read": { "type": "boolean" },
         "shell_timeout": { "type": "integer", "minimum": 0 },
-        "sandbox": { "type": "string", "enum": ["none", "docker"] }
+        "sandbox": { "type": "string", "enum": ["none", "docker"] },
+        "filesystem_read_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+        "filesystem_write_roots": { "type": ["array", "null"], "items": { "type": "string" } },
+        "network_access": { "type": "string", "enum": ["unrestricted", "disabled"] },
+        "network_allowed_hosts": {
+          "type": ["array", "null"], "maxItems": 128, "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 253 }
+        }
       },
       "additionalProperties": false
     },
     "ui": {
       "type": "object",
       "description": "Terminal UI settings",
-      "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides"],
+      "required": ["output_style", "theme", "show_line_numbers", "mcp_logging", "accessible_mode", "keybindings", "style_overrides", "output_mode", "reduced_motion", "detail_density", "keyboard_mode", "mouse_capture", "layout"],
       "properties": {
-        "output_style": { "type": "string", "enum": ["compact", "verbose", "json"] },
+        "output_style": { "type": "string", "enum": ["verbose", "concise", "minimal", "json"] },
         "theme": { "type": "string" },
         "show_line_numbers": { "type": "boolean" },
         "mcp_logging": { "type": "boolean" },
         "accessible_mode": { "type": "boolean" },
         "keybindings": { "type": "object", "additionalProperties": { "type": "string" } },
-        "style_overrides": { "type": "object", "additionalProperties": { "type": "string" } }
+        "style_overrides": { "type": "object", "additionalProperties": { "type": "string" } },
+        "output_mode": { "type": "string", "enum": ["rich", "plain", "quiet"] },
+        "reduced_motion": { "type": "boolean" },
+        "detail_density": { "type": "string", "enum": ["compact", "normal", "detailed"] },
+        "keyboard_mode": { "type": "string", "enum": ["standard", "vim"] },
+        "mouse_capture": { "type": "boolean" },
+        "layout": {
+          "type": "object",
+          "required": ["compact_tables"],
+          "properties": {
+            "compact_tables": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
@@ -69,9 +141,25 @@
       "description": "MCP server configurations keyed by server name",
       "additionalProperties": {
         "type": "object",
-        "required": ["command", "args", "env", "trusted"],
+        "required": ["transport", "command", "url", "args", "env", "trusted", "request_timeout_seconds", "negotiation_timeout_seconds", "catalog_timeout_seconds", "oauth"],
         "properties": {
-          "command": { "type": "string" },
+          "transport": { "enum": ["stdio", "streamable_http"] },
+          "command": { "type": ["string", "null"] },
+          "url": { "type": ["string", "null"] },
+          "request_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
+          "negotiation_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
+          "catalog_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 3600 },
+          "oauth": {
+            "type": ["object", "null"],
+            "required": ["issuer", "client_id", "resource", "allowed_endpoint_origins"],
+            "properties": {
+              "issuer": { "type": "string", "minLength": 1, "maxLength": 4096 },
+              "client_id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "resource": { "type": ["string", "null"], "maxLength": 4096 },
+              "allowed_endpoint_origins": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 4096 } }
+            },
+            "additionalProperties": false
+          },
           "args": { "type": "array", "items": { "type": "string" } },
           "env": { "type": "object", "additionalProperties": { "type": "string" } },
           "trusted": { "type": "boolean" }
@@ -87,7 +175,7 @@
         "enabled": { "type": "boolean" },
         "chunk_size": { "type": "integer", "minimum": 1 },
         "chunk_overlap": { "type": "integer", "minimum": 0 },
-        "top_k": { "type": "integer", "minimum": 1 },
+        "top_k": { "type": "integer", "minimum": 1, "maximum": 20 },
         "embedding_model": { "type": "string" },
         "cache_dir": { "type": ["string", "null"] },
         "file_extensions": { "type": "array", "items": { "type": "string" } }
@@ -97,7 +185,7 @@
     "agents": {
       "type": "object",
       "description": "Multi-agent system settings",
-      "required": ["team_preset", "agents", "max_delegation_depth", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
+      "required": ["team_preset", "agents", "max_delegation_depth", "allow_delegation", "max_concurrent_delegations", "max_delegation_turns", "shared_context_max_tokens", "max_delegation_retries"],
       "properties": {
         "team_preset": { "type": "string" },
         "agents": {
@@ -122,6 +210,8 @@
           }
         },
         "max_delegation_depth": { "type": "integer", "minimum": 0 },
+        "allow_delegation": { "type": "boolean" },
+        "max_concurrent_delegations": { "type": "integer", "minimum": 0 },
         "max_delegation_turns": { "type": "integer", "minimum": 0 },
         "shared_context_max_tokens": { "type": "integer", "minimum": 0 },
         "max_delegation_retries": { "type": "integer", "minimum": 0 }

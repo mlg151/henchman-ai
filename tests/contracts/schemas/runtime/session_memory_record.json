@@ -1,0 +1,16 @@
+{
+  "$id": "henchman/contracts/runtime/session-memory-record/v1",
+  "title": "SessionMemoryRecord",
+  "description": "Shape contract for SessionMemoryRecord.to_dict().",
+  "type": "object",
+  "required": ["id", "content", "kind", "source", "created_at"],
+  "properties": {
+    "id": { "type": "string", "description": "Unique memory identifier" },
+    "content": { "type": "string", "description": "Stored memory text" },
+    "kind": { "type": "string", "description": "Memory kind (commonly 'note' or 'preference')" },
+    "source": { "type": "string", "description": "Origin of the memory (commonly 'manual' or 'extracted')" },
+    "created_at": { "type": "string", "description": "ISO timestamp when the memory was created" },
+    "message_index": { "type": ["integer", "null"], "description": "Index of the message the memory was extracted from, if any" }
+  },
+  "additionalProperties": false
+}

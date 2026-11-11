@@ -1,0 +1,18 @@
+{
+  "purpose": "separate repeat after explicit module-path type check; not a production change or performance qualification",
+  "commit": "6db0adfd88aedd458bbbca480052fbefa74c6521",
+  "script_sha256": "ab714bc2b7448b1a38c05f6ffe8e81fbd8c04576316f94c9808ee707a3bd69eb",
+  "widgets_per_arm": 100,
+  "order": [
+    "normal",
+    "weak_node_experiment"
+  ],
+  "automatic_gc": "disabled during each arm; explicit collect after lifetime observation",
+  "retries": 0,
+  "network": "none",
+  "limitations": [
+    "Unmounted synthetic widgets only",
+    "Private attributes and weak proxy alter identity",
+    "No native paint, user session, accessibility, or model evidence"
+  ]
+}

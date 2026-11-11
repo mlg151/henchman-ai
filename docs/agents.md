@@ -1,8 +1,9 @@
 # Primary Agent and Background Subagents
 
 Henchman-AI starts with one primary coding agent that can inspect, edit, execute,
-and verify work directly using the available workspace tools. It can launch
-focused background subagents with custom instructions and explicit tool subsets.
+and verify work directly using the available workspace tools. After explicit
+startup opt-in, it can launch focused background subagents with custom
+instructions and explicit tool subsets.
 Configured scopes and runtime policies still govern execution; completion
 metadata records observed outcomes.
 
@@ -67,9 +68,10 @@ interactive channel. Headless operation does not create a terminal input channel
 
 Delegated tools must be a subset of the caller's current scope. `tools: []`
 grants no tools. Nested spawning requires explicitly delegating `invoke_subagent`
-and remains subject to the child's own scope. There is no fixed roster/count
-limit; provider request limits, available memory, and per-agent execution budgets
-still apply. Notification-driven resumptions share the parent run's tool-round
+and remains subject to the child's own scope. Executing descendants share the
+runtime's `agents.max_concurrent_delegations` limit (default `4`); the primary is
+excluded. Provider request limits, available memory, and execution budgets also
+apply. Notification-driven resumptions share the parent run's tool-round
 and tool-call budgets; a new explicit follow-up starts a fresh run budget.
 Subagents inherit execution authorization and plan-mode restrictions.
 Runtime coordination remains responsive while a child executes a foreground
@@ -80,6 +82,66 @@ history reset, and session-resume commands cancel and join unfinished work befor
 releasing its runtime resources. Completed child histories are not durable session
 checkpoints, and background agents do not survive application exit. See the
 [tool reference](tools.md#background-subagent-tools) for call shapes.
+
+### Shared delegation capacity
+
+Descendant execution is disabled by default. To opt in for a project, run
+`henchman config set agents.allow_delegation true --scope project`, then start a
+new runtime. `agents.allow_delegation` is a strict boolean captured at startup.
+Changing settings or supplying model arguments cannot enable the held runtime;
+custom prompts and auto-approval do not override this boundary. With permission
+off, requests return `delegation_disabled` and `retryable: false` before creating
+an actor, worker or provider request. Inspection and cancellation remain available.
+Direct primary work and explicit `/agent ROLE ...` execution require no descendant
+permission. There is no automatic delegation mode qualified by live results.
+
+`agents.max_concurrent_delegations` accepts a nonnegative integer. Set it to `0`
+to disable child execution while retaining direct primary work. The runtime
+captures the value at construction; start a new runtime to apply a changed limit.
+Dynamic children, named specialists, parallel calls, nested children and the
+compatibility delegation manager all reserve from the same pool before creating
+their actors or workers. A child waiting for parent input retains its slot.
+Completed cached conversations release capacity; a follow-up must reserve again.
+
+When capacity is full, a request fails immediately with structured
+`delegation_capacity` evidence and `retryable: false`. It creates no waiting
+execution and does not trigger automatic delegation retries. The parent may
+continue directly or explicitly try after owned work finishes. Parallel calls
+start the admitted entries and report refusals for the remainder; output is
+consumed through a bounded buffer while the workers run.
+
+Cancellation retains capacity until worker and stream cleanup has joined.
+History/session reset retires old conversations and unstarted delegation streams;
+they cannot restart under the new session. Shutdown permanently retires the pool.
+This is a per-runtime execution bound, not a cross-process quota. Conflict-safe
+integration across all delegation routes and paired live-model effectiveness
+remain separate work under issue #29. Trusted low-level embedders
+must explicitly supply an allowed admission controller; its default is denied.
+
+An internal `ChildProposalService` can stage a bounded set of text-file changes
+in private project storage, freeze a revision for review, and publish it only
+after checking current file contents. Publication retains displaced originals,
+invalidates checks and requires recovery after an interruption. This service is
+content-focused: existing POSIX modes are preserved and new POSIX files use
+mode `0600`; arbitrary extended metadata is not restored. The Windows backend
+uses the checkpoint service's documented content/ACL limitations. The primary
+may opt one dynamic child into this mechanism by supplying explicit
+`write_paths` to `invoke_subagent`. The child may use only the scoped builtin
+`read_file`, `write_file` and `edit_file` tools, and the parent can use
+`manage_subagents` to review the complete proposal, then pass its token to
+`publish_subagent_proposal`. Publication has its own WRITE approval policy. A
+changed workspace causes a conflict instead of an
+overwrite. Existing checks are invalidated; the caller must verify the result.
+
+This staged route is limited to the current primary run and does not support
+nested children, follow-up messages, shell, MCP or other opaque tools. It fails
+closed under restricted access policies or required read confirmation, and
+refuses reviews larger than its 32 KiB encoded limit. Failed or cancelled child
+work cannot be published; cancellation and shutdown join the worker and retain
+unresolved private evidence. It is cooperative rather than a filesystem
+sandbox. Ordinary dynamic and named-role delegates still share the workspace,
+so issue #29 remains open. See the [review validation record](evaluations/2026-11-08-child-review-validation.md)
+for earlier exact-commit evidence and outstanding qualification.
 
 ## Optional Named Roles
 
@@ -210,6 +272,15 @@ concrete findings or uncertainty; concise reporting does not reduce required
 inspection, reuse, verification or review coverage. Requested detailed reports and
 project documentation rules still apply. These defaults do not alter custom
 system prompts or execution limits.
+
+Generated prior-agent notes use the retained credential policy before the
+800-character shared-summary limit and again before the 200-character prompt
+preview. The selected specialist's credentials join that policy before prompt
+assembly and finalization; rotated values stay known. Legacy summaries clipped
+at the old storage limit conservatively mask known trailing credential prefixes.
+Generated quotations of earlier failed tasks are also projected. The current
+caller task/brief, original completion result, ledger and prior snapshots remain
+unchanged. See [evidence privacy](configuration.md#session-evidence-redaction).
 
 `henchman chat --prompt "..."` uses the configured orchestrator in text, `json`,
 `stream-json`, and `json-complete` modes. The lead can delegate research,

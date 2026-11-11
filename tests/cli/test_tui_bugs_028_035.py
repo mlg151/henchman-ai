@@ -4,8 +4,12 @@ Each test class covers one bug using TDD: first verify the bug exists,
 then verify the fix resolves it.
 """
 
+import asyncio
 import inspect
 from unittest.mock import MagicMock
+
+import pytest
+from textual.app import App
 
 from henchman.cli.textual_mixins import (
     _HistoryMixin,
@@ -14,7 +18,6 @@ from henchman.cli.textual_mixins import (
     _MessageHandlerMixin,
 )
 from henchman.cli.textual_widgets import (
-    ChatMessage,
     ChatPane,
     HenchmanTextArea,
 )
@@ -183,21 +186,30 @@ class TestBug033FirstChunkScrolling:
         source = inspect.getsource(ChatPane.append_agent_chunk)
         assert "if not newly_created" not in source
 
-    def test_scroll_called_after_first_chunk(self):
-        pane = ChatPane()
-        pane.mount = MagicMock()
-        pane._scroll_to_bottom = MagicMock()
-        pane._active = {}
-        pane.append_agent_chunk("Assistant", "Hello")
-        assert pane._scroll_to_bottom.called
+    @pytest.mark.parametrize("has_previous_chunk", [False, True])
+    async def test_scroll_after_chunk_layout(self, has_previous_chunk):
+        class ChatApp(App):
+            def compose(self):
+                yield ChatPane()
 
-    def test_scroll_called_after_subsequent_chunk(self):
-        pane = ChatPane()
-        pane.mount = MagicMock()
-        pane._scroll_to_bottom = MagicMock()
-        pane._active = {"Assistant": MagicMock(spec=ChatMessage)}
-        pane.append_agent_chunk("Assistant", " World")
-        assert pane._scroll_to_bottom.called
+        app = ChatApp()
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            pane = app.query_one(ChatPane)
+
+            async def after_layout():
+                refreshed = asyncio.Event()
+                pane.call_after_refresh(refreshed.set)
+                await asyncio.wait_for(refreshed.wait(), 2)
+
+            if has_previous_chunk:
+                pane.append_agent_chunk("Assistant", "Hello")
+                await after_layout()
+            scroll = MagicMock(wraps=pane._scroll_to_bottom)
+            pane._scroll_to_bottom = scroll
+            pane.append_agent_chunk("Assistant", " World")
+            await after_layout()
+            scroll.assert_called_once()
 
 
 # ===================================================================
@@ -223,7 +235,28 @@ class TestBug034DeadStreamingMessages:
 
 
 class TestBug035OnMountReinitializes:
-    """BUG-035: ChatPane.on_mount removed to avoid wiping state."""
+    """BUG-035: Mounting must not wipe pre-existing stream state."""
 
-    def test_on_mount_not_overridden(self):
-        assert "on_mount" not in ChatPane.__dict__
+    async def test_mount_preserves_active_streams_and_their_existing_content(self):
+        pane = ChatPane()
+        message = pane.begin_agent_stream("agent")
+        thought = pane.begin_thinking_stream("agent")
+        pane.append_agent_chunk("agent", "before ")
+        pane.append_thinking_chunk("agent", "thinking before ")
+        active, thinking = pane._active, pane._active_thinking
+
+        class ChatApp(App):
+            def compose(self):
+                yield pane
+
+        async with ChatApp().run_test() as pilot:
+            await pilot.pause()
+            assert pane._active is active and pane._active["agent"] is message
+            assert pane._active_thinking is thinking and pane._active_thinking["agent"] is thought
+            pane.append_agent_chunk("agent", "after")
+            pane.append_thinking_chunk("agent", "after")
+            assert message._content_text == "before after"
+            assert thought._content_text == "thinking before after"
+            assert [row.content for row in pane.iter_transcript_rows()] == [
+                "before after", "thinking before after",
+            ]

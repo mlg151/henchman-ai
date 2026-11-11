@@ -332,11 +332,9 @@ class TestToolManagerCoverage:
     def _make_tool_manager(self):
         """Create a ToolManager instance."""
         from henchman.cli.tool_manager import ToolManager
+        from henchman.config.schema import Settings
 
-        settings = MagicMock()
-        settings.ui = MagicMock()
-        settings.tools = MagicMock()
-        return ToolManager(settings=settings)
+        return ToolManager(settings=Settings())
 
     def test_handle_confirmation_auto_approve(self) -> None:
         """Test handle_confirmation auto-approves when configured."""

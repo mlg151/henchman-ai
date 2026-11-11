@@ -4,6 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from functools import partial
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -67,6 +68,7 @@ def test_primary_has_full_live_workspace_tools() -> None:
     assert orch.tech_lead.tool_registry.get("late_mcp_tool") is registry.get("late_mcp_tool")
     assert orch.tech_lead.tool_registry.get("invoke_subagent") is not None
     assert orch.tech_lead.tool_registry.get("manage_subagents") is not None
+    assert orch.tech_lead.tool_registry.get("publish_subagent_proposal") is not None
 
 
 def test_explicit_primary_allowlist_remains_a_boundary() -> None:
@@ -84,6 +86,7 @@ def test_explicit_primary_allowlist_remains_a_boundary() -> None:
     assert orch.tech_lead.tool_registry.get("read_file") is not None
     assert orch.tech_lead.tool_registry.get("write_file") is None
     assert orch.tech_lead.tool_registry.get("invoke_subagent") is None
+    assert orch.tech_lead.tool_registry.get("publish_subagent_proposal") is None
 
 
 def test_subagent_discovery_requires_runtime_tools_and_retains_binding_caveat() -> None:
@@ -94,11 +97,17 @@ def test_subagent_discovery_requires_runtime_tools_and_retains_binding_caveat() 
         registered = classify_registered_tool(name, registered_tool_names=names)
         assert registered is not None and registered.classification == "runtime-dependent"
         assert "bound orchestrator" in registered.detail
+    missing = classify_registered_tool("publish_subagent_proposal", registered_tool_names=names)
+    assert missing is not None and missing.classification == "unavailable"
+    staged = classify_registered_tool("publish_subagent_proposal", registered_tool_names=(*names, "publish_subagent_proposal"))
+    assert staged is not None and staged.classification == "runtime-dependent"
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("second_child_delay", [0.0, 3.2])
 async def test_concurrent_subagents_reactively_resume_primary_and_preserve_transcript(
     monkeypatch: pytest.MonkeyPatch,
+    second_child_delay: float,
 ) -> None:
     started: set[str] = set()
     both_started = asyncio.Event()
@@ -108,6 +117,8 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
         nonlocal parent_calls
         system = messages[0].content or ""
         if system.startswith("child "):
+            if system.startswith("child 1") and second_child_delay:
+                await asyncio.sleep(second_child_delay)
             started.add(system)
             if len(started) == 2:
                 both_started.set()
@@ -148,10 +159,18 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(_WorkspaceTool("read_file"))
-    orch = Orchestrator(provider, tool_registry=registry)
+    orch = Orchestrator(provider, tool_registry=registry, settings=Settings(agents={"allow_delegation": True}))
     registry.add_auto_approve_policy("invoke_subagent")
+    worker = asyncio.create_task(_collect(orch, "Review two parts"))
     try:
-        events = await asyncio.wait_for(_collect(orch, "Review two parts"), timeout=3)
+        try:
+            events = await asyncio.wait_for(asyncio.shield(worker), timeout=15)
+        except TimeoutError:
+            children = [(record.status, record.error, record.output) for record in orch.subagents.list()]
+            transcript = [(message.role, (message.content or "")[:200])
+                          for message in orch.tech_lead.current_turn_messages]
+            pytest.fail(f"Timed out: started={sorted(started)!r}, parent_calls={parent_calls}, "
+                        f"children={children!r}, transcript={transcript!r}", pytrace=False)
         assert len(started) == 2
         assert all(record.status == "done" for record in orch.subagents.list())
         assert any(event.type == EventType.AGENT_MESSAGE for event in events)
@@ -164,6 +183,9 @@ async def test_concurrent_subagents_reactively_resume_primary_and_preserve_trans
             "Reviewed background results" in (message.content or "") for message in transcript
         )
     finally:
+        if not worker.done():
+            worker.cancel()
+            await asyncio.gather(worker, return_exceptions=True)
         await orch.aclose()
 
 
@@ -172,8 +194,11 @@ async def _collect(orch: Orchestrator, prompt: str) -> list[Any]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("durable", [False, True])
 async def test_child_question_and_parent_answer_use_real_queued_messages(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    durable: bool,
 ) -> None:
     parent_calls = 0
     answered = False
@@ -181,7 +206,7 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     async def stream(messages: list[Message], **kwargs: Any) -> AsyncIterator[StreamChunk]:
         nonlocal parent_calls, answered
         del kwargs
-        if messages[0].content == "question child":
+        if (messages[0].content or "").startswith("question child\n\n"):
             answers = [message.content for message in messages if message.role == "tool"]
             if not answers:
                 yield StreamChunk(
@@ -240,12 +265,42 @@ async def test_child_question_and_parent_answer_use_real_queued_messages(
     monkeypatch.setattr(provider, "chat_completion_stream", stream)
     registry = ToolRegistry()
     registry.register(AskUserTool())
-    orch = Orchestrator(provider, tool_registry=registry)
+    settings = Settings.model_validate({"agents": {"allow_delegation": True}, "operations": {"persistence": "durable" if durable else "process"}})
+    orch = Orchestrator(provider, tool_registry=registry, settings=settings)
+    from henchman.core.session_data import Session, session_from_dict
+    from henchman.core.session_operations import SessionRunOperations
+
+    session = Session("notification-session", "project", "today", "today")
+    saved = []
+    runtime = SessionRunOperations(settings, lambda: session, lambda item: saved.append(item.to_dict()), tmp_path / "ops.db")
+    orch.operation_runtime = runtime
     for name in ("invoke_subagent", "send_message"):
         registry.add_auto_approve_policy(name)
     try:
-        await asyncio.wait_for(_collect(orch, "Review requested file"), 3)
-        assert answered
+        events = await asyncio.wait_for(_collect(orch, "Review requested file"), 3)
+        assert answered, (
+            f"parent_calls={parent_calls}; completion={orch.last_completion_status}; "
+            f"children={[record.as_dict() for record in orch.subagents.list()]}; "
+            f"events={[(event.type.value, str(event.data)[:500]) for event in events]}"
+        )
         assert orch.subagents.list()[0].status == "done"
+        assert session.operations is not None
+        primary = [item for item in session.operations.bindings if item.conversation_id is None]
+        assert [item.context.tool_call_id for item in primary] == ["launch", "answer"]
+        assert primary[0].assistant_index < primary[1].assistant_index
+        for binding in primary:
+            calls = session.messages[binding.assistant_index].tool_calls
+            assert calls and calls[0]["id"] == binding.context.tool_call_id
+        assert [(item.role, item.content) for item in session.messages] == [
+            (item.role, item.content) for item in orch.tech_lead.current_turn_messages
+        ]
+        before = parent_calls
+        if durable:
+            restored = session_from_dict(saved[-1])
+            resumed = SessionRunOperations(settings, lambda: restored, lambda _item: None, tmp_path / "ops.db")
+            resumed.begin()
+            assert {item.state for item in resumed.report().records} == {"completed"}
+            assert restored.operations.observed_ids == session.operations.observed_ids
+        assert parent_calls == before
     finally:
         await orch.aclose()

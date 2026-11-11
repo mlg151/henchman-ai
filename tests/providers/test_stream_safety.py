@@ -133,7 +133,7 @@ async def test_fragmented_parallel_calls_dispatch_once_with_final_usage(stream_p
     ]
     assert len(context.history) == 1
     assert state.usage == usage
-    assert events[-1].data == {"finish_reason": "tool_calls", "usage": usage}
+    assert events[-1].data == {"finish_reason": "tool_calls", "usage": usage, "usage_source": "reported"}
 
 
 async def test_usage_only_chunk_survives_empty_choices(stream_provider):
@@ -144,7 +144,7 @@ async def test_usage_only_chunk_survives_empty_choices(stream_provider):
     )
     events, _, state = await collect_events(provider)
     assert state.usage == usage
-    assert events[-1].data == {"finish_reason": "stop", "usage": usage}
+    assert events[-1].data == {"finish_reason": "stop", "usage": usage, "usage_source": "reported"}
 
 
 async def test_text_on_finish_chunk_is_not_lost(stream_provider):
@@ -161,7 +161,7 @@ async def test_text_on_finish_chunk_is_not_lost(stream_provider):
 
 @pytest.mark.parametrize("field", ["reasoning", "reasoning_content"])
 async def test_reasoning_survives_tool_turn_and_next_request(stream_provider, field):
-    """Both text dialects must survive streaming, history and tool continuation."""
+    """Visible reasoning survives history; only qualified DeepSeek state is replayed."""
     provider, payloads = stream_provider
     payloads.extend(
         [
@@ -172,6 +172,13 @@ async def test_reasoning_survives_tool_turn_and_next_request(stream_provider, fi
         ]
     )
     agent = Agent(provider=provider)
+    if provider.name == "deepseek" and field == "reasoning":
+        from henchman.providers.continuation import ProviderContinuationError
+
+        with pytest.raises(ProviderContinuationError, match="unqualified"):
+            _ = [event async for event in agent.run("Inspect helper.py")]
+        assert agent.messages[-1].continuation["status"] == "unavailable"
+        return
     events = [event async for event in agent.run("Inspect helper.py")]
     assert not any(event.type == EventType.ERROR for event in events)
     assert "".join(event.data for event in events if event.type == EventType.THOUGHT) == (
@@ -184,7 +191,10 @@ async def test_reasoning_survives_tool_turn_and_next_request(stream_provider, fi
     assert not any(event.type == EventType.ERROR for event in continued)
     sent = provider._client.chat.completions.create.call_args.kwargs["messages"]
     assistant = next(message for message in sent if message.get("tool_calls"))
-    assert assistant["reasoning_content"] == "Inspect the existing helper first."
+    if provider.name == "deepseek" and field == "reasoning_content":
+        assert assistant["reasoning_content"] == "Inspect the existing helper first."
+    else:
+        assert "reasoning_content" not in assistant
     assert assistant["tool_calls"][0]["id"] == "call-0"
     assert sent[-1]["tool_call_id"] == "call-0"
 

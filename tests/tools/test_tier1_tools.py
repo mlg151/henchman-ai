@@ -8,7 +8,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
-from henchman.tools.base import Tool, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolResult
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class _AlphaTool(Tool):
@@ -334,6 +338,7 @@ class TestWebSearchTool:
         monkeypatch.setattr(web_search_module, "_search_duckduckgo_results", search)
 
         manager = ToolManager()
+        manager.set_confirmation_handler(_approve)
         manager.register_builtin_tools()
 
         result = await manager.registry.execute(

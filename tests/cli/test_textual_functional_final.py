@@ -17,6 +17,7 @@ from henchman.cli.textual_app import (
     ThinkingPane,
     ToolPane,
 )
+from henchman.config.schema import Settings
 from henchman.providers.base import ModelProvider
 
 
@@ -33,7 +34,7 @@ class TestTextualFunctionalFinal:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings

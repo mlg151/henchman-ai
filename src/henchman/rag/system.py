@@ -22,7 +22,6 @@ from henchman.rag.concurrency import RagLock
 from henchman.rag.repo_id import (
     get_repository_index_dir,
     get_repository_manifest_path,
-    migrate_old_index,
 )
 
 
@@ -133,6 +132,8 @@ class RagSystem:
         self._search_tool = RagSearchTool(
             store=self._store,
             top_k=settings.top_k,
+            project_root=git_root,
+            manifest_path=self.manifest_path,
         )
 
         # Release lock after initialization if we held it
@@ -274,16 +275,8 @@ def initialize_rag(
         return None
 
     try:
-        # Check for and migrate old index
-        cache_dir = Path(settings.cache_dir) if settings.cache_dir else None
-        new_index_dir = get_repository_index_dir(root, cache_dir)
-
-        migrated = migrate_old_index(root, new_index_dir)
-        if migrated and console:
-            console.print(
-                "[dim]Migrated RAG index from project directory to ~/.henchman/rag_indices/[/dim]",
-            )
-
+        # Legacy shared/project caches remain untouched. Only explicit indexing
+        # populates this worktree's versioned authority with qualified evidence.
         rag_system = RagSystem(git_root=root, settings=settings)
 
         if not index:

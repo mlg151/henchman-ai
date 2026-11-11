@@ -11,7 +11,7 @@ from henchman.tools.builtins.python_ast import PythonAstTool
 
 def test_total_byte_budget_stops_before_reading_another_file(tmp_path, monkeypatch):
     for name in ("a", "b", "c"):
-        (tmp_path / f"{name}.py").write_text("value = 1\n")
+        (tmp_path / f"{name}.py").write_bytes(b"value = 1\n")
     monkeypatch.setattr(scanner, "MAX_FILE_BYTES", 10)
     monkeypatch.setattr(scanner, "MAX_TOTAL_BYTES", 15)
     report = scanner.scan_quality(str(tmp_path), scanner.ScanOptions())

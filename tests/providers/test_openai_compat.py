@@ -161,19 +161,19 @@ class TestOpenAICompatibleProvider:
         )
 
         # Mock the OpenAI client response
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = [MagicMock()]
         mock_chunk1.choices[0].delta.content = "Hello"
         mock_chunk1.choices[0].delta.tool_calls = None
         mock_chunk1.choices[0].finish_reason = None
 
-        mock_chunk2 = MagicMock()
+        mock_chunk2 = MagicMock(usage=None)
         mock_chunk2.choices = [MagicMock()]
         mock_chunk2.choices[0].delta.content = " World"
         mock_chunk2.choices[0].delta.tool_calls = None
         mock_chunk2.choices[0].finish_reason = None
 
-        mock_chunk3 = MagicMock()
+        mock_chunk3 = MagicMock(usage=None)
         mock_chunk3.choices = [MagicMock()]
         mock_chunk3.choices[0].delta.content = None
         mock_chunk3.choices[0].delta.tool_calls = None
@@ -208,7 +208,7 @@ class TestOpenAICompatibleProvider:
             default_model="test-model",
         )
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = "I'll help you"
         mock_chunk.choices[0].delta.tool_calls = None
@@ -252,11 +252,11 @@ class TestOpenAICompatibleProvider:
             default_model="test-model",
         )
 
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = []  # Empty choices
         mock_chunk1.usage = None
 
-        mock_chunk2 = MagicMock()
+        mock_chunk2 = MagicMock(usage=None)
         mock_chunk2.choices = [MagicMock()]
         mock_chunk2.choices[0].delta.content = "Hello"
         mock_chunk2.choices[0].delta.tool_calls = None
@@ -277,9 +277,10 @@ class TestOpenAICompatibleProvider:
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
 
-            # Should only get one chunk (empty choices skipped)
-            assert len(chunks) == 1
-            assert chunks[0].content == "Hello"
+            # Empty choices are skipped; terminal fields wait for stream drain.
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Hello", None), (None, FinishReason.STOP),
+            ]
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_with_tool_calls(self) -> None:
@@ -298,7 +299,7 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta1.function.name = "read_file"
         mock_tc_delta1.function.arguments = '{"path":'
 
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = [MagicMock()]
         mock_chunk1.choices[0].delta.content = None
         mock_chunk1.choices[0].delta.tool_calls = [mock_tc_delta1]
@@ -312,14 +313,14 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta2.function.name = None
         mock_tc_delta2.function.arguments = ' "test.py"}'
 
-        mock_chunk2 = MagicMock()
+        mock_chunk2 = MagicMock(usage=None)
         mock_chunk2.choices = [MagicMock()]
         mock_chunk2.choices[0].delta.content = None
         mock_chunk2.choices[0].delta.tool_calls = [mock_tc_delta2]
         mock_chunk2.choices[0].finish_reason = None
 
         # Third chunk finishes with tool_calls reason
-        mock_chunk3 = MagicMock()
+        mock_chunk3 = MagicMock(usage=None)
         mock_chunk3.choices = [MagicMock()]
         mock_chunk3.choices[0].delta.content = None
         mock_chunk3.choices[0].delta.tool_calls = None
@@ -359,7 +360,7 @@ class TestOpenAICompatibleProvider:
             default_model="test-model",
         )
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = None
         mock_chunk.choices[0].delta.reasoning_content = "Let me think..."
@@ -399,13 +400,13 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta.function.name = "test_tool"
         mock_tc_delta.function.arguments = "invalid json"
 
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = [MagicMock()]
         mock_chunk1.choices[0].delta.content = None
         mock_chunk1.choices[0].delta.tool_calls = [mock_tc_delta]
         mock_chunk1.choices[0].finish_reason = None
 
-        mock_chunk2 = MagicMock()
+        mock_chunk2 = MagicMock(usage=None)
         mock_chunk2.choices = [MagicMock()]
         mock_chunk2.choices[0].delta.content = None
         mock_chunk2.choices[0].delta.tool_calls = None
@@ -435,7 +436,7 @@ class TestOpenAICompatibleProvider:
             default_model="default-model",
         )
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = "Hello"
         mock_chunk.choices[0].delta.tool_calls = None
@@ -474,7 +475,7 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta.id = "call_123"
         mock_tc_delta.function = None  # No function yet
 
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = [MagicMock()]
         mock_chunk1.choices[0].delta.content = None
         mock_chunk1.choices[0].delta.tool_calls = [mock_tc_delta]
@@ -488,7 +489,7 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta2.function.name = "test_tool"
         mock_tc_delta2.function.arguments = "{}"
 
-        mock_chunk2 = MagicMock()
+        mock_chunk2 = MagicMock(usage=None)
         mock_chunk2.choices = [MagicMock()]
         mock_chunk2.choices[0].delta.content = None
         mock_chunk2.choices[0].delta.tool_calls = [mock_tc_delta2]
@@ -531,7 +532,7 @@ class TestOpenAICompatibleProvider:
         mock_tc_delta.function.name = "no_args_tool"
         mock_tc_delta.function.arguments = None  # No arguments
 
-        mock_chunk1 = MagicMock()
+        mock_chunk1 = MagicMock(usage=None)
         mock_chunk1.choices = [MagicMock()]
         mock_chunk1.choices[0].delta.content = None
         mock_chunk1.choices[0].delta.tool_calls = [mock_tc_delta]
@@ -568,7 +569,8 @@ class TestOpenAICompatibleProvider:
         formatted = provider._format_message(msg)
         assert formatted["role"] == "assistant"
         assert formatted["content"] == "Final answer"
-        assert formatted["reasoning_content"] == "Let me think..."
+        assert "reasoning_content" not in formatted
+        assert msg.reasoning_content == "Let me think..."
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_empty_messages_validation(self) -> None:
@@ -617,7 +619,7 @@ class TestOpenAICompatibleProvider:
         )
 
         # Mock response to allow the test to run
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = "Response"
         mock_chunk.choices[0].delta.tool_calls = None
@@ -637,7 +639,9 @@ class TestOpenAICompatibleProvider:
             chunks = []
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
-            assert len(chunks) == 1
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Response", None), (None, FinishReason.STOP),
+            ]
 
             # Assistant messages can have empty content (tool calls only)
             messages = [
@@ -650,7 +654,9 @@ class TestOpenAICompatibleProvider:
             chunks = []
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
-            assert len(chunks) == 1
+            assert [(chunk.content, chunk.finish_reason) for chunk in chunks] == [
+                ("Response", None), (None, FinishReason.STOP),
+            ]
 
     @pytest.mark.asyncio
     async def test_chat_completion_stream_message_sequence_repair(self) -> None:
@@ -661,7 +667,7 @@ class TestOpenAICompatibleProvider:
             default_model="test-model",
         )
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = "Response"
         mock_chunk.choices[0].delta.tool_calls = None
@@ -790,7 +796,7 @@ class TestOpenAICompatibleProvider:
             default_model="test-model",
         )
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(usage=None)
         mock_chunk.choices = [MagicMock()]
         mock_chunk.choices[0].delta.content = "Response"
         mock_chunk.choices[0].delta.tool_calls = None

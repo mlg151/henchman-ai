@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from henchman.core.events import AgentEvent, EventType
+from tests.api.helpers import install_chat_runtime
 
 
 def _make_agent() -> MagicMock:
@@ -36,7 +37,7 @@ def test_stream_response_has_x_accel_buffering_header() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
         auth_state.settings = None
 
@@ -67,7 +68,7 @@ def test_stream_response_still_has_standard_headers() -> None:
         patch("henchman.api.endpoints.chat.state") as mock_state,
         patch("henchman.api.auth.state") as auth_state,
     ):
-        mock_state.agent = agent
+        install_chat_runtime(mock_state, agent)
         mock_state.metrics = {"requests_total": 0, "requests_successful": 0}
         auth_state.settings = None
 

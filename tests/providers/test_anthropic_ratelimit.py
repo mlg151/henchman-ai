@@ -97,7 +97,7 @@ async def test_anthropic_rate_limit_retry():
             yield MagicMock(
                 type="content_block_delta", delta=MagicMock(type="text_delta", text="Success")
             )
-            yield MagicMock(type="message_delta", delta=MagicMock(stop_reason="end_turn"))
+            yield MagicMock(type="message_delta", delta=MagicMock(stop_reason="end_turn"), usage=None)
 
         mock_stream.__aenter__.return_value = mock_aiter()
 

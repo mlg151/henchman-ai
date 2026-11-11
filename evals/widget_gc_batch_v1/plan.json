@@ -1,0 +1,23 @@
+{
+  "purpose": "synthetic object-lifetime screening of GC batches; no performance or production claim",
+  "commit": "6db0adfd88aedd458bbbca480052fbefa74c6521",
+  "script_sha256": "6d27edf90598960879a083a1be82cf1a2d3b52c7e9ee3bc68ae5699e8760ead4",
+  "widgets_per_arm": 1000,
+  "retained_window": 128,
+  "batch_evictions": 32,
+  "arm_order": [
+    "no collection",
+    "generation 0",
+    "generation 1",
+    "generation 2"
+  ],
+  "automatic_gc": "disabled within each arm",
+  "explicit_full_cleanup": "after each arm",
+  "processes": 1,
+  "retries": 0,
+  "limitations": [
+    "Synthetic unmounted widgets; no native display or input timing",
+    "GC batches affect all process objects, including finalizers",
+    "Sequential arms on one Textual version; no user or model workload"
+  ]
+}

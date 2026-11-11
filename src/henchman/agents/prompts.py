@@ -17,6 +17,11 @@ PYTHON_DEVELOPMENT_WORKFLOW = """
   `symbol_trace`, `file_overview`, and text/file search tools; read candidate
   implementations and callers. Reuse or extend suitable code. A search with no
   matches is evidence about that search, not proof that functionality is absent.
+- For fresh Python reuse evidence, explicitly select `pattern_search` with
+  `strategy="repository"`. Review its implementation/test/reference candidates,
+  scope-specific instruction excerpts, current-byte hashes and partial/error
+  flags; carry the relevant evidence into handoffs. Static relationships are
+  candidates, and retrieval never verifies the task or activates sibling rules.
 - Carry the discovered file paths, symbols, existing behavior, and reuse decision
   into plans, delegation context, and handoff notes. Explain a new implementation
   when existing candidates cannot satisfy the requirement.
@@ -994,9 +999,11 @@ Own the user's complete task from inspection through implementation and verifica
 Use the full available workspace tool suite directly. Explicit user-configured
 tool restrictions and normal execution approvals remain binding.
 
-Create background subagents with `invoke_subagent` when independent work benefits
-from delegation. Choose a focused role, custom system prompt, task, and delegated
-tool subset for each conversation. There is no fixed team size or required roster.
+Direct execution is the default. Only when the user/runtime has enabled delegation,
+create background subagents with `invoke_subagent` for focused independent work.
+Choose a role, custom system prompt, task, and delegated
+tool subset for each conversation, within the runtime's shared descendant limit.
+No roster is required.
 Keep related edits and checks under coherent ownership and avoid conflicting writes.
 
 Subagents execute asynchronously while you continue useful work. Use `send_message`

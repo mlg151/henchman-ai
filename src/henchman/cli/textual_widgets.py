@@ -18,16 +18,24 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Self, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
+from rich.text import Text
 from textual.binding import Binding
 from textual.containers import VerticalScroll
+from textual.message import Message as TextualMessage
 from textual.reactive import reactive
 from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
 
+from henchman.cli.evidence import runtime_evidence_redactor
+from henchman.cli.textual_tool_activity import ToolActivity, ToolActivityStore, ToolEvidenceScreen
+from henchman.cli.textual_transcript import TranscriptWindow
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from weakref import ReferenceType
 
     from textual import events
+    from textual.geometry import Region
 
     from henchman.cli.textual_app import HenchmanTextualApp
 
@@ -143,6 +151,10 @@ class _BaseTextualWidget(Static):
 class _BaseMessageWidget(_BaseTextualWidget):
     """Base class for message widgets with common append and set_content logic."""
 
+    _transcript_owner: ReferenceType[TranscriptWindow]
+    _transcript_row_id: int
+    _transcript_epoch: int
+
     DEFAULT_CSS = """
     _BaseMessageWidget {
         margin: 0 0 1 0;
@@ -158,6 +170,11 @@ class _BaseMessageWidget(_BaseTextualWidget):
         """
         super().__init__(text, **kwargs)
         self._content_text: str = text
+
+    def on_mount(self) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        if owner is not None and (window := owner()) is not None and not window.owns(self):
+            self.display = False
 
     def append(self: Self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
@@ -232,13 +249,14 @@ class CollapsibleMessage(_BaseMessageWidget):
     }
     """
 
-    def __init__(self: Self, **kwargs: Any) -> None:
+    def __init__(self: Self, *, output_mode: str = "rich", **kwargs: Any) -> None:
         """Initialize the collapsible message.
 
         Args:
             **kwargs: Forwarded to ``_BaseMessageWidget``.
         """
         super().__init__(**kwargs)
+        self._output_mode = output_mode
         self._is_expanded: bool = False
         self._highlight_term: str = ""
         self.header = _CollapsibleHeader()
@@ -288,11 +306,16 @@ class CollapsibleMessage(_BaseMessageWidget):
         Returns:
             None
         """
+        pane = next((parent for parent in self.ancestors if isinstance(parent, ChatPane)), None)
+        if pane is not None:
+            pane.hold_reading_position()
         self._is_expanded = not self._is_expanded
         if self._is_expanded:
             self.add_class("expanded")
         else:
             self.remove_class("expanded")
+        if pane is not None:
+            pane.refresh_reading_position()
 
     def on_click(self: Self, _event: events.Click) -> None:
         """Handle click events to toggle expansion.
@@ -382,15 +405,17 @@ class HenchmanTextArea(TextArea):
         Binding("ctrl+f", "app.search", "Search", show=False),
         Binding(
             "enter",
-            "app.action_submit_message",
+            "app.submit_message",
             "Submit Message",
             show=False,
+            priority=True,
         ),
         Binding("shift+enter", "newline", "Newline", show=False),
+        Binding("ctrl+j", "newline", "Newline", show=False),
         Binding(
             "escape",
-            "app.clear_search",
-            "Clear Search",
+            "app.cancel_or_clear",
+            "Cancel/Clear",
             show=False,
         ),
         Binding("up", "history_up", "History Up", show=False),
@@ -464,6 +489,7 @@ class ChatMessage(_BaseMessageWidget):
         content: str = "",
         *,
         trusted: bool = False,
+        output_mode: str = "rich",
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -478,18 +504,50 @@ class ChatMessage(_BaseMessageWidget):
         super().__init__(content, **kwargs)
         self._prefix = prefix
         self._trusted = trusted
+        self._output_mode = output_mode
         self._highlight_term: str = ""
         self._is_markdown: bool = False
-        self._renderable_text: str = ""
+        self._renderable_text: str | RichMarkdown | Text = ""
         self._update_renderable()
 
+    def on_mount(self) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        if owner is not None and (window := owner()) is not None:
+            window.project_row(self)
+
+    def append(self, chunk: str | None) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        window = owner() if owner is not None else None
+        if chunk is None:
+            return
+        if window is None or not window.update_content(self, chunk, append=True):
+            super().append(chunk)
+
+    def set_content(self, content: str) -> None:
+        owner = getattr(self, "_transcript_owner", None)
+        window = owner() if owner is not None else None
+        if window is None or not window.update_content(self, content or "", append=False):
+            super().set_content(content)
+
     @property
-    def renderable(self: Self) -> str | RichMarkdown:
+    def renderable(self: Self) -> str | RichMarkdown | Text:
         """Return the last computed renderable for testing introspection."""
         return self._renderable_text
 
     def _update_renderable(self: Self) -> None:
         """Re-render the static widget with current content."""
+        if self._output_mode != "rich":
+            prefix = Text.from_markup(self._prefix, emoji=False).plain
+            content = (
+                Text.from_markup(self._content_text, emoji=False).plain
+                if self._trusted else self._content_text
+            )
+            text = Text(f"{prefix} {content}" if content else prefix)
+            if self._highlight_term:
+                text.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._renderable_text = text
+            self.update(text)
+            return
         if not self._content_text:
             self._renderable_text = self._prefix
             self.update(self._prefix)
@@ -502,7 +560,7 @@ class ChatMessage(_BaseMessageWidget):
     def _render_markdown(self: Self) -> None:
         """Render content as markdown."""
         md = RichMarkdown(self._content_text)
-        self._renderable_text = md  # type: ignore[assignment]
+        self._renderable_text = md
         self.update(md)
 
     def _render_plain_text(self: Self) -> None:
@@ -539,7 +597,7 @@ class ChatMessage(_BaseMessageWidget):
         Returns:
             None
         """
-        if not self._content_text:
+        if not self._content_text or self._output_mode != "rich":
             return
         if _looks_like_markdown(self._content_text):
             self._is_markdown = True
@@ -604,6 +662,13 @@ class ThinkingMessage(CollapsibleMessage):
     def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
         agent = f"{self._agent_name} " if self._agent_name else ""
+        if self._output_mode != "rich":
+            self.header.update(Text(f"{agent}Thinking (expand to inspect)"))
+            body = Text(self._content_text)
+            if self._highlight_term:
+                body.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._body.update(body)
+            return
         # Header sub-widget: never includes content, just "thinking: (click to expand)"
         header_text = f"{_THINKING_EMOJI} {agent}{_THINKING_TEXT}"
         self.header.update(header_text)
@@ -663,9 +728,9 @@ class ThinkingMessage(CollapsibleMessage):
 class ToolMessage(CollapsibleMessage):
     """Collapsible display for tool call/result content in the chat pane.
 
-    Starts collapsed — only a one-line summary header with tool name and
-    compact args is visible.  Clicking or ``toggle_expansion()`` reveals
-    the full JSON arguments and result text.
+    Starts collapsed by default; detailed transcript density starts expanded.
+    Clicking or ``toggle_expansion()`` changes the row without later events
+    resetting that choice.
     """
 
     DEFAULT_CSS = """
@@ -681,10 +746,18 @@ class ToolMessage(CollapsibleMessage):
     }
     """
 
+    can_focus = True
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("enter", "inspect", "Inspect evidence"), ("space", "expand", "Expand"),
+    ]
+
     def __init__(
         self: Self,
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
+        activity: ToolActivity | None = None,
+        *,
+        expanded: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -697,6 +770,7 @@ class ToolMessage(CollapsibleMessage):
         Args:
             thought: Tool thought/description.
             tool_call: Tool call object with ``name`` and ``arguments``.
+            expanded: Initial presentation only; does not change follow state.
             **kwargs: Forwarded to ``Static``.
         """
         # Support ToolMessage(tool_call_obj) as positional arg
@@ -706,7 +780,11 @@ class ToolMessage(CollapsibleMessage):
             thought = ""
         super().__init__(**kwargs)
         self.add_class("tool-message")
+        self._is_expanded = expanded
+        self.set_class(expanded, "expanded")
         self._thought = thought
+        self.activity = activity
+        self._manual_expansion = False
         self._tool_call = tool_call
         self._content_text = self._thought
         self._result_text: str = ""
@@ -715,6 +793,24 @@ class ToolMessage(CollapsibleMessage):
         self._body = _CollapsibleContent()
         self._body.add_class("tool")
         self._update_renderable()
+
+    def action_expand(self) -> None:
+        self.toggle_expansion()
+
+    def toggle_expansion(self) -> None:
+        """Retain the user's choice across subsequent outcome projections."""
+        self._manual_expansion = True
+        super().toggle_expansion()
+
+    def action_inspect(self) -> None:
+        if self.activity is not None:
+            self._update_renderable()
+            pane = next((parent for parent in self.ancestors if isinstance(parent, ChatPane)), None)
+            if pane is not None:
+                pane.hold_reading_position()
+            self.app.push_screen(ToolEvidenceScreen(self.activity))
+        else:
+            self.toggle_expansion()
 
     def _parse_tool_arguments(self: Self) -> dict[str, Any] | str | None:
         """Parse tool arguments from string to object if possible.
@@ -783,6 +879,9 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted header text.
         """
+        if self.activity is not None:
+            text = self.activity.summary(runtime_evidence_redactor(self.app))
+            return _safe_markup(text) if apply_markup else text
         if self._tool_call and hasattr(self._tool_call, "name"):
             compact = self._format_compact_args()
             name = self._tool_call.name
@@ -829,6 +928,8 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             List of body content parts.
         """
+        if self.activity is not None:
+            return [self.activity.evidence(runtime_evidence_redactor(self.app))]
         parts: list[str] = []
 
         # Add tool arguments if available
@@ -871,8 +972,28 @@ class ToolMessage(CollapsibleMessage):
 
     def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
-        self.header.update(self._get_header_text())
-        self._body.update(self._get_body_content())
+        if (
+            self._output_mode == "quiet" and not self._manual_expansion
+            and self.activity is not None
+            and self.activity.outcome in {"Failed", "Unknown", "Interrupted"}
+        ):
+            self._is_expanded = True
+            self.add_class("expanded")
+        self.header.update(
+            self._get_header_text() if self._output_mode == "rich"
+            else Text(self._get_render_header()),
+        )
+        if self.activity is not None:
+            self.header.styles.height = 1
+            self.header.styles.text_wrap = "nowrap"
+            self.header.styles.text_overflow = "ellipsis"
+        if self._output_mode == "rich":
+            self._body.update(self._get_body_content())
+        else:
+            body = Text("\n".join(self._build_body_parts(for_ui=True)))
+            if self._highlight_term:
+                body.highlight_words([self._highlight_term], style="reverse", case_sensitive=False)
+            self._body.update(body)
 
     def _get_render_header(self: Self) -> str:
         """Get the header for render output.
@@ -917,25 +1038,172 @@ class ChatPane(VerticalScroll):
     _active: dict[str, ChatMessage]
     _active_thinking: dict[str, ThinkingMessage]
 
-    def __init__(self: Self, **kwargs: Any) -> None:
+    class FollowChanged(TextualMessage):
+        """The transcript's explicit follow/hold state changed."""
+
+        def __init__(self, pane: ChatPane) -> None:
+            super().__init__()
+            self.pane = pane
+
+    def __init__(self: Self, *, detail_density: str = "normal", output_mode: str = "rich", **kwargs: Any) -> None:
         """Initialize the chat pane.
 
         Args:
+            detail_density: Held startup preference for spacing and new tool rows.
             **kwargs: Forwarded to ``VerticalScroll``.
         """
         super().__init__(**kwargs)
+        self._detail_density = detail_density
+        self.output_mode = output_mode
+        self.set_class(detail_density == "compact", "density-compact")
         self.border_title = "Chat"
         self.wrap: bool = True
         self.highlight: bool = True
         self.markup: bool = True
         self._active: dict[str, ChatMessage] = {}
         self._active_thinking: dict[str, ThinkingMessage] = {}
+        self._tool_activity = ToolActivityStore()
+        self._tool_rows: dict[str, ToolMessage] = {}
+        self.follow_live = True
+        self.new_activity = False
+        self._reading_anchor: tuple[Static, float] | None = None
+        self._viewport_refresh_pending = False
+        self._restoring_viewport = False
+        self._capture_after_scroll = False
+        self._transcript = TranscriptWindow(self)
+
+    def on_mount(self) -> None:
+        for child in list(self.children):
+            if isinstance(child, _BaseMessageWidget) and not hasattr(child, "_transcript_row_id"):
+                self._transcript.add(child, active=child in self._active.values())
+        self._transcript.schedule()
+        self.set_interval(0.5, self._transcript.project)
+
+    async def on_unmount(self) -> None:
+        await self._transcript.close()
+
+    def iter_transcript_rows(self, *, reverse: bool = False) -> Iterator[Any]:
+        """Read all chronological rows with current credential projection."""
+        return self._transcript.rows(reverse=reverse)
+
+    def action_previous_history(self) -> None:
+        self._transcript.page(-1)
+
+    def action_next_history(self) -> None:
+        self._transcript.page(1)
+
+    def scroll_page_up(self, **kwargs: Any) -> None:
+        if self.scroll_y <= 0 and self._transcript.can_page(-1):
+            self.action_previous_history()
+            if callback := kwargs.get("on_complete"):
+                self.call_after_refresh(callback)
+        else:
+            super().scroll_page_up(**kwargs)
+
+    def scroll_page_down(self, **kwargs: Any) -> None:
+        if self.scroll_y >= self.max_scroll_y and self._transcript.can_page(1):
+            self.action_next_history()
+            if callback := kwargs.get("on_complete"):
+                self.call_after_refresh(callback)
+        else:
+            super().scroll_page_down(**kwargs)
+
+    def reveal_transcript_row(self, row_id: int) -> None:
+        self._transcript.reveal(row_id)
+
+    def _capture_reading_anchor(self) -> None:
+        if not self.is_mounted:
+            return
+        # Focus/scroll animations retain fractional positions, while Textual
+        # displays rows at the rounded scroll_offset. Anchor the visible row,
+        # not a preceding row whose fractional tail is no longer on screen.
+        visible_y = self.scroll_offset.y
+        for child in self.children:
+            if isinstance(child, Static) and child.virtual_region.bottom > visible_y:
+                self._reading_anchor = (child, visible_y - child.virtual_region.y)
+                return
+
+    def hold_reading_position(self) -> None:
+        """Hold history until the user explicitly returns live."""
+        self._transcript.hold()
+        self.follow_live = False
+        self._capture_reading_anchor()
+        self.post_message(self.FollowChanged(self))
+
+    def release_anchor(self) -> None:
+        """Treat user scrolling and search navigation as an explicit hold."""
+        super().release_anchor()
+        if hasattr(self, "follow_live") and not self._restoring_viewport:
+            # Explicit navigation may supersede a queued live/held refresh,
+            # but only after it actually changes the scroll position.
+            capture = self.follow_live or not self._viewport_refresh_pending
+            self._capture_after_scroll = True
+            # Textual releases again when a deferred scroll executes. If a
+            # layout update moved the held message meanwhile, a no-op scroll
+            # must not replace it with the row now occupying the old offset.
+            # A genuine position change is captured by watch_scroll_y below.
+            if capture:
+                self.hold_reading_position()
+
+    def watch_scroll_y(self, old_value: float, new_value: float) -> None:
+        super().watch_scroll_y(old_value, new_value)
+        if (hasattr(self, "follow_live") and not self.follow_live
+                and not self._restoring_viewport
+                and (self._capture_after_scroll or not self._viewport_refresh_pending)):
+            self._capture_reading_anchor()
+            self._capture_after_scroll = False
+
+    def return_to_live(self) -> None:
+        """Resume following without changing the draft or focus."""
+        self.follow_live = True
+        self.new_activity = False
+        self._reading_anchor = None
+        self._capture_after_scroll = False
+        self.post_message(self.FollowChanged(self))
+        self._transcript.live()
+        self.refresh_reading_position()
+
+    def action_scroll_end(self) -> None:
+        """End in the transcript explicitly resumes following."""
+        self.return_to_live()
+
+    def refresh_reading_position(self) -> None:
+        """Coalesce viewport updates after layout, preserving a held message."""
+        if self.is_mounted and not self._viewport_refresh_pending:
+            self._viewport_refresh_pending = True
+            self.call_after_refresh(self._restore_viewport)
+
+    def _restore_viewport(self) -> None:
+        self._viewport_refresh_pending = False
+        self._restoring_viewport = True
+        try:
+            if self.follow_live:
+                self._scroll_to_bottom()
+            elif self._reading_anchor is not None:
+                child, offset = self._reading_anchor
+                if child.parent is self:
+                    self.scroll_to(
+                        y=child.virtual_region.y + offset, animate=False,
+                        immediate=True, force=True, release_anchor=False,
+                    )
+        finally:
+            self._capture_after_scroll = False
+            self._restoring_viewport = False
+
+    def on_resize(self) -> None:
+        """Retain the held message when earlier messages reflow."""
+        self.refresh_reading_position()
+
+    def _record_activity(self) -> None:
+        if not self.follow_live and not self.new_activity:
+            self.new_activity = True
+            self.post_message(self.FollowChanged(self))
+        self.refresh_reading_position()
 
     def _scroll_to_bottom(self: Self) -> None:
         """Scroll to the latest message."""
-        self.scroll_end(animate=False)
-        if self.children:
-            self.children[-1].scroll_visible(animate=False)
+        if self.follow_live:
+            self.scroll_end(animate=False, immediate=True)
 
     def _mount_widget(self: Self, widget: Static) -> None:
         """Mount a widget, falling back to direct append if not attached.
@@ -988,16 +1256,18 @@ class ChatPane(VerticalScroll):
         """
         return self._add_message_with_prefix(_USER_PREFIX, text)
 
-    def add_system_message(self: Self, text: str) -> ChatMessage:
-        """Add a system message (trusted content, markup rendered).
+    def add_system_message(self: Self, text: str, *, routine: bool = False, literal: bool = False) -> ChatMessage:
+        """Add runtime or command output with explicit presentation metadata.
 
         Args:
-            text: Message content to display. Markup is rendered for rich formatting.
+            text: Message content to display.
+            routine: Hide this row in quiet mode while retaining its content.
+            literal: Preserve bracketed text instead of interpreting markup.
 
         Returns:
             The created ChatMessage widget.
         """
-        return self._add_message_with_prefix(_SYSTEM_PREFIX, text, trusted=True)
+        return self._add_message_widget(ChatMessage, _SYSTEM_PREFIX, text, trusted=not literal, routine=routine)
 
     def add_error_message(self: Self, text: str) -> ChatMessage:
         """Add an error message (untrusted content, markup escaped).
@@ -1043,7 +1313,7 @@ class ChatPane(VerticalScroll):
         if agent_name not in self._active:
             self.begin_agent_stream(agent_name)
         self._active[agent_name].append(chunk)
-        self._scroll_to_bottom()
+        self._record_activity()
 
     def finish_agent_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's streaming message as complete.
@@ -1061,6 +1331,8 @@ class ChatPane(VerticalScroll):
             _LOGGER.debug("Attempted to finish non-existent agent stream: %s", agent_name)
             return
         widget.finalize_as_markdown()
+        self._transcript.finish(widget)
+        self.refresh_reading_position()
 
     def finish_thinking_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's thinking stream as complete.
@@ -1081,6 +1353,7 @@ class ChatPane(VerticalScroll):
         *args: Any,
         tracking_dict: dict[str, _T] | None = None,
         tracking_key: str | None = None,
+        routine: bool = False,
         **kwargs: Any,
     ) -> _T:
         """Add a message widget to the chat pane.
@@ -1095,8 +1368,17 @@ class ChatPane(VerticalScroll):
         Returns:
             The created widget.
         """
+        kwargs.setdefault("output_mode", self.output_mode)
         widget = widget_class(*args, **kwargs)
-        self._mount_widget(widget)
+        hidden = self.output_mode == "quiet" and (routine or isinstance(widget, ThinkingMessage))
+        if hidden:
+            widget.display = False
+        if self.is_mounted:
+            self._transcript.add(widget, active=tracking_dict is not None)
+        else:
+            self._mount_widget(widget)
+        if not hidden:
+            self._record_activity()
 
         if tracking_dict is not None and tracking_key is not None:
             tracking_dict[tracking_key] = widget
@@ -1146,6 +1428,8 @@ class ChatPane(VerticalScroll):
         if agent_name not in self._active_thinking:
             self.begin_thinking_stream(agent_name)
         self._active_thinking[agent_name].append(chunk)
+        if self.output_mode != "quiet":
+            self._record_activity()
 
     def _create_tool_message(
         self: Self,
@@ -1154,9 +1438,31 @@ class ChatPane(VerticalScroll):
         tool_call: ToolCallProtocol | None = None,
     ) -> ToolMessage:
         """Create a tool message widget."""
-        return self._add_message_widget(widget_class, thought, tool_call)
+        return self._add_message_widget(
+            widget_class, thought, tool_call, expanded=self._detail_density == "detailed" and self.output_mode != "quiet",
+        )
 
     add_tool_message = functools.partialmethod(_create_tool_message, ToolMessage)
+
+    def record_tool_activity(self, message: Any, *, request: bool) -> ToolMessage:
+        policy = runtime_evidence_redactor(self.app)
+        record = self._tool_activity.observe(message, policy, request=request)
+        if record.key not in self._tool_rows:
+            self._tool_rows[record.key] = self._add_message_widget(
+                ToolMessage, activity=record, expanded=self._detail_density == "detailed" and self.output_mode != "quiet",
+            )
+        self.refresh_tool_activity()
+        self._record_activity()
+        return self._tool_rows[record.key]
+
+    def refresh_tool_activity(self) -> None:
+        for key in self._tool_activity.changed:
+            self._tool_rows[key]._update_renderable()
+
+    def close_tool_activity(self, stream_id: str) -> None:
+        self._tool_activity.close(stream_id)
+        self.refresh_tool_activity()
+        self._record_activity()
 
     def clear_thinking_messages(self: Self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane.
@@ -1165,9 +1471,13 @@ class ChatPane(VerticalScroll):
             None
         """
         self._active_thinking = {}
-        thinking = [child for child in self.children if isinstance(child, ThinkingMessage)]
+        thinking = [child for child in dict.fromkeys((*self.children, *self._transcript.owned_widgets()))
+                    if isinstance(child, ThinkingMessage)]
         for widget in thinking:
-            _perform_pane_operation(widget.remove, self, "_remove", widget)
+            owned = self._transcript.owns(widget)
+            self._transcript.discard(widget)
+            if not owned:
+                _perform_pane_operation(widget.remove, self, "_remove", widget)
 
     def clear_messages(self: Self) -> None:
         """Remove all messages from the pane.
@@ -1177,7 +1487,14 @@ class ChatPane(VerticalScroll):
         """
         self._active = {}
         self._active_thinking = {}
+        self._transcript.clear()
+        self._tool_activity.clear()
+        self._tool_rows = {}
+        if self.is_mounted:
+            for pane in self.app.query(ToolPane):
+                pane.bind_activity(self._tool_activity)
         _perform_pane_operation(self.remove_children, self, "_clear")
+        self.return_to_live()
 
 
 # ------------------------------------------------------------------ #
@@ -1221,9 +1538,58 @@ class ThinkingPane(_TitledPane):
 
 
 class ToolPane(_TitledPane):
-    """Pane for tool call/result display."""
+    """Bounded current projection of the transcript's shared tool evidence."""
 
     _DEFAULT_BORDER_TITLE: str = "Tools"
+
+    def __init__(self, **kwargs: Any) -> None:
+        self._activity_store: ToolActivityStore | None = None
+        self._minimum_revision = 0
+        self._projection = ""
+        self._projecting = False
+        kwargs.setdefault("max_lines", 4096)
+        super().__init__(**kwargs)
+
+    def bind_activity(self, store: ToolActivityStore) -> None:
+        if self._activity_store is not store:
+            self._minimum_revision = 0
+        self._activity_store = store
+        self.refresh()
+
+    def on_mount(self) -> None:
+        self.set_interval(0.5, self._refresh_visible_projection)
+
+    def _refresh_visible_projection(self) -> None:
+        if self.is_on_screen:
+            self.refresh()
+
+    def _sync_projection(self) -> None:
+        if self._projecting or self._activity_store is None or not self.is_mounted:
+            return
+        text = self._activity_store.tool_view(runtime_evidence_redactor(self.app), self._minimum_revision)
+        if text == self._projection:
+            return
+        self._projection = text
+        self._projecting = True
+        offset = self.scroll_offset
+        try:
+            super().clear()
+            if text:
+                super().write(Text(text), scroll_end=False)
+            self.scroll_to(x=offset.x, y=offset.y, animate=False, immediate=True)
+        finally:
+            self._projecting = False
+
+    def refresh(self, *regions: Region, repaint: bool = True, layout: bool = False, recompose: bool = False) -> Self:
+        self._sync_projection()
+        return super().refresh(*regions, repaint=repaint, layout=layout, recompose=recompose)
+
+    def clear(self) -> Self:
+        if not self._projecting:
+            if self._activity_store is not None:
+                self._minimum_revision = self._activity_store.revision + 1
+            self._projection = ""
+        return super().clear()
 
 
 # ------------------------------------------------------------------ #
@@ -1235,8 +1601,18 @@ class StatusBar(Static):
     """One-line status bar at the bottom of the screen."""
 
     status_text: reactive[str] = reactive("Ready")
+    activity_text: reactive[str] = reactive("")
+    notice_text: reactive[str] = reactive("")
+    context_text: reactive[str] = reactive("")
+    decision_action: reactive[bool] = reactive(False)
     tokens: reactive[int] = reactive(0)
     cost: reactive[float] = reactive(0.0)
+    can_focus = True
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("enter", "pending_decision", "Decision")]
+
+    def action_pending_decision(self) -> None:
+        if self.decision_action:
+            self.app.action_pending_decision()  # type: ignore[attr-defined]
 
     def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize.
@@ -1253,7 +1629,15 @@ class StatusBar(Static):
         Returns:
             Formatted Rich markup string.
         """
-        parts = [f"[bold cyan]{self.status_text}[/]"]
+        label = _safe_markup(self.activity_text) if self.activity_text else self.status_text
+        parts = [f"[bold cyan]{label}[/]"]
+        policy = runtime_evidence_redactor(self.app) if self.is_mounted else None
+        if self.activity_text and self.notice_text:
+            notice = policy.text(self.notice_text) if policy else self.notice_text
+            parts.append(_safe_markup(notice))
+        if self.activity_text and self.context_text:
+            context = policy.text(self.context_text) if policy else self.context_text
+            parts.append(f"[dim]{_safe_markup(context)}[/]")
         if self.tokens > 0:
             parts.append(f"[dim]{self.tokens:,} tokens[/]")
         if self.cost > 0:
@@ -1371,7 +1755,7 @@ class AgentSummaryPanel(Static):
         self._model_name: str = ""
         self._mode: str = ""
         self._active_agent: str = ""
-        self._tools: int = 0
+        self._tools: int | None = None
 
     def update_summary(
         self: Self,
@@ -1379,7 +1763,7 @@ class AgentSummaryPanel(Static):
         model_name: str = "",
         mode: str = "",
         active_agent: str = "",
-        tools: int = 0,
+        tools: int | None = None,
     ) -> None:
         """Update the summary information.
 
@@ -1387,8 +1771,8 @@ class AgentSummaryPanel(Static):
             provider_name: The provider name.
             model_name: The model name.
             mode: The current mode (Chat/Plan).
-            active_agent: The active agent name.
-            tools: The number of tools.
+            active_agent: Selected actor identity, without implying execution.
+            tools: Registered tool count, or None when unavailable.
         """
         self._provider_name = provider_name
         self._model_name = model_name
@@ -1405,8 +1789,8 @@ class AgentSummaryPanel(Static):
         """
         return (
             f"{self._provider_name}:{self._model_name} | "
-            f"Mode: {self._mode} | Agent: {self._active_agent} | "
-            f"Tools: {self._tools}"
+            f"Mode: {self._mode} | Selected agent: {self._active_agent} | "
+            f"Tools: {self._tools if self._tools is not None else 'unavailable'}"
         )
 
 

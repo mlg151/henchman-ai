@@ -6,6 +6,7 @@ only printing the error message.
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,8 +26,8 @@ def _patch_broken_imports() -> None:
 
 
 @pytest.mark.asyncio
-async def test_repl_logger_exception_on_turn_error() -> None:
-    """When _run_agent_with_monitor catches an Exception, logger.exception should be called."""
+async def test_repl_logs_safe_traceback_on_turn_error(caplog: pytest.LogCaptureFixture) -> None:
+    """Caught turn errors retain a traceback without attaching raw exception data."""
     import henchman.cli.repl as repl_mod
 
     provider = MagicMock()
@@ -40,7 +41,6 @@ async def test_repl_logger_exception_on_turn_error() -> None:
         patch.object(repl_mod, "_run_monitored_task", side_effect=RuntimeError("REPL crash")),
         patch.object(repl_mod, "_cleanup_monitor", new=AsyncMock()),
         patch("henchman.cli.input.KeyMonitor") as mock_monitor_cls,
-        patch.object(repl_mod.logger, "exception") as mock_log_exc,
     ):
         mock_monitor = MagicMock()
         mock_monitor.monitor = AsyncMock()
@@ -53,7 +53,12 @@ async def test_repl_logger_exception_on_turn_error() -> None:
             "test status",
         )
 
-    mock_log_exc.assert_called_once()
+    records = [record for record in caplog.records if record.name == repl_mod.logger.name]
+    assert len(records) == 1
+    formatted = logging.Formatter().format(records[0])
+    assert "Traceback (most recent call last)" in formatted
+    assert "RuntimeError: REPL crash" in formatted
+    assert records[0].exc_info is None
 
 
 def test_repl_module_has_logger() -> None:

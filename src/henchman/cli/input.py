@@ -8,18 +8,27 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import re
+import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from prompt_toolkit import PromptSession
+from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings, KeyPress
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.output.plain_text import PlainTextOutput
 from rich.prompt import Confirm, IntPrompt, Prompt
 
-if TYPE_CHECKING:
-    from rich.console import Console
+from henchman.cli.oauth_frontend import OAUTH_ACCEPTED_LABEL, is_oauth_command
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from prompt_toolkit.buffer import Buffer
+    from rich.console import Console
 
 try:
     from typing import Self
@@ -175,11 +184,33 @@ def _register_custom_keybindings(bindings: KeyBindings, keybindings: dict[str, s
                 raise EOFError
 
 
+class EvidenceFileHistory(FileHistory):
+    """Redact persisted input while prompt-toolkit keeps its live editing buffer."""
+
+    def __init__(self, filename: str, redactor: EvidenceRedactor) -> None:
+        super().__init__(filename)
+        self._redactor = redactor
+
+    def store_string(self, string: str) -> None:
+        if not is_oauth_command(string):
+            super().store_string(self._redactor.text(string))
+
+    def append_string(self, string: str) -> None:
+        if not is_oauth_command(string):
+            super().append_string(string)
+
+    def load_history_strings(self) -> Iterable[str]:
+        return (value for value in super().load_history_strings() if not is_oauth_command(value))
+
+
 def create_session(
     history_file: Path | None = None,
     bottom_toolbar: Any = None,
     keybindings: dict[str, str] | None = None,
     completer: Any = None,
+    evidence_redactor: EvidenceRedactor | None = None,
+    keyboard_mode: str = "standard",
+    editor_action: Callable[[], None] | None = None,
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
@@ -188,10 +219,15 @@ def create_session(
         bottom_toolbar: Optional callback for bottom toolbar.
         keybindings: Dictionary of keybindings (key -> action).
         completer: Optional completer for tab completion.
+        evidence_redactor: Shared policy for the persisted history copy.
+        keyboard_mode: Startup editing profile: standard or vim.
+        editor_action: User-only external composition action for the main prompt.
 
     Returns:
         Configured PromptSession.
     """
+    if keyboard_mode not in ("standard", "vim"):
+        raise ValueError("keyboard_mode must be standard or vim")
     bindings = KeyBindings()
 
     @bindings.add(Keys.ControlC)
@@ -199,27 +235,53 @@ def create_session(
         """Handle Ctrl+C: raise KeyboardInterrupt to exit cleanly."""
         raise KeyboardInterrupt
 
-    @bindings.add(Keys.Escape)
-    def _(event: Any) -> None:
-        """Handle Escape key: cancel input or clear buffer."""
-        buffer = event.current_buffer
-        if buffer.text:
-            buffer.text = ""
-        else:
-            with contextlib.suppress(Exception):
-                event.app.exit(result="")
+    if keyboard_mode == "standard":
+        @bindings.add(Keys.Escape)
+        def _(event: Any) -> None:
+            """Handle Escape key: cancel input or clear buffer."""
+            buffer = event.current_buffer
+            if buffer.text:
+                buffer.text = ""
+            else:
+                with contextlib.suppress(Exception):
+                    event.app.exit(result="")
+
+    if editor_action is not None:
+        @bindings.add("f11")
+        def _external_editor(_event: Any) -> None:
+            editor_action()
 
     if keybindings:
         _register_custom_keybindings(bindings, keybindings)
 
-    history = FileHistory(str(history_file)) if history_file else None
+    history = EvidenceFileHistory(str(history_file), evidence_redactor or EvidenceRedactor()) if history_file else None
 
-    return PromptSession(
+    output = None
+    if sys.stdout is not None and not sys.stdout.isatty():
+        output = PlainTextOutput(sys.stdout)
+
+    session: PromptSession[str] = PromptSession(
         history=history,
         key_bindings=bindings,
         bottom_toolbar=bottom_toolbar,
         completer=completer,
+        output=output,
+        editing_mode=EditingMode.VI if keyboard_mode == "vim" else EditingMode.EMACS,
     )
+    original_accept = session.default_buffer.accept_handler
+
+    def accept(buffer: Buffer) -> bool:
+        # The original handler captures the transient result before replacing
+        # the accepted display and history copy. Already typed terminal output
+        # cannot be erased by this application boundary.
+        private = is_oauth_command(buffer.text)
+        keep = original_accept(buffer) if original_accept is not None else False
+        if private:
+            buffer.text = OAUTH_ACCEPTED_LABEL
+        return bool(keep)
+
+    session.default_buffer.accept_handler = accept
+    return session
 
 
 class InputHandler:

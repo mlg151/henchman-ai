@@ -187,9 +187,18 @@ def test_ci_smoke_installs_both_distribution_formats() -> None:
     assert parsed_workflow["jobs"]["test"]["strategy"]["matrix"]["python-version"] == [
         "3.11",
         "3.12",
+        "3.13",
+        "3.14",
     ]
     assert "build-check" in parsed_workflow["jobs"]
-    assert parsed_workflow["jobs"]["build-check"]["runs-on"] == ["self-hosted", "homeserver"]
+    assert parsed_workflow["jobs"]["build-check"]["runs-on"] == "ubuntu-latest"
+    native_smoke = parsed_workflow["jobs"]["native-smoke"]
+    assert native_smoke["strategy"]["matrix"]["os"] == [
+        "ubuntu-latest",
+        "windows-latest",
+        "macos-latest",
+    ]
+    assert native_smoke["strategy"]["matrix"]["python-version"] == ["3.11", "3.12", "3.13", "3.14"]
 
 
 def test_ci_build_check_validates_distribution_packages() -> None:

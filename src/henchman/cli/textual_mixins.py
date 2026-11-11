@@ -12,12 +12,12 @@ import contextlib
 import importlib
 import json
 import logging
-import traceback
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import yaml
+from rich.text import Text
 from textual import on, work
 from textual.widgets import (
     Button,
@@ -28,8 +28,11 @@ from textual.widgets import (
     Tree,
 )
 
-from henchman.advanced import TaskService
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
+from henchman.cli.oauth_frontend import FrontendOAuth, is_oauth_command, oauth_command_evidence
 from henchman.cli.output_handler import resolve_active_agent
+from henchman.cli.provider_switch import capture_startup_provider_settings
+from henchman.cli.textual_activity_state import Outcome, activity_for, refresh_activity
 from henchman.cli.textual_config import (
     ComponentConfig,
     ComponentInitializer,
@@ -38,7 +41,6 @@ from henchman.cli.textual_config import (
 from henchman.cli.textual_questions import ToolPromptChannel
 from henchman.cli.textual_widgets import (
     AgentSummaryPanel,
-    ChatMessage,
     ChatPane,
     MemoryIndicator,
     SettingsPanel,
@@ -46,12 +48,18 @@ from henchman.cli.textual_widgets import (
     StatusBar,
     TaskListWidget,
     TeamPanel,
-    ThinkingMessage,
     ThinkingPane,
-    ToolMessage,
     ToolPane,
     _safe_markup,
 )
+from henchman.cli.workflow import (
+    command_route,
+    command_starts_work,
+    frontend_has_active_work,
+    idle_command,
+    idle_control_active,
+)
+from henchman.config.runtime import RuntimeSettingsState
 from henchman.core.goals import GoalService, save_goal_session
 from henchman.core.session_export import export_as_markdown
 from henchman.providers.base import ModelProvider, StreamChunk
@@ -71,16 +79,19 @@ if TYPE_CHECKING:
         AgentThoughtMessage,
         CommandOutputMessage,
         SwitchProviderMessage,
+        ToolActivityClosedMessage,
         ToolCallRequestMessage,
         ToolCallResultMessage,
         ToolConfirmationMessage,
     )
+    from henchman.config.schema import Settings
     from henchman.core.events import AgentEvent
     from henchman.providers.base import (
         Message,
         ToolDeclaration,
     )
     from henchman.tools.base import ConfirmationRequest
+    from henchman.utils.evidence_redaction import EvidenceRedactor
 
 __all__ = [
     "_CommandPaletteMixin",
@@ -276,11 +287,12 @@ def _get_searchable_content(widget: Any) -> str:
     return str(content) if content else ""
 
 
-async def _read_context_file_content(path: Path) -> str:
+async def _read_context_file_content(path: Path, redactor: EvidenceRedactor | None = None) -> str:
     """Read a context file and return formatted display content.
 
     Args:
         path: Path to the file to read.
+        redactor: Optional display policy applied before truncating content.
 
     Returns:
         Formatted string with header and (possibly truncated) content.
@@ -289,13 +301,17 @@ async def _read_context_file_content(path: Path) -> str:
         stat = await asyncio.to_thread(path.stat)
         size_kb = stat.st_size / _FILE_SIZE_DIVISOR
     except OSError as exc:
-        return f"[bold]{path.name}[/bold] - Error getting file info: {exc}"
+        detail = redactor.text(str(exc)) if redactor else str(exc)
+        return f"[bold]{path.name}[/bold] - Error getting file info: {detail}"
 
     try:
         full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
     except (OSError, UnicodeDecodeError) as exc:
-        return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {exc}"
+        detail = redactor.text(str(exc)) if redactor else str(exc)
+        return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {detail}"
 
+    if redactor is not None:
+        full = redactor.text(full)
     content = full[:_CONTEXT_FILE_PREVIEW_LIMIT]
     truncated = len(full) > _CONTEXT_FILE_PREVIEW_LIMIT
     if truncated:
@@ -306,19 +322,23 @@ async def _read_context_file_content(path: Path) -> str:
     return f"{header}\n{content}"
 
 
-def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
+def _fill_context_tree(tree: Tree, runtime: Any = None) -> None:  # type: ignore[type-arg]
     """Discover and mount context files into a Tree widget.
 
     Args:
         tree: The Tree widget to populate.
+        runtime: Runtime supplying the shared credential policy, when available.
     """
+    owner = runtime if runtime is not None else tree
+    policy = runtime_evidence_redactor(owner)
     try:
         context_loader = _import_module("henchman.config.context").ContextLoader()
         files = context_loader.discover_files()
     except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to load context files: %s", exc)  # noqa: TRY400
+        detail = runtime_exception_text(owner, exc)
+        logger.error("Failed to load context files: %s", detail)  # noqa: TRY400
         with contextlib.suppress(Exception):
-            tree.root.add_leaf(f"Error loading context: {exc}")
+            tree.root.add_leaf(_safe_markup(f"Error loading context: {detail}"))
         return
 
     if not files:
@@ -328,9 +348,9 @@ def _fill_context_tree(tree: Tree) -> None:  # type: ignore[type-arg]
     for f in files:
         by_dir.setdefault(f.parent, []).append(f)
     for directory, dir_files in by_dir.items():
-        branch = tree.root.add(str(directory), expand=True)
+        branch = tree.root.add(_safe_markup(policy.text(str(directory))), expand=True)
         for p in dir_files:
-            branch.add_leaf(p.name, data=p)
+            branch.add_leaf(_safe_markup(policy.text(p.name)), data=p)
     tree.root.expand()
 
 
@@ -416,13 +436,15 @@ class _InitMixin:
     """Lifecycle and component initialization helpers."""
 
     environment_context: str | None
+    settings: Settings
 
     def _init_provider_and_settings(
         self: _InitMixin,
         provider: ModelProvider | None,
         config: TextualConfig | None,
-        settings: Any | None,
+        settings: Settings | None,
         env_ctx: str | None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Resolve provider, config, and settings.
 
@@ -432,13 +454,22 @@ class _InitMixin:
             settings: Optional application settings.
             env_ctx: Optional environment context.
         """
+        if settings_state is not None:
+            self.settings_state = settings_state
+            settings = settings_state.settings
+        elif settings is not None:
+            self.settings_state = RuntimeSettingsState.from_settings(settings)
         if provider is not None:
             self.provider = provider
             self.config = config or TextualConfig()
-            self.settings = settings
+            self.settings = (
+                settings if settings is not None else self._load_settings_safe()  # type: ignore[attr-defined]
+            )
+            if settings_state is None:
+                capture_startup_provider_settings(self.settings_state, provider, injected=True)
             self.environment_context = env_ctx
             return
-        self._resolve_provider_from_env()  # type: ignore[attr-defined]
+        self._resolve_provider_from_env(settings=settings, settings_state=settings_state)  # type: ignore[attr-defined]
 
     def _init_state(self: _InitMixin) -> None:
         """Initialize mutable UI state fields."""
@@ -469,6 +500,7 @@ class _InitMixin:
     def _init_confirm_state(self: _InitMixin) -> None:
         """Initialize the shared question and tool-approval channel."""
         self._tool_prompts = ToolPromptChannel(cast("App[Any]", self))
+        activity_for(self)
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
         """Initialize proxy compatibility stub attributes."""
@@ -505,6 +537,9 @@ class _InitMixin:
         initializer.initialize_all()
         self._transfer_components(initializer)
         self._initialize_session()
+        if self.core_context is not None:
+            self._oauth = FrontendOAuth(self, self.core_context.project_root,
+                                       emit=self._oauth_emit, settled=self._oauth_settled)  # type: ignore[attr-defined]
         self._initialize_mcp()
         self._install_confirmation_handler()
         self._update_status_bar()  # type: ignore[attr-defined]
@@ -574,14 +609,27 @@ class _ProviderMixin:
 
     environment_context: str | None
 
-    def _resolve_provider_from_env(self: _ProviderMixin) -> None:
-        """Auto-detect provider from environment."""
-        self.provider = self._load_provider_safe()
-        self.settings = self._load_settings_safe()
+    def _resolve_provider_from_env(
+        self: _ProviderMixin, settings: Settings | None = None,
+        settings_state: RuntimeSettingsState | None = None,
+    ) -> None:
+        """Initialize the provider from supplied settings or one configuration load."""
+        if settings_state is not None:
+            self.settings_state = settings_state
+            self.settings = settings_state.settings
+        elif settings is not None:
+            self.settings_state = RuntimeSettingsState.from_settings(settings)
+            self.settings = settings
+        else:
+            self.settings = self._load_settings_safe()
+        self.provider = self._load_provider_safe(settings=self.settings)
+        capture_startup_provider_settings(self.settings_state, self.provider)
         self.config = self._create_config_safe()
         self.environment_context = self._gather_env_safe()
 
-    def _load_provider_safe(self: _ProviderMixin) -> ModelProvider:
+    def _load_provider_safe(
+        self: _ProviderMixin, settings: Settings | None = None
+    ) -> ModelProvider:
         """Load provider with fallback to ``_NullProvider``.
 
         Returns:
@@ -589,7 +637,10 @@ class _ProviderMixin:
         """
         try:
             provider_loader = _import_module("henchman.cli.app")._get_provider  # noqa: SLF001
-            return cast(ModelProvider, provider_loader())
+            return cast(
+                ModelProvider,
+                provider_loader(settings=settings) if settings is not None else provider_loader(),
+            )
         except Exception as exc:  # noqa: BLE001
             warnings.warn(
                 f"Failed to initialize provider: {exc}. Using null provider.",
@@ -598,23 +649,18 @@ class _ProviderMixin:
             )
             return _NullProvider()
 
-    @staticmethod
-    def _load_settings_safe() -> Any:
-        """Load settings with fallback to defaults.
+    def _load_settings_safe(self) -> Settings:
+        """Load settings.
 
         Returns:
-            Loaded or default settings.
+            Loaded settings.
+
+        Raises:
+            ConfigError: If settings fail to load.
         """
-        try:
-            settings_module = _import_module("henchman.config")
-            return settings_module.load_settings()
-        except Exception as exc:  # noqa: BLE001
-            warnings.warn(
-                f"Failed to load settings: {exc}. Using defaults.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            return _import_module("henchman.config.schema").Settings()
+        settings_module = _import_module("henchman.config")
+        self.settings_state = RuntimeSettingsState(settings_module.load_settings_snapshot())
+        return self.settings_state.settings
 
     @staticmethod
     def _create_config_safe() -> TextualConfig:
@@ -662,7 +708,7 @@ class _ProviderMixin:
         old_name = active_provider.name if active_provider else "unknown"
         try:
             new = create_configured_provider(self.settings.providers, provider_name=provider_name)
-            switch_runtime_provider(self, new, agent=active_agent)
+            switch_runtime_provider(self, new, agent=active_agent, provider_name=provider_name)
         except Exception as exc:  # noqa: BLE001
             self._show_provider_error(exc)
             return
@@ -681,11 +727,12 @@ class _ProviderMixin:
         """
         version = _import_module("henchman").__version__
         provider = _active_display_provider(self)
-        self.sub_title = f"Henchman-AI v{version} - {provider.name if provider else 'unknown'}"
+        policy = runtime_evidence_redactor(self)
+        self.sub_title = policy.text(f"Henchman-AI v{version} - {provider.name if provider else 'unknown'}")
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
             chat.add_system_message(
-                f"Provider switched: [cyan]{old_name}[/] -> [cyan]{new_name}[/]",
+                policy.text(f"Provider switched: [cyan]{old_name}[/] -> [cyan]{new_name}[/]"),
             )
         self._update_status_bar()  # type: ignore[attr-defined]
 
@@ -696,10 +743,11 @@ class _ProviderMixin:
             exc: The exception that occurred.
         """
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
+        details = runtime_exception_text(self, exc)
         if chat is not None:
-            chat.add_error_message(f"Failed to switch provider: {exc}")
+            chat.add_error_message(f"Failed to switch provider: {details}")
             return
-        logger.exception("Failed to switch provider")
+        logger.error("Failed to switch provider: %s", runtime_exception_text(self, exc, include_traceback=True))
 
 
 # ------------------------------------------------------------------ #
@@ -716,6 +764,8 @@ class _StatusBarMixin:
         if bar is None:
             return
         bar.status_text = self._build_status_text()
+        bar.context_text = bar.status_text
+        refresh_activity(self)
 
     def _build_status_text(self: _StatusBarMixin) -> str:
         """Assemble the status bar text.
@@ -730,7 +780,7 @@ class _StatusBarMixin:
         mcp = self._mcp_status_fragment()
         settings = self.settings  # type: ignore[attr-defined]
         mode = "Plan" if (settings and getattr(settings, "plan_mode", False)) else "Chat"
-        return f"{mode} | {provider}:{model} | Tools: {tools}{mcp}"
+        return runtime_evidence_redactor(self).text(f"{mode} | {provider}:{model} | Tools: {tools}{mcp}")
 
     def _count_tools(self: _StatusBarMixin) -> int:
         """Count registered tools.
@@ -781,7 +831,7 @@ class _HistoryMixin:
             return
         try:
             lines = hf.read_text().splitlines()
-            self.command_history = [ln for ln in lines if ln.strip()]
+            self.command_history = [ln for ln in lines if ln.strip() and not is_oauth_command(ln)]
             self.history_index = len(self.command_history)
         except OSError:
             return
@@ -792,6 +842,8 @@ class _HistoryMixin:
         Args:
             entry: History line to persist.
         """
+        if is_oauth_command(entry):
+            return
         handler = self.input_handler  # type: ignore[attr-defined]
         if not handler:
             return
@@ -802,12 +854,13 @@ class _HistoryMixin:
         )
         try:
             with open(hf, "a", encoding="utf-8") as fh:  # noqa: PTH123
-                fh.write(entry + "\n")
+                fh.write(runtime_evidence_redactor(self).text(entry) + "\n")
         except OSError as exc:
-            logger.error("Failed to persist history entry: %s", exc)  # noqa: TRY400
+            details = runtime_exception_text(self, exc)
+            logger.error("Failed to persist history entry: %s", details)  # noqa: TRY400
             with contextlib.suppress(Exception):
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-                chat.add_error_message(f"Failed to save command history: {exc}")
+                chat.add_error_message(f"Failed to save command history: {details}")
 
     def _navigate_history(self: _HistoryMixin, direction: int) -> None:
         """Navigate command history.
@@ -861,11 +914,18 @@ class _ContextTreeMixin:
         mcp = self._welcome_mcp_info()
         cfg = self.config  # type: ignore[attr-defined]
         ctx = " | Context loaded" if cfg.system_prompt else ""
+        plain = chat.output_mode in ("plain", "quiet")
+        title = "Henchman-AI" if plain else "[bold]Henchman-AI[/bold]"
         chat.add_system_message(
-            f"[bold]Henchman-AI[/bold] | {provider}:{model} | {tools} tools{mcp}{ctx}",
+            runtime_evidence_redactor(self).text(
+                f"{title} | {provider}:{model} | {tools} tools{mcp}{ctx}",
+            ),
+            routine=True,
+            literal=plain,
         )
         chat.add_system_message(
             "Type /help for commands. Press F1 for keybindings.",
+            routine=True,
         )
 
     def _welcome_mcp_info(self: _ContextTreeMixin) -> str:
@@ -887,7 +947,7 @@ class _ContextTreeMixin:
         tree = _query_one_or_none(self, "#context-tree", Tree)
         if tree is None:
             return
-        _fill_context_tree(tree)
+        _fill_context_tree(tree, self)
 
     @work
     async def on_tree_node_selected(
@@ -912,10 +972,11 @@ class _ContextTreeMixin:
             path: Path to the file to display.
         """
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        chat.add_system_message(f"[dim]Loading {path.name}...[/]")
+        policy = runtime_evidence_redactor(self)
+        chat.add_system_message(policy.text(f"[dim]Loading {path.name}...[/]"))
         try:
-            content_msg = await _read_context_file_content(path)
-            chat.add_system_message(content_msg)
+            content_msg = await _read_context_file_content(path, policy)
+            chat.add_system_message(policy.text(content_msg))
         except OSError as exc:
             self._handle_file_read_error(chat, exc, path)
 
@@ -933,7 +994,8 @@ class _ContextTreeMixin:
             path: Path that failed to read.
         """
         with contextlib.suppress(Exception):
-            chat.add_error_message(f"Cannot read {path}: {exc}")
+            details = runtime_exception_text(self, exc)
+            chat.add_error_message(runtime_evidence_redactor(self).text(f"Cannot read {path}: {details}"))
 
     def _apply_theme(self: _ContextTreeMixin) -> None:
         """Apply the current theme class to the screen."""
@@ -967,23 +1029,78 @@ class _InputHandlerMixin:
     history_index: int
     is_processing: bool
 
+    def _oauth_emit(self, text: str) -> None:
+        """Show fixed authentication diagnostics without echoing user arguments."""
+        self.query_one("#chat-pane", ChatPane).add_system_message(text)  # type: ignore[attr-defined]
+
+    def _oauth_settled(self, success: bool) -> None:
+        """Release only accepted input; authentication never starts a goal."""
+        runtime = self._workflow()
+        if not success:
+            if runtime is not None:
+                runtime.hold_pending()
+            return
+        if runtime is not None:
+            self._schedule_queue_dispatch(runtime)
+        elif not self.is_processing and self._queued_inputs():
+            self.is_processing = True
+            self.process_user_input(self._queued_inputs().pop(0))
+
     def action_submit_message(self: _InputHandlerMixin) -> None:
         """Extract text from the input widget and process it."""
         input_widget = self.query_one("#input", TextArea)  # type: ignore[attr-defined]
         user_input = input_widget.text.strip()
         if not user_input:
             return
+        oauth = getattr(self, "_oauth", None)
+        if is_oauth_command(user_input):
+            if isinstance(oauth, FrontendOAuth):
+                oauth.submit(user_input)
+            else:
+                self._oauth_emit("MCP authentication is unavailable until the interactive runtime is initialized.")
+            input_widget.load_text("")
+            return
+        if isinstance(oauth, FrontendOAuth) and oauth.defer_work_control(user_input):
+            return
+        runtime = self._workflow()
+        route = command_route(user_input)
+        if route == "idle" and frontend_has_active_work(self):
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            chat.add_system_message("This command requires idle work; repeat it after active work finishes.")
+            return
+        live_command = route in {"control", "idle"}
+        if runtime is not None and not live_command:
+            try:
+                runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+            except Exception as exc:
+                chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+                chat.add_error_message(runtime_exception_text(self, exc))
+                return
         self.command_history.append(user_input)  # type: ignore[attr-defined]
         self.history_index = len(self.command_history)  # type: ignore[attr-defined]
         self._persist_history_entry(user_input)  # type: ignore[attr-defined]
         input_widget.load_text("")
-        if self.is_processing:
-            if user_input.split()[0] in {"/goal", "/quit"}:
-                self._process_live_command(user_input)
+        if route == "idle":
+            # Reserve the command's worker interval before another UI event can
+            # schedule model work. Its task claims no workflow input permit.
+            self.is_processing = True
+            self.process_user_input(user_input)
+            return
+        if route == "control":
+            self._process_live_command(user_input)
+            return
+        if runtime is not None:
+            if not self.is_processing and not idle_control_active(self):
+                self.is_processing = True
+                self.process_user_input(None)
             else:
-                self._queued_inputs().append(user_input)
                 chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-                chat.add_system_message("Message queued for the next agent turn.")
+                chat.add_system_message("Message saved for the next agent turn.")
+            return
+        if self.is_processing or idle_control_active(self):
+            self._queued_inputs().append(user_input)
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            chat.add_system_message("Message queued for the next agent turn.")
             return
         self.is_processing = True
         self.process_user_input(user_input)
@@ -998,6 +1115,41 @@ class _InputHandlerMixin:
         """Resolve the current session without retaining stale session state."""
         ctx = self.core_context  # type: ignore[attr-defined]
         return ctx.session_manager.current if ctx and ctx.session_manager else None
+
+    def _workflow(self) -> Any:
+        from henchman.core.session_workflow import SessionWorkflow
+
+        session = self._goal_session()
+        runtime = session.workflow_runtime if session is not None else None
+        return runtime if isinstance(runtime, SessionWorkflow) else None
+
+    def _workflow_ready(self) -> bool:
+        runtime = self._workflow()
+        return bool(runtime is not None and (runtime.has_ready_input() or runtime.goal_continuation_allowed()))
+
+    async def _drain_workflow(self, runtime: Any, chat: ChatPane) -> None:
+        from henchman.cli.workflow import execute_workflow_input
+
+        while True:
+            dispatch = runtime.next_input()
+            if dispatch is None and runtime.submit_goal() is not None:
+                dispatch = runtime.next_input()
+            if dispatch is None:
+                return
+            if dispatch.kind != "goal":
+                chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(dispatch.text)))
+
+            async def run(text: str = dispatch.text) -> bool:
+                if command_route(text) in {"control", "idle"}:
+                    from henchman.core.workflow_state import WorkflowError
+
+                    raise WorkflowError("control_requires_explicit_command")
+                self._workflow_turn_failed = False
+                await self._route_input(text, chat)
+                return not self._workflow_turn_failed
+
+            await execute_workflow_input(runtime, dispatch, run)
+            await asyncio.sleep(0.05)
 
     def _pause_active_goal(self) -> None:
         """Stop automatic continuation after cancellation or a runtime error."""
@@ -1017,18 +1169,34 @@ class _InputHandlerMixin:
 
     @work(group="goal-controls", exclusive=False)
     async def _process_live_command(self, text: str) -> None:
-        """Allow goal controls during work without starting another agent turn."""
+        """Run user controls while held, without acquiring dispatch permission."""
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        chat.add_user_message(text)
+        chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(text)))
         await self._handle_command(text, chat)
-        if not self.is_processing:
-            next_input = self._next_turn_input()
+        self._schedule_after_control(text)
+
+    def _schedule_after_control(self, text: str) -> None:
+        if not command_starts_work(text):
+            return
+        if not self.is_processing and not idle_control_active(self):
+            if self._workflow() is not None:
+                runtime = self._workflow()
+                if runtime.has_ready_input() or (command_starts_work(text) and runtime.goal_continuation_allowed()):
+                    self.process_user_input(None)
+                return
+            next_input = self._next_turn_input() if self._queued_inputs() or command_starts_work(text) else None
             if next_input is not None:
                 self.process_user_input(next_input, show_message=False)
 
+    def _schedule_queue_dispatch(self, runtime: Any) -> None:
+        """Wake only eligibility explicitly granted by the current queue control."""
+        if (runtime is self._workflow() and not self.is_processing and not idle_control_active(self)
+            and not getattr(self._tool_prompts, "_closed", False) and runtime.has_ready_input()):  # type: ignore[attr-defined]
+            self.process_user_input(None)
+
     @work(group="chat", exclusive=False)
     async def process_user_input(
-        self: _InputHandlerMixin, user_input: str, *, show_message: bool = True,
+        self: _InputHandlerMixin, user_input: str | None, *, show_message: bool = True,
     ) -> None:
         """Process user input: commands or agent chat.
 
@@ -1036,46 +1204,93 @@ class _InputHandlerMixin:
             user_input: Raw text the user submitted.
             show_message: Display human input; hide generated continuation instructions.
         """
+        runtime = self._workflow()
+        route = command_route(user_input) if user_input is not None else None
+        if route == "control":
+            assert user_input is not None
+            chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+            if show_message:
+                chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(user_input)))
+            await self._handle_command(user_input, chat)
+            if (not command_starts_work(user_input) or getattr(self, "current_agent_task", None) is not None
+                or idle_control_active(self)):
+                return
+            user_input, route = None, None
         if getattr(self, "current_agent_task", None) is not None:
-            self._queued_inputs().append(user_input)
+            if user_input is not None:
+                if route == "idle":
+                    chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+                    chat.add_system_message("This command requires idle work; repeat it after active work finishes.")
+                    return
+                if runtime is not None:
+                    runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+                else:
+                    self._queued_inputs().append(user_input)
             return
         self.is_processing = True
         self.current_agent_task = asyncio.current_task()
+        activity_owner = activity_for(self).begin()
+        self._activity_worker_owner = activity_owner
+        outcome: Outcome = "idle"
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         chat = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
         bar.status_text = "Processing..."
 
         try:
+            if route == "idle":
+                assert user_input is not None
+                if show_message:
+                    chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(user_input)))
+                with idle_command(self):
+                    await self._handle_command(user_input, chat)
+                return
+            if runtime is not None:
+                if user_input is not None:
+                    runtime.submit(user_input, kind="command" if user_input.startswith("/") else "message")
+                await self._drain_workflow(runtime, chat)
+                return
             next_input: str | None = user_input
             while next_input is not None:
                 if show_message:
-                    chat.add_user_message(next_input)
+                    chat.add_user_message(runtime_evidence_redactor(self).text(oauth_command_evidence(next_input)))
                 await self._route_input(next_input, chat)
                 await asyncio.sleep(0.05)
                 show_message = bool(self._queued_inputs())
                 next_input = self._next_turn_input()
         except asyncio.CancelledError:
+            outcome = "cancelled"
+            if runtime is not None:
+                runtime.hold_pending()
             self._pause_active_goal()
-            self._queued_inputs().clear()
+            if runtime is None:
+                self._queued_inputs().clear()
             chat.add_system_message("[yellow]\u26a0 Cancelled by user (Esc)[/]")
             for name in list(chat._active):
                 chat.finish_agent_stream(name)
         except Exception as exc:  # noqa: BLE001
+            outcome = "failed"
             self._pause_active_goal()
-            details = traceback.format_exc()
+            details = runtime_exception_text(self, exc, include_traceback=True)
             safe_details = details.replace("```", "` ` `")
             chat.add_error_message(
-                f"{exc}\n```\n{safe_details}\n```",
+                f"{runtime_exception_text(self, exc)}\n```\n{safe_details}\n```",
             )
-            bar.status_text = f"Error: {exc}"
+            bar.status_text = f"Error: {runtime_exception_text(self, exc)}"
             for name in list(chat._active):
                 chat.finish_agent_stream(name)
         finally:
             self.is_processing = False
             if hasattr(self, "current_agent_task"):
                 del self.current_agent_task
+            activity_for(self).finish(activity_owner, outcome)
+            if getattr(self, "_activity_worker_owner", None) is activity_owner:
+                del self._activity_worker_owner
             self._update_status_bar()  # type: ignore[attr-defined]
-            if self._queued_inputs():
+            ready = (runtime.has_ready_input() if route == "idle" and runtime is not None else self._workflow_ready())
+            if runtime is not None and ready and not idle_control_active(self):
+                self.is_processing = True
+                self.process_user_input(None)
+            elif runtime is None and self._queued_inputs():
                 self.is_processing = True
                 self.process_user_input(self._queued_inputs().pop(0))
 
@@ -1088,6 +1303,7 @@ class _InputHandlerMixin:
         """
         handler = self.input_handler  # type: ignore[attr-defined]
         if not handler:
+            self._workflow_turn_failed = True
             self._pause_active_goal()
             chat.add_error_message("Input handler not initialized.")
             return
@@ -1147,6 +1363,7 @@ class _InputHandlerMixin:
         ctx = self.core_context  # type: ignore[attr-defined]
         orchestrator = ctx.orchestrator if ctx else None
         if not orchestrator:
+            self._workflow_turn_failed = True
             self._pause_active_goal()
             chat.add_error_message("Core components not initialized.")
             return
@@ -1163,13 +1380,22 @@ class _InputHandlerMixin:
             stream = orchestrator.run(text)
 
         previous_turn = agent._turn_number
+        activity_owner = getattr(self, "_activity_worker_owner", None)
 
         async def checked_stream() -> AsyncIterator[AgentEvent]:
             from henchman.core.events import EventType
 
             async for event in stream:
                 if event.type == EventType.ERROR:
+                    if activity_owner is not None:
+                        activity_for(self).record_failure(activity_owner)
+                    self._workflow_turn_failed = True
                     self._pause_active_goal()
+                elif (event.type == EventType.AGENT_COMPLETED and isinstance(event.data, dict)
+                      and event.data.get("scope") == "run"
+                      and event.data.get("status") in {"failed", "stalled", "timed_out", "no_work_done"}
+                      and activity_owner is not None):
+                    activity_for(self).record_failure(activity_owner)
                 yield event
 
         try:
@@ -1418,7 +1644,8 @@ class _MessageHandlerMixin:
         if thinking is not None:
             label = source or "Agent"
             thinking.write(
-                f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]",
+                f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]"
+                if pane.output_mode == "rich" else Text(f"{label}: {thought}"),
             )
             thinking.scroll_end(animate=False)
 
@@ -1431,20 +1658,12 @@ class _MessageHandlerMixin:
         Args:
             message: Tool call request data.
         """
-        tc = message.tool_call
-        args_str = self._format_tool_args(tc)
-        tool_description = f"{tc.name}: {args_str}" if args_str else tc.name
-
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        pane.add_tool_message(tool_description, tc)
+        pane.record_tool_activity(message, request=True)
 
         tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
         if tool_pane is not None:
-            full_args = self._format_full_tool_args(tc)
-            tool_pane.write(
-                f"[yellow]\u25b6 {_safe_markup(tc.name)}[/]\n[dim]{_safe_markup(full_args)}[/]",
-            )
-            tool_pane.scroll_end(animate=False)
+            tool_pane.bind_activity(pane._tool_activity)
 
     @staticmethod
     def _format_tool_args(tool_call: Any) -> str:
@@ -1493,15 +1712,17 @@ class _MessageHandlerMixin:
         Args:
             message: Tool execution result.
         """
-        result_str = self._format_tool_result(message.result)
-
         pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
-        pane.add_tool_message(f"Result: {result_str}")
+        pane.record_tool_activity(message, request=False)
 
         tool_pane = _query_one_or_none(self, "#tool-pane", ToolPane)
         if tool_pane is not None:
-            tool_pane.write(f"[green]\u2190 {_safe_markup(result_str)}[/]")
-            tool_pane.scroll_end(animate=False)
+            tool_pane.bind_activity(pane._tool_activity)
+
+    def on_tool_activity_closed_message(self, message: ToolActivityClosedMessage) -> None:
+        pane = self.query_one("#chat-pane", ChatPane)  # type: ignore[attr-defined]
+        if message.stream_id is not None:
+            pane.close_tool_activity(message.stream_id)
 
     @staticmethod
     def _format_tool_result(result: Any) -> str:
@@ -1515,11 +1736,11 @@ class _MessageHandlerMixin:
         """
         if isinstance(result, dict):
             content = str(result.get("result", result))
-            success = result.get("success", True)
+            success = result.get("success")
             display = content[:_TOOL_RESULT_TRUNCATE_LIMIT]
             if len(content) > _TOOL_RESULT_TRUNCATE_LIMIT:
                 display += "\u2026"
-            label = "\u2713" if success else "\u2717"
+            label = "\u2713" if success is True else "\u2717" if success is False else "?"
             return f"{label} {display}"
         content = str(result)
         display = content[:_TOOL_RESULT_TRUNCATE_LIMIT]
@@ -1577,7 +1798,7 @@ class _MessageHandlerMixin:
         """
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is not None:
-            chat.add_system_message(message.text)
+            chat.add_system_message(message.text, routine=message.routine, literal=chat.output_mode != "rich")
 
     def on_switch_provider_message(
         self: _MessageHandlerMixin,
@@ -1646,6 +1867,7 @@ class _PaneActionMixin:
         self.query_one(css_id, pane_cls).clear()  # type: ignore[attr-defined]
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         bar.status_text = status
+        bar.notice_text = status
 
 
 # ------------------------------------------------------------------ #
@@ -1669,10 +1891,20 @@ class _SearchMixin:
         self._search_mode = True
         bar = self.query_one("#status-bar", StatusBar)  # type: ignore[attr-defined]
         bar.status_text = "Search: type in input box then press F3"
+        bar.notice_text = bar.status_text
 
     def action_cancel_or_clear(self: _SearchMixin) -> None:
         """Cancel processing or clear search."""
+        oauth = getattr(self, "_oauth", None)
+        if isinstance(oauth, FrontendOAuth) and oauth.cancel():
+            runtime = self._workflow()  # type: ignore[attr-defined]
+            if runtime is not None:
+                runtime.hold_pending()
+            return
         if self.is_processing and hasattr(self, "current_agent_task"):  # type: ignore[attr-defined]
+            owner = getattr(self, "_activity_worker_owner", None)
+            if owner is not None:
+                activity_for(self).cancel(owner)
             task = self.current_agent_task
             if task is not None:
                 task.cancel()
@@ -1691,6 +1923,7 @@ class _SearchMixin:
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is not None:
             bar.status_text = "Ready"
+            bar.notice_text = ""
 
     def action_search_next(self: _SearchMixin) -> None:
         """Move to the next search match."""
@@ -1752,14 +1985,11 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
-        for idx, widget in enumerate(chat.children):
-            content = ""
-            if isinstance(widget, (ChatMessage, ThinkingMessage, ToolMessage)):
-                content = _get_searchable_content(widget)
-            if content and query_lower in content.lower():
-                self._search_matches.append(
-                    ("chat", idx, content),
-                )
+        for row in chat.iter_transcript_rows():
+            if row.content and query_lower in row.content.lower():
+                # Keep navigation identity only; visible/copy text is reprojected
+                # from the retained record at use, including credential rotation.
+                self._search_matches.append(("chat", row.row_id, ""))
 
     def _search_richlog_panes(self: _SearchMixin, query_lower: str) -> None:
         """Search thinking and tool RichLog panes.
@@ -1796,7 +2026,7 @@ class _SearchMixin:
             text = _extract_line_text(item)
             if query_lower in text.lower():
                 self._search_matches.append(
-                    (pane_id, idx, text),
+                    (pane_id, idx, ""),
                 )
 
     def _scroll_to_match(self: _SearchMixin) -> None:
@@ -1820,6 +2050,7 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
+        chat._transcript.highlight = term
         for widget in chat.children:
             set_highlight = getattr(widget, "set_highlight", None)
             if callable(set_highlight):
@@ -1838,9 +2069,7 @@ class _SearchMixin:
         chat = _query_one_or_none(self, "#chat-pane", ChatPane)
         if chat is None:
             return
-        children = list(chat.children)
-        if 0 <= line_idx < len(children):
-            children[line_idx].scroll_visible(animate=False)
+        chat.reveal_transcript_row(line_idx)
 
     def _scroll_richlog_match(self: _SearchMixin, pane_id: str) -> None:
         """Scroll a RichLog pane to end for visibility.
@@ -1862,7 +2091,7 @@ class _SearchMixin:
             return
         if not self._search_mode:
             return
-        query = self._search_query
+        query = runtime_evidence_redactor(self).text(self._search_query)
         matches = self._search_matches
         if not query:
             bar.status_text = "Search: type query in input box, F3=next"
@@ -1872,6 +2101,7 @@ class _SearchMixin:
             cur = self._current_match_index + 1
             tot = len(matches)
             bar.status_text = f"Match {cur}/{tot} for '{query}' - F3=next  Shift+F3=prev  Esc=clear"
+        bar.notice_text = bar.status_text
 
 
 # ------------------------------------------------------------------ #
@@ -1914,7 +2144,7 @@ class _PublicAPIMixin:
         """
         bar = _query_one_or_none(self, "#status-bar", StatusBar)
         if bar is not None:
-            bar.status_text = message
+            bar.status_text = runtime_evidence_redactor(self).text(message)
             self._apply_bar_stats(bar, tokens, cost)
 
     def _apply_bar_stats(
@@ -1960,7 +2190,10 @@ class _PublicAPIMixin:
             role: Sender role.
             content: Message content.
         """
-        text = content if role in ("user", "assistant", "system") else f"[{role}] {content}"
+        policy = runtime_evidence_redactor(self)
+        text = policy.text(content)
+        if role not in ("user", "assistant", "system"):
+            text = f"[{policy.text(role)}] {text}"
         if role == "user":
             chat.add_user_message(text)
         else:
@@ -1985,7 +2218,7 @@ class _WorkspaceMixin:
 
         notifier = getattr(self, "notify", None)
         if callable(notifier):
-            notifier(message, severity=severity, markup=False)
+            notifier(runtime_evidence_redactor(self).text(message), severity=severity, markup=False)
 
     def _show_workspace_error(
         self: _WorkspaceMixin,
@@ -1994,7 +2227,8 @@ class _WorkspaceMixin:
     ) -> str:
         """Report a persisted workspace read failure and return its message."""
 
-        message = f"Failed to load {surface}: {exc}"
+        details = runtime_exception_text(self, exc)
+        message = runtime_evidence_redactor(self).text(f"Failed to load {surface}: {details}")
         self._notify_user(message, severity="error")
         return message
 
@@ -2014,6 +2248,11 @@ class _WorkspaceMixin:
 
     def _refresh_workspace_widgets(self: _WorkspaceMixin) -> None:
         """Refresh all workspace panels with current state."""
+        from henchman.cli.textual_context import _agent, _current_policy, _model, _provider_name
+        from henchman.cli.textual_work import bound_task_service
+        from henchman.tools.registry import ToolRegistry
+
+        policy = _current_policy(self)
         summary = _query_one_or_none(self, "#agent-summary-panel", AgentSummaryPanel)
         memory = _query_one_or_none(self, "#memory-indicators", MemoryIndicator)
         tasks_widget = _query_one_or_none(self, "#task-list-widget", TaskListWidget)
@@ -2021,7 +2260,18 @@ class _WorkspaceMixin:
         team = _query_one_or_none(self, "#team-components", TeamPanel)
         settings_panel = _query_one_or_none(self, "#settings-panels", SettingsPanel)
 
-        provider = _active_display_provider(self)
+        actor = _agent(self)
+        provider = getattr(actor, "provider", None)
+        provider_name = _provider_name(provider)
+        provider_label = policy.text(provider_name) if isinstance(provider_name, str) and provider_name else "unavailable"
+        model_label = policy.text(_model(provider) or "unavailable")
+        role = getattr(getattr(self, "config", None), "agent_role", None)
+        identity = getattr(actor, "identity", None)
+        agent_name = getattr(identity, "name", None) or getattr(identity, "id", None)
+        agent_label = policy.text(agent_name if isinstance(agent_name, str) and agent_name else role if isinstance(role, str) and role else "primary")
+        agent_label += " (instantiated)" if actor is not None else " (not instantiated; unavailable)"
+        actor_registry = getattr(actor, "tool_registry", None)
+        tool_count = len(actor_registry.list_tools()) if isinstance(actor_registry, ToolRegistry) else None
         settings = getattr(self, "settings", None)
         ctx = getattr(self, "core_context", None)
         mgr = getattr(ctx, "session_manager", None) if ctx else None
@@ -2030,11 +2280,11 @@ class _WorkspaceMixin:
 
         if summary is not None:
             summary.update_summary(
-                provider_name=provider.name if provider else "",
-                model_name=_display_model(provider, ""),
+                provider_name=_safe_markup(provider_label),
+                model_name=_safe_markup(model_label),
                 mode="Plan" if plan_mode else "Chat",
-                active_agent="",
-                tools=0,
+                active_agent=_safe_markup(agent_label),
+                tools=tool_count,
             )
 
         if memory is not None:
@@ -2048,11 +2298,11 @@ class _WorkspaceMixin:
 
         if tasks_widget is not None:
             try:
-                service = TaskService()
-                task_list = service.list_tasks()
-                tasks_widget.set_tasks(
-                    [f"{t.task_id} [{t.status}] {t.title}" for t in task_list],
-                )
+                service = bound_task_service(self)
+                tasks_widget.set_tasks([
+                        _safe_markup(f"{policy.text(t.task_id)} [{policy.text(str(t.status))}] {policy.text(t.title)}")
+                        for t in service.list_tasks()
+                    ] if service is not None else ["Task evidence unavailable: no bound project owner."])
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("tasks", exc)
                 tasks_widget.set_tasks([f"[red]{_safe_markup(message)}[/]"])
@@ -2061,7 +2311,7 @@ class _WorkspaceMixin:
             try:
                 catalog = SkillCatalog()
                 skill_list = catalog.list_skills()
-                skills.set_skills([s.name for s in skill_list])
+                skills.set_skills([_safe_markup(policy.text(s.name)) for s in skill_list])
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("skills", exc)
                 skills.set_skills([f"[red]{_safe_markup(message)}[/]"])
@@ -2071,7 +2321,7 @@ class _WorkspaceMixin:
                 ws_service = TeamWorkspaceService()
                 ws_list = ws_service.list_workspaces()
                 team.set_workspaces(
-                    [f"{w.name} ({len(w.members)} members)" for w in ws_list],
+                    [_safe_markup(f"{policy.text(w.name)} ({len(w.members)} members)") for w in ws_list],
                 )
             except _WORKSPACE_DATA_ERRORS as exc:
                 message = self._show_workspace_error("teams", exc)
@@ -2091,9 +2341,9 @@ class _WorkspaceMixin:
                 else bool(getattr(config, "auto_approve_tools", False))
             )
             settings_panel.update_settings(
-                theme=getattr(ui_settings, "theme", "") if ui_settings else "",
+                theme=_safe_markup(policy.text(getattr(ui_settings, "theme", "") if ui_settings else "")),
                 auto_mode=auto_mode,
-                provider=provider.name if provider else "",
+                provider=_safe_markup(provider_label),
                 mcp_servers=mcp_count,
             )
 
@@ -2103,6 +2353,7 @@ class _WorkspaceMixin:
         Returns:
             List of bridge entry description strings.
         """
+        policy = runtime_evidence_redactor(self)
         entries: list[str] = []
         ws_service = TeamWorkspaceService()
         bridge_service = BridgeSessionService()
@@ -2111,8 +2362,8 @@ class _WorkspaceMixin:
             bridges = bridge_service.list_bridges(workspace_id=ws.workspace_id)
             for b in bridges:
                 entries.append(
-                    f"{ws.name} / {b.bridge_id} ({b.status})"
-                    f" - {b.remote_session} by {b.created_by}",
+                    f"{policy.text(ws.name)} / {policy.text(b.bridge_id)} ({policy.text(str(b.status))})"
+                    f" - {policy.text(b.remote_session)} by {policy.text(b.created_by)}",
                 )
         return entries
 
@@ -2139,16 +2390,17 @@ class _WorkspaceMixin:
             return
 
         try:
-            output = export_as_markdown(current, include_metadata=True)
+            policy = runtime_evidence_redactor(self)
+            output = policy.text(export_as_markdown(current, include_metadata=True))
             output_path = Path.cwd() / f"session_{current.id}.md"
             output_path.write_text(output, encoding="utf-8")
             if chat is not None:
                 chat.add_system_message(
-                    f"[dim]Session exported to [cyan]{output_path}[/][/]",
+                    policy.text(f"[dim]Session exported to [cyan]{output_path}[/][/]"),
                 )
             self._notify_user(f"Session exported to {output_path}")
         except (OSError, TypeError, ValueError) as exc:
-            message = f"Failed to export session: {exc}"
+            message = f"Failed to export session: {runtime_exception_text(self, exc)}"
             if chat is not None:
                 chat.add_error_message(message)
             self._notify_user(message, severity="error")

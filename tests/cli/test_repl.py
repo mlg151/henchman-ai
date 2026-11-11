@@ -83,7 +83,9 @@ class TestRepl:
         """Test REPL with custom config."""
         config = ReplConfig(prompt=">> ", system_prompt="Be helpful")
         repl = Repl(provider=mock_provider, console=console, config=config)
-        assert repl.agent.system_prompt == "Be helpful"
+        assert repl.agent.system_prompt.startswith("Be helpful\n\n")
+        assert "Delegation is disabled." in repl.agent.system_prompt
+        assert not repl.orchestrator.delegation_runner.admission.allowed
 
     def test_builtin_tools_registered(self, mock_provider: MockProvider, console: Console) -> None:
         """All built-in tools must be registered in the REPL tool registry."""
@@ -693,6 +695,9 @@ class TestSessionAutoSave:
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager
         repl.tool_executor.output_handler.session_manager = new_session_manager
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(repl.orchestrator, new_session_manager)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
@@ -799,6 +804,9 @@ class TestSessionAutoSave:
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager
         repl.tool_executor.output_handler.session_manager = new_session_manager
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(repl.orchestrator, new_session_manager)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 

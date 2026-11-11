@@ -1,5 +1,6 @@
 """Tests for error cases in session_manager.py."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,9 +18,10 @@ def test_save_no_session() -> None:
         manager.save()
 
 
-def test_save_with_session() -> None:
+def test_save_with_session(tmp_path: Path) -> None:
     """Test that save() works when session is provided."""
     mock_session_manager = MagicMock(spec=SessionManager)
+    mock_session_manager.data_dir = tmp_path / "sessions"
     mock_session = MagicMock()
 
     manager = ReplSessionManager(session_manager=mock_session_manager)
@@ -28,9 +30,10 @@ def test_save_with_session() -> None:
     mock_session_manager.save.assert_called_once_with(mock_session)
 
 
-def test_save_current_session() -> None:
+def test_save_current_session(tmp_path: Path) -> None:
     """Test that save() works with current session."""
     mock_session_manager = MagicMock(spec=SessionManager)
+    mock_session_manager.data_dir = tmp_path / "sessions"
     mock_session = MagicMock()
 
     manager = ReplSessionManager(session_manager=mock_session_manager)

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -11,6 +11,7 @@ from henchman.providers.request_budget import (
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.usage import UsageSource
 
 __all__ = [
     "ContextTooLargeError",
@@ -76,6 +77,15 @@ class Message:
     tool_call_id: str | None = None
     reasoning_content: str | None = None
     reasoning_details: str | None = None
+    tool_result: dict[str, Any] | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
+    context_attachments: list[dict[str, Any]] | None = None
+
+    def __post_init__(self) -> None:
+        if self.context_attachments is not None:
+            from henchman.utils.context_attachments import copy_context_attachments
+
+            self.context_attachments = copy_context_attachments(self.context_attachments, role=self.role)
 
 
 @dataclass
@@ -89,10 +99,24 @@ class StreamChunk:
     usage: dict[str, int] | None = (
         None  # Token usage information (prompt_tokens, completion_tokens, total_tokens)
     )
+    usage_source: UsageSource | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        """Distinguish missing usage from reported or explicitly estimated counts."""
+        if self.usage_source is None:
+            self.usage_source = "reported" if self.usage else "unknown"
+        elif self.usage_source not in ("reported", "estimated", "unknown"):
+            raise ValueError("Usage source must be reported, estimated or unknown")
 
 
 class ModelProvider(ABC):
     """Abstract base class for model providers."""
+
+    _accounting_provider_name: str | None = None
+    """Configured catalog identity, separate from shared adapter and SDK options."""
+    supports_run_budget: bool = False
+    """Whether the provider accounts for actual transport attempts in an active scope."""
 
     def required_tool_names(self) -> list[str]:
         """Return named schemas that must survive optional catalog reduction."""

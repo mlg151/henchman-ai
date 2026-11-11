@@ -1091,6 +1091,8 @@ class TestPrepareDelegationContext:
         settings = MagicMock()
         settings.agents.max_delegation_turns = 10
         settings.agents.max_delegation_depth = 3
+        settings.agents.max_concurrent_delegations = 4
+        settings.agents.allow_delegation = True
 
         runner = DelegationRunner(
             pool=pool,

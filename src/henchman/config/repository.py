@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -11,17 +11,64 @@ from typing import Any
 import yaml
 
 from henchman.config import load_settings
+from henchman.config.key_paths import (
+    flatten_key_paths as _flatten_key_paths,
+)
+from henchman.config.key_paths import (
+    flatten_key_values as _flatten_key_values,
+)
+from henchman.config.parsing import parse_settings_text
 from henchman.config.paths import (
     resolve_legacy_project_settings_path,
     resolve_project_settings_path,
 )
-from henchman.config.schema import Settings
+from henchman.config.schema import (
+    UI_DETAIL_DENSITIES,
+    UI_KEYBOARD_MODES,
+    UI_OUTPUT_MODES,
+    UI_OUTPUT_STYLES,
+    UI_THEME_NAMES,
+    Settings,
+)
+from henchman.config.settings import (
+    SettingOrigin,
+    SettingsSnapshot,
+    discover_settings_files,
+    load_settings_snapshot,
+)
+from henchman.config.sync_controls import (
+    CONTROL_GROUPS,
+    merge_controls,
+    normalize_controls,
+    project_control_evidence,
+    require_nonsecret_controls,
+)
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
 _SETTINGS_FILENAME = "settings.yaml"
 _SUPPORTED_SETTINGS_FILENAMES = ("settings.yaml", "settings.yml", "settings.json")
 _USER_SETTINGS_DIRNAME = ".henchman"
-_SYNC_UI_KEYS = ("output_style", "theme", "keybindings")
+_SYNC_UI_KEYS = (
+    "output_style",
+    "theme",
+    "keybindings",
+    "output_mode",
+    "reduced_motion",
+    "detail_density",
+    "keyboard_mode",
+    "mouse_capture",
+    "layout",
+)
+"""UI keys eligible for the local sync payload (never includes credentials)."""
 _MISSING = object()
+
+
+@dataclass(frozen=True)
+class SettingInspection:
+    """Representation of a single setting value with its origin information."""
+
+    value: Any
+    origin: SettingOrigin
 
 
 class SettingsScope(StrEnum):
@@ -35,7 +82,10 @@ class SettingsScope(StrEnum):
 class SettingsRepository:
     """Read and write validated Henchman settings by key path."""
 
-    def __init__(self, project_root: Path | None = None) -> None:
+    def __init__(
+        self, project_root: Path | None = None, *,
+        snapshot_provider: Callable[[], SettingsSnapshot] | None = None,
+    ) -> None:
         """Initialize the repository for a project workspace.
 
         Args:
@@ -43,6 +93,8 @@ class SettingsRepository:
                 When omitted, the current working directory is used.
         """
         self._project_root = project_root
+        self._snapshot_provider = snapshot_provider
+        self._evidence_policy = EvidenceRedactor()
 
     def view(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
         """Return settings for a selected scope.
@@ -56,6 +108,8 @@ class SettingsRepository:
             persisted values from that scope.
         """
         if scope is SettingsScope.MERGED:
+            if self._snapshot_provider is not None:
+                return self._snapshot_provider().settings.model_dump(mode="python")
             return load_settings(project_root=self._project_root).model_dump(mode="python")
         if scope is SettingsScope.GLOBAL:
             return _clone_mapping(self._read_settings_directory(self._user_settings_directory()))
@@ -63,6 +117,59 @@ class SettingsRepository:
             return _clone_mapping(self._read_project_settings())
         msg = f"Unsupported settings scope: {scope}"
         raise ValueError(msg)
+
+    def inspect(
+        self,
+        *,
+        scope: SettingsScope = SettingsScope.MERGED,
+        include_groups: bool = False,
+    ) -> dict[str, SettingInspection]:
+        """Inspect settings for a selected scope and return their origins.
+
+        Args:
+            scope: Which scope to inspect.
+            include_groups: Whether to include group settings in the inspection.
+
+        Returns:
+            Leaf inspections, plus actual parent mappings when requested.
+        """
+        if scope is SettingsScope.MERGED:
+            snapshot = (
+                self._snapshot_provider() if self._snapshot_provider is not None
+                else load_settings_snapshot(project_root=self._project_root)
+            )
+            settings_dict = snapshot.settings.model_dump(mode="python")
+            origins_dict = snapshot.origins
+            entries = {
+                path: SettingInspection(value=val, origin=origins_dict[path])
+                for path, val in _flatten_key_values(settings_dict).items()
+            }
+            if include_groups:
+                _add_group_inspections(settings_dict, entries)
+            return entries
+
+        directory: Path | None
+        if scope is SettingsScope.GLOBAL:
+            directory = self._user_settings_directory()
+        elif scope is SettingsScope.PROJECT:
+            directory = self._project_settings_directory_for_read()
+        else:
+            msg = f"Unsupported settings scope: {scope}"
+            raise ValueError(msg)
+
+        source_file = _resolve_settings_file(directory) if directory is not None else None
+        settings_dict = _read_settings_file(source_file) if source_file is not None else {}
+        origin = SettingOrigin(
+            scope="global" if scope is SettingsScope.GLOBAL else "project",
+            source=str(source_file) if source_file is not None else None,
+        )
+        entries = {
+            key: SettingInspection(value=val, origin=origin)
+            for key, val in _flatten_key_values(settings_dict).items()
+        }
+        if include_groups:
+            _add_group_inspections(settings_dict, entries)
+        return entries
 
     def list(self, *, scope: SettingsScope = SettingsScope.MERGED) -> list[str]:
         """List flattened key paths available within a selected scope.
@@ -127,14 +234,58 @@ class SettingsRepository:
         self._write_scope_settings(target_scope, candidate)
         return True
 
-    def export_settings(self, *, scope: SettingsScope = SettingsScope.MERGED) -> dict[str, Any]:
-        """Export the Tier 1 local-sync settings payload for a selected scope."""
-        return _build_sync_payload(self.view(scope=scope))
+    def export_settings(
+        self, *, scope: SettingsScope = SettingsScope.MERGED, include_controls: bool = False,
+    ) -> dict[str, Any]:
+        """Export UI preferences, optionally adding lossless nonsecret controls.
 
-    def import_settings(self, payload: Mapping[str, Any], *, scope: SettingsScope) -> None:
-        """Import a Tier 1 local-sync payload into an explicit persisted scope."""
+        Operational values that would change under redaction refuse the entire
+        export. The default UI-only projection keeps its existing behavior.
+        """
+        source = self.view(scope=scope)
+        redactor = self.evidence_redactor()
+        redactor.register_config(source)
+        payload = _build_sync_payload(source)
+        controls = require_nonsecret_controls(source, redactor=redactor) if include_controls else {}
+        payload.update(controls)
+        projected = project_sync_evidence(payload, redactor=redactor)
+        if any(projected.get(group) != value for group, value in controls.items()):
+            raise ValueError("Sync payload contains credential-bearing operational controls")
+        return projected
+
+    def evidence_redactor(self) -> EvidenceRedactor:
+        """Collect configured credentials without requiring valid effective settings.
+
+        Raw layers include shadowed credentials and allow config commands to
+        repair invalid settings. An explicit file or active snapshot supplies
+        additional effective credentials. Previously observed values remain
+        registered for this repository instance; no source input is modified.
+        """
+        redactor = self._evidence_policy
+        redactor.register_environment()
+        for scope in (SettingsScope.GLOBAL, SettingsScope.PROJECT):
+            redactor.register_config(self.view(scope=scope))
+        for path in discover_settings_files(project_root=self._project_root):
+            redactor.register_config(_read_settings_file(path))
+        if self._snapshot_provider is not None:
+            redactor.register_config(self._snapshot_provider().settings.model_dump(mode="python"))
+        return redactor
+
+    def import_settings(
+        self, payload: Mapping[str, Any], *, scope: SettingsScope, accept_control_changes: bool = False,
+    ) -> None:
+        """Import configuration, requiring explicit acceptance of operational changes."""
         candidate = self.view(scope=_require_write_scope(scope))
-        _merge_sync_payload(candidate, _normalize_sync_payload(payload))
+        has_controls = bool(CONTROL_GROUPS.intersection(payload))
+        if has_controls and accept_control_changes is not True:
+            raise ValueError("Sync payload controls require --accept-control-changes")
+        normalized = _normalize_sync_payload(payload)
+        if has_controls:
+            redactor = self.evidence_redactor()
+            redactor.register_config(payload)
+            normalized.update(require_nonsecret_controls(normalized, redactor=redactor))
+        _merge_sync_payload(candidate, normalized)
+        merge_controls(candidate, normalize_controls(normalized))
         self._write_scope_settings(scope, candidate)
 
     def sync_ui_settings(
@@ -155,22 +306,24 @@ class SettingsRepository:
             sync_payload["keybindings"] = dict(keybindings)
         self.import_settings({"ui": sync_payload}, scope=scope)
 
+    def _project_settings_directory_for_read(self) -> Path | None:
+        """Resolve the existing canonical directory or its legacy read fallback."""
+        canonical = resolve_project_settings_path(self._project_root)
+        if canonical.exists():
+            return canonical
+        return resolve_legacy_project_settings_path(self._project_root)
+
     def _read_project_settings(self) -> dict[str, Any]:
         """Return persisted project settings with legacy fallback for reads."""
-        canonical_directory = resolve_project_settings_path(self._project_root)
-        if canonical_directory.exists():
-            return self._read_settings_directory(canonical_directory)
-
-        legacy_directory = resolve_legacy_project_settings_path(self._project_root)
-        if legacy_directory is None:
-            return {}
-        return self._read_settings_directory(legacy_directory)
+        directory = self._project_settings_directory_for_read()
+        return self._read_settings_directory(directory) if directory is not None else {}
 
     def _write_scope_settings(self, scope: SettingsScope, payload: dict[str, Any]) -> None:
         """Validate and persist a scope document."""
         validated_payload = Settings.model_validate(payload).model_dump(
             mode="python",
-            exclude_defaults=True,
+            # Explicit defaults can override a lower-priority settings scope.
+            exclude_unset=True,
         )
         serialized_payload = _prune_empty_mappings(validated_payload)
         settings_directory = self._settings_directory_for_scope(scope)
@@ -235,17 +388,59 @@ def _build_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     return {"ui": exported_ui}
 
 
+def project_sync_evidence(payload: Mapping[str, Any], *, redactor: EvidenceRedactor) -> dict[str, Any]:
+    """Redact freeform sync evidence while retaining verified protocol identities."""
+    ui = payload.get("ui")
+    ui_schema: dict[str, Any] = dict.fromkeys(_SYNC_UI_KEYS)
+    ui_schema["layout"] = {"compact_tables": None}
+    if isinstance(ui, Mapping):
+        enums = {"theme": UI_THEME_NAMES, "output_style": UI_OUTPUT_STYLES,
+                 "output_mode": UI_OUTPUT_MODES, "detail_density": UI_DETAIL_DENSITIES,
+                 "keyboard_mode": UI_KEYBOARD_MODES}
+        for key, allowed in enums.items():
+            if isinstance(ui.get(key), str) and ui[key] in allowed:
+                ui_schema[key] = PRESERVE_IDENTITY
+    ordinary = {key: value for key, value in payload.items() if key not in CONTROL_GROUPS}
+    projected: dict[str, Any] = redactor.redact(ordinary, schema={"ui": ui_schema})
+    projected.update(project_control_evidence(payload, redactor=redactor))
+    return projected
+
+
+def _normalize_layout_mapping(value: Any) -> dict[str, Any]:
+    """Validate and normalize the nested ``ui.layout`` sync mapping."""
+    if not isinstance(value, Mapping):
+        msg = "Sync payload field 'ui.layout' must be a mapping"
+        raise ValueError(msg)
+    unsupported = sorted(set(value) - {"compact_tables"})
+    if unsupported:
+        unsupported_text = ", ".join(unsupported)
+        msg = f"Unsupported sync payload ui.layout keys: {unsupported_text}"
+        raise ValueError(msg)
+    normalized: dict[str, Any] = {}
+    for key, item in value.items():
+        if not isinstance(item, bool):
+            msg = f"Sync payload field 'ui.layout.{key}' must be a boolean"
+            raise ValueError(msg)
+        normalized[key] = item
+    return normalized
+
+
+_SYNC_STRING_KEYS = ("output_style", "theme", "output_mode", "detail_density", "keyboard_mode")
+_SYNC_BOOL_KEYS = ("reduced_motion", "mouse_capture")
+
+
 def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate and normalize an imported Tier 1 local-sync payload."""
-    unsupported_top_level_keys = sorted(set(payload) - {"ui"})
+    """Validate a partial UI/control transfer without adding omitted defaults."""
+    unsupported_top_level_keys = sorted(set(payload) - ({"ui"} | CONTROL_GROUPS))
     if unsupported_top_level_keys:
         unsupported = ", ".join(unsupported_top_level_keys)
         msg = f"Unsupported sync payload keys: {unsupported}"
         raise ValueError(msg)
 
+    controls = normalize_controls(payload)
     ui_value = payload.get("ui")
     if ui_value is None:
-        return {}
+        return controls
     if not isinstance(ui_value, Mapping):
         msg = "Sync payload field 'ui' must be a mapping"
         raise ValueError(msg)
@@ -257,17 +452,33 @@ def _normalize_sync_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError(msg)
 
     normalized_ui: dict[str, Any] = {}
-    for key in _SYNC_UI_KEYS:
+    for key in _SYNC_STRING_KEYS:
         if key not in ui_value:
             continue
         value = ui_value[key]
-        if isinstance(value, Mapping):
-            normalized_ui[key] = _clone_mapping(value)
-            continue
+        if not isinstance(value, str):
+            msg = f"Sync payload field 'ui.{key}' must be a string"
+            raise ValueError(msg)
         normalized_ui[key] = value
-    if not normalized_ui:
-        return {}
-    return {"ui": normalized_ui}
+    for key in _SYNC_BOOL_KEYS:
+        if key not in ui_value:
+            continue
+        value = ui_value[key]
+        if not isinstance(value, bool):
+            msg = f"Sync payload field 'ui.{key}' must be a boolean"
+            raise ValueError(msg)
+        normalized_ui[key] = value
+    if "keybindings" in ui_value:
+        value = ui_value["keybindings"]
+        if not isinstance(value, Mapping):
+            msg = "Sync payload field 'ui.keybindings' must be a mapping"
+            raise ValueError(msg)
+        normalized_ui["keybindings"] = _clone_mapping(value)
+    if "layout" in ui_value:
+        normalized_ui["layout"] = _normalize_layout_mapping(ui_value["layout"])
+    if normalized_ui:
+        controls["ui"] = normalized_ui
+    return controls
 
 
 def _merge_sync_payload(target: dict[str, Any], sync_payload: Mapping[str, Any]) -> None:
@@ -296,9 +507,9 @@ def _read_settings_file(settings_file: Path) -> dict[str, Any]:
     raw_text = settings_file.read_text(encoding="utf-8")
     parsed: Any
     if settings_file.suffix == ".json":
-        parsed = json.loads(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="json") if raw_text.strip() else {}
     else:
-        parsed = yaml.safe_load(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="yaml") if raw_text.strip() else {}
 
     if parsed is None:
         return {}
@@ -379,18 +590,6 @@ def _parse_key_path(key_path: str) -> list[str]:
     return path_segments
 
 
-def _flatten_key_paths(payload: Mapping[str, Any], prefix: str = "") -> list[str]:
-    """Return dotted key paths for each leaf in a nested mapping."""
-    key_paths: list[str] = []
-    for key, value in payload.items():
-        path = f"{prefix}.{key}" if prefix else key
-        if isinstance(value, Mapping) and value:
-            key_paths.extend(_flatten_key_paths(value, path))
-            continue
-        key_paths.append(path)
-    return key_paths
-
-
 def _clone_mapping(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Return a deep-enough copy for nested dictionary payloads."""
     cloned: dict[str, Any] = {}
@@ -413,3 +612,25 @@ def _prune_empty_mappings(payload: Mapping[str, Any]) -> dict[str, Any]:
             continue
         pruned[key] = value
     return pruned
+
+
+def _add_group_inspections(
+    payload: Mapping[str, Any],
+    entries: dict[str, SettingInspection],
+    prefix: str = "",
+) -> None:
+    """Add actual parent values, retaining unanimous or mixed leaf origins."""
+    for key, value in payload.items():
+        if isinstance(value, Mapping) and value:
+            path = f"{prefix}.{key}" if prefix else key
+            _add_group_inspections(value, entries, path)
+
+            descendant_paths = _flatten_key_paths(value, path)
+            origins = {entries[p].origin for p in descendant_paths}
+
+            if len(origins) == 1:
+                chosen_origin = next(iter(origins))
+            else:
+                chosen_origin = SettingOrigin("mixed", None)
+
+            entries[path] = SettingInspection(value=value, origin=chosen_origin)

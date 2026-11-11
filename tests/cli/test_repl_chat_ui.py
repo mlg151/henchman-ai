@@ -132,7 +132,7 @@ async def test_chat_turn_clears_transient_status_when_execution_fails(
     assert renderer.events == [
         ("thinking-started", None),
         ("thinking-stopped", None),
-        ("error", "Error: provider unavailable"),
+        ("error", "Error: RuntimeError: provider unavailable"),
     ]
 
 

@@ -8,12 +8,12 @@ and project hashing.
 from __future__ import annotations
 
 import hashlib
-import json
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from .session_data import Session, session_from_json
+from .session_data import Session
+from .session_persistence import SessionStorageError, load_session, persist_session
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -76,11 +76,7 @@ def _persist_session(data_dir: Path, session: Session) -> Path:
     Returns:
         Path to the written file.
     """
-    session.last_updated = _now_iso()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    path = data_dir / f"{session.id}.json"
-    path.write_text(session.to_json())
-    return path
+    return persist_session(data_dir, session, timestamp=_now_iso())
 
 
 def _try_load_metadata(
@@ -94,8 +90,8 @@ def _try_load_metadata(
         invalid or does not match *project_hash*.
     """
     try:
-        session = session_from_json(path.read_text())
-    except (json.JSONDecodeError, KeyError):
+        session = load_session(path)
+    except SessionStorageError:
         return None
     if project_hash is not None and session.project_hash != project_hash:
         return None

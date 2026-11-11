@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from henchman.core.session import Session, SessionManager, SessionMessage, TurnSummaryRecord
+from henchman.core.session_memory import SessionMemoryService
 
 
 class TestSessionEnhancedCoverage:
@@ -304,3 +305,119 @@ class TestSessionEnhancedCoverage:
         assert imported.export_metadata["custom"] == "data"
         assert "imported_at" in imported.export_metadata
         assert imported.tag == "imported"
+
+    def test_export_session_markdown_includes_session_memories(
+        self, manager: SessionManager
+    ) -> None:
+        """Stored session memories should render in the Markdown export."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        memory_service = SessionMemoryService()
+        memory_service.add_memory(
+            session, content="Always prefer JSON output.", kind="preference"
+        )
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        assert "## Session Memories" in exported
+        assert "Always prefer JSON output." in exported
+
+    def test_export_session_markdown_omits_empty_memory_section(
+        self, manager: SessionManager
+    ) -> None:
+        """A session with no stored memories should not render the section."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        assert "## Session Memories" not in exported
+
+    def test_export_session_markdown_escapes_memory_angle_brackets(
+        self, manager: SessionManager
+    ) -> None:
+        """Memory content must keep literal angle brackets through rendering."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        memory_service = SessionMemoryService()
+        memory_service.add_memory(
+            session, content="Always use the <repo> layout.", kind="preference"
+        )
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        assert "<repo>" not in exported
+        assert "\\<repo\\>" in exported
+
+    def test_export_session_markdown_keeps_multiline_memory_as_one_item(
+        self, manager: SessionManager
+    ) -> None:
+        """Multiline memory content must stay inside its single list item."""
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        memory_service = SessionMemoryService()
+        memory_service.add_memory(
+            session, content="Use the canonical endpoint.\nKeep it versioned.", kind="note"
+        )
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        section = exported.split("## Session Memories", 1)[1]
+        bullets = [line for line in section.splitlines() if line.startswith("- ")]
+        assert len(bullets) == 1
+        assert "  Keep it versioned." in exported
+
+    def test_export_markdown_does_not_mutate_memory_free_session(
+        self, manager: SessionManager
+    ) -> None:
+        """Rendering a session that stores no memories must leave it untouched."""
+        from henchman.core.session_export import export_as_markdown
+
+        session = manager.create_session(project_hash="abc123")
+        session.messages = [SessionMessage(role="user", content="Hello")]
+        before = dict(session.export_metadata)
+
+        export_as_markdown(session)
+
+        assert session.export_metadata == before
+
+    def test_export_session_markdown_renders_compaction_retained_messages(
+        self, manager: SessionManager
+    ) -> None:
+        """Compaction records should render their covered turns and retained messages."""
+        session = manager.create_session(project_hash="abc123")
+        session.turn_summaries = [
+            TurnSummaryRecord(
+                turn_number=1,
+                summary_text="Compacted 2 turns (4 messages).",
+                timestamp="2026-01-23T12:00:00Z",
+                kind="compaction",
+                source_turns=[1, 2],
+                retained_messages=[
+                    SessionMessage(role="user", content="Original first question."),
+                    SessionMessage(
+                        role="assistant",
+                        content=None,
+                        tool_calls=[
+                            {"id": "call_9", "name": "read_file", "arguments": {"path": "a.txt"}}
+                        ],
+                    ),
+                    SessionMessage(role="tool", content="Original tool result.", tool_call_id="call_9"),
+                    SessionMessage(role="assistant", content="Original answer."),
+                ],
+            ),
+        ]
+        manager.save(session)
+
+        exported = manager.export_session(session.id, format="markdown")
+
+        assert "Compacted 2 turns (4 messages)." in exported
+        assert "1, 2" in exported
+        assert "Original first question." in exported
+        assert "read_file" in exported
+        assert "Original tool result." in exported
+        assert "Original answer." in exported

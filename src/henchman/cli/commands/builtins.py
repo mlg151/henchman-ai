@@ -10,16 +10,22 @@ from typing import Any
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.agent import AgentCommand
 from henchman.cli.commands.chat import ChatCommand
+from henchman.cli.commands.checkpoint import CheckpointCommand
 from henchman.cli.commands.context import ContextCommand
 from henchman.cli.commands.goal import GoalCommand
 from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
+from henchman.cli.commands.queue import QueueCommand
 from henchman.cli.commands.rag import RagCommand
+from henchman.cli.commands.recovery import RecoveryCommand
+from henchman.cli.commands.runtime_config import RuntimeConfigCommand, RuntimeDoctorCommand
 from henchman.cli.commands.session import SessionCommand
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.theme import ThemeCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
+from henchman.cli.commands.usage import UsageCommand
+from henchman.cli.commands.work import WorkCommand
 
 # ---------------------------------------------------------------------------
 # Module-level helpers (exempt from Feature Envy detection)
@@ -368,4 +374,11 @@ def get_builtin_commands() -> list[Command]:
         ThemeCommand(),
         UnlimitedCommand(),
         ContextCommand(),
+        RuntimeConfigCommand(),
+        UsageCommand(),
+        WorkCommand(),
+        RecoveryCommand(),
+        QueueCommand(),
+        CheckpointCommand(),
+        RuntimeDoctorCommand(),
     ]

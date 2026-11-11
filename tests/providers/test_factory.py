@@ -91,7 +91,20 @@ def test_ollama_needs_no_cloud_key_and_uses_api_path() -> None:
         provider = create(ProviderSettings(default="ollama"))
     assert provider.name == "ollama"
     assert provider.base_url == "http://localhost:11434/v1"
-    assert provider.api_key == "ollama"
+    assert provider.api_key == ""
+
+
+@pytest.mark.parametrize("name", ["openai", "openai_compat", "groq"])
+def test_configured_alias_is_retained_for_exact_accounting_prices(name):
+    settings = ProviderSettings.model_validate({
+        "default": name,
+        name: {"api_key": "test-key", "base_url": "https://test.invalid/v1",
+               "model": "shared-model", "temperature": 0.2},
+    })
+    provider = create(settings)
+    assert provider._accounting_provider_name == name
+    assert provider.request_defaults == {"temperature": 0.2}
+    assert provider.name == "openai-compatible"
 
 
 def test_ollama_host_is_used_when_endpoint_not_configured() -> None:

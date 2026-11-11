@@ -403,7 +403,9 @@ class TestBranchExecutor:
         ctx.session_manager.branch_session.return_value = branch
         executor = BranchExecutor(ctx)
         await executor.execute(ctx.session_manager)
-        ctx.session_manager.branch_session.assert_called_once_with("session-id", 5, "new-tag")
+        ctx.session_manager.branch_session.assert_called_once_with(
+            "session-id", 5, "new-tag", project_hash=None
+        )
         ctx.session_manager.save.assert_called_once()
 
     async def test_branch_error(self) -> None:
@@ -454,7 +456,7 @@ class TestMergeExecutor:
         executor = MergeExecutor(ctx)
         await executor.execute(ctx.session_manager)
         ctx.session_manager.merge_sessions.assert_called_once_with(
-            ["id1", "id2"], "union", None
+            ["id1", "id2"], "union", None, project_hash=None
         )
 
     async def test_merge_with_tag_as_strategy(self) -> None:
@@ -469,7 +471,7 @@ class TestMergeExecutor:
         await executor.execute(ctx.session_manager)
         # strategy_arg "my-custom-tag" is not in valid strategies -> treated as tag
         ctx.session_manager.merge_sessions.assert_called_once_with(
-            ["id1", "id2"], "smart", "my-custom-tag"
+            ["id1", "id2"], "smart", "my-custom-tag", project_hash=None
         )
 
     async def test_merge_error(self) -> None:
@@ -600,7 +602,7 @@ class TestTemplateDeleteExecutor:
         ctx = self._make_op_ctx(["template", "delete", "tmpl-1"])
         executor = TemplateDeleteExecutor(ctx)
         await executor.execute(ctx.session_manager)
-        ctx.session_manager.delete_template.assert_called_once_with("tmpl-1")
+        ctx.session_manager.delete_template.assert_called_once_with("tmpl-1", project_hash=None)
 
     async def test_error(self) -> None:
         """Test template delete error."""
@@ -633,7 +635,9 @@ class TestExportExecutor:
         executor = ExportExecutor(ctx)
         with patch("henchman.cli.commands.session.Path.cwd", return_value=tmp_path):
             await executor.execute(ctx.session_manager)
-        ctx.session_manager.export_session.assert_called_once_with("sess-id", "json")
+        ctx.session_manager.export_session.assert_called_once_with(
+            "sess-id", "json", project_hash=None
+        )
 
     async def test_success_markdown(self, tmp_path: Path) -> None:
         """Test successful markdown export."""

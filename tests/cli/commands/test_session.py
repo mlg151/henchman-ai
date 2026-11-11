@@ -16,6 +16,7 @@ def mock_ctx():
     ctx.console = MagicMock()
     ctx.args = []
     ctx.session_manager = MagicMock()
+    ctx.project_hash = "test-project"
     return ctx
 
 
@@ -55,7 +56,9 @@ async def test_session_branch_success(mock_ctx):
 
     await cmd.execute(mock_ctx)
 
-    mock_ctx.session_manager.branch_session.assert_called_once_with("old-id", 5, "my-tag")
+    mock_ctx.session_manager.branch_session.assert_called_once_with(
+        "old-id", 5, "my-tag", project_hash="test-project"
+    )
     mock_ctx.session_manager.save.assert_called_once_with(mock_branch)
     mock_ctx.console.print.assert_any_call("[green]✓[/] Created branch: new-id")
 
@@ -75,7 +78,7 @@ async def test_session_merge_success(mock_ctx):
     await cmd.execute(mock_ctx)
 
     mock_ctx.session_manager.merge_sessions.assert_called_once_with(
-        ["id1", "id2"], "smart", "merged-tag"
+        ["id1", "id2"], "smart", "merged-tag", project_hash="test-project"
     )
     mock_ctx.console.print.assert_any_call("[green]✓[/] Created merged session: merged-id")
 

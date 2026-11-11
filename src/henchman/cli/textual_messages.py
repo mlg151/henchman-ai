@@ -23,6 +23,7 @@ class _AgentPayloadMessage(Message):
         self: _AgentPayloadMessage,
         _payload: Any,
         source_agent: str | None = None,
+        *, stream_id: str | None = None,
     ) -> None:
         """Initialize.
 
@@ -33,6 +34,7 @@ class _AgentPayloadMessage(Message):
         super().__init__()
         self._payload = _payload
         self.source_agent = source_agent
+        self.stream_id = stream_id
 
     @property
     def _str_payload(self: _AgentPayloadMessage) -> str:
@@ -86,6 +88,13 @@ class ToolConfirmationMessage(_AgentPayloadMessage):
         return conf_req
 
 
+class ToolActivityClosedMessage(_AgentPayloadMessage):
+    """The display stream closed; unanswered calls have no observed final result."""
+
+    def __init__(self, stream_id: str) -> None:
+        super().__init__(None, stream_id=stream_id)
+
+
 class AgentStatusMessage(_AgentPayloadMessage):
     """Status update from the agent loop."""
 
@@ -121,15 +130,19 @@ class CommandOutputMessage(_AgentPayloadMessage):
         self: CommandOutputMessage,
         text: str,
         style: str = "",
+        *,
+        routine: bool = False,
     ) -> None:
         """Initialize.
 
         Args:
             text: Output text.
             style: Optional Rich markup style.
+            routine: Runtime chatter that quiet presentation may hide.
         """
         super().__init__(text)
         self.style = style
+        self.routine = routine
 
     @property
     def text(self: CommandOutputMessage) -> str:

@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_accounting import require_accounted_provider
 from henchman.providers.base import (
     FinishReason,
     Message,
@@ -21,6 +24,13 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+from henchman.providers.continuation import (
+    ProviderContinuationError,
+    validate_message_continuation,
+    validate_runtime_continuations,
+)
+from henchman.providers.usage import UsageSource
+from henchman.utils.exception_evidence import exception_text
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -87,6 +97,8 @@ class StreamState:
     usage: dict[str, int] | None = None
     content_yielded: bool = False
     finish_reason: FinishReason | None = None
+    usage_source: UsageSource = "unknown"
+    continuation: dict[str, Any] | None = None
 
     def create_assistant_message(
         self: StreamState,
@@ -106,6 +118,7 @@ class StreamState:
             content=self.content,
             tool_calls=calls or None,
             reasoning_content=self.thinking or None,
+            continuation=deepcopy(self.continuation),
         )
 
     def create_finished_data(self: StreamState) -> str | dict[str, Any]:
@@ -116,7 +129,7 @@ class StreamState:
         """
         base = self.finish_reason.value if self.finish_reason else "Stream completed"
         if self.usage:
-            return {"finish_reason": base, "usage": self.usage}
+            return {"finish_reason": base, "usage": self.usage, "usage_source": self.usage_source}
         return base
 
     def get_pending_tool_calls(
@@ -173,6 +186,11 @@ def _accumulate_chunk(chunk: StreamChunk, state: StreamState) -> None:
         state.tool_calls.extend(chunk.tool_calls)
     if chunk.usage:
         state.usage = chunk.usage
+        state.usage_source = chunk.usage_source or "unknown"
+    if chunk.continuation is not None:
+        from henchman.providers.continuation import copy_continuation
+
+        state.continuation = copy_continuation(chunk.continuation)
 
 
 def _handle_finish(
@@ -206,6 +224,7 @@ def _handle_finish(
             seen_ids.add(call.id)
     state.finish_reason = chunk.finish_reason
     assistant_msg = state.create_assistant_message(chunk.tool_calls)
+    validate_message_continuation(assistant_msg)
     record_message(history, assistant_msg, current_turn_messages)
     events: list[AgentEvent] = []
     stop_reasons = (FinishReason.STOP, FinishReason.LENGTH, FinishReason.CONTENT_FILTER)
@@ -236,6 +255,7 @@ async def generate_stream_events(
     Yields:
         AgentEvent instances for content, thinking, tool calls, errors, and finish.
     """
+    evidence = failure_evidence_redactor(ctx.provider)
     if compacted:
         yield _make_event(
             EventType.CONTEXT_COMPACTED,
@@ -245,6 +265,7 @@ async def generate_stream_events(
     provider_stream = None
     interrupted = False
     try:
+        require_accounted_provider(ctx.provider)
         provider_stream = ctx.provider.chat_completion_stream(
             messages=ctx.api_messages,
             tools=ctx.tool_declarations,
@@ -258,15 +279,18 @@ async def generate_stream_events(
                 state.content_yielded = True
                 yield _make_event(EventType.CONTENT, chunk.content, ctx.source_agent)
             if chunk.finish_reason and state.finish_reason is None:
+                validate_runtime_continuations([state.create_assistant_message(chunk.tool_calls)], ctx.provider, ctx.request_options)
                 for event in _handle_finish(
                     chunk, state, ctx.history, ctx.source_agent, ctx.current_turn_messages,
                 ):
                     yield event
         if state.finish_reason is None:
             raise ValueError("Provider stream ended without a finish reason")
-    except (asyncio.CancelledError, GeneratorExit):
+    except (asyncio.CancelledError, GeneratorExit, BudgetControlError, ProviderContinuationError) as exc:
         interrupted = True
-        if state.finish_reason is None and (state.content or state.thinking):
+        if isinstance(exc, ProviderContinuationError) and exc.continuation is not None:
+            state.continuation = deepcopy(exc.continuation)
+        if state.finish_reason is None and (state.content or state.thinking or state.continuation):
             # Preserve what the user saw without committing an unfinished tool
             # request or representing a partial response as successful.
             content = f"{state.content}\n\n" if state.content else ""
@@ -274,6 +298,7 @@ async def generate_stream_events(
                 role="assistant",
                 content=content + "[Response interrupted.]",
                 reasoning_content=state.thinking or None,
+                continuation=deepcopy(state.continuation),
             ), ctx.current_turn_messages)
         raise
     except Exception as exc:
@@ -285,9 +310,12 @@ async def generate_stream_events(
         if close is not None:
             try:
                 await close()
-            except Exception:
+            except Exception as error:
                 if not interrupted:
                     raise
-                logger.warning("Provider cleanup failed during interruption", exc_info=True)
+                logger.warning("Provider cleanup failed during interruption: %s", exception_text(
+                    error, failure_evidence_redactor(ctx.provider, redactor=evidence),
+                    include_traceback=True,
+                ))
     # Yielding from finally masks cancellation and violates generator close.
     yield _make_event(EventType.FINISHED, state.create_finished_data(), ctx.source_agent)

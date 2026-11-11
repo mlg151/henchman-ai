@@ -9,10 +9,12 @@ import asyncio
 import contextlib
 import logging
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from prompt_toolkit.application import create_app_session
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -21,17 +23,32 @@ from rich.text import Text
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.command_processor import CommandProcessor
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.input_handler import InputHandler
+from henchman.cli.oauth_frontend import FrontendOAuth
 from henchman.cli.output_handler import OutputHandler, resolve_active_agent
 from henchman.cli.plugins import PluginManager
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.stream_event_handlers import build_confirmation_message
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.cli.workflow import (
+    command_route,
+    command_starts_work,
+    execute_workflow_input,
+    frontend_has_active_work,
+    idle_command,
+    idle_control_active,
+)
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
 from henchman.core.goals import GoalService, save_goal_session
+from henchman.core.session_workflow import SessionWorkflow, WorkflowDispatch
+from henchman.core.workflow_state import WorkflowError
 from henchman.mcp.manager import McpManager
 
 if TYPE_CHECKING:
@@ -40,7 +57,6 @@ if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
 
     from henchman.cli.input import KeyMonitor
-    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.events import AgentEvent
     from henchman.core.session import Session
@@ -88,6 +104,8 @@ class ReplConfig:
         auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
         agent_role: Target a specific agent role for all inputs.
         interactive: Whether tools may collect answers from the terminal.
+        instruction_snapshot: Captured instruction provenance for sessions
+            and delegation handoffs; internal wiring, never serialized.
     """
 
     prompt: str = "❯ "
@@ -99,6 +117,7 @@ class ReplConfig:
     auto_approve_tools: bool = False
     agent_role: str | None = None
     interactive: bool = True
+    instruction_snapshot: Any | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -204,10 +223,12 @@ def _collect_event_content(
     event: AgentEvent,
     content_collector: list[str] | None,
     render_error: Callable[[str], None],
+    *,
+    redact_error: Callable[[Any], Any] | None = None,
 ) -> None:
     """Route an agent event to error display or content collection."""
     if event.type == EventType.ERROR:
-        render_error(str(event.data))
+        render_error(str(redact_error(event.data) if redact_error is not None else event.data))
     elif event.type == EventType.CONTENT and content_collector is not None and event.data:
         content_collector.append(event.data)
 
@@ -232,6 +253,7 @@ class Repl:
         settings: Settings | None = None,
         environment_context: str | None = None,
         renderer: UIRenderer | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -244,9 +266,14 @@ class Repl:
             renderer: Custom UI renderer to use.
         """
         self.provider = provider
+        self.project_root = Path.cwd().resolve()
         self.console = console or Console()
         self.config = config or ReplConfig()
-        self.settings = settings
+        self.settings_state = settings_state or RuntimeSettingsState.from_settings(settings or Settings())
+        if settings_state is None:
+            capture_startup_provider_settings(self.settings_state, provider, injected=True)
+        self.settings = self.settings_state.settings
+        settings = self.settings
         self.event_bus = EventBus()
         self.running = False
         self.rag_system: object | None = None
@@ -261,8 +288,14 @@ class Repl:
         self._turn_worker: asyncio.Task[None] | None = None
 
         self.renderer = self._init_renderer(renderer)
+        self.console = self.renderer.console
         self._init_mcp_manager()
-        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
+        self.session_manager = ReplSessionManager(
+            auto_save=self.config.auto_save,
+            instruction_snapshot=self.config.instruction_snapshot,
+            settings=settings,
+            provider=provider,
+        )
         self._init_tool_manager()
         self._init_plugin_manager()
         self.orchestrator = self._init_orchestrator(environment_context)
@@ -270,6 +303,16 @@ class Repl:
         self._init_handlers()
         self._init_tool_executor()
         self._init_input_handler()
+        self._oauth = FrontendOAuth(self, self.project_root,
+            emit=lambda text: self.renderer.console.print(text, markup=False), settled=self._oauth_settled)
+
+    def _oauth_settled(self, success: bool) -> None:
+        """Resume only already accepted input after successful authentication."""
+        runtime = self._workflow()
+        if not success and runtime is not None:
+            runtime.hold_pending()
+        if success and self._has_pending_input():
+            self._ensure_turn_worker()
 
     def _init_renderer(self: Self, renderer: UIRenderer | None) -> UIRenderer:
         """Create UI renderer with settings-based configuration."""
@@ -281,6 +324,7 @@ class Repl:
             accessible_mode=ui.accessible_mode if ui else False,
             style_overrides=ui.style_overrides if ui else None,
             layout_settings=getattr(ui, "layout", None) if ui else None,
+            output_mode=ui.output_mode if ui and self.config.interactive else "rich",
         )
 
     def _init_tool_manager(self: Self) -> None:
@@ -297,6 +341,7 @@ class Repl:
         )
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
+        self.session_manager.bind_tool_registry(self.tool_registry)
 
     @contextlib.asynccontextmanager
     async def _exclusive_terminal(self) -> AsyncIterator[None]:
@@ -342,6 +387,7 @@ class Repl:
             self.mcp_manager = McpManager.create_from_settings(
                 self.settings,
                 mcp_logging_enabled=mcp_logging,
+                project_root=self.project_root,
             )
 
     def _init_plugin_manager(self: Self) -> None:
@@ -355,7 +401,7 @@ class Repl:
 
     def _init_orchestrator(self: Self, environment_context: str | None) -> Orchestrator:
         """Create the orchestrator with provider, tools, and event bus."""
-        return Orchestrator(
+        orchestrator = Orchestrator(
             default_provider=self.provider,
             tool_registry=self.tool_registry,
             event_bus=self.event_bus,
@@ -363,6 +409,17 @@ class Repl:
             system_prompt=self.config.system_prompt,
             environment_context=environment_context,
         )
+        orchestrator.instruction_snapshot = self.config.instruction_snapshot
+        runner = getattr(orchestrator, "delegation_runner", None)
+        if runner is not None:
+            runner.instruction_snapshot = orchestrator.instruction_snapshot
+        from henchman.agents.instruction_runtime import bind_instruction_runtime
+
+        bind_instruction_runtime(orchestrator, self.session_manager, self.config.instruction_snapshot)
+        from henchman.cli.accounting import bind_session_accounting
+
+        bind_session_accounting(orchestrator, self.session_manager)
+        return orchestrator
 
     def _init_handlers(self: Self) -> None:
         """Create output handler and command processor wired to shared subsystems."""
@@ -406,9 +463,15 @@ class Repl:
             history_file=history_file,
             keybindings=keybindings,
             tool_registry=self.tool_registry,
+            evidence_redactor=runtime_evidence_redactor(self),
+            keyboard_mode=self.settings.ui.keyboard_mode,
+            editor_frontend=self,
         )
         self.input_handler.initialize_prompt_session(
-            bottom_toolbar=lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)),
+            bottom_toolbar=(
+                None if getattr(self.renderer, "output_mode", "rich") in ("plain", "quiet")
+                else lambda: self.output_handler.get_toolbar_status(resolve_active_agent(self)) + [("", "  F11 External editor")]
+            ),
         )
         prompt = self.input_handler.prompt_session
         if prompt is not None:
@@ -426,7 +489,8 @@ class Repl:
 
     def _has_active_turn(self) -> bool:
         """Enable turn cancellation bindings while interactive work is running."""
-        return self._turn_worker is not None and not self._turn_worker.done()
+        return self.input_handler.editor_active or (self._turn_worker is not None and not self._turn_worker.done()) or (
+            hasattr(self, "_oauth") and self._oauth.has_pending_actions())
 
 
     def set_session(self: Self, session: Session) -> None:
@@ -473,9 +537,7 @@ class Repl:
         ):  # Only connect if not already connected
             try:
                 await self.mcp_manager.connect_all()
-                # Register MCP tools with the tool registry
-                for tool in self.mcp_manager.get_all_tools():
-                    self.tool_registry.register(tool)
+                self.mcp_manager.bind_registry(self.tool_registry)
                 if (
                     self.mcp_manager.get_all_tools()
                     and self.settings
@@ -486,7 +548,7 @@ class Repl:
                     )
             except Exception as e:
                 # Always show errors, regardless of logging setting
-                self.renderer.error(f"Failed to connect to MCP servers: {e}")
+                self.renderer.error(f"Failed to connect to MCP servers: {runtime_exception_text(self, e)}")
 
     async def run(self: Self) -> None:
         """Run the main REPL loop.
@@ -499,7 +561,13 @@ class Repl:
         self.running = True
         self._interactive_loop_active = True
         # Render asynchronous output above the editable prompt, retaining Rich ANSI styling.
-        with patch_stdout(raw=True):
+        prompt_session = self.input_handler.prompt_session
+        with (
+            create_app_session(
+                output=prompt_session.output if prompt_session is not None else None
+            ),
+            patch_stdout(raw=True),
+        ):
             try:
                 self.output_handler.print_welcome()
                 await self.initialize_mcp()
@@ -521,7 +589,13 @@ class Repl:
     async def aclose(self) -> None:
         """Join owned agent work before disconnecting its external tools."""
         try:
-            await self._stop_turn_worker()
+            try:
+                try:
+                    await self.input_handler.close_editor()
+                finally:
+                    await self._oauth.aclose()
+            finally:
+                await self._stop_turn_worker()
         finally:
             try:
                 await self.orchestrator.aclose()
@@ -537,9 +611,11 @@ class Repl:
         """
         try:
             user_input = await self._get_input()
+            if self._oauth.submit(user_input) or self._oauth.defer_work_control(user_input):
+                return True
             return await self.process_input(user_input)
         except KeyboardInterrupt:
-            if self._turn_worker is not None and not self._turn_worker.done():
+            if self._has_active_turn():
                 self.interrupt_agent()
                 return True
             self._pause_goal()
@@ -602,12 +678,27 @@ class Repl:
             return True
 
         if is_command:
-            command_name = processed_input.split(maxsplit=1)[0].lower()
-            if self._interactive_loop_active and command_name in {
-                "/clear", "/chat", "/session", "/model", "/plan", "/mcp",
-                "/context", "/team", "/unlimited",
-            }:
-                self._pending_inputs.append(_QueuedInput(processed_input, command=True))
+            route = command_route(processed_input)
+            runtime = self._workflow()
+            if route == "idle":
+                if frontend_has_active_work(self):
+                    self.renderer.warning("This command requires idle work; repeat it after active work finishes.")
+                    return True
+                try:
+                    with idle_command(self):
+                        should_continue = await self.command_processor.handle_command(processed_input, resolve_active_agent(self), self)
+                except asyncio.CancelledError:
+                    if runtime is not None:
+                        runtime.hold_pending()
+                    raise
+                if should_continue and self._has_pending_input():
+                    self._ensure_turn_worker()
+                return should_continue
+            if self._interactive_loop_active and route == "queued":
+                if runtime is not None:
+                    runtime.submit(processed_input, kind="command")
+                else:
+                    self._pending_inputs.append(_QueuedInput(processed_input, command=True))
                 self._ensure_turn_worker()
                 return True
             # Goal controls and informational commands remain immediately available.
@@ -616,7 +707,7 @@ class Repl:
                 resolve_active_agent(self),
                 self,
             )
-            if should_continue and self._interactive_loop_active:
+            if should_continue and self._interactive_loop_active and command_starts_work(processed_input):
                 self._ensure_turn_worker()
             return should_continue
 
@@ -626,6 +717,15 @@ class Repl:
 
     async def submit_agent_input(self, user_input: str) -> None:
         """Queue interactive work; preserve awaited execution for direct callers."""
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.submit(user_input)
+            if self._interactive_loop_active:
+                self._ensure_turn_worker()
+                await asyncio.sleep(0)
+            else:
+                await self._drain_workflow_inputs(runtime, continue_goals=False)
+            return
         if not self._interactive_loop_active:
             await self._run_agent(user_input)
             return
@@ -633,13 +733,51 @@ class Repl:
         self._ensure_turn_worker()
         await asyncio.sleep(0)
 
+    def _workflow(self) -> SessionWorkflow | None:
+        session = self.session_manager.current
+        return session.workflow_runtime if session is not None else None
+
+    def _has_pending_input(self) -> bool:
+        runtime = self._workflow()
+        return runtime.has_ready_input() if runtime is not None else bool(self._pending_inputs)
+
+    async def _execute_workflow_dispatch(self, dispatch: WorkflowDispatch) -> bool:
+        self._workflow_task = asyncio.current_task()
+        self._workflow_turn_failed = False
+        try:
+            if dispatch.kind == "command":
+                if command_route(dispatch.text) != "queued":
+                    raise WorkflowError("control_requires_explicit_command")
+                self.running = await self.command_processor.handle_command(dispatch.text, resolve_active_agent(self), self)
+            elif dispatch.role is not None:
+                await self._run_agent_direct(dispatch.role, dispatch.text)
+            else:
+                await self._run_agent(dispatch.text)
+            return not self._workflow_turn_failed
+        finally:
+            self._workflow_task = None
+
+    async def _drain_workflow_inputs(self, runtime: SessionWorkflow, *, continue_goals: bool) -> None:
+        while True:
+            dispatch = runtime.next_input()
+            if dispatch is None and continue_goals and runtime.submit_goal() is not None:
+                dispatch = runtime.next_input()
+            if dispatch is None:
+                return
+            await execute_workflow_input(runtime, dispatch, partial(self._execute_workflow_dispatch, dispatch))
+            await asyncio.sleep(0)
+            if continue_goals and not self._interactive_loop_active:
+                return
+
     def _ensure_turn_worker(self) -> None:
         """Start at most one worker when user input or an active goal needs work."""
         if not self._interactive_loop_active:
             return
+        if idle_control_active(self):
+            return
         if self._turn_worker is not None and not self._turn_worker.done():
             return
-        if self._pending_inputs or GoalService().continuation_prompt(self.session_manager.current):
+        if self._has_pending_input() or GoalService().continuation_prompt(self.session_manager.current):
             self._turn_worker = asyncio.create_task(self._drain_agent_inputs())
             self._turn_worker.add_done_callback(self._turn_worker_finished)
 
@@ -650,14 +788,18 @@ class Repl:
         if not task.cancelled():
             error = task.exception()
             if error is not None:
-                logger.error("Interactive turn failed", exc_info=error)
-                self.renderer.error(f"Error: {error}")
+                logger.error("Interactive turn failed: %s", runtime_exception_text(self, error, include_traceback=True))
+                self.renderer.error(f"Error: {runtime_exception_text(self, error)}")
                 self._pause_goal()
-        if self._pending_inputs:
+        if self._has_pending_input():
             self._ensure_turn_worker()
 
     async def _drain_agent_inputs(self) -> None:
         """Run user messages before autonomous continuations, without overlapping turns."""
+        runtime = self._workflow()
+        if runtime is not None:
+            await self._drain_workflow_inputs(runtime, continue_goals=True)
+            return
         message: str | None
         while self._interactive_loop_active:
             await asyncio.sleep(0)
@@ -689,19 +831,37 @@ class Repl:
 
     def interrupt_agent(self) -> None:
         """Pause autonomous work and cancel the current interactive turn."""
-        self._pause_goal()
-        if self._turn_worker is not None and not self._turn_worker.done():
-            self._turn_worker.cancel()
-            self.renderer.warning("Interrupted; active goal paused.")
+        if self.input_handler.cancel_editor():
+            return
+        if self._oauth.cancel():
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.hold_pending()
+            return
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.hold_pending()
+        try:
+            self._pause_goal()
+        except Exception as exc:
+            self.renderer.error(f"Goal pause could not be saved: {runtime_exception_text(self, exc)}")
+        finally:
+            if self._turn_worker is not None and not self._turn_worker.done():
+                self._turn_worker.cancel()
+                self.renderer.warning("Interrupt requested; pending work is held.")
 
     async def _stop_turn_worker(self) -> None:
         """Cancel and join in-flight work before shutdown or a session change."""
-        task = self._turn_worker
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
-            self._turn_worker = None
+        runtime = self._workflow()
+        if runtime is not None:
+            runtime.hold_pending()
+        tasks = (self._turn_worker, getattr(self, "_idle_control_task", None))
+        for task in tasks:
+            if isinstance(task, asyncio.Task) and task is not asyncio.current_task():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+        self._turn_worker = None
 
     async def _run_agent(self: Self, user_input: str) -> None:
         """Run the agent with user input.
@@ -739,8 +899,13 @@ class Repl:
         if (
             getattr(self, "_interactive_loop_active", False)
             and asyncio.current_task() is not self._turn_worker
+            and asyncio.current_task() is not getattr(self, "_workflow_task", None)
         ):
-            self._pending_inputs.append(_QueuedInput(user_input, role=role))
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.submit(user_input, kind="direct", role=role)
+            else:
+                self._pending_inputs.append(_QueuedInput(user_input, role=role))
             self._ensure_turn_worker()
             return
         agent = self.orchestrator.pool.get_agent(role)
@@ -768,6 +933,7 @@ class Repl:
         try:
             async for event in event_stream:
                 if event.type == EventType.ERROR:
+                    self._workflow_turn_failed = True
                     self._pause_goal()
                 yield event
         finally:
@@ -822,6 +988,9 @@ class Repl:
 
             if exit_req or stop_req:
                 self._pause_goal()
+                self._workflow_turn_failed = True
+                if asyncio.current_task() is getattr(self, "_workflow_task", None):
+                    raise asyncio.CancelledError
             if exit_req:
                 self.renderer.warning("\n[Exit requested by Ctrl+C]")
                 self.running = False
@@ -829,10 +998,11 @@ class Repl:
                 self.renderer.warning("\n[Interrupted by Esc]")
 
         except Exception as e:
+            self._workflow_turn_failed = True
             stop_thinking()
             self._pause_goal()
-            logger.exception("Agent execution failed: %s", e)
-            self.renderer.error(f"Error: {e}")
+            logger.error("Agent execution failed: %s", runtime_exception_text(self, e, include_traceback=True))
+            self.renderer.error(f"Error: {runtime_exception_text(self, e)}")
         finally:
             stop_thinking()
             if monitor is not None and monitor_task is not None:
@@ -849,7 +1019,11 @@ class Repl:
         DEPRECATED: Use ToolExecutor.process_agent_stream instead.
         This method is kept for backwards compatibility with tests.
         """
-        _collect_event_content(event, content_collector, self.renderer.error)
+        policy = runtime_evidence_redactor(self)
+        _collect_event_content(
+            event, content_collector, self.renderer.error,
+            redact_error=lambda value: policy.text(str(policy.redact(value))),
+        )
 
     async def _handle_tool_call(self: Self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.

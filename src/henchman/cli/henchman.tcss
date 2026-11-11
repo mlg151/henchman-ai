@@ -35,6 +35,16 @@ ChatMessage {
     padding: 1;
 }
 
+ChatPane.density-compact > ChatMessage {
+    margin: 0 1;
+    padding: 0 1;
+}
+
+ChatPane.density-compact > ThinkingMessage,
+ChatPane.density-compact > ToolMessage {
+    margin: 0;
+}
+
 /* ── Command palette ───────────────────────────────────── */
 
 #command-palette {
@@ -49,6 +59,23 @@ ChatMessage {
 }
 
 /* ── Input ─────────────────────────────────────────────── */
+
+#chat-navigation {
+    height: 3;
+    width: 100%;
+    align-vertical: middle;
+}
+
+#chat-follow-state {
+    width: 1fr;
+    height: 1;
+    margin: 0 1;
+}
+
+#chat-return-live {
+    width: 20;
+    min-width: 16;
+}
 
 #input {
     width: 100%;

@@ -2,26 +2,32 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.agents.orchestrator_execution import _close_stream
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_accounting import RunInvocation, budget_snapshot_payload
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.usage_summary import budget_evidence_redactor
+from henchman.providers.runtime_budget import RunBudgetScope
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 
 @dataclass
-class _RenderedRun:
+class HeadlessRunObservation:
     completion: dict[str, Any] | None = None
     renderer_failed: bool = False
 
 
-async def _forward_events(
+async def forward_headless_events(
     stream: AsyncIterator[AgentEvent],
     role: str,
-    render_event: Callable[[AgentEvent], None],
-    outcome: _RenderedRun,
+    render_event: Callable[[AgentEvent], None | Awaitable[None]],
+    outcome: HeadlessRunObservation,
 ) -> None:
     """Forward nested activity while retaining only marked root completion."""
     primary_error: BaseException | None = None
@@ -38,7 +44,9 @@ async def _forward_events(
             ):
                 outcome.completion = event.data
             try:
-                render_event(event)
+                published = render_event(event)
+                if isawaitable(published):
+                    await published
             except BaseException:
                 outcome.renderer_failed = True
                 raise
@@ -54,9 +62,12 @@ def _finish_run(
     completion: dict[str, Any] | None,
     render_event: Callable[[AgentEvent], None],
     error: str | None = None,
+    budget: dict[str, Any] | None = None,
 ) -> bool:
     """Publish one terminal event without claiming whole-task verification."""
     metadata = dict(completion or {})
+    if budget is not None:
+        metadata["budget"] = budget
     status = metadata.get("status")
     successful = error is None and status in ("completed", "responded")
     if not successful:
@@ -77,6 +88,16 @@ def _finish_run(
     return successful
 
 
+def _budget_evidence(scope: RunBudgetScope | None, redactor: EvidenceRedactor) -> dict[str, Any] | None:
+    """Keep accounting evidence on failed runs without inventing missing totals."""
+    if not isinstance(scope, RunBudgetScope):
+        return None
+    try:
+        return budget_snapshot_payload(scope.ledger.snapshot(), redactor=redactor)
+    except BudgetControlError as exc:
+        return {"run_id": scope.ledger.run_id, "accounting_error": str(exc)}
+
+
 async def run_orchestrator_json(
     orchestrator: Orchestrator,
     prompt: str,
@@ -85,20 +106,30 @@ async def run_orchestrator_json(
 ) -> bool:
     """Reuse the configured team runtime and close it on every exit path."""
     role = agent_role or "tech_lead"
-    outcome = _RenderedRun()
+    outcome = HeadlessRunObservation()
+    policy = budget_evidence_redactor(orchestrator)
+    invocation = RunInvocation()
     try:
         stream = (
-            orchestrator.run_direct(agent_role, prompt)
+            orchestrator.run_direct(agent_role, prompt, invocation=invocation)
             if agent_role
-            else orchestrator.run(prompt)
+            else orchestrator.run(prompt, invocation=invocation)
         )
-        await _forward_events(stream, role, render_event, outcome)
+        await forward_headless_events(stream, role, render_event, outcome)
     except Exception as exc:
         if outcome.renderer_failed:
             raise
+        # Control failures can skip normal finalization after registering a new
+        # credential in the session. Refresh before emitting partial evidence.
+        policy.register_policy(budget_evidence_redactor(orchestrator))
         return _finish_run(
             role, outcome.completion, render_event, f"{type(exc).__name__}: {exc}",
+            budget=_budget_evidence(invocation.budget_scope, policy),
         )
     finally:
-        await orchestrator.aclose()
-    return _finish_run(role, outcome.completion, render_event)
+        if invocation.claimed:
+            # Embedded successful runtimes need not call finalize_run. Capture
+            # their current session policy before cleanup can replace bindings.
+            policy.register_policy(budget_evidence_redactor(orchestrator))
+            await orchestrator.aclose()
+    return _finish_run(role, outcome.completion, render_event, budget=_budget_evidence(invocation.budget_scope, policy))

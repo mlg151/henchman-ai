@@ -46,7 +46,8 @@ def delegation_fixture(path: Path) -> tuple[Orchestrator, MagicMock]:
         tool_calls=[ToolCall("command-1", "python_exec", command_arguments(path))],
         finish_reason=FinishReason.TOOL_CALLS,
     ))
-    orchestrator = Orchestrator(default_provider=lead)
+    from henchman.config.schema import Settings
+    orchestrator = Orchestrator(default_provider=lead, settings=Settings(agents={"allow_delegation": True}))
     orchestrator.settings.agents.max_delegation_retries = 0
     orchestrator.tool_registry.register(PythonExecTool())
     specialist = orchestrator.pool.get_agent("engineer")

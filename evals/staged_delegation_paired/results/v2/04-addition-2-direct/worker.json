@@ -1,0 +1,44 @@
+{
+  "outcome": "completed",
+  "error": null,
+  "completion": "completed",
+  "transport_attempts": 4,
+  "transport_errors": [],
+  "elapsed_seconds": 27.114,
+  "client_peak_rss_kib": 224980,
+  "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+  "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+  "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+  "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b",
+  "exact_ast": true,
+  "events": [
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "edit_file"
+    },
+    {
+      "event": "result",
+      "tool": "edit_file",
+      "success": true
+    },
+    {
+      "event": "request",
+      "tool": "read_file"
+    },
+    {
+      "event": "result",
+      "tool": "read_file",
+      "success": true
+    }
+  ],
+  "events_truncated": false
+}

@@ -14,6 +14,11 @@ from henchman.config.schema import Settings
 from henchman.mcp.auth import McpAuthService
 from henchman.mcp.client import McpToolDefinition
 from henchman.mcp.manager import McpManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @dataclass(slots=True)
@@ -102,6 +107,7 @@ async def test_mcp_tools_manage_auth_and_server_lifecycle(tmp_path: Path) -> Non
     """Tier 6 MCP tools should persist auth state and manage server lifecycle."""
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path, mcp_manager=_FakeMcpManager())
     manager.register_builtin_tools()
 

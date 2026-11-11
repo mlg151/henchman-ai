@@ -9,10 +9,7 @@ import pytest
 from henchman.cli.core_init import CoreContext, create_core_context, initialize_mcp
 from henchman.config.schema import (
     McpServerConfig,
-    ProviderSettings,
     Settings,
-    ToolSettings,
-    UISettings,
 )
 from henchman.mcp.manager import McpManager
 
@@ -128,12 +125,7 @@ class TestCreateCoreContext:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock(spec=Settings)
-        settings.providers = MagicMock(spec=ProviderSettings)
-        settings.ui = MagicMock(spec=UISettings)
-        settings.ui.mcp_logging = False
-        settings.tools = MagicMock(spec=ToolSettings)
-        settings.mcp_servers = None  # No MCP servers configured
+        settings = Settings()
         return settings
 
     @patch("henchman.cli.core_init.ToolManager")
@@ -250,7 +242,7 @@ class TestCreateCoreContext:
         mock_session_manager_cls.return_value = mock_session_manager
 
         # Configure settings with MCP servers
-        mock_settings.mcp_servers = {"test-server": {}}
+        mock_settings.mcp_servers = {"test-server": McpServerConfig(command="echo")}
 
         # Call function
         context = create_core_context(
@@ -262,7 +254,7 @@ class TestCreateCoreContext:
         # Verify MCP manager was created
         assert context.mcp_manager == mock_mcp_manager
         mock_mcp_manager_cls.create_from_settings.assert_called_once_with(
-            mock_settings, mcp_logging_enabled=False
+            mock_settings, mcp_logging_enabled=False, project_root=context.project_root
         )
 
         # Verify orchestrator was created with MCP manager
@@ -318,7 +310,8 @@ class TestCreateCoreContext:
         assert isinstance(context, CoreContext)
         assert context.provider == mock_provider
         assert context.mcp_manager is None  # No settings, so no MCP
-        assert context.settings is None
+        assert isinstance(context.settings, Settings)
+        assert context.settings_state.settings is context.settings
 
         # Verify tool manager was not auto-approved
         mock_tool_manager.set_auto_approve.assert_called_once_with(auto_approve=False)

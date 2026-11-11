@@ -3,7 +3,7 @@
 This module provides configuration loading and context file discovery.
 """
 
-from henchman.config.context import DEFAULT_FILENAMES, ContextLoader
+from henchman.config.context import DEFAULT_FILENAMES, ContextLoader, ContextSnapshot
 from henchman.config.environment import (
     EnvironmentContext,
     format_environment_block,
@@ -11,6 +11,7 @@ from henchman.config.environment import (
 )
 from henchman.config.schema import (
     ContextSettings,
+    LayoutSettings,
     McpServerConfig,
     ProviderSettings,
     RagSettings,
@@ -18,12 +19,14 @@ from henchman.config.schema import (
     ToolSettings,
     UISettings,
 )
-from henchman.config.settings import ConfigError, deep_merge, load_settings
+from henchman.config.settings import ConfigError, deep_merge, load_settings, load_settings_snapshot
 
 __all__ = [
     "DEFAULT_FILENAMES",
     "ConfigError",
     "ContextLoader",
+    "ContextSnapshot",
+    "LayoutSettings",
     "ContextSettings",
     "EnvironmentContext",
     "McpServerConfig",
@@ -36,4 +39,5 @@ __all__ = [
     "format_environment_block",
     "gather_environment",
     "load_settings",
+    "load_settings_snapshot",
 ]

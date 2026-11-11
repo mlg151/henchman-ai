@@ -9,6 +9,11 @@ from pathlib import Path
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _write_fake_lsp_server(path: Path) -> None:
@@ -109,6 +114,7 @@ async def test_lsp_tool_registers_starts_requests_and_stops_servers(tmp_path: Pa
     _write_fake_lsp_server(server_script)
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 
@@ -155,6 +161,7 @@ async def test_schedule_cron_tool_persists_and_updates_schedules(tmp_path: Path)
     from henchman.advanced import CronScheduleService
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

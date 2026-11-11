@@ -2,23 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [main, "0.4.1"]
+    branches: [main, "0.4.1", "v0.4.2", "release/v0.4.2"]
   pull_request:
-    branches: [main, "0.4.1"]
+    branches: [main, "0.4.1", "v0.4.2", "release/v0.4.2"]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint & Style
-    runs-on: [self-hosted, homeserver]
-    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Run Ruff Lint
         run: |
@@ -26,11 +36,18 @@ jobs:
 
   type-check:
     name: Type Check
-    runs-on: [self-hosted, homeserver]
-    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Run Mypy
         run: |
@@ -38,12 +55,12 @@ jobs:
 
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, homeserver]
-    if: github.actor == github.repository_owner
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     env:
       DEEPSEEK_API_KEY: "dummy-test-key"
       OPENAI_API_KEY: "dummy-test-key"
@@ -51,19 +68,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
       - name: Run test suite
         run: |
           echo "::remove-matcher owner=checkout-git::"
-          uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ -q --no-cov
+          if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
+            uv run --python "${{ matrix.python-version }}" --extra dev pytest tests/ -q --cov=henchman --cov-config="$GITHUB_WORKSPACE/pyproject.toml" --cov-fail-under=90
+          else
+            uv run --python ${{ matrix.python-version }} --extra dev pytest tests/ -q --no-cov
+          fi
 
   build-check:
     name: Build & Package Validation
-    runs-on: [self-hosted, homeserver]
-    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
     needs: [lint, type-check]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Build distributions
         run: |
@@ -88,3 +124,85 @@ jobs:
 
       - name: Verify release workflow behavior without publication
         run: uv run --extra dev python -m pytest --no-cov tests/ops/test_release_workflow.py -q
+
+  native-smoke:
+    name: Installed Wheel Smoke (${{ matrix.os }}-${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    needs: build-check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-distributions-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: dist/
+
+      - name: Run installed wheel smoke test
+        shell: bash
+        run: |
+          echo "::remove-matcher owner=checkout-git::"
+          echo "OS: ${{ matrix.os }}"
+          echo "Python: ${{ matrix.python-version }}"
+          echo "Source SHA: ${{ github.sha }}"
+          
+          uv venv --seed --python ${{ matrix.python-version }} "$RUNNER_TEMP/henchman-wheel-smoke"
+          
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            smoke_python="$RUNNER_TEMP/henchman-wheel-smoke/Scripts/python.exe"
+          else
+            smoke_python="$RUNNER_TEMP/henchman-wheel-smoke/bin/python"
+          fi
+          
+          "$smoke_python" tests/testing/installed_wheel_smoke.py --wheel-dir "$GITHUB_WORKSPACE/dist"
+
+  aggregate-gate:
+    name: Aggregate Readiness Gate
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, test, build-check, native-smoke]
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate requirements
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 -c '
+          import os
+          import sys
+          import json
+          
+          needs_json = json.loads(os.environ.get("NEEDS_JSON", "{}"))
+          required_jobs = ["lint", "type-check", "test", "build-check", "native-smoke"]
+          
+          success_count = 0
+          for job_id in required_jobs:
+              outcome = needs_json.get(job_id, {})
+              if isinstance(outcome, dict) and outcome.get("result") == "success":
+                  success_count += 1
+              else:
+                  print(f"Job {job_id} did not succeed (status: {outcome})")
+                  sys.exit(1)
+          
+          if success_count == len(required_jobs):
+              print("All required jobs succeeded.")
+              sys.exit(0)
+          else:
+              sys.exit(1)
+          '

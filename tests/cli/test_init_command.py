@@ -44,6 +44,7 @@ def test_init_bootstraps_project_local_settings_for_a_new_workspace(
     assert _read_settings(project_root / ".henchman") == {
         "ui": {
             "keybindings": {"c-j": "abort", "c-q": "exit"},
+            "output_style": "verbose",
             "show_line_numbers": False,
             "theme": "monokai",
         }

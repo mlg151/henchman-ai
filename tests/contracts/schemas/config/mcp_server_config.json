@@ -1,8 +1,24 @@
 {
   "type": "object",
-  "required": ["command"],
+  "required": ["transport", "command", "url", "args", "env", "trusted", "request_timeout_seconds", "negotiation_timeout_seconds", "catalog_timeout_seconds", "oauth"],
   "properties": {
-    "command": {"type": "string"},
+    "transport": {"enum": ["stdio", "streamable_http"]},
+    "command": {"type": ["string", "null"]},
+    "url": {"type": ["string", "null"]},
+    "request_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "negotiation_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "catalog_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "oauth": {
+      "type": ["object", "null"],
+      "required": ["issuer", "client_id", "resource", "allowed_endpoint_origins"],
+      "properties": {
+        "issuer": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "client_id": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "resource": {"type": ["string", "null"], "maxLength": 4096},
+        "allowed_endpoint_origins": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 4096}}
+      },
+      "additionalProperties": false
+    },
     "args": {
       "type": "array",
       "items": {"type": "string"}
@@ -13,5 +29,9 @@
     },
     "trusted": {"type": "boolean"}
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "anyOf": [
+    {"properties": {"transport": {"const": "stdio"}, "command": {"type": "string", "minLength": 1}, "url": {"type": "null"}, "oauth": {"type": "null"}}},
+    {"properties": {"transport": {"const": "streamable_http"}, "command": {"type": "null"}, "url": {"type": "string", "minLength": 1}, "args": {"maxItems": 0}, "env": {"maxProperties": 0}}}
+  ]
 }

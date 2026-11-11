@@ -3,11 +3,169 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from henchman.cli.tool_manager import ToolManager
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
+
+
+@pytest.mark.parametrize("tool_name", ["task_get", "task_output"])
+async def test_missing_task_lookup_guides_exact_id_recovery_without_guessing(tmp_path, tool_name):
+    """A partial ID must not resolve to a job or expose submitted text."""
+    from henchman.advanced.tasks import TaskService
+
+    manager = ToolManager()
+    manager.bind_runtime(project_root=tmp_path)
+    manager.register_builtin_tools()
+    service = TaskService(project_root=tmp_path)
+    task = await service.start_task(argv=[sys.executable, "-c", "print('fixture output')"])
+    await service.wait_for_task(task.task_id, timeout=15)
+
+    partial = task.task_id.removeprefix("task-")
+    missing = await manager.registry.execute(tool_name, {"task_id": partial})
+    assert not missing.success
+    assert "task_list" in missing.content and "task-" in missing.content
+    assert "fixture output" not in missing.content
+    full = await manager.registry.execute(tool_name, {"task_id": task.task_id})
+    assert full.success
+    if tool_name == "task_output":
+        assert "fixture output" in full.content
+
+    secret = "untrusted-task-identifier-secret"
+    absent = await manager.registry.execute(tool_name, {"task_id": secret})
+    assert not absent.success
+    assert secret not in absent.content
+    assert absent.error and secret not in absent.error
+
+    other_root = tmp_path / "other-project"
+    other_root.mkdir()
+    other = ToolManager()
+    other.bind_runtime(project_root=other_root)
+    other.register_builtin_tools()
+    foreign = await other.registry.execute(tool_name, {"task_id": task.task_id})
+    assert not foreign.success
+    assert foreign.content == missing.content
+    assert "fixture output" not in foreign.content
+
+
+async def test_task_output_does_not_misreport_internal_key_error_as_missing(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskOutputTool
+
+    tool = TaskOutputTool()
+    tool.bind_runtime(project_root=tmp_path, tool_registry=None)
+    service = tool._task_service
+    task = await service.start_task(argv=[sys.executable, "-c", "pass"])
+    await service.wait_for_task(task.task_id, timeout=15)
+
+    def fail_migration(_record):
+        raise KeyError("corrupt evidence")
+
+    monkeypatch.setattr(service, "_migrate_log", fail_migration)
+    with pytest.raises(KeyError, match="corrupt evidence"):
+        await tool.execute(task_id=task.task_id)
+
+
+@pytest.mark.parametrize('status', ['stopped', 'completed', 'failed', 'cancelled', 'outcome_unknown', 'running'])
+async def test_task_stop_reports_only_observed_stopped_state_as_success(tmp_path, monkeypatch, status):
+    from henchman.advanced.tasks import TaskRecord
+    from henchman.tools.builtins.tier6_tools import TaskStopTool
+
+    monkeypatch.chdir(tmp_path)
+    tool = TaskStopTool()
+    record = TaskRecord(task_id='task-0123456789ab', title='fixture', argv=('fixture',), cwd=str(tmp_path),
+                        status='stopped', created_at='2026-01-01T00:00:00Z', started_at=None,
+                        finished_at=None, output_path=tmp_path/'task.log', pid=None, return_code=None,
+                        metadata={'error': 'cleanup incomplete'} if status == 'outcome_unknown' else {})
+
+    async def observed(_identity):
+        return replace(record, status=status)
+
+    monkeypatch.setattr(tool._task_service, 'stop_task', observed)
+    result = await tool.execute(task_id=record.task_id)
+    assert result.success is (status == 'stopped')
+    assert f'[{status}]' in result.content
+    if status != 'stopped':
+        assert result.error and 'did not establish' in result.error
+        assert not result.content.startswith('Stopped task')
+    if status == 'outcome_unknown':
+        assert 'cleanup incomplete' in result.content
+
+
+async def test_task_stop_does_not_claim_a_completed_task_was_stopped(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskStopTool
+
+    monkeypatch.chdir(tmp_path)
+    tool = TaskStopTool()
+    record = await tool._task_service.start_task(argv=[sys.executable, '-c', 'pass'])
+    assert (await tool._task_service.wait_for_task(record.task_id, timeout=15)).status == 'completed'
+    result = await tool.execute(task_id=record.task_id)
+    assert not result.success and '[completed]' in result.content
+    assert 'did not establish' in result.error
+
+
+async def test_task_stop_reports_uncertain_cleanup_without_claiming_success(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskStopTool
+
+    monkeypatch.chdir(tmp_path)
+    tool = TaskStopTool()
+    service = tool._task_service
+    original = service._finish_capture
+
+    async def fail_after_cleanup(process, output):
+        await original(process, output)
+        raise OSError('cleanup observation unavailable')
+
+    monkeypatch.setattr(service, '_finish_capture', fail_after_cleanup)
+    record = await service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'])
+    process = service._runtime.processes[record.task_id]
+    try:
+        result = await tool.execute(task_id=record.task_id)
+        assert not result.success and '[outcome_unknown]' in result.content
+        assert 'cleanup observation unavailable' in result.content
+        assert process.returncode is not None and record.task_id not in service._runtime.monitors
+    finally:
+        if process.returncode is None:
+            await service._terminate_process(process)
+
+
+async def test_unknown_task_with_live_owned_process_is_not_described_as_unowned(tmp_path, monkeypatch):
+    from henchman.tools.builtins.tier6_tools import TaskGetTool, TaskListTool, TaskUpdateTool
+
+    monkeypatch.chdir(tmp_path)
+    get_tool = TaskGetTool()
+    list_tool = TaskListTool()
+    update_tool = TaskUpdateTool()
+    service = get_tool._task_service
+    original = service._terminate_process
+    failed = False
+
+    async def fail_once(process):
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise OSError('cleanup temporarily unavailable')
+        await original(process)
+
+    monkeypatch.setattr(service, '_terminate_process', fail_once)
+    record = await service.start_task(argv=[sys.executable, '-c', 'import time; time.sleep(30)'], timeout=.05)
+    process = service._runtime.processes[record.task_id]
+    try:
+        assert (await service.wait_for_task(record.task_id, timeout=15)).status == 'outcome_unknown'
+        assert process.returncode is None
+        for result in (await get_tool.execute(task_id=record.task_id),
+                       await list_tool.execute(status='outcome_unknown'),
+                       await update_tool.execute(task_id=record.task_id, title='inspectable')):
+            assert result.success and 'owned process' in result.content.lower()
+            assert 'not owned' not in result.content.lower()
+    finally:
+        await service.stop_task(record.task_id)
 
 
 def test_builtin_surface_includes_tier6_task_tools() -> None:
@@ -54,6 +212,7 @@ async def test_task_tools_manage_background_processes_and_persist_output(
     from henchman.advanced import TaskService
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

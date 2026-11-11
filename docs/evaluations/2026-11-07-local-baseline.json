@@ -1,0 +1,412 @@
+{
+  "budget": {
+    "executed_runs": 22,
+    "planned_runs": 22
+  },
+  "cohort": "local",
+  "cost": {
+    "amount_usd": 0.0,
+    "billing": "none",
+    "source": "local"
+  },
+  "generated_at": "2026-11-07T13:58:53.843921+00:00",
+  "kind": "baseline_repeat_runs",
+  "requested": {
+    "cases": [
+      "add-method-class",
+      "counter-refactor",
+      "fibonacci",
+      "multi-file-edit",
+      "package-lifecycle",
+      "python-reuse",
+      "rename-variable",
+      "semantic-bug-fix",
+      "syntax-fix",
+      "test-docs",
+      "tool-failure-recovery"
+    ],
+    "max_iterations": 10,
+    "model": null,
+    "provider": "openai-compatible",
+    "runs_per_case": 2,
+    "timeout": 120.0
+  },
+  "runs": [
+    {
+      "case_id": "add-method-class",
+      "duration_ms": 121108.29079296673,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "add-method-class",
+      "duration_ms": 120032.70659298869,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "counter-refactor",
+      "duration_ms": 120042.40725998534,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "counter-refactor",
+      "duration_ms": 120116.42104497878,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "fibonacci",
+      "duration_ms": 120004.0896210121,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "fibonacci",
+      "duration_ms": 120019.91289498983,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "multi-file-edit",
+      "duration_ms": 120109.18171494268,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "multi-file-edit",
+      "duration_ms": 120051.01416894468,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "package-lifecycle",
+      "duration_ms": 120412.65256202314,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "team",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "package-lifecycle",
+      "duration_ms": 120398.28581298934,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "team",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "python-reuse",
+      "duration_ms": 120047.9159890092,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "python-reuse",
+      "duration_ms": 120116.62794998847,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "rename-variable",
+      "duration_ms": 120064.34517196612,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "rename-variable",
+      "duration_ms": 120116.32446805015,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "semantic-bug-fix",
+      "duration_ms": 120003.7058989983,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "semantic-bug-fix",
+      "duration_ms": 120034.94064096594,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 120115.33139896346,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "syntax-fix",
+      "duration_ms": 120026.30664699245,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "test-docs",
+      "duration_ms": 120087.51664403826,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "test-docs",
+      "duration_ms": 120103.76591101522,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "basic",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "tool-failure-recovery",
+      "duration_ms": 120049.6220170171,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 1,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    },
+    {
+      "case_id": "tool-failure-recovery",
+      "duration_ms": 120072.44215795072,
+      "error": "Evaluation timed out after 120s",
+      "outcome": "timeout",
+      "profile": "engineer",
+      "run_index": 2,
+      "task_verified": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  ],
+  "summary": {
+    "cases": {
+      "add-method-class": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "counter-refactor": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "fibonacci": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "multi-file-edit": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "package-lifecycle": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "python-reuse": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "rename-variable": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "semantic-bug-fix": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "syntax-fix": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "test-docs": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      },
+      "tool-failure-recovery": {
+        "outcome_counts": {
+          "runtime_error": 0,
+          "success": 0,
+          "timeout": 2,
+          "verification_failure": 0
+        },
+        "runs": 2,
+        "successes": 0
+      }
+    },
+    "failures": 22,
+    "latency_ms": {
+      "max": 121108.29079296673,
+      "min": 120003.7058989983,
+      "p50": 120068.39366495842,
+      "p95": 120411.93422457145
+    },
+    "outcome_counts": {
+      "runtime_error": 0,
+      "success": 0,
+      "timeout": 22,
+      "verification_failure": 0
+    },
+    "successes": 0,
+    "total_runs": 22,
+    "usage": {
+      "available": false,
+      "tokens_in": null,
+      "tokens_out": null
+    }
+  }
+}

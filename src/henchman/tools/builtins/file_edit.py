@@ -17,9 +17,6 @@ from henchman.tools.security import (
 )
 from henchman.tools.utils import coerce_int
 
-_STR_PREVIEW_LEN = 50
-"""Number of characters to show when previewing a not-found string."""
-
 _FILE_EDIT_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -242,6 +239,13 @@ class EditFileTool(Tool):
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
+    def checkpoint_paths(self, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare only this invocation's explicit mutation targets."""
+        if params.get("dry_run", False):
+            return ()
+        path = params.get("path")
+        return (str(Path(path).expanduser()),) if isinstance(path, str) and path else None
+
     async def execute(
         self: EditFileTool,
         **kwargs: object,
@@ -347,7 +351,12 @@ def _edit_string(
 
     if count == 0:
         return ToolResult(
-            content=f"Error: String not found in file: {params.old_str[:_STR_PREVIEW_LEN]}...",
+            content=(
+                "Error: String not found in file. The file was not changed. "
+                "Reread the current file with read_file and copy the exact text into "
+                "old_str before retrying. Do not guess line ranges or combine "
+                "old_str with start_line/end_line."
+            ),
             success=False,
             error="String not found in file",
         )

@@ -62,6 +62,37 @@
         "$ref": "#/definitions/check"
       }
     },
+    "project_checks_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "checks_unavailable": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reason": {
+              "const": "credential_sensitive"
+            },
+            "spec_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "reason",
+            "spec_digest"
+          ]
+        }
+      ]
+    },
     "last_verification": {
       "anyOf": [
         {
@@ -69,6 +100,16 @@
         },
         {
           "$ref": "#/definitions/report"
+        }
+      ]
+    },
+    "last_repair": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/repair_report"
         }
       ]
     }
@@ -79,6 +120,30 @@
     "created_at",
     "updated_at",
     "steps"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "checks_unavailable"
+        ],
+        "properties": {
+          "checks_unavailable": {
+            "type": "object"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "checks"
+        ],
+        "properties": {
+          "checks": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
   ],
   "definitions": {
     "check": {
@@ -120,6 +185,26 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 300
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "requirement_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+          }
         },
         "baseline_captured": {
           "type": "boolean"
@@ -203,11 +288,29 @@
             "running",
             "finished",
             "cancelled",
-            "error"
+            "error",
+            "stale"
           ]
         },
         "checks_passed": {
           "type": "boolean"
+        },
+        "current_checks_passed": {
+          "type": "boolean"
+        },
+        "configuration_status": {
+          "enum": [
+            "current",
+            "changed",
+            "unbound"
+          ]
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "unverified"
+          ]
         },
         "task_verified": {
           "const": false
@@ -289,6 +392,245 @@
         "checked_at",
         "passed"
       ]
+    },
+    "repair_report": {
+      "additionalProperties": false,
+      "description": "Bounded historical evidence, separate from current acceptance status.",
+      "properties": {
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "run_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "plan_id": {
+          "pattern": "^[A-Za-z0-9_.:-]{1,256}$",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "plan_created_at": {
+          "maxLength": 64,
+          "title": "Plan Created At",
+          "type": "string"
+        },
+        "spec_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Digest",
+          "type": "string"
+        },
+        "project_checks_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Project Checks Digest"
+        },
+        "edit_paths": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Edit Paths",
+          "type": "array"
+        },
+        "protected_paths": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "title": "Protected Paths",
+          "type": "array"
+        },
+        "criteria_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Criteria Digest"
+        },
+        "max_repairs": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Max Repairs",
+          "type": "integer"
+        },
+        "max_identical_failures": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Identical Failures",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "maximum": 900,
+          "minimum": 0.01,
+          "title": "Timeout Seconds",
+          "type": "number"
+        },
+        "repairs_started": {
+          "default": 0,
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Repairs Started",
+          "type": "integer"
+        },
+        "status": {
+          "default": "running",
+          "enum": [
+            "running",
+            "scoped_pass",
+            "incomplete"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "default": "running",
+          "enum": [
+            "running",
+            "checks_passed",
+            "attempts_exhausted",
+            "identical_failure_limit",
+            "cancelled",
+            "timeout",
+            "checks_incomplete",
+            "criteria_changed",
+            "authority_changed",
+            "mutation_unavailable",
+            "scope_unavailable",
+            "repair_error",
+            "verification_error",
+            "persistence_error",
+            "credential_sensitive"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "task_verified": {
+          "const": false,
+          "default": false,
+          "title": "Task Verified",
+          "type": "boolean"
+        },
+        "started_at": {
+          "maxLength": 40,
+          "title": "Started At",
+          "type": "string"
+        },
+        "updated_at": {
+          "maxLength": 40,
+          "title": "Updated At",
+          "type": "string"
+        },
+        "observations": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/repair_observation"
+          },
+          "maxItems": 11,
+          "title": "Observations",
+          "type": "array"
+        },
+        "error": {
+          "default": "",
+          "maxLength": 4096,
+          "title": "Error",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "plan_id",
+        "plan_created_at",
+        "spec_digest",
+        "project_checks_digest",
+        "edit_paths",
+        "protected_paths",
+        "max_repairs",
+        "max_identical_failures",
+        "timeout_seconds",
+        "started_at",
+        "updated_at"
+      ],
+      "title": "RepairReport",
+      "type": "object"
+    },
+    "repair_observation": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "verification_run_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Verification Run Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "incomplete"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "failure_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Digest"
+        },
+        "diagnostics": {
+          "default": "",
+          "maxLength": 8192,
+          "title": "Diagnostics",
+          "type": "string"
+        },
+        "diagnostics_truncated": {
+          "default": false,
+          "title": "Diagnostics Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index",
+        "verification_run_id",
+        "status"
+      ],
+      "title": "RepairObservation",
+      "type": "object"
     }
   }
 }

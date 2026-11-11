@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 
+pytest_plugins = ["tests.offline_network"]
+
 # Add src directory to Python path to ensure tests import local version
 # instead of any installed version
 src_dir = Path(__file__).parent.parent / "src"

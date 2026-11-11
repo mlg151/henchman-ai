@@ -9,14 +9,24 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from henchman.chat.base import ChatMessage, ChatPlatform
 from henchman.core.events import EventType
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
 from henchman.providers import get_default_registry
 from henchman.providers.factory import create_configured_provider
 from henchman.providers.utils import get_api_key_for_provider
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
+from henchman.utils.exception_evidence import exception_text
+from henchman.utils.tool_results import (
+    TOOL_RESULT_SCHEMA,
+    tool_message_content,
+    tool_result_payload,
+)
 
 if TYPE_CHECKING:
     from henchman.chat.base import ChatBot
     from henchman.config import Settings
     from henchman.core import Agent
+    from henchman.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +54,7 @@ class _ChatAgent(Protocol):
         """Continue after tool results have been submitted."""
         ...
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
         """Submit the result of a tool call."""
         ...
 
@@ -61,7 +71,7 @@ class _FallbackChatAgent:
 
     def __init__(self, tool_registry: object = None) -> None:
         self.tool_registry = tool_registry if tool_registry is not None else {}
-        self._tool_results: dict[str, str] = {}
+        self._tool_results: dict[str, str | ToolResult] = {}
 
     async def run(self, user_input: str) -> AsyncIterator[Any]:
         """Run is a no-op for the fallback agent."""
@@ -73,7 +83,7 @@ class _FallbackChatAgent:
         return
         yield  # pragma: no cover
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
         """Record a tool result."""
         self._tool_results[tool_call_id] = result
 
@@ -102,9 +112,19 @@ class ChatManager:
             settings: Henchman-AI settings loaded from configuration.
         """
         self._settings = settings
+        self._evidence_redactor = EvidenceRedactor()
         self._bots: dict[ChatPlatform, ChatBot] = {}
         self._user_agents: dict[str, Agent] = {}  # user_id -> Agent
         self._user_histories: dict[str, list[dict[str, Any]]] = {}  # user_id -> messages
+
+    def _evidence_policy(self, agent: Any = None) -> EvidenceRedactor:
+        """Refresh existing runtime/actor credentials without constructing authority."""
+        from henchman.core.failure_evidence import failure_evidence_redactor
+
+        policy = self._evidence_redactor
+        policy.register_config(self._settings.model_dump())
+        failure_evidence_redactor(agent, redactor=policy)
+        return policy
 
     def create_discord_bot(
         self,
@@ -314,6 +334,8 @@ class ChatManager:
         """
         iteration = 0
         had_tool_calls = False
+        evidence = EvidenceStreamRedactor(self._evidence_policy(agent))
+        interrupted = True
         async for event in stream:
             iteration += 1
             if iteration > max_iterations:
@@ -325,7 +347,8 @@ class ChatManager:
                 break
 
             if event.type == EventType.CONTENT:
-                current_chunk += event.data
+                self._evidence_policy(agent)
+                current_chunk += evidence.feed(event.data)
 
                 # Check if we should flush the chunk
                 # We want to avoid splitting inside a code block if possible,
@@ -346,6 +369,7 @@ class ChatManager:
                         should_flush = True
 
                 if should_flush:
+                    current_chunk = self._evidence_policy(agent).text(current_chunk)
                     if await bot.send_message(user_id, current_chunk):
                         response_parts.append(current_chunk)
                     current_chunk = ""
@@ -353,22 +377,26 @@ class ChatManager:
             elif event.type == EventType.TOOL_CALL_REQUEST:
                 had_tool_calls = True
 
-                # Flush any pending content
-                if current_chunk:
-                    if await bot.send_message(user_id, current_chunk):
-                        response_parts.append(current_chunk)
-                    current_chunk = ""
-
-                # Execute the tool call
+                # Register marked values before publishing previously buffered
+                # text. Execution still receives the original call unchanged.
                 tool_call = event.data
                 tool_name = getattr(tool_call, "name", "unknown")
                 tool_args = getattr(tool_call, "arguments", {})
                 tool_id = getattr(tool_call, "id", "unknown")
+                policy = self._evidence_policy(agent)
+                policy.register_config(tool_args)
+
+                # Flush any pending content
+                if current_chunk:
+                    current_chunk = policy.text(current_chunk)
+                    if await bot.send_message(user_id, current_chunk):
+                        response_parts.append(current_chunk)
+                    current_chunk = ""
 
                 # Notify user about the tool call
                 await bot.send_message(
                     user_id,
-                    f"🔧 Running: `{tool_name}`",
+                    policy.text(f"🔧 Running: `{tool_name}`"),
                 )
 
                 try:
@@ -376,7 +404,13 @@ class ChatManager:
                     result = await agent.tool_registry.execute(tool_name, tool_args)
 
                     # Truncate very long results for display
-                    result_content = result.content
+                    policy = self._evidence_policy(agent)
+                    payload = tool_result_payload(result)
+                    policy.register_config(payload)
+                    result_content = tool_message_content(
+                        policy.text(result.content),
+                        policy.redact(payload, schema=TOOL_RESULT_SCHEMA),
+                    )
                     if len(result_content) > 1500:
                         display_result = result_content[:1500] + "\n... (truncated)"
                     else:
@@ -388,21 +422,25 @@ class ChatManager:
                     )
 
                     # Submit result back to the agent
-                    agent.submit_tool_result(tool_id, result.content)
+                    agent.submit_tool_result(tool_id, result)
 
+                except (BudgetControlError, OperationRecoveryError):
+                    raise
                 except Exception as tool_err:
-                    logger.exception(
-                        "Tool execution failed: %s for user %s", tool_name, user_id
-                    )
-                    error_msg = f"❌ Tool `{tool_name}` failed: {tool_err}"
+                    policy = self._evidence_policy(agent)
+                    detail = exception_text(tool_err, policy, include_traceback=True)
+                    logger.error("%s", policy.text(
+                        f"Tool execution failed: {tool_name} for user {user_id}: {detail}"
+                    ))
+                    error_msg = policy.text(f"❌ Tool `{tool_name}` failed: {exception_text(tool_err, policy)}")
                     try:
                         await bot.send_message(user_id, error_msg)
                     except Exception as send_err:
-                        logger.warning(
-                            "Failed to send error message to user %s: %s",
-                            user_id,
-                            send_err,
-                        )
+                        policy = self._evidence_policy(agent)
+                        logger.warning("%s", policy.text(
+                            f"Failed to send error message to user {user_id}: "
+                            + exception_text(send_err, policy, include_traceback=True)
+                        ))
                         # Continue anyway - we still need to submit the tool result
 
                     # Submit error to agent so it can recover
@@ -414,13 +452,23 @@ class ChatManager:
                 pass
 
             elif event.type == EventType.FINISHED:
+                reason = (event.data.get("finish_reason")
+                          if isinstance(event.data, dict) else event.data)
+                interrupted = reason not in (None, "stop", "tool_calls")
                 break
 
             elif event.type == EventType.ERROR:
-                logger.error("Agent error for user %s: %s", user_id, event.data)
-                await bot.send_message(user_id, f"❌ Error: {event.data}")
+                policy = self._evidence_policy(agent)
+                detail = (
+                    exception_text(event.data, policy) if isinstance(event.data, BaseException)
+                    else str(policy.redact(event.data))
+                )
+                logger.error("%s", policy.text(f"Agent error for user {user_id}: {detail}"))
+                await bot.send_message(user_id, f"❌ Error: {detail}")
                 break
 
+        policy = self._evidence_policy(agent)
+        current_chunk = policy.text(current_chunk + evidence.finish(interrupted=interrupted))
         return response_parts, current_chunk, had_tool_calls
 
     async def _handle_message(self, message: ChatMessage) -> None:
@@ -439,11 +487,12 @@ class ChatManager:
         Returns:
             None
         """
+        policy = self._evidence_policy(self._user_agents.get(message.user_id))
         logger.info(
             "Received message from %s (ID: %s): %s",
-            message.username,
-            message.user_id,
-            message.content[:100],
+            policy.text(message.username),
+            policy.text(message.user_id),
+            policy.text(message.content)[:100],
         )
 
         # Handle special commands
@@ -465,6 +514,7 @@ class ChatManager:
 
         # Get or create agent for user
         agent = await self._get_or_create_agent(message.user_id)
+        self._evidence_policy(agent)
 
         # Get the bot for this platform
         bot = self._bots.get(message.platform)
@@ -487,8 +537,10 @@ class ChatManager:
                         await bot.send_typing(message.user_id)
                 except asyncio.CancelledError:
                     break
-                except Exception:
-                    logger.exception("Failed to refresh typing indicator")
+                except Exception as error:
+                    logger.error("Failed to refresh typing indicator: %s", exception_text(
+                        error, self._evidence_policy(agent), include_traceback=True,
+                    ))
                     break
 
         typing_task = asyncio.create_task(_refresh_typing())
@@ -523,12 +575,13 @@ class ChatManager:
                 )
 
             # Send remaining content
+            current_chunk = self._evidence_policy(agent).text(current_chunk)
             if current_chunk and await bot.send_message(
                 message.user_id, current_chunk
             ):
                 response_parts.append(current_chunk)
 
-            # Store in history
+            # This delivery summary is separate from raw Agent.messages.
             if response_parts:
                 self._user_histories.setdefault(message.user_id, []).extend(
                     [
@@ -537,8 +590,12 @@ class ChatManager:
                     ]
                 )
 
-        except Exception:
-            logger.exception("Error processing message from %s", message.user_id)
+        except Exception as error:
+            policy = self._evidence_policy(agent)
+            logger.error("%s", policy.text(
+                f"Error processing message from {message.user_id}: "
+                + exception_text(error, policy, include_traceback=True)
+            ))
             await bot.send_message(
                 message.user_id,
                 "❌ Sorry, an error occurred while processing your request. Please try again.",
@@ -615,9 +672,11 @@ class ChatManager:
             # Show last 5 exchanges
             recent = history[-10:]  # Last 5 exchanges (user + assistant)
             history_text = "**Recent Conversation:**\n\n"
+            policy = self._evidence_policy(self._user_agents.get(message.user_id))
             for msg in recent:
                 role = "**You:**" if msg["role"] == "user" else "**Henchman:**"
-                content = msg["content"][:100] + ("..." if len(msg["content"]) > 100 else "")
+                projected = policy.text(msg["content"])
+                content = projected[:100] + ("..." if len(projected) > 100 else "")
                 history_text += f"{role} {content}\n\n"
 
             await bot.send_message(message.user_id, history_text)

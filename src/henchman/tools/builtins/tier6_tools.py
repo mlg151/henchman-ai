@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from henchman.advanced import (
     CronScheduleService,
@@ -14,9 +14,19 @@ from henchman.advanced import (
     TaskService,
     TungstenService,
 )
+from henchman.advanced.tasks import (
+    TASK_STATUS_OUTCOME_UNKNOWN,
+    TASK_STATUS_QUEUED,
+    TASK_STATUS_STOPPED,
+    TaskNotFoundError,
+    TaskOwnershipError,
+)
 from henchman.lsp import LspService
 from henchman.mcp.auth import McpAuthService
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+
+if TYPE_CHECKING:
+    from henchman.config.schema import Settings
 
 _TASK_CREATE_PARAMETERS: dict[str, object] = {
     "type": "object",
@@ -49,6 +59,11 @@ _TASK_OUTPUT_PARAMETERS: dict[str, object] = {
     "required": ["task_id"],
 }
 
+_TASK_LOOKUP_MISSING = (
+    "Task not found. Use task_list for current project IDs and retry with the exact "
+    "ID, including the task- prefix."
+)
+
 _TASK_UPDATE_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -72,7 +87,7 @@ _MCP_AUTH_PARAMETERS: dict[str, object] = {
 _MCP_PARAMETERS: dict[str, object] = {
     "type": "object",
     "properties": {
-        "action": {"type": "string", "enum": ["status", "connect", "disconnect", "discover"]},
+        "action": {"type": "string", "enum": ["status", "connect", "disconnect", "discover", "refresh"]},
         "server": {"type": "string"},
     },
     "required": ["action"],
@@ -92,7 +107,13 @@ _REPL_PARAMETERS: dict[str, object] = {
 _CHECK_SCHEMAS: list[dict[str, object]] = [
     {
         "type": "object", "additionalProperties": False,
-        "properties": {"kind": {"const": kind}, **properties},
+        "properties": {
+            "kind": {"const": kind}, **properties,
+            "inputs": {"type": "array", "items": {"type": "string"},
+                       "minItems": 1, "maxItems": 256, "uniqueItems": True},
+            "requirement_ids": {"type": "array", "items": {"type": "string", "pattern": r"^[A-Za-z0-9_.:/-]{1,128}$"},
+                                "maxItems": 32, "uniqueItems": True},
+        },
         "required": ["kind", *required],
     }
     for kind, properties, required in (
@@ -120,7 +141,10 @@ _VERIFY_PLAN_PARAMETERS: dict[str, object] = {
         "step": {"type": "integer"},
         "evidence": {"type": "string"},
         "checks": {"type": "array", "minItems": 1, "maxItems": 20,
-                   "items": {"oneOf": _CHECK_SCHEMAS}},
+                   # Required, distinct kind constants make these branches
+                   # mutually exclusive; anyOf preserves that meaning and fits
+                   # every shipped provider's non-strict projection profile.
+                   "items": {"anyOf": _CHECK_SCHEMAS}},
     },
     "required": ["action"],
 }
@@ -175,12 +199,17 @@ def _require_task_id(params: dict[str, object]) -> str:
     raise ValueError(msg)
 
 
-def _render_task(record: TaskRecord) -> str:
+def _render_task(record: TaskRecord, *, owned: bool = False) -> str:
     """Return a compact human-readable summary for one task."""
 
     return (
         f"{record.task_id} [{record.status}] {record.title} "
         f"(cwd={record.cwd}, rc={record.return_code})"
+        + ((" An owned process remains in this event loop; inspect or stop it before new work."
+            if owned else " Process not owned by this runtime and event loop; inspect external state before new work.")
+           if record.status == TASK_STATUS_OUTCOME_UNKNOWN else "")
+        + (" Not dispatched; requires explicit disposition and will not automatically start."
+           if record.status == TASK_STATUS_QUEUED else "")
         + (f" Error: {record.metadata['error']}" if record.metadata.get("error") else "")
     )
 
@@ -193,6 +222,10 @@ class _Tier6TaskToolBase(Tool):
 
         self._project_root = Path.cwd()
         self._task_service = TaskService(project_root=self._project_root)
+
+    def _task_summary(self, record: TaskRecord) -> str:
+        owned = record.status == TASK_STATUS_OUTCOME_UNKNOWN and self._task_service._owns_live_process(record.task_id)
+        return _render_task(record, owned=owned)
 
     def bind_runtime(
         self,
@@ -257,18 +290,37 @@ class _Tier6ReplToolBase(Tool):
 class _Tier6PlanToolBase(Tool):
     """Shared runtime binding for plan verification tools."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, settings: Settings | None = None) -> None:
         """Initialize the plan execution service runtime."""
 
         self._project_root = Path.cwd()
-        self._plan_service = PlanExecutionService(project_root=self._project_root)
+        self._settings = settings
+        self._plan_service = PlanExecutionService(project_root=self._project_root, settings=settings)
+        self._plan_binding_error: str | None = None
 
-    def bind_runtime(self, *, project_root: Path | None = None, **_: object) -> None:
+    def bind_runtime(self, *, project_root: Path | None = None, session_manager: object | None = None,
+                     mcp_manager: object | None = None, **_: object) -> None:
         """Bind project-local plan verification storage."""
 
         if project_root is not None:
             self._project_root = project_root.resolve()
-        self._plan_service = PlanExecutionService(project_root=self._project_root)
+        from henchman.utils.evidence_redaction import EvidenceRedactor
+        from henchman.utils.file_lock import LockTimeoutError
+
+        manager = getattr(session_manager, "session_manager", session_manager)
+        policy = getattr(manager, "evidence_redactor", None)
+        if not isinstance(policy, EvidenceRedactor):
+            policy = EvidenceRedactor()
+        register = getattr(mcp_manager, "register_evidence", None)
+        if callable(register):
+            register(policy)
+        self._plan_service = PlanExecutionService(project_root=self._project_root, redactor=policy,
+                                                  settings=self._settings)
+        self._plan_binding_error = None
+        try:
+            self._plan_service.sanitize_persisted_evidence()
+        except (OSError, ValueError, LockTimeoutError):
+            self._plan_binding_error = "Verification evidence sanitation failed; repair plan storage and rebind the verification tool."
 
 
 class _Tier6LspToolBase(Tool):
@@ -395,8 +447,8 @@ class TaskGetTool(_Tier6TaskToolBase):
 
         record = self._task_service.get_task(_require_task_id(params))
         if record is None:
-            return ToolResult(content="Task not found.", success=False, error="Task not found")
-        return ToolResult(content=_render_task(record))
+            return ToolResult(content=_TASK_LOOKUP_MISSING, success=False, error="Task not found")
+        return ToolResult(content=self._task_summary(record))
 
 
 class TaskListTool(_Tier6TaskToolBase):
@@ -427,7 +479,7 @@ class TaskListTool(_Tier6TaskToolBase):
         records = self._task_service.list_tasks(status=status)
         if not records:
             return ToolResult(content="No tasks found.")
-        return ToolResult(content="\n".join(_render_task(record) for record in records))
+        return ToolResult(content="\n".join(self._task_summary(record) for record in records))
 
 
 class TaskOutputTool(_Tier6TaskToolBase):
@@ -459,8 +511,8 @@ class TaskOutputTool(_Tier6TaskToolBase):
         lines = raw_lines if isinstance(raw_lines, int) else 25
         try:
             content = self._task_service.tail_output(task_id, lines=lines)
-        except KeyError as exc:
-            return ToolResult(content=str(exc), success=False, error=str(exc))
+        except TaskNotFoundError:
+            return ToolResult(content=_TASK_LOOKUP_MISSING, success=False, error="Task not found")
         return ToolResult(content=content or "(no output yet)")
 
 
@@ -496,9 +548,14 @@ class TaskStopTool(_Tier6TaskToolBase):
 
         try:
             record = await self._task_service.stop_task(_require_task_id(params))
-        except KeyError as exc:
+        except (KeyError, TaskOwnershipError) as exc:
             return ToolResult(content=str(exc), success=False, error=str(exc))
-        return ToolResult(content=f"Stopped task {_render_task(record)}")
+        if record.status != TASK_STATUS_STOPPED:
+            message = f"Task stop did not establish a stopped state: {record.task_id} [{record.status}]"
+            if record.metadata.get("error"):
+                message += f" Error: {record.metadata['error']}"
+            return ToolResult(content=message, success=False, error=message)
+        return ToolResult(content=f"Task is stopped: {_render_task(record)}")
 
 
 class TaskUpdateTool(_Tier6TaskToolBase):
@@ -545,7 +602,7 @@ class TaskUpdateTool(_Tier6TaskToolBase):
             )
         except KeyError as exc:
             return ToolResult(content=str(exc), success=False, error=str(exc))
-        return ToolResult(content=f"Updated task {_render_task(record)}")
+        return ToolResult(content=f"Updated task {self._task_summary(record)}")
 
 
 class McpAuthTool(_Tier6McpToolBase):
@@ -574,6 +631,18 @@ class McpAuthTool(_Tier6McpToolBase):
         """Auth persistence mutates project-local state."""
 
         return ToolKind.WRITE
+
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; status inspection stays READ.
+
+        The static WRITE kind remains the catalog classification. The
+        read-only ``status`` action is downgraded to READ so Plan Mode keeps
+        it available; ``set`` and ``clear`` retain WRITE.
+        """
+        action = str(params.get("action", "")).strip()
+        if action == "status":
+            return ToolKind.READ
+        return self.kind
 
     async def execute(self, **params: object) -> ToolResult:
         """Persist or inspect MCP auth tokens."""
@@ -638,7 +707,7 @@ class MCPTool(_Tier6McpToolBase):
     def description(self) -> str:
         """Return the tool description."""
 
-        return "Inspect, connect, disconnect, and discover configured MCP servers."
+        return "Inspect, connect, disconnect, discover, and refresh configured MCP server tools."
 
     @property
     def parameters(self) -> dict[str, object]:
@@ -651,6 +720,19 @@ class MCPTool(_Tier6McpToolBase):
         """MCP management can perform network/process operations."""
 
         return ToolKind.NETWORK
+
+    def execution_kind(self, params: dict[str, object]) -> ToolKind:
+        """Classify this invocation; introspection actions stay READ.
+
+        The static NETWORK kind remains the catalog classification. The
+        read-only ``status`` and ``discover`` actions (both in-memory reads
+        of already-connected clients) are downgraded to READ so Plan Mode
+        keeps them available; ``connect``, ``disconnect`` and ``refresh`` retain NETWORK.
+        """
+        action = str(params.get("action", "")).strip()
+        if action in ("status", "discover"):
+            return ToolKind.READ
+        return self.kind
 
     async def execute(self, **params: object) -> ToolResult:
         """Execute an MCP management action."""
@@ -713,6 +795,13 @@ class MCPTool(_Tier6McpToolBase):
             return ToolResult(
                 content="\n".join(str(getattr(tool, "name", tool)) for tool in discovered),
             )
+
+        if action == "refresh":
+            if not server:
+                return ToolResult(content="A server is required to refresh its catalog.",
+                                  success=False, error="Missing server")
+            tools = await self._mcp_manager.refresh_server(server)
+            return ToolResult(content=f"MCP catalog refreshed: {len(tools)} tools.")
 
         return ToolResult(
             content=f"Unsupported MCP action '{action}'.",
@@ -830,7 +919,8 @@ class VerifyPlanExecutionTool(_Tier6PlanToolBase):
     def description(self) -> str:
         """Return the tool description."""
 
-        return ("Track reported plan steps and run immutable file, argv-command, or pytest checks. "
+        return ("Track reported plan steps and run immutable file, argv-command, or pytest checks, "
+                "including required project verification.checks when the plan is created. "
                 "Create checks before work; verify runs them. Passing checks do not establish task correctness.")
 
     @property
@@ -861,10 +951,15 @@ class VerifyPlanExecutionTool(_Tier6PlanToolBase):
 
     async def execute(self, **params: object) -> ToolResult:
         """Return explicit validation and persistence failures to the agent."""
+        from henchman.utils.file_lock import LockTimeoutError
+
+        if self._plan_binding_error is not None:
+            return ToolResult(content=self._plan_binding_error, success=False, error=self._plan_binding_error)
         try:
             return await self._execute_action(**params)
-        except (KeyError, ValueError, OSError) as exc:
-            return ToolResult(content=str(exc), success=False, error=str(exc))
+        except (KeyError, ValueError, OSError, LockTimeoutError) as exc:
+            detail = self._plan_service._policy.text(str(exc))[:4096]
+            return ToolResult(content=detail, success=False, error=detail)
 
     async def _execute_action(self, **params: object) -> ToolResult:
         """Execute one plan verification action."""

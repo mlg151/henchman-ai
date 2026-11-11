@@ -5,8 +5,8 @@ This module provides configuration dataclasses for MCP servers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import asdict, dataclass, field
+from typing import Any, Literal
 
 
 @dataclass
@@ -20,10 +20,24 @@ class McpServerConfig:
         trusted: If True, tools from this server skip confirmation.
     """
 
-    command: str
+    command: str | None = None
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
     trusted: bool = False
+    transport: Literal["stdio", "streamable_http"] = "stdio"
+    url: str | None = None
+    request_timeout_seconds: float = 30.0
+    negotiation_timeout_seconds: float = 40.0
+    catalog_timeout_seconds: float = 60.0
+    oauth: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Apply the shared typed settings contract to the compatibility adapter."""
+        from henchman.config.schema import McpServerConfig as SettingsMcpServerConfig
+
+        validated = SettingsMcpServerConfig.model_validate(asdict(self))
+        for name, value in validated.model_dump().items():
+            setattr(self, name, value)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -31,12 +45,7 @@ class McpServerConfig:
         Returns:
             Dictionary representation.
         """
-        return {
-            "command": self.command,
-            "args": self.args,
-            "env": self.env,
-            "trusted": self.trusted,
-        }
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> McpServerConfig:
@@ -48,9 +57,7 @@ class McpServerConfig:
         Returns:
             McpServerConfig instance.
         """
-        return cls(
-            command=data["command"],
-            args=data.get("args", []),
-            env=data.get("env", {}),
-            trusted=data.get("trusted", False),
-        )
+        from henchman.config.schema import McpServerConfig as SettingsMcpServerConfig
+
+        validated = SettingsMcpServerConfig.model_validate(data)
+        return cls(**validated.model_dump())

@@ -13,7 +13,11 @@ from henchman.agents.orchestrator_loop import finalize_loop
 from henchman.agents.orchestrator_types import AgentLoopParams, DelegationExecutionParams, LoopState
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class ReadTool(Tool):
@@ -41,7 +45,9 @@ def make_orchestrator(responses: list[StreamChunk | Exception]) -> Orchestrator:
         yield response
 
     provider.chat_completion_stream.side_effect = stream
-    orch = Orchestrator(default_provider=provider)
+    from henchman.config.schema import Settings
+    orch = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}))
+    orch.tool_registry.set_confirmation_handler(_approve)
     orch.settings.agents.max_delegation_retries = 0
     orch.tool_registry.register(ReadTool())
     return orch

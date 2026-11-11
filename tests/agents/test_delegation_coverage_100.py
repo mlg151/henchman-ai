@@ -113,7 +113,7 @@ class TestExecuteLoop:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=bad_loop_runner,
@@ -153,7 +153,7 @@ class TestRunDelegationExecuteLoopError:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -208,7 +208,7 @@ class TestGetTargetAgentWithMockName:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -232,7 +232,7 @@ class TestProcessDelegationResultsValidation:
 
         return DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -327,7 +327,7 @@ class TestProcessDelegationResultsToolErrors:
 
         return DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -787,7 +787,8 @@ class TestRunParallelDelegations:
         from henchman.config.schema import Settings
         from henchman.core.events import AgentEvent, EventType
 
-        async def fake_run(params: DelegationParams) -> Any:
+        async def fake_run(params: DelegationParams, *, _lease: object) -> Any:
+            assert _lease is not None
             yield AgentEvent(
                 type=EventType.CONTENT,
                 data=f"result-{params.target_role}",
@@ -796,7 +797,7 @@ class TestRunParallelDelegations:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),
@@ -826,7 +827,7 @@ class TestRunParallelDelegations:
 
         runner = DelegationRunner(
             pool=MagicMock(),
-            settings=Settings(),
+            settings=Settings(agents={"allow_delegation": True}),
             shared_context=[],
             metrics=MagicMock(),
             run_agent_loop=AsyncMock(),

@@ -9,7 +9,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .session_data import Session, session_from_json
+from henchman.utils.evidence_redaction import EvidenceRedactor
+
+from .session_data import Session
 from .session_helpers import (
     _generate_id,
     _now_iso,
@@ -17,6 +19,7 @@ from .session_helpers import (
     _try_load_metadata,
     compute_project_hash,
 )
+from .session_persistence import delete_session, load_session, session_path, session_paths
 
 if TYPE_CHECKING:
     from .session_models import SessionMetadata
@@ -37,15 +40,19 @@ class _SessionManagerBase:
     def __init__(
         self: _SessionManagerBase,
         data_dir: Path | None = None,
+        *,
+        evidence_redactor: EvidenceRedactor | None = None,
     ) -> None:
         """Initialise the session manager.
 
         Args:
             data_dir: Directory for session files.
                 Defaults to ``~/.henchman/sessions``.
+            evidence_redactor: Runtime credential policy for stored/exported evidence.
         """
         self.data_dir = data_dir or (Path.home() / ".henchman" / "sessions")
         self._current: Session | None = None
+        self.evidence_redactor = evidence_redactor or EvidenceRedactor()
 
     # ------------------------------------------------------------------
     # Current session tracking
@@ -58,6 +65,7 @@ class _SessionManagerBase:
 
     def set_current(self: _SessionManagerBase, session: Session) -> None:
         """Set the current session."""
+        session.evidence_redactor = self.evidence_redactor
         self._current = session
 
     def clear_current(self: _SessionManagerBase) -> None:
@@ -106,7 +114,7 @@ class _SessionManagerBase:
         session_id: str,
     ) -> Path:
         """Get the file path for a session."""
-        return self.data_dir / f"{session_id}.json"
+        return session_path(self.data_dir, session_id)
 
     def create_session(
         self: _SessionManagerBase,
@@ -123,7 +131,7 @@ class _SessionManagerBase:
             New Session instance.
         """
         now = _now_iso()
-        return Session(
+        session = Session(
             id=_generate_id(),
             project_hash=project_hash,
             started=now,
@@ -131,6 +139,8 @@ class _SessionManagerBase:
             messages=[],
             tag=tag,
         )
+        session.evidence_redactor = self.evidence_redactor
+        return session
 
     def save(self: _SessionManagerBase, session: Session) -> Path:
         """Save a session to disk.
@@ -141,17 +151,22 @@ class _SessionManagerBase:
         Returns:
             Path to saved file.
         """
+        session.evidence_redactor = self.evidence_redactor
         return _persist_session(self.data_dir, session)
 
     # ------------------------------------------------------------------
     # Load and lookup
     # ------------------------------------------------------------------
 
-    def load(self: _SessionManagerBase, session_id: str) -> Session:
+    def load(
+        self: _SessionManagerBase, session_id: str, *, project_hash: str | None = None
+    ) -> Session:
         """Load a session from disk.
 
         Args:
             session_id: ID or ID prefix of session to load.
+            project_hash: Restrict selection and returned content to this project.
+                Omit only for explicitly unscoped administrative access.
 
         Returns:
             Loaded Session instance.
@@ -161,19 +176,30 @@ class _SessionManagerBase:
             ValueError: If session ID prefix is ambiguous.
         """
         path = self._get_session_path(session_id)
-        if path.exists():
-            return session_from_json(path.read_text())
+        if path.exists() or path.with_suffix(".json.bak").exists():
+            return self._load_scoped(path, project_hash)
         if not self.data_dir.exists():
             msg = f"Session not found: {session_id}"
             raise FileNotFoundError(msg)
-        matches = list(self.data_dir.glob(f"{session_id}*.json"))
+        matches = session_paths(self.data_dir, session_id)
+        if project_hash is not None:
+            matches = [p for p in matches if _try_load_metadata(p, project_hash) is not None]
         if not matches:
-            msg = f"Session not found: {session_id}"
+            scope = " in current project" if project_hash is not None else ""
+            msg = f"Session not found{scope}: {session_id}"
             raise FileNotFoundError(msg)
         if len(matches) > 1:
             msg = f"Ambiguous session ID prefix: {session_id}"
             raise ValueError(msg)
-        return session_from_json(matches[0].read_text())
+        return self._load_scoped(matches[0], project_hash)
+
+    def _load_scoped(self, path: Path, project_hash: str | None) -> Session:
+        """Check the final loaded identity, including after prefix resolution."""
+        session = load_session(path)
+        session.evidence_redactor = self.evidence_redactor
+        if project_hash is not None and session.project_hash != project_hash:
+            raise FileNotFoundError("Session not found in current project.")
+        return session
 
     def load_by_tag(
         self: _SessionManagerBase,
@@ -191,7 +217,7 @@ class _SessionManagerBase:
         """
         for meta in self.list_sessions(project_hash):
             if meta.tag == tag:
-                return self.load(meta.id)
+                return self.load(meta.id, project_hash=project_hash)
         return None
 
     # ------------------------------------------------------------------
@@ -212,7 +238,7 @@ class _SessionManagerBase:
         """
         if not self.data_dir.exists():
             return []
-        loaded = [_try_load_metadata(p, project_hash) for p in self.data_dir.glob("*.json")]
+        loaded = [_try_load_metadata(p, project_hash) for p in session_paths(self.data_dir)]
         sessions: list[Any] = [m for m in loaded if m is not None]
         sessions.sort(key=lambda s: s.last_updated, reverse=True)
         return sessions
@@ -227,10 +253,7 @@ class _SessionManagerBase:
             FileNotFoundError: If session doesn't exist.
         """
         path = self._get_session_path(session_id)
-        if not path.exists():
-            msg = f"Session not found: {session_id}"
-            raise FileNotFoundError(msg)
-        path.unlink()
+        delete_session(path)
 
     def compute_project_hash(
         self: _SessionManagerBase,

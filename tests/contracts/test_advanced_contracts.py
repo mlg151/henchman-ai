@@ -6,16 +6,69 @@ their published JSON Schema contracts.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft7Validator
 
 from henchman.advanced.plans import PlanRecord, PlanStepRecord
 from henchman.advanced.repl import ReplEntryRecord, ReplSessionRecord
 from henchman.advanced.schedule import CronScheduleRecord
 from henchman.advanced.tasks import TaskRecord
 from henchman.advanced.tungsten import TungstenFileRecord, TungstenSnapshotRecord
-from tests.contracts.helpers import assert_contract_matches
+from tests.contracts.helpers import assert_contract_matches, load_contract_schema
+
+
+async def test_plan_repair_contract_retains_bounded_historical_observations(tmp_path, contract_suite):
+    from henchman.advanced.plans import PlanExecutionService
+    from henchman.advanced.verification_repair import RepairRequest, VerificationRepairSession
+
+    (tmp_path / "target.py").write_text("answer = 2\n")
+    (tmp_path / "criteria.txt").write_text("Required answer remains 2.\n")
+    service = PlanExecutionService(tmp_path)
+    plan = service.create_plan(steps=["Check declared answer"], checks=[
+        {"kind": "file_contains", "path": "target.py", "text": "answer = 2"},
+    ])
+    repair = VerificationRepairSession(service, RepairRequest(
+        plan_id=plan.plan_id, edit_paths=("target.py",), protected_paths=("criteria.txt",), max_repairs=0,
+    ))
+
+    async def unexpected_repair(_attempt):
+        pytest.fail("Already passing checks must not dispatch a repair")
+
+    report = await repair.run(unexpected_repair)
+    assert report.status == "scoped_pass" and report.task_verified is False
+    payload = service.get_plan(plan.plan_id).to_dict()
+    assert_contract_matches(contract_suite=contract_suite, payload=payload, schema_name="advanced/plan_record")
+    validator = Draft7Validator(load_contract_schema("advanced/plan_record"))
+    validator.validate(payload)
+    for name, value in (("task_verified", True), ("version", 2), ("resume_authority", "forged")):
+        invalid = deepcopy(payload)
+        invalid["last_repair"][name] = value
+        assert not validator.is_valid(invalid)
+
+
+@pytest.mark.parametrize("fault", ["reason", "digest", "extra", "executable_checks"])
+def test_unavailable_plan_checks_contract_rejects_replay_shapes(sample_plan_record, fault):
+    payload = sample_plan_record.to_dict()
+    payload["checks_unavailable"] = {"reason": "credential_sensitive", "spec_digest": "a" * 64}
+    if fault == "reason":
+        payload["checks_unavailable"]["reason"] = "unknown"
+    elif fault == "digest":
+        payload["checks_unavailable"]["spec_digest"] = "not-a-digest"
+    elif fault == "extra":
+        payload["checks_unavailable"]["argv"] = ["must-not-replay"]
+    else:
+        payload["checks"] = [{"kind": "command", "argv": ["must-not-replay"]}]
+    assert not Draft7Validator(load_contract_schema("advanced/plan_record")).is_valid(payload)
+
+
+def test_unavailable_plan_checks_contract_retains_only_original_digest(contract_suite, sample_plan_record):
+    payload = sample_plan_record.to_dict()
+    payload["checks_unavailable"] = {"reason": "credential_sensitive", "spec_digest": "a" * 64}
+    assert_contract_matches(contract_suite=contract_suite, payload=payload, schema_name="advanced/plan_record")
+    Draft7Validator(load_contract_schema("advanced/plan_record")).validate(payload)
 
 
 @pytest.fixture

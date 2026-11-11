@@ -9,7 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from henchman.providers.continuation import copy_continuation
+from henchman.utils.context_attachments import copy_context_attachments
 from henchman.utils.serialization import AsDictMixin
+from henchman.utils.tool_results import copy_tool_result_payload
 
 # ---------------------------------------------------------------------------
 # Session message
@@ -37,6 +40,9 @@ class SessionMessage(AsDictMixin):
     agent_role: str | None = None
     reasoning_content: str | None = None
     reasoning_details: str | None = None
+    tool_result: dict[str, Any] | None = None
+    continuation: dict[str, Any] | None = field(default=None, repr=False)
+    context_attachments: list[dict[str, Any]] | None = None
 
     def to_dict(self: SessionMessage) -> dict[str, Any]:
         """Convert to dictionary, omitting ``None`` values.
@@ -59,6 +65,12 @@ class SessionMessage(AsDictMixin):
             data["reasoning_content"] = self.reasoning_content
         if self.reasoning_details is not None:
             data["reasoning_details"] = self.reasoning_details
+        if self.continuation is not None:
+            data["continuation"] = copy_continuation(self.continuation)
+        if self.tool_result is not None:
+            data["tool_result"] = copy_tool_result_payload(self.tool_result)
+        if self.context_attachments is not None:
+            data["context_attachments"] = copy_context_attachments(self.context_attachments, role=self.role)
         return data
 
 
@@ -80,6 +92,9 @@ def message_from_dict(data: dict[str, Any]) -> SessionMessage:
         agent_role=data.get("agent_role"),
         reasoning_content=data.get("reasoning_content"),
         reasoning_details=data.get("reasoning_details"),
+        tool_result=copy_tool_result_payload(data.get("tool_result")),
+        continuation=copy_continuation(data.get("continuation")),
+        context_attachments=copy_context_attachments(data.get("context_attachments"), role=data["role"]),
     )
 
 
@@ -154,6 +169,13 @@ class TurnSummaryRecord(AsDictMixin):
         files_modified: List of files modified during the turn.
         tool_count: Number of tool calls made.
         timestamp: ISO timestamp when turn completed.
+        kind: Record kind — ``"turn"`` (per-turn summary, legacy default)
+            or ``"compaction"`` (record of turns compacted out of the
+            active context).
+        source_turns: 1-based user-anchored turn numbers covered by the
+            record; empty for legacy records.
+        retained_messages: Original messages moved out of the active
+            context by compaction, retained so the turns stay recoverable.
     """
 
     turn_number: int
@@ -161,9 +183,16 @@ class TurnSummaryRecord(AsDictMixin):
     files_modified: list[str] = field(default_factory=list)
     tool_count: int = 0
     timestamp: str = ""
+    kind: str = "turn"
+    source_turns: list[int] = field(default_factory=list)
+    retained_messages: list[SessionMessage] = field(default_factory=list)
 
     def __hash__(self: TurnSummaryRecord) -> int:
-        """Make TurnSummaryRecord hashable for deduplication."""
+        """Make TurnSummaryRecord hashable for deduplication.
+
+        Retained message contents participate in ``__eq__`` but not in the
+        hash, keeping hashing stable and cheap for large records.
+        """
         return hash(
             (
                 self.turn_number,
@@ -171,6 +200,8 @@ class TurnSummaryRecord(AsDictMixin):
                 tuple(self.files_modified),
                 self.tool_count,
                 self.timestamp,
+                self.kind,
+                tuple(self.source_turns),
             ),
         )
 
@@ -190,6 +221,9 @@ def turn_summary_from_dict(data: dict[str, Any]) -> TurnSummaryRecord:
         files_modified=data.get("files_modified", []),
         tool_count=data.get("tool_count", 0),
         timestamp=data["timestamp"],
+        kind=data.get("kind", "turn"),
+        source_turns=list(data.get("source_turns", [])),
+        retained_messages=[message_from_dict(m) for m in data.get("retained_messages", [])],
     )
 
 

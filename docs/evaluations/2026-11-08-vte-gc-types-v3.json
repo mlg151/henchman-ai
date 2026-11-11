@@ -1,0 +1,1921 @@
+{
+  "version": 1,
+  "scope": "intrusive DEBUG_SAVEALL object-type diagnostic; not performance evidence",
+  "plan": {
+    "purpose": "intrusive diagnostic of saved unreachable object types; not performance evidence",
+    "commit": "6db0adfd88aedd458bbbca480052fbefa74c6521",
+    "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+    "viewport": [
+      160,
+      50
+    ],
+    "history": 1000,
+    "trials_per_action": 20,
+    "mode": "immediate",
+    "profile": "no",
+    "debug": "DEBUG_SAVEALL; count top 40 type names at generation-2 stop and clear gc.garbage at every stop",
+    "limits": [
+      "Debug mode retains otherwise collected cycles until callback clears them and changes subsequent collections",
+      "Type counts are not reachability roots or application ownership",
+      "Instrumentation and shared host invalidate latency qualification",
+      "No physical terminal, accessibility, human or model evidence"
+    ],
+    "scripts": {
+      "analyze.py": "7ac2fbd34961d889e4f62a0c9ec39a55e90a4c7cfdad6abfa21923764457c011",
+      "measure.py": "c92b28794de62d16aa7cdccad5d4c6f87d50f901209669f726b90a562f6542fa",
+      "probe_app.py": "69de00209b9f6c86143288060184c87a41b8c98896853781426e3397d73e0a2d",
+      "run_measure.py": "a01621a63112619a2673e24f53f006195b610e5517644934a1469e304c7536f7"
+    },
+    "load_before": [
+      3.37353515625,
+      3.4482421875,
+      3.38427734375
+    ]
+  },
+  "observed": {
+    "input": [
+      {
+        "index": 0,
+        "status": "PASS",
+        "elapsed_ms": 54.258275
+      },
+      {
+        "index": 1,
+        "status": "PASS",
+        "elapsed_ms": 31.873973
+      },
+      {
+        "index": 2,
+        "status": "PASS",
+        "elapsed_ms": 32.030696
+      },
+      {
+        "index": 3,
+        "status": "PASS",
+        "elapsed_ms": 31.138377
+      },
+      {
+        "index": 4,
+        "status": "PASS",
+        "elapsed_ms": 32.737966
+      },
+      {
+        "index": 5,
+        "status": "PASS",
+        "elapsed_ms": 31.905297
+      },
+      {
+        "index": 6,
+        "status": "PASS",
+        "elapsed_ms": 30.531943
+      },
+      {
+        "index": 7,
+        "status": "PASS",
+        "elapsed_ms": 56.666771
+      },
+      {
+        "index": 8,
+        "status": "PASS",
+        "elapsed_ms": 29.629884
+      },
+      {
+        "index": 9,
+        "status": "PASS",
+        "elapsed_ms": 30.771563
+      },
+      {
+        "index": 10,
+        "status": "PASS",
+        "elapsed_ms": 29.435688
+      },
+      {
+        "index": 11,
+        "status": "PASS",
+        "elapsed_ms": 31.509476
+      },
+      {
+        "index": 12,
+        "status": "PASS",
+        "elapsed_ms": 30.654114
+      },
+      {
+        "index": 13,
+        "status": "PASS",
+        "elapsed_ms": 32.115285
+      },
+      {
+        "index": 14,
+        "status": "PASS",
+        "elapsed_ms": 36.025177
+      },
+      {
+        "index": 15,
+        "status": "PASS",
+        "elapsed_ms": 30.733491
+      },
+      {
+        "index": 16,
+        "status": "PASS",
+        "elapsed_ms": 31.896046
+      },
+      {
+        "index": 17,
+        "status": "PASS",
+        "elapsed_ms": 31.150609
+      },
+      {
+        "index": 18,
+        "status": "PASS",
+        "elapsed_ms": 31.994958
+      },
+      {
+        "index": 19,
+        "status": "PASS",
+        "elapsed_ms": 30.51201
+      }
+    ],
+    "cancel": [
+      {
+        "index": 0,
+        "status": "PASS",
+        "elapsed_ms": 144.784914,
+        "text_ms": 143.264385,
+        "joined_cleanup_ms": 1168.218279
+      },
+      {
+        "index": 1,
+        "status": "PASS",
+        "elapsed_ms": 154.608299,
+        "text_ms": 152.814216,
+        "joined_cleanup_ms": 1176.675639
+      },
+      {
+        "index": 2,
+        "status": "PASS",
+        "elapsed_ms": 347.156433,
+        "text_ms": 345.491827,
+        "joined_cleanup_ms": 1355.665055
+      },
+      {
+        "index": 3,
+        "status": "PASS",
+        "elapsed_ms": 160.04286,
+        "text_ms": 146.718126,
+        "joined_cleanup_ms": 1199.898935
+      },
+      {
+        "index": 4,
+        "status": "PASS",
+        "elapsed_ms": 161.733136,
+        "text_ms": 149.52029,
+        "joined_cleanup_ms": 1167.342621
+      },
+      {
+        "index": 5,
+        "status": "PASS",
+        "elapsed_ms": 166.121598,
+        "text_ms": 153.231312,
+        "joined_cleanup_ms": 1162.450628
+      },
+      {
+        "index": 6,
+        "status": "PASS",
+        "elapsed_ms": 154.528902,
+        "text_ms": 142.706256,
+        "joined_cleanup_ms": 1172.953098
+      },
+      {
+        "index": 7,
+        "status": "PASS",
+        "elapsed_ms": 455.397024,
+        "text_ms": 453.575074,
+        "joined_cleanup_ms": 1174.911476
+      },
+      {
+        "index": 8,
+        "status": "PASS",
+        "elapsed_ms": 147.376534,
+        "text_ms": 145.76753,
+        "joined_cleanup_ms": 1193.110699
+      },
+      {
+        "index": 9,
+        "status": "PASS",
+        "elapsed_ms": 152.237803,
+        "text_ms": 143.718109,
+        "joined_cleanup_ms": 1171.757432
+      },
+      {
+        "index": 10,
+        "status": "PASS",
+        "elapsed_ms": 162.677132,
+        "text_ms": 154.289992,
+        "joined_cleanup_ms": 1203.767004
+      },
+      {
+        "index": 11,
+        "status": "PASS",
+        "elapsed_ms": 151.484744,
+        "text_ms": 141.475906,
+        "joined_cleanup_ms": 1174.094876
+      },
+      {
+        "index": 12,
+        "status": "PASS",
+        "elapsed_ms": 172.003998,
+        "text_ms": 166.460707,
+        "joined_cleanup_ms": 1170.392973
+      },
+      {
+        "index": 13,
+        "status": "PASS",
+        "elapsed_ms": 148.58634,
+        "text_ms": 135.743533,
+        "joined_cleanup_ms": 1178.37564
+      },
+      {
+        "index": 14,
+        "status": "PASS",
+        "elapsed_ms": 161.179829,
+        "text_ms": 149.51897,
+        "joined_cleanup_ms": 1208.235503
+      },
+      {
+        "index": 15,
+        "status": "PASS",
+        "elapsed_ms": 158.622684,
+        "text_ms": 147.060308,
+        "joined_cleanup_ms": 1172.135738
+      },
+      {
+        "index": 16,
+        "status": "PASS",
+        "elapsed_ms": 155.446787,
+        "text_ms": 153.881716,
+        "joined_cleanup_ms": 1171.608719
+      },
+      {
+        "index": 17,
+        "status": "PASS",
+        "elapsed_ms": 141.496093,
+        "text_ms": 139.753867,
+        "joined_cleanup_ms": 1184.263103
+      },
+      {
+        "index": 18,
+        "status": "PASS",
+        "elapsed_ms": 141.322636,
+        "text_ms": 139.581231,
+        "joined_cleanup_ms": 1185.258331
+      },
+      {
+        "index": 19,
+        "status": "PASS",
+        "elapsed_ms": 148.004649,
+        "text_ms": 146.467333,
+        "joined_cleanup_ms": 1188.457951
+      }
+    ],
+    "gc_events": [
+      {
+        "phase": "startup",
+        "generation": 2,
+        "duration_ms": 156.529555,
+        "inspection_ms": 17.20359,
+        "saved_count": 72389,
+        "saved_types": [
+          {
+            "module": "builtins",
+            "name": "set",
+            "count": 14890
+          },
+          {
+            "module": "builtins",
+            "name": "list",
+            "count": 12603
+          },
+          {
+            "module": "builtins",
+            "name": "tuple",
+            "count": 5263
+          },
+          {
+            "module": "builtins",
+            "name": "builtin_function_or_method",
+            "count": 5082
+          },
+          {
+            "module": "weakref",
+            "name": "ReferenceType",
+            "count": 2923
+          },
+          {
+            "module": "builtins",
+            "name": "function",
+            "count": 2575
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "Styles",
+            "count": 2530
+          },
+          {
+            "module": "textual.cache",
+            "name": "LRUCache",
+            "count": 2137
+          },
+          {
+            "module": "builtins",
+            "name": "dict",
+            "count": 2082
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Size",
+            "count": 1855
+          },
+          {
+            "module": "textual.cache",
+            "name": "FIFOCache",
+            "count": 1789
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "RenderStyles",
+            "count": 1265
+          },
+          {
+            "module": "textual._node_list",
+            "name": "NodeList",
+            "count": 1265
+          },
+          {
+            "module": "textual.binding",
+            "name": "BindingsMap",
+            "count": 1265
+          },
+          {
+            "module": "_weakrefset",
+            "name": "WeakSet",
+            "count": 1265
+          },
+          {
+            "module": "textual.signal",
+            "name": "Signal",
+            "count": 1265
+          },
+          {
+            "module": "weakref",
+            "name": "WeakKeyDictionary",
+            "count": 1265
+          },
+          {
+            "module": "textual.map_geometry",
+            "name": "MapGeometry",
+            "count": 1087
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Region",
+            "count": 1071
+          },
+          {
+            "module": "henchman.cli.textual_widgets",
+            "name": "ChatMessage",
+            "count": 872
+          },
+          {
+            "module": "textual.rlock",
+            "name": "RLock",
+            "count": 872
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Lock",
+            "count": 872
+          },
+          {
+            "module": "textual._extrema",
+            "name": "Extrema",
+            "count": 872
+          },
+          {
+            "module": "textual.content",
+            "name": "Content",
+            "count": 872
+          },
+          {
+            "module": "textual.layouts.vertical",
+            "name": "VerticalLayout",
+            "count": 872
+          },
+          {
+            "module": "textual.widget",
+            "name": "_RenderCache",
+            "count": 872
+          },
+          {
+            "module": "textual._styles_cache",
+            "name": "StylesCache",
+            "count": 872
+          },
+          {
+            "module": "textual.content",
+            "name": "Span",
+            "count": 872
+          },
+          {
+            "module": "textual.dom",
+            "name": "DOMNode",
+            "count": 393
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Spacing",
+            "count": 271
+          },
+          {
+            "module": "rich.segment",
+            "name": "Segment",
+            "count": 145
+          },
+          {
+            "module": "textual.strip",
+            "name": "Strip",
+            "count": 131
+          },
+          {
+            "module": "builtins",
+            "name": "cell",
+            "count": 120
+          },
+          {
+            "module": "textual.widgets._tree",
+            "name": "_TreeLine",
+            "count": 4
+          }
+        ],
+        "history_alive_before": 344,
+        "history_alive_after": 128,
+        "collected": 72389
+      },
+      {
+        "phase": "probe2",
+        "generation": 2,
+        "duration_ms": 188.071878,
+        "inspection_ms": 31.514256,
+        "saved_count": 130864,
+        "saved_types": [
+          {
+            "module": "builtins",
+            "name": "set",
+            "count": 19577
+          },
+          {
+            "module": "builtins",
+            "name": "list",
+            "count": 16899
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Size",
+            "count": 14896
+          },
+          {
+            "module": "builtins",
+            "name": "tuple",
+            "count": 9762
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Region",
+            "count": 9642
+          },
+          {
+            "module": "textual.map_geometry",
+            "name": "MapGeometry",
+            "count": 7644
+          },
+          {
+            "module": "builtins",
+            "name": "builtin_function_or_method",
+            "count": 7179
+          },
+          {
+            "module": "weakref",
+            "name": "ReferenceType",
+            "count": 4426
+          },
+          {
+            "module": "textual.cache",
+            "name": "FIFOCache",
+            "count": 4276
+          },
+          {
+            "module": "builtins",
+            "name": "dict",
+            "count": 3958
+          },
+          {
+            "module": "builtins",
+            "name": "function",
+            "count": 3633
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "Styles",
+            "count": 3536
+          },
+          {
+            "module": "textual.cache",
+            "name": "LRUCache",
+            "count": 2663
+          },
+          {
+            "module": "textual._node_list",
+            "name": "NodeList",
+            "count": 1768
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "RenderStyles",
+            "count": 1768
+          },
+          {
+            "module": "textual.binding",
+            "name": "BindingsMap",
+            "count": 1768
+          },
+          {
+            "module": "_weakrefset",
+            "name": "WeakSet",
+            "count": 1768
+          },
+          {
+            "module": "textual.signal",
+            "name": "Signal",
+            "count": 1768
+          },
+          {
+            "module": "weakref",
+            "name": "WeakKeyDictionary",
+            "count": 1768
+          },
+          {
+            "module": "rich.segment",
+            "name": "Segment",
+            "count": 1090
+          },
+          {
+            "module": "textual.layouts.vertical",
+            "name": "VerticalLayout",
+            "count": 895
+          },
+          {
+            "module": "textual.rlock",
+            "name": "RLock",
+            "count": 895
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Lock",
+            "count": 895
+          },
+          {
+            "module": "textual._extrema",
+            "name": "Extrema",
+            "count": 895
+          },
+          {
+            "module": "textual.widget",
+            "name": "_RenderCache",
+            "count": 895
+          },
+          {
+            "module": "textual.content",
+            "name": "Content",
+            "count": 887
+          },
+          {
+            "module": "textual.content",
+            "name": "Span",
+            "count": 887
+          },
+          {
+            "module": "textual._styles_cache",
+            "name": "StylesCache",
+            "count": 885
+          },
+          {
+            "module": "henchman.cli.textual_widgets",
+            "name": "ChatMessage",
+            "count": 878
+          },
+          {
+            "module": "textual.dom",
+            "name": "DOMNode",
+            "count": 873
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Spacing",
+            "count": 843
+          },
+          {
+            "module": "builtins",
+            "name": "cell",
+            "count": 502
+          },
+          {
+            "module": "textual.strip",
+            "name": "Strip",
+            "count": 483
+          },
+          {
+            "module": "collections",
+            "name": "deque",
+            "count": 72
+          },
+          {
+            "module": "fractions",
+            "name": "Fraction",
+            "count": 60
+          },
+          {
+            "module": "textual.document._document",
+            "name": "Selection",
+            "count": 52
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Event",
+            "count": 46
+          },
+          {
+            "module": "textual._queue",
+            "name": "Queue",
+            "count": 23
+          },
+          {
+            "module": "rich.style",
+            "name": "Style",
+            "count": 23
+          },
+          {
+            "module": "textual.box_model",
+            "name": "BoxModel",
+            "count": 15
+          }
+        ],
+        "history_alive_before": 128,
+        "history_alive_after": 122,
+        "collected": 130867
+      },
+      {
+        "phase": "probe7",
+        "generation": 2,
+        "duration_ms": 259.444571,
+        "inspection_ms": 42.746209,
+        "saved_count": 179477,
+        "saved_types": [
+          {
+            "module": "textual.geometry",
+            "name": "Size",
+            "count": 32198
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Region",
+            "count": 22627
+          },
+          {
+            "module": "builtins",
+            "name": "set",
+            "count": 19965
+          },
+          {
+            "module": "builtins",
+            "name": "list",
+            "count": 17726
+          },
+          {
+            "module": "textual.map_geometry",
+            "name": "MapGeometry",
+            "count": 16321
+          },
+          {
+            "module": "builtins",
+            "name": "tuple",
+            "count": 13127
+          },
+          {
+            "module": "builtins",
+            "name": "builtin_function_or_method",
+            "count": 7383
+          },
+          {
+            "module": "textual.cache",
+            "name": "FIFOCache",
+            "count": 6363
+          },
+          {
+            "module": "weakref",
+            "name": "ReferenceType",
+            "count": 4481
+          },
+          {
+            "module": "builtins",
+            "name": "dict",
+            "count": 4394
+          },
+          {
+            "module": "builtins",
+            "name": "function",
+            "count": 3750
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "Styles",
+            "count": 3580
+          },
+          {
+            "module": "textual.cache",
+            "name": "LRUCache",
+            "count": 2707
+          },
+          {
+            "module": "textual._node_list",
+            "name": "NodeList",
+            "count": 1790
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "RenderStyles",
+            "count": 1790
+          },
+          {
+            "module": "textual.binding",
+            "name": "BindingsMap",
+            "count": 1790
+          },
+          {
+            "module": "_weakrefset",
+            "name": "WeakSet",
+            "count": 1790
+          },
+          {
+            "module": "textual.signal",
+            "name": "Signal",
+            "count": 1790
+          },
+          {
+            "module": "weakref",
+            "name": "WeakKeyDictionary",
+            "count": 1790
+          },
+          {
+            "module": "rich.segment",
+            "name": "Segment",
+            "count": 1525
+          },
+          {
+            "module": "builtins",
+            "name": "cell",
+            "count": 1036
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Spacing",
+            "count": 1002
+          },
+          {
+            "module": "textual.rlock",
+            "name": "RLock",
+            "count": 917
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Lock",
+            "count": 917
+          },
+          {
+            "module": "textual.layouts.vertical",
+            "name": "VerticalLayout",
+            "count": 917
+          },
+          {
+            "module": "textual._extrema",
+            "name": "Extrema",
+            "count": 917
+          },
+          {
+            "module": "textual.widget",
+            "name": "_RenderCache",
+            "count": 917
+          },
+          {
+            "module": "textual.content",
+            "name": "Content",
+            "count": 909
+          },
+          {
+            "module": "textual._styles_cache",
+            "name": "StylesCache",
+            "count": 903
+          },
+          {
+            "module": "textual.content",
+            "name": "Span",
+            "count": 898
+          },
+          {
+            "module": "henchman.cli.textual_widgets",
+            "name": "ChatMessage",
+            "count": 889
+          },
+          {
+            "module": "textual.dom",
+            "name": "DOMNode",
+            "count": 873
+          },
+          {
+            "module": "textual.strip",
+            "name": "Strip",
+            "count": 778
+          },
+          {
+            "module": "fractions",
+            "name": "Fraction",
+            "count": 148
+          },
+          {
+            "module": "collections",
+            "name": "deque",
+            "count": 143
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Event",
+            "count": 90
+          },
+          {
+            "module": "textual.document._document",
+            "name": "Selection",
+            "count": 62
+          },
+          {
+            "module": "textual._queue",
+            "name": "Queue",
+            "count": 45
+          },
+          {
+            "module": "rich.style",
+            "name": "Style",
+            "count": 45
+          },
+          {
+            "module": "textual.box_model",
+            "name": "BoxModel",
+            "count": 37
+          }
+        ],
+        "history_alive_before": 122,
+        "history_alive_after": 111,
+        "collected": 179482
+      },
+      {
+        "phase": "probe13",
+        "generation": 2,
+        "duration_ms": 289.216963,
+        "inspection_ms": 64.255251,
+        "saved_count": 235035,
+        "saved_types": [
+          {
+            "module": "textual.geometry",
+            "name": "Size",
+            "count": 52506
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Region",
+            "count": 38225
+          },
+          {
+            "module": "textual.map_geometry",
+            "name": "MapGeometry",
+            "count": 26508
+          },
+          {
+            "module": "builtins",
+            "name": "set",
+            "count": 20410
+          },
+          {
+            "module": "builtins",
+            "name": "list",
+            "count": 18241
+          },
+          {
+            "module": "builtins",
+            "name": "tuple",
+            "count": 17846
+          },
+          {
+            "module": "builtins",
+            "name": "builtin_function_or_method",
+            "count": 7619
+          },
+          {
+            "module": "textual.cache",
+            "name": "FIFOCache",
+            "count": 7256
+          },
+          {
+            "module": "builtins",
+            "name": "dict",
+            "count": 4676
+          },
+          {
+            "module": "weakref",
+            "name": "ReferenceType",
+            "count": 4543
+          },
+          {
+            "module": "builtins",
+            "name": "function",
+            "count": 3889
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "Styles",
+            "count": 3630
+          },
+          {
+            "module": "textual.cache",
+            "name": "LRUCache",
+            "count": 2757
+          },
+          {
+            "module": "rich.segment",
+            "name": "Segment",
+            "count": 1864
+          },
+          {
+            "module": "textual._node_list",
+            "name": "NodeList",
+            "count": 1815
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "RenderStyles",
+            "count": 1815
+          },
+          {
+            "module": "textual.binding",
+            "name": "BindingsMap",
+            "count": 1815
+          },
+          {
+            "module": "_weakrefset",
+            "name": "WeakSet",
+            "count": 1815
+          },
+          {
+            "module": "textual.signal",
+            "name": "Signal",
+            "count": 1815
+          },
+          {
+            "module": "weakref",
+            "name": "WeakKeyDictionary",
+            "count": 1815
+          },
+          {
+            "module": "builtins",
+            "name": "cell",
+            "count": 1678
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Spacing",
+            "count": 1195
+          },
+          {
+            "module": "textual.rlock",
+            "name": "RLock",
+            "count": 942
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Lock",
+            "count": 942
+          },
+          {
+            "module": "textual.layouts.vertical",
+            "name": "VerticalLayout",
+            "count": 942
+          },
+          {
+            "module": "textual._extrema",
+            "name": "Extrema",
+            "count": 942
+          },
+          {
+            "module": "textual.widget",
+            "name": "_RenderCache",
+            "count": 942
+          },
+          {
+            "module": "textual.content",
+            "name": "Content",
+            "count": 934
+          },
+          {
+            "module": "textual._styles_cache",
+            "name": "StylesCache",
+            "count": 926
+          },
+          {
+            "module": "textual.content",
+            "name": "Span",
+            "count": 911
+          },
+          {
+            "module": "henchman.cli.textual_widgets",
+            "name": "ChatMessage",
+            "count": 902
+          },
+          {
+            "module": "textual.strip",
+            "name": "Strip",
+            "count": 902
+          },
+          {
+            "module": "textual.dom",
+            "name": "DOMNode",
+            "count": 873
+          },
+          {
+            "module": "fractions",
+            "name": "Fraction",
+            "count": 248
+          },
+          {
+            "module": "collections",
+            "name": "deque",
+            "count": 225
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Event",
+            "count": 140
+          },
+          {
+            "module": "textual.document._document",
+            "name": "Selection",
+            "count": 77
+          },
+          {
+            "module": "textual._queue",
+            "name": "Queue",
+            "count": 70
+          },
+          {
+            "module": "rich.style",
+            "name": "Style",
+            "count": 70
+          },
+          {
+            "module": "textual.box_model",
+            "name": "BoxModel",
+            "count": 62
+          }
+        ],
+        "history_alive_before": 111,
+        "history_alive_after": 98,
+        "collected": 235042
+      },
+      {
+        "phase": "probe18",
+        "generation": 2,
+        "duration_ms": 285.380911,
+        "inspection_ms": 68.122906,
+        "saved_count": 283791,
+        "saved_types": [
+          {
+            "module": "textual.geometry",
+            "name": "Size",
+            "count": 69569
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Region",
+            "count": 50957
+          },
+          {
+            "module": "textual.map_geometry",
+            "name": "MapGeometry",
+            "count": 35068
+          },
+          {
+            "module": "builtins",
+            "name": "tuple",
+            "count": 21514
+          },
+          {
+            "module": "builtins",
+            "name": "set",
+            "count": 20773
+          },
+          {
+            "module": "builtins",
+            "name": "list",
+            "count": 19140
+          },
+          {
+            "module": "textual.cache",
+            "name": "FIFOCache",
+            "count": 9677
+          },
+          {
+            "module": "builtins",
+            "name": "builtin_function_or_method",
+            "count": 7813
+          },
+          {
+            "module": "builtins",
+            "name": "dict",
+            "count": 5150
+          },
+          {
+            "module": "weakref",
+            "name": "ReferenceType",
+            "count": 4593
+          },
+          {
+            "module": "builtins",
+            "name": "function",
+            "count": 4001
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "Styles",
+            "count": 3670
+          },
+          {
+            "module": "textual.cache",
+            "name": "LRUCache",
+            "count": 2797
+          },
+          {
+            "module": "rich.segment",
+            "name": "Segment",
+            "count": 2375
+          },
+          {
+            "module": "builtins",
+            "name": "cell",
+            "count": 2204
+          },
+          {
+            "module": "textual._node_list",
+            "name": "NodeList",
+            "count": 1835
+          },
+          {
+            "module": "textual.css.styles",
+            "name": "RenderStyles",
+            "count": 1835
+          },
+          {
+            "module": "textual.binding",
+            "name": "BindingsMap",
+            "count": 1835
+          },
+          {
+            "module": "_weakrefset",
+            "name": "WeakSet",
+            "count": 1835
+          },
+          {
+            "module": "textual.signal",
+            "name": "Signal",
+            "count": 1835
+          },
+          {
+            "module": "weakref",
+            "name": "WeakKeyDictionary",
+            "count": 1835
+          },
+          {
+            "module": "textual.geometry",
+            "name": "Spacing",
+            "count": 1343
+          },
+          {
+            "module": "textual.strip",
+            "name": "Strip",
+            "count": 1245
+          },
+          {
+            "module": "textual.rlock",
+            "name": "RLock",
+            "count": 962
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Lock",
+            "count": 962
+          },
+          {
+            "module": "textual.layouts.vertical",
+            "name": "VerticalLayout",
+            "count": 962
+          },
+          {
+            "module": "textual._extrema",
+            "name": "Extrema",
+            "count": 962
+          },
+          {
+            "module": "textual.widget",
+            "name": "_RenderCache",
+            "count": 962
+          },
+          {
+            "module": "textual.content",
+            "name": "Content",
+            "count": 954
+          },
+          {
+            "module": "textual._styles_cache",
+            "name": "StylesCache",
+            "count": 945
+          },
+          {
+            "module": "textual.content",
+            "name": "Span",
+            "count": 921
+          },
+          {
+            "module": "henchman.cli.textual_widgets",
+            "name": "ChatMessage",
+            "count": 912
+          },
+          {
+            "module": "textual.dom",
+            "name": "DOMNode",
+            "count": 873
+          },
+          {
+            "module": "fractions",
+            "name": "Fraction",
+            "count": 328
+          },
+          {
+            "module": "collections",
+            "name": "deque",
+            "count": 290
+          },
+          {
+            "module": "asyncio.locks",
+            "name": "Event",
+            "count": 180
+          },
+          {
+            "module": "textual._queue",
+            "name": "Queue",
+            "count": 90
+          },
+          {
+            "module": "rich.style",
+            "name": "Style",
+            "count": 90
+          },
+          {
+            "module": "textual.document._document",
+            "name": "Selection",
+            "count": 89
+          },
+          {
+            "module": "textual.box_model",
+            "name": "BoxModel",
+            "count": 82
+          }
+        ],
+        "history_alive_before": 98,
+        "history_alive_after": 88,
+        "collected": 283796
+      }
+    ],
+    "app_joined": true
+  },
+  "timelines": [
+    {
+      "trial": "probe0",
+      "command_start": 0.005,
+      "command_end": 6.895,
+      "escape_bytes": 17.478,
+      "driver_escape": 117.771,
+      "handler_start": 118.788,
+      "handler_end": 125.149,
+      "worker_cancel": 125.559,
+      "terminal_write": 130.476,
+      "after_refresh": 126.08,
+      "vte_text": 143.272,
+      "vte_pixels": 144.791,
+      "layout_ms": 33.288,
+      "layouts": [
+        {
+          "start_ms": 31.675,
+          "duration_ms": 14.325
+        },
+        {
+          "start_ms": 70.431,
+          "duration_ms": 14.615
+        },
+        {
+          "start_ms": 86.78,
+          "duration_ms": 4.348
+        }
+      ]
+    },
+    {
+      "trial": "probe1",
+      "command_start": 0.005,
+      "command_end": 6.966,
+      "escape_bytes": 21.369,
+      "driver_escape": 126.65,
+      "handler_start": 127.381,
+      "handler_end": 130.574,
+      "worker_cancel": 130.772,
+      "terminal_write": 139.366,
+      "after_refresh": 131.098,
+      "vte_text": 152.824,
+      "vte_pixels": 154.616,
+      "layout_ms": 33.674,
+      "layouts": [
+        {
+          "start_ms": 36.911,
+          "duration_ms": 11.256
+        },
+        {
+          "start_ms": 72.006,
+          "duration_ms": 16.572
+        },
+        {
+          "start_ms": 120.396,
+          "duration_ms": 5.847
+        }
+      ]
+    },
+    {
+      "trial": "probe2",
+      "command_start": 0.004,
+      "command_end": 7.123,
+      "escape_bytes": 17.981,
+      "driver_escape": 204.613,
+      "handler_start": 310.645,
+      "handler_end": 311.793,
+      "worker_cancel": 314.141,
+      "terminal_write": 325.818,
+      "after_refresh": 326.172,
+      "vte_text": 345.499,
+      "vte_pixels": 347.162,
+      "layout_ms": 260.678,
+      "layouts": [
+        {
+          "start_ms": 32.897,
+          "duration_ms": 233.453
+        },
+        {
+          "start_ms": 297.856,
+          "duration_ms": 12.104
+        },
+        {
+          "start_ms": 314.829,
+          "duration_ms": 11.034
+        },
+        {
+          "start_ms": 328.516,
+          "duration_ms": 4.087
+        }
+      ]
+    },
+    {
+      "trial": "probe3",
+      "command_start": 0.005,
+      "command_end": 8.166,
+      "escape_bytes": 18.892,
+      "driver_escape": 119.284,
+      "handler_start": 120.165,
+      "handler_end": 123.722,
+      "worker_cancel": 123.952,
+      "terminal_write": 126.875,
+      "after_refresh": 124.316,
+      "vte_text": 146.728,
+      "vte_pixels": 160.051,
+      "layout_ms": 32.586,
+      "layouts": [
+        {
+          "start_ms": 34.208,
+          "duration_ms": 14.191
+        },
+        {
+          "start_ms": 72.876,
+          "duration_ms": 14.394
+        },
+        {
+          "start_ms": 89.1,
+          "duration_ms": 4.001
+        }
+      ]
+    },
+    {
+      "trial": "probe4",
+      "command_start": 0.005,
+      "command_end": 6.266,
+      "escape_bytes": 16.25,
+      "driver_escape": 116.713,
+      "handler_start": 117.668,
+      "handler_end": 119.337,
+      "worker_cancel": 119.554,
+      "terminal_write": 122.38,
+      "after_refresh": 119.916,
+      "vte_text": 149.529,
+      "vte_pixels": 161.739,
+      "layout_ms": 51.312,
+      "layouts": [
+        {
+          "start_ms": -0.611,
+          "duration_ms": 16.319
+        },
+        {
+          "start_ms": 47.896,
+          "duration_ms": 13.741
+        },
+        {
+          "start_ms": 65.408,
+          "duration_ms": 11.347
+        },
+        {
+          "start_ms": 81.713,
+          "duration_ms": 9.905
+        }
+      ]
+    },
+    {
+      "trial": "probe5",
+      "command_start": 0.004,
+      "command_end": 6.944,
+      "escape_bytes": 17.793,
+      "driver_escape": 118.207,
+      "handler_start": 118.939,
+      "handler_end": 120.198,
+      "worker_cancel": 120.362,
+      "terminal_write": 136.696,
+      "after_refresh": 137.032,
+      "vte_text": 153.238,
+      "vte_pixels": 166.129,
+      "layout_ms": 33.394,
+      "layouts": [
+        {
+          "start_ms": 33.129,
+          "duration_ms": 11.842
+        },
+        {
+          "start_ms": 94.847,
+          "duration_ms": 11.643
+        },
+        {
+          "start_ms": 126.86,
+          "duration_ms": 9.909
+        }
+      ]
+    },
+    {
+      "trial": "probe6",
+      "command_start": 0.006,
+      "command_end": 7.061,
+      "escape_bytes": 17.96,
+      "driver_escape": 118.355,
+      "handler_start": 119.236,
+      "handler_end": 123.95,
+      "worker_cancel": 124.24,
+      "terminal_write": 127.97,
+      "after_refresh": 124.672,
+      "vte_text": 142.714,
+      "vte_pixels": 154.536,
+      "layout_ms": 31.313,
+      "layouts": [
+        {
+          "start_ms": 33.673,
+          "duration_ms": 11.075
+        },
+        {
+          "start_ms": 76.766,
+          "duration_ms": 16.125
+        },
+        {
+          "start_ms": 93.512,
+          "duration_ms": 4.112
+        }
+      ]
+    },
+    {
+      "trial": "probe7",
+      "command_start": 0.004,
+      "command_end": 5.494,
+      "escape_bytes": 16.276,
+      "driver_escape": 116.687,
+      "handler_start": 117.562,
+      "handler_end": 119.173,
+      "worker_cancel": 119.375,
+      "terminal_write": 437.951,
+      "after_refresh": 438.867,
+      "vte_text": 453.583,
+      "vte_pixels": 455.402,
+      "layout_ms": 344.419,
+      "layouts": [
+        {
+          "start_ms": 31.041,
+          "duration_ms": 13.991
+        },
+        {
+          "start_ms": 76.257,
+          "duration_ms": 12.172
+        },
+        {
+          "start_ms": 119.758,
+          "duration_ms": 318.256
+        }
+      ]
+    },
+    {
+      "trial": "probe8",
+      "command_start": 0.005,
+      "command_end": 6.32,
+      "escape_bytes": 17.036,
+      "driver_escape": 122.493,
+      "handler_start": 126.026,
+      "handler_end": 129.68,
+      "worker_cancel": 129.871,
+      "terminal_write": 132.36,
+      "after_refresh": 130.166,
+      "vte_text": 145.778,
+      "vte_pixels": 147.382,
+      "layout_ms": 43.443,
+      "layouts": [
+        {
+          "start_ms": 24.907,
+          "duration_ms": 14.791
+        },
+        {
+          "start_ms": 62.367,
+          "duration_ms": 17.057
+        },
+        {
+          "start_ms": 112.329,
+          "duration_ms": 11.594
+        }
+      ]
+    },
+    {
+      "trial": "probe9",
+      "command_start": 0.005,
+      "command_end": 6.617,
+      "escape_bytes": 17.537,
+      "driver_escape": 117.989,
+      "handler_start": 119.031,
+      "handler_end": 123.415,
+      "worker_cancel": 123.679,
+      "terminal_write": 126.824,
+      "after_refresh": 124.083,
+      "vte_text": 143.726,
+      "vte_pixels": 152.245,
+      "layout_ms": 29.722,
+      "layouts": [
+        {
+          "start_ms": 30.043,
+          "duration_ms": 12.603
+        },
+        {
+          "start_ms": 67.059,
+          "duration_ms": 13.16
+        },
+        {
+          "start_ms": 82.915,
+          "duration_ms": 3.958
+        }
+      ]
+    },
+    {
+      "trial": "probe10",
+      "command_start": 0.003,
+      "command_end": 5.859,
+      "escape_bytes": 16.66,
+      "driver_escape": 117.058,
+      "handler_start": 117.929,
+      "handler_end": 119.525,
+      "worker_cancel": 119.731,
+      "terminal_write": 138.595,
+      "after_refresh": 138.823,
+      "vte_text": 154.296,
+      "vte_pixels": 162.682,
+      "layout_ms": 39.348,
+      "layouts": [
+        {
+          "start_ms": 35.169,
+          "duration_ms": 11.295
+        },
+        {
+          "start_ms": 76.911,
+          "duration_ms": 16.696
+        },
+        {
+          "start_ms": 127.288,
+          "duration_ms": 11.357
+        }
+      ]
+    },
+    {
+      "trial": "probe11",
+      "command_start": 0.003,
+      "command_end": 6.722,
+      "escape_bytes": 13.1,
+      "driver_escape": 113.418,
+      "handler_start": 114.301,
+      "handler_end": 118.047,
+      "worker_cancel": 118.31,
+      "terminal_write": 121.797,
+      "after_refresh": 118.704,
+      "vte_text": 141.482,
+      "vte_pixels": 151.491,
+      "layout_ms": 29.628,
+      "layouts": [
+        {
+          "start_ms": 35.19,
+          "duration_ms": 11.707
+        },
+        {
+          "start_ms": 68.098,
+          "duration_ms": 13.361
+        },
+        {
+          "start_ms": 85.187,
+          "duration_ms": 4.561
+        }
+      ]
+    },
+    {
+      "trial": "probe12",
+      "command_start": 0.004,
+      "command_end": 7.091,
+      "escape_bytes": 16.323,
+      "driver_escape": 119.162,
+      "handler_start": 119.817,
+      "handler_end": 121.022,
+      "worker_cancel": 121.18,
+      "terminal_write": 148.184,
+      "after_refresh": 148.462,
+      "vte_text": 166.467,
+      "vte_pixels": 172.01,
+      "layout_ms": 33.881,
+      "layouts": [
+        {
+          "start_ms": 42.842,
+          "duration_ms": 11.572
+        },
+        {
+          "start_ms": 106.643,
+          "duration_ms": 11.751
+        },
+        {
+          "start_ms": 137.688,
+          "duration_ms": 10.558
+        }
+      ]
+    },
+    {
+      "trial": "probe13",
+      "command_start": 0.004,
+      "command_end": 7.133,
+      "escape_bytes": 17.97,
+      "driver_escape": 118.378,
+      "handler_start": 119.469,
+      "handler_end": 121.564,
+      "worker_cancel": 121.833,
+      "terminal_write": 125.154,
+      "after_refresh": 122.254,
+      "vte_text": 135.749,
+      "vte_pixels": 148.591,
+      "layout_ms": 32.888,
+      "layouts": [
+        {
+          "start_ms": 35.813,
+          "duration_ms": 11.071
+        },
+        {
+          "start_ms": 49.253,
+          "duration_ms": 12.326
+        },
+        {
+          "start_ms": 65.586,
+          "duration_ms": 9.492
+        }
+      ]
+    },
+    {
+      "trial": "probe14",
+      "command_start": 0.004,
+      "command_end": 5.787,
+      "escape_bytes": 16.654,
+      "driver_escape": 117.058,
+      "handler_start": 118.106,
+      "handler_end": 119.693,
+      "worker_cancel": 119.899,
+      "terminal_write": 137.115,
+      "after_refresh": 137.382,
+      "vte_text": 149.527,
+      "vte_pixels": 161.186,
+      "layout_ms": 40.742,
+      "layouts": [
+        {
+          "start_ms": 34.378,
+          "duration_ms": 12.103
+        },
+        {
+          "start_ms": 75.957,
+          "duration_ms": 16.927
+        },
+        {
+          "start_ms": 125.45,
+          "duration_ms": 11.712
+        }
+      ]
+    },
+    {
+      "trial": "probe15",
+      "command_start": 0.004,
+      "command_end": 7.077,
+      "escape_bytes": 15.655,
+      "driver_escape": 116.071,
+      "handler_start": 117.131,
+      "handler_end": 119.361,
+      "worker_cancel": 119.641,
+      "terminal_write": 123.313,
+      "after_refresh": 120.08,
+      "vte_text": 147.067,
+      "vte_pixels": 158.628,
+      "layout_ms": 50.2,
+      "layouts": [
+        {
+          "start_ms": -1.32,
+          "duration_ms": 16.219
+        },
+        {
+          "start_ms": 47.844,
+          "duration_ms": 12.028
+        },
+        {
+          "start_ms": 64.866,
+          "duration_ms": 11.003
+        },
+        {
+          "start_ms": 80.732,
+          "duration_ms": 10.949
+        }
+      ]
+    },
+    {
+      "trial": "probe16",
+      "command_start": 0.007,
+      "command_end": 6.517,
+      "escape_bytes": 17.344,
+      "driver_escape": 117.779,
+      "handler_start": 119.13,
+      "handler_end": 120.661,
+      "worker_cancel": 120.909,
+      "terminal_write": 133.488,
+      "after_refresh": 133.72,
+      "vte_text": 153.89,
+      "vte_pixels": 155.454,
+      "layout_ms": 37.077,
+      "layouts": [
+        {
+          "start_ms": 39.313,
+          "duration_ms": 15.443
+        },
+        {
+          "start_ms": 95.078,
+          "duration_ms": 12.817
+        },
+        {
+          "start_ms": 124.718,
+          "duration_ms": 8.817
+        }
+      ]
+    },
+    {
+      "trial": "probe17",
+      "command_start": 0.008,
+      "command_end": 6.851,
+      "escape_bytes": 17.697,
+      "driver_escape": 118.099,
+      "handler_start": 119.016,
+      "handler_end": 122.777,
+      "worker_cancel": 122.999,
+      "terminal_write": 125.994,
+      "after_refresh": 123.358,
+      "vte_text": 139.763,
+      "vte_pixels": 141.504,
+      "layout_ms": 30.398,
+      "layouts": [
+        {
+          "start_ms": 21.773,
+          "duration_ms": 12.098
+        },
+        {
+          "start_ms": 61.627,
+          "duration_ms": 13.516
+        },
+        {
+          "start_ms": 77.879,
+          "duration_ms": 4.785
+        }
+      ]
+    },
+    {
+      "trial": "probe18",
+      "command_start": 0.004,
+      "command_end": 6.355,
+      "escape_bytes": 17.133,
+      "driver_escape": 117.545,
+      "handler_start": 118.695,
+      "handler_end": 123.741,
+      "worker_cancel": 124.031,
+      "terminal_write": 127.756,
+      "after_refresh": 124.474,
+      "vte_text": 139.589,
+      "vte_pixels": 141.328,
+      "layout_ms": 32.141,
+      "layouts": [
+        {
+          "start_ms": 24.238,
+          "duration_ms": 11.62
+        },
+        {
+          "start_ms": 60.859,
+          "duration_ms": 16.309
+        },
+        {
+          "start_ms": 77.709,
+          "duration_ms": 4.211
+        }
+      ]
+    },
+    {
+      "trial": "probe19",
+      "command_start": 0.006,
+      "command_end": 6.622,
+      "escape_bytes": 17.498,
+      "driver_escape": 117.811,
+      "handler_start": 118.835,
+      "handler_end": 121.241,
+      "worker_cancel": 121.542,
+      "terminal_write": 137.777,
+      "after_refresh": 138.027,
+      "vte_text": 146.475,
+      "vte_pixels": 148.011,
+      "layout_ms": 49.841,
+      "layouts": [
+        {
+          "start_ms": 26.179,
+          "duration_ms": 16.536
+        },
+        {
+          "start_ms": 76.078,
+          "duration_ms": 20.602
+        },
+        {
+          "start_ms": 125.128,
+          "duration_ms": 12.703
+        }
+      ]
+    }
+  ],
+  "artifact_sha256": {
+    "plan.json": "7e51b66d8e686009485d57427ee37212af9e0efd21c1cebf44394b7a58f388ae",
+    "scenario/receipt.json": "c40b1044374b4d36543d6036f392f6d941da623cc2da80dba16d86d6738e756a",
+    "scenario/app-timeline.json": "b64cce9696604e40a5162d18bc47dad5caf15ed8eacbb92efccd306a94ecf0f6",
+    "scenario/measure-timeline.json": "9f2e134cfab8d03c9dd2a6136e9aa07748d45643581ee14611ee67543db84eb8",
+    "scenario/timeline-summary.json": "8154b6f5f10adecb7740faba19001f1bec57bc104bcd7df945c38d1501292ba3"
+  },
+  "limitations": [
+    "DEBUG_SAVEALL and callbacks retain cycles and make later counts cumulative/repeated",
+    "Type counts do not identify reachability roots or prove production causes",
+    "Software display, one process, no paired control or physical accessibility",
+    "Raw timelines and screenshots retained in the private local qualification cache"
+  ]
+}

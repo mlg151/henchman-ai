@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,6 +10,12 @@ import pytest
 from henchman.cli.commands import CommandContext
 from henchman.cli.commands.theme import ThemeCommand
 from henchman.cli.console import ThemeManager
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings_home(tmp_path, monkeypatch):
+    """Theme persistence must never touch the developer's settings."""
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
 
 
 @pytest.mark.asyncio

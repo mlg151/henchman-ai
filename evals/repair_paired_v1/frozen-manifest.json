@@ -1,0 +1,44 @@
+{
+  "version": "bounded-repair-paired-v1",
+  "root": "/tmp/henchman-repair-paired-20261108-v1",
+  "source_commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+  "files": {
+    "README.md": "8bbce3bc4f967c06a55e318e4bde19a3de69f2273f1a579e0b8e7520f966e9c6",
+    "admission-template.json": "75731228141087cf0920f4df4f3ef25af3be5be50552676600f955f00456fc17",
+    "contract.py": "d819887408d88f6fe1e5f82bd5090f1ee308982ad00aafc42c439d89f49625b0",
+    "fixtures.py": "90c55a4aca79e6d639a51d7567d559873ad2398388714245f8886997493640d8",
+    "launch.py": "84554fdc6911fd072af0b26530208927c6085f24a7ac32567f6d169c445f93f9",
+    "local_server.py": "b9521e54adc5da14ffee65364d664ae1c44ed5175e9164a95eca70ffceb8b049",
+    "memory_sampler.py": "b74d612e6d8bc18f8d545b48510583ce20468e36b3b0c4d61e921dd37ab6890d",
+    "ownership.py": "7f3320d6760f8d5fb79dd305e63568673edd4377b636c8dee8025aedd31ba0bc",
+    "plan.json": "c3beeb0ce587d3cb06ac15a841b165e4a0e3795cd6f61e0a27999460034bccc2",
+    "provenance.json": "33e468029618170f809706095c72117f181fea151f31fcb071ebeb22f0e6436e",
+    "source-manifest.json": "42258f9a074ce8bee5b98965d4b4eb3a35665141a4d0f6397fb37a912d565002",
+    "test_launch.py": "2857a16ea52e8c640a89738bb07ecd3a541dcbc4916b57bc833e245430e3dfee",
+    "test_local_server.py": "ea480c8687a330aa653a7aad641bd2ce6eebf4626757b083c55bb11af2d7deb9",
+    "test_paired.py": "6cbde862ceb064b2775f63e1795e1636dd0b4395548f6c2549d28ee7299477d9",
+    "test_transport.py": "a1f1ba5cd54072472de3de86cf330e78b82545560f4986843e5a021498c46016",
+    "test_worker.py": "b9157f85f29a37d8a3fc91f58dc6eedceef2e555d49116eb87766426a1d8a0fb",
+    "transport.py": "16b68b93f8bd12ef9c1db807d7271a940ce9a8235ffd6c8fb8c53c3a77b1afaa",
+    "worker.py": "d047c3ed540642a3e3523da14642dbe81512c0f94ac503b1da70d0698cd9cc21"
+  },
+  "python_harness_sha256": "3ab80d3242a88f18b5979a33ab9dfd58038ce7e518692b25feb0c8883b179833",
+  "source": {
+    "commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+    "manifest_sha256": "42258f9a074ce8bee5b98965d4b4eb3a35665141a4d0f6397fb37a912d565002"
+  },
+  "offline_qualification": {
+    "test_cases": 27,
+    "python311": "/tmp/henchman-paired-reviewed311.log",
+    "python312": "/tmp/henchman-paired-reviewed312.log",
+    "ruff": "/tmp/henchman-paired-reviewed-ruff.log",
+    "dry_receipt": "/tmp/henchman-paired-929dfc0-reviewed-dry/receipt.json",
+    "dry_receipt_sha256": "ad9f94437b3d797db1190bdb898f1f4dbb0f7d98cab3a5eb22029b070c5738a9",
+    "fixed_attempts": 12,
+    "accepted_scripted_attempts": 12,
+    "scripted_http_requests": 34,
+    "actual_endpoint_requests": 0,
+    "actual_model_calls": 0
+  },
+  "approval": "Frozen for independent root review; live activity is not authorized by this manifest."
+}

@@ -15,6 +15,11 @@ from henchman.team import (
     TeamWorkspaceService,
     WorkflowService,
 )
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def test_builtin_surface_includes_tier5_tools() -> None:
@@ -49,6 +54,7 @@ async def test_team_tools_manage_workspace_messages_files_and_memory(tmp_path: P
     """Tier 5 tools should persist collaboration data through the builtin registry."""
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
 
     backing_manager = SessionManager(data_dir=tmp_path / "sessions")
     wrapper = ReplSessionManager(session_manager=backing_manager, auto_save=False)
@@ -115,6 +121,7 @@ async def test_workflow_tool_supports_define_run_trigger_and_bridge_actions(
     """WorkflowTool should orchestrate local workflow, bridge, and trigger services."""
 
     manager = ToolManager()
+    manager.set_confirmation_handler(_approve)
     manager.bind_runtime(project_root=tmp_path)
     manager.register_builtin_tools()
 

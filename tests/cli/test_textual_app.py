@@ -13,6 +13,8 @@ from henchman.cli.textual_app import (
     ThinkingPane,
     ToolPane,
 )
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 
 
 class TestHenchmanTextualApp:
@@ -28,7 +30,7 @@ class TestHenchmanTextualApp:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -193,8 +195,10 @@ class TestHenchmanTextualApp:
             system_prompt=textual_app.config.system_prompt,
             environment_context=textual_app.environment_context,
             settings=mock_settings,
+            settings_state=textual_app.settings_state,
             auto_approve_tools=textual_app.config.auto_approve_tools,
             question_handler=textual_app._textual_question,
+            instruction_snapshot=textual_app.config.instruction_snapshot,
         )
 
         # Verify plugin manager UI instance was set
@@ -362,7 +366,7 @@ class TestHenchmanTextualApp:
         assert textual_app.core_context is original_core
         mock_initialize_core_components.assert_not_called()
         chat.add_error_message.assert_called_once_with(
-            "Failed to switch provider: Invalid provider configuration",
+            "Failed to switch provider: ValueError: Invalid provider configuration",
         )
 
     def test_on_tree_node_selected_implementation_fixed(
@@ -451,11 +455,11 @@ class TestHenchmanTextualApp:
         assert "… (truncated)" in call_args, "Large file should be truncated"
 
     @patch("henchman.cli.app._get_provider")
-    @patch("henchman.config.load_settings")
+    @patch("henchman.config.load_settings_snapshot")
     @patch("henchman.cli.textual_config.TextualConfig")
     @patch("henchman.config.environment.format_environment_block")
     @patch("henchman.config.environment.gather_environment")
-    def test_resolve_provider_from_env_handles_all_exceptions(
+    def test_resolve_provider_rejects_settings_and_handles_presentation_errors(
         self,
         mock_gather_environment,
         mock_format_environment_block,
@@ -464,31 +468,24 @@ class TestHenchmanTextualApp:
         mock_get_provider,
         textual_app,
     ):
-        """Test Bug 1 fix: All initialization steps should handle exceptions.
-
-        Previously only _get_provider() was wrapped in try-except. Now
-        load_settings(), TextualConfig(), format_environment_block(), and
-        gather_environment() should all handle exceptions gracefully.
-        """
+        """Invalid settings stop startup; presentation/environment failures fall back."""
         # Setup mocks
         mock_provider = MagicMock()
         mock_provider.name = "test-provider"
         mock_get_provider.return_value = mock_provider
 
-        # Test 1: load_settings() raises exception - should be handled
+        # Invalid settings must fail before provider construction.
         mock_load_settings.side_effect = ValueError("Corrupted settings file")
 
-        # This should NOT crash - should handle exception gracefully
-        with pytest.warns(RuntimeWarning, match="Failed to load settings"):
+        with pytest.raises(ValueError, match="Corrupted settings file"):
             textual_app._resolve_provider_from_env()
 
-        # Verify settings were set to defaults
-        assert textual_app.settings is not None
-        assert hasattr(textual_app.settings, "ui")  # Default Settings object
+        mock_load_settings.assert_called_once_with()
+        mock_get_provider.assert_not_called()
 
         # Test 2: TextualConfig() raises exception - should be handled
         mock_load_settings.reset_mock(side_effect=True)
-        mock_load_settings.return_value = MagicMock()
+        mock_load_settings.return_value = RuntimeSettingsState.from_settings(Settings()).snapshot()
         mock_textual_config.side_effect = TypeError("Invalid config")
 
         # This should NOT crash
@@ -559,11 +556,11 @@ class TestHenchmanTextualApp:
         mock_loader.discover_files.assert_called_once()
 
         # Verify error was logged for context loading failure
-        mock_logger.error.assert_called_once_with("Failed to load context files: %s", error)
+        mock_logger.error.assert_called_once_with("Failed to load context files: %s", "ValueError: Context discovery failed")
 
         # Verify tree.root.add_leaf() was attempted (suppressed when it fails)
         mock_root.add_leaf.assert_called_once_with(
-            "Error loading context: Context discovery failed"
+            "Error loading context: ValueError: Context discovery failed"
         )
 
     @patch("builtins.open")
@@ -598,11 +595,11 @@ class TestHenchmanTextualApp:
         textual_app._persist_history_entry("test command")
 
         # Verify error was logged using module logger
-        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error1)
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", "PermissionError: Cannot write to file")
 
         # Verify error notification was shown to user
         mock_chat_pane.add_error_message.assert_called_once_with(
-            "Failed to save command history: Cannot write to file"
+            "Failed to save command history: PermissionError: Cannot write to file"
         )
 
         # Test 2: UI notification also fails (silently suppressed by contextlib.suppress)
@@ -617,4 +614,4 @@ class TestHenchmanTextualApp:
         textual_app._persist_history_entry("another command")
 
         # Verify the file-write error was logged
-        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error2)
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", "OSError: Disk full")

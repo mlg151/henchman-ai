@@ -3,11 +3,75 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
+
+_EVENT_FIELDS = dict.fromkeys(("event_id", "category", "event_type", "payload", "created_at"))
+_PAYLOAD_FIELDS = dict.fromkeys((
+    "status", "tokens", "tool_calls", "provider", "model", "source", "usage_source", "pricing",
+    "prompt_tokens", "completion_tokens", "cached_tokens", "cache_creation_tokens", "reasoning_tokens",
+    "total_tokens", "total_cost", "estimated_cost", "reported_cost", "cost_source", "currency",
+))
+_PRICE_FIELDS = dict.fromkeys(("input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k", "currency", "source", "as_of"))
+
+
+def _event_schema(event: dict[str, Any]) -> dict[str, Any]:
+    """Protect only validated protocol/control values, never arbitrary labels."""
+    schema: dict[str, Any] = dict(_EVENT_FIELDS)
+    if isinstance(event.get("event_id"), str) and re.fullmatch(r"[a-f0-9]{32}", event["event_id"]):
+        schema["event_id"] = PRESERVE_IDENTITY
+    stamp = event.get("created_at")
+    if isinstance(stamp, str):
+        try:
+            parsed = datetime.fromisoformat(stamp)
+            if parsed.tzinfo == UTC and parsed.isoformat() == stamp:
+                schema["created_at"] = PRESERVE_IDENTITY
+        except ValueError:
+            pass
+    if event.get("category") in ("analytics", "telemetry", "cost", "diagnostic"):
+        schema["category"] = PRESERVE_IDENTITY
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        return schema
+    fields: dict[str, Any] = dict(_PAYLOAD_FIELDS)
+    schema["payload"] = fields
+    if event.get("category") == "diagnostic" and payload.get("status") in ("pass", "fail", "warning", "unknown"):
+        fields["status"] = PRESERVE_IDENTITY
+    if event.get("category") != "cost" or event.get("event_type") != "model_usage":
+        return schema
+    schema["event_type"] = PRESERVE_IDENTITY
+    for key, allowed in (("source", ("reported", "estimated", "unknown")),
+                         ("usage_source", ("reported", "estimated", "unknown")),
+                         ("cost_source", ("reported", "estimated", "unknown"))):
+        if payload.get(key) in allowed:
+            fields[key] = PRESERVE_IDENTITY
+    currency = payload.get("currency")
+    if isinstance(currency, str) and re.fullmatch(r"[A-Z]{3}", currency):
+        fields["currency"] = PRESERVE_IDENTITY
+    prices = payload.get("pricing")
+    if isinstance(prices, dict):
+        price_fields: dict[str, Any] = dict(_PRICE_FIELDS)
+        for name in ("input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k"):
+            value = prices.get(name)
+            if isinstance(value, str):
+                try:
+                    amount = Decimal(value)
+                    if amount.is_finite() and amount >= 0 and str(amount) == value:
+                        price_fields[name] = PRESERVE_IDENTITY
+                except InvalidOperation:
+                    pass
+        currency = prices.get("currency")
+        if isinstance(currency, str) and re.fullmatch(r"[A-Z]{3}", currency):
+            price_fields["currency"] = PRESERVE_IDENTITY
+        fields["pricing"] = price_fields
+    return schema
 
 
 def _utcnow() -> str:
@@ -18,13 +82,16 @@ def _utcnow() -> str:
 class OpsStore:
     """Persist Tier 8 operational data in a small SQLite database."""
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, evidence_redactor: EvidenceRedactor | None = None) -> None:
         """Initialize the operations store.
 
         Args:
             db_path: Path to the SQLite database file.
+            evidence_redactor: Retained runtime credential policy for ops event evidence.
         """
         self._db_path = Path(db_path)
+        self.evidence_redactor = evidence_redactor if evidence_redactor is not None else EvidenceRedactor()
+        self.evidence_redactor.register_environment()
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -318,21 +385,19 @@ class OpsStore:
         """
         created_at = _utcnow()
         event_id = uuid4().hex
+        event = self._project_ops_events([{
+            "event_id": event_id, "category": category, "event_type": event_type,
+            "payload": payload, "created_at": created_at,
+        }])[0]
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT INTO ops_events(event_id, category, event_type, payload_json, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (event_id, category, event_type, json.dumps(payload), created_at),
+                (event_id, event["category"], event["event_type"], json.dumps(event["payload"]), created_at),
             )
-        return {
-            "event_id": event_id,
-            "category": category,
-            "event_type": event_type,
-            "payload": payload,
-            "created_at": created_at,
-        }
+        return event
 
     def list_ops_events(self, category: str | None = None) -> list[dict[str, Any]]:
         """List stored operational events.
@@ -352,16 +417,27 @@ class OpsStore:
 
         with self._connect() as connection:
             rows = connection.execute(query, parameters).fetchall()
-        return [
-            {
+        events = []
+        for row in rows:
+            try:
+                payload = json.loads(str(row["payload_json"]))
+                if not isinstance(payload, dict):
+                    raise ValueError
+            except (ValueError, RecursionError):
+                raise ValueError("Stored operational event payload is invalid") from None
+            events.append({
                 "event_id": str(row["event_id"]),
                 "category": str(row["category"]),
                 "event_type": str(row["event_type"]),
-                "payload": json.loads(str(row["payload_json"])),
+                "payload": payload,
                 "created_at": str(row["created_at"]),
-            }
-            for row in rows
-        ]
+            })
+        return self._project_ops_events(events)
+
+    def _project_ops_events(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Project detached evidence copies; legacy database bytes stay untouched."""
+        self.evidence_redactor.register_config(events)
+        return [self.evidence_redactor.redact(event, schema=_event_schema(event)) for event in events]
 
     def set_feature_flag(self, name: str, enabled: bool, *, source: str) -> None:
         """Persist a feature flag override.

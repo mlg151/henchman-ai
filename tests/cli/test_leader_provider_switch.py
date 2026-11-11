@@ -56,7 +56,9 @@ def test_switch_with_another_active_role_keeps_pinned_leader_and_updates_capacit
     assert lead.provider is provider
     assert lead.model == "pinned-leader"
     assert lead.messages is history and lead.tool_registry is tools
-    assert lead.messages[0].content == prompt == "Configured leader prompt"
+    assert lead.messages[0].content == prompt
+    assert prompt is not None and prompt.startswith("Configured leader prompt\n\n")
+    assert "Delegation is disabled." in prompt
     assert lead.context_window == 16384 and lead.max_tokens == 12288
     assert actor.provider is replacement
     assert runtime.orchestrator.pool.get_agent("explorer").provider is replacement

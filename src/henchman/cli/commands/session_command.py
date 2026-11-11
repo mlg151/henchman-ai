@@ -204,7 +204,7 @@ def _resolve_session(
         return tagged_session
 
     try:
-        return manager.load(selector)
+        return manager.load(selector, project_hash=project_hash)
     except (FileNotFoundError, ValueError) as error:
         raise click.ClickException(str(error)) from error
 

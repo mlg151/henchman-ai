@@ -4,8 +4,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from henchman.agents.orchestrator import CompletionStatus, Orchestrator
+from henchman.config.schema import Settings
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def _provider_with_budget_hooks() -> MagicMock:
@@ -36,6 +42,7 @@ async def test_orchestrator_run_basic(mock_provider):
     mock_provider.chat_completion_stream.return_value = async_gen()
 
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Hello"):
@@ -76,7 +83,8 @@ async def test_orchestrator_delegation_interception(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
 
-    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Do work"):
@@ -119,6 +127,7 @@ async def test_cross_delegation_handoff_notes(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     orchestrator.shared_context.append(
         {"agent": "explorer", "summary": "Found the API docs", "timestamp": "t"},
     )
@@ -146,6 +155,7 @@ async def test_orchestrator_ledger_has_checklist_support(mock_provider):
 
     mock_provider.chat_completion_stream.return_value = async_gen()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     async for _ in orchestrator.run("Test"):
         pass
@@ -191,7 +201,8 @@ async def test_delegation_clears_agent_history(mock_provider):
             yield chunk_tl3
 
     mock_provider.chat_completion_stream.side_effect = side_effect
-    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Two tasks"):
@@ -359,6 +370,7 @@ async def test_stall_nudge_triggers_continuation(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Write a script"):
@@ -397,7 +409,8 @@ async def test_stall_failure_reported_after_max_nudges(mock_provider):
             yield chunk_tl2
 
     mock_provider.chat_completion_stream.side_effect = side_effect
-    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Write tests"):
@@ -420,6 +433,7 @@ async def test_tech_lead_exempt_from_stall_failure(mock_provider):
 
     mock_provider.chat_completion_stream.return_value = async_gen()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Verify flag is set
     assert orchestrator.tech_lead.stall_detection_enabled is False
@@ -527,8 +541,9 @@ async def test_delegation_turn_limit(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
 
-    settings = Settings(agents=AgentSettings(max_delegation_turns=2, max_delegation_retries=0))
+    settings = Settings(agents=AgentSettings(allow_delegation=True, max_delegation_turns=2, max_delegation_retries=0))
     orchestrator = Orchestrator(default_provider=mock_provider, settings=settings)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Do it"):
@@ -624,7 +639,8 @@ async def test_tool_error_aggregation(mock_provider):
             yield tl_chunk2
 
     mock_provider.chat_completion_stream.side_effect = side_effect
-    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Manually inject a tool error to simulate failure
     events = []
@@ -664,6 +680,7 @@ async def test_response_format_does_not_inject_user_messages(mock_provider, user
 
     mock_provider.chat_completion_stream.side_effect = async_gen
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = [event async for event in orchestrator.run(user_input)]
 
@@ -691,6 +708,7 @@ async def test_thinking_pattern_metrics(mock_provider):
 
     mock_provider.chat_completion_stream.return_value = async_gen()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Test task"):
@@ -726,7 +744,8 @@ async def test_delegation_metrics(mock_provider):
             yield chunk2
 
     mock_provider.chat_completion_stream.side_effect = side_effect
-    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Do work"):
@@ -866,6 +885,7 @@ def test_orchestrator_metrics_class_initialization():
 def test_orchestrator_metrics_initialization(mock_provider):
     """Test that orchestrator initializes all metrics fields."""
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Check that all metrics fields are initialized
     assert orchestrator.metrics.thinking_pattern_usage == 0
@@ -888,6 +908,7 @@ def test_update_tool_metrics():
 
     mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Test tracking a read_file call
     orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, success=True)
@@ -925,6 +946,7 @@ def test_calculate_final_metrics():
 
     mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Set up some metrics
     orchestrator.metrics.performance.task_start_time = time.time() - 60  # 60 seconds ago
@@ -960,6 +982,7 @@ def test_get_metrics_report():
 
     mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Set up some metrics
     orchestrator.metrics.performance.task_start_time = 1700000000.0
@@ -1016,6 +1039,7 @@ def test_reset_metrics_for_run():
 
     mock_provider = _provider_with_budget_hooks()
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     # Modify some metrics
     orchestrator.metrics.thinking_pattern_usage = 5
@@ -1109,6 +1133,7 @@ async def test_colon_stall_guard_nudges_agent():
     mock_prov.default_model = "test-model"
 
     orchestrator = Orchestrator(default_provider=mock_prov)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     # Run the tech_lead
     events = []
     async for event in orchestrator.run("Fix the sync function"):
@@ -1141,6 +1166,7 @@ async def test_colon_stall_guard_skips_short_responses():
     mock_prov.default_model = "test-model"
 
     orchestrator = Orchestrator(default_provider=mock_prov)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     events = []
     async for event in orchestrator.run("Do something"):
         events.append(event)
@@ -1179,6 +1205,7 @@ async def test_colon_stall_guard_respects_max_retries():
     mock_prov.default_model = "test-model"
 
     orchestrator = Orchestrator(default_provider=mock_prov)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     events = []
     async for event in orchestrator.run("Fix something"):
         events.append(event)
@@ -1215,6 +1242,7 @@ async def test_colon_stall_guard_resets_on_non_colon():
     mock_prov.default_model = "test-model"
 
     orchestrator = Orchestrator(default_provider=mock_prov)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     events = []
     async for event in orchestrator.run("Fix something"):
         events.append(event)
@@ -1254,6 +1282,7 @@ async def test_regular_tool_calls_are_executed_before_continue(mock_provider):
     mock_provider.chat_completion_stream.side_effect = side_effect
 
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Read foo.py"):
@@ -1297,6 +1326,7 @@ async def test_multiple_tool_calls_all_executed(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
     orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
 
     events = []
     async for event in orchestrator.run("Read both files"):

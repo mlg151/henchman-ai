@@ -1,0 +1,37 @@
+test_environment_excludes_keys_proxies_and_install (test_paired.ContractTests.test_environment_excludes_keys_proxies_and_install) ... ok
+test_fixed_denominator_and_counterbalanced_order (test_paired.ContractTests.test_fixed_denominator_and_counterbalanced_order) ... ok
+test_no_endpoint_aliases_or_fallback (test_paired.ContractTests.test_no_endpoint_aliases_or_fallback) ... ok
+test_control_requires_identical_bytes (test_paired.OracleTests.test_control_requires_identical_bytes) ... ok
+test_mutants_and_weakened_criteria_reject (test_paired.OracleTests.test_mutants_and_weakened_criteria_reject) ... ok
+test_target_cannot_execute_imports_or_side_effects (test_paired.OracleTests.test_target_cannot_execute_imports_or_side_effects) ... ok
+test_cancelled_stream_joins_pull_and_close_preserving_reason (test_transport.FaultTests.test_cancelled_stream_joins_pull_and_close_preserving_reason) ... Executing <Task pending name='Task-3' coro=<FaultTests.test_cancelled_stream_joins_pull_and_close_preserving_reason.<locals>.run() running at /tmp/henchman-repair-paired-v2-7141c1f/test_transport.py:250> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:448> created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/tasks.py:420> took 0.194 seconds
+ok
+test_missing_usage_stays_unknown_and_500_never_retries (test_transport.FaultTests.test_missing_usage_stays_unknown_and_500_never_retries) ... ok
+test_output_and_input_override_refuse_before_delegate (test_transport.FaultTests.test_output_and_input_override_refuse_before_delegate) ... ok
+test_shared_request_cap_applies_to_different_actors (test_transport.FaultTests.test_shared_request_cap_applies_to_different_actors) ... ok
+test_path_model_proxy_redirect_no_fallback (test_transport.GateTests.test_path_model_proxy_redirect_no_fallback) ... ok
+test_sdk_copy_uses_gate_and_exact_role_budget (test_transport.GateTests.test_sdk_copy_uses_gate_and_exact_role_budget) ... ok
+test_connect_time_revocation_prevents_any_http_bytes (test_local_server.ActualHttpCoreTests.test_connect_time_revocation_prevents_any_http_bytes) ... ok
+test_model_file_is_actual_process_model_not_unrelated_file (test_local_server.CommandTests.test_model_file_is_actual_process_model_not_unrelated_file) ... ok
+test_idle_and_model_identity_fail_closed (test_local_server.LocalTests.test_idle_and_model_identity_fail_closed) ... ok
+test_no_readiness_management_or_other_port_effects (test_local_server.LocalTests.test_no_readiness_management_or_other_port_effects) ... ok
+test_rechecks_at_headers_and_denies_replay (test_local_server.LocalTests.test_rechecks_at_headers_and_denies_replay) ... ok
+test_replaced_authority_before_headers_and_extensions_refuse (test_local_server.LocalTests.test_replaced_authority_before_headers_and_extensions_refuse) ... ok
+test_primary_interrupt_waits_for_owned_cleanup (test_launch.LaunchTests.test_primary_interrupt_waits_for_owned_cleanup) ... ok
+test_setup_failure_keeps_fixed_remaining_denominator (test_launch.LaunchTests.test_setup_failure_keeps_fixed_remaining_denominator) ... ok
+test_timeout_joins_actual_worker_before_final_receipt (test_launch.LaunchTests.test_timeout_joins_actual_worker_before_final_receipt) ... ok
+test_repeated_real_sigint_joins_worker_before_return (test_launch.NativeInterruptTests.test_repeated_real_sigint_joins_worker_before_return) ... ok
+test_actual_descendant_is_gone_before_final_receipt (test_launch.ProcessTests.test_actual_descendant_is_gone_before_final_receipt) ... ok
+test_worker_nonzero_exit_cannot_publish_success (test_launch.ReceiptTruthTests.test_worker_nonzero_exit_cannot_publish_success) ... ok
+test_real_tool_cannot_weaken_protected_criteria (test_worker.ScopeTests.test_real_tool_cannot_weaken_protected_criteria) ... Executing <Task pending name='Task-97' coro=<ScopeTests.test_real_tool_cannot_weaken_protected_criteria() running at /tmp/henchman-repair-paired-v2-7141c1f/test_worker.py:112> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:181] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:100> took 2.122 seconds
+ok
+test_real_arms_same_input_current_oracle_and_aggregate (test_worker.WorkerTests.test_real_arms_same_input_current_oracle_and_aggregate) ... Executing <Task pending name='Task-130' coro=<WorkerTests.test_real_arms_same_input_current_oracle_and_aggregate() running at /tmp/henchman-repair-paired-v2-7141c1f/test_worker.py:25> cb=[_run_until_complete_cb() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:181, WorkerThread.stop()] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:100> took 0.146 seconds
+Executing <Task pending name='Task-130' coro=<WorkerTests.test_real_arms_same_input_current_oracle_and_aggregate() running at /tmp/henchman-repair-paired-v2-7141c1f/test_worker.py:25> cb=[_run_until_complete_cb() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:181, WorkerThread.stop()] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:100> took 0.146 seconds
+Executing <Task pending name='Task-130' coro=<WorkerTests.test_real_arms_same_input_current_oracle_and_aggregate() running at /tmp/henchman-repair-paired-v2-7141c1f/test_worker.py:25> cb=[_run_until_complete_cb() at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:181, WorkerThread.stop()] created at /home/matthew/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:100> took 0.239 seconds
+ok
+test_setup_failure_finalizes_with_no_provider_calls (test_worker.WorkerTests.test_setup_failure_finalizes_with_no_provider_calls) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 9.071s
+
+OK

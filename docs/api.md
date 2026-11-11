@@ -2,6 +2,133 @@
 
 This page provides API reference for the main Henchman-AI modules.
 
+The [content checkpoint API and commands](checkpoints.md) provide scoped capture,
+review, automatic capture for declared tool file scopes and dedicated Textual
+file/hunk navigation. Restore support and native qualification limits are recorded
+in that reference.
+
+`Agent.submit_tool_result` accepts either a legacy string or `ToolResult`.
+`Message.tool_result` and `SessionMessage.tool_result` optionally retain detached
+typed evidence, including success/error, content blocks, structured output presence
+separately from null, and metadata. Provider adapters project this to explicit
+portable text; binary transport is not implied. See [MCP result behavior](mcp.md#refresh-a-connected-catalog)
+and [operation recovery](operation-recovery.md) for persistence and replay limits.
+
+## Headless JSON output
+
+`henchman chat --prompt "..." --output-format json` and `stream-json` emit
+one JSON object per physical line. The renderer preserves long strings, Unicode,
+escaped newlines and literal emoji aliases regardless of console width.
+`json-complete` retains the existing indented JSON-array format. Event fields and
+runtime outcomes are unchanged; see [headless team execution](agents.md#headless-team-execution).
+These legacy formats remain separate from the bidirectional editor protocol below.
+
+### Editor stdio protocol v1
+
+An editor launches `henchman headless --protocol-version 1 --project PATH` with
+stdin and stdout connected to pipes. `mlg headless` and `python -m henchman
+headless` use the same entrypoint. The version and project are required; Windows,
+TTYs and regular-file stdin/stdout are unsupported. The bootstrap captures private,
+non-inheritable protocol descriptors before CLI imports. It redirects ordinary
+stdout to stderr and exposes EOF on ordinary stdin, including native descriptor
+access by plugins and child processes. Existing chat commands retain their output
+contracts. Invalid protocol command arguments produce a value-free diagnostic
+and exit status 2 without echoing rejected values or paths.
+
+Send one UTF-8 JSON object followed by a newline per request. Start with:
+
+```json
+{"v":1,"id":1,"method":"initialize","params":{"session":{"mode":"new"},"interactive":{"permissions":true,"questions":true}}}
+```
+
+To resume, replace the session selection with `{"mode":"resume","id":"EXACT_SESSION_ID"}`.
+Wait for the initialization response, then use its `payload.connection_id` and
+`session_id` in subsequent requests:
+
+```json
+{"v":1,"id":2,"method":"run","connection_id":"CONNECTION_ID","params":{"session_id":"SESSION_ID","prompt":"Inspect the failing test","agent":null}}
+```
+
+Each process accepts one run. Request IDs must increase. Server frames contain
+`v`, `seq`, `kind`, `request_id`, `session_id`, `run_id` and `payload`; clients
+must retain their exact correlation and reject malformed or mismatched frames.
+Permission/question replies use the supplied decision ID and generation plus
+the current connection, session and run. Declaring an input capability requires
+the client to handle those requests; unavailable channels never fabricate answers.
+Use `cancel` with the original run request ID and observed operation ID, or
+`shutdown` with empty parameters. There is no automatic reconnect or replay.
+
+`cli.headless_protocol` and `cli.headless_control` supply the codec and connection
+state machine. They validate bounded UTF-8 JSON lines, explicit
+new/resume selection, monotonic request IDs and exact session/run/decision
+correlation. Frames are limited to 1 MiB, decoder feeds to 64 KiB and nesting to
+16 levels. Duplicate keys, non-finite numbers and malformed input fail with
+value-free codes. Request parameters retain execution input and are excluded
+from object representations.
+
+The codec and control modules perform no I/O and grant no runtime authority.
+The `cli.headless_runtime.HeadlessRuntime` adapter binds one run to
+the shared orchestrator, workflow, session store and usage ledger. A trusted
+embedding transfers an idle `CoreContext` exclusively, serializes control calls
+and supplies a cancellable asynchronous byte sink. Existing shared-runtime
+claims are checked; concurrent direct calls into raw context components are
+outside this ownership contract. Resume lookup requires the exact session ID
+and current project scope.
+
+Admission supplies the actual operation identity before provider work. Permission
+and question replies require a live matching decision, generation, connection,
+session and run; clients without the corresponding capability receive an explicit
+unavailable result. Cancellation always names the run request; a null operation
+ID means admission has not yet been observed, while a supplied ID must match.
+Fresh ancestor execution guards also apply to scoped registries. Background task
+launch and LSP process lifecycle are unavailable; shell/Python execution requires
+explicit `background=false`.
+
+Evidence uses the shared credential projection and bounded, serialized writes
+(at most eight writers, four control replies and four waiting prompts). Execution
+settlement is separate from output delivery. Runtime results follow persistence
+and owned cleanup, retain incomplete failures, and never claim task verification.
+Transport loss aborts delivery; concurrent or cancelled `aclose()` callers still
+join the same owned cleanup. The stdio owner also joins startup, configured MCP
+connections and owned provider SDK clients. Startup uses existing configured MCP
+policy; it does not launch an interactive OAuth flow.
+
+Pipe reads are nonblocking. Each complete frame has an absolute 30-second write
+deadline, including the terminal result; a slow reader cannot reset that deadline.
+A timeout, broken pipe or cancelled partial write retires output permanently.
+Input EOF stops the run and is a delivery failure, even if execution had already
+completed and persisted that outcome. `SIGINT`/`SIGTERM` request joined shutdown.
+The exit status reports delivery and cleanup as well as execution:
+
+| Exit | Meaning |
+|------|---------|
+| 0 | Completed runtime result fully delivered and cleanup joined, or explicit no-work shutdown |
+| 130 | Explicit cancellation delivered with cleanup joined, or interruption before a run |
+| 1 | Failed, incomplete or rejected execution; transport loss; or cleanup/delivery failure |
+| 2 | CLI, protocol or startup rejection |
+
+A delivered `completed` result retains `task_verified: false`; process exit does
+not certify task correctness. Persisted execution evidence is not rewritten to
+pretend a terminal frame reached its consumer. This transport is not an OS
+sandbox.
+
+#### Neovim pilot
+
+The opt-in **Neovim 0.12.6 on Linux** client exports with
+`henchman ide export neovim DESTINATION`; export writes its Lua module without
+launching a runtime. Explicit setup supplies the project and argv executable,
+then `HenchmanNew` or `HenchmanResume` selects the session. The client adds repeated
+`--editor-path` arguments for saved existing files. That admission guard permits
+only the six qualified builtin implementations and intersects existing policy;
+pytest still executes trusted project code and is not filesystem confinement.
+
+`HenchmanReview` reads bounded checkpoint evidence correlated by the actual
+operation run, without applying a restore decision. Buffer holds preserve unsaved
+edits and restore options after settlement; disk changes require an explicit
+review and normal editor reconciliation. See the [Neovim guide](neovim.md) for
+installation, selection, commands, limits and the automated qualification scope,
+and [checkpoint commands](checkpoints.md#user-commands) for revision-bound restore.
+
 ## HTTP service health
 
 The FastAPI service exposes two operational endpoints under `/v1`:
@@ -26,6 +153,77 @@ version:
   "agent_ready": true
 }
 ```
+
+## HTTP chat and task usage
+
+`POST /v1/chat/completions` starts an isolated process-owned run from a nonempty
+`messages` array ending in a user message. Optional `system_prompt` replaces
+system messages for that new run. The response includes a server-generated
+`run_id`, `accounting_lifetime: "process"` and a nullable `budget` aggregate.
+Concurrent root requests use separate agents and histories.
+
+```json
+{"messages": [{"role": "user", "content": "Explain this function"}]}
+```
+
+When the response requests tools, the caller executes them and submits exactly
+one result for each pending call, retaining the original `run_id`:
+
+```json
+{
+  "run_id": "<original run ID>",
+  "messages": [{"role": "tool", "tool_call_id": "<pending ID>", "content": "result"}]
+}
+```
+
+Continuation appends those results to the retained conversation and shares its
+consumed budget. A full transcript is accepted only if its prefix exactly matches
+the authoritative history. Completed or interrupted runs cannot be restarted by
+resubmitting their ID. Same-run concurrent requests return 409. Unknown, evicted,
+restarted or foreign caller IDs return 404 without creating a fresh budget.
+
+With authentication required, verified `X-API-Key` identity owns each run; raw
+keys are not stored in run records. With authentication disabled, all requests
+share one local authority. `GET /v1/chat/history?run_id=...` and
+`GET /v1/usage?run_id=...` use the same ownership rules. Omitting the ID selects
+that caller's latest retained run. `DELETE /v1/chat/history` hides that run's
+history view while retaining execution history, pending tools and accounting.
+
+`stream: true` or `POST /v1/chat/completions/stream` returns SSE. A `start` event
+identifies the run; content/tool events follow; `done` includes its final budget.
+Failures after headers appear as `error` events with status, run and budget
+information when available. Clients must inspect the event outcome, not only
+the HTTP status. Cancellation retains uncertain dispatched usage.
+
+The shared `usage` settings bound requests, aggregate tokens, elapsed time and
+optional estimated cost. `/v1/usage` returns the selected run's aggregate; costs
+are exact decimal strings separated by currency and provenance under
+`budget.money`. Legacy `total_cost` remains null and `daily_usage` empty; no
+universal rate or date breakdown is invented. `total_tokens` is null while
+dispatched usage is unknown. Unsupported unbounded provider extensions expose
+`budget: null`; configured caps/prices require an instrumented provider.
+
+`budget.usage_breakdown` groups dispatched attempts by provider/model, usage
+source and configured price snapshot. `counts` contains nullable observed token
+subtotals; `counted_requests` gives each field's request coverage, alongside
+dispatched and settled request counts. Unknown-priced attempts remain visible,
+and missing counts remain null. `pricing` is null or contains exact rate strings,
+currency, source and date. These observations do not add to the aggregate, release
+holds or establish actual charges. Credential-bearing labels are projected with
+the runtime's retained evidence policy.
+
+The registry holds at most 1,024 process runs and evicts only completed runs.
+Active, interrupted and tool-waiting runs retain their authority; a full registry
+returns 503. This is process-local storage, without multi-worker or restart
+continuation. `usage.persistence: durable` returns 503 before dispatch until API
+session binding is implemented.
+
+Request-level `max_tokens` and `temperature` are currently unsupported: supplying
+either, including null, returns 422. Configure provider request defaults on the
+server. Unknown fields such as `model` or `tools` also return 422 instead of being
+silently ignored. Tool-result continuation cannot replace the system prompt.
+See [automatic accounting](providers.md#automatic-task-accounting) for reservation
+and billing limits.
 
 ## Core
 
@@ -336,6 +534,7 @@ class Message:
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
+    continuation: dict[str, Any] | None = None  # Non-rendered, versioned provider envelope
 ```
 
 ### StreamChunk
@@ -346,7 +545,12 @@ class StreamChunk:
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
     finish_reason: FinishReason | None = None
+    continuation: dict[str, Any] | None = None
 ```
+
+Continuation is separate from displayed reasoning. Adapters and session restore
+validate its profile, integrity and request binding before dispatch; see
+[provider continuation](providers.md#provider-continuation).
 
 ### FinishReason
 
@@ -464,6 +668,29 @@ class Tool(ABC):
         """Execute the tool."""
 ```
 
+### Local schema validation
+
+`SchemaContract(schema).validate(value)` validates a detached 2020-12 contract
+without modifying the schema or value. `validate_tool_input(parameters, arguments)`
+provides the same check for tool inputs; failures raise `SchemaContractError`
+with a value-free diagnostic. See the [supported bounds and reference rules](standards.md#local-schema-contract-foundation).
+
+`Tool.output_schema` defaults to `None`; implementations may return a canonical
+dictionary or Boolean schema for successful structured output. `Tool.annotations`
+defaults to an empty dictionary and carries no authority. `ToolRegistry.register`
+compiles both input and optional output schemas before publication. Dispatch binds
+schema snapshots to approval and validates successful structured output before
+journaling completion. `validate_tool_output(result, contract)` validates and
+detaches typed evidence; failed tools are exempt from their success-output schema.
+
+```python
+from henchman.tools.contracts import SchemaContract
+
+contract = SchemaContract({"type": "object", "properties": {"label": {"type": ["string", "null"]}}})
+contract.validate({})              # Omitted stays omitted.
+contract.validate({"label": None}) # Explicit null stays null.
+```
+
 ### ToolKind
 
 ```python
@@ -529,6 +756,7 @@ from henchman.config import (
     load_settings,
     Settings,
     ContextLoader,
+    ContextSnapshot,
     ContextSettings,
     ProviderSettings,
     ToolSettings,
@@ -547,9 +775,48 @@ from henchman.config import (
 ### load_settings
 
 ```python
-def load_settings() -> Settings:
+def load_settings(project_root: Path | None = None) -> Settings:
     """Load settings from all sources (defaults, user, workspace, env)."""
 ```
+
+### load_settings_snapshot
+
+```python
+from henchman.config.settings import load_settings_snapshot
+
+snapshot = load_settings_snapshot(project_root=Path.cwd())
+settings = snapshot.settings
+origin = snapshot.origins["providers.default"]
+```
+
+The loader returns validated `Settings` and a mapping from dotted leaf paths to
+`SettingOrigin(scope, source)` from the same load. Scopes are `default`, `global`,
+`project`, `file` for a selected `HENCHMAN_SETTINGS_PATH`, and `environment`.
+Sources identify the settings path or environment variable name; default sources
+are `None`. An overlay remains the origin even when its value equals the lower
+layer. A nonexistent explicit file retains the existing global/project fallback.
+`load_settings` delegates to this loader and returns only its settings.
+
+Snapshot values can contain credentials. Apply the existing configuration display
+redaction before showing or exporting them. Config get/view/list consume this
+inspection path; transient session overrides remain follow-up work for v0.4.2.
+
+### SettingsRepository.inspect
+
+```python
+from henchman.config.repository import SettingsRepository, SettingsScope
+
+entries = SettingsRepository(project_root=Path.cwd()).inspect()
+entry = entries["ui.theme"]
+# entry.value and entry.origin come from one merged snapshot.
+```
+
+The mapping contains dotted leaf keys with `SettingInspection(value, origin)`
+entries. An explicit `scope=SettingsScope.GLOBAL` or `SettingsScope.PROJECT`
+returns only that scope's persisted values and selected source file, without
+defaults or environment overrides. Project reads preserve the existing legacy
+fallback; writes still use canonical `.henchman`. Inspection does not write files.
+Apply display redaction before exposing values containing credentials.
 
 ### Settings
 
@@ -567,6 +834,17 @@ class Settings:
 ### ContextLoader
 
 ```python
+class ContextSnapshot:
+    sources: tuple[ContextSource, ...]
+    content: str
+
+    @property
+    def digest(self) -> str: ...        # SHA-256 of rendered content
+    @property
+    def truncated_sources(self) -> tuple[ContextSource, ...]: ...
+    def diagnostics(self) -> tuple[ContextSourceDiagnostic, ...]: ...
+    def to_dict(self, *, include_content: bool = False) -> dict: ...
+
 class ContextLoader:
     def __init__(
         self,
@@ -575,14 +853,21 @@ class ContextLoader:
         *,
         include_subdirs: bool = False,
         start_dir: Path | None = None,
+        max_source_chars: int | None = None,
     ) -> None:
         """Initialize context loader."""
-    
+
     def discover_files(self) -> list[Path]:
         """Discover context files."""
-    
+
     def load(self) -> str:
         """Load and concatenate context files."""
+
+    def load_snapshot(self) -> ContextSnapshot:
+        """Capture ordered sources, provenance and the rendered content."""
+
+    def load_for_path(self, target: Path) -> ContextSnapshot:
+        """Re-resolve instructions for another subtree; rejects outside targets."""
 ```
 
 Context discovery is repository-bounded. When `start_dir` is inside Git, ancestor discovery stops at the Git root; outside Git, it stops at `start_dir` itself and subdirectory discovery is disabled. Global context under `~/.henchman/` is collected separately.
@@ -809,6 +1094,23 @@ stall, and timeout outcomes. They establish execution evidence, not correctness:
 completion events include `task_verified: false` and runtime activity in `evidence`.
 See [completion semantics](architecture.md#overview).
 
+Explicit Python repair callers use:
+
+```python
+from henchman.advanced.verification_repair import RepairRequest
+
+report = await orchestrator.repair_direct(
+    role, user_input, request, on_event=handle_event,
+)
+```
+
+`request` is a caller-created `RepairRequest` with fixed plan, editable files,
+protected criteria and limits. `handle_event` is an optional async callback;
+`budget_scope` and `invocation` can bind existing runtime accounting. Initial and
+final checks share one public run, budget and operation journal with the repair
+attempts. A `scoped_pass` records the selected checks and retains
+`task_verified: false`. See the [scope and control contract](tools.md#bounded-repair-library).
+
 ### AgentPool
 
 ```python
@@ -957,6 +1259,15 @@ from henchman.mcp import (
 
 ### McpClient
 
+The client pins SDK 2.3.0 and uses bounded stdio or Streamable HTTP adapters with
+single-dispatch tool requests. Both public config types share validation. See
+[transport options](mcp.md#configuration-options), [HTTP limits](mcp.md#streamable-http)
+and [telemetry limits](mcp.md#stdio-wire-limits-and-telemetry).
+`protocol_version: str | None` reports negotiated protocol metadata while
+connected and clears on disconnect/failure. See the
+[tested compatibility profiles](standards.md#implemented-compatibility-foundation-v042-work)
+and remaining fidelity/migration gates.
+
 ```python
 class McpClient:
     def __init__(self, name: str, config: McpServerConfig) -> None:
@@ -1068,10 +1379,11 @@ class KnowledgeGraph:
 ```python
 from henchman.metrics import (
     MetricsStorage,
-    PerformanceMetrics,
-    QualityMetrics,
-    ToolMetrics,
-    OrchestratorMetrics,
+    TokenMetric,
+    CostMetric,
+    ToolMetric,
+    UsageMetric,
+    PerformanceMetric,
     MetricsExporter,
 )
 ```
@@ -1080,13 +1392,19 @@ from henchman.metrics import (
 
 ```python
 class MetricsStorage:
-    def store_metric(self, metric: dict[str, Any]) -> None:
+    def __init__(self, db_path: str | Path | None = None,
+                 retention_days: int | None = 30, max_metrics: int | None = 100000,
+                 *, evidence_redactor: EvidenceRedactor | None = None) -> None: ...
+
+    def store_metric(self, metric: BaseMetric) -> None:
         """Store a metric."""
     
-    def query_metrics(
+    def get_metrics(
         self,
-        filters: dict[str, Any] | None = None,
-        limit: int = 100
+        metric_type: MetricType | None = None,
+        session_id: str | None = None, agent_id: str | None = None,
+        start_date: datetime | None = None, end_date: datetime | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """Query metrics with filters."""
     
@@ -1098,6 +1416,9 @@ class MetricsStorage:
 
 ```python
 class MetricsExporter:
+    def __init__(self, metrics_storage: MetricsStorage, *,
+                 evidence_redactor: EvidenceRedactor | None = None) -> None: ...
+
     def export_to_json(self, filepath: str, **filters: Any) -> None:
         """Export metrics to JSON file."""
     
@@ -1113,6 +1434,13 @@ class MetricsExporter:
     def get_available_formats(self) -> list[str]:
         """Get list of available export formats."""
 ```
+
+Storage and exports project evidence without changing live metric objects or
+query arguments. Bind a runtime policy explicitly when credentials come from
+settings rather than environment variables. The exporter inherits the storage
+policy; an explicitly supplied policy adds to inherited credentials and later
+rotations rather than replacing them. Legacy reads do not sanitize
+database bytes. See the [redaction boundary](configuration.md#session-evidence-redaction).
 
 ## Utilities
 

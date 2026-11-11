@@ -7,6 +7,7 @@ a proper run() method and that all code paths properly invoke it.
 from __future__ import annotations
 
 import inspect
+import os
 import subprocess
 import sys
 from io import StringIO
@@ -188,23 +189,45 @@ class TestCliEntrypointRuns:
         assert "AttributeError" not in result.stderr, f"AttributeError in stderr: {result.stderr}"
 
     def test_cli_with_prompt_no_attribute_error(self, tmp_path: Path) -> None:
-        """CLI with --prompt doesn't throw AttributeError."""
+        """Exercise the real entry point with an offline, completed provider turn."""
         settings_path = tmp_path / "settings.yaml"
         settings_path.write_text("rag:\n  enabled: false\n", encoding="utf-8")
+        script = """
+import sys
+def deny_network(event, args):
+    if event in {'socket.getaddrinfo', 'socket.connect'}:
+        raise RuntimeError('Entrypoint test attempted network access')
+sys.addaudithook(deny_network)
+from unittest.mock import patch
+from henchman.cli import app
+from henchman.providers.base import FinishReason, ModelProvider, StreamChunk
+class ScriptedProvider(ModelProvider):
+    @property
+    def name(self):
+        return 'scripted'
+    async def chat_completion_stream(self, messages, tools=None, **kwargs):
+        assert any(message.role == 'user' and message.content == 'test' for message in messages)
+        yield StreamChunk(content='offline-entrypoint-response', finish_reason=FinishReason.STOP)
+sys.argv = ['henchman', '--prompt', 'test']
+with patch.object(app, '_get_provider', return_value=ScriptedProvider()):
+    app.main()
+"""
         result = subprocess.run(
-            [sys.executable, "-m", "henchman.cli.app", "--prompt", "test"],
+            [sys.executable, "-c", script],
             capture_output=True,
             text=True,
-            timeout=10,
+            input="",
+            timeout=30,
+            cwd=tmp_path,
             env={
-                **__import__("os").environ,
-                "DEEPSEEK_API_KEY": "test-key",
+                **os.environ,
                 "HENCHMAN_SETTINGS_PATH": str(settings_path),
             },
         )
 
-        # Even if it fails for other reasons, AttributeError should not be there
-        assert "AttributeError: 'Repl' object has no attribute 'run'" not in result.stderr
+        assert result.returncode == 0, result.stderr
+        assert "offline-entrypoint-response" in result.stdout
+        assert "AttributeError" not in result.stderr
 
 
 class TestInteractiveReplLoop:

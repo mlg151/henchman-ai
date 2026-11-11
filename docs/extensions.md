@@ -8,6 +8,22 @@ Henchman-AI supports multiple extension mechanisms for adding custom functionali
 | **UI Plugins** | Extend the CLI with custom slash commands and UI elements | `~/.henchman/plugins/` |
 | **Marketplace boundary** | Guard remote install attempts and report unavailable registry metadata | Remote installs unavailable in this variant |
 
+## Editor client exports
+
+`henchman ide list` lists bundled IDE exports; `henchman ide export neovim
+DESTINATION` writes the opt-in **Neovim 0.12.6 on Linux** client to
+`lua/henchman/init.lua`. This export contains a runnable client for the shared
+[editor stdio protocol](api.md#editor-stdio-protocol-v1), rather than only a
+placeholder integration. The export command itself only writes files: it does
+not activate the client, configure a provider or launch a runtime. Other IDE
+blueprints are not qualified clients for that protocol.
+
+Follow the [Neovim guide](neovim.md) for explicit setup, project/session selection,
+saved-buffer protection, decisions, cancellation and read-only checkpoint review.
+The pilot admits only its six exact builtin tool implementations; loading a
+custom extension does not grant its tools selected-file execution authority.
+Pytest executes trusted project code, and completion does not certify the task.
+
 ## Extension Types
 
 Extensions can provide:
@@ -19,6 +35,10 @@ Extensions can provide:
 | **Context** | Additional system prompt context |
 
 **Note**: Custom provider extensions are not currently supported. Use the built-in provider system instead.
+
+[MCP resource and prompt previews](mcp.md#resource-and-prompt-previews) use an
+explicit retrieval path. Their remote contents and roles are displayed as
+untrusted data and never enter extension `get_context()` or system instructions.
 
 ## Creating Extensions
 
@@ -124,6 +144,17 @@ class MyExtension(Extension):
 
 ### Adding Custom Tools
 
+The [local schema contract API](api.md#local-schema-validation) validates bounded
+2020-12 input/output schemas without coercion or remote reference retrieval.
+Registration compiles `parameters` and optional `output_schema` before the tool
+becomes discoverable. A successful result with an output schema must provide
+`structured_content_present=True` and a conforming `structured_content` value;
+explicit null is supported when the schema permits it. Failed results need not
+satisfy the success schema. Invalid output becomes a value-free failed observation
+after execution; it does not authorize retrying the effect. Schema changes during
+approval require fresh authority. `annotations` are descriptive hints and never
+grant permissions. See [provider projection limits](standards.md#provider-schema-projections).
+
 ```python
 from henchman.tools import Tool, ToolKind, ToolResult
 
@@ -170,6 +201,13 @@ invocation's `ToolKind` so confirmation, Plan Mode, network retries and automati
 formatting use the actual mode. The default returns `self.kind`. For example,
 `lint_check` is listed as READ but classifies `fix=True` as WRITE. An override of
 `needs_confirmation` remains responsible for its own confirmation behavior.
+
+A mutating tool may implement `checkpoint_paths(params) -> tuple[str, ...] | None`
+with a pure declaration of exact file targets, including both sides of a rename.
+The default `None` reports automatic capture as unavailable. Do not discover
+ownership by scanning directories or Git status. A declaration grants no access;
+the registry retains current authorization and captures only eligible project
+paths during a correlated operation run. See [automatic checkpoints](checkpoints.md#automatic-tool-capture).
 
 ### Adding Custom Commands
 

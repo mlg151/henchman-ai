@@ -8,6 +8,7 @@ and error messages.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
@@ -21,12 +22,40 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from henchman.cli.console import OutputRenderer
+from henchman.cli.console import OutputRenderer, console_for_output_mode
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     from rich.status import Status
+
+
+class _TranscriptStatus:
+    """A static status context with no Live display or refresh task."""
+
+    def __init__(self, console: Console, message: str, *, quiet: bool) -> None:
+        self.console = console
+        self.message = message
+        self.quiet = quiet
+
+    def __enter__(self) -> _TranscriptStatus:
+        self.start()
+        return self
+
+    def __exit__(self, exc_type: type[BaseException] | None, exc: BaseException | None,
+                 traceback: TracebackType | None) -> None:
+        self.stop()
+
+    def start(self) -> None:
+        if not self.quiet:
+            self.console.print(self.message)
+
+    def update(self, status: str | None = None, **kwargs: Any) -> None:
+        if status is not None:
+            self.message = status
+
+    def stop(self) -> None:
+        pass
 
 
 class ProgressManager:
@@ -36,7 +65,7 @@ class ProgressManager:
     component. It supports tracking multiple tasks by ID.
     """
 
-    def __init__(self: ProgressManager, console: Console) -> None:
+    def __init__(self: ProgressManager, console: Console, output_mode: str = "rich") -> None:
         """Initialize the progress manager.
 
         Args:
@@ -44,6 +73,7 @@ class ProgressManager:
 
         """
         self.console = console
+        self.output_mode = output_mode
         self.tasks: dict[str, tuple[Progress, TaskID]] = {}
 
     def start_task(
@@ -70,9 +100,13 @@ class ProgressManager:
             TimeRemainingColumn(),
             console=self.console,
             transient=True,
+            disable=self.output_mode != "rich",
+            auto_refresh=self.output_mode == "rich",
         )
         task = progress.add_task(description, total=total)
         progress.start()
+        if self.output_mode == "plain":
+            self.console.print(f"[working] {description}", markup=False)
         self.tasks[task_id] = (progress, task)
         return progress
 
@@ -140,6 +174,7 @@ class UIRenderer:
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
         layout_settings: object | None = None,
+        output_mode: str = "rich",
     ) -> None:
         """Initialize the UI renderer.
 
@@ -149,17 +184,24 @@ class UIRenderer:
             accessible_mode: Whether to enable high-accessibility mode.
             style_overrides: Optional style overrides.
             layout_settings: Optional layout settings.
+            output_mode: Captured transcript mode, inherited from a supplied renderer.
 
         """
-        self.console = console or Console()
+        if isinstance(renderer, OutputRenderer):
+            output_mode = renderer.output_mode
+            if console is None:
+                console = renderer.console
+        self.output_mode = output_mode
+        self.console = console_for_output_mode(console or Console(), output_mode)
         self.renderer = renderer or OutputRenderer(
             console=self.console,
             accessible_mode=accessible_mode,
             style_overrides=style_overrides,
             layout_settings=layout_settings,
+            output_mode=output_mode,
         )
-        self.progress_manager = ProgressManager(self.console)
-        self._thinking_status: Status | None = None
+        self.progress_manager = ProgressManager(self.console, output_mode)
+        self._thinking_status: Status | _TranscriptStatus | None = None
         self._is_thinking: bool = False
 
     def __getattr__(self: UIRenderer, name: str) -> Any:
@@ -201,6 +243,8 @@ class UIRenderer:
             None
 
         """
+        if self.output_mode == "quiet":
+            return
         self.console.print(
             "[bold blue]Henchman-AI[/] - /help for commands, /quit to exit\n",
         )
@@ -212,19 +256,22 @@ class UIRenderer:
             None
 
         """
-        self.console.print("[dim]Goodbye![/]")
+        if self.output_mode != "quiet":
+            self.console.print("[dim]Goodbye![/]")
 
-    def create_status(self: UIRenderer, message: str, spinner: str = "dots") -> Status:
-        """Create a rich status context manager.
+    def create_status(self: UIRenderer, message: str, spinner: str = "dots") -> Status | _TranscriptStatus:
+        """Create an animated rich status or a static transcript context.
 
         Args:
             message: Status message text.
             spinner: Spinner style.
 
         Returns:
-            Rich Status context manager.
+            Status context without a refresh task in plain/quiet modes.
 
         """
+        if self.output_mode != "rich":
+            return _TranscriptStatus(self.console, message, quiet=self.output_mode == "quiet")
         return self.console.status(message, spinner=spinner)
 
     def start_thinking(
@@ -249,7 +296,7 @@ class UIRenderer:
         if message:
             thinking_msg += f" {escape(message)}"
 
-        self._thinking_status = self.console.status(thinking_msg, spinner=spinner)
+        self._thinking_status = self.create_status(thinking_msg, spinner=spinner)
         try:
             self._thinking_status.__enter__()
             self._is_thinking = True

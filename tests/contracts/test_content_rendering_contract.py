@@ -173,9 +173,10 @@ class TestDispatchEventContentRendering:
         from henchman.core.events import AgentEvent, EventType
 
         oh = MagicMock()
-        # Capture print_agent_content calls
-        captured: list[str] = []
-        oh.print_agent_content = lambda content: captured.append(content)
+        # Assert visible output through the actual Rich renderer.
+        console = Console(file=StringIO(), width=120, force_terminal=False)
+        renderer = UIRenderer(console=console)
+        oh.print_agent_content = renderer.print_agent_content
         # Other methods must exist for dispatch
         oh.print_newline = MagicMock()
         oh.warning = MagicMock()
@@ -194,9 +195,9 @@ class TestDispatchEventContentRendering:
         )
         dispatch_event(oh, event, state, agent, [])
 
-        assert len(captured) == 1
-        assert "list[str]" in captured[0]
-        assert "dict[str, int]" in captured[0]
+        rendered = console.file.getvalue()
+        assert "list[str]" in rendered
+        assert "dict[str, int]" in rendered
 
     def test_content_event_preserves_markdown_link(self) -> None:
         from unittest.mock import MagicMock

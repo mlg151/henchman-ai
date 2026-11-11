@@ -67,11 +67,11 @@ def _make_app(
     provider = MagicMock()
     provider.name = provider_name
 
-    settings = MagicMock()
+    settings = Settings()
     settings.ui.theme = "dark"
     settings.ui.keybindings = {}
     settings.ui.mcp_logging = False
-    settings.mcp_servers = None
+    settings.mcp_servers = {}
 
     config = TextualConfig(
         system_prompt="You are a test assistant.",

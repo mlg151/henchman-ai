@@ -1,5 +1,63 @@
 # Getting Started
 
+`henchman checkpoint` and interactive `/checkpoint` share file/hunk review,
+preview, apply and interrupted-restore recovery. Captures include explicit API
+scopes and declared automatic tool writes. Textual F8 opens the dedicated review.
+See [commands and current platform limits](checkpoints.md#user-commands).
+
+## Textual input and reading history
+
+In the Textual UI, Enter or Ctrl+Enter submits a draft; Shift+Enter or Ctrl+J
+inserts a newline. Multiline paste stays in the composer until submission.
+Escape requests cancellation during work and preserves an unsent draft.
+
+Scrolling into history, searching or expanding a card holds the reading
+position while new output arrives. The navigation row shows new activity.
+Use **Return to live**, Alt+End, or End with the transcript focused to resume
+following. Alt+Page Up/Down scrolls history from the composer without changing
+the draft. If the terminal intercepts an extended key, Tab to the visible button.
+See the [interaction contract](ui-interaction-contract.md) for supported states
+and the remaining native/accessibility qualification.
+
+In Textual, open **Context → Context and usage** for the selected session's
+context estimate, retention policy and run usage. Refresh explicitly with F5;
+Back/Escape preserves your draft. Unknown costs and save acknowledgement stay
+unavailable. See the [inspection contract](ui-interaction-contract.md#context-and-usage-inspection).
+
+Use **Context → Sessions** to search saved sessions in the current project.
+Enter inspects; **Resume** offers saving the current session first or switching
+without saving. Your composer draft stays intact, and queued inputs and goals
+remain held. See [session browsing](ui-interaction-contract.md#saved-session-browsing).
+
+Use **Workspace → Tasks and agents** to inspect existing child conversations or
+project tasks. Enter opens details, F5 refreshes the observation, and Back returns
+to the list and then your prior focus. Running, waiting for input, failed,
+cancelled and unknown states remain distinct. See
+[work inspection](ui-interaction-contract.md#task-and-agent-inspection).
+
+To compose in a local editor, set `VISUAL` or `EDITOR` to a command that waits
+for editing to finish, then press **F11** in the idle classic prompt or choose
+**External editor** in Textual. Returning updates the unsent draft for review.
+This currently requires a POSIX foreground terminal and unrestricted, non-plan
+policy. See [editor behavior and limits](ui-interaction-contract.md#external-editor-composition).
+
+## Plain or quiet output
+
+Set `henchman config set ui.output_mode plain --scope global`, then start a new
+classic `henchman chat` session for an unstyled transcript with static progress.
+Use `quiet` to hide routine progress chatter while retaining answers, commands,
+approvals, questions, warnings and failures. Use `rich` to restore the default.
+A new Textual launch also uses the selected mode for transcript and command
+rendering. Quiet keeps tool cards available for inspection and preserves explicit
+decisions, failures and status. These settings leave explicit `--tui` selection
+unchanged. See
+[output controls](configuration.md#terminal-ui-controls) for the current runtime limits.
+
+For Vim editing in the classic REPL, set
+`henchman config set ui.keyboard_mode vim --scope global` and start a new session.
+Idle Escape enters normal mode while preserving the draft; active-turn Escape
+still requests cancellation. Use `standard` to restore the default editing profile.
+
 ## Prerequisites
 
 - **Python 3.11–3.14**: These are the currently supported and CI-tested Python versions
@@ -33,21 +91,20 @@ The normal install resolves `chromadb>=1.5.9` for RAG storage and `scipy>=1.11.2
 
 ### Platform verification
 
-The CI configuration includes a Python 3.12 installed-wheel job on Linux, macOS,
-and Windows. It checks both CLI aliases, local RAG storage and native file locking,
-shell behavior, bounded Python quality scans, real REPL/Textual question input and interruption, and an offline
-five-provider read/edit/test/recover workflow outside
-the source checkout. The broader Python 3.11–3.14 test matrix runs on Linux.
+CI runs full Linux tests and installed-wheel checks on Linux, macOS and Windows
+for Python 3.11–3.14. Candidate `4940cc9` passed
+[all 20 required jobs](https://github.com/mlg151/henchman-ai/actions/runs/41808758654).
+The wheel checks run outside the checkout and cover both CLI aliases, local RAG,
+native file/shell behavior, bounded Python verification, question input and
+cancellation, and small scripted coding workflows through five provider adapters.
 
-The Linux Python 3.12 wheel workflow has also passed locally in a fresh environment,
-including both CLI aliases, question channels, and all five scripted-provider coding loops. This
-verifies installed runtime behavior, not live model task quality.
-
-Native Windows/macOS results must pass before treating those platforms as verified.
-The current local development checks do not establish that result. See
-[`FEATURE_TODO.md`](../FEATURE_TODO.md#coding-agent-reliability-and-portability)
-for outstanding verification and [shell behavior](tools.md#shell) for host syntax
-and interactive-terminal limits.
+This is automated installed-runtime evidence. Later feature changes, live coding
+quality, native interactive usability and exact publication artifacts still need
+their checks under #13, #30 and #36. See the
+[roadmap](../FEATURE_TODO.md#coding-agent-reliability-and-portability) and
+[shell behavior](tools.md#shell) for outstanding work and terminal limits.
+For v0.4.2 strict-field migration and transient Python API notes, see
+[configuration](configuration.md).
 
 ## API Key Setup
 
@@ -106,6 +163,10 @@ Henchman-AI also supports OpenRouter, Together AI, Groq, Fireworks AI, and other
 
 ## First Run
 
+### Project instruction files
+
+Henchman loads project instructions before the first message. `HENCHMAN.md` stays the primary file; portable `AGENTS.md` (per the cross-tool convention) is also discovered by default, along with `.henchman/HENCHMAN.md`, `.github/copilot-instructions.md` and `.gemini/GEMINI.md`. In a Git repository, files load from the repository root down to the current directory; deeper directories take precedence by position, and sibling directories never leak into each other. Outside Git, only the current directory is read. Attached sessions record which instruction files were in force (paths, scopes, order and digests — never the text), so resumed sessions and audits can see the same provenance. See [configuration](configuration.md#context-files-henchmanmd-and-agentsmd) for the full precedence rules and boundaries.
+
 ### Interactive Mode
 
 Start the interactive REPL:
@@ -137,6 +198,18 @@ henchman chat -p "Explain @file.py"
 henchman chat --prompt "Review the Python code in @file.py"
 ```
 
+For scripts, `--output-format json` or `stream-json` produces one JSON event per
+line without terminal-width wrapping or emoji substitution. `json-complete`
+produces an indented array; see [the output contract](api.md#headless-json-output).
+
+Editor clients can use `henchman headless --protocol-version 1 --project PATH`
+with POSIX stdin/stdout pipes. This separate bidirectional interface requires
+explicit session selection and correlated approval replies; see the
+[editor protocol](api.md#editor-stdio-protocol-v1). The opt-in
+[Neovim 0.12.6 on Linux pilot](neovim.md) exports with `henchman ide export neovim
+DESTINATION` and supports saved-file selection, explicit new/resume, decisions,
+cancellation and read-only recorded-diff review. Export does not activate it.
+
 ## Slash Commands
 
 | Command | Description |
@@ -156,9 +229,10 @@ henchman chat --prompt "Review the Python code in @file.py"
 | `/chat resume <tag>` | Resume a session |
 
 `/chat resume` also accepts a full session ID. It restores assistant/tool history
-and retained provider text reasoning for continuation without printing that
-reasoning in the chat display. See [provider streaming limits](providers.md#streaming-reliability)
-for the distinction between text and structured reasoning support.
+and supported provider continuation envelopes without displaying opaque payloads.
+Incompatible or unavailable continuation stops dispatch explicitly. See
+[provider continuation](providers.md#provider-continuation) for supported profiles
+and the distinction from visible reasoning.
 
 Shell and Python tool calls run in the background by default. You can keep
 submitting messages while the agent works; they run in order at turn boundaries.

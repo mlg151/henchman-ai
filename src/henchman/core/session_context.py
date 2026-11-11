@@ -8,8 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from henchman.providers.base import Message
+from henchman.providers.continuation import copy_continuation
 from henchman.utils.tokens import TokenCounter
+from henchman.utils.tool_results import copy_tool_result_payload
 
+from .operation_bindings import compact_operation_bindings
 from .session_data import Session
 from .session_export import export_as_markdown
 from .session_helpers import _now_iso
@@ -49,6 +52,8 @@ class SessionContextSnapshot:
     token_estimate: int
     tool_usage: ToolUsageSummary
     memory_count: int
+    memory_extraction_opt_out: bool
+    compacted_turn_count: int
     last_updated: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,6 +69,8 @@ class SessionContextSnapshot:
             "token_estimate": self.token_estimate,
             "tool_usage": self.tool_usage.to_dict(),
             "memory_count": self.memory_count,
+            "memory_extraction_opt_out": self.memory_extraction_opt_out,
+            "compacted_turn_count": self.compacted_turn_count,
             "last_updated": self.last_updated,
         }
 
@@ -166,6 +173,9 @@ def _message_to_provider_message(message: SessionMessage) -> Message:
         tool_call_id=message.tool_call_id,
         reasoning_content=message.reasoning_content,
         reasoning_details=message.reasoning_details,
+        continuation=copy_continuation(message.continuation),
+        tool_result=copy_tool_result_payload(message.tool_result),
+        context_attachments=message.context_attachments,
     )
 
 
@@ -226,7 +236,7 @@ class SessionContextService:
 
         if current_session_id is not None:
             try:
-                session = self._manager.load(current_session_id)
+                session = self._manager.load(current_session_id, project_hash=project_hash)
             except FileNotFoundError:
                 self._manager.clear_project_current(project_hash)
             else:
@@ -238,7 +248,7 @@ class SessionContextService:
             msg = "No saved sessions for the current project."
             raise ValueError(msg)
 
-        session = self._manager.load(sessions[0].id)
+        session = self._manager.load(sessions[0].id, project_hash=project_hash)
         self._manager.set_project_current(project_hash, session.id)
         self._manager.set_current(session)
         return project_hash, session
@@ -279,8 +289,19 @@ class SessionContextService:
         return export_as_markdown(session, include_metadata=True)
 
     def build_snapshot(self, session: Session) -> SessionContextSnapshot:
-        """Build a structured snapshot of session/context state."""
+        """Build the single effective retention-policy report for one session.
 
+        Every surface that reports session retention state (the headless
+        ``context`` command, the REPL ``/session export`` and the Textual
+        export path) consumes this snapshot or the same shared services it
+        reads, so all surfaces report the same effective policy.
+        """
+
+        compacted_turn_count = sum(
+            len(record.source_turns)
+            for record in session.turn_summaries
+            if record.kind == "compaction"
+        )
         return SessionContextSnapshot(
             session_id=session.id,
             tag=session.tag,
@@ -291,6 +312,8 @@ class SessionContextService:
             token_estimate=self.estimate_tokens(session),
             tool_usage=self.summarize_tool_use(session),
             memory_count=len(self._memory_service.list_memories(session)),
+            memory_extraction_opt_out=self._memory_service.extraction_opt_out(session),
+            compacted_turn_count=compacted_turn_count,
             last_updated=session.last_updated,
         )
 
@@ -314,15 +337,32 @@ class SessionContextService:
         kept_turns = turns[-preserve_turns:] if preserve_turns else []
         removed_messages = len(_flatten(dropped_turns))
         summary = _build_compaction_summary(dropped_turns, removed_messages)
+        # The record names the absolute 1-based user-anchored turn numbers
+        # it covers (offset by earlier compactions) and retains their
+        # original messages so they stay recoverable.
+        prior_compacted = sum(
+            len(record.source_turns)
+            for record in session.turn_summaries
+            if record.kind == "compaction"
+        )
+        source_turns = list(range(prior_compacted + 1, prior_compacted + len(dropped_turns) + 1))
+
+        operations = compact_operation_bindings(
+            session.operations, session.messages, start=len(prefix), stop=len(prefix) + removed_messages,
+        )
 
         session.turn_summaries.append(
             TurnSummaryRecord(
                 turn_number=len(session.turn_summaries) + 1,
                 summary_text=summary,
                 timestamp=_now_iso(),
+                kind="compaction",
+                source_turns=source_turns,
+                retained_messages=_flatten(dropped_turns),
             ),
         )
         session.messages = [*prefix, *_flatten(kept_turns)]
+        session.operations = operations
         session.last_updated = _now_iso()
 
         return SessionCompactionResult(
@@ -331,6 +371,24 @@ class SessionContextService:
             removed_messages=removed_messages,
             preserved_turns=len(kept_turns),
         )
+
+    def restore_compacted_messages(self, session: Session) -> list[SessionMessage]:
+        """Reconstruct the full original message sequence of a session.
+
+        Combines the messages retained inside compaction records (in record
+        order) with the messages still in the active context, so turns
+        compacted out of the request context remain retrievable and their
+        tool call/result pairs stay intact.
+        """
+
+        # Compaction leaves the non-user prefix in active context. It precedes
+        # every archived turn, including when no active user turns remain.
+        prefix, active_turns = _split_prefix_and_turns(session.messages)
+        restored: list[SessionMessage] = list(prefix)
+        for record in session.turn_summaries:
+            restored.extend(record.retained_messages)
+        restored.extend(_flatten(active_turns))
+        return restored
 
     def rewind_session(self, session: Session, *, turns: int = 1) -> SessionRewindResult:
         """Remove the last *turns* user exchanges from the session in place."""
@@ -366,7 +424,9 @@ class SessionContextService:
             raise ValueError(msg)
 
         branch_point = len(prefix) + len(_flatten(turns[:turn_number]))
-        return self._manager.branch_session(session.id, branch_point, tag=tag)
+        return self._manager.branch_session(
+            session.id, branch_point, tag=tag, project_hash=session.project_hash
+        )
 
 
 __all__ = [

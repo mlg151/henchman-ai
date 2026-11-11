@@ -70,7 +70,7 @@ def test_actual_leader_uses_saved_explicit_provider_settings(
         assert leader.provider.base_url == "https://saved.test/v1"
         assert leader.provider.request_defaults["temperature"] == 0.25
         assert leader.provider.api_key == (
-            "ollama" if name == "ollama" else "saved-test-key"
+            "" if name == "ollama" else "saved-test-key"
         )
     assert leader is orch.pool.get_agent("tech_lead")
 
@@ -121,7 +121,7 @@ def test_leader_prompt_precedence_and_identity(
     )
     prompt = orch.tech_lead.system_prompt
     if expected is not None:
-        assert prompt == expected
+        assert prompt == expected + "\n\n" + orch.delegation_admission.prompt_note()
     else:
         assert "UNIQUE ENVIRONMENT CONTEXT" in prompt
         assert "Primary Coding Agent" in prompt
@@ -162,7 +162,7 @@ async def test_normal_and_direct_leader_share_history_and_reset(
     orch.pool.reset_agent("tech_lead")
     assert not any(message.role == "user" for message in leader.messages)
     assert leader is orch.pool.get_agent("tech_lead")
-    assert leader.system_prompt == "Shared prompt"
+    assert leader.system_prompt == "Shared prompt\n\n" + orch.delegation_admission.prompt_note()
 
 
 class WriteTool(Tool):

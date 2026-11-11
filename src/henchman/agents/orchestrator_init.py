@@ -85,6 +85,8 @@ def _init_core(
     config: OrchestratorConfig,
 ) -> None:
     """Initialize core attributes, metrics, and controllers."""
+    from pathlib import Path
+
     from henchman.config.schema import Settings
     from henchman.tools.registry import ToolRegistry
 
@@ -93,6 +95,15 @@ def _init_core(
     orch.tool_registry = config.tool_registry if config.tool_registry is not None else ToolRegistry()
     orch.event_bus = config.event_bus or EventBus()
     orch.settings = config.settings or Settings()
+    from henchman.agents.delegation_admission import DelegationAdmission
+
+    orch.delegation_admission = DelegationAdmission(
+        orch.settings.agents.max_concurrent_delegations,
+        allowed=orch.settings.agents.allow_delegation,
+    )
+    orch.tool_registry.restrict_tool_settings(
+        orch.settings.tools, project_root=Path.cwd(),
+    )
     orch.environment_context = config.environment_context
     orch.metrics = OrchestratorMetrics()
     orch._reporter = MetricsReporter(orch.metrics)
@@ -132,6 +143,7 @@ def _init_agents(
         metrics=orch.metrics,
         run_agent_loop=orch.execution_controller.run_agent_loop,
         assess_completion=orch.execution_controller.assess_completion,
+        admission=orch.delegation_admission,
     )
     from henchman.agents.subagent_runtime import initialize_subagents
 
@@ -151,6 +163,7 @@ def _create_pool(
         default_provider=default_provider,
         provider_registry=config.provider_registry,
         provider_settings=orch.settings.providers,
+        delegation_admission=orch.delegation_admission,
         parent_tool_registry=orch.tool_registry,
         event_bus=orch.event_bus,
         context_config=ContextConfig(
@@ -161,5 +174,6 @@ def _create_pool(
             adaptive_compression=ctx.adaptive_compression,
             max_tokens=effective_context_budget(ctx.max_tokens, ctx.compaction_threshold),
             context_window=ctx.max_tokens,
+            auto_compact=ctx.auto_compact,
         ),
     )

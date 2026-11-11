@@ -1,0 +1,577 @@
+{
+  "scope": "One local streamed provider request through public Orchestrator.run_direct; accounting evidence only",
+  "checks": {
+    "one_http_request": true,
+    "successful_final_report": true,
+    "reported_usage_provenance": true,
+    "settled_matches_reported_total": true,
+    "reservation_released": true,
+    "one_consumed_request": true,
+    "no_unknown_dispatches": true,
+    "same_process_denied": true,
+    "restart_denied": true,
+    "denied_before_transport_gate": true,
+    "attempt_preserved": true,
+    "run_preserved": true,
+    "provenance_preserved": true,
+    "missing_counts_remain_unknown": true,
+    "explicit_zero_estimate_billing_unknown": true,
+    "clean_source": true,
+    "cpu_allocation": true,
+    "owned_profile_cleanup": true
+  },
+  "provenance": {
+    "started_at": "2026-11-07T22:39:44.015929+00:00",
+    "model": "henchman-budget-cpu-20261107-2248",
+    "base": "ornith1.5:9b",
+    "parameters": {
+      "num_gpu": 0,
+      "num_thread": 14,
+      "num_ctx": 8192,
+      "temperature": 0
+    },
+    "source_commit": "e28b79177eb8d4c46e6fccffe83b4f63c4539e25",
+    "source_clean": true,
+    "profile_api_reference": "https://docs.ollama.com/api/create",
+    "runner_sha256": "d7d1f30467a28653a4d42d34693a4e32b0c944dc7febda022ccbbe2a24a3bf82",
+    "ollama": {
+      "version": "0.40.7"
+    },
+    "base_manifest": [
+      {
+        "name": "ornith1.5:9b",
+        "digest": "fde90266e6077dc19610515813b0065eae248ea2d5ac8064f52e11ca3f5bef3c",
+        "size": 6550813676
+      }
+    ],
+    "effective_parameters": "num_ctx                        8192\nnum_gpu                        0\nnum_thread                     14\ntemperature                    0",
+    "profile_manifest": [
+      {
+        "name": "henchman-budget-cpu-20261107-2248:latest",
+        "digest": "f1c297e2d4efb7b0d1551069bdf98b04605ce1b315d5ff8413c8f2e89914b2f1",
+        "size": 6550813682
+      }
+    ],
+    "post_request_allocation": [
+      {
+        "name": "henchman-budget-cpu-20261107-2248:latest",
+        "size": 6326572808,
+        "size_vram": 0,
+        "context_length": 8192
+      }
+    ],
+    "unload": "completed",
+    "delete": "completed",
+    "finished_at": "2026-11-07T22:40:03.331668+00:00"
+  },
+  "initial_process": {
+    "commit_before_start": "e28b79177eb8d4c46e6fccffe83b4f63c4539e25",
+    "started_at_utc": "2026-11-07T22:39:47.384106+00:00",
+    "process_id": 1491620,
+    "python": "3.12.13",
+    "henchman_version": "0.4.1",
+    "openai_sdk_version": "2.21.0",
+    "endpoint": "http://127.0.0.1:11434/v1",
+    "model": "henchman-budget-cpu-20261107-2248",
+    "external_first_turn_timeout_seconds": 110,
+    "usage_settings": {
+      "limits": {
+        "currency": "USD",
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0"
+      },
+      "prices": [
+        {
+          "currency": "USD",
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "input_per_1k": "0",
+          "output_per_1k": "0",
+          "cache_read_per_1k": "0",
+          "cache_write_per_1k": "0",
+          "source": "explicit-local-qualification",
+          "as_of": "2026-11-07"
+        }
+      ],
+      "persistence": "durable"
+    },
+    "qualification_only": "Shared budget admission and durable retention; not model or coding quality",
+    "harness_sha256": "18aaa0f04d66bb5f2ba1c18ce7274d04653218dd81b1b501eefa22688fde2e61",
+    "first_turn": {
+      "outcome": "completed",
+      "reason": null,
+      "elapsed_seconds": 12.09659475099761,
+      "event_counts": {
+        "agent_started": 1,
+        "content": 1,
+        "finished": 1,
+        "agent_completed": 1
+      },
+      "content_characters": 2,
+      "provider_finishes": [
+        {
+          "finish_reason": "stop",
+          "usage": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0
+          },
+          "usage_source": "reported"
+        }
+      ],
+      "errors": [],
+      "completion_status": "responded"
+    },
+    "after_first_turn": {
+      "run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 29,
+      "held_tokens": 0,
+      "unknown_dispatched_requests": 0,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 12.087333144037984,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": "0",
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": null,
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "usage_breakdown": [
+        {
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "usage_source": "reported",
+          "pricing": {
+            "input_per_1k": "0",
+            "output_per_1k": "0",
+            "cache_read_per_1k": "0",
+            "cache_write_per_1k": "0",
+            "currency": "USD",
+            "source": "explicit-local-qualification",
+            "as_of": "2026-11-07"
+          },
+          "dispatched_requests": 1,
+          "settled_requests": 1,
+          "counts": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null
+          },
+          "counted_requests": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "cached_tokens": 1,
+            "cache_creation_tokens": 0,
+            "reasoning_tokens": 0
+          }
+        }
+      ],
+      "attempts": [
+        {
+          "request_id": "2e1a52ab75344df4a61f172ad9785d4b",
+          "operation_id": "17a1ecd035704bd6a8e6b3ccce902cc2",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "dispatched": true,
+          "state": "finished",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "reported"
+          },
+          "settled_tokens": 29,
+          "held_tokens": 0,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "same_process_second_turn": {
+      "outcome": "budget_control",
+      "reason": "request_limit",
+      "elapsed_seconds": 0.005045000987593085,
+      "event_counts": {
+        "agent_started": 1
+      },
+      "content_characters": 0,
+      "provider_finishes": [],
+      "errors": [],
+      "completion_status": "failed"
+    },
+    "after_second_turn": {
+      "run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 29,
+      "held_tokens": 0,
+      "unknown_dispatched_requests": 0,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 12.093938920996152,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": "0",
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "usage_breakdown": [
+        {
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "usage_source": "reported",
+          "pricing": {
+            "input_per_1k": "0",
+            "output_per_1k": "0",
+            "cache_read_per_1k": "0",
+            "cache_write_per_1k": "0",
+            "currency": "USD",
+            "source": "explicit-local-qualification",
+            "as_of": "2026-11-07"
+          },
+          "dispatched_requests": 1,
+          "settled_requests": 1,
+          "counts": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null
+          },
+          "counted_requests": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "cached_tokens": 1,
+            "cache_creation_tokens": 0,
+            "reasoning_tokens": 0
+          }
+        }
+      ],
+      "attempts": [
+        {
+          "request_id": "2e1a52ab75344df4a61f172ad9785d4b",
+          "operation_id": "17a1ecd035704bd6a8e6b3ccce902cc2",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "dispatched": true,
+          "state": "finished",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "reported"
+          },
+          "settled_tokens": 29,
+          "held_tokens": 0,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "goal_active": true,
+    "forwarded_http_requests": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/v1/chat/completions",
+        "model": "henchman-budget-cpu-20261107-2248",
+        "max_tokens": 8,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "tool_count": 0,
+        "message_count": 2
+      }
+    ],
+    "transport_safety_gate_blocks": 0,
+    "session_reference": {
+      "store_id": "490ea5ffe6574e8f85f8e16e2f580ad4",
+      "active_run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "run_ids": [
+        "4a32a7ac75d144d99e685ee73c6b742a"
+      ],
+      "active_owner_key": "goal:df93ae29e3a34a7da504a5cfd75355d2"
+    }
+  },
+  "restart_process": {
+    "process_id": 1493053,
+    "started_at_utc": "2026-11-07T22:40:02.686558+00:00",
+    "before_attempt": {
+      "run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 29,
+      "held_tokens": 0,
+      "unknown_dispatched_requests": 0,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 12.094165788032115,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": "0",
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "usage_breakdown": [
+        {
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "usage_source": "reported",
+          "pricing": {
+            "input_per_1k": "0",
+            "output_per_1k": "0",
+            "cache_read_per_1k": "0",
+            "cache_write_per_1k": "0",
+            "currency": "USD",
+            "source": "explicit-local-qualification",
+            "as_of": "2026-11-07"
+          },
+          "dispatched_requests": 1,
+          "settled_requests": 1,
+          "counts": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null
+          },
+          "counted_requests": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "cached_tokens": 1,
+            "cache_creation_tokens": 0,
+            "reasoning_tokens": 0
+          }
+        }
+      ]
+    },
+    "turn": {
+      "outcome": "budget_control",
+      "reason": "request_limit",
+      "elapsed_seconds": 0.17392091499641538,
+      "event_counts": {
+        "agent_started": 1
+      },
+      "content_characters": 0,
+      "provider_finishes": [],
+      "errors": [],
+      "completion_status": "failed"
+    },
+    "after_attempt": {
+      "run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "limits": {
+        "max_requests": 1,
+        "max_tokens": null,
+        "max_seconds": null,
+        "max_cost": "0",
+        "currency": "USD"
+      },
+      "consumed_requests": 1,
+      "reserved_requests": 0,
+      "settled_tokens": 29,
+      "held_tokens": 0,
+      "unknown_dispatched_requests": 0,
+      "unknown_cost_requests": 0,
+      "elapsed_seconds": 12.094331258966122,
+      "remaining_requests": 0,
+      "remaining_tokens": null,
+      "remaining_seconds": null,
+      "remaining_cost": "0",
+      "money": [
+        {
+          "currency": "USD",
+          "held_cost": "0",
+          "settled_estimated_cost": "0",
+          "reported_cost": null,
+          "settled_reported_cost": null,
+          "unknown_cost_requests": 0
+        }
+      ],
+      "stop_reason": "request_limit",
+      "accounting_lifetime": "durable",
+      "accounting_error": null,
+      "usage_breakdown": [
+        {
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "usage_source": "reported",
+          "pricing": {
+            "input_per_1k": "0",
+            "output_per_1k": "0",
+            "cache_read_per_1k": "0",
+            "cache_write_per_1k": "0",
+            "currency": "USD",
+            "source": "explicit-local-qualification",
+            "as_of": "2026-11-07"
+          },
+          "dispatched_requests": 1,
+          "settled_requests": 1,
+          "counts": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null
+          },
+          "counted_requests": {
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "total_tokens": 1,
+            "cached_tokens": 1,
+            "cache_creation_tokens": 0,
+            "reasoning_tokens": 0
+          }
+        }
+      ],
+      "attempts": [
+        {
+          "request_id": "2e1a52ab75344df4a61f172ad9785d4b",
+          "operation_id": "17a1ecd035704bd6a8e6b3ccce902cc2",
+          "agent_id": "budget_probe",
+          "provider": "openai_compat",
+          "model": "henchman-budget-cpu-20261107-2248",
+          "dispatched": true,
+          "state": "finished",
+          "estimate": {
+            "prompt_tokens": 45,
+            "max_output_tokens": 8,
+            "pricing": {
+              "input_per_1k": "0",
+              "output_per_1k": "0",
+              "cache_read_per_1k": "0",
+              "cache_write_per_1k": "0",
+              "currency": "USD",
+              "source": "explicit-local-qualification",
+              "as_of": "2026-11-07"
+            },
+            "cache_mode": "any"
+          },
+          "usage": {
+            "prompt_tokens": 27,
+            "completion_tokens": 2,
+            "total_tokens": 29,
+            "cached_tokens": 0,
+            "cache_creation_tokens": null,
+            "reasoning_tokens": null,
+            "source": "reported"
+          },
+          "settled_tokens": 29,
+          "held_tokens": 0,
+          "accounted_cost": "0",
+          "cost_uncertain": false
+        }
+      ]
+    },
+    "forwarded_http_requests": [],
+    "transport_safety_gate_blocks": 0,
+    "session_reference": {
+      "store_id": "490ea5ffe6574e8f85f8e16e2f580ad4",
+      "active_run_id": "4a32a7ac75d144d99e685ee73c6b742a",
+      "run_ids": [
+        "4a32a7ac75d144d99e685ee73c6b742a"
+      ],
+      "active_owner_key": "goal:df93ae29e3a34a7da504a5cfd75355d2"
+    }
+  }
+}

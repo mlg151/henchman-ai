@@ -96,6 +96,9 @@ def test_upload_uses_child_environment_and_propagates_failure(tmp_path: Path, mo
     monkeypatch.setenv("PYPI", "[pypi]\nusername=**token**\npassword=pypi-example")
     monkeypatch.setenv("RELEASE_SHA", COMMIT)
     runner = Mock(return_value=Mock(returncode=17))
+    # Exact-artifact qualification is exercised separately; this test isolates
+    # publisher credential handling and exit-status propagation.
+    monkeypatch.setattr("henchman.ops.release.validate_qualification", Mock())
     monkeypatch.setattr("henchman.ops.release.subprocess.run", runner)
     assert publish(tmp_path, "0.4.1") == 17
     command = runner.call_args.args[0]

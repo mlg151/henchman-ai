@@ -7,6 +7,8 @@ smart (deduplicated union).
 from __future__ import annotations
 
 import hashlib
+import json
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -27,6 +29,12 @@ _VALID_STRATEGIES = ("union", "intersection", "smart")
 def _message_hash(msg: SessionMessage) -> str:
     """Compute a content hash for deduplication."""
     raw = f"{msg.role}:{msg.content}:{msg.tool_calls!s}"
+    if msg.continuation is not None:
+        raw += ":" + json.dumps(msg.continuation, sort_keys=True, ensure_ascii=True, allow_nan=False)
+    if msg.tool_result is not None:
+        raw += ":" + json.dumps(msg.tool_result, sort_keys=True, ensure_ascii=True, allow_nan=False)
+    if msg.context_attachments is not None:
+        raw += ":" + json.dumps(msg.context_attachments, sort_keys=True, ensure_ascii=True, allow_nan=False)
     return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
 
@@ -34,7 +42,8 @@ def _merge_union(sessions: list[Session]) -> list[SessionMessage]:
     """Union strategy: combine all messages from all sessions."""
     result: list[SessionMessage] = []
     for session in sessions:
-        result.extend(session.messages)
+        result.extend(deepcopy(message) if message.context_attachments is not None else message
+                      for message in session.messages)
     return result
 
 
@@ -44,7 +53,8 @@ def _merge_intersection(sessions: list[Session]) -> list[SessionMessage]:
         return []
     hash_sets = [{_message_hash(m) for m in s.messages} for s in sessions]
     common = set.intersection(*hash_sets)
-    return [m for m in sessions[0].messages if _message_hash(m) in common]
+    return [deepcopy(m) if m.context_attachments is not None else m
+            for m in sessions[0].messages if _message_hash(m) in common]
 
 
 def _merge_smart(sessions: list[Session]) -> list[SessionMessage]:
@@ -56,7 +66,7 @@ def _merge_smart(sessions: list[Session]) -> list[SessionMessage]:
             h = _message_hash(msg)
             if h not in seen:
                 seen.add(h)
-                result.append(msg)
+                result.append(deepcopy(msg) if msg.context_attachments is not None else msg)
     return result
 
 
@@ -87,7 +97,9 @@ def _merge_metadata(
         all_summaries.extend(session.turn_summaries)
         all_agents.extend(session.active_agents)
         all_logs.extend(session.delegation_log)
-    merged.turn_summaries = list(dict.fromkeys(all_summaries))
+    merged.turn_summaries = [deepcopy(summary) if any(message.context_attachments is not None
+                            for message in summary.retained_messages) else summary
+                            for summary in dict.fromkeys(all_summaries)]
     merged.active_agents = list(dict.fromkeys(all_agents))
     merged.delegation_log = all_logs
     merged.export_metadata = {

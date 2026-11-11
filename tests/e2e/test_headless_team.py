@@ -10,9 +10,10 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import click
 import pytest
 from rich.console import Console
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import bind_scripted_transport
 
 from henchman.advanced.plans import PlanExecutionService
 from henchman.agents.orchestrator import Orchestrator
@@ -89,12 +90,9 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         requests.append(copy.deepcopy(kwargs))
         assert len(requests) <= len(script), "Unexpected model call"
         call = script[len(requests) - 1]
-        return anthropic_response(call) if provider_name == "anthropic" else compatible_response(call)
+        return call
 
-    if provider_name == "anthropic":
-        monkeypatch.setattr(provider._client.messages, "stream", next_response)
-    else:
-        monkeypatch.setattr(provider._client.chat.completions, "create", AsyncMock(side_effect=next_response))
+    await bind_scripted_transport(provider, next_response)
     registry = ToolRegistry()
     verification = VerifyPlanExecutionTool()
     verification.bind_runtime(project_root=tmp_path)
@@ -107,9 +105,10 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         return True
 
     registry.set_confirmation_handler(approve)
-    # Canonical team prompts, tool schemas and output reservations exceed 8K.
-    # Exercise a declared 16K request window rather than relying on input-only accounting.
-    settings = Settings(providers=providers, context={"max_tokens": 16384})
+    # This integration test exercises the team workflow, not a fixed context
+    # limit. Its prompts include temporary paths and grow with the tool catalog;
+    # request-budget tests separately check that oversized requests are rejected.
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     if attempt_unlisted_write:
         # The primary is unrestricted by default; this scenario tests an explicit user scope.
@@ -126,17 +125,29 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
         if output_mode == "json-complete":
             output = io.StringIO()
             monkeypatch.setattr(app, "console", Console(file=output, width=10000, highlight=False, markup=False))
-            await app._run_headless_json_complete(repl, "Repair totals using existing code with specialist review")
+            try:
+                await app._run_headless_json_complete(repl, "Repair totals using existing code with specialist review")
+            except click.ClickException as error:
+                try:
+                    captured = json.loads(output.getvalue())
+                    failures = [event for event in captured if event.get("type") == "error"]
+                except (ValueError, TypeError, AttributeError):
+                    failures = []
+                pytest.fail(f"Headless JSON failed: {error}; error events: {failures}", pytrace=False)
             events = json.loads(output.getvalue())
         else:
             raw = []
-            assert await app._run_headless_json_mode(repl, "Repair totals with specialist review", raw.append), [
-                event_to_dict(event) for event in raw if event.type.value == "error"
-            ]
+            if not await app._run_headless_json_mode(repl, "Repair totals with specialist review", raw.append):
+                failures = [event_to_dict(event) for event in raw if event.type.value == "error"]
+                pytest.fail(f"Headless event mode failed: {failures}", pytrace=False)
             events = [event_to_dict(event) for event in raw]
     finally:
+        await orch.aclose()
         await provider._client.close()
     assert len(requests) == len(script)
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == len(script)
+    assert snapshot.unknown_dispatched_requests == 0
     assert source.read_text() == "from math_helpers import add\n\n\ndef total(a, b):\n    return add(a, b)\n"
     assert helper.read_text() == "def add(a, b):\n    return a + b\n"
     results = [event for event in events if event["type"] == "tool_call_result"]
@@ -154,7 +165,8 @@ async def test_headless_team_inspects_reuses_edits_tests_and_reviews(
     assert [entry.agent for entry in orch.ledger.delegations] == ["explorer", "engineer", "explorer"]
     assert all(entry.status.value == "completed" for entry in orch.ledger.delegations)
     assert approvals.count("delegate_task") == 3
-    assert approvals.count("shell") == 2
+    # The repeated identical pytest run reuses the first approval grant.
+    assert approvals.count("shell") == 1
     assert "edit_file" in approvals and "verify_plan_execution" in approvals
     assert [event["type"] for event in events].count("finished") == 1
     assert events[-1]["type"] == "finished"

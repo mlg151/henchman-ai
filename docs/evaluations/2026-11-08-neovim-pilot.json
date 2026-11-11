@@ -1,0 +1,64 @@
+{
+  "artifact_kind": "development wheel",
+  "distinct_permanent_tests": 132,
+  "editor": "Neovim 0.12.6",
+  "independent_additional_probes": 48,
+  "logs": {
+    "author_installed": {
+      "filename": "henchman-neovim-installed-wheel-repaired.log",
+      "passed": 132,
+      "sha256": "000668c173e2340d8dfc1e379414e7ba258a4a5431d1a8961df734fac12bc803"
+    },
+    "peer_decoder": {
+      "filename": "henchman-neovim-decoder-peer.log",
+      "passed": 35,
+      "sha256": "a880c9d9a38dd63d9b46138827e8695843a3beeed65b1a5e8b175725293af407"
+    },
+    "peer_frame_lifecycle": {
+      "filename": "henchman-neovim-client-peer-fixed.log",
+      "passed": 13,
+      "sha256": "59bbd7a61a05e24e1d7de93562b73fe44895c41c0b1e94e9d209c29fab14354b"
+    },
+    "peer_installed": {
+      "filename": "henchman-neovim-peer-final-permanent.log",
+      "passed": 132,
+      "sha256": "cd87d95052418b1548586b21920f3ffea336617a6bb88d0409ba58335fa93cce"
+    }
+  },
+  "manifest_sha256": "b79e577e3190b5363e98f0729b08a4c9dbc17d61ae77f0499159dd1196b658b8",
+  "not_qualified": [
+    "live-model quality",
+    "other editor versions",
+    "other operating systems",
+    "assistive technology",
+    "human usability",
+    "final v0.4.2 artifact"
+  ],
+  "owned_files_sha256": {
+    "src/henchman/cli/commands/checkpoint.py": "6530bde252ce099007505aeef133a2f4ad93b3ddf5181d93b871fdaafb2486f7",
+    "src/henchman/cli/headless_runtime.py": "3f06e816d012a7ccee705f308f2709c3e0925ec85951804db112077cc76ecfd0",
+    "src/henchman/cli/headless_stdio.py": "55d476085a3365d273b0100a85c5c15eebe0d766c89635054517bbe83f2f045d",
+    "src/henchman/integrations/blueprints.py": "d54eeb6efc3dca7f0a99b85aea505ddccc508979ba1cb96cc627a724ba52f977",
+    "src/henchman/integrations/neovim.lua": "484e6d9d743bf8aa6601871a98f973025cf837692d7119fbdfe4962a617916d0",
+    "src/henchman/integrations/neovim.py": "f0e7ce8222d1b4b9466a475e0c01b94e8c9025840bf2e64518ffc2aabb9166fb",
+    "tests/cli/test_headless_stdio.py": "5fc2a072967258645e676478314600cb425923af8815204dcee69556e15cddae",
+    "tests/integrations/test_blueprints.py": "33374f8ccf1197d41f5033a8b35dd446130176c4c68bd46deaf9780296567533",
+    "tests/integrations/test_neovim_pilot.py": "d1e462f4034fe8101f0a9756e5709dd8af0cddd0522d04515bbbcdefc0ba95d3",
+    "tests/integrations/test_neovim_scope.py": "d22dc12146dcfeea863a71e41e2f562049f82f9cb539db01821e4b073f57f7df"
+  },
+  "package_version": "0.4.1",
+  "permanent_actual_editor_cases": 56,
+  "platform": "Linux",
+  "provider": "scripted owned loopback HTTP/SSE; no model inference",
+  "python": "3.12.13",
+  "qualification_scope": [
+    "opt-in editor fixture",
+    "strict protocol client",
+    "selection and buffer preservation",
+    "denial and cancellation",
+    "read-only correlated checkpoint review"
+  ],
+  "schema_version": 1,
+  "source_base": "6f51e21993f5a84b1e98275369da9b4b2d48355f",
+  "wheel_sha256": "f78d0aa8b4ef08a74207cc4c304f96e1f43e08c4e4e01f2147a0b48320ddda7b"
+}

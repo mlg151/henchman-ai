@@ -4,6 +4,10 @@
   "title": "IndexManifest",
   "type": "object",
   "properties": {
+    "generation_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "collection_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "repository_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
+    "evidence_version": { "type": "integer", "enum": [0, 1] },
     "files": {
       "type": "object",
       "additionalProperties": { "type": "string" }

@@ -1,0 +1,365 @@
+{
+  "version": "ci-3f2b741-and-source-5e8c4de-v1",
+  "ci": {
+    "run_id": 42480595630,
+    "head": "3f2b74171dc5d1d25e2c0e095622684f8624f742",
+    "merge_commit": "7ab2f038a26f824c03cce0508f5293c838c27a85",
+    "base_commit": "3437c1c502c425f3d2754194ad46ea0094ee7cd1",
+    "status": "completed",
+    "conclusion": "failure",
+    "coverage_percent": 91.26,
+    "jobs": [
+      {
+        "name": "Type Check",
+        "job_id": 128731596773,
+        "status": "completed",
+        "conclusion": "success",
+        "failed_tests": [],
+        "test_summary": null
+      },
+      {
+        "name": "Test (Python 3.11)",
+        "job_id": 128731596955,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:51:37.4329492Z ===== 1 failed, 12610 passed, 90 skipped, 5 warnings in 1208.07s (0:20:08) ====="
+      },
+      {
+        "name": "Test (Python 3.12)",
+        "job_id": 128731597013,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T13:06:58.1053085Z ===== 1 failed, 12610 passed, 90 skipped, 8 warnings in 2127.23s (0:35:27) ====="
+      },
+      {
+        "name": "Lint & Style",
+        "job_id": 128731597022,
+        "status": "completed",
+        "conclusion": "success",
+        "failed_tests": [],
+        "test_summary": null
+      },
+      {
+        "name": "Test (Python 3.13)",
+        "job_id": 128731597151,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T13:00:33.8739340Z ===== 1 failed, 12610 passed, 90 skipped, 4 warnings in 1741.21s (0:29:01) ====="
+      },
+      {
+        "name": "Test (Python 3.14)",
+        "job_id": 128731597210,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:59:09.3087832Z ===== 1 failed, 12609 passed, 91 skipped, 2 warnings in 1640.02s (0:27:20) ====="
+      },
+      {
+        "name": "Build & Package Validation",
+        "job_id": 128731768145,
+        "status": "completed",
+        "conclusion": "success",
+        "failed_tests": [],
+        "test_summary": null
+      },
+      {
+        "name": "Installed Wheel Smoke (ubuntu-latest-3.14)",
+        "job_id": 128731867250,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:48:22.7879381Z 1 failed, 6065 passed, 81 skipped, 16 warnings in 887.01s (0:14:47)"
+      },
+      {
+        "name": "Installed Wheel Smoke (ubuntu-latest-3.13)",
+        "job_id": 128731867269,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:50:49.9777690Z 1 failed, 6065 passed, 81 skipped, 15 warnings in 1030.19s (0:17:10)"
+      },
+      {
+        "name": "Installed Wheel Smoke (macos-latest-3.14)",
+        "job_id": 128731867270,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:50:00.3631230Z 1 failed, 6063 passed, 83 skipped, 16 warnings in 974.48s (0:16:14)"
+      },
+      {
+        "name": "Installed Wheel Smoke (windows-latest-3.14)",
+        "job_id": 128731867273,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_repl_background_goals.py::test_goal_continues_after_turn_and_prioritizes_user_steering",
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:58:19.9247638Z 2 failed, 5909 passed, 236 skipped, 16 warnings in 1445.05s (0:24:05)"
+      },
+      {
+        "name": "Installed Wheel Smoke (windows-latest-3.11)",
+        "job_id": 128731867275,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_textual_decision_review.py::test_already_clipped_tool_observation_is_explicitly_omitted[call]",
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T13:00:22.3371503Z 2 failed, 5909 passed, 236 skipped, 15 warnings in 1553.29s (0:25:53)"
+      },
+      {
+        "name": "Installed Wheel Smoke (macos-latest-3.11)",
+        "job_id": 128731867299,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:50:40.4670080Z 1 failed, 6063 passed, 83 skipped, 15 warnings in 1003.10s (0:16:43)"
+      },
+      {
+        "name": "Installed Wheel Smoke (macos-latest-3.13)",
+        "job_id": 128731867311,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:45:38.3309120Z 1 failed, 6063 passed, 83 skipped, 15 warnings in 742.98s (0:12:22)"
+      },
+      {
+        "name": "Installed Wheel Smoke (macos-latest-3.12)",
+        "job_id": 128731867326,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:50:11.4149780Z 1 failed, 6063 passed, 83 skipped, 15 warnings in 993.62s (0:16:33)"
+      },
+      {
+        "name": "Installed Wheel Smoke (ubuntu-latest-3.12)",
+        "job_id": 128731867345,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:54:01.2837189Z 1 failed, 6065 passed, 81 skipped, 15 warnings in 1219.76s (0:20:19)"
+      },
+      {
+        "name": "Installed Wheel Smoke (ubuntu-latest-3.11)",
+        "job_id": 128731867358,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:49:44.0815784Z 1 failed, 6065 passed, 81 skipped, 15 warnings in 966.60s (0:16:06)"
+      },
+      {
+        "name": "Installed Wheel Smoke (windows-latest-3.13)",
+        "job_id": 128731867438,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T13:01:41.5607505Z 1 failed, 5910 passed, 236 skipped, 15 warnings in 1635.74s (0:27:15)"
+      },
+      {
+        "name": "Installed Wheel Smoke (windows-latest-3.12)",
+        "job_id": 128731867488,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [
+          "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden"
+        ],
+        "test_summary": "2026-11-08T12:56:30.2465784Z 1 failed, 5910 passed, 236 skipped, 15 warnings in 1337.21s (0:22:17)"
+      },
+      {
+        "name": "Aggregate Readiness Gate",
+        "job_id": 128739990263,
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_tests": [],
+        "test_summary": null
+      }
+    ],
+    "raw_log": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/all-jobs.log",
+      "sha256": "fc3f72e73729486ea8ee15bdefc1070b83870fe0b315cfe61348e71bc06a749c",
+      "bytes": 2649535
+    }
+  },
+  "local_source": {
+    "driver": {
+      "source": "/home/matthew/.cache/henchman-release-qualification/5e8c4de-source311",
+      "commit": "5e8c4decd207c7ab871a7d02eee3b3f4e270e38a",
+      "python": "/home/matthew/mlg-cli/.venv/bin/python",
+      "origin": "/home/matthew/.cache/henchman-release-qualification/5e8c4de-source311/src/henchman/__init__.py",
+      "log": "/home/matthew/.cache/henchman-release-qualification/5e8c4de-source311-pytest.log",
+      "status": "COMPLETED",
+      "timeout_seconds": 3600,
+      "pid": 1773337,
+      "pid_birth": "40907488",
+      "exit_code": 1,
+      "elapsed_seconds": 1463.2416602420271,
+      "worker_joined": true
+    },
+    "driver_receipt": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/5e8c4de-source311-receipt.json",
+      "sha256": "d745d0693800c54314e91fce39dde4ce52b6069ce7989bf33417f99ab429e7b4",
+      "bytes": 582
+    },
+    "raw_log": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/5e8c4de-source311-pytest.log",
+      "sha256": "7ed5ec7d0e87f44fbf4a364261adc01c10c3ebfdd514d9f81db6812175364fb5",
+      "bytes": 187166
+    },
+    "passed": 12575,
+    "failed": 37,
+    "skipped": 90,
+    "warnings": 5,
+    "pytest_seconds": 1456.95,
+    "failed_tests": [
+      "tests/cli/test_tui_bugs_028_035.py::TestBug035OnMountReinitializes::test_on_mount_not_overridden",
+      "tests/e2e/test_mcp_integration.py::TestMcpEndToEnd::test_real_serena_help_command[asyncio]",
+      "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario",
+      "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[no_review]",
+      "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[late_edit]",
+      "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[failed_review]",
+      "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_authoritative_runtime_failure",
+      "tests/testing/test_package_oracle.py::test_real_offline_build_install_and_cli_pass_outside_checkout",
+      "tests/testing/test_package_oracle.py::test_rejects_invalid_or_incomplete_submitted_wheel[fake]",
+      "tests/testing/test_package_oracle.py::test_rejects_invalid_or_incomplete_submitted_wheel[data]",
+      "tests/testing/test_package_oracle.py::test_rejects_invalid_or_incomplete_submitted_wheel[dependency]",
+      "tests/testing/test_package_oracle.py::test_rejects_invalid_or_incomplete_submitted_wheel[entrypoint]",
+      "tests/testing/test_package_oracle.py::test_rejects_weakened_protected_contract[pyproject.toml]",
+      "tests/testing/test_package_oracle.py::test_rejects_weakened_protected_contract[tests/test_installed.py]",
+      "tests/testing/test_package_oracle.py::test_rejects_weakened_protected_contract[.github/workflows/ci.yml]",
+      "tests/testing/test_package_oracle.py::test_rejects_weakened_protected_contract[src/release_labels/data/defaults.json]",
+      "tests/testing/test_package_oracle.py::test_rejects_false_behavior_receipts_and_source_wheel_mismatch[early_exit]",
+      "tests/testing/test_package_oracle.py::test_rejects_false_behavior_receipts_and_source_wheel_mismatch[copied_helper]",
+      "tests/testing/test_package_oracle.py::test_rejects_false_behavior_receipts_and_source_wheel_mismatch[stale_wheel]",
+      "tests/testing/test_package_oracle.py::test_protected_artifact_reads_fail_closed[missing]",
+      "tests/testing/test_package_oracle.py::test_protected_artifact_reads_fail_closed[symlink]",
+      "tests/testing/test_package_oracle.py::test_protected_artifact_reads_fail_closed[oversize]",
+      "tests/testing/test_package_oracle.py::test_source_change_during_verification_fails_stability",
+      "tests/testing/test_package_oracle.py::test_pip_configuration_cannot_redirect_isolated_install",
+      "tests/testing/test_package_oracle.py::test_submitted_wheel_filename_must_be_installable",
+      "tests/testing/test_package_oracle.py::test_cli_cannot_duplicate_library_or_hardcode_packaged_key",
+      "tests/testing/test_package_oracle.py::test_dependency_reuse_accepts_direct_function_import",
+      "tests/testing/test_package_oracle.py::test_cli_accepts_resource_key_cached_at_library_import",
+      "tests/testing/test_package_runtime_observer.py::test_package_runtime_observer_contract",
+      "tests/testing/test_team_package_scenario.py::test_production_team_and_real_independent_package_pipeline_pass",
+      "tests/testing/test_team_package_scenario.py::test_correct_package_without_review_of_final_source_fails[no_review]",
+      "tests/testing/test_team_package_scenario.py::test_correct_package_without_review_of_final_source_fails[late_edit]",
+      "tests/testing/test_team_package_scenario.py::test_correct_package_without_review_of_final_source_fails[failed_review]",
+      "tests/testing/test_team_package_scenario.py::test_engineer_participation_cannot_claim_another_actors_final_change",
+      "tests/testing/test_team_package_scenario.py::test_omitted_dependency_inspection_cannot_pass_with_correct_artifacts",
+      "tests/testing/test_team_package_scenario.py::test_wheel_built_before_automatic_formatting_requires_rebuild",
+      "tests/testing/test_team_package_scenario.py::test_independent_pipeline_cannot_overrule_authoritative_root_failure"
+    ],
+    "failure_categories": {
+      "tests/cli/test_tui_bugs_028_035.py": 1,
+      "tests/e2e/test_mcp_integration.py": 1,
+      "tests/testing/test_package_lifecycle_scenario.py": 5,
+      "tests/testing/test_package_oracle.py": 21,
+      "tests/testing/test_package_runtime_observer.py": 1,
+      "tests/testing/test_team_package_scenario.py": 8
+    },
+    "offline_build_cache_preserved": false
+  },
+  "followup_evidence": [
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-package-cached-all.log",
+      "sha256": "8fd4c6b5c01f36b20da0353a07a74655b86f3302057d89d7e3469138745afec2",
+      "bytes": 614
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-package-other-cached.log",
+      "sha256": "60bb90796371e1f90c8ba22ec18364ff56345be73e7b6aa9f78af84fce9d656b",
+      "bytes": 775
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-mcp-local-fix.log",
+      "sha256": "681e0a7b1a2d79ac6787cddbe2a311f6d5831c9d4c9e33ba50a01c576d2a2a5a",
+      "bytes": 566
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-bug035-adjacent311.log",
+      "sha256": "e8e553387c3bbd19963ec00dc3b6ca492127c259b0ba57ad78935b6e0ed428ca",
+      "bytes": 647
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-bug035-py312.log",
+      "sha256": "0a0967bd7596794e6b18083efe1e913608cfa63e35fe4b3039133346dc4bc736",
+      "bytes": 565
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-bug035-fault-probe.log",
+      "sha256": "c7a82a1acbc744ec410dfb95ad54738efc4c81739c4acaa9ea7d79fd5c953c6d",
+      "bytes": 98
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-goal-steering-fix.log",
+      "sha256": "afad72090c95928484bba809417912e64980df8b0b597d6ccd042580f2a43e62",
+      "bytes": 567
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-goal-steering-paced-old.log",
+      "sha256": "ee74d2b9f60bf9fafd9dba5697b8f103704f56ae84604058c82b0bb9c04a50cd",
+      "bytes": 7859
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-goal-steering-paced-new.log",
+      "sha256": "604e41aa72f61507806e08d2db6d6f4749157d229a46e5d9848c11ee2d740cab",
+      "bytes": 98
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-decision-export-fix.log",
+      "sha256": "7fdc4ff8fff4367396b4af88fd012c65049b715e602ee057cbb679b54e166317",
+      "bytes": 596
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-decision-export-delay-old.log",
+      "sha256": "168f4d4dd1c4bef884a2d8ca79e8feea248f47db139b960005028c766d209144",
+      "bytes": 8208
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-decision-export-delay-new.log",
+      "sha256": "2cc86182f69cf450fe2d744b763032adb7a9e17984202f06e2995b9ceea72ba2",
+      "bytes": 98
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-decision-export-failure-probe.log",
+      "sha256": "98450a18a71538889927af20086943691a832491c12433574a25e1476316a937",
+      "bytes": 98
+    },
+    {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-3f2b741-42480595630/henchman-ci-repairs-py312.log",
+      "sha256": "80d057fe096f210f776bec54ba6e590dc8fe82cf79a8ae1c5e8bf4323d264dbd",
+      "bytes": 676
+    }
+  ],
+  "qualification": "Both completed runs failed. Focused probes do not turn either original run into a pass; corrected exact-head CI remains pending."
+}

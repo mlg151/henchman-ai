@@ -6,6 +6,7 @@ an existing session at a given message index.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -62,10 +63,13 @@ def branch_session(
         project_hash=parent.project_hash,
         started=meta.now,
         last_updated=meta.now,
-        messages=parent.messages[:branch_point],
+        messages=[deepcopy(message) if message.context_attachments is not None else message
+                  for message in parent.messages[:branch_point]],
         tag=meta.tag,
         plan_mode=parent.plan_mode,
-        turn_summaries=parent.turn_summaries[:],
+        turn_summaries=[deepcopy(summary) if any(message.context_attachments is not None
+                       for message in summary.retained_messages) else summary
+                       for summary in parent.turn_summaries],
         active_agents=parent.active_agents[:],
         delegation_log=parent.delegation_log[:],
         parent_id=parent.id,

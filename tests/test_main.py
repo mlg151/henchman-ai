@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 from henchman import __main__  # Test that module can be imported
-from henchman.cli.app import main
+from henchman.entrypoint import main
 from henchman.version import VERSION
 
 

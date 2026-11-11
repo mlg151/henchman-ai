@@ -7,11 +7,18 @@ older messages, with optional summarization of dropped content.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from henchman.providers.base import Message
+from henchman.utils.context_attachments import (
+    context_attachment_content,
+    context_attachment_omission,
+    merge_context_attachments,
+)
+from henchman.utils.exception_evidence import exception_text
 from henchman.utils.tokens import TokenCounter
+from henchman.utils.tool_results import compact_tool_payload, tool_message_content
 
 logger = logging.getLogger(__name__)
 
@@ -292,21 +299,28 @@ def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Mes
     Returns:
         Truncated message.
     """
-    if not message.content:
+    content = (
+        tool_message_content(message.content, message.tool_result)
+        if message.role == "tool"
+        else message.content
+    )
+    if not content:
         return message
 
     chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
-    if chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT:
-        new_content = message.content[: len(message.content) - chars_to_trim]
+    if chars_to_trim < len(content) - MIN_TRUNCATED_CONTENT:
+        new_content = content[: len(content) - chars_to_trim]
         new_content += "\n[... truncated to fit context limit ...]"
     else:
-        new_content = message.content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
-
-    return Message(
-        role=message.role,
-        content=new_content,
-        tool_calls=message.tool_calls,
-        tool_call_id=message.tool_call_id,
+        new_content = content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
+    if message.tool_result is not None:
+        new_content += "\n[Typed result payload omitted from this active message.]"
+    attachments = message.context_attachments
+    if attachments is not None:
+        new_content, attachments = context_attachment_omission(attachments)
+    return replace(
+        message, content=new_content, tool_result=compact_tool_payload(message.tool_result),
+        context_attachments=attachments,
     )
 
 
@@ -338,12 +352,14 @@ def _truncate_protected_zone_messages(
             result.append(msg)
             continue
 
-        content = msg.content
+        content = tool_message_content(msg.content, msg.tool_result)
         if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
             truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
             # Calculate actual token reduction instead of estimating from characters
             original_tokens = TokenCounter.count_text(content)
-            truncated_tokens = TokenCounter.count_text(truncated_msg.content or "")
+            truncated_tokens = TokenCounter.count_text(
+                tool_message_content(truncated_msg.content, truncated_msg.tool_result)
+            )
             trimmed_tokens = original_tokens - truncated_tokens
             # Ensure non-negative (should always be, but guard against edge cases)
             if trimmed_tokens > 0:
@@ -503,22 +519,34 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
     Returns:
         Safe message (possibly truncated).
     """
-    if not message.content:
+    content = (
+        tool_message_content(message.content, message.tool_result)
+        if message.role == "tool"
+        else message.content
+    )
+    if not content:
         return message
 
     # Quick character check optimization
-    if len(message.content) < limit:
+    if len(content) < limit:
         return message
 
     # Check token count
-    if TokenCounter.count_text(message.content) > limit:
-        truncated_content = TokenCounter.truncate_text(message.content, limit)
+    if TokenCounter.count_text(content) > limit:
+        if message.continuation is not None:
+            from henchman.providers.base import ContextTooLargeError
+
+            raise ContextTooLargeError("Required provider continuation cannot be truncated; start a new conversation.")
+        truncated_content = TokenCounter.truncate_text(content, limit)
         new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-        return Message(
-            role=message.role,
-            content=new_content,
-            tool_calls=message.tool_calls,
-            tool_call_id=message.tool_call_id,
+        if message.tool_result is not None:
+            new_content += "\n[Typed result payload omitted from this active message.]"
+        attachments = message.context_attachments
+        if attachments is not None:
+            new_content, attachments = context_attachment_omission(attachments)
+        return replace(
+            message, content=new_content, tool_result=compact_tool_payload(message.tool_result),
+            context_attachments=attachments,
         )
 
     return message
@@ -718,11 +746,9 @@ class ContextCompactor(_ContextCompactorHelpersMixin):
         Returns:
             Compacted messages that fit within max_tokens.
         """
-        protected_msgs, unprotected_msgs = (
-            self.protected_zone_manager.separate_protected_messages(
-                messages,
-                protect_from_index,
-            )
+        protected_msgs, unprotected_msgs = self.protected_zone_manager.separate_protected_messages(
+            messages,
+            protect_from_index,
         )
         protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(
             protected_msgs,
@@ -808,7 +834,11 @@ def _format_messages_for_summary_content(messages: list[Message]) -> str:
         if msg.role == "system":
             continue  # Skip system messages
         prefix = msg.role.upper()
-        content = msg.content or ""
+        content = (
+            tool_message_content(msg.content, msg.tool_result)
+            if msg.role == "tool"
+            else (msg.content or "")
+        )
         if msg.tool_calls:
             tool_names = [tc.name for tc in msg.tool_calls]
             content += f" [Called tools: {', '.join(tool_names)}]"
@@ -835,24 +865,58 @@ async def _generate_summary_with_provider(
     """
     formatted = format_func(messages)
     prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
+    from henchman.core.failure_evidence import failure_evidence_redactor
+    from henchman.core.run_budget import BudgetControlError
+    from henchman.core.runtime_accounting import require_accounted_provider
+    from henchman.providers.continuation import ProviderContinuationError
 
+    evidence = failure_evidence_redactor(provider)
     try:
+        require_accounted_provider(provider)
         summary_parts: list[str] = []
-        async for chunk in provider.chat_completion_stream(
+        stream = provider.chat_completion_stream(
             messages=[Message(role="user", content=prompt)],
             tools=None,
-        ):
-            if chunk.content:
-                summary_parts.append(chunk.content)
-            if chunk.finish_reason:
-                break
+        )
+        primary_error: BaseException | None = None
+        try:
+            async for chunk in stream:
+                if chunk.content:
+                    summary_parts.append(chunk.content)
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
+            close = getattr(stream, "aclose", None)
+            if close is not None:
+                try:
+                    await close()
+                except Exception as cleanup_error:
+                    if primary_error is None:
+                        raise
+                    if (
+                        isinstance(cleanup_error, (BudgetControlError, ProviderContinuationError))
+                        and isinstance(primary_error, Exception)
+                        and not isinstance(primary_error, (BudgetControlError, ProviderContinuationError))
+                    ):
+                        # An ordinary summary failure must not hide failed accounting.
+                        # Preserve an earlier control failure or explicit cancellation.
+                        raise
+                    logger.warning("Summary cleanup failed after interruption: %s", exception_text(
+                        cleanup_error, failure_evidence_redactor(provider, redactor=evidence),
+                        include_traceback=True,
+                    ))
 
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except Exception:
+    except (BudgetControlError, ProviderContinuationError):
+        raise
+    except Exception as error:
         # Summarization failed, log warning and return None to fall back to simple dropping
-        logger.warning("Summarization with provider failed: %s", exc_info=True)
+        logger.warning("Summarization with provider failed: %s", exception_text(
+            error, failure_evidence_redactor(provider, redactor=evidence), include_traceback=True,
+        ))
 
     return None
 
@@ -975,6 +1039,8 @@ async def compact_messages(params: CompactionParams) -> CompactionResult:
         max_protected_ratio=params.max_protected_ratio,
     )
     return await _compact_with_summarization_impl(params.messages, params.max_tokens, config)
+
+
 async def compact_with_summarization(
     messages: list[Message],
     max_tokens: TokenLimit,
@@ -1077,18 +1143,32 @@ async def _attempt_summarization(
         return result
 
     summarizer = MessageSummarizer(provider=provider)
+    from henchman.core.failure_evidence import failure_evidence_redactor
+    from henchman.core.run_budget import BudgetControlError
+    from henchman.providers.continuation import ProviderContinuationError
+
+    evidence = failure_evidence_redactor(provider)
     try:
         summary = await summarizer.summarize(dropped_messages)
         if summary:
             # Insert summary after system messages
             system_msgs = [m for m in result.messages if m.role == "system"]
             non_system = [m for m in result.messages if m.role != "system"]
-            summary_msg = summarizer.create_summary_message(summary)
+            attachments = merge_context_attachments(message.context_attachments for message in dropped_messages)
+            if attachments:
+                summary_msg = Message("user", context_attachment_content(attachments, summary=summary),
+                                      context_attachments=attachments)
+            else:
+                summary_msg = summarizer.create_summary_message(summary)
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except Exception:
+    except (BudgetControlError, ProviderContinuationError):
+        raise
+    except Exception as error:
         # Summarization failed, continue with simple dropping
-        logger.warning("Failed to summarize dropped messages during compaction: %s", exc_info=True)
+        logger.warning("Failed to summarize dropped messages during compaction: %s", exception_text(
+            error, failure_evidence_redactor(provider, redactor=evidence), include_traceback=True,
+        ))
 
     return result

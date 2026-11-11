@@ -11,6 +11,7 @@ from henchman.cli.textual_app import (
     StatusBar,
     TextualConfig,
 )
+from henchman.config.schema import Settings
 
 
 class TestTextualSearch:
@@ -26,7 +27,7 @@ class TestTextualSearch:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings

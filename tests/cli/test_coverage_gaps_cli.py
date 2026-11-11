@@ -32,6 +32,30 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
+class _McpStartupClient:
+    """Controlled connection; startup still uses the real manager and registry."""
+
+    def __init__(self) -> None:
+        self.is_connected = False
+
+    async def connect(self) -> None:
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        self.is_connected = False
+
+    def get_tools(self) -> list[Any]:
+        from henchman.mcp.client import McpToolDefinition
+
+        return [McpToolDefinition("inspect", "Fixture read", {"type": "object"})]
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        from henchman.mcp.client import McpToolResult
+
+        assert self.is_connected and name == "inspect" and arguments == {}
+        return McpToolResult("fixture result")
+
 # ---------------------------------------------------------------------------
 # repl.py – missing lines 43-44 (typing_extensions import), 101-103, 121-128,
 #   197, 217-218, 308, 322, 328, 354, 405, 446-450, 479-492
@@ -324,33 +348,36 @@ class TestReplMissingLines:
 
     @pytest.mark.anyio
     async def test_initialize_mcp_with_tools(self) -> None:
-        """Lines 322, 328: initialize_mcp registers tools and shows message."""
+        """Startup binds manager-owned tools and displays the connection count."""
         from henchman.cli.repl import Repl
+        from henchman.config.schema import McpServerConfig
+        from henchman.mcp.manager import McpManager
+        from henchman.tools.registry import ToolRegistry
 
         with patch("henchman.cli.input.PromptSession"):
             provider = MagicMock()
             provider.name = "mock"
             repl = Repl(provider=provider)
 
-        mock_tool = MagicMock()
-        mock_mcp = MagicMock()
-        mock_mcp.clients = {}
-        mock_mcp.connect_all = AsyncMock()
-        mock_mcp.get_all_tools.return_value = [mock_tool]
-
-        repl.mcp_manager = mock_mcp
-
-        # Mock tool_registry.register to track calls
-        mock_registry = MagicMock()
-        repl.tool_registry = mock_registry
-
-        # settings.ui.mcp_logging = True for line 328
-        mock_settings = MagicMock()
-        mock_settings.ui.mcp_logging = True
-        repl.settings = mock_settings
-
-        await repl.initialize_mcp()
-        mock_registry.register.assert_called_with(mock_tool)
+        client = _McpStartupClient()
+        manager = McpManager(
+            {"fixture": McpServerConfig(command="fixture", trusted=True)},
+            client_factory=lambda *_: client,
+        )
+        registry = ToolRegistry()
+        repl.mcp_manager = manager
+        repl.tool_registry = registry
+        repl.settings.ui.mcp_logging = True
+        repl.renderer = MagicMock()
+        try:
+            await repl.initialize_mcp()
+            assert client.is_connected
+            result = await registry.execute("mcp_fixture_inspect", {})
+            assert result.success and result.content == "fixture result"
+            repl.renderer.success.assert_called_once_with("Connected to 1 MCP server(s) with 1 tools")
+        finally:
+            await manager.disconnect_all()
+        assert registry.get("mcp_fixture_inspect") is None
 
     @pytest.mark.anyio
     async def test_run_calls_disconnect_all(self) -> None:
@@ -538,21 +565,23 @@ class TestCoreInitMissingLines:
 
     @pytest.mark.anyio
     async def test_initialize_mcp_background_connect_with_tools(self) -> None:
-        """Line 151: background MCP registers tools."""
+        """Background startup binds tools whose cleanup stays manager-owned."""
         from henchman.cli.core_init import CoreContext, initialize_mcp
+        from henchman.config.schema import McpServerConfig
+        from henchman.mcp.manager import McpManager
+        from henchman.tools.registry import ToolRegistry
 
-        mock_mcp = MagicMock()
-        mock_mcp.clients = {}
-        mock_tool = MagicMock()
-        mock_mcp.connect_all = AsyncMock()
-        mock_mcp.get_all_tools.return_value = [mock_tool]  # Returns one tool
-
-        mock_registry = MagicMock()
+        client = _McpStartupClient()
+        manager = McpManager(
+            {"fixture": McpServerConfig(command="fixture", trusted=True)},
+            client_factory=lambda *_: client,
+        )
+        registry = ToolRegistry()
         context = CoreContext(
             provider=MagicMock(),
             tool_manager=MagicMock(),
-            tool_registry=mock_registry,
-            mcp_manager=mock_mcp,
+            tool_registry=registry,
+            mcp_manager=manager,
             plugin_manager=MagicMock(),
             event_bus=MagicMock(),
             orchestrator=MagicMock(),
@@ -562,9 +591,16 @@ class TestCoreInitMissingLines:
             settings=None,
         )
 
-        initialize_mcp(context)
-        await asyncio.sleep(0.1)
-        mock_registry.register.assert_called_with(mock_tool)
+        try:
+            initialize_mcp(context)
+            assert context.background_tasks
+            await asyncio.gather(*context.background_tasks)
+            assert client.is_connected
+            result = await registry.execute("mcp_fixture_inspect", {})
+            assert result.success and result.content == "fixture result"
+        finally:
+            await manager.disconnect_all()
+        assert registry.get("mcp_fixture_inspect") is None
 
     @pytest.mark.anyio
     async def test_initialize_mcp_background_connect(self) -> None:
@@ -2619,60 +2655,37 @@ class TestInputMissingLines:
         assert session is not None
 
     def test_create_session_abort_callback_body(self) -> None:
-        """Line 184: 'abort' key binding callback body is invoked via captured bindings."""
+        """The configured abort binding asks the real prompt session to exit."""
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import DummyInput
+        from prompt_toolkit.keys import Keys
+        from prompt_toolkit.output import DummyOutput
+
         from henchman.cli.input import create_session
 
-        captured_bindings: Any = None
-
-        class CapturingSession:
-            def __init__(self, *a: Any, key_bindings: Any = None, **kw: Any) -> None:
-                nonlocal captured_bindings
-                captured_bindings = key_bindings
-
-        with patch("henchman.cli.input.PromptSession", CapturingSession):
-            create_session(keybindings={"c-c": "abort"})
-
-        # Invoke the registered handler to cover line 184
-        if captured_bindings and hasattr(captured_bindings, "bindings"):
-            for binding in captured_bindings.bindings:
-                if hasattr(binding, "handler"):
-                    mock_event = MagicMock()
-                    mock_event.app.exit = MagicMock()  # Safe mock, won't raise
-                    try:
-                        binding.handler(mock_event)
-                    except (EOFError, SystemExit):
-                        pass
-                    except KeyboardInterrupt:
-                        pass  # Default ControlC handler raises this
-                    except Exception:
-                        pass
+        with create_app_session(input=DummyInput(), output=DummyOutput()):
+            session = create_session(keybindings={"c-c": "abort"})
+        bindings = session.key_bindings.get_bindings_for_keys((Keys.ControlC,))
+        assert bindings
+        event = MagicMock()
+        bindings[-1].handler(event)
+        event.app.exit.assert_called_once_with(exception=KeyboardInterrupt, style="class:aborting")
 
     def test_create_session_exit_callback_body(self) -> None:
-        """Line 189: 'exit' key binding callback raises EOFError when invoked."""
+        """The configured exit binding raises EOFError through the real session."""
+        from prompt_toolkit.application import create_app_session
+        from prompt_toolkit.input import DummyInput
+        from prompt_toolkit.keys import Keys
+        from prompt_toolkit.output import DummyOutput
+
         from henchman.cli.input import create_session
 
-        captured_bindings: Any = None
-
-        class CapturingSession:
-            def __init__(self, *a: Any, key_bindings: Any = None, **kw: Any) -> None:
-                nonlocal captured_bindings
-                captured_bindings = key_bindings
-
-        with patch("henchman.cli.input.PromptSession", CapturingSession):
-            create_session(keybindings={"c-d": "exit"})
-
-        # Invoke the registered handler to cover line 189
-        if captured_bindings and hasattr(captured_bindings, "bindings"):
-            for binding in captured_bindings.bindings:
-                if hasattr(binding, "handler"):
-                    try:
-                        binding.handler(MagicMock())
-                    except EOFError:
-                        pass  # Expected - this IS the coverage we need
-                    except KeyboardInterrupt:
-                        pass  # Default ControlC handler
-                    except Exception:
-                        pass
+        with create_app_session(input=DummyInput(), output=DummyOutput()):
+            session = create_session(keybindings={"c-d": "exit"})
+        bindings = session.key_bindings.get_bindings_for_keys((Keys.ControlD,))
+        assert bindings
+        with pytest.raises(EOFError):
+            bindings[-1].handler(MagicMock())
 
     def test_create_session_unknown_action(self) -> None:
         """Line 185->176: keybindings with unknown action type skips binding body."""

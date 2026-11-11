@@ -1,0 +1,85 @@
+--- v1/contract.py
++++ v2/contract.py
+@@ -8,7 +8,7 @@
+ 
+ HERE = Path(__file__).resolve().parent
+ SOURCE = HERE / "source"
+-COMMIT = "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8"
++COMMIT = "7141c1f342216b1a24defecb530931ca234f4c41"
+ ENDPOINT = "http://127.0.0.1:8081/v1"
+ MODEL = "qwen38-27b-iq3s"
+ KEY = "local-paired-experiment-no-hosted-credential"
+@@ -19,7 +19,7 @@
+ CONTEXT = 32768
+ INPUT = 27852
+ RAW_LIMIT = 2 * 1024 * 1024
+-VERSION = "bounded-repair-paired-v1"
++VERSION = "bounded-repair-paired-v2"
+ 
+ 
+ class Denied(RuntimeError):
+--- v1/worker.py
++++ v2/worker.py
+@@ -196,7 +196,8 @@
+             for p in (workspace / spec["target"], workspace / "criteria.py")
+         }
+         settings = Settings.model_validate(c.settings_data())
+-        plan_key = hashlib.sha256(f"{c.VERSION}:{case}:{repeat}".encode()).hexdigest()[:32]
++        # Preserve v1 fixture/prompt identity; this is not admission authority.
++        plan_key = hashlib.sha256(f"bounded-repair-paired-v1:{case}:{repeat}".encode()).hexdigest()[:32]
+         with patch("henchman.advanced.plans.uuid4", return_value=UUID(plan_key)):
+             plan = PlanExecutionService(workspace, settings=settings).create_plan(
+                 steps=["Meet the immutable arithmetic criteria"],
+--- v1/README.md
++++ v2/README.md
+@@ -1,10 +1,12 @@
+-# Bounded repair paired experiment v1 — offline review checkpoint
++# Bounded repair paired experiment v2 — offline review checkpoint
+ 
+ This is a separate arithmetic comparison for issue #16, not canonical recovery-corpus qualification. No local endpoint, model, hosted provider, account, browser or server has been contacted while preparing this checkpoint. Root approval of this frozen harness and an explicit private admission file are required before live use. The admission template is deliberately unapproved and cannot run.
+ 
+ ## Frozen comparison
+ 
+-Source: committed `929dfc00fe48fdd5140cd6f2332b7ff0ce115de8`, extracted from `git archive`; all 1,652 file hashes and exact internal documentation symlinks are in `source-manifest.json`. The earlier 0b89e59 prototype is retained separately and is not the live source. This experiment is not a full release qualification.
++Source: committed `7141c1f342216b1a24defecb530931ca234f4c41`, freshly extracted from `git archive`; all 1,690 file hashes and exact internal documentation symlinks are in `source-manifest.json`. No v1 source, Python cache or admission was reused. The original v1 harness, its 929dfc0 source, and its live twelve-attempt cohort remain unchanged. This experiment is not a full release qualification.
++
++The v1 live result was **direct 6/6 accepted; repair 2/6 accepted**, including ties on the already-correct control. Its immutable receipt is `/home/matthew/.cache/henchman-release-qualification/paired-929dfc0-v1/receipt.json`, SHA-256 `8b7980ee1c2459855a4edc3b5cbe9a97b357fd958e7599d76da4e712f62ae81e`. The four failed repair attempts remain failures even when their edited artifact passed the independent oracle. V2 is separately versioned fix validation, not replacement evidence or a claim of general functional benefit. Source 7141c1f also includes intervening default-off delegation/prompt-note changes (a253dc5) and UI/report changes after 929dfc0. Fixture/user prompt bytes and explicit settings are held equal; full model messages are not asserted identical across versions. Both v2 arms share the exact same new source. This is not an isolated source ablation or causal attribution solely to the disclosure patch; the offline regression isolates that mechanism. Offline scripted acceptance is not a model result.
+ 
+ Three cases × two repeats × two arms = **12 attempts**, with direct/repair order for repeat 1 and repair/direct for repeat 2, within each case. No replacement attempts, fallback models, retries, automatic installs, downloads or resumed runs. A failure or unknown measurement stays in the denominator; unsafe cleanup or failed readiness leaves the remaining rows explicitly `NOT_RUN`.
+ 
+@@ -12,7 +14,9 @@
+ - Pricing addition/multiplication repair; five immutable numeric checks include zero, negative and fractional values. This does **not** require the canonical corpus's failed then successful `python_exec`, which bounded repair intentionally disallows.
+ - Already-correct addition control; acceptance requires identical source bytes.
+ 
+-Within a pair, both arms get the same starting source, protected criteria, prompt, plan identity and settings. Both receive the same four concrete tools: read, write, edit, and verification of the one held plan. Only the arithmetic source can change; criteria stay byte-identical. Baseline runs `run_direct`; candidate runs `repair_direct` with two repairs and identical-failure limit 2. The candidate's initial successful check can legitimately use zero provider requests.
++Within a pair, both arms get the same starting source, protected criteria, prompt, plan identity and settings. Both register the same four concrete tools: read, write, edit, and verification of the one held plan. On this source, the direct arm advertises all four; during bounded repair the candidate advertises only its exact captured read/write/edit implementations. The controller verifier remains internally registered and usable, and a model hallucinating a verifier call is still denied fatally. This scoped wire-tool disclosure is the treatment being tested, not an authority expansion. Only the arithmetic source can change; criteria stay byte-identical. Baseline runs `run_direct`; candidate runs `repair_direct` with two repairs and identical-failure limit 2. The candidate's initial successful check can legitimately use zero provider requests.
++
++The worker deliberately retains the literal `bounded-repair-paired-v1` namespace only when deriving fixture plan IDs, so each case/repeat keeps exactly the same prompt bytes as v1. New physical workspaces keep those IDs non-authoritative across runs. This one comment/literal is the only worker delta. Harness/version, source provenance, receipts and admission remain v2; a v1 admission cannot authorize this harness. `offline-audit.json` records per-attempt prompt, initial-file, criteria and settings parity with the original live v1 inputs.
+ 
+ The final oracle independently parses the current source and evaluates a 24-point held-out numeric grid without executing generated Python. It also checks protected bytes and the unchanged control. The visible checker only executes one bounded pure arithmetic function after rejecting imports, calls, decorators, annotations, defaults, other statements and unbounded source. These are finite fixture criteria, not proof of general task correctness. Controller `scoped_pass` and model claims never replace the independent oracle. Ties establish no functional improvement; request/time differences are reported separately.
+ 
+@@ -41,17 +45,22 @@
+ Use the existing qualified Python 3.12 environment. Run from this directory:
+ 
+ ```sh
++export PYTHONDONTWRITEBYTECODE=1
+ export PYTHONPATH="$PWD/source/src:$PWD"
+ /tmp/henchman-v042-integrated-review/.venv/bin/python launch.py plan
+ /tmp/henchman-v042-integrated-review/.venv/bin/python -m unittest test_paired test_transport test_local_server test_launch test_worker -v
+-/tmp/henchman-v042-integrated-review/.venv/bin/python launch.py dry --output /tmp/henchman-paired-reviewed-dry-UNIQUE
++/tmp/henchman-v042-integrated-review/.venv/bin/python launch.py dry --output /home/matthew/.cache/henchman-release-qualification/paired-7141c1f-v2-dry-UNIQUE
+ /tmp/henchman-v042-integrated-review/.venv/bin/python launch.py admission-template
+ ```
+ 
+ Only after root review and separate authorization: copy the template to an explicitly chosen private file, populate fresh read-only server identity/model-stat facts, set `approved: true`, set a short expiry, and `chmod 600` that file. The harness never grants this itself. Then the exact live command is:
+ 
+ ```sh
+-/tmp/henchman-v042-integrated-review/.venv/bin/python launch.py live --admission /ABSOLUTE/PRIVATE/reviewed-admission.json --output /home/matthew/.cache/henchman-qualification/paired-929dfc0-UNIQUE
++/tmp/henchman-v042-integrated-review/.venv/bin/python launch.py live --admission /ABSOLUTE/PRIVATE/reviewed-admission.json --output /home/matthew/.cache/henchman-release-qualification/paired-7141c1f-v2-live-UNIQUE
+ ```
+ 
+ Output must be a new physical directory; overwriting/replacement cohorts are not supported. Each `attempt.json` is finalized after process settlement, `worker.json` records runtime/usage/oracle truth separately, and `receipt.json` retains all 12 rows plus six paired comparisons. The `dry` flag is present throughout, so scripted measurements cannot be mistaken for model measurements.
++
++## Frozen offline evidence
++
++`offline-audit.json` retains the two interpreter fault-test summaries, twelve synthetic dry attempts, exact input parity and old-artifact preservation checks. `mutations.json` and `harness-changes.patch` enumerate the intentionally narrow harness changes. `frozen-manifest.json` hashes the checkpoint files and source archive; `harness-manifest.json` is the Python-only admission identity. None of these documents authorizes a live run. No endpoint discovery, server/model management, profile mutation or inference was performed during v2 preparation.

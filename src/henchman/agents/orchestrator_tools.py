@@ -6,9 +6,11 @@ or the regular tool execution path.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.runtime_operations import current_operation_run, use_operation_call
 from henchman.tools.base import ToolResult
 
 from .orchestrator_components import OrchestratorComponent
@@ -97,6 +99,8 @@ class ToolController(OrchestratorComponent):
             AgentEvent: Events generated during tool execution.
         """
         for tool_call in pending_tool_calls:
+            if current_operation_run() is not None:
+                tool_call = deepcopy(tool_call)
             if tool_call.name == DELEGATE_TASK_TOOL:
                 authorized = await agent.tool_registry.authorize(
                     tool_call.name, tool_call.arguments,
@@ -130,10 +134,13 @@ async def _execute_regular_tool(
     metrics: ToolMetricsController,
 ) -> AsyncIterator[AgentEvent]:
     """Execute a regular (non-delegation) tool call."""
-    result = await agent.tool_registry.execute(
-        tool_call.name,
-        tool_call.arguments,
-    )
+    run = current_operation_run()
+    invocation = run.capture_call(agent, tool_call) if run is not None else None
+    with use_operation_call(invocation):
+        result = await agent.tool_registry.execute(
+            tool_call.name,
+            tool_call.arguments,
+        )
     yield _report_tool_result(agent, tool_call, result, tool_errors, metrics)
 
 
@@ -148,7 +155,9 @@ def _report_tool_result(
     tc_name = tool_call.name
     tc_id = tool_call.id
 
-    agent.submit_tool_result(tc_id, result.content or "")
+    from henchman.utils.tool_results import tool_result_event_data
+
+    agent.submit_tool_result(tc_id, result)
 
     if not result.success:
         metrics.track_tool_error(tool_errors, tc_name, result.content)
@@ -159,14 +168,10 @@ def _report_tool_result(
         success=result.success,
     )
 
+    data = tool_result_event_data(tc_id, tc_name, result)
+    data["preview"] = (result.content or "")[:RESULT_PREVIEW_LENGTH]
     return AgentEvent(
         type=EventType.TOOL_CALL_RESULT,
-        data={
-            "tool_call_id": tc_id,
-            "tool_name": tc_name,
-            "result": result.content or "",
-            "preview": (result.content or "")[:RESULT_PREVIEW_LENGTH],
-            "success": result.success,
-        },
+        data=data,
         source_agent=agent.identity.id if agent.identity else None,
     )

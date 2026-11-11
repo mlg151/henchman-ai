@@ -87,6 +87,10 @@ def create_configured_provider(
                 raise ValueError(f"Configure providers.{name}.{setting}")
 
     try:
-        return registry.create(name, **options)
+        provider = registry.create(name, **options)
     except TypeError as exc:
         raise ValueError(f"Invalid provider options for {name}; check providers.{name}") from exc
+    # Shared adapter classes can serve different endpoints and price catalogs.
+    # Keep configured identity outside request options and user-visible names.
+    provider._accounting_provider_name = name
+    return provider

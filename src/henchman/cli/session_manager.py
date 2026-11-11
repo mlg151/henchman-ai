@@ -7,18 +7,26 @@ session creation/loading, and session state tracking.
 
 from __future__ import annotations
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import asdict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from henchman.core.instruction_provenance import InstructionProvenanceService
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
+from henchman.core.session_workflow import SessionWorkflow
 from henchman.providers.base import Message, ToolCall
+from henchman.providers.continuation import copy_continuation
+from henchman.utils.tool_results import tool_result_payload
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.config.context import ContextSnapshot
+    from henchman.config.schema import Settings
     from henchman.core.agent import Agent
+    from henchman.providers.base import ModelProvider
+    from henchman.tools.base import ToolResult
+    from henchman.tools.registry import ToolRegistry
 
 
 try:
@@ -47,16 +55,10 @@ def _build_tool_call(tc: dict[str, Any]) -> ToolCall:
     )
 
 
-def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
-    """Restore session messages to the tech-lead agent's message history.
-
-    Args:
-        agent: Agent whose history is repopulated.
-        session: Session containing the messages to restore.
-    """
-    agent.clear_history()
+def _prepare_agent_messages(agent: Agent, session: Session) -> list[Message]:
+    """Validate and detach restored history before changing the live actor."""
     prompt = agent.system_prompt
-    agent.messages = [Message(role="system", content=prompt)] if prompt else []
+    messages = [Message(role="system", content=prompt)] if prompt else []
 
     for session_msg in session.messages:
         if session_msg.role == "system" and session_msg.content == prompt:
@@ -66,15 +68,27 @@ def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
             if session_msg.tool_calls
             else None
         )
-        agent.messages.append(
+        messages.append(
             Message(
                 role=session_msg.role,
                 content=session_msg.content,
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
+                reasoning_details=deepcopy(session_msg.reasoning_details),
+                continuation=copy_continuation(session_msg.continuation),
+                tool_result=deepcopy(session_msg.tool_result),
+                context_attachments=deepcopy(session_msg.context_attachments),
             ),
         )
+    return messages
+
+
+def _sync_messages_to_agent(agent: Agent, session: Session) -> None:
+    """Restore detached history after validating the complete candidate."""
+    messages = _prepare_agent_messages(agent, session)
+    agent.clear_history()
+    agent.messages = messages
 
 
 def _record_session_entry(session: Session | None, **kwargs: Any) -> None:
@@ -106,6 +120,9 @@ class ReplSessionManager:
         session_manager: SessionManager | None = None,
         *,
         auto_save: bool = True,
+        instruction_snapshot: ContextSnapshot | None = None,
+        settings: Settings | None = None,
+        provider: ModelProvider | None = None,
     ) -> None:
         """Initialize the REPL session manager.
 
@@ -113,15 +130,64 @@ class ReplSessionManager:
             session_manager: Core session manager for persistence.
                 If None, creates a default SessionManager.
             auto_save: Whether to auto-save sessions on exit.
+            instruction_snapshot: Optional instruction provenance captured
+                onto every attached session.
+            settings: Effective settings whose credentials are masked in evidence.
+            provider: Active provider whose key is masked in evidence.
         """
         self.session_manager = session_manager or SessionManager()
         self.session: Session | None = None
         self.auto_save = auto_save
+        self.instruction_snapshot = instruction_snapshot
+        self._tool_registry: ToolRegistry | None = None
+        self.register_credentials(settings=settings, provider=provider)
+        if settings is None:
+            from henchman.config.schema import Settings
+
+            settings = Settings()
+        self.workflow_runtime = SessionWorkflow(
+            settings, lambda: self.current, self._save_workflow_session,
+            self.session_manager.data_dir.parent / "ops.db", check_status=self._workflow_check_status,
+        )
+
+    def _save_workflow_session(self, session: Session) -> None:
+        self.session_manager.save(session)
+
+    def _workflow_check_status(self, plan_id: str) -> dict[str, object]:
+        from henchman.advanced.plans import PlanExecutionService
+
+        policy = self.current.evidence_redactor if self.current is not None else self.session_manager.evidence_redactor
+        return PlanExecutionService(Path.cwd(), settings=self.workflow_runtime.settings,
+                                    redactor=policy).verification_status(plan_id)
+
+    def register_credentials(
+        self, *, settings: Settings | None = None, provider: ModelProvider | None = None,
+    ) -> None:
+        """Keep configured and rotated keys out of session evidence."""
+        if settings is None and provider is None:
+            return
+        redactor = self.session_manager.evidence_redactor
+        if settings is not None:
+            redactor.register_config(settings.model_dump())
+        key = getattr(provider, "api_key", None)
+        if isinstance(key, str):
+            redactor.register_secret(key)
 
     @property
     def current(self: Self) -> Session | None:
         """Get the current session (alias for session attribute)."""
         return self.session
+
+    def bind_tool_registry(self: Self, registry: ToolRegistry) -> None:
+        """Bind the shared tool registry so session switches reset its grants.
+
+        Args:
+            registry: The registry whose approval grants are session-scoped.
+
+        Returns:
+            None
+        """
+        self._tool_registry = registry
 
     def set_session(
         self: Self,
@@ -140,13 +206,48 @@ class ReplSessionManager:
         Returns:
             None
         """
-        self.session = session
-        self.session_manager.set_current(session)
+        target = history_agent if history_agent is not None else agent.tech_lead if agent else None
+        messages = _prepare_agent_messages(target, session) if target is not None else None
+        metadata = session.export_metadata
+        prepared_metadata = metadata
+        if self.instruction_snapshot is not None:
+            candidate = copy(session)
+            candidate.export_metadata = deepcopy(metadata)
+            InstructionProvenanceService().capture(candidate, self.instruction_snapshot)
+            prepared_metadata = candidate.export_metadata
 
-        if history_agent is not None:
-            _sync_messages_to_agent(history_agent, session)
-        elif agent:
-            self._sync_session_to_agent(session, agent)
+        # Revoking grants can fail, but must never select half of a new session.
+        # Grants already revoked by a failing boundary are deliberately not reissued.
+        if self._tool_registry is not None:
+            self._tool_registry.clear_grants()
+        previous, previous_core = self.session, self.session_manager.current
+        # These are precisely the history fields changed by Agent.clear_history.
+        # Keep provider/configuration and credential-policy ownership untouched.
+        history: dict[str, Any] = {}
+        if target is not None:
+            for name in ("messages", "current_turn_messages", "_turn_budget_scope", "turn"):
+                history[name] = getattr(target, name)
+            history["_stall"] = copy(target._stall)
+            history["_delegation_tool_errors"] = list(target._delegation_tool_errors)
+        self.session = session
+        try:
+            session.export_metadata = prepared_metadata
+            self.workflow_runtime.attach(session)
+            self.session_manager.set_current(session)
+            if target is not None:
+                target.clear_history()
+                assert messages is not None
+                target.messages = messages
+        except BaseException:
+            self.session = previous
+            # Restore the local selector directly; a failed setter must not be
+            # called again during rollback. Durable journal commits remain facts.
+            self.session_manager._current = previous_core
+            session.export_metadata = metadata
+            if target is not None:
+                for name, value in history.items():
+                    setattr(target, name, value)
+            raise
 
     def _sync_session_to_agent(self: Self, session: Session, agent: Orchestrator) -> None:
         """Restore session messages to agent history (delegates to module-level helper).
@@ -171,6 +272,33 @@ class ReplSessionManager:
             return
 
         self.session_manager.save(self.session)
+
+    def append_context_attachment(self, agent: Agent, message: Message, *, expected_session: Session) -> None:
+        """Save a detached candidate before appending to the existing live histories."""
+        from henchman.utils.context_attachments import copy_context_attachments
+
+        if self.session is not expected_session:
+            raise ValueError("The active session changed; retrieve a new MCP preview")
+        records = copy_context_attachments(message.context_attachments, role=message.role)
+        if not records or message.tool_calls or message.tool_call_id or message.continuation:
+            raise ValueError("MCP attachment must be ordinary user context")
+        candidate = copy(expected_session)
+        entry = SessionMessage(**deepcopy(asdict(message)))
+        candidate.messages = [*expected_session.messages, entry]
+        self.session_manager.save(candidate)
+        # Saving may discover older credentials in the retained backup. Publish
+        # the same final evidence projection to both live histories.
+        from henchman.core.session_evidence import redact_session_payload
+        from henchman.core.session_models import message_from_dict
+
+        projected = redact_session_payload({"messages": [entry.to_dict()]}, self.session_manager.evidence_redactor)
+        entry = message_from_dict(projected["messages"][0])
+        expected_session.messages.append(entry)
+        expected_session.last_updated = candidate.last_updated
+        expected_session._storage_token = candidate._storage_token
+        expected_session._storage_path = candidate._storage_path
+        agent.messages.append(Message(role="user", content=entry.content,
+                                      context_attachments=deepcopy(entry.context_attachments)))
 
     def sync_agent_turn(self: Self, agent: Agent, *, session_start: int) -> None:
         """Persist the current agent turn without replacing older transcript.
@@ -206,7 +334,7 @@ class ReplSessionManager:
         """
         return self.session_manager.create_session(project_hash, tag)
 
-    def load(self: Self, session_id: str) -> Session:
+    def load(self: Self, session_id: str, *, project_hash: str | None = None) -> Session:
         """Load a session from disk.
 
         Args:
@@ -222,7 +350,7 @@ class ReplSessionManager:
         if not session_id:
             msg = "session_id must not be empty"
             raise ValueError(msg)
-        return self.session_manager.load(session_id)
+        return self.session_manager.load(session_id, project_hash=project_hash)
 
     def load_by_tag(
         self: Self,
@@ -340,7 +468,7 @@ class ReplSessionManager:
                 ),
             )
 
-    def record_tool_result(self: Self, tool_call_id: str, content: str) -> None:
+    def record_tool_result(self: Self, tool_call_id: str, content: str | ToolResult) -> None:
         """Record a tool result to the current session.
 
         Args:
@@ -352,5 +480,7 @@ class ReplSessionManager:
         """
         if self.session is not None:
             self.session.messages.append(
-                SessionMessage(role="tool", content=content, tool_call_id=tool_call_id),
+                SessionMessage(role="tool", content=content if isinstance(content, str) else content.content,
+                               tool_call_id=tool_call_id,
+                               tool_result=None if isinstance(content, str) else tool_result_payload(content)),
             )

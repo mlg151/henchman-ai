@@ -2,12 +2,55 @@
 
 ## Overview
 
+The [checkpoint service](checkpoints.md) owns scoped content capture and durable
+conflict-checked POSIX restore and a native NTFS content-only backend awaiting
+qualification. CLI, REPL and Textual command input share its user
+adapter; Textual F8 adds file/hunk navigation with separate preview and Apply.
+Restores invalidate plan verification and supersede in-flight check results;
+automatic capture uses declared tool targets and operation correlation.
+Conversation rewind does not restore workspace files.
+
+Plan verification keeps historical observations separate from current declared
+input fingerprints. Its read-only status API detects content changes without
+turning a reported step or selected check into task acceptance. See
+[verification freshness](tools.md#declared-input-freshness).
+Verification evidence projects known credentials separately from executable
+specifications. Sensitive specifications retain only an unavailable marker and
+original digest; read-only views do not write, while explicit sanitation and
+writer boundaries update retained evidence under the existing plan lock.
+
+[Background tasks](tools.md#background-execution) persist versioned intent before
+process creation. Locked per-record updates preserve concurrent observations;
+runtime process handles remain the only control authority. Reopening stored
+intent never replays argv, adopts a PID or rewrites an unresolved writer's log.
+
+The [operation journal](operation-recovery.md) commits tool-attempt authority
+before dispatch and reconciles completed observations without repeating effects.
+It binds assistant/tool correlation across primary and separate specialist turns;
+unknown outcomes block continuation until an explicit user resolution. Its
+process/durable lifetime is independent of model usage accounting. Typed tool
+evidence travels through events and sessions with bounded, explicit projections.
+
+Textual [tool inspection](ui-interaction-contract.md#tool-observations-and-inspection)
+uses one bounded display store for correlated transcript rows and the Tools tab.
+Read-only inspection preserves typed evidence and current credential projection;
+display outcomes never authorize execution or establish task acceptance.
+The separate [activity display](ui-interaction-contract.md#activity-status-and-pending-decisions)
+uses worker and prompt ownership to retain cancellation through cleanup and
+ignore stale callbacks. F4 focuses a pending decision without granting approval.
+The [Workspace inspector and `/work` command](ui-interaction-contract.md#task-and-agent-inspection)
+share framework-free reads of existing child-conversation and bound project-task owners. Their bounded
+observations, explicit refresh and Back navigation do not create execution,
+storage or accounting authority; instantiated actors are distinct from running work.
+
 Henchman-AI is built with a modular, component-based architecture that separates concerns and promotes maintainability. The system is designed around the principle of single responsibility, with each component handling a specific aspect of the CLI's functionality.
 
 This architecture includes both shipped runtime paths and narrower integration seams. The shared discovery capability matrix is authoritative: local skills are local-only; integration blueprints (including Slack) are export-only; `schedule_cron` is metadata-only; remote agent/plugin installs are unavailable; the GitHub webhook helper is docs-only; and Tier 10 dialogs are intentionally absent from generic discovery even though they ship inside `henchman chat --tui`.
 
 `ask_user` is runtime-dependent: classic REPL and Textual supply asynchronous
-input handlers; headless and standalone tools remain unbound by default. See
+input handlers; legacy headless and standalone tools remain unbound by default.
+The opt-in v1 editor protocol binds questions only for clients advertising that
+capability. See
 [tool input behavior](tools.md#ask_user) for cancellation and session semantics.
 
 Response-format checks observe optional legacy planning metrics without adding
@@ -40,6 +83,12 @@ provide historical file, command, and pytest observations; whole-task correctnes
 and requirements coverage remain roadmap work. See [orchestrator API](api.md#orchestrator)
 and [JSON output semantics](providers.md#streaming-reliability).
 
+The opt-in [editor stdio protocol](api.md#editor-stdio-protocol-v1) transfers an
+idle shared context to one run. A standard-library entrypoint isolates protocol
+pipes before CLI imports. The transport owns startup, pipe delivery and SDK client
+cleanup; the shared runtime owns admission, authorization, execution and saved
+outcomes. Terminal delivery and task verification remain separate claims.
+
 Headless JSON uses the same orchestrator as interactive execution, including
 specialist provider selection and delegation policy checks. Agent-attributed
 events preserve nested activity as it occurs, with consumer backpressure and
@@ -47,6 +96,14 @@ explicit closure of nested streams; `scope: "run"` marks the authoritative outer
 completion. The JSON adapter emits one final `finished` event and rejects a
 missing or unsuccessful outer outcome. Provider tool rounds have a finite budget
 for both lead and specialist agents, independent of delegation call/depth limits.
+
+One runtime-owned `DelegationAdmission` also bounds executing descendants across
+dynamic, named, nested, parallel and compatibility routes. Reservations precede
+actor/worker creation and remain held until cleanup joins. Reset revokes old
+generation authority before cancellation, and capacity refusal never enters the
+delegation retry loop. The same controller captures the default-off
+`agents.allow_delegation` startup permission; prompts disclose it but cannot grant
+it. See [shared delegation capacity](agents.md#shared-delegation-capacity).
 
 Tool scopes use a live view of the runtime registry with fixed role allowlists.
 The leader uses the same scope mechanism as specialists. Allowed late tools and
@@ -317,14 +374,142 @@ REPL and Textual turns save after their streams close, including cancellation.
 `Agent.current_turn_messages` retains independent copies of the current turn's
 messages before context compaction. Session synchronization replaces only that
 turn's transcript, preserving earlier conversation, full tool results, tool-call
-arguments, reasoning, and marked partial responses. The model's compacted working
+arguments, reasoning, and marked partial responses, subject to evidence redaction.
+The model's compacted working
 context is separate from this persisted evidence.
+
+Explicit session compaction also retains typed operation-correlation archives
+outside the active conversation, so completed effects remain reconcilable after
+save/load. It refuses unreconciled or corrupt bindings before mutation; see
+[operation recovery](operation-recovery.md#lifetime-and-authority) for retention
+and authority limits.
 
 Resuming a session restores the configured agent's system prompt and the selected
 session's messages. Summaries from the previously active conversation are discarded.
 Direct-role sessions restore to the selected specialist. These behaviors have
 offline runtime coverage through save/load and a subsequent agent request;
 interactive terminal rendering and live provider execution require separate checks.
+
+Interactive session activation prepares detached history and instruction
+provenance before changing the selected session. Failed grant retirement or
+later activation restores the prior wrapper/core selectors and actor history;
+revoked grants and held dispatch eligibility are not automatically reissued.
+Durable journal commits remain authoritative. Invalid legacy goals are validated
+before creating or caching workflow authority, so retry cannot silently discard
+their failed admission.
+
+Disk sessions use storage version 1 with a SHA-256 payload integrity check. Saves
+flush a unique private temporary file, atomically replace the current JSON, and
+retain one verified prior copy in `<id>.json.bak`. POSIX saves also flush directory
+entries; Windows uses file flush and replacement without a directory-fsync claim.
+Native file locks serialize cooperating writers, and a loaded-byte revision token
+rejects stale updates (including attempts to resurrect a deleted session). Reload
+and reconcile on conflict; a portable import is not permission to overwrite an
+existing session. Legacy unversioned sessions migrate on their next save, retaining
+a redacted prior copy. Portable exports keep the established session JSON shape.
+
+`Session.to_dict()` projects evidence through the shared runtime `EvidenceRedactor`;
+it leaves live messages and execution inputs unchanged. Session managers attach
+the same policy to created, loaded, imported, branched, merged and templated
+sessions. Interactive startup registers settings/provider credentials and provider
+switching adds replacement keys without forgetting old ones. Markdown and playback
+render from the projected session, so credential fields outside a rendered section
+still mask their echoed values. Template metadata uses that policy too.
+Persistence learns marked credentials from both verified disk generations before
+projecting the new generation. Both copies are sanitized and integrity-checked
+before replacing them, including recovery with a missing or corrupt current file.
+The credential registry remains in memory and is excluded from serialization.
+`session_evidence.py` defines trusted structural projections: fixed field names,
+identities, timestamps, correlation fields, roles, lifecycle flags and provenance
+digests survive even when a short credential coincides with their spelling.
+Evidence text and free-form metadata remain subject to redaction. Memory kinds
+and sources are free-form values, while unexpected objects in identity slots
+fail validation. Storage metadata preserves only its version and digest fields;
+extra fields cannot exempt credentials in a retained backup.
+See [session evidence redaction](configuration.md#session-evidence-redaction) for
+the threat model, legacy-file behavior and remaining output/privacy boundaries.
+
+`EventEvidenceRedactor` projects headless JSON events without modifying execution
+events. It shares the active session credential policy and keeps separate
+`EvidenceStreamRedactor` buffers for each agent's content and reasoning. Known
+credential prefixes remain buffered across chunk boundaries; authentication values
+are discarded until the line ends. JSON's authoritative run completion flushes all
+channels before the terminal event, while cancellation flushes conservatively in
+runtime cleanup. Tool previews derive from sanitized full results, and trusted
+event identities and validated completion controls retain their protocol meaning.
+
+MCP context attachment uses the same session evidence projection. An explicit
+command consumes a bounded process-local preview tied to the requesting session
+and agent. A detached session candidate is saved before either live history is
+appended; the existing transcript and continuation envelopes stay intact. Typed
+source metadata is retained as evidence, while prompt roles and summaries stay
+ordinary untrusted user data. Imported preview IDs never grant execution rights.
+See [attachment behavior](mcp.md#attach-a-reviewed-context-result).
+
+When the current copy is missing, malformed or fails its integrity check, loading
+uses a valid prior copy and emits a warning naming the session and possible lost
+recent changes; `Session.recovery_notice` retains that diagnostic for consumers.
+It does not repair the current copy until the caller saves. Unknown newer storage
+versions fail explicitly instead of rolling back to an older format. Both copies
+are removed on deletion. CLI startup reports unrecoverable storage and unsupported
+versions instead of silently creating a fresh conversation in place of the selected
+session; the original files and selection remain intact for recovery.
+The digest detects corruption, not malicious tampering;
+cooperative locking is not a filesystem isolation boundary. Forced termination
+can leave a private temporary file, which is never treated as a saved session.
+Temporary filenames identify their owning session; its next successful load, save
+or deletion removes abandoned save files under the same lock, including files
+left before the first commit. Other sessions' pending files are untouched.
+Storage recovery is separate from the [operation journal](operation-recovery.md),
+which classifies interrupted effects and requires explicit resolution of unknown
+outcomes. [Provider continuation envelopes](providers.md#provider-continuation)
+retain qualified opaque state separately from visible reasoning.
+
+`SessionWorkflow` supplies versioned goal and queued-input authority for frontend
+adapters. With `operations.persistence: durable`, it uses the existing selected
+`ops.db` and a separate `session_workflow` schema namespace. It commits queued
+intent and an exclusive start before returning dispatch permission. Store identity,
+checksums and revision checks reject stale or incompatible state; a saved session
+reference is advisory. Read-only inspection never creates authority, and restoring
+an older session backup cannot replace an existing durable workflow.
+
+Dispatch eligibility, live unredacted input and goal continuation permission belong
+to the creating runtime and process. Restore, copying and fork cannot rearm them.
+Unowned starts remain uncertain until explicit disposition; they are never replayed.
+Known credentials are projected from stored evidence, with sensitive queued text
+unavailable on restore. A committed goal change survives a failed transcript save,
+which disables continuation without granting a new usage budget. State is bounded
+to 4 MiB and 1,024 inputs. `GoalService`, `/queue` controls and both interactive
+workers now share this authority. Workers cancel and join actual dispatched work
+before settling interruption. Task-local context correlates real budget runs and
+operation IDs before effects; late owned work can retain correlation without
+rearming settled input. Session selection cannot transfer an active input permit.
+Restored goals require explicit resumption under current policy, and model
+completion checks exact goal revision and current evidence from user-bound plans.
+Explicit user completion retains separate acknowledgement provenance.
+An independent process-death regression covers an owned started input, a held
+queued input, goal identity and policy, and check freshness through durable
+reopen; it does not establish native-platform or live-provider qualification on
+its own.
+
+Textual F9 consumes an ephemeral `QueueControlView` from the same service. Edits,
+removal and reordering bind the observed workflow revision, session reference and
+local generation; only explicit Send grants local eligibility. The transaction
+runs in an owned worker with admission checks after acquiring SQLite's writer
+lock and immediately before commit. Guarded lock waits recheck cancellation at
+50-ms intervals within the existing 30-second contention bound. Cancellation joins
+the worker, preserves already committed truth and leaves work held. See the
+[queue interaction contract](ui-interaction-contract.md#saved-input-queue).
+
+`SessionContextService.build_snapshot()` is the single effective retention-policy
+report for a session: message/turn counts, `plan_mode`, stored-memory count, the
+persisted memory-extraction opt-out flag, and the number of turns currently held in
+compaction records. Every reporting surface consumes that snapshot or the same
+shared services it reads — the headless `context` command renders it directly, and
+the REPL `/session export` and Textual export path render memories and
+compaction-retained turns through the same `SessionMemoryService` and
+`SessionContextService` state — so UI and headless surfaces report the same
+effective policy.
 
 **Responsibilities**:
 - Save and load chat sessions

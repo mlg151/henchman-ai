@@ -158,8 +158,10 @@ class ComponentInitializer:
             system_prompt=self.config.config.system_prompt,
             environment_context=self.config.environment_context,
             settings=self.config.settings,
+            settings_state=getattr(self.config.app, "settings_state", None),
             auto_approve_tools=(self.config.config.auto_approve_tools),
             question_handler=self.config.app._textual_question,
+            instruction_snapshot=self.config.config.instruction_snapshot,
         )
         # Store app reference in plugin manager if it has ui_instance attribute
         # This allows plugins to access the Textual UI if needed
@@ -183,7 +185,10 @@ class ComponentInitializer:
         theme_manager = ThemeManager()
         theme_name = self._resolve_theme_name(theme_manager)
         theme = theme_manager.get_theme(theme_name)
-        output_renderer = OutputRenderer(console=console, theme=theme)
+        output_renderer = OutputRenderer(
+            console=console, theme=theme,
+            output_mode=getattr(self.config.app, "_output_mode", "rich"),
+        )
         self._ui_renderer = self._ui_renderer_cls(
             console=console,
             renderer=output_renderer,

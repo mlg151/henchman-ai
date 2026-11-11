@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from henchman.providers.base import Message
+from henchman.utils.context_attachments import context_attachment_content, merge_context_attachments
 from henchman.utils.tokens import TokenCounter
 
 # Only summarize if it reduces tokens by at least this ratio (20% reduction required)
@@ -207,10 +208,15 @@ class CompressionStrategy:
         result: list[Message] = []
         summary = self._summarize_cluster(messages, cluster)
         if summary:
-            result.append(Message(
-                role="system",
-                content=f"[Summarized cluster {cluster_idx}]: {summary}",
-            ))
+            attachments = merge_context_attachments(messages[idx].context_attachments for idx in cluster if idx < len(messages))
+            if attachments:
+                result.append(Message("user", context_attachment_content(attachments, summary=summary),
+                                      context_attachments=attachments))
+            else:
+                result.append(Message(
+                    role="system",
+                    content=f"[Summarized cluster {cluster_idx}]: {summary}",
+                ))
         else:
             # If summarization doesn't reduce tokens, preserve original messages
             result.extend(messages[idx] for idx in cluster if idx < len(messages))

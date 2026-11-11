@@ -1,0 +1,882 @@
+{
+  "kind": "staged_delegation_local_paired_v1",
+  "harness_version": "v2-primary-actor-guard",
+  "plan_sha256": "2ad6873979579a3769bcaf15e1751ccb1afbef6192e6435107069540c0ef59ae",
+  "source_commit": "c8b0e435eceb229dde930402aab47b628670c139",
+  "wheel_sha256": "5534d3efb54da5f27b697274fa7eab1113ac6c4f6901f45dae7e0bfcbcd94dec",
+  "worker_sha256": "543d6bb20e8df1409b684172f86a33c441a4439b017a66ee97ca5a28e3dd2bd4",
+  "runner_sha256": "f33c8e849fe2a1ceb65c3dd22e29543f410dc00c1b53a15071d13aecc7064fac",
+  "endpoint": "http://127.0.0.1:8081",
+  "model": "qwen38-27b-iq3s",
+  "planned": 12,
+  "rows": [
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 34.238,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 4,
+        "transport_errors": [],
+        "elapsed_seconds": 31.063,
+        "client_peak_rss_kib": 224236,
+        "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+        "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+        "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+      "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b"
+    },
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "accepted",
+      "elapsed_seconds": 115.687,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 11,
+        "transport_errors": [],
+        "elapsed_seconds": 112.557,
+        "client_peak_rss_kib": 224788,
+        "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+        "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+        "prompt_sha256": "e6d9065e9f002a3098e9e6becc2cb56af1e2b10acd0108e6da95fd0390d0d1b9",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+      "prompt_sha256": "e6d9065e9f002a3098e9e6becc2cb56af1e2b10acd0108e6da95fd0390d0d1b9"
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "accepted",
+      "elapsed_seconds": 113.201,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 11,
+        "transport_errors": [],
+        "elapsed_seconds": 109.985,
+        "client_peak_rss_kib": 225924,
+        "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+        "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+        "prompt_sha256": "e6d9065e9f002a3098e9e6becc2cb56af1e2b10acd0108e6da95fd0390d0d1b9",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+      "prompt_sha256": "e6d9065e9f002a3098e9e6becc2cb56af1e2b10acd0108e6da95fd0390d0d1b9"
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 30.227,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 4,
+        "transport_errors": [],
+        "elapsed_seconds": 27.114,
+        "client_peak_rss_kib": 224980,
+        "result_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+        "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+        "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+        "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8",
+      "task_sha256": "ec0c7aa209b867eb99d8ca382076df1021fd0b37f36be705e7cf1243fcbfde2e",
+      "prompt_sha256": "f698c7ab912c7c129ee8e4abf8bd56ab4647d2f52f854f66456bf20ad53eb67b"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "failed",
+      "elapsed_seconds": 164.846,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "BudgetExceeded",
+        "error": "Run budget prevented dispatch: request_limit",
+        "completion": "failed",
+        "transport_attempts": 12,
+        "transport_errors": [],
+        "elapsed_seconds": 161.652,
+        "client_peak_rss_kib": 228084,
+        "result_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+        "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+        "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+        "prompt_sha256": "bfe8d8ab6237bec850ce06c8dcbab3e6f9fcccd478109c57269163652617b690",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+      "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+      "prompt_sha256": "bfe8d8ab6237bec850ce06c8dcbab3e6f9fcccd478109c57269163652617b690"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 31.397,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 4,
+        "transport_errors": [],
+        "elapsed_seconds": 28.259,
+        "client_peak_rss_kib": 224592,
+        "result_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+        "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+        "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+        "prompt_sha256": "5c75f2167ff564614ea0d5d721a678315690269798fa572556727a944827465d",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+      "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+      "prompt_sha256": "5c75f2167ff564614ea0d5d721a678315690269798fa572556727a944827465d"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 25.981,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 3,
+        "transport_errors": [],
+        "elapsed_seconds": 22.818,
+        "client_peak_rss_kib": 225844,
+        "result_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+        "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+        "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+        "prompt_sha256": "5c75f2167ff564614ea0d5d721a678315690269798fa572556727a944827465d",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+      "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+      "prompt_sha256": "5c75f2167ff564614ea0d5d721a678315690269798fa572556727a944827465d"
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "accepted",
+      "elapsed_seconds": 149.689,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 12,
+        "transport_errors": [],
+        "elapsed_seconds": 146.404,
+        "client_peak_rss_kib": 226440,
+        "result_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+        "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+        "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+        "prompt_sha256": "bfe8d8ab6237bec850ce06c8dcbab3e6f9fcccd478109c57269163652617b690",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "aaba64a7698e242b45db95a9fe20f0e6057b020e680b9b0d5cda6562aa457f36",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "82cf5baea173f7e53b19d131f0067d3ff699b756f89d77fe7385f0309eb843f0",
+      "task_sha256": "34dd5d20e15a863ac80cc5a558909b133da20210ae37313fad7fcc98acb247df",
+      "prompt_sha256": "bfe8d8ab6237bec850ce06c8dcbab3e6f9fcccd478109c57269163652617b690"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 28.942,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 3,
+        "transport_errors": [],
+        "elapsed_seconds": 25.772,
+        "client_peak_rss_kib": 223260,
+        "result_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+        "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+        "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+        "prompt_sha256": "200f27a80e86819cb90354f13f537f2ecffea59913de7f72b38f6e8a2d08fea3",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+      "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+      "prompt_sha256": "200f27a80e86819cb90354f13f537f2ecffea59913de7f72b38f6e8a2d08fea3"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "accepted",
+      "elapsed_seconds": 128.91,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 11,
+        "transport_errors": [],
+        "elapsed_seconds": 125.723,
+        "client_peak_rss_kib": 224364,
+        "result_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+        "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+        "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+        "prompt_sha256": "42b78846954f273e4faa7fca9b5927c02ce617268be5b235835256344b224213",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+      "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+      "prompt_sha256": "42b78846954f273e4faa7fca9b5927c02ce617268be5b235835256344b224213"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "failed",
+      "elapsed_seconds": 159.201,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "BudgetExceeded",
+        "error": "Run budget prevented dispatch: request_limit",
+        "completion": "failed",
+        "transport_attempts": 12,
+        "transport_errors": [],
+        "elapsed_seconds": 156.012,
+        "client_peak_rss_kib": 224876,
+        "result_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+        "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+        "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+        "prompt_sha256": "42b78846954f273e4faa7fca9b5927c02ce617268be5b235835256344b224213",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "invoke_subagent"
+          },
+          {
+            "event": "result",
+            "tool": "invoke_subagent",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "child",
+            "status": "done"
+          },
+          {
+            "event": "request",
+            "tool": "manage_subagents"
+          },
+          {
+            "event": "result",
+            "tool": "manage_subagents",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "publish_subagent_proposal"
+          },
+          {
+            "event": "result",
+            "tool": "publish_subagent_proposal",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+      "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+      "prompt_sha256": "42b78846954f273e4faa7fca9b5927c02ce617268be5b235835256344b224213"
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "elapsed_seconds": 28.943,
+      "exit_code": 0,
+      "worker": {
+        "outcome": "completed",
+        "error": null,
+        "completion": "completed",
+        "transport_attempts": 3,
+        "transport_errors": [],
+        "elapsed_seconds": 25.782,
+        "client_peak_rss_kib": 223204,
+        "result_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+        "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+        "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+        "prompt_sha256": "200f27a80e86819cb90354f13f537f2ecffea59913de7f72b38f6e8a2d08fea3",
+        "exact_ast": true,
+        "events": [
+          {
+            "event": "request",
+            "tool": "read_file"
+          },
+          {
+            "event": "result",
+            "tool": "read_file",
+            "success": true
+          },
+          {
+            "event": "request",
+            "tool": "edit_file"
+          },
+          {
+            "event": "result",
+            "tool": "edit_file",
+            "success": true
+          }
+        ],
+        "events_truncated": false
+      },
+      "independent_exact_ast": true,
+      "independent_sha256": "1b72c1b47a54918f88ce61716f3adde582a75dda683a0c8ee062d1d5562eecae",
+      "route_observed": true,
+      "input_matches_plan": true,
+      "initial_sha256": "4c571ab9dad683834b0540a2442574e61c2e8d5db5b0c48c3e40b0472a64684f",
+      "task_sha256": "54e30a32acf57d273aba72d694e121a33c94f419ee8f6d9413cbd2a65b79a068",
+      "prompt_sha256": "200f27a80e86819cb90354f13f537f2ecffea59913de7f72b38f6e8a2d08fea3"
+    }
+  ],
+  "limitations": [
+    "Local provider route only; no hosted fallback.",
+    "Serialized test transport is not production provider scheduling.",
+    "Client peak RSS covers the worker process only; it excludes formatter subprocesses, the shared model server and GPU.",
+    "Request counts are recorded; complete token usage and hardware or electricity costs are not measured.",
+    "The AST oracle is deliberately narrow and does not execute generated code.",
+    "The shared server is checked for an idle slot but is not exclusively reserved."
+  ],
+  "accepted": 10,
+  "executed": 12
+}

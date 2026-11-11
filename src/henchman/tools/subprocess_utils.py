@@ -163,6 +163,7 @@ async def run_bounded_subprocess(
     cwd: Path,
     timeout: float,
     max_output_bytes: int = 65536,
+    env: dict[str, str] | None = None,
 ) -> BoundedProcessResult:
     """Run argv with bounded capture and cleanup; this is not a process sandbox.
 
@@ -175,13 +176,16 @@ async def run_bounded_subprocess(
     if type(max_output_bytes) is not int or not 1 <= max_output_bytes <= _MAX_CAPTURE_BYTES:
         raise ValueError(f"max_output_bytes must be an integer from 1 to {_MAX_CAPTURE_BYTES}")
     owned_process_group = os.name == "posix"
+    from henchman.tools.repair_scope import check_spawn
+
+    await check_spawn(command, cwd)
     process = await asyncio.create_subprocess_exec(
         *command,
         cwd=cwd,
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        env={**(os.environ if env is None else env), "PYTHONIOENCODING": "utf-8"},
         start_new_session=owned_process_group,
     )
     communication = asyncio.create_task(_capture_bounded(process, max_output_bytes))

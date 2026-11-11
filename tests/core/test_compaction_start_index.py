@@ -84,6 +84,9 @@ class TestStartIndexUpdatedAfterCompaction:
 
         # Mock the provider used for summarization so it doesn't hit a real API
         mock_provider = AsyncMock()
+        # No settings object is configured on this fixture. Without this,
+        # AsyncMock fabricates an asynchronous model_dump during redaction.
+        mock_provider.settings = None
 
         async def mock_stream(*_a, **_kw):
             from henchman.providers.base import FinishReason, StreamChunk

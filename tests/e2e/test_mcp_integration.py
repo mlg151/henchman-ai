@@ -377,21 +377,15 @@ class TestMcpEndToEnd:
 
     @pytest.mark.anyio
     async def test_real_serena_help_command(self) -> None:
-        """Test that real Serena help command works (integration test)."""
+        """Check an already-installed Serena without downloading a dependency."""
+        import shutil
         import subprocess
 
-        try:
-            # Try to run Serena help command
-            result = subprocess.run(
-                ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "--help"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            # Command should execute (even if it shows help)
-            assert result.returncode == 0 or "serena" in result.stdout or "serena" in result.stderr
-            assert "Usage:" in result.stdout or "serena" in result.stdout
-
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
-            pytest.skip("Serena not available for real integration test")
+        executable = shutil.which("serena")
+        if executable is None:
+            pytest.skip("Serena is not installed locally; no download was attempted")
+        result = subprocess.run(
+            [executable, "--help"], capture_output=True, text=True, timeout=10, check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "Usage:" in result.stdout or "serena" in result.stdout.lower()

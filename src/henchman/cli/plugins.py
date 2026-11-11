@@ -11,6 +11,8 @@ import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Self
 
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -92,7 +94,9 @@ class PluginManager:
             except Exception as e:
                 # Log error but continue loading other plugins
                 if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
-                    self.repl.renderer.warning(f"Failed to load plugin {path.name}: {e}")
+                    policy = runtime_evidence_redactor(self.repl)
+                    details = runtime_exception_text(self.repl, e)
+                    self.repl.renderer.warning(policy.text(f"Failed to load plugin {path.name}: {details}"))
 
     def _try_register_plugin_class(self: Self, attr_name: str, attr: object) -> bool:
         """Attempt to instantiate and register a single plugin class.
@@ -110,7 +114,9 @@ class PluginManager:
             self.register_plugin(attr())
         except Exception as e:
             if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
-                self.repl.renderer.warning(f"Failed to instantiate plugin {attr_name}: {e}")
+                policy = runtime_evidence_redactor(self.repl)
+                details = runtime_exception_text(self.repl, e)
+                self.repl.renderer.warning(policy.text(f"Failed to instantiate plugin {attr_name}: {details}"))
             return False
         else:
             return True
@@ -140,7 +146,8 @@ class PluginManager:
         )
 
         if found_plugin and self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
-            self.repl.renderer.info(f"Loaded plugins from {path.name}")
+            name = runtime_evidence_redactor(self.repl).text(path.name)
+            self.repl.renderer.info(f"Loaded plugins from {name}")
 
     def register_plugin(self: Self, plugin: UIPlugin) -> None:
         """Register a plugin instance.

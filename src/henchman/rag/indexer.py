@@ -8,14 +8,28 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import tempfile
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from henchman.rag.evidence import (
+    EVIDENCE_VERSION,
+    EvidenceUnavailable,
+    WorkspaceBinding,
+    read_source,
+    repository_git_environment,
+)
+from henchman.rag.repo_id import get_repository_manifest_path
+
 # Default chunk size used when not specified in manifest
 DEFAULT_CHUNK_SIZE: int = 512
+MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -41,6 +55,10 @@ class IndexManifest:
     files: dict[str, str] = field(default_factory=dict)
     model_name: str = ""
     chunk_size: int = DEFAULT_CHUNK_SIZE
+    evidence_version: int = 0
+    repository_id: str | None = None
+    collection_id: str | None = None
+    generation_id: str | None = None
 
     def save(self: IndexManifest, path: Path) -> None:
         """Save manifest to disk.
@@ -51,16 +69,31 @@ class IndexManifest:
         Returns:
             None
         """
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(
-                {
-                    "files": self.files,
-                    "model_name": self.model_name,
-                    "chunk_size": self.chunk_size,
-                },
-            ),
+        text = json.dumps(
+            {
+                "files": self.files,
+                "model_name": self.model_name,
+                "chunk_size": self.chunk_size,
+                "evidence_version": self.evidence_version,
+                "repository_id": self.repository_id,
+                "collection_id": self.collection_id,
+                "generation_id": self.generation_id,
+            },
         )
+        if len(text.encode("utf-8")) > MAX_MANIFEST_BYTES:
+            raise ValueError("RAG manifest exceeds byte budget")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                stream.write(text)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, path)
+        except BaseException:
+            with suppress(OSError):
+                os.unlink(temporary)
+            raise
 
     @classmethod
     def load(cls: type[IndexManifest], path: Path) -> IndexManifest:
@@ -76,9 +109,29 @@ class IndexManifest:
             return cls()
 
         try:
-            return _manifest_from_dict(cls, json.loads(path.read_text()))
-        except (json.JSONDecodeError, KeyError):
-            return cls()
+            with path.open("rb") as stream:
+                raw = stream.read(MAX_MANIFEST_BYTES + 1)
+            if len(raw) > MAX_MANIFEST_BYTES:
+                raise ValueError("RAG manifest exceeds byte budget")
+            data = json.loads(raw)
+            if not isinstance(data, dict) or not isinstance(data.get("files", {}), dict):
+                raise ValueError("Invalid RAG manifest")
+            if type(data.get("evidence_version", 0)) is not int or data.get(
+                "evidence_version", 0
+            ) not in (0, EVIDENCE_VERSION):
+                raise ValueError("Unsupported RAG manifest version")
+            for name in ("collection_id", "generation_id"):
+                value = data.get(name)
+                if value is not None:
+                    try:
+                        valid = isinstance(value, str) and str(UUID(value)) == value
+                    except ValueError:
+                        valid = False
+                    if not valid:
+                        raise ValueError("Invalid RAG manifest generation") from None
+            return _manifest_from_dict(cls, data)
+        except (UnicodeError, json.JSONDecodeError, KeyError) as exc:
+            raise ValueError("Invalid RAG manifest") from exc
 
 
 def _manifest_from_dict(
@@ -103,6 +156,10 @@ def _manifest_from_dict(
         files=data.get("files", {}),  # type: ignore[arg-type]
         model_name=data.get("model_name", ""),  # type: ignore[arg-type]
         chunk_size=data.get("chunk_size", DEFAULT_CHUNK_SIZE),  # type: ignore[arg-type]
+        evidence_version=data.get("evidence_version", 0),  # type: ignore[arg-type]
+        repository_id=data.get("repository_id"),  # type: ignore[arg-type]
+        collection_id=data.get("collection_id"),  # type: ignore[arg-type]
+        generation_id=data.get("generation_id"),  # type: ignore[arg-type]
     )
 
 
@@ -183,17 +240,19 @@ class GitFileIndexer:
             chunker: Text chunker.
             file_extensions: File extensions to index (None = all).
             manifest_path: Optional custom path for manifest file.
-                If None, uses git_root/.henchman/rag_manifest.json
+                If None, uses the canonical versioned worktree cache manifest.
         """
         self.git_root = git_root
         self.store = store
         self.embedder = embedder
         self.chunker = chunker
         self.file_extensions = set(file_extensions) if file_extensions else None
+        self._binding = WorkspaceBinding.bind(git_root)
+        self._indexed_hashes: dict[str, str] = {}
 
         # Manifest path
         if manifest_path is None:
-            self.manifest_path = git_root / ".henchman" / "rag_manifest.json"
+            self.manifest_path = get_repository_manifest_path(git_root)
         else:
             self.manifest_path = manifest_path
 
@@ -205,21 +264,22 @@ class GitFileIndexer:
         """
         try:
             result = subprocess.run(
-                ["git", "ls-files"],
+                ["git", "ls-files", "-z"],
                 cwd=self.git_root,
+                env=repository_git_environment(),
                 capture_output=True,
                 text=True,
                 check=True,
             )
             files = []
-            for line in result.stdout.strip().split("\n"):
+            for line in result.stdout.split("\0"):
                 if not line:
                     continue
                 file_path = self.git_root / line
                 if self._should_index(file_path):
                     files.append(file_path)
-        except subprocess.CalledProcessError:
-            return []
+        except subprocess.CalledProcessError as exc:
+            raise ValueError("Cannot enumerate repository tracked files") from exc
         else:
             return files
 
@@ -259,11 +319,16 @@ class GitFileIndexer:
             True if a full reindex is required.
         """
         model_changed = (
-            bool(manifest.model_name)
-            and manifest.model_name != self.embedder.model_name
+            bool(manifest.model_name) and manifest.model_name != self.embedder.model_name
         )
         chunk_size_changed = manifest.chunk_size != self.chunker.target_tokens
-        return model_changed or chunk_size_changed
+        provenance_changed = (
+            manifest.evidence_version != EVIDENCE_VERSION
+            or manifest.repository_id != self._binding.repository_id
+            or manifest.generation_id is None
+            or manifest.collection_id != self.store.collection_id
+        )
+        return model_changed or chunk_size_changed or provenance_changed
 
     def _compute_current_hashes(self: GitFileIndexer) -> dict[str, str]:
         """Return a mapping of repo-relative path to SHA-256 hash for tracked files.
@@ -271,10 +336,13 @@ class GitFileIndexer:
         Returns:
             Dict mapping relative file paths to their content hashes.
         """
-        return {
-            str(fp.relative_to(self.git_root)): self._compute_file_hash(fp)
-            for fp in self.get_tracked_files()
-        }
+        workspace = self._binding.snapshot()
+        hashes = {}
+        for path in self.get_tracked_files():
+            relative = path.relative_to(self.git_root).as_posix()
+            hashes[relative] = read_source(workspace, relative).sha256
+        workspace.check()
+        return hashes
 
     def _classify_file_changes(
         self: GitFileIndexer,
@@ -330,28 +398,59 @@ class GitFileIndexer:
         Returns:
             Statistics about the indexing operation.
         """
+        workspace = self._binding.snapshot()
+        embedder = self.embedder
+        model_name = embedder.model_name
+        chunk_size = self.chunker.target_tokens
         manifest = IndexManifest.load(self.manifest_path)
+        self._indexed_hashes = {}
 
-        if force or self._needs_full_reindex(manifest):
-            self.store.clear()
+        rebuild = force or self._needs_full_reindex(manifest)
+        if rebuild:
             manifest = IndexManifest()
 
         current_hashes = self._compute_current_hashes()
         files_to_index, files_to_remove, stats = self._classify_file_changes(
-            current_hashes, manifest,
+            current_hashes,
+            manifest,
         )
+
+        # Publish unavailability before any store effect. A fresh attempt token
+        # also prevents queries spanning an incomplete -> ready ABA cycle from
+        # publishing observations made while the backing collection was partial.
+        manifest.collection_id = None
+        manifest.generation_id = str(uuid4())
+        manifest.save(self.manifest_path)
+        if rebuild:
+            self.store.clear()
+        collection_id = self.store.collection_id
 
         for rel_path in files_to_remove:
             self.store.delete_by_file(rel_path)
 
         if files_to_index:
             self._index_files(
-                files_to_index, console=console, progress_callback=progress_callback,
+                files_to_index,
+                console=console,
+                progress_callback=progress_callback,
             )
 
+        workspace.check()
+        current_hashes.update(self._indexed_hashes)
         manifest.files = current_hashes
-        manifest.model_name = self.embedder.model_name
-        manifest.chunk_size = self.chunker.target_tokens
+        if (
+            self.embedder is not embedder
+            or embedder.model_name != model_name
+            or self.chunker.target_tokens != chunk_size
+        ):
+            raise EvidenceUnavailable("index_embedding_profile_changed_reindex_required")
+        manifest.model_name = model_name
+        manifest.chunk_size = chunk_size
+        manifest.evidence_version = EVIDENCE_VERSION
+        manifest.repository_id = self._binding.repository_id
+        if self.store.collection_id != collection_id:
+            raise EvidenceUnavailable("index_collection_changed_reindex_required")
+        manifest.collection_id = collection_id
         manifest.save(self.manifest_path)
 
         stats.total_chunks = self.store.count()
@@ -364,14 +463,22 @@ class GitFileIndexer:
             abs_path: Absolute path to the source file.
             rel_path: Relative path used as the stored key.
         """
-        self.store.delete_by_file(rel_path)
-        chunks = self.chunker.chunk_file(abs_path)
-        if not chunks:
-            return
+        workspace = self._binding.snapshot()
+        source = read_source(workspace, rel_path)
+        chunks = self.chunker.chunk_text(source.text, rel_path)
         for chunk in chunks:
             chunk.file_path = rel_path
-        embeddings = self.embedder.embed([c.content for c in chunks])
-        self.store.add_chunks(chunks, embeddings)
+            chunk.source_sha256 = source.sha256
+            chunk.repository_id = self._binding.repository_id
+            chunk.indexed_revision = workspace.revision
+            chunk.evidence_version = EVIDENCE_VERSION
+        embeddings = self.embedder.embed([c.content for c in chunks]) if chunks else []
+        source.check(workspace)
+        workspace.check()
+        self.store.delete_by_file(rel_path)
+        if chunks:
+            self.store.add_chunks(chunks, embeddings)
+        self._indexed_hashes[rel_path] = source.sha256
 
     def _index_files_with_progress(
         self: GitFileIndexer,

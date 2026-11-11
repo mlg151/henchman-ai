@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from henchman.core.events import AgentEvent, EventType
+from henchman.tools.base import ToolResult
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -331,8 +332,7 @@ class TestProcessToolCalls:
         from henchman.cli.app import _process_tool_calls
 
         repl = _make_mock_repl()
-        mock_result = MagicMock()
-        mock_result.content = "file contents"
+        mock_result = ToolResult(content="file contents")
         repl.tool_registry.execute = AsyncMock(return_value=mock_result)
 
         tool_call = MagicMock()
@@ -348,7 +348,7 @@ class TestProcessToolCalls:
         await _process_tool_calls(repl, [tool_call], render_func)
 
         repl.tool_registry.execute.assert_called_once_with("read_file", {"path": "/tmp/test"})
-        repl.agent.submit_tool_result.assert_called_once_with("tc1", "file contents")
+        repl.agent.submit_tool_result.assert_called_once_with("tc1", mock_result)
         assert len(render_calls) == 1
         assert render_calls[0].type == EventType.TOOL_CALL_RESULT
 
@@ -358,8 +358,7 @@ class TestProcessToolCalls:
         from henchman.cli.app import _process_tool_calls
 
         repl = _make_mock_repl()
-        mock_result = MagicMock()
-        mock_result.content = "result"
+        mock_result = ToolResult(content="result")
         repl.tool_registry.execute = AsyncMock(return_value=mock_result)
 
         tool_call = MagicMock()
@@ -392,8 +391,7 @@ class TestRunHeadlessJson:
         from henchman.cli.app import _run_headless_json_format
 
         repl = _make_mock_repl()
-        mock_result = MagicMock()
-        mock_result.content = "done"
+        mock_result = ToolResult(content="done")
         repl.tool_registry.execute = AsyncMock(return_value=mock_result)
 
         tool_call = MagicMock()
@@ -436,8 +434,7 @@ class TestRunHeadlessStreamJson:
         from henchman.cli.app import _run_headless_json_format
 
         repl = _make_mock_repl()
-        mock_result = MagicMock()
-        mock_result.content = "done"
+        mock_result = ToolResult(content="done")
         repl.tool_registry.execute = AsyncMock(return_value=mock_result)
 
         tool_call = MagicMock()
@@ -479,8 +476,7 @@ class TestRunHeadlessJsonComplete:
         from henchman.cli.app import _run_headless_json_complete
 
         repl = _make_mock_repl()
-        mock_result = MagicMock()
-        mock_result.content = "done"
+        mock_result = ToolResult(content="done")
         repl.tool_registry.execute = AsyncMock(return_value=mock_result)
 
         tool_call = MagicMock()

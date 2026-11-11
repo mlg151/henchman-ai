@@ -11,7 +11,7 @@ import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, NamedTuple, ParamSpec, TypeVar
+from typing import IO, Any, NamedTuple, ParamSpec, TypeVar
 
 import anyio
 from rich import box
@@ -43,6 +43,39 @@ _MAX_TOOL_RESULT_LEN = 1000
 # Constants for diff argument parsing
 _MIN_DIFF_ARGS = 2
 _MAX_DIFF_ARGS = 3
+
+
+class _TranscriptConsole(Console):
+    """Unstyled output that follows the caller's stream, including stdout patches."""
+
+    def __init__(self, source: Console) -> None:
+        self._source_console = source
+        self._stream_override: IO[str] | None = None
+        super().__init__(
+            force_terminal=False, force_jupyter=False, force_interactive=False,
+            color_system=None, no_color=True, highlight=False, emoji=False,
+            soft_wrap=True, width=source.width,
+        )
+
+    @property
+    def file(self) -> IO[str]:
+        return self._stream_override if self._stream_override is not None else self._source_console.file
+
+    @file.setter
+    def file(self, stream: IO[str]) -> None:
+        self._stream_override = stream
+
+
+def console_for_output_mode(console: Console, output_mode: str) -> Console:
+    """Create a local transcript console without changing a shared console."""
+    if output_mode not in ("rich", "plain", "quiet"):
+        raise ValueError("Unsupported output mode")
+    if (
+        output_mode == "rich" or isinstance(console, _TranscriptConsole)
+        or getattr(console, "_henchman_transcript_output", False) is True
+    ):
+        return console
+    return _TranscriptConsole(console)
 
 
 def list_dict_keys(items_dict: dict[str, Any]) -> list[str]:
@@ -148,6 +181,7 @@ class OutputRendererConfig:
         accessible_mode: Whether to enable high-accessibility mode.
         style_overrides: Optional style overrides.
         layout_settings: Optional LayoutSettings object.
+        output_mode: Rich rendering, plain transcript, or quiet transcript.
     """
 
     console: Console | None = None
@@ -155,6 +189,7 @@ class OutputRendererConfig:
     accessible_mode: bool = False
     style_overrides: dict[str, str] | None = None
     layout_settings: Any | None = None  # Avoid circular import, pass as object or dict
+    output_mode: str = "rich"
 
     def get_resolved_theme(self: Self) -> Theme:
         """Get the resolved theme based on configuration.
@@ -417,6 +452,8 @@ def _render_diff_impl(
     console: Console,
     success_fn: Callable[[str], None],
     params: DiffParams,
+    *,
+    plain: bool = False,
 ) -> None:
     """Render a unified diff using parameters.
 
@@ -436,8 +473,11 @@ def _render_diff_impl(
     )
     diff_text = "".join(diff_lines)
     if diff_text:
-        syntax = Syntax(diff_text, "diff", theme="monokai")
-        console.print(syntax)
+        if plain:
+            console.print(diff_text, markup=False, highlight=False, end="" if diff_text.endswith("\n") else "\n")
+        else:
+            syntax = Syntax(diff_text, "diff", theme="monokai")
+            console.print(syntax)
     else:
         success_fn("No differences found")
 
@@ -496,6 +536,7 @@ class _OutputRendererDisplayMixin:
     console: Console
     theme: Theme
     accessible_mode: bool
+    output_mode: str
 
     def print(self: Self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.
@@ -528,8 +569,10 @@ class _OutputRendererDisplayMixin:
             if content.count("```") % 2 != 0:
                 content += "\n```"
             content += "\n\n*(content truncated)*"
-        md = Markdown(content)
-        self.console.print(md)
+        if self.output_mode != "rich":
+            self.console.print(content, markup=False, highlight=False)
+        else:
+            self.console.print(Markdown(content))
 
     def code(self: Self, code: str, language: str = "python") -> None:
         """Print syntax-highlighted code.
@@ -540,8 +583,10 @@ class _OutputRendererDisplayMixin:
         """
         if not code:
             return
-        syntax = Syntax(code, language, theme="monokai")
-        self.console.print(syntax)
+        if self.output_mode != "rich":
+            self.console.print(code, markup=False, highlight=False, end="" if code.endswith("\n") else "\n")
+        else:
+            self.console.print(Syntax(code, language, theme="monokai"))
 
     def rule(self: Self, title: str | None = None) -> None:
         """Print a horizontal rule.
@@ -549,7 +594,9 @@ class _OutputRendererDisplayMixin:
         Args:
             title: Optional title for the rule.
         """
-        if title:
+        if self.output_mode != "rich":
+            self.console.print(title or "", markup=False, highlight=False)
+        elif title:
             self.console.rule(title=title)
         else:
             self.console.rule()
@@ -564,6 +611,7 @@ class _OutputRendererDataMixin:
 
     console: Console
     theme: Theme
+    output_mode: str
 
     def table(self: Self, data: list[dict[str, object]], title: str | None = None) -> None:
         """Render data as a table.
@@ -673,7 +721,7 @@ class _OutputRendererDataMixin:
         Args:
             params: Diff parameters.
         """
-        _render_diff_impl(self.console, self.success, params)  # type: ignore[attr-defined]
+        _render_diff_impl(self.console, self.success, params, plain=self.output_mode != "rich")  # type: ignore[attr-defined]
 
 
 class _OutputRendererToolMixin:
@@ -802,6 +850,7 @@ class OutputRenderer(
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
         layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict
+        output_mode: str = "rich",
     ) -> None:
         """Initialize the output renderer.
 
@@ -811,6 +860,7 @@ class OutputRenderer(
             accessible_mode: Whether to enable high-accessibility mode.
             style_overrides: Optional style overrides.
             layout_settings: Optional LayoutSettings object.
+            output_mode: Captured rendering mode; defaults to existing rich output.
         """
         self._initialize_from_config(
             OutputRendererConfig(
@@ -819,6 +869,7 @@ class OutputRenderer(
                 accessible_mode=accessible_mode,
                 style_overrides=style_overrides,
                 layout_settings=layout_settings,
+                output_mode=output_mode,
             ),
         )
 
@@ -828,8 +879,9 @@ class OutputRenderer(
         Args:
             config: OutputRendererConfig instance.
         """
-        self.console = config.console or Console()
-        self.accessible_mode = config.accessible_mode
+        self.output_mode = config.output_mode
+        self.console = console_for_output_mode(config.console or Console(), self.output_mode)
+        self.accessible_mode = config.accessible_mode or self.output_mode != "rich"
         self.layout_settings = config.layout_settings
         self.theme = config.get_resolved_theme()
 

@@ -14,6 +14,7 @@ from henchman.cli.textual_app import (
     ToolMessage,
 )
 from henchman.cli.textual_messages import AgentThoughtMessage, ToolCallRequestMessage
+from henchman.config.schema import Settings
 from henchman.core.events import AgentEvent, EventType
 
 
@@ -30,7 +31,7 @@ class TestThinkingToolDisplay:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -65,49 +66,27 @@ class TestThinkingToolDisplay:
             mock_pane.write.assert_called_once()
             mock_pane.scroll_end.assert_called_once_with(animate=False)
 
-    def test_on_tool_call_request_message_adds_tool_widget(self, textual_app):
-        """Test that on_tool_call_request_message adds ToolMessage to chat pane."""
-        # Mock the chat pane
-        mock_chat_pane = MagicMock(spec=ChatPane)
-        mock_chat_pane.add_tool_message = MagicMock()
+    async def test_on_tool_call_request_message_adds_tool_widget(self, tmp_path, monkeypatch):
+        """A request creates one compact row and shares its evidence with Tools."""
+        from henchman.cli.textual_widgets import ToolPane
+        from henchman.providers import ToolCall
+        from tests.cli.ui_scenarios import InteractionApp, settle_layout
 
-        # Mock the tool pane
-        mock_tool_pane = MagicMock()
-        mock_tool_pane.write = MagicMock()
-        mock_tool_pane.scroll_end = MagicMock()
-
-        # Create a mock tool call
-        mock_tool_call = MagicMock()
-        mock_tool_call.name = "read_file"
-        mock_tool_call.arguments = {"path": "test.txt"}
-
-        # Mock query_one to return different panes based on selector
-        def mock_query_one(selector, *_args, **_kwargs):
-            if selector == "#chat-pane":
-                return mock_chat_pane
-            elif selector == "#tool-pane":
-                return mock_tool_pane
-            return None
-
-        with patch.object(textual_app, "query_one", side_effect=mock_query_one):
-            # Mock the _format_tool_args method
-            textual_app._format_tool_args = MagicMock(return_value="path='test.txt'")
-            textual_app._format_full_tool_args = MagicMock(return_value="{'path': 'test.txt'}")
-
-            # Create a tool call request message
-            message = ToolCallRequestMessage(mock_tool_call, "Agent1")
-
-            # Handle the message
-            textual_app.on_tool_call_request_message(message)
-
-            # Verify tool message was added to chat pane
-            mock_chat_pane.add_tool_message.assert_called_once_with(
-                "read_file: path='test.txt'", mock_tool_call
-            )
-
-            # Verify tool was written to tool pane
-            mock_tool_pane.write.assert_called_once()
-            mock_tool_pane.scroll_end.assert_called_once_with(animate=False)
+        monkeypatch.chdir(tmp_path)
+        app = InteractionApp(tmp_path)
+        async with app.run_test() as pilot:
+            app.post_message(ToolCallRequestMessage(
+                ToolCall(id="read-1", name="read_file", arguments={"path": "test.txt"}), "Agent1",
+            ))
+            await settle_layout(pilot)
+            chat = app.query_one(ChatPane)
+            rows = list(chat.query(ToolMessage))
+            assert len(rows) == 1
+            assert "Requested · read_file · test.txt · Agent1" in str(rows[0].render())
+            tool_pane = app.query_one(ToolPane)
+            assert tool_pane._activity_store is chat._tool_activity
+            assert '"path": "test.txt"' in tool_pane._projection
+            assert "1. Request arguments" in tool_pane._projection
 
     def test_thinking_message_appears_in_chat_pane(self):
         """Test that ThinkingMessage widgets actually appear in ChatPane."""

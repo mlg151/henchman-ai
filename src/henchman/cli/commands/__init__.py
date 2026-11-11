@@ -68,6 +68,7 @@ class CommandContext:
     project_hash: str | None = None
     mcp_manager: McpManager | None = None
     registry: CommandRegistry | None = None
+    raw_input: str | None = field(default=None, repr=False)
 
 
 class Command(ABC):

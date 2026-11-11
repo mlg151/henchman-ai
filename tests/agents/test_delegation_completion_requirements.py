@@ -10,7 +10,12 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import AgentSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.delegate import DelegateTaskTool
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.asyncio
@@ -72,7 +77,10 @@ async def test_invalid_explicit_requirement_fails_without_running_specialist(
         and event.data.get("tool_call_id") == "delegate-advice"
     )
     assert result["success"] is False
-    assert "completion_requirement" in result["result"]
+    assert result["result"] == (
+        "Tool contract failed: validation_enum" if isinstance(requirement, str)
+        else "Tool contract failed: validation_type"
+    )
 
 
 def test_delegation_schema_exposes_explicit_completion_requirement() -> None:
@@ -131,7 +139,9 @@ def _orchestrator(arguments: dict[str, object]) -> Orchestrator:
         yield next(turns)
 
     provider.chat_completion_stream.side_effect = stream
-    return Orchestrator(
+    orch = Orchestrator(
         default_provider=provider,
-        settings=Settings(agents=AgentSettings(max_delegation_retries=0)),
+        settings=Settings(agents=AgentSettings(max_delegation_retries=0, allow_delegation=True)),
     )
+    orch.tool_registry.set_confirmation_handler(_approve)
+    return orch

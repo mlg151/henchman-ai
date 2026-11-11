@@ -1,5 +1,11 @@
 # Tools
 
+User-driven [checkpoint review commands](checkpoints.md#user-commands) inspect
+captured file/hunk changes and apply previewed conflict-checked decisions. They
+share a service across CLI, REPL and Textual command input. Declared tool writes
+receive automatic capture, and Textual F8 opens dedicated file/hunk review.
+Unknown write scopes remain explicitly unavailable.
+
 Henchman-AI registers built-in tools according to the active runtime and agent preset. The table below documents the core tool set; use `/tools`, help search, doctor, or `tool_search` for the live inventory instead of relying on a hard-coded count.
 
 When context cannot hold every tool schema, the request exposes `tool_search` and
@@ -79,7 +85,7 @@ Discovery surfaces share one capability matrix and distinguish these important b
 | `kg_update` | Knowledge Graph | WRITE | Update knowledge graph |
 | `rag_search` | RAG | READ | Semantic code search |
 | `research_notes` | Knowledge Graph | WRITE | Persistent note-taking scratchpad |
-| `ask_user` | Agent Interaction | READ | REPL/Textual input; headless calls report unavailable |
+| `ask_user` | Agent Interaction | READ | REPL/Textual or negotiated editor input; legacy headless calls report unavailable |
 | `delegate_task` | Agent Interaction | EXECUTE | Delegate tasks to specialist agents |
 
 ## Built-in Tools
@@ -99,7 +105,7 @@ observed results. Local checks do not establish a hosted CI run.
 
 #### read_file
 
-Read the contents of a file.
+Read UTF-8 text, with CRLF and CR line endings normalized to LF.
 
 ```json
 {
@@ -123,7 +129,8 @@ Read the file src/main.py
 
 #### write_file
 
-Write content to a file (creates or overwrites).
+Write the supplied content as UTF-8, preserving its newline characters on every
+platform (creates or overwrites).
 
 ```json
 {
@@ -138,7 +145,8 @@ Write content to a file (creates or overwrites).
 
 #### edit_file
 
-Make surgical edits to a file using search and replace.
+Make surgical edits to a file using search and replace. String matching and line
+coordinates use the LF-normalized text returned by `read_file`.
 
 ```json
 {
@@ -158,7 +166,9 @@ Make surgical edits to a file using search and replace.
 Supply either `old_str` or both line bounds. Mixed modes and incomplete line
 ranges are rejected. If a string has multiple matches, read the current file and
 include enough surrounding text to identify exactly one occurrence. Preserve
-that surrounding text in `new_str` except for the intended changes.
+that surrounding text in `new_str` except for the intended changes. If no
+match is found, the file is unchanged; reread it and copy the exact current text
+before retrying.
 
 For line edits, first use `read_file` with `line_numbers: true`. It returns absolute
 1-based prefixes such as `12: text`, including when reading a partial range.
@@ -429,10 +439,39 @@ Search code using natural language descriptions. Extracts keywords and structura
     "description": "string (required) - Natural language description of what to find, e.g. 'functions that handle HTTP errors', 'classes that inherit from Tool'",
     "path": "string (optional) - Root directory or file to search (defaults to current directory)",
     "top_k": "integer (optional) - Maximum number of results to return",
-    "strategy": "string (optional) - Search strategy: 'semantic' (keyword-based), 'structural' (structural pattern extraction), or 'combined' (both)"
+    "strategy": "string (optional) - 'semantic' (keywords), 'structural' (patterns), 'combined' (both, default), or 'repository' (fresh Python evidence)"
   }
 }
 ```
+
+With `strategy="repository"`, the runtime must bind a physical Git workspace.
+The tool freshly enumerates tracked and untracked nonignored Python files and
+returns a typed JSON evidence pack: ranked functions/methods, candidate tests and
+static references, plus applicable ancestor instruction excerpts. Each source
+carries its literal path, line range, full-byte SHA-256 and observed revision;
+instruction records link to the implementations they apply to. Excerpts remain
+untrusted evidence and do not activate sibling or global instructions. These
+records survive tool-result persistence, handoffs and session compaction.
+
+For example, `{"description":"normalize labels","path":".","top_k":5,
+"strategy":"repository"}` looks for existing implementations before an edit.
+Ranking uses identifier/docstring keywords. Static references, including import
+aliases, are candidates rather than resolved runtime call edges; classes, types
+and non-Python implementations are outside this strategy.
+
+The scan bounds Git output to 1 MiB per command and 20,000 entries across the
+three listings, reads at most 256 Python files (256 KiB each, 4 MiB total), and
+returns at most 20 implementations and eight instruction sources in 48 KiB of
+JSON. Current bytes, membership, revision and instruction discovery are rechecked
+before publication; the byte recheck has a separate 4 MiB allowance. A cooperative
+10-second deadline includes owned Git execution, whose cleanup may extend elapsed
+time. This is neither a hard filesystem deadline nor an atomic snapshot.
+
+Malformed or omitted sources produce explicit partial evidence with
+`success=false`; stale sources or revoked authority discard the pack. Restricted
+tool policies are unsupported. No index, embedding service, model or network is
+required. Retrieval always leaves `task_verified=false`; inspect the evidence
+and run the relevant checks before claiming a task is correct.
 
 #### symbol_trace
 
@@ -505,6 +544,12 @@ Parse coverage report and show uncovered lines.
 #### test_gen
 
 Generate pytest test stubs from Python signatures.
+
+Both styles produce Python scaffolds that can be compiled, formatted and collected.
+Generated tests carry explicit `pytest.mark.skip` TODO markers. Implement meaningful
+inputs and assertions, then remove those markers. Creating or collecting these
+stubs does not verify the source behavior; unfinished stubs never count as passing
+checks and do not call application code with invented inputs.
 
 ```json
 {
@@ -612,6 +657,12 @@ The `command` argument and shell syntax are not translated into Python. Missing
 or blank code returns guidance and performs no execution; use `shell` only when
 it is allowed in the current tool scope.
 
+Invocation classification is per snippet: code that only evaluates
+side-effect-free expressions is classified `READ` (available in Plan Mode);
+anything else stays `EXECUTE`. See [Tool Kinds](#tool-kinds).
+Pure expressions run with Python's isolated and no-site flags, so working-directory
+and `PYTHONPATH` startup hooks cannot add effects to a read-only invocation.
+
 Before either execution mode, an isolated worker applies Black's in-memory
 string API with default settings to the snippet. It does not inspect the working
 directory or load project Black configuration. Formatting has a 300 ms deadline,
@@ -680,6 +731,12 @@ recovery guidance while retaining the validation failure. For multiline Python,
 use `python_exec` when it is allowed in the current agent's tool scope; otherwise
 submit supported single-line commands.
 
+Invocation classification is per command: side-effect-free single commands
+(read-only allowlist programs, read-only `git` subcommands, `find` without
+mutating flags, no chaining/redirects/substitution) are classified `READ`
+(available in Plan Mode); everything else stays `EXECUTE`. See
+[Tool Kinds](#tool-kinds).
+
 Commands use the host's native default shell: `/bin/sh` on Linux/macOS and
 `cmd.exe` on Windows. Use syntax and quoting for that shell; POSIX commands are
 not translated into Windows commands. Output capture, working-directory selection,
@@ -691,6 +748,12 @@ Windows runs commands through its native shell without importing Unix terminal
 modules or applying the sudo rewrite. `python_exec` is useful for portable Python
 snippets: it uses the current interpreter directly and captures UTF-8 stdout/stderr
 independently of the inherited console encoding.
+
+Unrestricted `shell` and `python_exec` subprocesses inherit the parent process
+environment, including any credentials present there. Evidence redaction does
+not remove values from the child process's environment. Configured
+[restricted tool access](configuration.md#restricted-tool-access) refuses these
+unqualified execution tools; ordinary execution does not provide OS isolation.
 
 ```json
 {
@@ -722,7 +785,9 @@ an earlier one. A launch receipt means the process started, not that it passed.
 | `task_output(task_id=..., lines=25)` | Read captured output while running or after exit |
 | `task_stop(task_id=...)` | Stop a selected job without stopping other jobs |
 
-Use the ID from each launch when checking results. Python output is unbuffered
+Use the complete ID from each launch when checking results, including its
+`task-` prefix. An unknown ID is not guessed or expanded; use `task_list` to
+find the exact ID in the current project. Python output is unbuffered
 and UTF-8. Both tools retain `cwd` and timeout behavior (`0` means unlimited).
 Workspace formatting is skipped at background launch because the process may
 still be writing files. After completion, run `code_format` on changed Python
@@ -733,27 +798,121 @@ Keep commands in the foreground of their own subprocess (omit trailing `&`) so
 the task ID represents their lifetime. On POSIX, child processes in the owned
 process group are terminated when the parent exits or the task is stopped.
 Windows currently terminates the direct subprocess.
+Background tasks do not accept interactive input or support attaching a terminal;
+inspect retained output with `task_output` or `/work inspect task <exact-id>`.
 Jobs and captured logs live under `.henchman/tasks/`. Running processes belong
 to the current application runtime; saved records/logs survive exit, but jobs
 are not a detached service and are not restarted on session resume.
+Before dispatch, the service persists `queued` intent, then `started` before
+process creation and `running` after receiving its process handle. `queued`
+means not dispatched and requires explicit disposition; it never starts on reload.
+When a fresh runtime loads a record last saved as `started` or `running`, it reports
+`outcome_unknown` and preserves the observed timestamps and exit-code evidence.
+It does not invent a stop time or infer ownership from the saved PID. `task_get`
+and `task_list(status="outcome_unknown")` expose these records; `task_output`
+continues to expose eligible retained evidence. `task_stop` and waiting refuse
+unowned processes. Inspect external process state before explicitly starting new
+work; no command is replayed from the saved argv.
+`task_stop` reports success only when the observed final state is `stopped`;
+already completed, failed, cancelled, still-running or outcome-unknown states
+are returned as unsuccessful stop results with their actual state.
+For an owned process, stop also requires the original runtime and event loop.
+The captured monitor result remains authoritative if its lookup entry is
+removed while termination is in progress; uncertain cleanup stays unknown.
+On macOS, a process-group permission error is rechecked after a bounded wait
+for the owned child to exit. A persistent permission error remains uncertain;
+it is not treated as successful cleanup.
+When cleanup is uncertain but a live same-loop process handle remains,
+`task_get`, `task_list` and `task_update` say that an owned process remains instead of
+describing it as unowned. This is a current observation, not PID adoption.
 
-Interactive chat accepts messages while work is underway and processes them in
-order at agent-turn boundaries. `/goal pause` is available during processing;
+The versioned `.henchman/tasks/index.json` stores index and per-task revisions,
+a store identity and a damage-detection checksum. A stable `index.lock` protects
+conditional updates across processes; keep that lock with the index. Independent
+task updates merge, while stale updates to the same task fail explicitly. Missing,
+corrupt, replaced or downgraded known authority blocks dispatch. The checksum
+does not authenticate against malicious replacement. Legacy list indexes remain
+readable. Resolving a correlated operation does not resolve its child task, and
+there is no trusted task-disposition command yet.
+
+New task output is decoded and redacted before persistence, with a 1 MiB capture
+limit and a visible truncation marker. Task metadata and private atomic index
+writes share the known-credential policy; raw command arguments and environment
+values still reach the child unchanged. Capture failures stop/reap the owned
+process and settle its waiter with an explicit failure. Output readers and
+timeout diagnostics reject linked or substituted files.
+
+Indexed terminal logs are migrated on load/read using private atomic replacement:
+up to 16 MiB of valid UTF-8 input is examined and at most 1 MiB is retained.
+Malformed, oversized, linked or changed originals remain untouched with an
+`evidence_migration_error` diagnostic. Unresolved logs are projected on read without
+replacement, so observing another runtime cannot detach its active output writer. Corrupt
+indexes are preserved for explicit repair instead of overwritten with empty
+history. Migration only covers indexed logs and registered credentials. POSIX
+uses directory descriptors; Windows checks file identities and reparse points
+without the same directory-descriptor guarantee. Persistent records never confer
+ownership of another process or authorize replay after interruption.
+
+Interactive chat accepts messages while work is underway and processes eligible
+inputs in order at agent-turn boundaries. Accepted input is retained before the
+composer clears or acknowledgement appears; an exclusive start is saved before
+dispatch. `/goal pause` is available during processing;
 it stops future goal turns, while the current turn can finish. Esc interrupts
 the active turn and pauses its goal. Background jobs remain independently
 controllable with `task_stop`.
+
+### Accepted input queue
+
+`/queue status` shows input IDs, revisions, state and a credential-projected preview.
+Queue controls use the displayed revision; stale controls fail instead of acting
+on newer input:
+
+| Command | Effect |
+|---------|--------|
+| `/queue send <id> <revision>` | Explicitly makes a supported queued input eligible. |
+| `/queue edit <id> <revision> <text>` | Replaces queued text and leaves its new revision held. |
+| `/queue move <id> <revision> <position>` | Reorders queued input using zero-based positions and leaves it held. |
+| `/queue drop <id> <revision>` | Discards queued intent without dispatch. |
+| `/queue abandon <id> <revision> <note>` | Records explicit disposition of uncertain input without replaying its effects. |
+
+Restored queues remain held. Interrupted started work is `outcome_unknown` until
+explicit disposition; inspect `/recovery` and background tasks separately because
+abandoning input does not resolve their effects. Generated goal input cannot be
+sent through queue controls: use `/goal resume` to authorize fresh continuation.
+Known credential-bearing input is unavailable for restored replay. Session changes,
+MCP attachment and checkpoint/recovery mutations require idle work; active work
+refuses these commands with retry guidance. Help, queue inspection and recovery
+inspection remain accessible while input dispatch is held.
+
+The default `operations.persistence: process` retains workflow only in its creating
+runtime. `durable` uses the selected session store's `ops.db`, independently of
+usage-accounting persistence. A restored session file supplies evidence, never
+dispatch permission. Failure to save intent or correlated run/operation IDs blocks
+the dependent dispatch. These records do not imply that a completed input achieved
+its objective or that unknown effects were undone.
 
 ### Goal completion
 
 `/goal <objective>` starts a session goal and keeps the interactive agent working
 across turns. `/goal status`, `/goal pause`, `/goal resume`, `/goal complete` and
 `/goal clear` manage its lifecycle. Use `/goal set <objective>` for objectives
-that would otherwise look like a control word. Goals persist with sessions.
+that would otherwise look like a control word. Restored goals require explicit
+`/goal resume`; if execution policy changed, review it and use
+`/goal resume --accept-policy-change`. Resumption retains the goal ID and task usage.
+
+`/goal bind-plan <plan_id>` binds an existing verification plan to the current goal;
+`/goal unbind-plan <plan_id>` removes that binding. These are user controls. Model
+completion requires every bound plan's recorded specification and current declared
+inputs to pass, including required project checks. They establish only those
+assertions, without certifying complete requirements coverage.
 
 The registered `goal_status` tool reads the current goal or completes it using
-its current `goal_id` and a verification summary. Replacing a goal invalidates
-old completion IDs. Agent completion is rejected while project jobs are still
-running; the user can explicitly override completion with `/goal complete`.
+its current `goal_id`, `goal_revision` and a verification summary. Changing a goal
+invalidates old completion revisions. Agent completion is rejected while project jobs are queued,
+started, running, outcome-unknown, or have failed status persistence. The user can
+explicitly override completion with `/goal complete`; `completion_source: user`
+records acknowledgement. Model completion records `completion_source: model` and
+does not substitute for independent acceptance.
 Runtime errors and interrupted turns pause continuation. This is interactive
 session execution, separate from cron scheduling.
 
@@ -762,6 +921,21 @@ session execution, separate from cron scheduling.
 #### web_fetch
 
 Fetch content from a URL.
+
+HTTP(S) fetches reject private, loopback and special IP targets, including numeric
+aliases. DNS answer sets and the connected peer are checked before HTTP headers
+are sent; every redirect is checked again with fresh connection/DNS resolution.
+TLS retains the original hostname and certificate verification. Redirects share
+one total timeout and stop after ten hops. Environment proxies, netrc credentials
+and cookies are disabled. Explicit initial URL authentication remains only on
+the same origin and is permanently removed after an origin change; redirects
+cannot introduce credentials.
+
+This implementation supports exact `tools.network_allowed_hosts` restrictions
+with live registry authorization checks on supported transports. Restricted
+fetches require aiohttp's public socket hook; unsupported versions refuse before
+DNS. See [host policy and revocation limits](configuration.md#exact-network-host-restrictions).
+This boundary does not filter model traffic or provide OS isolation.
 
 ```json
 {
@@ -852,18 +1026,38 @@ Update the project knowledge graph.
 
 #### rag_search
 
-Search the codebase using semantic similarity.
+Search indexed Git-tracked files using semantic similarity, then verify each
+candidate against the current workspace before returning its text. The JSON
+result includes path/line range, source SHA256, workspace identity, indexed and
+current revisions, retrieval reason, diagnostics and limits. An unchanged file
+may retain a historical similarity ranking; ranking does not cover every current
+file, and no matches do not prove absence.
 
 ```json
 {
   "name": "rag_search",
   "kind": "READ",
   "parameters": {
-    "query": "string (required) - Natural language query to search for",
-    "top_k": "integer (optional) - Number of results to return"
+    "query": "string (required) - Nonblank query, at most 2048 characters",
+    "top_k": "integer (optional) - Number of candidates, from 1 through 20"
   }
 }
 ```
+
+The runtime binds the tool to one resolved worktree. Missing, legacy, foreign,
+changed or malformed evidence produces explicit unavailable/incomplete results;
+stale cached text is excluded. Use `/rag reindex` to refresh the worktree index.
+Queries do not trigger indexing, model downloads or fallback searches. Existing
+startup embedding initialization and background indexing retain their prior
+behavior.
+
+Source validation reads at most 1 MiB per file and 5 MiB in aggregate, with a
+separate 5 MiB publication recheck allowance. Output is capped at 32 KiB by
+omitting whole candidates with a diagnostic. Unsupported encodings, symlinks,
+hardlinks, untracked paths and source limits fail explicitly. Rechecking is an
+observation rather than an atomic filesystem snapshot or task verification.
+Restricted tool scopes still refuse unqualified semantic search before
+enumeration. See [cache migration and settings](configuration.md#repository-search-settings).
 
 #### research_notes
 
@@ -945,11 +1139,27 @@ tool explicitly in scope. Normal plan-mode and execution-approval policies apply
 
 | Tool | Parameters | Result and policy |
 | --- | --- | --- |
-| `invoke_subagent` | Required `task`, `role`, `system_prompt`, and `tools` array | Returns a new `conversation_id` immediately; EXECUTE policy |
+| `invoke_subagent` | Required `task`, `role`, `system_prompt`, and `tools` array; optional `write_paths` | Returns a new `conversation_id` immediately; EXECUTE policy |
 | `send_message` | `conversation_id`, `message` | Queues a follow-up or parent reply; WRITE policy |
-| `manage_subagents` | `action: list` (default), or `get`/`cancel` with `conversation_id` | Returns live records/bounded output; list/get READ, cancel WRITE |
+| `manage_subagents` | `action: list` (default), or `get`/`cancel`/`review` with `conversation_id` | List, get and review use READ policy; cancel uses WRITE policy |
+| `publish_subagent_proposal` | `conversation_id` and `review_token` | Publishes the acknowledged staged proposal under its own WRITE approval policy |
 
 Example tool arguments for an independent inspection task:
+
+Child execution first requires the user's startup `agents.allow_delegation`
+opt-in and available shared capacity. The default is disabled; tool arguments,
+custom prompts and ordinary auto-approval cannot enable the held runtime. See
+[shared delegation capacity](agents.md#shared-delegation-capacity).
+
+For staged file-only work, provide a nonempty `write_paths` array of explicit
+project-relative files whose parent directories already exist, and select only
+`read_file`, `write_file` and `edit_file`.
+After the child completes, `manage_subagents(action="review")` returns the full
+bounded proposal and a `review_token`; pass that token to
+`publish_subagent_proposal` to request conflict-checked publication. The tool's
+own WRITE policy and confirmation settings apply. Staged children cannot receive follow-ups or use opaque tools, and
+the route refuses restricted access or required read-confirmation policies.
+See [staged delegation limitations](agents.md#shared-delegation-capacity).
 
 ```json
 {
@@ -978,6 +1188,10 @@ detached jobs or persistent session checkpoints. See
 ### Named-Role Delegation
 
 #### delegate_task
+
+Named-role delegation uses the same startup opt-in and shared capacity as dynamic
+children. Explicit direct `/agent ROLE ...` work remains available without that
+descendant permission.
 
 Delegate a task to a specialist agent. This is a **critical tool** for the multi-agent system that enables the Tech Lead to leverage specialized expertise for complex tasks. Each specialist agent starts with a CLEAN context, so you MUST provide all relevant information in the structured parameters.
 
@@ -1067,8 +1281,10 @@ creation; create a new plan to revise the assertions.
     {"kind": "file_exists", "path": "src/invoices.py"},
     {"kind": "file_contains", "path": "src/invoices.py", "text": "calculate_total"},
     {"kind": "file_changed", "path": "src/invoices.py"},
-    {"kind": "pytest", "path": "tests/test_invoices.py", "timeout": 60},
-    {"kind": "command", "argv": ["ruff", "check", "src/invoices.py"], "expected_exit": 0, "timeout": 60}
+    {"kind": "pytest", "path": "tests/test_invoices.py", "timeout": 60,
+     "inputs": ["src/invoices.py", "tests/test_invoices.py", "pyproject.toml"], "requirement_ids": ["REQ-total"]},
+    {"kind": "command", "argv": ["ruff", "check", "src/invoices.py"], "expected_exit": 0, "timeout": 60,
+     "inputs": ["src/invoices.py", "pyproject.toml"]}
   ]
 }
 ```
@@ -1093,11 +1309,13 @@ runtime's normal execution approval policy. The confirmation request includes th
 recorded checks and commands; `status` also displays their specifications.
 
 A plan can record 1–20 checks, which run sequentially. File-content reads are
-limited to 1 MiB; `file_exists` only reads metadata. Captured stdout and stderr each
+limited to 1 MiB; the `file_exists` assertion reads metadata, while its separate
+freshness observation reads eligible content. Captured stdout and stderr each
 retain at most 64 KiB and report truncation. Command and pytest timeouts default
 to 60 seconds and accept integers from 1 to 300. Each command accepts up to 64
 arguments and 16 KiB of UTF-8 argument text. Paths and literal text are bounded to
-4,096 characters. These limits bound observations; they do not establish a total
+4,096 characters. The full check specification, including captured baselines,
+is limited to 512 KiB of canonical JSON. These limits bound observations; they do not establish a total
 application memory budget or verify operation on the target 16 GB laptop with CPU operation and optional GPU acceleration.
 
 Reports include `checks_passed`, per-check observations, timestamps, and a
@@ -1108,10 +1326,138 @@ complete requirements coverage. The tool does not establish that criteria were
 approved by a user. Select checks that reflect the task and review their scope.
 
 Records live in `.henchman/plans/verification.json`. `status` shows reported step
-progress and the latest historical verification state. Saved results do not
-establish the current workspace state; run `verify` again after changes. Legacy
-plans without checks remain readable and require a new plan with checks before
-using `verify`.
+progress, historical observations and current declared-input status. Legacy plans
+without checks remain readable and require a new plan with checks before `verify`.
+If saving completed observations fails, verification reports the storage error
+and attempts to retain a small terminal failure record without rerunning checks.
+
+Verification evidence shares the runtime's configured-credential policy, including
+registered MCP credentials and earlier values after rotation. Titles, step evidence,
+captured output and errors are projected before persistence and display. New
+executable checks containing known credentials in arguments, paths, literal text,
+input declarations or requirement tags are rejected before baseline reads; use
+environment references in the invoked program instead of literal credentials.
+
+If rotation makes a saved specification sensitive, inspection returns empty
+executable checks and `checks_unavailable` with its original specification digest.
+The current status becomes `unavailable`; redacted display values are never executed.
+Read-only inspection does not rewrite old bytes. Runtime tool binding, verification
+and subsequent writes sanitize retained evidence under the writer lock; embedders
+can explicitly call `sanitize_persisted_evidence()`. A sanitation failure blocks
+this verification tool with a diagnostic and preserves the prior storage.
+Credential redaction is limited to known or marked values and does not detect
+arbitrary secrets. Redacting output alone does not discard independently observed
+exit evidence; changes to proof-bearing content revoke current verification.
+
+#### Bounded repair library
+
+`VerificationRepairSession` coordinates an explicitly requested sequence of checks
+and repairs for Python embedders. `RepairRequest` pins one plan, exact editable
+files, protected criterion files, repair/repeated-diagnostic limits and a deadline.
+Every editable file must be a declared check input; pytest targets must be explicit
+protected files. Changes to plan specifications, required project checks, protected
+contents/modes or project identity stop the sequence for review.
+
+The trusted foreground repair adapter must call `admit_mutation` with deterministic
+targets before each edit and must join its work. Unknown targets, protected files
+and paths outside the request are refused. This admission is not a filesystem
+sandbox: arbitrary callbacks or commands can have other effects, and changes
+restored between observations are outside the content evidence.
+
+For an explicitly requested model repair, Python callers can use
+`await orchestrator.repair_direct(role, user_input, request, on_event=callback)`.
+The request must come from the trusted caller. One public run owns the initial
+checks, bounded repair attempts, final checks, usage budget and operation journal.
+The exact registered verification tool must already belong to that role and be
+bound to the held settings and project. No new tools or approvals are granted.
+
+The foreground repair lease permits only the captured builtin `read_file`,
+`edit_file` and `write_file` implementations within declared file scope. Protected
+criteria are readable but cannot be edited. Delegation, shell/Python execution,
+MCP calls and criteria/configuration changes require separate work. The original
+checks and automatic Black formatting use exact owned subprocess admissions;
+ordinary policy, approval, context refresh and checkpoint checks still apply.
+Child tasks and event callbacks cannot borrow this lease. Session, settings,
+provider or tool changes, unknown effects, cancellation and accounting/journal
+control errors stop the run before another model request.
+
+During explicit repair, model-visible tool schemas expose only those captured
+file tools. The verifier stays registered for controller-owned checks and returns
+to the ordinary catalog outside repair. A model request for verification still
+terminates the repair; hiding its schema does not grant execution permission.
+Changed file-tool implementations or unavailable repair authority refuse schema
+disclosure before a provider request.
+
+Controller checks retain their own correlated operation evidence in a separate
+`runtime:verification` conversation. They are not fabricated model responses and
+do not alter the primary provider's tool-call history. Each reported observation
+must match a newly persisted verification run. This API does not automatically
+repair ordinary chat requests; interactive repair controls and live-model
+effectiveness remain separate qualification work.
+
+Each cycle retains a new persisted verification observation. Missing or stale
+checks, exhausted limits, cancellation, timeouts and persistence errors remain
+incomplete. Identical-diagnostic detection normalizes only recognized pytest
+elapsed summaries with LF or CRLF endings and numbered temporary-run paths; it is a repeat heuristic,
+not semantic failure equivalence. The total repair limit remains independent.
+Cancellation and deadline checks run again after synchronous persistence before
+another adapter call or returning a pass. Filesystem latency itself is not bounded:
+a late acknowledged pass is downgraded under the same run/spec ownership, retaining
+its observations. A briefly persisted pass remains historical check evidence;
+failure to persist the downgrade raises instead of returning success. Reporting
+failures do not replace the original cancellation.
+
+Plans retain bounded, credential-projected `last_repair` history. `scoped_pass`
+records the selected checks at that observation; `task_verified` stays false.
+Use current verification status to detect later input changes. Reading or restoring
+the report never resumes work or supplies permission for another attempt.
+
+#### Declared-input freshness
+
+The optional [`verification.checks` setting](configuration.md#required-project-checks)
+adds required assertions to new plans before caller checks. Exact duplicate
+specifications run once, and the same combined limits apply. The record's
+`project_checks_digest` binds the required configuration; status also checks that
+every required assertion is present, including its inputs, requirement tags,
+argv and time limit. Internally captured change baselines remain attached.
+`configuration_status` is `current`, `changed` or `unbound`. Changed configuration
+revokes current success and requires a newly reviewed plan. Changes during a run
+cannot establish current success; invalid post-run configuration retains completed
+observations with a terminal error. Checks never run merely because config changed.
+
+Checks may include `inputs`, a list of 1–256 distinct project-relative files, and
+up to 32 `requirement_ids` of 1–128 ASCII letters, digits or `_.:/-`. These IDs tag
+assertions; they do not establish user approval or requirements coverage. File
+assertions always include their target. Commands and pytest need explicit `inputs`
+to establish current content evidence; include relevant source, tests and config.
+Directories, globs and transitive dependencies are not inferred. An incomplete
+scope cannot establish that all inputs affecting a command were unchanged.
+
+The service fingerprints declared supported contents and modes around each check
+and the full sequence, and binds file assertions to the bytes read. If they differ, `checks_passed` is false and `freshness`
+is `stale`, while individual historical results remain available. Otherwise
+`current_checks_passed` is true only when every check passed and every check has
+available declared-input evidence. Unscoped or unsupported inputs produce
+`unverified`; a passing command exit may still be retained as a historical result.
+Missing executables and timeouts have explicit per-check `not_run` and `timeout`
+states and current status `incomplete`.
+
+`PlanExecutionService.verification_status(plan_id)` reads the current files and
+returns `pass`, `fail`, `stale`, `unverified`, `not_run`, `incomplete`, `running`,
+`cancelled`, `error` or credential-sensitive `unavailable`. It does not rewrite saved observations. Manual edits,
+formatting and subagent changes to declared files are detected without relying on
+modification times. Restores also retain their existing explicit invalidation.
+Legacy reports without input evidence remain unverified until checks run again.
+
+Input observation uses the checkpoint reader's supported file subset: regular
+UTF-8 text or explicit absence, with no symlink traversal or ignored/private
+content capture. It stores hashes and metadata, never input bytes. A run permits
+at most 256 input files, 1 MiB per file and 16 MiB in total; each snapshot stops
+between files after five seconds, with a Git ignore query bounded to two seconds.
+Cancellation joins input and file-assertion readers. These are before/after observations, not a
+filesystem lock: a later write can invalidate them, and transient changes restored
+between observations are not detected. This reports configured check evidence;
+it does not certify task correctness, environment identity or unlisted dependencies.
 
 ## Tool Kinds
 
@@ -1123,6 +1469,69 @@ Tools are classified by kind, which determines confirmation behavior:
 | `WRITE` | File modifications | No |
 | `EXECUTE` | Shell commands | No |
 | `NETWORK` | Network requests | No |
+
+The static `kind` stays the tool's catalog classification. Tools with read-only
+and mutating modes override `execution_kind()` per invocation; authorization
+(including Plan Mode blocking), confirmation requests, and network retries use
+that effective classification. The classifiers are conservative — anything that
+cannot be proven read-only retains the static kind:
+
+- `shell` downgrades side-effect-free single commands to `READ`: an allowlist of
+  read-only programs, read-only `git` subcommands (`status`, `log`, `diff`,
+  `show`), and `find` without mutating flags, with no chaining, redirection,
+  or substitution. `sort` remains `EXECUTE` because it can write output and
+  temporary files.
+- `python_exec` downgrades snippets that only evaluate side-effect-free
+  expressions to `READ`: no imports, assignments, subscripts, attribute
+  access, definitions, or control flow, and calls limited to a small allowlist
+  of pure builtins. Unsafe builtins cannot be loaded as values or aliased through
+  comprehension variables.
+- The `mcp` management tool downgrades its `status` and `discover` actions to
+  `READ`; `mcp_auth` downgrades its `status` action to `READ`.
+- MCP server tools always carry the conservative `NETWORK` execution
+  classification: server trust controls local confirmation, not effect, so
+  Plan Mode blocks MCP tool calls even from trusted servers.
+
+These verdicts resolve from one centralized policy layer:
+`ToolRegistry.evaluate_policy(name, params)` returns a `PolicyDecision`
+computed by a single shared evaluator (`evaluate_effective_policy`) that
+combines the effective Plan Mode boundary (including inherited scoped-registry
+ancestry), the tool's per-invocation operation effect, and the registry's
+approval grants. `authorize()` — and therefore `execute()`, batch execution,
+and the orchestrated delegation path — consumes that same verdict, so
+late-registered tools and scoped subagent registries cannot bypass the
+boundary. Auto-approval suppresses the confirmation requirement in the
+verdict but never overrides the Plan Mode denial.
+
+Configured [restricted tool access](configuration.md#restricted-tool-access)
+also applies through this evaluator and the actual file operation. Only qualified
+implementations execute when restrictions are active; a tool's name or declared
+kind cannot grant access. A `shell_secure` invocation's requested security level
+must also satisfy the configured command, option and directory restrictions.
+
+### Approval-reuse scoping
+
+When a user confirms a confirmation request, the approval is recorded as a
+session-scoped grant keyed to the exact approved scope: the registered tool
+implementation, project identity, resolved physical targets, tool name, the
+effective operation effect, a canonical digest of the parameters, and the
+risk level. Repeated invocations with the identical scope are authorized
+without re-prompting. Any change — different tool, different arguments,
+escalated operation effect, or changed risk — invalidates the match and
+re-prompts; denials record no grant, and auto-approved tools (whose
+confirmation is suppressed by policy) record none either.
+
+Grants are shared across a registry ancestry (a scoped subagent registry and
+its parent see the same session grants) but are never shared across separate
+registries or persisted to disk. Activating a different session (for example
+`/chat resume`) clears the session's grants through
+`ToolRegistry.clear_grants()`, so an approval from one session never carries
+over. Policy, registration, parameters and target identity are rechecked after
+approval, formatter waits and before retries. A changed invocation is denied and
+must be retried for fresh approval; replacing a target inode also requires a new
+grant. These checks do not confine filesystem/network access or prevent races
+inside a tool's own I/O. Custom dispatchers using `authorize()` must recheck any
+authority affected by their own later asynchronous work.
 
 ## Configuration
 

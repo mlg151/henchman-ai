@@ -1,0 +1,90 @@
+{
+  "commit": "06828897485caad09899606e98d8318d0ff9c715",
+  "scope": "Local Linux full-source development checkpoint for this exact frozen source; not installed-artifact or final release qualification.",
+  "overall_conclusion": "failure",
+  "source_path": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji",
+  "source_content_verification": {
+    "commit": "06828897485caad09899606e98d8318d0ff9c715",
+    "checked_tracked_paths": 1652,
+    "mismatches": [],
+    "git_archive_sha256": "3adda48837c0078735c1cf91b4a929f9b37daa943da0fb02d3929d0e2f549613"
+  },
+  "python_version": "3.11.15",
+  "python_executable": "/home/matthew/mlg-cli/.venv/bin/python",
+  "pytest_version": "9.0.2",
+  "pluggy_version": "1.6.0",
+  "exit_code": 1,
+  "test_summary": "1 failed, 12452 passed, 90 skipped, 5 warnings in 1530.93s (0:25:30)",
+  "test_counts": {
+    "passed": 12452,
+    "failed": 1,
+    "skipped": 90,
+    "warnings": 5,
+    "reported_total": 12543
+  },
+  "pytest_elapsed_seconds": 1530.93,
+  "driver_elapsed_seconds": 1537.2118882430368,
+  "coverage_percent": null,
+  "coverage_note": "The retained log contains no coverage measurement. No coverage claim is made.",
+  "failed_tests": [
+    {
+      "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+      "summary": "AssertionError: expected 'ollama', got 'unavailable'",
+      "cause": "Fixture pool exposed get_agent but omitted its already-instantiated _agents map; read-only workspace inspection correctly refused to resolve/create the selected actor.",
+      "later_fix_commit": "c9b2b9b5d66be3db68a70e752cd8775be2cdfa15",
+      "repair_scope": "Tests only; expose the real instantiated map and assert workspace refresh does not call get_agent.",
+      "qualification": "The later fixture correction does not change this failed full-suite result."
+    }
+  ],
+  "followup_evidence": [
+    {
+      "scope": "Original failing test in isolation against unchanged frozen production",
+      "result": "1 failed in 3.44s",
+      "log": {
+        "path": "/tmp/henchman-active-provider-frozen-red.log",
+        "sha256": "138223c861c26c4c573ca867e908dd4b57ceba979d937561572d5606566ba3dd",
+        "size_bytes": 2619
+      }
+    },
+    {
+      "scope": "Corrected test file against unchanged frozen 0682889 production",
+      "result": "18 passed in 4.07s",
+      "log": {
+        "path": "/tmp/henchman-active-provider-frozen-fixture-green.log",
+        "sha256": "49ab6d9962ce84542a1f0645540faa0d44e11ff4ecceecbccc2d225d19bf141b",
+        "size_bytes": 704
+      }
+    },
+    {
+      "scope": "Current-tree active-provider and workspace-owner focused regressions, distinct from full-source run",
+      "result": "24 passed in 4.07s",
+      "log": {
+        "path": "/tmp/henchman-active-provider-focused-green.log",
+        "sha256": "46789b31e707861b5967b9d2f0a2d686fe92867ddd57d5807119ab65dfef93af",
+        "size_bytes": 647
+      }
+    }
+  ],
+  "retained_evidence": {
+    "pytest_log": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/0682889-source311-1gn95mji-pytest.log",
+      "sha256": "2eff0563b7622b336e3f37ccfb9da2cb07c13f0f0a1e396962f26f98d4cc5011",
+      "size_bytes": 81489
+    },
+    "driver_receipt": {
+      "path": "/tmp/henchman-0682889-source311.json",
+      "sha256": "dcbd820fa655119773cbb83cccb0a28489c124b743fcb9ede0719e0cdd176bf8",
+      "size_bytes": 368
+    },
+    "source_verification": {
+      "path": "/tmp/henchman-0682889-source-content-check.json",
+      "sha256": "35170063884a08e2a769577e3d02162c408635d86b3f32f8a5cd6e63449c993b",
+      "size_bytes": 204
+    }
+  },
+  "limits": [
+    "Later commits are not qualified by this result.",
+    "Skips, native accessibility/human workflows and model quality are not established.",
+    "No inference, model endpoint access or full-suite rerun occurred while assembling this receipt."
+  ]
+}

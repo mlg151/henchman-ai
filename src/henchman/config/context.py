@@ -1,26 +1,173 @@
 """Context file loading for project instructions.
 
 This module handles discovery and loading of project instruction files
-(HENCHMAN.md, .github/copilot-instructions.md, .gemini/GEMINI.md)
-from the directory hierarchy.
+(HENCHMAN.md, .henchman/HENCHMAN.md, .github/copilot-instructions.md,
+.gemini/GEMINI.md, AGENTS.md) from the directory hierarchy.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import hashlib
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+_TRUNCATION_MARKER = "\n… [truncated: showing {shown} of {total} characters]"
+
+
+@dataclass(frozen=True)
+class ContextSource:
+    """Captured instruction text and its discovery provenance."""
+
+    path: Path
+    scope: Path
+    kind: Literal["global", "repository"]
+    order: int
+    content: str
+    original_chars: int
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class ContextSourceDiagnostic:
+    """Bounded per-source diagnostic for instruction loading."""
+
+    path: Path
+    scope: Path
+    kind: Literal["global", "repository"]
+    order: int
+    chars: int
+    original_chars: int
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class ContextDiscovery:
+    """Immutable discovery settings retained for runtime refresh, never persisted."""
+
+    filenames: tuple[str, ...]
+    start_dir: Path
+    boundary: Path
+    max_source_chars: int | None
+    targets: tuple[Path, ...] = ()
+
+
+@dataclass(frozen=True)
+class ContextSnapshot:
+    """Immutable source records with their rendered instruction content."""
+
+    sources: tuple[ContextSource, ...]
+    content: str
+    discovery: ContextDiscovery | None = None
+
+    @property
+    def digest(self) -> str:
+        """Return the SHA-256 digest of the rendered instruction content."""
+        return hashlib.sha256(self.content.encode("utf-8")).hexdigest()
+
+    @property
+    def truncated_sources(self) -> tuple[ContextSource, ...]:
+        """Return the sources whose captured content was truncated."""
+        return tuple(source for source in self.sources if source.truncated)
+
+    def diagnostics(self) -> tuple[ContextSourceDiagnostic, ...]:
+        """Return bounded per-source diagnostics for this snapshot."""
+        return tuple(
+            ContextSourceDiagnostic(
+                path=source.path,
+                scope=source.scope,
+                kind=source.kind,
+                order=source.order,
+                chars=len(source.content),
+                original_chars=source.original_chars,
+                truncated=source.truncated,
+            )
+            for source in self.sources
+        )
+
+    def to_dict(self, *, include_content: bool = False) -> dict[str, Any]:
+        """Serialize this snapshot for persistence and diagnostics.
+
+        Args:
+            include_content: When True, include captured instruction text and
+                the rendered content. Defaults to metadata-only records so
+                persisted provenance never duplicates instruction text.
+
+        Returns:
+            JSON-compatible dictionary describing the snapshot.
+        """
+        sources: list[dict[str, Any]] = []
+        for source in self.sources:
+            record: dict[str, Any] = {
+                "path": str(source.path),
+                "scope": str(source.scope),
+                "kind": source.kind,
+                "order": source.order,
+                "chars": len(source.content),
+                "original_chars": source.original_chars,
+                "truncated": source.truncated,
+                "sha256": hashlib.sha256(source.content.encode("utf-8")).hexdigest(),
+            }
+            if include_content:
+                record["content"] = source.content
+            sources.append(record)
+        payload: dict[str, Any] = {
+            "version": 1,
+            "digest": self.digest,
+            "sources": sources,
+        }
+        if include_content:
+            payload["content"] = self.content
+        return payload
+
 
 DEFAULT_FILENAMES: tuple[str, ...] = (
     "HENCHMAN.md",
     ".henchman/HENCHMAN.md",
     ".github/copilot-instructions.md",
     ".gemini/GEMINI.md",
+    "AGENTS.md",
 )
 """Default context filenames to search for, in priority order."""
+
+
+def repository_instruction_candidates(
+    root: Path, target: Path, filenames: tuple[str, ...] = DEFAULT_FILENAMES,
+    *, max_checks: int = 512,
+) -> tuple[tuple[Path, Path], ...]:
+    """Discover bounded ancestor instruction paths without reading their contents.
+
+    This repository-only evidence view never loads global instructions or makes
+    sibling instructions active. Content capture and path safety belong to the
+    caller. Filename priority and root-first scope order match ContextLoader.
+    """
+    if not target.is_relative_to(root) or len(filenames) > 32:
+        raise ValueError("instruction_discovery_unavailable")
+    for filename in filenames:
+        path = Path(filename)
+        if (not filename or len(filename) > 512 or path.is_absolute()
+            or ".." in path.parts or "\\" in filename or "\0" in filename):
+            raise ValueError("instruction_filename_invalid")
+    scopes: list[Path] = []
+    current = target.parent
+    while current.is_relative_to(root):
+        scopes.append(current)
+        if len(scopes) * max(1, len(filenames)) > max_checks:
+            raise ValueError("instruction_discovery_budget_exceeded")
+        if current == root or (current / ".git").exists():
+            break
+        current = current.parent
+    return tuple(
+        (scope / filename, scope)
+        for scope in reversed(scopes)
+        for filename in filenames
+        if (scope / filename).exists() or (scope / filename).is_symlink()
+    )
 
 
 def _load_gitignore_patterns(base_dir: Path) -> list[str]:
@@ -51,19 +198,24 @@ class ContextLoader:
     """Discovers and loads project instruction / context files.
 
     Searches for multiple context file patterns (HENCHMAN.md,
-    .github/copilot-instructions.md, .gemini/GEMINI.md) in this order:
+    .github/copilot-instructions.md, .gemini/GEMINI.md, AGENTS.md) in
+    configured priority order:
 
-    1. Global: ~/.henchman/HENCHMAN.md
-    2. Ancestors: Walk up from cwd to git root
+    1. Global: ~/.henchman/<filename>
+    2. Ancestors: Walk up from cwd to git root (root-first)
     3. Subdirectories: Walk down from cwd (optional)
 
     At each directory, all configured filenames are checked in priority
-    order and all matches are included.
+    order and all matches are included. Deeper-scope instructions render
+    after broader ones so they take precedence by position.
 
     Attributes:
         filenames: Tuple of context file paths to discover.
         include_subdirs: Whether to search subdirectories.
+        max_source_chars: Optional per-source capture limit.
     """
+
+    _scope_boundary: Path | None = None
 
     def __init__(
         self,
@@ -72,6 +224,7 @@ class ContextLoader:
         *,
         include_subdirs: bool = False,
         start_dir: Path | None = None,
+        max_source_chars: int | None = None,
     ) -> None:
         """Initialize the context loader.
 
@@ -83,7 +236,16 @@ class ContextLoader:
             include_subdirs: Whether to search subdirectories.
             start_dir: Directory to start discovery from. When omitted,
                 the current working directory is used.
+            max_source_chars: Optional per-source capture limit. When set,
+                captured content is truncated with an explicit marker and the
+                snapshot records the original size in its diagnostics.
+
+        Raises:
+            ValueError: If *max_source_chars* is smaller than 1.
         """
+        if max_source_chars is not None and max_source_chars < 1:
+            msg = "max_source_chars must be a positive integer"
+            raise ValueError(msg)
         if filename is not None:
             self.filenames: tuple[str, ...] = (filename,)
         elif filenames is not None:
@@ -92,6 +254,7 @@ class ContextLoader:
             self.filenames = DEFAULT_FILENAMES
         self.include_subdirs = include_subdirs
         self._start_dir = start_dir
+        self.max_source_chars = max_source_chars
 
     @property
     def filename(self) -> str:
@@ -220,13 +383,110 @@ class ContextLoader:
         """
         cwd = (self._start_dir or Path.cwd()).resolve()
         git_root = self._find_git_root(cwd)
-        stop_at = git_root or cwd
+        stop_at = git_root or self._scope_boundary or cwd
+        stop_at_resolved = stop_at.resolve()
 
-        files = self._global_context_files()
-        files.extend(self._ancestor_context_files(cwd, stop_at, files))
+        # Gather global candidates
+        globals_raw = self._global_context_files()
+
+        # Gather repository candidates (ancestors + subdirs)
+        ancestors_raw = self._ancestor_context_files(cwd, stop_at, globals_raw)
+
+        subdirs_raw: list[Path] = []
         if self.include_subdirs and git_root:
-            files.extend(self._subdir_context_files(cwd))
-        return files
+            subdirs_raw = self._subdir_context_files(cwd)
+
+        henchman_home = (Path.home() / ".henchman").resolve()
+
+        final_files: list[Path] = []
+        seen_resolved: set[Path] = set()
+
+        # Filter globals
+        for path in globals_raw:
+            resolved = path.resolve()
+            if resolved.is_relative_to(henchman_home) and resolved not in seen_resolved:
+                final_files.append(path)
+                seen_resolved.add(resolved)
+
+        # Filter repository candidates
+        for path in ancestors_raw + subdirs_raw:
+            resolved = path.resolve()
+            if resolved.is_relative_to(stop_at_resolved) and resolved not in seen_resolved:
+                final_files.append(path)
+                seen_resolved.add(resolved)
+
+        return final_files
+
+
+    def load_for_path(self, target: Path) -> ContextSnapshot:
+        """Load context from a specific target directory or file.
+
+        Args:
+            target: Path to the target directory or file.
+
+        Returns:
+            ContextSnapshot of the target.
+        """
+        base = (self._start_dir or Path.cwd()).resolve()
+        git_root = self._find_git_root(base)
+        boundary = git_root or self._scope_boundary or base
+
+        resolved_target = (target if target.is_absolute() else base / target).resolve()
+
+        if not resolved_target.is_relative_to(boundary):
+            raise ValueError(f"target {resolved_target} is outside boundary {boundary}")
+
+        search_dir = resolved_target if resolved_target.is_dir() else resolved_target.parent
+
+        new_loader = ContextLoader(
+            filenames=self.filenames,
+            include_subdirs=False,
+            start_dir=search_dir,
+            max_source_chars=self.max_source_chars,
+        )
+        new_loader._scope_boundary = boundary
+        return new_loader.load_snapshot()
+
+    def load_snapshot(self) -> ContextSnapshot:
+        """Capture ordered instruction sources and their rendered content."""
+        files = self.discover_files()
+        global_root = Path.home() / ".henchman"
+        global_paths = {global_root / name for name in self.filenames}
+        records: list[ContextSource] = []
+        sections: list[str] = []
+        for order, path in enumerate(files):
+            kind: Literal["global", "repository"]
+            if path in global_paths and path.resolve().is_relative_to(global_root.resolve()):
+                kind = "global"
+                scope = global_root
+            else:
+                kind = "repository"
+                matches = [
+                    Path(name) for name in self.filenames
+                    if Path(name).parts and path.parts[-len(Path(name).parts):] == Path(name).parts
+                ]
+                filename = max(matches, key=lambda item: len(item.parts), default=None)
+                if filename is None:
+                    raise ValueError(f"Instruction source does not match configured filenames: {path}")
+                scope = path.parents[len(filename.parts) - 1]
+            content = path.read_text(encoding="utf-8")
+            original_chars = len(content)
+            truncated = False
+            cap = self.max_source_chars
+            if cap is not None and original_chars > cap:
+                content = content[:cap] + _TRUNCATION_MARKER.format(shown=cap, total=original_chars)
+                truncated = True
+            records.append(
+                ContextSource(path, scope, kind, order, content, original_chars, truncated),
+            )
+            sections.append(f"# Context: {path}\n{content}")
+        start_dir = (self._start_dir or Path.cwd()).resolve()
+        discovery = ContextDiscovery(
+            self.filenames, start_dir,
+            self._find_git_root(start_dir) or self._scope_boundary or start_dir,
+            self.max_source_chars,
+        )
+        return ContextSnapshot(tuple(records), "\n\n---\n\n".join(sections), discovery)
 
     def load(self: ContextLoader) -> str:
         """Load and concatenate all context files.
@@ -234,13 +494,4 @@ class ContextLoader:
         Returns:
             Concatenated context content with file headers.
         """
-        files = self.discover_files()
-        if not files:
-            return ""
-
-        sections: list[str] = []
-        for path in files:
-            content = path.read_text()
-            sections.append(f"# Context: {path}\n{content}")
-
-        return "\n\n---\n\n".join(sections)
+        return self.load_snapshot().content

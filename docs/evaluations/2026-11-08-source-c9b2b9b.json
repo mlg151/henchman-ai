@@ -1,0 +1,165 @@
+{
+  "commit": "c9b2b9b5d66be3db68a70e752cd8775be2cdfa15",
+  "scope": "Local Linux full-source development checkpoint for this exact frozen source; later fixture corrections are separate evidence.",
+  "overall_conclusion": "failure",
+  "source_path": "/home/matthew/.cache/henchman-release-qualification/c9b2b9b-source311-jr6pbbbt",
+  "source_content_verification": {
+    "commit": "c9b2b9b5d66be3db68a70e752cd8775be2cdfa15",
+    "checked_tracked_paths": 1659,
+    "mismatches": [],
+    "git_archive_sha256": "0a500baf0c6bc828683d4133a37abd69d356379f6e8bc1b7a198ed3a05ae6a7e"
+  },
+  "python_version": "3.11.15",
+  "python_executable": "/home/matthew/mlg-cli/.venv/bin/python",
+  "verified_import_origin": "/home/matthew/.cache/henchman-release-qualification/c9b2b9b-source311-jr6pbbbt/src/henchman/__init__.py",
+  "exit_code": 1,
+  "test_summary": "23 failed, 12478 passed, 90 skipped, 5 warnings in 1527.81s (0:25:27)",
+  "test_counts": {
+    "passed": 12478,
+    "failed": 23,
+    "skipped": 90,
+    "warnings": 5,
+    "reported_total": 12591
+  },
+  "pytest_elapsed_seconds": 1527.81,
+  "driver_elapsed_seconds": 1534.454651151027,
+  "coverage_percent": null,
+  "coverage_note": "The retained log has no coverage measurement.",
+  "failure_groups": [
+    {
+      "tests": [
+        "tests/cli/test_instruction_context_runtime.py::test_runtime_refresh_reaches_session_team_and_dynamic_agents[repl]",
+        "tests/cli/test_instruction_context_runtime.py::test_runtime_refresh_reaches_session_team_and_dynamic_agents[core]",
+        "tests/cli/test_subagent_provenance.py::test_spawned_subagent_receives_provenance_appendix",
+        "tests/cli/test_subagent_provenance.py::test_spawned_subagent_without_snapshot_gets_prompt_verbatim"
+      ],
+      "cause": "Four provenance/context fixtures intentionally spawn descendants but did not explicitly opt into the new default-denied runtime policy.",
+      "later_fix_commit": "36d1632c5522758ec3ad74ed9053daf6f876a8c6",
+      "repair_scope": "Test settings explicitly allow delegation only for these intended descendant cases."
+    },
+    {
+      "tests": [
+        "tests/cli/test_leader_provider_switch.py::test_switch_with_another_active_role_keeps_pinned_leader_and_updates_capacity",
+        "tests/cli/test_repl.py::TestRepl::test_repl_with_config",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[saved-provider-openrouter]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[saved-provider-openai_compat]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[saved-provider-deepseek]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[saved-provider-ollama]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[saved-provider-anthropic]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[live-model-only-openrouter]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[live-model-only-openai_compat]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[live-model-only-deepseek]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[live-model-only-ollama]",
+        "tests/e2e/test_leader_requests.py::test_actual_leader_request_honors_role_configuration[live-model-only-anthropic]",
+        "tests/ui_integration/test_agent.py::TestAgentProcessing::test_agent_system_prompt_integration"
+      ],
+      "cause": "Thirteen primary/leader prompt assertions assumed custom prompts were verbatim and omitted the required runtime delegation-permission disclosure.",
+      "later_fix_commit": "36d1632c5522758ec3ad74ed9053daf6f876a8c6",
+      "repair_scope": "Tests retain configured prompt content and disabled-permission disclosure while preserving provider/model/tool/accounting/session assertions. Default denial remains enabled."
+    },
+    {
+      "tests": [
+        "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario",
+        "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[no_review]",
+        "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[late_edit]",
+        "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_defects[failed_review]",
+        "tests/testing/test_package_lifecycle_scenario.py::test_package_lifecycle_scenario_authoritative_runtime_failure",
+        "tests/testing/test_package_runtime_observer.py::test_package_runtime_observer_contract"
+      ],
+      "cause": "Six package lifecycle/runtime-observer fixtures expect descendant execution but retained default-denied settings.",
+      "later_fix_commit": "569f7e5f9d939698eca58cc61d7d6e6897210ec7",
+      "repair_scope": "Test fixtures explicitly opt into their intended team workflow; production admission policy is unchanged."
+    }
+  ],
+  "later_focused_checks": [
+    {
+      "scope": "Original five-file fixture cohort against unchanged frozen c9 production",
+      "result": "16 failed, 36 passed in 7.82s",
+      "log": {
+        "path": "/tmp/henchman-c9-optin-fixtures-red.log",
+        "sha256": "f3e120d592f9b9b785b0916b7c798b2c08785947239c7e14dd34c1b10acf378b",
+        "size_bytes": 59410
+      }
+    },
+    {
+      "scope": "Corrected five-file fixture cohort against unchanged frozen c9 production",
+      "result": "52 passed in 8.15s",
+      "log": {
+        "path": "/tmp/henchman-c9-optin-fixtures-frozen-green.log",
+        "sha256": "323175ee704b8bbb3dc9aac5e342746bbd38f2e466b24ea772dfd981fd71f68a",
+        "size_bytes": 753
+      }
+    },
+    {
+      "scope": "Corrected five-file fixture cohort against later current production",
+      "result": "52 passed in 7.97s",
+      "log": {
+        "path": "/tmp/henchman-c9-optin-fixtures-green.log",
+        "sha256": "bdaed63441b809b65fa7356492b0e0cd1ae199a872617879ba3129684427f06e",
+        "size_bytes": 887
+      }
+    },
+    {
+      "scope": "Original UI-agent file against frozen c9 production",
+      "result": "1 failed, 7 passed in 1.68s",
+      "log": {
+        "path": "/tmp/henchman-c9-ui-agent-red.log",
+        "sha256": "6950b83a4577f1c7d00dd4159109b47192435a1358a35ff24071525ad5df369d",
+        "size_bytes": 2608
+      }
+    },
+    {
+      "scope": "Corrected UI-agent file against later current production",
+      "result": "8 passed in 1.52s",
+      "log": {
+        "path": "/tmp/henchman-c9-ui-agent-green.log",
+        "sha256": "88b2ead1d2c8cab356a8ec1869eaf70f5e02629af822974986156a369bb32ca3",
+        "size_bytes": 566
+      }
+    },
+    {
+      "scope": "Intermediate package correction cohort: seven lifecycle cases passed; the observer fixture still failed. This cohort was not all green.",
+      "result": "1 failed, 7 passed in 39.55s",
+      "failed_tests": [
+        "tests/testing/test_package_runtime_observer.py::test_package_runtime_observer_contract"
+      ],
+      "log": {
+        "path": "/tmp/henchman-package-lifecycle-opt-in-green.log",
+        "sha256": "ec66092ef7a1d2254f564de999a84d73921cdd8ca515d52ce2ced942a3131c09",
+        "size_bytes": 2308
+      }
+    },
+    {
+      "scope": "Corrected package observer and profile cohort",
+      "result": "38 passed",
+      "log": {
+        "path": "/tmp/henchman-package-observer-opt-in-green.log",
+        "sha256": "bd9dea988a1600cfa54cd7eaeca2b260831d004bd951bf4802592574898f48e7",
+        "size_bytes": 727
+      }
+    }
+  ],
+  "retained_evidence": {
+    "pytest_log": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/c9b2b9b-source311-jr6pbbbt-pytest.log",
+      "sha256": "8f505ea8e115c925b5b68fea8f74cf0e679a03ebf800eb1265d802ebb0a3ee21",
+      "size_bytes": 103301
+    },
+    "driver_receipt": {
+      "path": "/tmp/henchman-c9b2b9b-source311.json",
+      "sha256": "71e46f9cbfcc8031576fe3abc6aad218f456e4c8ace8e01c5638e921b8b79259",
+      "size_bytes": 486
+    },
+    "source_verification": {
+      "path": "/tmp/henchman-c9b2b9b-source-content-check.json",
+      "sha256": "1cb19c05b0f143cb51d9221a196b451ed5ea1955d2f4b94bd11a1a17e3e6b270",
+      "size_bytes": 204
+    }
+  },
+  "limits": [
+    "The original full suite failed; later focused checks do not qualify a corrected full source or artifact.",
+    "No blanket delegation override or production policy relaxation was introduced by the fixture repairs.",
+    "No model endpoint or inference calls were made for reproduction/correction; SDK cases use offline scripted transports.",
+    "Skipped/native-human/accessibility/model-quality behavior is not established."
+  ]
+}

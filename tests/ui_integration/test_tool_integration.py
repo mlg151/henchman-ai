@@ -78,7 +78,7 @@ class TestToolCallHandling:
         )
 
         # Verify agent received the result
-        mock_repl.agent.submit_tool_result.assert_called_once_with("test-id", "Result")
+        mock_repl.agent.submit_tool_result.assert_called_once_with("test-id", ToolResult(content="Result"))
 
     async def test_handle_tool_call_nonexistent_tool(self, mock_repl):
         """Test handling of call to non-existent tool."""

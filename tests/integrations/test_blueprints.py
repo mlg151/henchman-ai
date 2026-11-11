@@ -50,3 +50,13 @@ def test_export_blueprint_refuses_to_overwrite_existing_files(tmp_path: Path) ->
 
     with pytest.raises(FileExistsError, match="package.json"):
         export_blueprint("vscode", tmp_path)
+
+
+def test_neovim_export_contains_real_opt_in_client_without_launching(tmp_path: Path) -> None:
+    written = export_blueprint("neovim", tmp_path)
+    client = tmp_path / "lua/henchman/init.lua"
+    assert written == [client]
+    text = client.read_text()
+    assert "jobstart" in text and "protocol-version" in text
+    assert "HenchmanNew" in text and "HenchmanResume" in text
+    assert not (tmp_path / ".henchman").exists()

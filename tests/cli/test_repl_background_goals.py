@@ -164,23 +164,32 @@ async def test_goal_continues_after_turn_and_prioritizes_user_steering(
         elif len(calls) == 3:
             goal = service.get(session)
             assert goal is not None
-            service.complete(session, goal_id=goal.id, summary="Verified completion")
+            service.complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Verified completion")
             complete.set()
 
     repl._run_agent = agent
     repl._get_input = inputs.get
     runner = asyncio.create_task(repl.run())
     try:
-        await asyncio.wait_for(first_started.wait(), 1)
+        # Every workflow transition persists the session, including when exit
+        # autosave is disabled. Slow native file flushes must not turn this
+        # ordering test into a one-second disk-latency benchmark.
+        await asyncio.wait_for(first_started.wait(), 10)
         await repl.process_input("steering")
         release.set()
-        await asyncio.wait_for(complete.wait(), 1)
-        await asyncio.sleep(0)
+        await asyncio.wait_for(complete.wait(), 10)
+        # The agent signals completion before the parent worker settles its
+        # workflow input. Join that worker rather than assume one loop tick.
+        worker = repl._turn_worker
+        if worker is not None:
+            await asyncio.wait_for(asyncio.shield(worker), 10)
         assert len(calls) == 3
         assert calls[1] == "steering"
         assert "finish the task" in calls[0]
         assert "finish the task" in calls[2]
         assert repl._turn_worker is None or repl._turn_worker.done()
+        assert not session.workflow_runtime.has_active_dispatch()
+        assert all(item.state == "completed" for item in session.workflow_runtime.report().state.inputs)
     finally:
         runner.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -188,8 +197,10 @@ async def test_goal_continues_after_turn_and_prioritizes_user_steering(
 
 
 @pytest.mark.parametrize("key", [b"\x1b", b"\x03"])
+@pytest.mark.parametrize("buffered_input", [False, True], ids=["ready-prompt", "before-prompt"])
 async def test_interrupt_pauses_goal_and_cancels_turn_without_exiting(
-    repl: Repl, tmp_path: Path, key: bytes,
+    repl: Repl, tmp_path: Path, key: bytes, buffered_input: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from prompt_toolkit import PromptSession
     from prompt_toolkit.input import create_pipe_input
@@ -206,6 +217,28 @@ async def test_interrupt_pauses_goal_and_cancels_turn_without_exiting(
     service.start(session, "long task")
     started = asyncio.Event()
     stopped = asyncio.Event()
+    prompt_entered = asyncio.Event()
+    allow_prompt = asyncio.Event()
+    prompt_ready = asyncio.Event()
+    interrupts = 0
+
+    original_interrupt = repl.interrupt_agent
+
+    def interrupt_once() -> None:
+        nonlocal interrupts
+        interrupts += 1
+        original_interrupt()
+
+    monkeypatch.setattr(repl, "interrupt_agent", interrupt_once)
+
+    original_input = repl.input_handler.get_input
+
+    async def gated_input() -> str:
+        prompt_entered.set()
+        await allow_prompt.wait()
+        return await original_input()
+
+    monkeypatch.setattr(repl.input_handler, "get_input", gated_input)
 
     async def agent(_message: str) -> None:
         started.set()
@@ -221,12 +254,32 @@ async def test_interrupt_pauses_goal_and_cancels_turn_without_exiting(
             input=pipe, output=DummyOutput(),
             key_bindings=repl.input_handler.prompt_session.key_bindings,
         )
+        prompt = repl.input_handler.prompt_session.app
+        # A literal Escape otherwise waits for both the VT parser (0.5s) and
+        # ambiguous key bindings (1s). This tests cancellation, not those default
+        # terminal timing choices; retain real pipe parsing with short deadlines.
+        # These are transport/cleanup checks, not default-key latency qualification.
+        prompt.ttimeoutlen = prompt.timeoutlen = 0.01
+        prompt.after_render += lambda _app: prompt_ready.set()
         runner = asyncio.create_task(repl.run())
         try:
             await asyncio.wait_for(started.wait(), 1)
-            pipe.send_bytes(key)
+            await asyncio.wait_for(prompt_entered.wait(), 1)
+            assert not prompt_ready.is_set()
+            assert not stopped.is_set()
+            if buffered_input:
+                # Also exercise bytes queued before the actual raw input reader
+                # attaches. Agent startup alone does not prove prompt readiness.
+                pipe.send_bytes(key)
+            allow_prompt.set()
+            await asyncio.wait_for(prompt_ready.wait(), 2)
+            assert prompt.is_running
+            if not buffered_input:
+                pipe.send_bytes(key)
             await asyncio.wait_for(stopped.wait(), 2)
             assert repl.running
+            assert not runner.done()
+            assert interrupts == 1
             assert service.get(session).status == "paused"
             pipe.send_text("/quit\n")
             await asyncio.wait_for(runner, 2)

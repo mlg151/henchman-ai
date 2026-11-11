@@ -2,20 +2,32 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-import anyio
-
+from henchman.agents.delegation_admission import (
+    DelegationAdmission,
+    DelegationAdmissionError,
+    DelegationLease,
+    join_worker,
+)
 from henchman.agents.orchestrator_execution import _close_stream, closing_event_stream
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.agent_config import AgentConfig
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.failure_evidence import failure_evidence_redactor
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
+from henchman.providers.continuation import ProviderContinuationError
+from henchman.utils.evidence_redaction import EvidenceRedactor, EvidenceStreamRedactor
+from henchman.utils.exception_evidence import exception_text
 
 from .orchestrator_anchoring import (
     _enrich_completion_from_report,
@@ -31,6 +43,7 @@ if TYPE_CHECKING:
     from henchman.agents.metrics import OrchestratorMetrics
     from henchman.agents.orchestrator_types import CompletionStatus, DelegationParams
     from henchman.agents.pool import AgentPool
+    from henchman.config.context import ContextSnapshot
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import Message
@@ -270,11 +283,23 @@ def _check_agent_protocol_compliance(agent: Any, role: str) -> str | None:
     return None
 
 
+def _handoff_text(
+    value: str, policy: EvidenceRedactor, *, limit: int | None = None, incomplete: bool = False,
+) -> str:
+    """Project generated evidence before clipping, including old clipped prefixes."""
+    stream = EvidenceStreamRedactor(policy)
+    # Keep overlapping credential candidates intact until the streaming policy
+    # can resolve them; replacing a shorter secret first destroys that evidence.
+    projected = stream.feed(value) + stream.finish(interrupted=incomplete)
+    return projected if limit is None else projected[:limit]
+
+
 def _add_to_shared_context(
     shared_context: list[dict[str, Any]],
     target_role: str,
     summary: str,
     parsed: dict[str, str],
+    *, redactor: EvidenceRedactor | None = None,
 ) -> None:
     """Add delegation result to shared context with size limits.
 
@@ -296,12 +321,13 @@ def _add_to_shared_context(
     if not isinstance(parsed, dict):
         msg = f"parsed must be a dict, got {type(parsed).__name__}"
         raise TypeError(msg)
-    summary_text = summary[:MAX_CONTENT_LENGTH] if summary else ""
+    evidence = failure_evidence_redactor(redactor=redactor)
+    summary_text = _handoff_text(summary, evidence, limit=MAX_CONTENT_LENGTH) if summary else ""
     files_modified = parsed.get("files_modified", "") if parsed else ""
     entry = {
         "agent": target_role,
         "summary": summary_text,
-        "files_modified": files_modified,
+        "files_modified": evidence.text(files_modified) if isinstance(files_modified, str) else files_modified,
         "timestamp": datetime.now(tz=UTC).isoformat(),
     }
     shared_context.append(entry)
@@ -403,6 +429,7 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
     Returns:
         List of error strings, empty if none found.
     """
+    evidence = failure_evidence_redactor(target_agent)
     try:
         if hasattr(target_agent, "get_delegation_errors"):
             errors = target_agent.get_delegation_errors()
@@ -415,15 +442,15 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
     except (AttributeError, TypeError, RuntimeError) as exc:
         logger.warning(
             "Failed to fetch delegation errors from agent %r: %s",
-            type(target_agent).__name__,
-            exc,
+            evidence.text(type(target_agent).__name__),
+            exception_text(exc, failure_evidence_redactor(target_agent, redactor=evidence), include_traceback=True),
         )
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         # Catch-all for unexpected errors, but log with full traceback
         logger.warning(
-            "Unexpected error fetching delegation errors from agent %r",
-            type(target_agent).__name__,
-            exc_info=True,
+            "Unexpected error fetching delegation errors from agent %r: %s",
+            evidence.text(type(target_agent).__name__),
+            exception_text(exc, failure_evidence_redactor(target_agent, redactor=evidence), include_traceback=True),
         )
     return []
 
@@ -674,6 +701,8 @@ def _populate_execution_params(
     target_agent: Any,
 ) -> None:
     """Populate the fully rendered task and message bounds on *params*."""
+    evidence = failure_evidence_redactor(runner)
+    failure_evidence_redactor(target_agent, redactor=evidence)
     prepared_brief = runner._prepare_delegation_context(  # noqa: SLF001
         params.target_role,
         params.brief,
@@ -684,6 +713,17 @@ def _populate_execution_params(
         prepared_brief,
         mission=runner.ledger.goal if runner.ledger else None,
     )
+    from henchman.config.context import ContextSnapshot
+    from henchman.core.agent import Agent
+    from henchman.core.instruction_provenance import render_delegation_appendix
+
+    snapshot = getattr(runner, "instruction_snapshot", None)
+    if isinstance(snapshot, ContextSnapshot) and snapshot.sources:
+        params.full_task += f"\n\n{render_delegation_appendix(snapshot)}"
+    if isinstance(snapshot, ContextSnapshot) and isinstance(target_agent, Agent):
+        from henchman.core.instruction_context import InstructionContext
+
+        InstructionContext.attach(target_agent, snapshot, runner.pool.instruction_observer)
     params.msg_start = len(target_agent.messages)
 
 
@@ -762,6 +802,9 @@ async def _execute_loop(
     try:
         async for event in agent_loop_result:
             yield event
+    except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
+        primary_error = exc
+        raise
     except Exception as exc:
         primary_error = exc
         msg = (
@@ -799,11 +842,14 @@ async def _finalize_execution(
         params.target_agent,
         params.msg_start,
     )
+    evidence = failure_evidence_redactor(runner)
+    failure_evidence_redactor(params.target_agent, redactor=evidence)
     _add_to_shared_context(
         runner.shared_context,
         params.target_role,
         summary,
         parsed,
+        redactor=evidence,
     )
     status_value = _get_status_value(status)
     yield AgentEvent(
@@ -844,6 +890,7 @@ class DelegationRunner:
         metrics: OrchestratorMetrics,
         run_agent_loop: AgentLoopRunner,
         assess_completion: Callable[[Agent], CompletionStatus],
+        admission: DelegationAdmission | None = None,
     ) -> None:
         self.pool = pool
         self.settings = settings
@@ -851,13 +898,59 @@ class DelegationRunner:
         self.metrics = metrics
         self._run_agent_loop = run_agent_loop
         self._assess_completion = assess_completion
+        self.admission = admission if admission is not None else DelegationAdmission(
+            settings.agents.max_concurrent_delegations, allowed=settings.agents.allow_delegation,
+        )
         self.ledger: TaskLedger | None = None
+        self.instruction_snapshot: ContextSnapshot | None = None
 
     # -- Main entry point -------------------------------------------------
 
-    async def run_delegation(
+    def run_delegation(
         self: DelegationRunner,
         params: DelegationParams,
+        *, _lease: DelegationLease | None = None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Capture current admission authority before returning an owned stream."""
+        stream = self._admitted_delegation(params, self.admission.generation, _lease, lambda: stream)
+        return stream
+
+    async def _admitted_delegation(
+        self, params: DelegationParams, generation: int, lease: DelegationLease | None,
+        owned_stream: Callable[[], AsyncGenerator[AgentEvent, None]],
+    ) -> AsyncGenerator[AgentEvent, None]:
+        owned = lease is None
+        try:
+            if lease is None:
+                lease = self.admission.reserve(generation=generation)
+            lease.claim(self.admission)
+        except DelegationAdmissionError as error:
+            if owned and lease is not None:
+                lease.release()
+            yield AgentEvent(EventType.ERROR, {"message": str(error), "admission": error.payload}, source_agent="orchestrator")
+            return
+        if owned:
+            lease.stream = owned_stream()
+        try:
+            async with closing_event_stream(self._run_delegation(params)) as events:
+                while True:
+                    self.admission.require(lease.generation)
+                    try:
+                        if owned:
+                            lease.owner = asyncio.current_task()
+                        event = await anext(events)
+                    except StopAsyncIteration:
+                        break
+                    finally:
+                        if owned:
+                            lease.owner = None
+                    yield event
+        finally:
+            if owned:
+                lease.release()
+
+    async def _run_delegation(
+        self, params: DelegationParams,
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent.
 
@@ -964,6 +1057,9 @@ class DelegationRunner:
         try:
             async for event in stream:
                 yield event
+        except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
+            primary_error = exc
+            raise
         except Exception as exc:  # noqa: BLE001
             primary_error = exc
             yield self._make_error_event(
@@ -1078,15 +1174,22 @@ class DelegationRunner:
         """
         if not self.shared_context:
             return
+        evidence = failure_evidence_redactor(self)
         scored = sorted(
             self.shared_context,
             key=lambda e: _score_context_relevance(e, task, target_role),
             reverse=True,
         )
         relevant = scored[:RECENT_CONTEXT_ENTRIES]
-        handoff_lines = [
-            f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}" for entry in relevant
-        ]
+        handoff_lines = []
+        for entry in relevant:
+            # Legacy entries may already end in a credential prefix at the old
+            # storage cutoff. Reproject without rewriting that prior snapshot.
+            summary = _handoff_text(
+                entry["summary"], evidence, limit=MAX_SUMMARY_LENGTH,
+                incomplete=len(entry["summary"]) >= MAX_CONTENT_LENGTH,
+            )
+            handoff_lines.append(f"- **{evidence.text(entry['agent'])}**: {summary}")
         handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
         existing_bg = brief.get("background") or ""
         brief["background"] = f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
@@ -1110,10 +1213,12 @@ class DelegationRunner:
         if not prior_failures:
             return
         last_fail = prior_failures[-1]
+        evidence = failure_evidence_redactor(self)
+        prior_task = _handoff_text(last_fail.task, evidence)
         fail_note = (
             f"### Prior Attempt Failed\n"
             f"A previous delegation to you for "
-            f'"{last_fail.task}" ended with status FAILED. '
+            f'"{prior_task}" ended with status FAILED. '
             f"Avoid repeating the same approach."
         )
         existing_bg = brief.get("background") or ""
@@ -1199,7 +1304,7 @@ class DelegationRunner:
 
     # -- Parallel delegation ----------------------------------------------
 
-    async def run_parallel_delegations(
+    def run_parallel_delegations(
         self: DelegationRunner,
         params_list: list[DelegationParams],
     ) -> AsyncIterator[AgentEvent]:
@@ -1221,25 +1326,73 @@ class DelegationRunner:
         Yields:
             AgentEvent: Events from all delegations merged by arrival order.
         """
-        # Use a large but bounded buffer to prevent memory exhaustion while
-        # avoiding deadlock. The consumer runs after the task group exits,
-        # so producers could fill the buffer before consumption starts.
-        # 10,000 events should be sufficient for most practical use cases.
-        send_stream, recv_stream = anyio.create_memory_object_stream[AgentEvent](
-            max_buffer_size=MAX_PARALLEL_DELEGATION_BUFFER,
-        )
+        return self._run_parallel_delegations(params_list, self.admission.generation)
 
-        async def _run_one(params: DelegationParams) -> None:
-            """Run a single delegation and forward its events to the stream."""
-            async for event in self.run_delegation(params):
-                await send_stream.send(event)
+    async def _run_parallel_delegations(
+        self, params_list: list[DelegationParams], generation: int,
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Admit only work belonging to the generation that created the stream."""
+        queue: asyncio.Queue[AgentEvent] = asyncio.Queue(MAX_PARALLEL_DELEGATION_BUFFER)
+        ready = asyncio.Event()
+        tasks: list[asyncio.Task[None]] = []
+        denials: list[AgentEvent] = []
 
-        async with anyio.create_task_group() as tg:
-            for p in params_list:
-                tg.start_soon(_run_one, p)
+        async def run_one(params: DelegationParams, lease: DelegationLease) -> None:
+            try:
+                async with closing_event_stream(self.run_delegation(params, _lease=lease)) as events:
+                    async for event in events:
+                        await queue.put(event)
+                        ready.set()
+            finally:
+                lease.release()
 
-        await send_stream.aclose()
+        def completed(_task: asyncio.Task[None], lease: DelegationLease) -> None:
+            lease.release()  # Includes cancellation before coroutine entry.
+            ready.set()
 
-        async with recv_stream:
-            async for event in recv_stream:
+        primary: BaseException | None = None
+        try:
+            for params in params_list:
+                try:
+                    lease = self.admission.reserve(generation=generation)
+                except DelegationAdmissionError as error:
+                    denials.append(AgentEvent(EventType.ERROR, {"message": str(error), "admission": error.payload}, source_agent="orchestrator"))
+                    continue
+                worker = run_one(params, lease)
+                try:
+                    task = asyncio.create_task(worker)
+                except BaseException:
+                    worker.close()
+                    lease.release()
+                    raise
+                lease.owner = task
+                task.add_done_callback(partial(completed, lease=lease))
+                tasks.append(task)
+            for event in denials:
                 yield event
+            while any(not task.done() for task in tasks) or not queue.empty():
+                await ready.wait()
+                ready.clear()
+                while not queue.empty():
+                    yield queue.get_nowait()
+                for task in tasks:
+                    if task.done():
+                        task.result()
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            cleanup: BaseException | None = None
+            for task in tasks:
+                try:
+                    await join_worker(task)
+                except BaseException as error:
+                    if cleanup is None:
+                        cleanup = error
+            if cleanup is not None:
+                if primary is None:
+                    raise cleanup
+                primary.add_note("Parallel delegation cleanup also failed; original interruption retained")

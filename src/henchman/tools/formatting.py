@@ -13,6 +13,8 @@ from pathlib import Path
 from threading import Event
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.checkpoint_capture import current_checkpoint
+from henchman.tools.repair_scope import RepairControlError, current_repair, owned_spawn
 from henchman.tools.subprocess_utils import run_bounded_subprocess
 from henchman.utils.source_files import iter_python_files
 
@@ -28,6 +30,16 @@ _FileIdentity = tuple[int, int, int, int, int]
 
 class FormattingError(Exception):
     """Tracking or Black could not complete within the formatter's bounds."""
+
+
+def _control_errors() -> tuple[type[Exception], ...]:
+    # Keep core/runtime imports lazy: tool registration also happens during
+    # core package initialization.
+    from henchman.core.operation_recovery import OperationRecoveryError
+    from henchman.core.run_budget import BudgetControlError
+    from henchman.providers.continuation import ProviderContinuationError
+
+    return OperationRecoveryError, BudgetControlError, ProviderContinuationError, RepairControlError
 
 
 @dataclass
@@ -114,7 +126,14 @@ def _reject_symlinks(path: Path) -> None:
             raise FormattingError(f"Cannot track symlink path: {component}")
 
 
+def _check_access() -> None:
+    capture = current_checkpoint()
+    if capture is not None:
+        capture.check_access()
+
+
 def _identity(path: Path) -> _FileIdentity:
+    _check_access()
     _reject_symlinks(path)
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode):
@@ -130,6 +149,7 @@ def _check_size(path: Path, identity: _FileIdentity) -> None:
 def _snapshot(
     scope: _Scope, stop: Event, report: _TrackingReport | None = None
 ) -> dict[Path, _FileIdentity]:
+    _check_access()
     _reject_symlinks(scope.root)
     if scope.direct:
         try:
@@ -187,6 +207,7 @@ def _fingerprints(paths: list[Path], stop: Event) -> dict[Path, bytes]:
         total = 0
         with path.open("rb") as source:
             while data := source.read(65536):
+                _check_access()
                 if stop.is_set():
                     raise FormattingError("Python source fingerprinting stopped")
                 total += len(data)
@@ -224,6 +245,7 @@ def _expand_paths(paths: list[Path], cwd: Path, stop: Event) -> list[Path]:
     sources: set[Path] = set()
     report = _TrackingReport()
     for path in paths:
+        _check_access()
         target = (cwd / path).resolve()
         _reject_symlinks(target)
         if target.is_dir():
@@ -239,26 +261,48 @@ def _expand_paths(paths: list[Path], cwd: Path, stop: Event) -> list[Path]:
     return sorted(sources)
 
 
-async def format_python_files(paths: list[Path], *, cwd: Path) -> None:
+async def format_python_files(
+    paths: list[Path], *, cwd: Path, authorize: Callable[[tuple[Path, ...]], None] | None = None,
+) -> None:
     """Run trusted Black on bounded files/directories, preserving timeout/cancellation.
 
-    Standard project configuration is honored. This is formatting, not an OS
-    sandbox or a guarantee that project-configured exclusions were formatted.
+    Standard project configuration is honored. The optional caller admission is
+    rechecked after expansion and around each formatter process. This is not an
+    OS sandbox or a guarantee that project-configured exclusions were formatted.
     """
+    repair = current_repair()
+    if repair is not None:
+        repair.check()
+        if any(not path.is_absolute() or not path.is_relative_to(repair.root) for path in paths):
+            repair.deny("Repair formatter targets escaped the explicit project scope")
+        await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in paths))
+        repair.check()
+    if authorize is not None:
+        authorize(tuple(paths))
     stop = Event()
     try:
         async with asyncio.timeout(FORMAT_TIMEOUT):
             sources = await asyncio.to_thread(_expand_paths, paths, cwd, stop)
+            if authorize is not None:
+                authorize(tuple(sources))
             for batch in _batches(sources):
-                result = await run_bounded_subprocess(
-                    [*_BLACK_COMMAND, *(str(path) for path in batch)],
-                    cwd=cwd,
-                    timeout=FORMAT_TIMEOUT,
-                    max_output_bytes=8192,
-                )
+                _check_access()
+                repair = current_repair()
+                if repair is not None:
+                    await repair.repair.admit_mutation(tuple(path.relative_to(repair.root).as_posix() for path in batch))
+                    repair.check()
+                command = [*_BLACK_COMMAND, *(str(path) for path in batch)]
+                if authorize is not None:
+                    authorize(tuple(batch))
+                with owned_spawn(command, cwd):
+                    result = await run_bounded_subprocess(
+                        command, cwd=cwd, timeout=FORMAT_TIMEOUT, max_output_bytes=8192,
+                    )
                 if result.returncode != 0:
                     output = (result.stderr or result.stdout).decode("utf-8", errors="replace")
                     raise FormattingError(f"Black exited {result.returncode}: {output.strip()}")
+                if authorize is not None:
+                    authorize(tuple(batch))
     finally:
         stop.set()
 
@@ -291,17 +335,19 @@ class PythonAutoFormatter:
         execute: Callable[[], Awaitable[ToolResult]],
     ) -> ToolResult:
         """Execute once, format observed source mutations, and preserve tool failures."""
+        capture = current_checkpoint()
+        scoped = capture is not None and capture.paths is not None
         # Runtime coordination must remain available while a child holds the
         # mutation lock, especially when the parent needs to cancel that child.
-        if tool.name in {"invoke_subagent", "manage_subagents"} or (
+        if not scoped and (tool.name in {"invoke_subagent", "manage_subagents", "publish_subagent_proposal"} or (
             tool.name == "send_message" and "conversation_id" in params
-        ):
+        )):
             return await execute()
         background = tool.name == "task_create" or (
             tool.name in {"shell", "shell_secure", "python_exec"}
             and bool(params.get("background", True))
         )
-        if background:
+        if background and not scoped:
             result = await execute()
             if result.success and tool.name != "python_exec":
                 return replace(
@@ -332,14 +378,36 @@ class PythonAutoFormatter:
         execute: Callable[[], Awaitable[ToolResult]],
     ) -> ToolResult:
         frame = _Invocation()
+        capture = current_checkpoint()
+        owns_capture = capture is not None and not capture.claimed
+        if owns_capture:
+            assert capture is not None
+            capture.claimed = True
         token = self._invocation.set(frame)
         try:
             return await self._execute_and_format(tool, params, execute, frame)
         finally:
+            primary = sys.exception()
+            preserve = primary is not None and (isinstance(primary, _control_errors()) or not isinstance(primary, Exception))
             try:
-                await _close_invocation(frame, cancel=True)
+                try:
+                    await _close_invocation(frame, cancel=True)
+                except BaseException:
+                    if not preserve:
+                        raise
+                    assert primary is not None
+                    primary.add_note("Formatter settlement also failed; original runtime interruption retained")
             finally:
-                self._invocation.reset(token)
+                try:
+                    if owns_capture and capture is not None:
+                        await capture.finish(primary or sys.exception())
+                except BaseException:
+                    if not preserve:
+                        raise
+                    assert primary is not None
+                    primary.add_note("Formatter checkpoint settlement also failed; original runtime interruption retained")
+                finally:
+                    self._invocation.reset(token)
 
     async def _execute_and_format(
         self,
@@ -348,18 +416,41 @@ class PythonAutoFormatter:
         execute: Callable[[], Awaitable[ToolResult]],
         frame: _Invocation,
     ) -> ToolResult:
+        capture = current_checkpoint()
+        controls = _control_errors()
         try:
-            scope = _scope(tool, params)
-            before = await _take_snapshot(scope) if scope else {}
+            scopes: tuple[_Scope, ...]
+            repair = current_repair()
+            if repair is not None:
+                scopes = tuple(_Scope(path, True) for path in repair.paths(tool, params) if path.suffix in _SUFFIXES)
+            elif capture is not None and capture.restricted():
+                # Policy may have changed while waiting for the mutation lock.
+                # Let dispatch return its current denial without raw discovery.
+                scopes = ()
+            elif capture is not None and capture.paths is not None:
+                scopes = tuple(_Scope(path, True) for path in capture.paths if path.suffix in _SUFFIXES)
+            else:
+                scope = _scope(tool, params)
+                scopes = (scope,) if scope is not None else ()
+            snapshots = [(scope, await _take_snapshot(scope)) for scope in scopes]
+        except controls:
+            raise
         except Exception as exc:
             return _failure(None, exc)
         try:
             result = await execute()
+        except controls:
+            raise
         except Exception as original:
             await _close_invocation(frame)
-            if scope:
+            if snapshots and self._may_format():
                 try:
-                    await _format_changed(scope, before)
+                    for scope, before in snapshots:
+                        await _format_changed(scope, before)
+                except controls:
+                    # A control failure discovered after an ordinary body error
+                    # still stops dispatch. It is never a formatter diagnostic.
+                    raise
                 except Exception as formatting_error:
                     raise FormattingError(
                         f"Automatic Black formatting failed: {formatting_error}; "
@@ -367,9 +458,13 @@ class PythonAutoFormatter:
                     ) from original
             raise
         await _close_invocation(frame)
-        if scope:
+        if snapshots and self._may_format():
             try:
-                formatted = await _format_changed(scope, before)
+                formatted = 0
+                for scope, before in snapshots:
+                    formatted += await _format_changed(scope, before)
+            except controls:
+                raise
             except Exception as exc:
                 return _failure(result, exc)
             if formatted:
@@ -378,3 +473,11 @@ class PythonAutoFormatter:
                     content=f"{result.content}\nBlack formatted {formatted} Python source file(s).",
                 )
         return result
+
+    @staticmethod
+    def _may_format() -> bool:
+        # An active operation that was denied before its body cannot own a
+        # concurrent external edit merely because a snapshot noticed it.
+        current = current_checkpoint()
+        return current is None or (not current.restricted()
+                                   and (current.operation is None or current.dispatched))

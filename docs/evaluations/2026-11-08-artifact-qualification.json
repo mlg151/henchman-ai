@@ -1,0 +1,56 @@
+{
+  "kind": "development_artifact_qualification",
+  "date_utc": "2026-11-08",
+  "receipt": {
+    "artifacts": {
+      "henchman_ai-0.4.1-py3-none-any.whl": "17733b63e744462309fea48523f48af8af29542ac7c56b0987d636f3eaa3d1af",
+      "henchman_ai-0.4.1.tar.gz": "ed9d735a683b7107742a1c46bd622d421415b777810a792cfdeac35c9da20933"
+    },
+    "commit": "6ee824bc36ffeaf51fce40fd025155fdd0faa178",
+    "helper_sha256": "49479cad08c0aa49356a5d57b19466f8b5bab41f96e9dd6f21d403ffb7842471",
+    "profile": "installed-wheel-smoke-v1",
+    "runs": {
+      "sdist": {
+        "artifact_sha256": "ed9d735a683b7107742a1c46bd622d421415b777810a792cfdeac35c9da20933",
+        "installed_wheel_sha256": "17733b63e744462309fea48523f48af8af29542ac7c56b0987d636f3eaa3d1af",
+        "passed": true,
+        "python": "3.12"
+      },
+      "wheel": {
+        "artifact_sha256": "17733b63e744462309fea48523f48af8af29542ac7c56b0987d636f3eaa3d1af",
+        "installed_wheel_sha256": "17733b63e744462309fea48523f48af8af29542ac7c56b0987d636f3eaa3d1af",
+        "passed": true,
+        "python": "3.12"
+      }
+    },
+    "schema_version": 1,
+    "version": "0.4.1"
+  },
+  "logs": {
+    "wheel": {
+      "sha256": "f7d1eea633dba69103c147b63bf534efe7ba9b095dbea6e43c557ddde6ad0d21",
+      "bytes": 42440,
+      "passed": 5460,
+      "skipped": 25,
+      "warnings": 15,
+      "suite_seconds": 881.68
+    },
+    "sdist": {
+      "sha256": "967fe3bbbc03d15fea1abdf52b76a2d87bac61755374fd7b84b0410ac7aa9096",
+      "bytes": 42555,
+      "passed": 5460,
+      "skipped": 25,
+      "warnings": 15,
+      "suite_seconds": 860.41
+    }
+  },
+  "source_tree_clean_at_build": true,
+  "python": "3.12.13",
+  "platform": "Linux",
+  "publication_performed": false,
+  "limitations": [
+    "Version0.4.1 development artifacts at6ee824b; later source and fixture fixes are outside this receipt.",
+    "This installed workflow profile is not the complete source test suite or a native OS/assistive-technology/live-model certification.",
+    "Full release gates remain open; native Windows current-file RAG failures are under repair."
+  ]
+}

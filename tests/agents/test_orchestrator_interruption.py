@@ -12,6 +12,7 @@ from henchman.agents.orchestrator_execution import ExecutionController
 from henchman.agents.orchestrator_tools import ToolController
 from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.agents.pool import AgentPool
+from henchman.config.schema import Settings
 from henchman.core.agent import Agent
 from henchman.core.eventbus import EventBus
 from henchman.core.events import EventType
@@ -23,9 +24,13 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.tools.base import Tool, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolResult
 from henchman.tools.registry import ToolRegistry
 from henchman.utils.validation import validate_message_sequence
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class ControlledProvider(ModelProvider):
@@ -181,6 +186,7 @@ async def test_public_orchestrator_close_reaches_provider_and_balances_history(d
 
     provider = ControlledProvider(requests=True)
     orchestrator = Orchestrator(default_provider=provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     stream = orchestrator.run_direct("explorer", "Work") if direct else orchestrator.run("Work")
     async for event in stream:
         if event.type == EventType.TOOL_CALL_REQUEST:
@@ -232,7 +238,8 @@ async def test_closing_public_delegation_releases_specialist_stream():
     from henchman.agents.orchestrator_types import DelegationParams
 
     provider = ControlledProvider(requests=True)
-    orchestrator = Orchestrator(default_provider=provider)
+    orchestrator = Orchestrator(default_provider=provider, settings=Settings(agents={"allow_delegation": True}))
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     stream = orchestrator.delegation_runner.run_delegation(
         DelegationParams(target_role="explorer", task="Work"),
     )
@@ -300,6 +307,7 @@ async def test_delegation_result_event_preserves_submitted_result():
 
     provider = DelegatingProvider()
     orchestrator = Orchestrator(default_provider=provider)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     events = [event async for event in orchestrator.run("Investigate")]
     event_result = next(
         event.data["result"] for event in events
@@ -319,9 +327,10 @@ async def test_specialist_provider_error_does_not_abort_parent_recovery():
     from henchman.config.schema import Settings
 
     provider = DelegatingProvider(fail_specialist=True)
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = 0
     orchestrator = Orchestrator(default_provider=provider, settings=settings)
+    orchestrator.tool_registry.set_confirmation_handler(_approve)
     events = [event async for event in orchestrator.run("Investigate")]
     assert any(event.type == EventType.ERROR for event in events)
     assert any(event.type == EventType.CONTENT and event.data == "Task resolved." for event in events)

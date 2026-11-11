@@ -1,0 +1,7 @@
+import pytest
+from tests.agents.test_primary_subagent_runtime import test_child_question_and_parent_answer_use_real_queued_messages as question_case
+
+@pytest.mark.parametrize('repeat', range(40))
+@pytest.mark.parametrize('durable', [False, True])
+async def test_repeat_question(monkeypatch, tmp_path, durable, repeat):
+    await question_case(monkeypatch, tmp_path, durable)

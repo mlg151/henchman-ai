@@ -14,9 +14,14 @@ import pytest
 
 from henchman.advanced.tasks import TaskService
 from henchman.tools import formatting
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins import python_exec
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.parametrize("background", [False, True])
@@ -38,6 +43,7 @@ async def test_large_workspace_executes_without_source_tracking(
     registry = ToolRegistry()
     tool = PythonExecTool()
     registry.register(tool)
+    registry.set_confirmation_handler(_approve)
     result = await registry.execute(
         "python_exec",
         {
@@ -64,11 +70,15 @@ async def test_snippet_uses_black_defaults_and_ignores_project_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Black formats only the string, without searching for workspace settings."""
+    from henchman.tools import snippet_formatting
     from henchman.tools.snippet_formatting import format_python_snippet
 
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[tool.black]\nline-length = "invalid"\n')
     (tmp_path / "black.py").write_text("raise RuntimeError('workspace module imported')\n")
+
+    monkeypatch.setattr(snippet_formatting, "SNIPPET_FORMAT_TIMEOUT", 5.0)
+    # Instrumentation allowance: this timeout is local to the test and doesn't affect production defaults.
     assert await format_python_snippet("values= [1,2]\n") == "values = [1, 2]\n"
 
 

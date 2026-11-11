@@ -182,6 +182,10 @@ async def test_async_mcp_registration_reaches_existing_allowed_agent_scopes() ->
         def get_all_tools(self) -> list[Tool]:
             return [allowed, hidden]
 
+        def bind_registry(self, registry: ToolRegistry) -> None:
+            for tool in self.get_all_tools():
+                registry.register(tool)
+
     context = SimpleNamespace(
         mcp_manager=McpStub(), tool_registry=parent, background_tasks=set(),
     )

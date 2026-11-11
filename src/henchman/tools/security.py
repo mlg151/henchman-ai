@@ -6,9 +6,13 @@ to protect against common vulnerabilities in tool implementations.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import shlex
+import socket
+import stat
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import ParseResult, urlparse
@@ -238,9 +242,54 @@ def _check_url_scheme(parsed: ParseResult, allowed_schemes: Iterable[str]) -> No
 
 def _check_localhost_url(parsed: ParseResult) -> None:
     """Raise SSRFError if URL points to a localhost address."""
-    if parsed.hostname in _LOCALHOST_PATTERNS:
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    address = _literal_ip(hostname)
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    if (hostname in _LOCALHOST_PATTERNS or hostname.endswith(".localhost")
+        or address is not None and (address.is_loopback or address.is_unspecified)):
         msg = "Localhost URLs are not allowed"
         raise SSRFError(msg)
+
+
+def _literal_ip(hostname: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """Recognize numeric aliases without DNS; actual DNS answers need separate checks."""
+    if "%" in hostname:
+        raise SSRFError("Scoped IP addresses are not allowed")
+    hostname = hostname.rstrip(".")
+    try:
+        return ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            # inet_aton covers shortened, integer, hexadecimal and octal IPv4
+            # forms accepted by platform getaddrinfo but not by ipaddress.
+            return ipaddress.IPv4Address(socket.inet_aton(hostname))
+        except OSError:
+            return None
+
+
+def validate_public_ip(address: str) -> str:
+    """Validate a resolved/connected numeric address and return its canonical form.
+
+    This function performs no DNS. Transition/scoped IPv6 forms are rejected
+    when they can tunnel an otherwise non-public address through a public prefix.
+    """
+    parsed = _literal_ip(address)
+    if parsed is None:
+        raise SSRFError("Resolved address is not a numeric IP address")
+    mapped = parsed.ipv4_mapped if isinstance(parsed, ipaddress.IPv6Address) else None
+    effective = mapped if mapped is not None else parsed
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is None and (
+        parsed.sixtofour is not None or parsed.teredo is not None
+        or parsed in ipaddress.IPv6Network("64:ff9b::/96")
+        or parsed in ipaddress.IPv6Network("64:ff9b:1::/48")
+        or parsed.is_site_local
+    ):
+        raise SSRFError("IPv6 transition or site-local addresses are not allowed")
+    if (not effective.is_global or effective.is_loopback or effective.is_link_local
+        or effective.is_multicast or effective.is_unspecified or effective.is_reserved):
+        raise SSRFError("Non-public IP addresses are not allowed")
+    return str(parsed)
 
 
 def _check_private_ip_address(parsed: ParseResult) -> None:
@@ -248,10 +297,11 @@ def _check_private_ip_address(parsed: ParseResult) -> None:
     hostname = parsed.hostname
     if not hostname:
         return
-    for pattern in _PRIVATE_IP_PATTERNS:
-        if re.match(pattern, hostname):
-            msg = f"Private IP address not allowed: {hostname}"
-            raise SSRFError(msg)
+    if _literal_ip(hostname) is not None:
+        try:
+            validate_public_ip(hostname)
+        except SSRFError as exc:
+            raise SSRFError(f"Private IP address not allowed: {hostname}") from exc
 
 
 def _check_domain_whitelist(
@@ -260,7 +310,7 @@ def _check_domain_whitelist(
 ) -> None:
     """Raise SSRFError if URL domain is not in the allowed list."""
     hostname = parsed.hostname
-    if allowed_domains and hostname and hostname not in allowed_domains:
+    if allowed_domains is not None and hostname and hostname not in allowed_domains:
         msg = f"Domain {hostname} not in allowed list"
         raise SSRFError(msg)
 
@@ -280,7 +330,10 @@ def validate_url(
     block_private_ips: bool = True,
     block_localhost: bool = True,
 ) -> str:
-    """Validate a URL to prevent SSRF attacks.
+    """Validate URL syntax and literal targets before transport-level SSRF checks.
+
+    Hostnames are not resolved here. Callers must also validate the actual DNS
+    answers, connected peer and each redirect before sending request bytes.
 
     Args:
         url: The URL to validate.
@@ -300,9 +353,15 @@ def validate_url(
     if not url or not isinstance(url, str):
         msg = "URL must be a non-empty string"
         raise ValueError(msg)
+    if any(ord(character) < 32 or ord(character) == 127 for character in url):
+        raise SSRFError("URL contains control characters")
 
     try:
         parsed = urlparse(url)
+        if not parsed.hostname or any(character.isspace() for character in parsed.hostname):
+            raise SSRFError("URL requires a valid hostname")
+        # Accessing port rejects invalid values before any resolver is invoked.
+        _ = parsed.port
     except Exception as e:
         msg = f"Invalid URL: {e}"
         raise SSRFError(msg) from e
@@ -366,7 +425,11 @@ def atomic_write(
     mode: str = "w",
     encoding: str = "utf-8",
 ) -> None:
-    """Write content to a file atomically to prevent TOCTOU race conditions.
+    """Replace a file atomically using an exclusively created, private temporary.
+
+    The complete new contents become visible at replacement. This protects
+    against preplanted predictable temporary paths; it is not confinement from
+    independent processes that can modify the destination directory.
 
     Args:
         path: Path to write to.
@@ -380,22 +443,44 @@ def atomic_write(
     Raises:
         OSError: If file operation fails.
     """
-    path_obj = Path(path)
+    path_obj = Path(path).absolute()
 
     # Check write permissions on existing file before attempting write
     if path_obj.exists() and not os.access(str(path_obj), os.W_OK):
         msg = f"Permission denied: {path_obj}"
         raise PermissionError(msg)
 
-    temp_path = path_obj.with_suffix(f"{path_obj.suffix}.tmp")
+    try:
+        existing = path_obj.lstat()
+    except FileNotFoundError:
+        permissions = None
+    else:
+        # Preserve ordinary regular-file permissions, without copying set-id
+        # bits or following a destination symlink to an unrelated file.
+        permissions = stat.S_IMODE(existing.st_mode) & 0o777 if stat.S_ISREG(existing.st_mode) else None
+
+    descriptor, temp_name = tempfile.mkstemp(
+        prefix=f".{path_obj.name[:32]}-", suffix=".tmp", dir=path_obj.parent,
+    )
+    temp_path = Path(temp_name)
 
     try:
-        with temp_path.open(mode, encoding=encoding) as f:
-            f.write(content)
-        temp_path.replace(path_obj)
+        try:
+            # Keep descriptor ownership here even if fdopen/encoding fails.
+            with os.fdopen(descriptor, mode, encoding=encoding, newline="", closefd=False) as handle:
+                handle.write(content)
+                handle.flush()
+                if permissions is not None:
+                    if hasattr(os, "fchmod"):
+                        os.fchmod(descriptor, permissions)
+                    else:
+                        os.chmod(temp_path, permissions)
+                os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        os.replace(temp_path, path_obj)
     finally:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
+        temp_path.unlink(missing_ok=True)
 
 
 def atomic_read(path: str | Path, mode: str = "r", encoding: str = "utf-8") -> str:

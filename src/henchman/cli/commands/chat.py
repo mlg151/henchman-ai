@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.providers.base import Message, ToolCall
+from henchman.providers.continuation import copy_continuation
+from henchman.utils.tool_results import copy_tool_result_payload
 
 if TYPE_CHECKING:
     from henchman.core.session import Session, SessionManager
@@ -156,6 +158,9 @@ def _restore_agent_history_from_session(ctx: CommandContext, session: Session) -
                 tool_calls=tool_calls,
                 tool_call_id=session_msg.tool_call_id,
                 reasoning_content=session_msg.reasoning_content,
+                reasoning_details=session_msg.reasoning_details,
+                continuation=copy_continuation(session_msg.continuation),
+                tool_result=copy_tool_result_payload(session_msg.tool_result),
             ),
         )
 
@@ -316,7 +321,7 @@ class ChatCommand(BaseCommand):
         session = manager.load_by_tag(tag_or_id, project_hash)
         if session is None:
             with contextlib.suppress(ValueError, FileNotFoundError):
-                session = manager.load(tag_or_id)
+                session = manager.load(tag_or_id, project_hash=project_hash)
 
         return session
 

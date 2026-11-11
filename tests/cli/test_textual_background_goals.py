@@ -1,6 +1,7 @@
 """Interactive input is retained while an agent turn is active."""
 
 import asyncio
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -65,7 +66,7 @@ async def test_goal_continues_until_explicit_completion(app, monkeypatch):
         async def route(text, _chat):
             seen.append(text)
             if len(seen) == 2:
-                GoalService().complete(session, goal_id=goal.id, summary="Fixture verified")
+                GoalService().complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Fixture verified")
 
         monkeypatch.setattr(app, "_route_input", route)
         worker = app.process_user_input("Begin")
@@ -116,7 +117,7 @@ async def test_user_input_precedes_goal_continuation(app, monkeypatch):
                 started.set()
                 await release.wait()
             if len(seen) == 3:
-                GoalService().complete(session, goal_id=goal.id, summary="Verified")
+                GoalService().complete(session, goal_id=goal.id, goal_revision=goal.revision, summary="Verified")
 
         monkeypatch.setattr(app, "_route_input", route)
         worker = app.process_user_input("Begin")
@@ -149,8 +150,9 @@ async def test_failed_or_cancelled_turn_pauses_goal(app, monkeypatch, failure):
         assert calls == ["Begin"]
 
 
-async def test_goal_command_runs_real_provider_tool_completion(app):
-    """The slash command, continuation loop and completion tool work together."""
+@pytest.mark.parametrize(("context_window", "initially_disclosed"), [(8000, False), (32768, True)])
+async def test_goal_command_runs_real_provider_tool_completion(app, context_window, initially_disclosed):
+    """Goal completion uses real bounded disclosure and exact-name discovery."""
     from copy import deepcopy
 
     from henchman.core.goals import GoalService
@@ -159,6 +161,9 @@ async def test_goal_command_runs_real_provider_tool_completion(app):
     class GoalProvider(ModelProvider):
         def __init__(self):
             self.requests = []
+            self.declarations = []
+            self.searched = False
+            self.completion_arguments = None
 
         @property
         def name(self):
@@ -166,17 +171,33 @@ async def test_goal_command_runs_real_provider_tool_completion(app):
 
         async def chat_completion_stream(self, messages, tools=None, **_kwargs):
             self.requests.append(deepcopy(messages))
-            assert any(tool.name == "goal_status" for tool in tools)
+            self.declarations.append(deepcopy(tools))
+            names = {tool.name for tool in tools}
+            reserved_output = self.prepare_output_budget(min(4096, context_window // 4)).output_tokens
+            assert _kwargs["max_tokens"] == reserved_output
+            assert self.estimate_input_tokens(messages, tools) + reserved_output <= context_window
             if len(self.requests) == 1:
+                assert ("goal_status" in names) is initially_disclosed
                 yield StreamChunk(content="I will check the fixture.", finish_reason=FinishReason.STOP)
-            elif len(self.requests) == 2:
+            elif self.completion_arguments is None and "goal_status" not in names:
+                assert "tool_search" in names and not self.searched
+                self.searched = True
+                yield StreamChunk(
+                    tool_calls=[ToolCall(id="find-goal", name="tool_search", arguments={"query": "goal_status"})],
+                    finish_reason=FinishReason.TOOL_CALLS,
+                )
+            elif self.completion_arguments is None:
                 session = app.core_context.session_manager.current
                 goal = GoalService().get(session)
+                declaration = next(tool for tool in tools if tool.name == "goal_status")
+                assert declaration == app.core_context.tool_registry.get("goal_status").to_declaration()
+                self.completion_arguments = {
+                    "action": "complete", "goal_id": goal.id, "goal_revision": goal.revision,
+                    "summary": "Fixture requirements checked",
+                }
                 yield StreamChunk(
-                    tool_calls=[ToolCall(id="goal-done", name="goal_status", arguments={
-                        "action": "complete", "goal_id": goal.id,
-                        "summary": "Fixture requirements checked",
-                    })], finish_reason=FinishReason.TOOL_CALLS,
+                    tool_calls=[ToolCall(id="goal-done", name="goal_status", arguments=self.completion_arguments)],
+                    finish_reason=FinishReason.TOOL_CALLS,
                 )
             else:
                 yield StreamChunk(content="Fixture complete.", finish_reason=FinishReason.STOP)
@@ -184,14 +205,28 @@ async def test_goal_command_runs_real_provider_tool_completion(app):
     provider = GoalProvider()
     app.provider = provider
     app.config.agent_role = "engineer"
+    app.settings_state.update({"context": {"max_tokens": context_window}})
     async with app.run_test(size=(100, 40)):
         worker = app.process_user_input("/goal Check the fixture")
         await asyncio.wait_for(worker.wait(), 5)
         goal = GoalService().get(app.core_context.session_manager.current)
-        assert goal.status == "complete"
-        assert len(provider.requests) == 3
-        assert any(message.role == "tool" and '"complete"' in message.content
-                   for message in provider.requests[-1])
+        assert goal.status == "complete", {
+            "requests": len(provider.requests), "searched": provider.searched,
+            "schemas": [[tool.name for tool in tools] for tools in provider.declarations],
+            "completed": provider.completion_arguments is not None,
+        }
+        assert len(provider.requests) == 3 + int(provider.searched)
+        assert provider.searched is not initially_disclosed
+        assert provider.completion_arguments["goal_id"] == goal.id
+        assert provider.completion_arguments["goal_revision"] + 1 == goal.revision
+        completed_result = next(message for message in provider.requests[-1]
+                                if message.role == "tool" and message.tool_call_id == "goal-done")
+        completed = json.loads(completed_result.content)
+        assert (completed["id"], completed["revision"], completed["status"]) == (goal.id, goal.revision, "complete")
+        if provider.searched:
+            assert any(message.role == "tool" and message.tool_call_id == "find-goal"
+                       and "Prioritized schemas: goal_status" in message.content
+                       for message in provider.requests[-1])
 
 
 async def test_queued_message_is_not_stranded_by_failed_turn(app, monkeypatch):

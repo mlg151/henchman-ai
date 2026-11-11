@@ -33,7 +33,7 @@ class TestComponentInitializer:
     @pytest.fixture
     def mock_app(self):
         """Create mock Textual app."""
-        return MagicMock()
+        return MagicMock(_output_mode="rich")
 
     @pytest.fixture
     def component_config(self, mock_provider, mock_settings, mock_app):

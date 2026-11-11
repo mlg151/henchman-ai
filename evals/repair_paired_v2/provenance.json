@@ -1,0 +1,45 @@
+{
+  "version": "bounded-repair-paired-v2",
+  "source_commit": "7141c1f342216b1a24defecb530931ca234f4c41",
+  "source_origin": "fresh git archive of committed parent-approved source; no working tree files or v1 cache",
+  "source_physical_root": "/tmp/henchman-repair-paired-v2-7141c1f/source",
+  "source_manifest_sha256": "da7f53e9f3bdaa1e6b5b113a6193e02a85885f16c5dcbcd5fe7ee700f58246d7",
+  "parent_harness": "/tmp/henchman-repair-paired-20261108-v1",
+  "parent_provenance_sha256": "33e468029618170f809706095c72117f181fea151f31fcb071ebeb22f0e6436e",
+  "parent_source_commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+  "parent_live_receipt": "/home/matthew/.cache/henchman-release-qualification/paired-929dfc0-v1/receipt.json",
+  "parent_live_receipt_sha256": "8b7980ee1c2459855a4edc3b5cbe9a97b357fd958e7599d76da4e712f62ae81e",
+  "parent_live_accepted": {
+    "direct": 6,
+    "repair": 2,
+    "attempts_per_arm": 6
+  },
+  "changes": [
+    "contract.VERSION and COMMIT",
+    "worker uses the old literal plan-ID fixture namespace to preserve prompt bytes",
+    "fresh source archive/manifest, plan, unapproved admission template, documentation/provenance/audit manifests"
+  ],
+  "unchanged": [
+    "fixtures/prompts/criteria/settings/bounds",
+    "all five fault-test files",
+    "process and transport guards",
+    "fixed 12 attempt denominator and arm ordering"
+  ],
+  "treatment": "Both arms use committed 7141c1f and identical registered tools; repair scope now filters provider disclosure to captured read/write/edit implementations, leaving internal verifier and fatal hallucinated-verifier denial intact.",
+  "runtime": {
+    "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]",
+    "executable": "/tmp/henchman-v042-integrated-review/.venv/bin/python",
+    "packages": {
+      "openai": "2.21.0",
+      "httpx": "0.28.1",
+      "httpcore": "1.0.9",
+      "pydantic": "2.12.5",
+      "black": "26.10.1",
+      "anyio": "4.12.1"
+    }
+  },
+  "no_live_calls_at_freeze": true,
+  "repository_edits": false,
+  "qualification_claim": false,
+  "source_comparison_limit": "7141c1f includes intervening a253dc5 default-off delegation/prompt notes and UI/report changes after 929dfc0. Fixture/user prompts and explicit settings are equal; full model messages are not claimed equal. Separately versioned fix validation, not isolated source ablation or causal attribution solely to disclosure."
+}

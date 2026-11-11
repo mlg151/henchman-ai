@@ -2,8 +2,10 @@
 
 from typing import TYPE_CHECKING
 
+from henchman.tools.access_policy import ToolAccessPolicy, validate_tool_backend
 from henchman.tools.base import ConfirmationRequest
 from henchman.tools.registry import ToolRegistry
+from henchman.utils.evidence_redaction import EvidenceRedactor
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -38,6 +40,14 @@ class ToolManager:
         self.settings = settings
         self._question_handler = question_handler
         self.registry = ToolRegistry()
+        if settings is not None:
+            validate_tool_backend(settings.tools)
+            self.registry.set_read_confirmation_required(not settings.tools.auto_approve_read)
+        if settings is not None and (settings.tools.filesystem_read_roots is not None
+                                     or settings.tools.filesystem_write_roots is not None
+                                     or settings.tools.network_allowed_hosts is not None
+                                     or settings.tools.network_access != "unrestricted"):
+            self.registry.set_access_policy(ToolAccessPolicy.unbound())
         self.auto_approve = False
         self._confirmation_handler: Callable[[ConfirmationRequest], Awaitable[bool]] | None = None
         self._project_root: Path | None = None
@@ -53,7 +63,7 @@ class ToolManager:
         shell_timeout = (
             self.settings.tools.shell_timeout if self.settings else DEFAULT_SHELL_TIMEOUT
         )
-        tools = self._create_builtin_tools(shell_timeout, self._question_handler)
+        tools = self._create_builtin_tools(shell_timeout, self._question_handler, settings=self.settings)
         for tool in tools:
             # Bind runtime dependencies to tools that support it
             if hasattr(tool, "bind_runtime"):
@@ -86,19 +96,30 @@ class ToolManager:
             None
         """
         self._project_root = project_root
+        if self.settings is not None:
+            self.registry.set_access_policy(ToolAccessPolicy.from_settings(
+                self.settings.tools, project_root=project_root,
+            ))
         self._session_manager = session_manager
         self._mcp_manager = mcp_manager
+        core_session_manager = getattr(session_manager, "session_manager", session_manager)
+        policy = getattr(core_session_manager, "evidence_redactor", None)
+        register = getattr(mcp_manager, "register_evidence", None)
+        if isinstance(policy, EvidenceRedactor) and callable(register):
+            register(policy)
 
     @staticmethod
     def _create_builtin_tools(
         shell_timeout: int,
         question_handler: "Callable[[str], Awaitable[str | None]] | None" = None,
+        *, settings: "Settings | None" = None,
     ) -> list:  # type: ignore[type-arg]
         """Instantiate every built-in tool and return them as a list.
 
         Args:
             shell_timeout: Timeout in seconds to pass to ShellTool.
             question_handler: Optional UI channel for real user answers.
+            settings: Held runtime settings for configured verification checks.
 
         Returns:
             List of instantiated tool objects.
@@ -135,6 +156,7 @@ class ToolManager:
             PatchApplyTool,
             PatternSearchTool,
             PipInspectTool,
+            PublishSubagentProposalTool,
             PytestRunTool,
             PythonAstTool,
             PythonExecTool,
@@ -194,6 +216,7 @@ class ToolManager:
             LintCheckTool(),
             LsTool(),
             ManageSubagentsTool(),
+            PublishSubagentProposalTool(),
             MCPTool(),
             McpAuthTool(),
             PatchApplyTool(),
@@ -224,7 +247,7 @@ class ToolManager:
             ToolSearchTool(),
             TracebackParseTool(),
             TungstenTool(),
-            VerifyPlanExecutionTool(),
+            VerifyPlanExecutionTool(settings=settings),
             WebFetchTool(),
             WebSearchTool(),
             WorkflowTool(),

@@ -11,9 +11,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.orchestrator import Orchestrator
+from henchman.cli.evidence import runtime_exception_text
 from henchman.cli.plugins import PluginManager
+from henchman.cli.provider_switch import capture_startup_provider_settings
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
+from henchman.config.runtime import RuntimeSettingsState
+from henchman.config.schema import Settings
 from henchman.core.eventbus import EventBus
 from henchman.mcp.manager import McpManager
 
@@ -21,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from henchman.cli.tool_executor import ToolExecutor
-    from henchman.config.schema import Settings
+    from henchman.config.context import ContextSnapshot
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
     from henchman.tools.registry import ToolRegistry
@@ -57,7 +61,10 @@ class CoreContext:
     session_manager: ReplSessionManager
     tool_executor: ToolExecutor | None = None  # UI-specific, initialized separately
     settings: Settings | None = None
+    settings_state: RuntimeSettingsState | None = None
+    instruction_snapshot: ContextSnapshot | None = None
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
+    project_root: Path = field(default_factory=lambda: Path.cwd().resolve())
 
 
 def create_core_context(
@@ -68,6 +75,8 @@ def create_core_context(
     *,
     auto_approve_tools: bool = False,
     question_handler: Callable[[str], Awaitable[str | None]] | None = None,
+    instruction_snapshot: ContextSnapshot | None = None,
+    settings_state: RuntimeSettingsState | None = None,
 ) -> CoreContext:
     """Create core components shared between UI implementations.
 
@@ -81,19 +90,31 @@ def create_core_context(
         settings: Application settings.
         auto_approve_tools: Auto-approve all tool executions.
         question_handler: Optional UI channel for actual user answers.
+        instruction_snapshot: Optional instruction provenance captured
+            onto attached sessions and delegated agents.
 
     Returns:
         Initialized CoreContext with all core components.
     """
+    project_root = Path.cwd().resolve()
+    if settings_state is None:
+        settings_state = RuntimeSettingsState.from_settings(settings or Settings())
+        capture_startup_provider_settings(settings_state, provider, injected=True)
+    settings = settings_state.settings
     # Initialize MCP manager if servers are configured
     mcp_manager: McpManager | None = None
     if settings and settings.mcp_servers:
         mcp_logging = settings.ui.mcp_logging if settings and settings.ui else False
-        mcp_manager = McpManager.create_from_settings(settings, mcp_logging_enabled=mcp_logging)
+        mcp_manager = McpManager.create_from_settings(settings, mcp_logging_enabled=mcp_logging, project_root=project_root)
 
     # Runtime dependencies must exist before builtins are registered so every
     # tool's bind_runtime hook receives the live objects it will use.
-    session_manager = ReplSessionManager(auto_save=True)
+    session_manager = ReplSessionManager(
+        auto_save=True,
+        instruction_snapshot=instruction_snapshot,
+        settings=settings,
+        provider=provider,
+    )
     tool_manager = ToolManager(settings=settings, question_handler=question_handler)
     tool_manager.set_auto_approve(auto_approve=auto_approve_tools)
     tool_manager.bind_runtime(
@@ -103,6 +124,8 @@ def create_core_context(
     )
     tool_manager.register_builtin_tools()
     tool_registry = tool_manager.registry  # Backwards compatibility
+    # Session boundaries reset the registry's approval grants.
+    session_manager.bind_tool_registry(tool_registry)
 
     # Initialize Plugin Manager
     plugin_manager = PluginManager(None)  # UI instance set by caller
@@ -122,6 +145,16 @@ def create_core_context(
         system_prompt=system_prompt,
         environment_context=environment_context,
     )
+    orchestrator.instruction_snapshot = instruction_snapshot
+    runner = getattr(orchestrator, "delegation_runner", None)
+    if runner is not None:
+        runner.instruction_snapshot = instruction_snapshot
+    from henchman.agents.instruction_runtime import bind_instruction_runtime
+
+    bind_instruction_runtime(orchestrator, session_manager, instruction_snapshot)
+    from henchman.cli.accounting import bind_session_accounting
+
+    bind_session_accounting(orchestrator, session_manager)
 
     # Reference Tech Lead as primary agent
     agent = orchestrator.tech_lead
@@ -137,6 +170,9 @@ def create_core_context(
         agent=agent,
         session_manager=session_manager,
         settings=settings,
+        instruction_snapshot=instruction_snapshot,
+        settings_state=settings_state,
+        project_root=project_root,
     )
 
 
@@ -158,12 +194,10 @@ def initialize_mcp(context: CoreContext) -> None:
             """Connect to MCP servers and register tools."""
             try:
                 await mcp_manager.connect_all()
-                # Register MCP tools with the tool registry
-                for tool in mcp_manager.get_all_tools():
-                    context.tool_registry.register(tool)
+                mcp_manager.bind_registry(context.tool_registry)
             except Exception as e:
                 # Log error but don't crash
-                print(f"Failed to connect to MCP servers: {e}")
+                print(f"Failed to connect to MCP servers: {runtime_exception_text(context, e)}")
 
         # Run in background and store reference for shutdown management
         task = asyncio.create_task(connect_mcp())

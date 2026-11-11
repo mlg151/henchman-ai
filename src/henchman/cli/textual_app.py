@@ -24,8 +24,10 @@ from __future__ import annotations
 import asyncio
 import sys
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
@@ -33,6 +35,7 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
+    Input,
     OptionList,
     Static,
     TabbedContent,
@@ -83,6 +86,7 @@ from henchman.cli.textual_mixins import (
     _StatusBarMixin,
     _WorkspaceMixin,
 )
+from henchman.cli.textual_preferences import StaticLoadingIndicator
 from henchman.cli.textual_screens import (
     AutoModeScreen,
     BridgeScreen,
@@ -118,8 +122,13 @@ from henchman.cli.textual_widgets import (
 )
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
+from henchman.config.runtime import RuntimeSettingsState
 
 if TYPE_CHECKING:
+    from textual import events
+    from textual.driver import Driver
+    from textual.widget import Widget
+
     from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
 
@@ -215,6 +224,9 @@ class HenchmanTextualApp(
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
         Binding("ctrl+f", "search", "Search", show=True),
+        Binding("alt+end", "follow_live", "Live", show=True),
+        Binding("alt+pageup", "history_page_up", "Read history", show=False),
+        Binding("alt+pagedown", "history_page_down", "Read history", show=False),
         Binding(
             "escape",
             "cancel_or_clear",
@@ -235,6 +247,10 @@ class HenchmanTextualApp(
             show=True,
         ),
         Binding("f1", "show_help", "Help", show=True),
+        Binding("f8", "review_changes", "Review", show=True),
+        Binding("f4", "pending_decision", "Decision", show=True, priority=True),
+        Binding("f9", "input_queue", "Queue", show=True, priority=True),
+        Binding("f11", "external_editor", "Editor", show=True),
         Binding(
             "f2",
             "switch_provider",
@@ -256,6 +272,7 @@ class HenchmanTextualApp(
         settings: Settings | None = None,
         environment_context: str | None = None,
         driver_class: type[Any] | None = None,
+        settings_state: RuntimeSettingsState | None = None,
     ) -> None:
         """Initialize the Textual TUI.
 
@@ -272,8 +289,40 @@ class HenchmanTextualApp(
             config,
             settings,
             environment_context,
+            settings_state,
         )
         self._init_state()
+        self._reduced_motion = False
+        self._detail_density = "normal"
+        self._output_mode = "rich"
+
+    def _build_driver(
+        self, headless: bool, inline: bool, mouse: bool, size: tuple[int, int] | None,
+    ) -> Driver:
+        """Apply the held startup preference to each supported launch path.
+
+        Explicit API ``mouse=False`` remains restrictive. Motion and density
+        capture the held settings here; subsequent changes need a new TUI.
+        """
+        self._reduced_motion = self.settings.ui.reduced_motion
+        self._detail_density = self.settings.ui.detail_density
+        self._output_mode = self.settings.ui.output_mode
+        if self._reduced_motion:
+            self.animation_level = "none"
+        return super()._build_driver(
+            headless, inline, mouse and self.settings.ui.mouse_capture, size,
+        )
+
+    def get_loading_widget(self) -> Widget:
+        """Keep loading feedback while suppressing decorative refresh timers."""
+        if self._reduced_motion:
+            return StaticLoadingIndicator()
+        return super().get_loading_widget()
+
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        """Apply the captured preference to editors mounted by later dialogs."""
+        if self._reduced_motion and isinstance(event.widget, (Input, TextArea)):
+            event.widget.cursor_blink = False
 
     async def _textual_question(self, question: str) -> str | None:
         """Collect an answer through the serialized Textual tool dialog."""
@@ -288,15 +337,22 @@ class HenchmanTextualApp(
         yield Header()
         with TabbedContent():
             with TabPane("Chat", id="tab-chat"):
-                yield ChatPane(id="chat-pane")
+                yield ChatPane(id="chat-pane", detail_density=self._detail_density, output_mode=self._output_mode)
+                with Horizontal(id="chat-navigation"):
+                    yield Static("Live", id="chat-follow-state")
+                    yield Button("Return to live", id="chat-return-live", disabled=True)
+                    yield Button("External editor", id="external-editor")
             with TabPane("Thinking", id="tab-thinking"):
                 yield ThinkingPane(id="thinking-pane")
             with TabPane("Tools", id="tab-tools"):
                 yield ToolPane(id="tool-pane")
             with TabPane("Context", id="tab-context"):
+                yield Button("Context and usage", id="context-inspect")
+                yield Button("Sessions", id="context-sessions")
                 yield Tree("Context Files", id="context-tree")
             with TabPane("Workspace", id="tab-workspace"):
                 yield VerticalScroll(
+                    Button("Tasks and agents", id="workspace-inspect"),
                     AgentSummaryPanel(id="agent-summary-panel"),
                     MemoryIndicator(id="memory-indicators"),
                     TaskListWidget(id="task-list-widget"),
@@ -307,14 +363,146 @@ class HenchmanTextualApp(
                         Button("Refresh", id="workspace-refresh"),
                         Button("Bridges", id="workspace-bridges"),
                         Button("Export", id="workspace-export"),
+                        Button("Review changes", id="workspace-review"),
                         id="workspace-actions",
                     ),
                     id="workspace-overview",
                 )
         yield OptionList(id="command-palette")
-        yield HenchmanTextArea(id="input", show_line_numbers=False)
+        composer = HenchmanTextArea(id="input", show_line_numbers=False)
+        if self._reduced_motion:
+            composer.cursor_blink = False
+        yield composer
         yield Footer()
         yield StatusBar(id="status-bar")
+
+    def action_follow_live(self) -> None:
+        """Return the transcript to live without moving composer focus."""
+        self.query_one(ChatPane).return_to_live()
+
+    def action_external_editor(self) -> None:
+        """Compose an unsubmitted draft using the configured local editor."""
+        from henchman.cli.textual_editor import start_external_editor
+
+        start_external_editor(self)
+
+    @on(Button.Pressed, "#external-editor")
+    def _external_editor_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_external_editor()
+
+    def action_cancel_or_clear(self) -> None:
+        from henchman.cli.textual_editor import cancel_external_editor
+
+        if not cancel_external_editor(self):
+            super().action_cancel_or_clear()
+
+    def action_pending_decision(self) -> None:
+        """Return focus to the actual decision without resolving it."""
+        result = self._tool_prompts.focus_pending()
+        if result == "obscured":
+            self.notify("Close the current dialog using Back or Close to return to the pending decision.", markup=False)
+        elif result == "none":
+            self.notify("No decision is waiting for an answer.", markup=False)
+
+    def action_input_queue(self) -> None:
+        """Open saved input without replacing drafts or another decision."""
+        from henchman.cli.textual_queue import QueueScreen
+
+        if len(self.screen_stack) != 1 or self._tool_prompts._answer is not None:
+            self.notify("Close the current dialog first; F4 returns to a pending decision.", markup=False)
+            return
+        workflow = self._workflow()
+        if workflow is None:
+            self.notify("No workflow runtime is available for queue controls.", markup=False)
+            return
+        self.push_screen(QueueScreen(self, workflow))
+
+    def action_context_inspector(self) -> None:
+        """Inspect the current session without replacing drafts or decisions."""
+        from henchman.cli.textual_context import ContextScreen
+
+        if len(self.screen_stack) != 1 or self._tool_prompts._answer is not None:
+            self.notify("Close the current dialog first; F4 returns to a pending decision.", markup=False)
+            return
+        focused = self.focused
+
+        def restore_focus(_result: None) -> None:
+            if focused is not None and focused.is_mounted:
+                focused.focus()
+
+        self.push_screen(ContextScreen(self), restore_focus)
+
+    @on(Button.Pressed, "#context-inspect")
+    def _context_inspect_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_context_inspector()
+
+    def action_session_browser(self) -> None:
+        """Browse project sessions without changing the composer or a decision."""
+        from henchman.cli.textual_sessions import open_session_browser
+
+        open_session_browser(self)
+
+    def action_work_inspector(self) -> None:
+        """Inspect existing task and agent owners without starting work."""
+        from henchman.cli.textual_work import open_work_inspector
+
+        open_work_inspector(self)
+
+    @on(Button.Pressed, "#workspace-inspect")
+    def _work_inspector_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_work_inspector()
+
+    @on(Button.Pressed, "#context-sessions")
+    def _sessions_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_session_browser()
+
+    def action_review_changes(self) -> None:
+        """Open file review without submitting or replacing the composer draft."""
+        from henchman.cli.textual_checkpoints import CheckpointReviewScreen
+
+        if isinstance(self.screen, CheckpointReviewScreen):
+            return
+        if len(self.screen_stack) > 1:
+            self.notify("Close the current dialog before opening review.", markup=False)
+            return
+        focused = self.focused
+
+        def restore_focus(_result: None) -> None:
+            if focused is not None and focused.is_mounted:
+                focused.focus()
+
+        self.push_screen(CheckpointReviewScreen(self, Path.cwd()), restore_focus)
+
+    @on(Button.Pressed, "#workspace-review")
+    def _review_changes_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_review_changes()
+
+    def action_history_page_up(self) -> None:
+        """Read earlier output without changing the draft."""
+        self.query_one(ChatPane).scroll_page_up(animate=False)
+
+    def action_history_page_down(self) -> None:
+        """Read later history without implicitly resuming live output."""
+        self.query_one(ChatPane).scroll_page_down(animate=False)
+
+    @on(Button.Pressed, "#chat-return-live")
+    def _return_live_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_follow_live()
+
+    def on_chat_pane_follow_changed(self, event: ChatPane.FollowChanged) -> None:
+        """Keep reading state visible without replacing execution status."""
+        label = self.query_one("#chat-follow-state", Static)
+        text = "Live" if event.pane.follow_live else "Reading history"
+        if event.pane.new_activity:
+            text += " — New activity"
+        label.update(text)
+        self.query_one("#chat-return-live", Button).disabled = event.pane.follow_live
 
     def on_mount(self) -> None:
         """Initialize core components after DOM is ready.
@@ -336,6 +524,9 @@ class HenchmanTextualApp(
         self._refresh_workspace_widgets()
         self.call_after_refresh(input_widget.focus)
         self._activate_chat_tab()
+        from henchman.cli.textual_activity_state import refresh_activity
+
+        refresh_activity(self)
 
     async def on_unmount(self) -> None:
         """Clean up resources when the app is unmounted.
@@ -343,32 +534,53 @@ class HenchmanTextualApp(
         Returns:
             None
         """
-        self._cleanup_confirm_futures()
-        self._queued_inputs().clear()
+        from henchman.cli.textual_activity_state import activity_for
+
         task = getattr(self, "current_agent_task", None)
         try:
-            if task is not None and task is not asyncio.current_task():
-                task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
+            activity_for(self).shutdown()
+            self._cleanup_confirm_futures()
+            runtime = self._workflow()
+            if runtime is not None:
+                runtime.hold_pending()
+            else:
+                self._queued_inputs().clear()
         finally:
-            ctx = self.core_context
-            if ctx:
-                for background in ctx.background_tasks:
-                    background.cancel()
-                if ctx.background_tasks:
-                    await asyncio.gather(*ctx.background_tasks, return_exceptions=True)
-                    ctx.background_tasks.clear()
+            # Persistence or prompt retirement can fail. Owned execution must
+            # still settle before that original error leaves the frontend.
+            try:
                 try:
-                    await ctx.orchestrator.aclose()
+                    from henchman.cli.textual_editor import close_external_editor
+
+                    await close_external_editor(self)
                 finally:
                     try:
-                        if ctx.mcp_manager:
-                            await ctx.mcp_manager.disconnect_all()
+                        oauth = getattr(self, "_oauth", None)
+                        if oauth is not None:
+                            await oauth.aclose()
                     finally:
-                        if ctx.session_manager:
-                            self._pause_active_goal()
-                            ctx.session_manager.auto_save_session()
+                        if task is not None and task is not asyncio.current_task():
+                            task.cancel()
+                            with suppress(asyncio.CancelledError):
+                                await task
+            finally:
+                ctx = self.core_context
+                if ctx:
+                    for background in ctx.background_tasks:
+                        background.cancel()
+                    if ctx.background_tasks:
+                        await asyncio.gather(*ctx.background_tasks, return_exceptions=True)
+                        ctx.background_tasks.clear()
+                    try:
+                        await ctx.orchestrator.aclose()
+                    finally:
+                        try:
+                            if ctx.mcp_manager:
+                                await ctx.mcp_manager.disconnect_all()
+                        finally:
+                            if ctx.session_manager:
+                                self._pause_active_goal()
+                                ctx.session_manager.auto_save_session()
 
 
 # ------------------------------------------------------------------ #
@@ -406,6 +618,7 @@ def run_textual_app(
     config: TextualConfig | None = None,
     settings: Settings | None = None,
     environment_context: str | None = None,
+    settings_state: RuntimeSettingsState | None = None,
 ) -> None:
     """Launch the Textual TUI.
 
@@ -428,6 +641,7 @@ def run_textual_app(
         provider=provider,
         config=config,
         settings=settings,
+        settings_state=settings_state,
         environment_context=environment_context,
         driver_class=driver_class,
     )

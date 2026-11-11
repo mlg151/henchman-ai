@@ -10,8 +10,13 @@ from pathlib import Path
 import pytest
 
 from henchman.team import PushNotificationService, TeamWorkspaceService, WorkflowService
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.tier5_tools import WorkflowTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def prepare_workflow(root: Path) -> tuple[WorkflowService, str, Path]:
@@ -68,6 +73,7 @@ async def test_registry_reports_execution_unavailable_for_run_and_trigger(
     service, command, marker = prepare_workflow(tmp_path)
     tool = WorkflowTool()
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     tool.bind_runtime(project_root=tmp_path, tool_registry=registry)
     registry.register(tool)
     created = await registry.execute(

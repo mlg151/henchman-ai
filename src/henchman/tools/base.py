@@ -40,6 +40,10 @@ class ToolResult:
     success: bool = True
     display: str | None = None
     error: str | None = None
+    content_blocks: tuple[dict[str, object], ...] = ()
+    structured_content: object = None
+    structured_content_present: bool = False
+    metadata: dict[str, object] | None = None
 
 
 @dataclass
@@ -106,6 +110,16 @@ class Tool(ABC):
         return {}
 
     @property
+    def output_schema(self: Tool) -> dict[str, object] | bool | None:
+        """Optional canonical schema for successful structured output."""
+        return None
+
+    @property
+    def annotations(self: Tool) -> dict[str, object]:
+        """Untrusted descriptive hints; these never grant execution authority."""
+        return {}
+
+    @property
     def kind(self: Tool) -> ToolKind:
         """The kind of tool, used for confirmation policies.
 
@@ -133,6 +147,15 @@ class Tool(ABC):
                 params=params,
                 risk_level="high" if kind == ToolKind.EXECUTE else "medium",
             )
+        return None
+
+    def checkpoint_paths(self: Tool, params: dict[str, object]) -> tuple[str, ...] | None:
+        """Declare every deterministic file mutation target; None means unknown.
+
+        Compute from parameters without filesystem discovery. Return an empty
+        tuple for an invocation with no file mutations. This declaration does
+        not grant filesystem access or promise restorability.
+        """
         return None
 
     def execution_kind(self: Tool, params: dict[str, object]) -> ToolKind:

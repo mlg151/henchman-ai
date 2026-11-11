@@ -2,18 +2,22 @@
 
 import copy
 import json
-from unittest.mock import AsyncMock
 
 import pytest
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import bind_scripted_transport
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import AgentConfig, ProviderSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.factory import create_configured_provider
+from henchman.tools.base import ConfirmationRequest
 from henchman.tools.builtins.pytest_run import PytestRunTool
 from henchman.tools.builtins.tier1_tools import ToolSearchTool
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 def tool_result_text(request, call_id):
@@ -86,16 +90,9 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
         if index == 3:
             assert "named pytest_run tool" in json.dumps(kwargs["messages"][-1])
         call = script[index]
-        return (
-            anthropic_response(call) if provider_name == "anthropic" else compatible_response(call)
-        )
+        return call
 
-    if provider_name == "anthropic":
-        monkeypatch.setattr(provider._client.messages, "stream", respond)
-    else:
-        monkeypatch.setattr(
-            provider._client.chat.completions, "create", AsyncMock(side_effect=respond)
-        )
+    await bind_scripted_transport(provider, respond)
     registry = ToolRegistry()
     search = ToolSearchTool()
     search.bind_runtime(tool_registry=registry)
@@ -103,7 +100,7 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     registry.register(PytestRunTool())
     registry.add_auto_approve_policy("delegate_task")
     registry.add_auto_approve_policy("pytest_run")
-    settings = Settings(providers=providers, context={"max_tokens": 32768})
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     # Team discovery is needed when a user explicitly excludes the required local tool.
     settings.agents.agents["tech_lead"] = AgentConfig(
@@ -113,9 +110,11 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
         tools=["tool_search", "delegate_task"],
     )
     orch = Orchestrator(default_provider=provider, tool_registry=registry, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         events = [event async for event in orch.run("Use pytest_run to verify test_total.py.")]
     finally:
+        await orch.aclose()
         await provider._client.close()
 
     results = {
@@ -126,6 +125,9 @@ async def test_team_discovery_routes_exact_check_and_preserves_observed_result(
     assert not results["local"].data["success"]
     assert results["team"].data["success"]
     assert len(requests) == len(script)
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == len(script)
+    assert snapshot.unknown_dispatched_requests == 0
     observed = results["required-check"]
     assert observed.source_agent == "engineer"
     assert observed.data["success"] is passing

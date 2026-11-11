@@ -5,8 +5,10 @@ This module provides tools for intelligent truncation and safety limit enforceme
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from henchman.utils.context_attachments import context_attachment_omission
 from henchman.utils.intelligent_context_extractor import ContentExtractor
 from henchman.utils.intelligent_context_types import (
     IntelligentContextConstants,
@@ -15,6 +17,7 @@ from henchman.utils.intelligent_context_types import (
     TruncationParams,
 )
 from henchman.utils.tokens import TokenCounter
+from henchman.utils.tool_results import compact_tool_payload, tool_message_content
 
 if TYPE_CHECKING:
     from henchman.providers.base import Message
@@ -75,7 +78,11 @@ class MessageSafetyEnforcer:
             True if message exceeds safety limit, False otherwise.
 
         """
-        content = message.content
+        content = (
+            tool_message_content(message.content, message.tool_result)
+            if message.role == "tool"
+            else message.content
+        )
         if not content:
             return False
 
@@ -95,20 +102,27 @@ class MessageSafetyEnforcer:
             Intelligently truncated message.
 
         """
-        content = message.content
+        content = (
+            tool_message_content(message.content, message.tool_result)
+            if message.role == "tool"
+            else message.content
+        )
         if not content:
             return message
 
+        _require_mutable_message(message)
         final_content = self.truncator.truncate_with_semantic_preservation(content)
 
-        # Create new message with truncated content
-        msg_cls = message.__class__
-        return msg_cls(
-            role=message.role,
+        if message.tool_result is not None:
+            final_content += "\n[Typed result payload omitted from this active message.]"
+        attachments = message.context_attachments
+        if attachments is not None:
+            final_content, attachments = context_attachment_omission(attachments)
+        return replace(
+            message,
             content=final_content,
-            tool_calls=message.tool_calls,
-            tool_call_id=message.tool_call_id,
-            reasoning_content=getattr(message, "reasoning_content", None),
+            tool_result=compact_tool_payload(message.tool_result),
+            context_attachments=attachments,
         )
 
     def _enforce_message_safety_limit(self: MessageSafetyEnforcer, message: Message) -> Message:
@@ -129,7 +143,11 @@ class MessageSafetyEnforcer:
             raise TypeError(msg)
 
         # If message has no content, return it unchanged
-        content = message.content
+        content = (
+            tool_message_content(message.content, message.tool_result)
+            if message.role == "tool"
+            else message.content
+        )
         if not content:
             return message
 
@@ -140,6 +158,14 @@ class MessageSafetyEnforcer:
         if TokenCounter.count_text(content) > limit:
             return _create_truncated_message(message, limit, self.safety_limit_ratio)
         return message
+
+
+def _require_mutable_message(message: Message) -> None:
+    if message.continuation is not None:
+        from henchman.providers.base import ContextTooLargeError
+
+        raise ContextTooLargeError("Required provider continuation cannot be truncated; start a new conversation.")
+
 
 def _create_truncated_message(message: Message, limit: int, safety_ratio: float) -> Message:
     """Create a truncated version of a message.
@@ -153,11 +179,12 @@ def _create_truncated_message(message: Message, limit: int, safety_ratio: float)
         New Message with truncated content.
 
     """
-    content = message.content
-    role = message.role
-    calls = message.tool_calls
-    call_id = message.tool_call_id
-    msg_cls = message.__class__
+    _require_mutable_message(message)
+    content = (
+        tool_message_content(message.content, message.tool_result)
+        if message.role == "tool"
+        else message.content
+    )
 
     if not content:
         return message
@@ -165,11 +192,17 @@ def _create_truncated_message(message: Message, limit: int, safety_ratio: float)
     truncated = TokenCounter.truncate_text(content, limit)
     info = f"(truncated by safety limit: > {limit} tokens, ratio: {safety_ratio})"
 
-    return msg_cls(
-        role=role,
-        content=f"{truncated}\n... {info}",
-        tool_calls=calls,
-        tool_call_id=call_id,
+    if message.tool_result is not None:
+        info += "; typed result payload omitted from this active message"
+    attachments = message.context_attachments
+    content = f"{truncated}\n... {info}"
+    if attachments is not None:
+        content, attachments = context_attachment_omission(attachments)
+    return replace(
+        message,
+        content=content,
+        tool_result=compact_tool_payload(message.tool_result),
+        context_attachments=attachments,
     )
 
 
@@ -189,7 +222,11 @@ class TokenCounterWrapper:
         """
         total_tokens = 0
         for msg in messages:
-            content = msg.content
+            content = (
+                tool_message_content(msg.content, msg.tool_result)
+                if msg.role == "tool"
+                else msg.content
+            )
             if content:
                 total_tokens += TokenCounter.count_text(content)
             # Add tokens for tool calls if present

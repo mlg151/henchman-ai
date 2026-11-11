@@ -8,12 +8,14 @@ from typing import Any
 
 import pytest
 
+from henchman.agents.delegation_admission import DelegationAdmission
 from henchman.agents.subagents import BackgroundSubagentManager, subagent_actor
 from henchman.core.events import AgentEvent, EventType
 
 
 def manager_for(runner: Any, *, max_output_chars: int = 32768) -> BackgroundSubagentManager:
     return BackgroundSubagentManager(
+        admission=DelegationAdmission(allowed=True),
         factory=lambda role, prompt, tools, conversation_id: {
             "role": role,
             "prompt": prompt,
@@ -264,6 +266,7 @@ async def test_nested_spawn_rechecks_live_tool_availability() -> None:
 
     scope = ["invoke_subagent", "read_file"]
     manager = BackgroundSubagentManager(
+        admission=DelegationAdmission(allowed=True),
         factory=lambda *args: args,
         runner=runner,
         available_tools=lambda _actor: scope,

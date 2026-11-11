@@ -9,10 +9,14 @@ from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 from uuid import uuid4
 
+from henchman.agents.delegation_admission import DelegationAdmission, DelegationLease, join_worker
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
+from henchman.providers.continuation import ProviderContinuationError
 
 SubagentStatus = Literal["running", "idle", "waiting_for_input", "errored", "done"]
 _ACTOR: ContextVar[str | None] = ContextVar("henchman_subagent_actor", default=None)
@@ -86,9 +90,20 @@ class SubagentNotification:
 class _Conversation:
     record: SubagentRecord
     agent: Any
+    generation: int = 0
     inbox: asyncio.Queue[str] = field(default_factory=asyncio.Queue)
     task: asyncio.Task[None] | None = None
     events: deque[AgentEvent] = field(default_factory=lambda: deque(maxlen=32))
+    staged: _StagedConversation | None = None
+
+
+class _StagedConversation(Protocol):
+    def bind(self, worker: asyncio.Task[Any]) -> None: ...
+    def activate(self, agent: Any) -> None: ...
+    def abort(self) -> None: ...
+    def preview(self) -> str: ...
+    def publish(self, token: str) -> Any: ...
+    async def close(self) -> None: ...
 
 
 class BackgroundSubagentManager:
@@ -108,6 +123,8 @@ class BackgroundSubagentManager:
         available_tools: Callable[[str], Iterable[str]],
         parent_id: str = "tech_lead",
         max_output_chars: int = 32768,
+        admission: DelegationAdmission | None = None,
+        staged_factory: Callable[[str, list[str], list[str], Callable[[], bool]], _StagedConversation] | None = None,
     ) -> None:
         """Initialize one runtime's independent conversations and notifications."""
         if max_output_chars < 1:
@@ -116,11 +133,77 @@ class BackgroundSubagentManager:
         self._factory = factory
         self._runner = runner
         self._available_tools = available_tools
+        self._staged_factory = staged_factory
         self._max_output_chars = max_output_chars
+        self.admission = admission if admission is not None else DelegationAdmission()
         self._conversations: dict[str, _Conversation] = {}
         self._notifications: dict[str, asyncio.Queue[SubagentNotification]] = {}
         self._cancelling: set[str] = set()
         self._closed = False
+        self._accounting_error: BudgetControlError | OperationRecoveryError | ProviderContinuationError | None = None
+        self._accounting_observers: dict[asyncio.Task[Any], int] = {}
+        self._accounting_interrupts: set[asyncio.Task[Any]] = set()
+
+    def check_accounting(self) -> None:
+        """Propagate the original control failure until an explicit new run."""
+        if self._accounting_error is not None:
+            raise self._accounting_error
+
+    @contextmanager
+    def accounting_guard(self) -> Iterator[None]:
+        """Interrupt primary work awaiting a child failure, never event consumers.
+
+        The guard encloses only an awaited producer step or mailbox wait. A
+        consumer suspended between events keeps ownership of its own task.
+        Child workers are cancelled directly and retain normal cancellation
+        records; the primary receives the exact original control exception.
+        """
+        self.check_accounting()
+        task = asyncio.current_task() if self.actor_id == self.parent_id else None
+        if task is not None:
+            self._accounting_observers[task] = self._accounting_observers.get(task, 0) + 1
+        try:
+            yield
+            self.check_accounting()
+        except asyncio.CancelledError:
+            if task in self._accounting_interrupts:
+                self.check_accounting()
+            raise
+        finally:
+            if task is not None:
+                remaining = self._accounting_observers[task] - 1
+                if remaining:
+                    self._accounting_observers[task] = remaining
+                else:
+                    del self._accounting_observers[task]
+                    if task in self._accounting_interrupts:
+                        self._accounting_interrupts.remove(task)
+                        task.uncancel()
+
+    def _fail_accounting(self, error: BudgetControlError | OperationRecoveryError | ProviderContinuationError) -> None:
+        """Latch the first failure and stop outstanding work without replacing it."""
+        if self._accounting_error is None:
+            self._accounting_error = error
+        current = asyncio.current_task()
+        for conversation in self._conversations.values():
+            task = conversation.task
+            if task is not None and task is not current and not task.done():
+                task.cancel()
+        for task in self._accounting_observers:
+            if task is not current and task not in self._accounting_interrupts:
+                self._accounting_interrupts.add(task)
+                task.cancel()
+
+    async def prepare_for_run(self) -> None:
+        """Reset a failed run only after joining its workers at a public boundary."""
+        if self.actor_id != self.parent_id:
+            raise PermissionError("Only the primary may reset run accounting")
+        if self._accounting_observers:
+            raise RuntimeError("Cannot reset accounting while a run is active")
+        if self._accounting_error is not None:
+            await self.cancel_all()
+            self.clear_notifications()
+            self._accounting_error = None
 
     @property
     def actor_id(self) -> str:
@@ -156,6 +239,7 @@ class BackgroundSubagentManager:
 
     def _scope(self) -> set[str]:
         if self.is_subagent():
+            self.admission.require(self._conversations[self.actor_id].generation)
             return set(self._conversations[self.actor_id].record.tools) & set(
                 self._available_tools(self.actor_id)
             )
@@ -176,10 +260,12 @@ class BackgroundSubagentManager:
         role: str,
         system_prompt: str,
         tools: list[str],
+        write_paths: list[str] | None = None,
     ) -> SubagentRecord:
         """Start a distinct conversation immediately within the caller's scope."""
         if self._closed:
             raise RuntimeError("Subagent manager is closed")
+        self.check_accounting()
         if self._is_cancelling(self.actor_id):
             raise RuntimeError("This subagent tree is being cancelled")
         if not all(
@@ -198,15 +284,45 @@ class BackgroundSubagentManager:
             raise ValueError(
                 f"Requested tools outside caller scope: {', '.join(sorted(disallowed))}"
             )
+        if write_paths is not None:
+            if self.actor_id != self.parent_id or self._staged_factory is None:
+                raise ValueError("Staged delegation is unavailable for this caller")
+            if not isinstance(write_paths, list) or not write_paths or not all(
+                isinstance(path, str) and path for path in write_paths
+            ):
+                raise ValueError("write_paths must be a non-empty list of explicit file paths")
+            if not set(tools) <= {"read_file", "write_file", "edit_file"}:
+                raise ValueError("Staged delegation supports only scoped file tools")
         asyncio.get_running_loop()
         conversation_id = f"subagent-{uuid4().hex}"
-        tools = list(dict.fromkeys(tools))
-        agent = self._factory(role, system_prompt, tools, conversation_id)
-        record = SubagentRecord(conversation_id, self.actor_id, role, system_prompt, tuple(tools))
-        conversation = _Conversation(record=record, agent=agent)
-        conversation.inbox.put_nowait(task)
-        self._conversations[conversation_id] = conversation
-        self._start_worker(conversation)
+        lease = self.admission.reserve()
+        staged: _StagedConversation | None = None
+        try:
+            tools = list(dict.fromkeys(tools))
+            if write_paths is not None:
+                assert self._staged_factory is not None
+                def completed() -> bool:
+                    item = self._conversations.get(conversation_id)
+                    return (item is not None and item.record.status == "done"
+                            and not item.record.cancelled and item.record.error is None)
+                staged = self._staged_factory(conversation_id, write_paths, tools, completed)
+            agent = self._factory(role, system_prompt, tools, conversation_id)
+            self.admission.require(lease.generation)
+            record = SubagentRecord(conversation_id, self.actor_id, role, system_prompt, tuple(tools))
+            conversation = _Conversation(record=record, agent=agent, generation=lease.generation, staged=staged)
+            conversation.inbox.put_nowait(task)
+            self._conversations[conversation_id] = conversation
+            self._start_worker(conversation, lease)
+        except BaseException as primary:
+            self._conversations.pop(conversation_id, None)
+            if staged is not None:
+                try:
+                    staged.abort()
+                except BaseException as cleanup:
+                    primary.add_note(f"Staged reservation cleanup also failed: {type(cleanup).__name__}")
+            if lease.owner is None or lease.owner.done():
+                lease.release()
+            raise
         return record
 
     def get(self, conversation_id: str) -> SubagentRecord:
@@ -234,25 +350,35 @@ class BackgroundSubagentManager:
         """Queue a follow-up, or notify the sender's parent without impersonation."""
         if self._closed:
             raise RuntimeError("Subagent manager is closed")
+        self.check_accounting()
         if self._is_cancelling(conversation_id) or self._is_cancelling(self.actor_id):
             raise RuntimeError("This subagent tree is being cancelled")
         if not isinstance(message, str) or not message.strip():
             raise ValueError("message must be a non-empty string")
         if self.is_subagent():
             source = self._conversations[self.actor_id]
+            self.admission.require(source.generation)
             if conversation_id in ("parent", source.record.parent_id):
                 self._publish(source, message)
                 return None
         conversation = self._require_access(conversation_id)
-        conversation.inbox.put_nowait(message)
+        if conversation.staged is not None:
+            raise ValueError("Staged subagents do not accept follow-up messages")
+        self.admission.require(conversation.generation)
         if conversation.task is None or conversation.task.done():
-            conversation.record = replace(
-                conversation.record,
-                status="idle",
-                cancelled=False,
-                error=None,
-            )
-            self._start_worker(conversation)
+            lease = self.admission.reserve(generation=conversation.generation)
+            try:
+                conversation.inbox.put_nowait(message)
+                conversation.record = replace(
+                    conversation.record, status="idle", cancelled=False, error=None,
+                )
+                self._start_worker(conversation, lease)
+            except BaseException:
+                self._discard_pending(conversation)
+                lease.release()
+                raise
+        else:
+            conversation.inbox.put_nowait(message)
         return conversation.record
 
     async def request_input(self, question: str) -> str:
@@ -272,13 +398,24 @@ class BackgroundSubagentManager:
         """Cancel and join a controlled worker and all of its descendants."""
         conversation = self._require_access(conversation_id, control=True)
         self._cancelling.add(conversation_id)
+        interrupted: BaseException | None = None
         try:
             for descendant in reversed(tuple(self._conversations.values())):
                 if self._descendant(descendant.record.conversation_id, conversation_id):
-                    await self._cancel_one(descendant)
-            await self._cancel_one(conversation)
+                    try:
+                        await self._cancel_one(descendant)
+                    except BaseException as error:
+                        if interrupted is None:
+                            interrupted = error
+            try:
+                await self._cancel_one(conversation)
+            except BaseException as error:
+                if interrupted is None:
+                    interrupted = error
         finally:
             self._cancelling.discard(conversation_id)
+        if interrupted is not None:
+            raise interrupted
         return conversation.record
 
     async def _cancel_one(self, conversation: _Conversation) -> None:
@@ -287,19 +424,45 @@ class BackgroundSubagentManager:
         active = task is not None and not task.done()
         if active:
             assert task is not None
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-        while not conversation.inbox.empty():
-            conversation.inbox.get_nowait()
-        if active or conversation.record.status not in ("done", "errored"):
-            conversation.record = replace(conversation.record, status="done", cancelled=True)
-            self._publish(conversation, "Subagent cancelled.")
+            if not task.cancelling():
+                task.cancel()
+        try:
+            if active:
+                assert task is not None
+                await join_worker(task)
+        finally:
+            while not conversation.inbox.empty():
+                conversation.inbox.get_nowait()
+            if active or conversation.record.status not in ("done", "errored"):
+                conversation.record = replace(conversation.record, status="done", cancelled=True)
+                self._publish(conversation, "Subagent cancelled.")
+            if conversation.staged is not None:
+                await conversation.staged.close()
+
+    async def review_staged(self, conversation_id: str) -> str:
+        """Join one successful staged child before returning its complete preview."""
+        conversation = self._require_access(conversation_id, control=True)
+        if conversation.record.parent_id != self.actor_id or conversation.staged is None:
+            raise ValueError("No staged proposal belongs to this parent")
+        if conversation.record.status != "done" or conversation.record.cancelled or conversation.record.error:
+            raise ValueError("Staged child has not completed successfully")
+        if conversation.task is not None:
+            await join_worker(conversation.task)
+        return conversation.staged.preview()
+
+    def publish_staged(self, conversation_id: str, token: str) -> Any:
+        """Apply the exact parent-acknowledged staged review."""
+        conversation = self._require_access(conversation_id, control=True)
+        if conversation.record.parent_id != self.actor_id or conversation.staged is None:
+            raise ValueError("No staged proposal belongs to this parent")
+        return conversation.staged.publish(token)
 
     async def close(self) -> None:
         """Prevent new work and cancel/join every worker before runtime shutdown."""
         if self.actor_id != self.parent_id:
             raise PermissionError("Only the primary may close the subagent runtime")
         self._closed = True
+        self.admission.retire(permanent=True)
         await self.cancel_all()
 
     async def cancel_all(self) -> None:
@@ -307,11 +470,29 @@ class BackgroundSubagentManager:
         conversation_ids = [record.conversation_id for record in self.list()]
         actor = self.actor_id
         self._cancelling.add(actor)
+        root = actor == self.parent_id
+        if root:
+            self.admission.retire()
+        interrupted: BaseException | None = None
         try:
             for conversation_id in reversed(conversation_ids):
-                await self._cancel_one(self._conversations[conversation_id])
+                try:
+                    await self._cancel_one(self._conversations[conversation_id])
+                except BaseException as error:
+                    if interrupted is None:
+                        interrupted = error
+            if root:
+                try:
+                    await self.admission.settle()
+                except BaseException as error:
+                    if interrupted is None:
+                        interrupted = error
         finally:
             self._cancelling.discard(actor)
+            if root and not self._closed and not self.admission.active:
+                self.admission.reopen()
+        if interrupted is not None:
+            raise interrupted
 
     def clear_notifications(self) -> None:
         """Discard queued updates when the primary intentionally resets its session."""
@@ -331,12 +512,14 @@ class BackgroundSubagentManager:
 
     async def wait_for_notification(self, parent_id: str | None = None) -> SubagentNotification:
         """Await the next parent update without a polling loop."""
-        return await self._queue(parent_id).get()
+        with self.accounting_guard():
+            return await self._queue(parent_id).get()
 
     def drain_notifications(
         self, parent_id: str | None = None
     ) -> builtins.list[SubagentNotification]:
         """Consume currently queued updates synchronously at a safe turn boundary."""
+        self.check_accounting()
         queue = self._queue(parent_id)
         notifications: builtins.list[SubagentNotification] = []
         while not queue.empty():
@@ -361,13 +544,37 @@ class BackgroundSubagentManager:
         queue = self._notifications.setdefault(record.parent_id, asyncio.Queue())
         queue.put_nowait(notification)
 
-    def _start_worker(self, conversation: _Conversation) -> None:
-        conversation.task = asyncio.create_task(self._worker(conversation))
+    def _start_worker(self, conversation: _Conversation, lease: DelegationLease) -> None:
+        gate = asyncio.Event()
 
-    async def _worker(self, conversation: _Conversation) -> None:
+        async def gated() -> None:
+            await gate.wait()
+            await self._worker(conversation, lease)
+
+        worker = gated() if conversation.staged is not None else self._worker(conversation, lease)
+        created: asyncio.Task[None] | None = None
+        try:
+            created = asyncio.create_task(worker)
+            conversation.task = created
+            lease.owner = created
+            created.add_done_callback(lambda _task: lease.release())
+            if conversation.staged is not None:
+                conversation.staged.bind(created)
+                gate.set()
+        except BaseException:
+            if created is not None:
+                created.cancel()
+            else:
+                worker.close()
+            raise
+
+    async def _worker(self, conversation: _Conversation, lease: DelegationLease) -> None:
         with subagent_actor(conversation.record.conversation_id):
             try:
+                if conversation.staged is not None:
+                    conversation.staged.activate(conversation.agent)
                 while not conversation.inbox.empty():
+                    self.admission.require(lease.generation)
                     prompt = conversation.inbox.get_nowait()
                     conversation.record = replace(
                         conversation.record,
@@ -396,6 +603,13 @@ class BackgroundSubagentManager:
             except asyncio.CancelledError:
                 conversation.record = replace(conversation.record, status="done", cancelled=True)
                 raise
+            except (BudgetControlError, OperationRecoveryError, ProviderContinuationError) as exc:
+                self._discard_pending(conversation)
+                conversation.record = replace(
+                    conversation.record, status="errored",
+                    error=f"{type(exc).__name__}: {exc}"[: self._max_output_chars],
+                )
+                self._fail_accounting(exc)
             except Exception as exc:
                 self._discard_pending(conversation)
                 conversation.record = replace(
@@ -404,6 +618,8 @@ class BackgroundSubagentManager:
                     error=f"{type(exc).__name__}: {exc}"[: self._max_output_chars],
                 )
                 self._publish(conversation, conversation.record.error or "Subagent failed")
+            finally:
+                lease.release()
 
     @staticmethod
     def _discard_pending(conversation: _Conversation) -> None:

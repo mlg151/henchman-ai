@@ -11,11 +11,10 @@ import click
 import yaml
 from pydantic import ValidationError
 
-from henchman.cli.commands.config_redaction import (
-    is_secret_like_key_path,
-    redact_config_mapping_for_display,
-)
-from henchman.config.repository import SettingsRepository, SettingsScope
+from henchman.cli.commands.config_redaction import is_secret_like_key_path
+from henchman.config.parsing import parse_settings_text
+from henchman.config.repository import SettingsRepository, SettingsScope, project_sync_evidence
+from henchman.utils.evidence_redaction import PRESERVE_IDENTITY, EvidenceRedactor
 
 _WRITE_SCOPE_CHOICES: Final[tuple[str, ...]] = (
     SettingsScope.GLOBAL.value,
@@ -66,14 +65,18 @@ def create_config_set_command(*, project_root: Path | None = None) -> click.Comm
     def set_command(key_path: str, raw_value: str, scope_value: str, output_format: str) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
+        redactor = _command_redactor(repository)
         try:
-            parsed_value = _parse_cli_value(raw_value)
+            parsed_value = _parse_cli_value(raw_value, key_path=key_path)
         except (TypeError, ValueError, yaml.YAMLError, ValidationError) as error:
-            _raise_prd_failure("HMN_CFG_INVALID_VALUE", error)
+            _raise_prd_failure("HMN_CFG_INVALID_VALUE", error, redactor=redactor)
+        _register_input_credentials(parsed_value, redactor=redactor)
+        if is_secret_like_key_path(key_path):
+            redactor.register_config({"secret": parsed_value})
         try:
             repository.set(key_path, parsed_value, scope=scope)
-        except (TypeError, ValueError, ValidationError) as error:
-            _raise_prd_failure("HMN_CFG_INVALID_VALUE", error)
+        except (OSError, TypeError, ValueError, ValidationError) as error:
+            _raise_prd_failure("HMN_CFG_INVALID_VALUE", error, redactor=redactor)
 
         payload = {
             "operation": "set",
@@ -81,7 +84,7 @@ def create_config_set_command(*, project_root: Path | None = None) -> click.Comm
             "value": parsed_value,
             "scope": scope.value,
         }
-        click.echo(_render_payload(payload, output_format=output_format), nl=False)
+        click.echo(_render_payload(payload, output_format=output_format, redactor=redactor), nl=False)
 
     return set_command
 
@@ -116,14 +119,15 @@ def create_config_unset_command(*, project_root: Path | None = None) -> click.Co
     def unset_command(key_path: str, scope_value: str, output_format: str) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
+        redactor = _command_redactor(repository)
         try:
             removed = repository.unset(key_path, scope=scope)
-        except ValueError as error:
-            raise click.ClickException(str(error)) from error
+        except (OSError, ValueError) as error:
+            raise click.ClickException(redactor.text(str(error))) from error
         if not removed:
             message = (
                 "HMN_CFG_KEY_NOT_FOUND: Requested configuration key was not found. "
-                f"Missing key '{key_path}' in {scope.value} settings."
+                f"Missing key '{redactor.text(key_path)}' in {scope.value} settings."
             )
             raise click.ClickException(message)
 
@@ -133,7 +137,7 @@ def create_config_unset_command(*, project_root: Path | None = None) -> click.Co
             "removed": removed,
             "scope": scope.value,
         }
-        click.echo(_render_payload(payload, output_format=output_format), nl=False)
+        click.echo(_render_payload(payload, output_format=output_format, redactor=redactor), nl=False)
 
     return unset_command
 
@@ -168,22 +172,33 @@ def create_config_import_command(*, project_root: Path | None = None) -> click.C
         show_default=True,
         help="Render the result as text or JSON.",
     )
-    def import_command(source_path: Path, scope_value: str, output_format: str) -> None:
+    @click.option(
+        "--accept-control-changes", is_flag=True,
+        help="Accept imported usage, operation persistence and verification changes, including less restrictive values.",
+    )
+    def import_command(
+        source_path: Path, scope_value: str, output_format: str, accept_control_changes: bool,
+    ) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
+        redactor = _command_redactor(repository)
         try:
             payload = _read_serialized_payload(source_path)
-        except (TypeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as error:
-            _raise_prd_failure("HMN_SYNC_FILE_INVALID", error)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as error:
+            _raise_prd_failure("HMN_SYNC_FILE_INVALID", error, redactor=redactor)
+        _register_input_credentials(payload, redactor=redactor)
         try:
-            repository.import_settings(payload, scope=scope)
-        except (TypeError, ValueError, ValidationError) as error:
+            if accept_control_changes:
+                repository.import_settings(payload, scope=scope, accept_control_changes=True)
+            else:
+                repository.import_settings(payload, scope=scope)
+        except (OSError, TypeError, ValueError, ValidationError) as error:
             failure_code = (
                 "HMN_SYNC_FILE_INVALID"
                 if _is_sync_payload_error(error)
                 else "HMN_CFG_INVALID_VALUE"
             )
-            _raise_prd_failure(failure_code, error)
+            _raise_prd_failure(failure_code, error, redactor=redactor)
 
         output_payload = {
             "operation": "import",
@@ -191,7 +206,7 @@ def create_config_import_command(*, project_root: Path | None = None) -> click.C
             "scope": scope.value,
             "payload": payload,
         }
-        click.echo(_render_payload(output_payload, output_format=output_format), nl=False)
+        click.echo(_render_payload(output_payload, output_format=output_format, redactor=redactor), nl=False)
 
     return import_command
 
@@ -226,14 +241,24 @@ def create_config_export_command(*, project_root: Path | None = None) -> click.C
         show_default=True,
         help="Render the result as text or JSON.",
     )
-    def export_command(destination_path: Path, scope_value: str, output_format: str) -> None:
+    @click.option(
+        "--include-controls", is_flag=True,
+        help="Include nonsecret usage, operation persistence and verification controls; known credential echoes are refused.",
+    )
+    def export_command(
+        destination_path: Path, scope_value: str, output_format: str, include_controls: bool,
+    ) -> None:
         repository = SettingsRepository(project_root=project_root)
         scope = SettingsScope(scope_value)
-        payload = repository.export_settings(scope=scope)
+        redactor = _command_redactor(repository)
         try:
+            payload = (
+                repository.export_settings(scope=scope, include_controls=True)
+                if include_controls else repository.export_settings(scope=scope)
+            )
             _write_serialized_payload(destination_path, payload)
-        except ValueError as error:
-            _raise_prd_failure("HMN_SYNC_FILE_INVALID", error)
+        except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+            _raise_prd_failure("HMN_SYNC_FILE_INVALID", error, redactor=redactor)
 
         output_payload = {
             "operation": "export",
@@ -241,29 +266,72 @@ def create_config_export_command(*, project_root: Path | None = None) -> click.C
             "scope": scope.value,
             "payload": payload,
         }
-        click.echo(_render_payload(output_payload, output_format=output_format), nl=False)
+        click.echo(_render_payload(output_payload, output_format=output_format, redactor=redactor), nl=False)
 
     return export_command
 
 
-def _parse_cli_value(raw_value: str) -> Any:
+def _parse_cli_value(raw_value: str, *, key_path: str = "") -> Any:
     """Parse a CLI value using YAML scalar and collection rules."""
     if raw_value == "":
         return ""
-    return yaml.safe_load(raw_value)
+    return parse_settings_text(raw_value, format="yaml", key_path=key_path)
 
 
-def _render_payload(payload: dict[str, Any], *, output_format: str) -> str:
+def _command_redactor(repository: SettingsRepository) -> EvidenceRedactor:
+    """Fail safely before writes when configured credentials cannot be inspected."""
+    try:
+        return repository.evidence_redactor()
+    except (OSError, ValueError, yaml.YAMLError):
+        # Malformed config may contain secrets that could not be registered.
+        # Do not echo source excerpts, paths, or the original exception chain.
+        raise click.ClickException(
+            "HMN_CFG_INVALID_VALUE: Unable to inspect configured credentials. "
+            "Check settings syntax and file permissions."
+        ) from None
+
+
+def _register_input_credentials(value: Any, *, redactor: EvidenceRedactor) -> None:
+    """Retain sensitive input strings before validation adds labels to headers."""
+    redactor.register_config(value)
+    if isinstance(value, str):
+        if redactor.text(value) != value:
+            redactor.register_secret(value)
+    elif isinstance(value, Mapping):
+        for key, nested in value.items():
+            _register_input_credentials(key, redactor=redactor)
+            _register_input_credentials(nested, redactor=redactor)
+    elif isinstance(value, list):
+        for nested in value:
+            _register_input_credentials(nested, redactor=redactor)
+
+
+def _render_payload(payload: dict[str, Any], *, output_format: str, redactor: EvidenceRedactor) -> str:
     """Render a command payload in either JSON or human-readable YAML."""
+    projected = _redact_command_payload(payload)
+    schema: dict[str, Any] = dict.fromkeys(payload)
+    schema.update(operation=PRESERVE_IDENTITY, scope=PRESERVE_IDENTITY)
+    if payload.get("operation") == "set" and is_secret_like_key_path(str(payload.get("key", ""))):
+        # The compatibility placeholder is a fixed display value, not evidence.
+        schema["value"] = PRESERVE_IDENTITY
+    if payload.get("operation") in {"import", "export"} and isinstance(payload.get("payload"), Mapping):
+        # This payload has its own trusted schema. Do not redact its fixed
+        # identities a second time when projecting the surrounding response.
+        projected["payload"] = project_sync_evidence(payload["payload"], redactor=redactor)
+        sync_payload = projected.pop("payload")
+        projected = redactor.redact(projected, schema=schema)
+        projected["payload"] = sync_payload
+    else:
+        projected = redactor.redact(projected, schema=schema)
     if output_format == "json":
-        return json.dumps(payload, sort_keys=True)
-    return yaml.safe_dump(_redact_command_payload(payload), sort_keys=False)
+        return json.dumps(projected, sort_keys=True)
+    return yaml.safe_dump(projected, sort_keys=False)
 
 
-def _raise_prd_failure(code: str, error: BaseException) -> None:
+def _raise_prd_failure(code: str, error: BaseException, *, redactor: EvidenceRedactor) -> None:
     """Raise a user-facing click failure tagged with a PRD error code."""
     summary = _PRD_FAILURE_MESSAGES[code]
-    detail = _summarize_user_facing_error(error)
+    detail = redactor.text(_summarize_user_facing_error(error))
     message = f"{code}: {summary}"
     if detail:
         message = f"{message} {detail}"
@@ -272,16 +340,24 @@ def _raise_prd_failure(code: str, error: BaseException) -> None:
 
 def _summarize_user_facing_error(error: BaseException) -> str:
     """Return a concise error detail suitable for CLI display."""
+    if isinstance(error, yaml.YAMLError):
+        # YAML errors quote source lines that cannot yet be inspected as marked
+        # fields. Report location without copying that unparsed source.
+        mark = getattr(error, "problem_mark", None)
+        if mark is not None:
+            return f"Invalid YAML at line {mark.line + 1}, column {mark.column + 1}."
+        return "Invalid YAML."
     if isinstance(error, ValidationError):
-        messages = [
-            str(message).removeprefix("Value error, ")
-            for message in (
-                entry.get("msg")
-                for entry in error.errors()
-                if isinstance(entry.get("msg"), str)
-            )
-        ]
-        return "; ".join(dict.fromkeys(message for message in messages if message))
+        parts = []
+        for entry in error.errors():
+            message = entry.get("msg")
+            if not isinstance(message, str):
+                continue
+            message = message.removeprefix("Value error, ")
+            loc = entry.get("loc") or ()
+            path = ".".join(str(part) for part in loc)
+            parts.append(f"{path}: {message}" if path else message)
+        return "; ".join(dict.fromkeys(part for part in parts if part))
     return str(error).strip()
 
 
@@ -292,7 +368,10 @@ def _is_sync_payload_error(error: BaseException) -> bool:
         (
             "Unsupported sync payload keys:",
             "Unsupported sync payload ui keys:",
-            "Sync payload field 'ui' must be a mapping",
+            "Unsupported sync payload ui.layout keys:",
+            "Sync payload field",
+            "Sync payload controls",
+            "Sync payload contains credential",
             "Config payload must contain a mapping:",
             "Unsupported config sync file format ",
         )
@@ -305,9 +384,9 @@ def _read_serialized_payload(path: Path) -> dict[str, Any]:
     serialization_format = _serialization_format_for_path(path)
     parsed: Any
     if serialization_format == "json":
-        parsed = json.loads(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="json") if raw_text.strip() else {}
     else:
-        parsed = yaml.safe_load(raw_text) if raw_text.strip() else {}
+        parsed = parse_settings_text(raw_text, format="yaml") if raw_text.strip() else {}
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
@@ -347,10 +426,6 @@ def _redact_command_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     key_path = redacted.get("key")
     if operation == "set" and isinstance(key_path, str) and is_secret_like_key_path(key_path):
         redacted["value"] = _REDACTED_VALUE
-    if operation in {"import", "export"}:
-        raw_payload = redacted.get("payload")
-        if isinstance(raw_payload, Mapping):
-            redacted["payload"] = redact_config_mapping_for_display(raw_payload)
     return redacted
 
 

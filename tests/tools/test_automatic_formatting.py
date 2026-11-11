@@ -9,13 +9,17 @@ from pathlib import Path
 import pytest
 
 from henchman.tools import formatting
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.tools.builtins.file_edit import EditFileTool
 from henchman.tools.builtins.file_read import ReadFileTool
 from henchman.tools.builtins.file_write import WriteFileTool
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.formatting import PythonAutoFormatter
 from henchman.tools.registry import ToolRegistry
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 class _WorkspacePythonCommand(PythonExecTool):
@@ -348,6 +352,7 @@ async def test_composite_awaits_nested_registry_write_without_deadlock(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     registry.register(WriteFileTool())
 
     class Composite(Tool):
@@ -367,6 +372,7 @@ async def test_nested_batch_serializes_siblings_and_allows_grandchild_calls(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     parent, child = ToolRegistry(), ToolRegistry()
+    parent.set_confirmation_handler(_approve)
     child.inherit_policies_from(parent)
     child.register(WriteFileTool())
     active = 0
@@ -410,6 +416,7 @@ async def test_cancelled_nested_call_releases_transaction_for_reuse(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     entered, ended = asyncio.Event(), asyncio.Event()
 
     class Inner(Tool):
@@ -452,6 +459,7 @@ async def test_parent_waits_for_admitted_background_child_before_formatting(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     entered, release, returned = asyncio.Event(), asyncio.Event(), asyncio.Event()
     children: list[asyncio.Task[ToolResult]] = []
 
@@ -493,6 +501,7 @@ async def test_inherited_closed_frame_waits_for_unrelated_transaction(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     registry = ToolRegistry()
+    registry.set_confirmation_handler(_approve)
     begin, held, release, late_started = (asyncio.Event() for _ in range(4))
     children: list[asyncio.Task[ToolResult]] = []
 

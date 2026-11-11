@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "henchman/contracts/api/run-budget-snapshot/v1",
+  "type": "object",
+  "required": [
+    "run_id",
+    "limits",
+    "consumed_requests",
+    "reserved_requests",
+    "settled_tokens",
+    "held_tokens",
+    "unknown_dispatched_requests",
+    "unknown_cost_requests",
+    "elapsed_seconds",
+    "remaining_requests",
+    "remaining_tokens",
+    "remaining_seconds",
+    "remaining_cost",
+    "money",
+    "stop_reason",
+    "accounting_lifetime",
+    "accounting_error",
+    "usage_breakdown"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_requests",
+        "max_tokens",
+        "max_seconds",
+        "max_cost",
+        "currency"
+      ],
+      "properties": {
+        "max_requests": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_cost": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "consumed_requests": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reserved_requests": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "settled_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "held_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unknown_dispatched_requests": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unknown_cost_requests": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "elapsed_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "remaining_requests": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "remaining_tokens": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "remaining_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "remaining_cost": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "money": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "currency",
+          "held_cost",
+          "settled_estimated_cost",
+          "reported_cost",
+          "settled_reported_cost",
+          "unknown_cost_requests"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "held_cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settled_estimated_cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reported_cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settled_reported_cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unknown_cost_requests": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "stop_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "accounting_lifetime": {
+      "type": "string",
+      "enum": [
+        "process",
+        "durable"
+      ]
+    },
+    "accounting_error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "usage_breakdown": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "usage_source",
+          "dispatched_requests",
+          "settled_requests",
+          "counts",
+          "counted_requests",
+          "pricing"
+        ],
+        "properties": {
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usage_source": {
+            "type": "string",
+            "enum": [
+              "reported",
+              "estimated",
+              "unknown"
+            ]
+          },
+          "dispatched_requests": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "settled_requests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "prompt_tokens",
+              "completion_tokens",
+              "total_tokens",
+              "cached_tokens",
+              "cache_creation_tokens",
+              "reasoning_tokens"
+            ],
+            "properties": {
+              "prompt_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "completion_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "total_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "cached_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "cache_creation_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reasoning_tokens": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "counted_requests": {
+            "type": "object",
+            "required": [
+              "prompt_tokens",
+              "completion_tokens",
+              "total_tokens",
+              "cached_tokens",
+              "cache_creation_tokens",
+              "reasoning_tokens"
+            ],
+            "properties": {
+              "prompt_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "completion_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "total_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cached_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cache_creation_tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reasoning_tokens": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "pricing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "input_per_1k",
+              "output_per_1k",
+              "cache_read_per_1k",
+              "cache_write_per_1k",
+              "currency",
+              "source",
+              "as_of"
+            ],
+            "properties": {
+              "input_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "output_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cache_read_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cache_write_per_1k": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "currency": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

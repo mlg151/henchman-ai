@@ -1,7 +1,5 @@
 """Tests for MCP manager."""
 
-from unittest.mock import MagicMock
-
 from henchman.config.schema import McpServerConfig, Settings
 from henchman.mcp.manager import McpManager
 
@@ -74,7 +72,7 @@ class TestCreateFromSettings:
     def test_create_from_settings_no_servers(self):
         """Test create_from_settings with no MCP servers configured."""
         # Mock settings with no MCP servers
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = None
 
         result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
@@ -84,7 +82,7 @@ class TestCreateFromSettings:
     def test_create_from_settings_empty_servers(self):
         """Test create_from_settings with empty MCP servers dict."""
         # Mock settings with empty MCP servers
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {}
 
         result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
@@ -95,7 +93,7 @@ class TestCreateFromSettings:
         """Test create_from_settings with servers and logging disabled."""
         # Create mock settings with MCP servers
         from henchman.config.schema import McpServerConfig
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {
             "python_server": McpServerConfig(
                 command="python",
@@ -165,7 +163,7 @@ class TestCreateFromSettings:
         """Test create_from_settings with servers and logging enabled."""
         # Create mock settings with MCP servers
         from henchman.config.schema import McpServerConfig
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {
             "python_server": McpServerConfig(
                 command="python",
@@ -198,7 +196,7 @@ class TestCreateFromSettings:
     def test_create_from_settings_uvx_python_server(self):
         """Test create_from_settings with uvx command (Python server)."""
         from henchman.config.schema import McpServerConfig
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {
             "uvx_server": McpServerConfig(
                 command="uvx",
@@ -219,7 +217,7 @@ class TestCreateFromSettings:
     def test_create_from_settings_npx_node_server(self):
         """Test create_from_settings with npx command (Node server)."""
         from henchman.config.schema import McpServerConfig
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {
             "npx_server": McpServerConfig(
                 command="npx",
@@ -238,7 +236,7 @@ class TestCreateFromSettings:
     def test_create_from_settings_py_file_server(self):
         """Test create_from_settings with .py file in args (Python server)."""
         from henchman.config.schema import McpServerConfig
-        mock_settings = MagicMock(spec=Settings)
+        mock_settings = Settings()
         mock_settings.mcp_servers = {
             "pyfile_server": McpServerConfig(
                 command="python3",

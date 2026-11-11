@@ -18,6 +18,10 @@ def _set_file_lock(lock_file: Any, *, unlock: bool = False) -> None:
 
         # Windows locks a byte range from the current position, including past
         # EOF. Avoid writing an initial byte before another process owns it.
+        # BufferedRandom.seek can only move within its read-ahead cache. Flush
+        # first to synchronize/discard that cache so the native descriptor also
+        # addresses byte zero when acquiring or releasing the Windows lock.
+        lock_file.flush()
         lock_file.seek(0)
         msvcrt.locking(
             lock_file.fileno(), msvcrt.LK_UNLCK if unlock else msvcrt.LK_NBLCK, 1

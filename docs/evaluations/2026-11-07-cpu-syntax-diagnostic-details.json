@@ -1,0 +1,83 @@
+[
+  {
+    "case_id": "syntax-fix",
+    "profile": {
+      "profile": "engineer",
+      "scope": "single_agent",
+      "tool_names": [
+        "code_format",
+        "coverage_map",
+        "dead_code",
+        "diff_view",
+        "edit_file",
+        "env_inspect",
+        "file_overview",
+        "git_ops",
+        "glob",
+        "goal_status",
+        "grep",
+        "import_graph",
+        "lint_check",
+        "ls",
+        "patch_apply",
+        "pattern_search",
+        "pip_inspect",
+        "pytest_run",
+        "python_ast",
+        "python_exec",
+        "read_file",
+        "shell",
+        "symbol_trace",
+        "task_get",
+        "task_list",
+        "task_output",
+        "task_stop",
+        "test_gen",
+        "tool_search",
+        "traceback_parse",
+        "write_file"
+      ],
+      "prompt_sha256": "ede0f6aaec3c42101e8f0f5b0c99e3fec65bbec397abce1eea5f1215891c3095",
+      "prompt_chars": 16372,
+      "max_tokens": 13926,
+      "context_window": 16384
+    },
+    "tools": [
+      {
+        "name": "read_file",
+        "arguments": {
+          "path": "broken.py"
+        },
+        "result": "\ndef greet(name):\n    print(f\"Hello, {name}!\"\n    return True\n",
+        "success": true
+      },
+      {
+        "name": "edit_file",
+        "arguments": {
+          "path": "broken.py",
+          "new_str": "    print(f\"Hello, {name}!\")",
+          "old_str": "    print(f\"Hello, {name}!\""
+        },
+        "result": "Successfully edited /tmp/eval_baseline_syntax-fix_1__mauptkc/broken.py\nBlack formatted 1 Python source file(s).",
+        "success": true
+      },
+      {
+        "name": "python_exec",
+        "arguments": {
+          "code": "import py_compile, subprocess, sys\n\n# Compile check\ntry:\n    py_compile.compile(\"broken.py\", doraise=True)\n    print(\"COMPILE: OK\")\nexcept py_compile.PyCompileError as e:\n    print(\"COMPILE: FAILED\")\n    print(e)\n\n# Runtime behavior check\nimport importlib.util\nspec = importlib.util.spec_from_file_location(\"broken\", \"broken.py\")\nmod = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(mod)\n\nprint(\"RUNTIME: greet('World') =\", mod.greet(\"World\"))"
+        },
+        "result": "Started background task task-61e5ba1ecb22 [running]. Use task_get for status, task_output for output, task_list for all jobs, or task_stop to stop this task. Starting a task does not confirm success. Workspace file formatting skipped; format generated Python files explicitly after the task completes.",
+        "success": true
+      },
+      {
+        "name": "task_output",
+        "arguments": {
+          "task_id": "task-61e5ba1ecb22"
+        },
+        "result": "COMPILE: OK\nHello, World!\nRUNTIME: greet('World') = True",
+        "success": true
+      }
+    ],
+    "delivered_source": "def greet(name):\n    print(f\"Hello, {name}!\")\n    return True\n"
+  }
+]

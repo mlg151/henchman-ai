@@ -6,7 +6,10 @@
   "properties": {
     "content": { "type": "string" },
     "is_error": { "type": "boolean" },
-    "metadata": { "type": ["object", "null"] }
+    "metadata": { "type": ["object", "null"] },
+    "content_blocks": { "type": "array", "items": { "type": "object" } },
+    "structured_content": {},
+    "structured_content_present": { "type": "boolean" }
   },
   "required": ["content", "is_error"]
 }

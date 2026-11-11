@@ -2,6 +2,21 @@
 
 Henchman-AI supports multiple LLM providers through a unified interface.
 
+## Offline token estimates
+
+Token counting and RAG chunking use hash-verified vocabularies packaged in the
+wheel, so a fresh installation needs no tokenizer cache or runtime download.
+Bundled encodings are `cl100k_base`, `o200k_base` and `o200k_harmony`. Known model
+names resolve through the installed tiktoken name metadata; unknown/local models
+use the existing `cl100k_base` estimate. Recognized legacy encodings outside this
+set fail explicitly instead of downloading or silently substituting another
+encoding. The public tiktoken engine remains responsible for encode/decode.
+
+The vocabulary hashes, upstream URLs and MIT license are included under
+`henchman/data/tokenizers` in the distribution. These estimates do not establish
+the exact tokenizer or prompt-template accounting used by a remote server or a
+local model. Reported provider usage remains separate from local estimates.
+
 ## Supported Providers
 
 | Provider | Status | API Compatibility | Configuration Name | Notes |
@@ -83,6 +98,9 @@ The configured compaction threshold determines the effective conversation budget
 future specialists receive that budget, including specialists with their own
 provider/model selections. Omitting the option preserves the current context
 policy. `/model` shows the configured length and effective conversation budget.
+It also reports the actual recorded setting origin. `/config get
+providers.default`, `/config get context.max_tokens` and `/doctor` inspect the
+same active snapshot in REPL and Textual.
 The change takes effect for subsequent requests without discarding conversation
 history. It is session-local; use `henchman config set context.max_tokens 32768
 --scope project` to change the saved startup setting.
@@ -215,6 +233,12 @@ providers:
 
 Run models locally with Ollama.
 
+Local adapter support does not imply a qualified included model. The
+[v6 CPU readiness check](evaluations/2026-11-08-cpu-readiness-v6.md) rejected both
+tested profiles at the syntax gate; all 24 planned corpus attempts remained
+unrun. Sampled owned-process PSS exceeded 10 GiB on a 123.13 GiB host, so the
+16 GB CPU-machine target is unqualified. No included CPU default is advertised.
+
 ### Setup
 
 1. Install Ollama: https://ollama.ai/
@@ -290,10 +314,8 @@ Anthropic uses its native adapter.
   does not dispatch a tool twice.
 - Compatible text reasoning accepts both `reasoning_content` and OpenRouter's
   `reasoning` field, preferring nonempty `reasoning_content` when both appear.
-  Text is retained through tool turns and sent back using `reasoning_content`,
-  which OpenRouter accepts as an alias. This does not preserve structured or
-  encrypted `reasoning_details` blocks; models requiring those blocks need
-  additional adapter support. See [OpenRouter reasoning documentation](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
+  Visible reasoning remains separate from the [qualified continuation payload](#provider-continuation).
+  Displayed text is not implicitly sent back as signed or opaque provider state.
 - Closing a partial agent stream releases the nested provider stream immediately.
   Task cancellation propagates without emitting a completion event. Cleanup
   failures are logged without replacing cancellation or generator closure.
@@ -311,6 +333,179 @@ should explicitly close their stream, for example with `contextlib.aclosing`.
 The offline regression suites in `tests/providers/test_stream_safety.py` and
 `tests/providers/test_anthropic_stream_safety.py` exercise these boundaries.
 They do not certify live model quality or operating-system compatibility.
+
+### Provider continuation
+
+Assistant messages can carry a version-1 continuation envelope independently of
+visible text and reasoning. Supported adapter profiles retain these payloads:
+
+| Adapter | Retained continuation |
+| --- | --- |
+| Anthropic Messages | Ordered native thinking/signature, redacted-thinking, text and tool-use blocks |
+| OpenRouter Chat Completions | Ordered `reasoning_details` objects, including encrypted data |
+| DeepSeek Chat Completions | The documented `reasoning_content` wire text |
+
+The envelope binds to the configured provider alias, request model, endpoint and
+credential identity, and required reasoning settings. Endpoint and credential
+identity are retained as a digest. Its payload digest detects local changes;
+Henchman does not verify provider signatures or infer compatibility across models
+or accounts. Each profile uses its provider's documented continuation format;
+see [OpenRouter's preservation rules](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
+
+Saved sessions, exports, restored turns and merges retain the envelope. It is not
+rendered as chat content. If credential redaction changes its payload or binding
+labels, the saved envelope records unavailability and a digest rather than altered
+replay bytes. Missing signatures, incomplete streams, unavailable payloads and
+incompatible provider/model switches stop dispatch explicitly. Legacy reasoning
+fields are retained as evidence but do not establish a qualified continuation.
+
+Compaction preserves a required continuation exchange intact or reports that it
+cannot fit the available context. It does not summarize signed state into a new
+payload. Payloads are bounded to 4 MiB, depth 64 and 65,536 nodes. Actual-SDK offline
+transport fixtures verify preservation and rejection paths; they do not establish
+live provider acceptance for every model. General session and interrupted-effect
+handling are described in [operation recovery](operation-recovery.md).
+
+### Usage and cost provenance
+
+`StreamChunk.usage` is a cumulative snapshot for one provider request, not a
+per-chunk increment or a complete run total. `usage_source` distinguishes
+`reported`, `estimated`, and `unknown`. Missing counts remain absent; explicit
+zero counts remain zero. Compatible adapters merge partial and trailing snapshots.
+Anthropic input counts include ordinary input plus cache reads and writes;
+its output count is cumulative. `cached_tokens` and `cache_creation_tokens` are
+subsets of `prompt_tokens`; `reasoning_tokens` is a subset of `completion_tokens`.
+Do not add those subsets to the totals again.
+
+Compatible requests ask for streaming usage by default. For servers that reject
+the optional field, configure `providers.<name>.stream_options: null` to omit it.
+An explicit `{"include_usage": false}` is also preserved. No automatic retry with
+different request options occurs. These fields are supported by the documented
+[OpenAI](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events),
+[DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/),
+[OpenRouter](https://openrouter.ai/docs/client-sdks/python/api-reference/chat), and
+[Ollama](https://docs.ollama.com/api/openai-compatibility) compatible interfaces.
+
+The Python `UsageReport` and `TokenPricing` records preserve nullable counts and
+explicit input/output/cache rates, currency, price source and date.
+`CostTrackingService.record_usage()` returns `float | None`: absent pricing stays
+unknown, a configured zero rate is valid, and configured estimates remain separate
+from explicitly supplied provider billing. Summaries keep currencies separate and
+mark totals incomplete when any recorded cost is unknown. Historical synthetic
+cost records lack trustworthy provenance and are treated as unknown.
+
+Agent completion events retain `usage_source` whenever they include counts, so
+an estimate cannot become reported usage by passing through the agent loop.
+Configured providers also retain their exact configuration identity for price
+lookup; aliases sharing one adapter do not silently share a price catalog.
+Shared run aggregation and admission are described below; final qualification
+remains tracked under [#24](https://github.com/mlg151/henchman-ai/issues/24).
+
+### Explicit run budget scopes
+
+`henchman.core.run_budget.RunBudgetLedger` is an in-memory accounting component.
+Integrators
+reserve a `RequestEstimate`, claim it with `start(request_id)` immediately before
+dispatch, and reconcile cumulative `UsageReport` observations. Retries need new
+request IDs under the same operation ID. Atomic admission checks request, token,
+elapsed-time and optional monetary limits across callers. Duplicate reservation
+IDs cannot claim a second dispatch. Cancellation releases an unstarted hold;
+started attempts keep uncertain usage reserved until a final report resolves it.
+
+Strict monetary admission requires known applicable rates in one currency.
+Configured zero rates remain valid; configured estimates and reported billing
+stay separate. Missing or inconsistent final usage, newly applicable unpriced
+cache usage and unexpected currencies cannot release money for additional calls.
+Cost arithmetic and aggregation preserve exact finite decimal values regardless
+of the caller's decimal precision. Snapshots label accounting as `process` lifetime.
+The ledger alone does not persist or restore reservations or guarantee the bill
+for an already-started remote request. A durable adapter is available below.
+`BudgetExceeded` propagates through agent preparation, streaming and legacy
+delegation instead of becoming a recoverable provider error or delegation retry.
+
+`henchman.providers.runtime_budget.use_run_budget(RunBudgetScope(...))` activates
+accounting for compatible and Anthropic provider streams consumed inside its
+scope. Use `run_budget_limits(settings)` and `model_pricing(settings, provider=...,
+model=...)` from `henchman.config.usage` to bind the typed configuration. Child
+tasks inherit the current scope; `current_run_budget()` captures it for later
+activation, and `scope.for_agent(id)` attributes requests to an actor without
+creating another ledger.
+
+Active scopes snapshot request parameters and prices before any awaited capacity
+check. They enforce the reserved output cap (default 4,096 only when absent),
+disable hidden SDK retries, and count actual dispatches. Compatible requests make
+one attempt; Anthropic's explicit rate-limit retries each claim another reservation
+under the same operation. Usage is settled only after normal stream exhaustion
+with a terminal reported snapshot. Cancellation and incomplete usage keep holds.
+Summary calls drain trailing usage and cannot swallow budget exhaustion. Supported
+adapters advertise `supports_run_budget`; uninstrumented custom providers are not
+automatically accounted by this explicit scope. Requests outside a scope retain
+their existing behavior. Public orchestrator and CLI entrypoints create scopes
+automatically as described below.
+
+### Durable accounting storage
+
+`RunBudgetStore(path)` from `henchman.ops.run_budget_store` creates explicitly
+owned runs with the same reservation/claim/reconciliation interface. Each change
+loads authoritative state under a SQLite write transaction; dispatch permission
+is returned only after its start claim commits. A crash after that commit retains
+the consumed request and uncertain usage even if HTTP never started. Late final
+usage can reconcile it; a retry requires a new attempt ID.
+
+Prices, monetary limits and billing retain exact decimal strings. Records store
+identities and accounting observations, never prompts, tool arguments or headers.
+Session bindings commit with run creation, so an older transcript backup cannot
+refund a known run. Session references are advisory; missing/corrupt stores,
+wrong identities and unsupported schemas fail closed instead of creating a fresh
+balance. Closing a run retains its history and uncertain consumption.
+
+Snapshots label this adapter's lifetime `durable`. Time-capped runs can dispatch
+only while their original monotonic clock domain can be verified: native clocks
+resume within the original process, and injected clocks within their owning
+store instance. Other processes can reconcile/inspect those runs, but cannot
+restart their timer. Without a time cap, independent processes share the same
+atomic request/token/money admission state.
+
+### Automatic task accounting
+
+`Orchestrator.run()` and `run_direct()` capture one shared scope for their primary
+agent, delegates, explicit retries and compaction summaries. An enclosing scope
+is retained; a supplied different ledger cannot replace it. Agent tool-result
+continuations retain the original scope even when consumed outside the caller's
+context. Budget control failures propagate through background workers and stop
+further primary/delegate dispatch instead of becoming ordinary retry messages.
+Public runs reserve their actual target before asynchronous setup, so overlapping
+work cannot replace its history, status or accounting. Accounting capability
+checks use the configured leader or specialist provider.
+
+CLI, REPL and Textual bind scopes to their selected session. `usage.persistence`
+selects process or durable accounting; see [configuration](configuration.md#usage-limits-and-explicit-prices)
+for task boundaries and explicit goal transitions. Changing settings during an
+active task does not refund consumption or replace its original limits. Within
+one runtime, the run retains its captured price catalog for the actual
+provider/model. After runtime recreation, future attempts use the current exact
+provider/model catalog; previously recorded prices and consumed amounts remain
+unchanged. A new currency must remain compatible with the original money cap.
+
+`/usage` presents aggregate consumption, remaining limits and stop reasons, with
+estimated cost, held estimates and reported billing labeled separately. Unknown
+amounts are unavailable rather than zero. Headless completion/failure evidence
+includes the shared aggregate, with decimal amounts serialized as strings.
+Model rows include unknown-priced attempts and distinguish reported, estimated
+and unknown observations. Each token field retains the number of requests that
+supplied it; a partial observed subtotal is not complete run consumption. Cache
+and reasoning counts remain subsets. Distinct configured price snapshots retain
+their input/output/cache rates, source and date; these are not provider bills.
+API and headless `usage_breakdown` expose the same grouped observations without
+changing budget holds or admission totals. Credential projection affects evidence
+labels only.
+These are admission bounds and accounting observations: already-started remote
+requests can incur billing that differs from estimates, especially after a
+disconnect or cancellation. No automatic paid-model fallback occurs.
+
+The [standalone HTTP API](api.md#http-chat-and-task-usage) uses isolated process
+runs and caller-owned continuation IDs. Durable API session binding is not yet
+implemented; requesting it fails before model dispatch.
 
 ### Headless coding workflows
 

@@ -1,24 +1,27 @@
 """All provider transports receive requirements beyond the ledger preview."""
 
-from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
-from tests.e2e.test_coding_loop import anthropic_response, compatible_response
+from tests.e2e.provider_transport import bind_scripted_transport
 
 from henchman.agents.orchestrator import Orchestrator
 from henchman.config.schema import ProviderSettings, Settings
 from henchman.core.events import EventType
 from henchman.providers.factory import create_configured_provider
+from henchman.tools.base import ConfirmationRequest
+
+
+async def _approve(request: ConfirmationRequest) -> bool:  # noqa: ARG001
+    return True
 
 
 @pytest.mark.parametrize(
     "provider_name", ["openrouter", "openai_compat", "deepseek", "ollama", "anthropic"]
 )
 async def test_specialist_sdk_request_preserves_full_mission_and_narrow_assignment(
-    monkeypatch: pytest.MonkeyPatch, provider_name: str
+    provider_name: str
 ) -> None:
     mission = (
         "Coordinate the library and CLI changes. "
@@ -52,29 +55,28 @@ async def test_specialist_sdk_request_preserves_full_mission_and_narrow_assignme
     providers = ProviderSettings(default=provider_name, **{provider_name: saved})
     provider: Any = create_configured_provider(providers)
     requests: list[dict[str, Any]] = []
-    compatible_stream: Callable[[Any], Any] = compatible_response
 
     def respond(**kwargs: Any) -> Any:
         requests.append(deepcopy(kwargs))
         assert len(requests) <= len(script), "Unexpected provider request"
         call = script[len(requests) - 1]
-        return anthropic_response(call) if provider_name == "anthropic" else compatible_stream(call)
+        return call
 
-    if provider_name == "anthropic":
-        monkeypatch.setattr(provider._client.messages, "stream", respond)
-    else:
-        monkeypatch.setattr(
-            provider._client.chat.completions, "create", AsyncMock(side_effect=respond)
-        )
-    settings = Settings(providers=providers, context={"max_tokens": 32768})
+    await bind_scripted_transport(provider, respond)
+    settings = Settings(agents={"allow_delegation": True}, providers=providers, context={"max_tokens": 32768})
     settings.agents.max_delegation_retries = 0
     orch = Orchestrator(default_provider=provider, settings=settings)
+    orch.tool_registry.set_confirmation_handler(_approve)
     try:
         events = [event async for event in orch.run(mission)]
     finally:
+        await orch.aclose()
         await provider._client.close()
 
     assert len(requests) == 3
+    snapshot = orch.last_budget_scope.ledger.snapshot()
+    assert snapshot.consumed_requests == len(script)
+    assert snapshot.unknown_dispatched_requests == 0
     texts: list[str] = []
     for message in requests[1]["messages"]:
         if message["role"] != "user":

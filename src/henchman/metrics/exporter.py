@@ -26,6 +26,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast
 
+from henchman.metrics.evidence import project_metrics
+from henchman.utils.evidence_redaction import EvidenceRedactor
+
 
 class _HttpResponse(Protocol):
     def raise_for_status(self) -> None: ...
@@ -44,6 +47,8 @@ class _RequestsModule(Protocol):
 _requests = cast(_RequestsModule, importlib.import_module("requests"))
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from henchman.metrics.storage import MetricsStorage
 
 # Constants for metrics export
@@ -91,6 +96,22 @@ def _write_metrics_csv(path: Path, metrics: list[dict[str, Any]]) -> None:
                     for v in [m.get(k)]
                 },
             )
+
+
+@contextlib.contextmanager
+def _project_os_errors(policy: EvidenceRedactor, refresh: Callable[[], None]) -> Iterator[None]:
+    """Keep filesystem error categories/errno without publishing private paths."""
+    try:
+        yield
+    except OSError as error:
+        refresh()
+        filename = None if error.filename is None else policy.text(str(error.filename))
+        filename2 = None if error.filename2 is None else policy.text(str(error.filename2))
+        clean = OSError(error.errno, policy.text(error.strerror or str(error)), filename,
+                        getattr(error, "winerror", None), filename2)
+        for note in getattr(error, "__notes__", ()):
+            clean.add_note(policy.text(str(note)))
+        raise clean from None
 
 
 class PrometheusFormatter:
@@ -291,17 +312,32 @@ class MetricsExporter:
         metrics_storage: Storage backend for metrics data.
     """
 
-    def __init__(self: MetricsExporter, metrics_storage: MetricsStorage) -> None:
+    def __init__(self: MetricsExporter, metrics_storage: MetricsStorage, *,
+                 evidence_redactor: EvidenceRedactor | None = None) -> None:
         """Initialize the metrics exporter.
 
         Args:
             metrics_storage: Storage backend for metrics data.
         """
         self.metrics_storage = metrics_storage
+        inherited = getattr(metrics_storage, "evidence_redactor", None)
+        self.evidence_redactor = (evidence_redactor if evidence_redactor is not None else
+                                 inherited if isinstance(inherited, EvidenceRedactor) else EvidenceRedactor())
+
+    def _refresh_policy(self) -> None:
+        """An additional export policy cannot weaken current storage evidence."""
+        inherited = getattr(self.metrics_storage, "evidence_redactor", None)
+        if isinstance(inherited, EvidenceRedactor) and inherited is not self.evidence_redactor:
+            self.evidence_redactor.register_policy(inherited)
 
     def _get_filtered_metrics(self: MetricsExporter, **filters: Any) -> list[dict[str, Any]]:
         """Retrieve filtered metrics from storage."""
-        return self.metrics_storage.get_metrics(**_build_storage_kwargs(filters))
+        self._refresh_policy()
+        self.evidence_redactor.register_config(filters)
+        with _project_os_errors(self.evidence_redactor, self._refresh_policy):
+            rows = self.metrics_storage.get_metrics(**_build_storage_kwargs(filters))
+        self._refresh_policy()
+        return project_metrics(rows, self.evidence_redactor)
 
     def export_to_json(self: MetricsExporter, filepath: str | Path, **filters: Any) -> None:
         """Export metrics to JSON file.
@@ -316,20 +352,20 @@ class MetricsExporter:
         """
         metrics = self._get_filtered_metrics(**filters)
         path = Path(filepath)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "metrics": metrics,
-                    "count": len(metrics),
-                    "exported_at": datetime.now(tz=UTC).isoformat(),
-                    "filters": filters,
-                },
-                f,
-                indent=2,
-                default=str,
-            )
+        with _project_os_errors(self.evidence_redactor, self._refresh_policy):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "metrics": metrics,
+                        "count": len(metrics),
+                        "exported_at": datetime.now(tz=UTC).isoformat(),
+                        "filters": self.evidence_redactor.redact(filters, schema=dict.fromkeys(_STORAGE_FILTER_KEYS)),
+                    },
+                    f,
+                    indent=2,
+                    default=str,
+                )
 
     def export_to_csv(self: MetricsExporter, filepath: str | Path, **filters: Any) -> None:
         """Export metrics to CSV file.
@@ -344,9 +380,9 @@ class MetricsExporter:
         """
         metrics = self._get_filtered_metrics(**filters)
         path = Path(filepath)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        _write_metrics_csv(path, metrics)
+        with _project_os_errors(self.evidence_redactor, self._refresh_policy):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _write_metrics_csv(path, metrics)
 
     def export_to_prometheus(self: MetricsExporter, endpoint: str, **filters: Any) -> None:
         """Export metrics to Prometheus endpoint.
@@ -377,9 +413,11 @@ class MetricsExporter:
             )
             resp.raise_for_status()
         except _requests.exceptions.RequestException as e:
-            logger.warning("Failed to export metrics to Prometheus: %s", e)
-            msg = f"Failed to connect to Prometheus endpoint: {e}"
-            raise ConnectionError(msg) from e
+            self._refresh_policy()
+            detail = self.evidence_redactor.text(str(e))
+            logger.warning("Failed to export metrics to Prometheus: %s", detail)
+            msg = f"Failed to connect to Prometheus endpoint: {detail}"
+            raise ConnectionError(msg) from None
 
     def export_summary(self: MetricsExporter, **filters: Any) -> dict[str, Any]:
         """Export summary statistics.
@@ -392,7 +430,8 @@ class MetricsExporter:
             Dictionary containing summary statistics.
         """
         metrics = self._get_filtered_metrics(**filters)
-        return SummaryCalculator.calculate(metrics, filters)
+        return SummaryCalculator.calculate(metrics, self.evidence_redactor.redact(
+            filters, schema=dict.fromkeys(_STORAGE_FILTER_KEYS)))
 
     def get_available_formats(self: MetricsExporter) -> list[str]:
         """Get list of available export formats.

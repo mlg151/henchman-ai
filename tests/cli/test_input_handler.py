@@ -60,6 +60,9 @@ class TestInputHandler:
                     bottom_toolbar=bottom_toolbar,
                     keybindings=None,
                     completer=mock_completer,
+                    evidence_redactor=None,
+                    keyboard_mode="standard",
+                    editor_action=None,
                 )
 
                 assert handler.prompt_session == mock_session

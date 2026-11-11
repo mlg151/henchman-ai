@@ -12,6 +12,7 @@ from henchman.agents.orchestrator import Orchestrator
 from henchman.agents.orchestrator_types import AgentLoopParams, DelegationParams
 from henchman.config.schema import Settings
 from henchman.core.events import EventType
+from henchman.core.run_accounting import RunInvocation
 from henchman.providers.base import (
     FinishReason,
     Message,
@@ -62,7 +63,7 @@ def delegate(target: str, call_id: str) -> StreamChunk:
 
 
 def orchestrator(provider: ModelProvider, *, retries: int = 0) -> Orchestrator:
-    settings = Settings()
+    settings = Settings(agents={"allow_delegation": True})
     settings.agents.max_delegation_retries = retries
     for role in ("tech_lead", "explorer"):
         settings.agents.agents[role] = AgentConfig(
@@ -173,6 +174,20 @@ async def test_cancelled_nested_run_releases_parent_and_child_for_reuse() -> Non
         await task
     validate_message_sequence(orch.tech_lead.messages)
     validate_message_sequence(explorer.messages)
+    from henchman.core.operation_recovery import OperationRecoveryError
+
+    # Pool ownership is released, while recovery still requires the user to
+    # acknowledge a dispatched delegation whose final result was interrupted.
+    with pytest.raises(OperationRecoveryError, match="unresolved_operation"):
+        _ = [event async for event in orch.run("Unacknowledged retry")]
+    assert len(parent.requests) == len(child.requests) == 1
+    assert orch.operation_runtime is not None
+    for record in orch.operation_runtime.report().records:
+        if record.state == "outcome_unknown":
+            orch.operation_runtime.resolve_user(
+                record.operation_id, record.revision, decision="abandon",
+                note="User abandons interrupted delegation after the child was joined",
+            )
     parent.steps = [delegate("explorer", "reused"), response()]
     events = [event async for event in orch.run("Retry after cancellation")]
     result = next(event for event in events if (
@@ -311,13 +326,16 @@ async def test_public_first_yield_reserves_target_against_direct_delegation() ->
         await stream.aclose()
 
 
-async def test_public_run_rejects_active_lower_level_loop_before_preparation() -> None:
+@pytest.mark.parametrize("role", ["tech_lead", "explorer"])
+async def test_public_run_rejects_active_lower_level_loop_before_preparation(role: str) -> None:
     provider = ScriptedProvider(None)
     orch = orchestrator(provider)
 
+    agent = orch.pool.get_agent(role)
+
     async def consume() -> None:
         async for _event in orch.execution_controller.run_agent_loop(
-            AgentLoopParams(agent=orch.tech_lead, input_text="Active task")
+            AgentLoopParams(agent=agent, input_text="Active task")
         ):
             pass
 
@@ -326,14 +344,23 @@ async def test_public_run_rejects_active_lower_level_loop_before_preparation() -
     ledger = orch.ledger
     metrics = metrics_state(orch)
     status = orch.last_completion_status
+    invocation = RunInvocation()
+    rejected = (
+        orch.run("REJECTED", invocation=invocation) if role == "tech_lead"
+        else orch.run_direct(role, "REJECTED", invocation=invocation)
+    )
     try:
         with pytest.raises(ValueError, match="already active"):
-            async for _event in orch.run("REJECTED"):
+            async for _event in rejected:
                 pass
         assert orch.ledger is ledger
         assert orch.delegation_runner.ledger is ledger
         assert metrics_state(orch) == metrics
         assert orch.last_completion_status is status
+        assert not invocation.claimed
+        assert invocation.budget_scope is None
+        assert not orch.subagents._closed
+        assert len(provider.requests) == 1
     finally:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -347,3 +374,82 @@ async def test_public_admission_released_when_direct_resolution_raises() -> None
             pass
     events = [event async for event in orch.run("Valid run")]
     assert any(event.type == EventType.FINISHED for event in events)
+
+
+@pytest.mark.parametrize("role,cached", [("tech_lead", True), ("explorer", True), ("explorer", False)])
+async def test_public_setup_holds_target_claim_across_await_but_allows_other_agents(monkeypatch, role, cached):
+    provider = ScriptedProvider(response(), response())
+    orch = orchestrator(provider)
+    if cached:
+        orch.pool.get_agent(role)
+    else:
+        assert role not in orch.pool._agents
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def gated_setup():
+        entered.set()
+        await release.wait()
+
+    monkeypatch.setattr(orch.subagents, "prepare_for_run", gated_setup)
+
+    async def consume_public():
+        stream = orch.run("Public task") if role == "tech_lead" else orch.run_direct(role, "Public task")
+        return [event async for event in stream]
+
+    public = asyncio.create_task(consume_public())
+    await asyncio.wait_for(entered.wait(), timeout=3)
+    target = orch.pool.get_agent(role)
+    before = deepcopy(target.messages)
+    intruder = orch.execution_controller.run_agent_loop(AgentLoopParams(agent=target, input_text="Intruder"))
+    try:
+        with pytest.raises(ValueError, match="already active"):
+            await anext(intruder)
+        assert target.messages == before
+        assert not provider.requests
+        other_role = "explorer" if role == "tech_lead" else "tech_lead"
+        other = orch.pool.get_agent(other_role)
+        events = [event async for event in orch.execution_controller.run_agent_loop(
+            AgentLoopParams(agent=other, input_text="Independent task")
+        )]
+        assert any(event.type == EventType.FINISHED for event in events)
+        assert target.messages == before
+        release.set()
+        events = await asyncio.wait_for(public, timeout=3)
+        assert any(event.type == EventType.AGENT_COMPLETED for event in events)
+        assert len(provider.requests) == 2
+        assert any(message.content == "Public task" for message in target.messages)
+    finally:
+        await intruder.aclose()
+        release.set()
+        if not public.done():
+            public.cancel()
+        await asyncio.gather(public, return_exceptions=True)
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+async def test_failed_public_setup_releases_reserved_target(monkeypatch, cancelled):
+    orch = orchestrator(ScriptedProvider(response()))
+    entered = asyncio.Event()
+    original = orch.subagents.prepare_for_run
+
+    async def fail_setup():
+        entered.set()
+        if cancelled:
+            await asyncio.Event().wait()
+        raise RuntimeError("setup failed")
+
+    monkeypatch.setattr(orch.subagents, "prepare_for_run", fail_setup)
+
+    async def consume():
+        return [event async for event in orch.run("Interrupted setup")]
+
+    pending = asyncio.create_task(consume())
+    await asyncio.wait_for(entered.wait(), timeout=3)
+    if cancelled:
+        pending.cancel()
+    with pytest.raises(asyncio.CancelledError if cancelled else RuntimeError):
+        await pending
+    monkeypatch.setattr(orch.subagents, "prepare_for_run", original)
+    events = [event async for event in orch.run("Fresh task")]
+    assert any(event.type == EventType.FINISHED for event in events)
+    assert not orch.pool._execution_claims

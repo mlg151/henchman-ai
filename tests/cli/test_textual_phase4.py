@@ -8,6 +8,7 @@ from henchman.cli.textual_app import (
     HenchmanTextualApp,
     TextualConfig,
 )
+from henchman.config.schema import Settings
 
 
 class TestTextualPhase4:
@@ -23,7 +24,7 @@ class TestTextualPhase4:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings

@@ -6,7 +6,9 @@
   "properties": {
     "name": { "type": "string" },
     "description": { "type": "string" },
-    "input_schema": { "type": "object" }
+    "input_schema": { "type": "object" },
+    "output_schema": { "type": ["object", "null"] },
+    "annotations": { "type": "object" }
   },
   "additionalProperties": false
 }

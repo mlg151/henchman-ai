@@ -15,6 +15,8 @@ from henchman.core.agent import Agent
 from henchman.core.events import EventType
 from henchman.core.session import SessionManager, SessionMessage
 from henchman.providers.base import Message, ToolCall
+from henchman.providers.continuation import ContinuationEnvelope
+from henchman.providers.deepseek import DeepSeekProvider
 from henchman.providers.openai_compat import OpenAICompatibleProvider
 from tests.providers.stream_helpers import SDKResponse
 
@@ -26,7 +28,33 @@ async def test_resume_replays_reasoning_to_next_request_without_displaying_it(
     lookup: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    await _assert_resumed_reasoning(tmp_path, lookup, monkeypatch, qualified=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lookup", ["tag", "id"])
+async def test_resume_retains_generic_reasoning_without_implicit_wire_replay(
+    tmp_path: Path,
+    lookup: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _assert_resumed_reasoning(tmp_path, lookup, monkeypatch, qualified=False)
+
+
+async def _assert_resumed_reasoning(
+    tmp_path: Path,
+    lookup: str,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    qualified: bool,
+) -> None:
     hidden = "PRIVATE saved continuation reasoning"
+    provider = (
+        DeepSeekProvider(api_key="test", base_url="https://test.invalid/v1", model="test-model")
+        if qualified
+        else OpenAICompatibleProvider("test", "https://test.invalid/v1", "test-model")
+    )
+    continuation = ContinuationEnvelope.create(provider, hidden).to_dict() if qualified else None
     manager = SessionManager(data_dir=tmp_path / ".henchman" / "sessions")
     session = manager.create_session("project")
     session.tag = "saved-work"
@@ -36,12 +64,12 @@ async def test_resume_replays_reasoning_to_next_request_without_displaying_it(
             role="assistant",
             content="Inspecting",
             reasoning_content=hidden,
+            continuation=continuation,
             tool_calls=[{"id": "read-1", "name": "read_file", "arguments": {"path": "helper.py"}}],
         ),
         SessionMessage(role="tool", content="Existing helper found", tool_call_id="read-1"),
     ]
     manager.save(session)
-    provider = OpenAICompatibleProvider("test", "https://test.invalid/v1", "test-model")
 
     async def stream() -> AsyncGenerator[ChatCompletionChunk]:
         yield ChatCompletionChunk.model_validate(
@@ -77,11 +105,17 @@ async def test_resume_replays_reasoning_to_next_request_without_displaying_it(
         await ChatCommand().execute(ctx)
         assert manager.current is not session  # Restore the persisted copy, not a live object.
         assert manager.current is not None and manager.current.id == session.id
+        assert manager.current.messages[1].reasoning_content == hidden
+        assert manager.current.messages[1].continuation == continuation
         events = [event async for event in agent.continue_with_tool_results()]
         assert not any(event.type == EventType.ERROR for event in events)
         request.assert_awaited_once()
         sent = request.call_args.kwargs["messages"]
-        assert sent[2]["reasoning_content"] == hidden
+        if qualified:
+            assert sent[2]["reasoning_content"] == hidden
+        else:
+            assert "reasoning_content" not in sent[2]
+            assert "reasoning_details" not in sent[2]
         assert agent.messages[:4] == [
             Message(role="system", content="Current instructions"),
             Message(role="user", content="Inspect the existing helper"),
@@ -89,6 +123,7 @@ async def test_resume_replays_reasoning_to_next_request_without_displaying_it(
                 role="assistant",
                 content="Inspecting",
                 reasoning_content=hidden,
+                continuation=continuation,
                 tool_calls=[ToolCall("read-1", "read_file", {"path": "helper.py"})],
             ),
             Message(role="tool", content="Existing helper found", tool_call_id="read-1"),

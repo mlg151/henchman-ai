@@ -27,12 +27,23 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+from henchman.providers.continuation import (
+    ContinuationAccumulator,
+    ContinuationEnvelope,
+    ProviderContinuationError,
+    request_continuation_binding,
+    validate_continuations,
+)
 from henchman.providers.request_budget import (
     OutputBudget,
     estimate_serialized_input,
     validate_output_tokens,
 )
+from henchman.providers.runtime_budget import budget_attempt, prepare_budget_operation
+from henchman.providers.schema_projections import project_tool_parameters
+from henchman.providers.usage import UsageReport, token_count, usage_field
 from henchman.providers.utils import parse_finish_reason, parse_tool_arguments, validate_messages
+from henchman.utils.exception_evidence import exception_text
 
 __all__ = ["OpenAICompatibleProvider"]
 
@@ -50,14 +61,14 @@ class ProviderConfig:
     default_model: str
 
 
-def _format_tool(tool: ToolDeclaration) -> dict[str, Any]:
+def _format_tool(tool: ToolDeclaration, provider: str = "openai_compat") -> dict[str, Any]:
     """Format a tool declaration for the OpenAI API."""
     return {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters,
+            "parameters": project_tool_parameters(tool.parameters, provider),
         },
     }
 
@@ -87,14 +98,21 @@ def _format_tool_call_for_message(tc: ToolCall) -> dict[str, Any]:
 
 def _format_message(message: Message) -> dict[str, Any]:
     """Format a message for the OpenAI API."""
+    from henchman.utils.tool_results import tool_message_content
+
     result: dict[str, Any] = {
         "role": message.role,
-        "content": message.content,
+        "content": tool_message_content(message.content, message.tool_result)
+        if message.role == "tool" and message.tool_result is not None else message.content,
     }
-    if message.reasoning_content:
-        result["reasoning_content"] = message.reasoning_content
-    if message.reasoning_details:
-        result["reasoning_details"] = message.reasoning_details
+    if message.reasoning_details is not None:
+        raise ProviderContinuationError("unqualified_legacy_reasoning_details")
+    if message.continuation is not None:
+        envelope = ContinuationEnvelope.from_dict(message.continuation)
+        field = {"openrouter.reasoning_details.v1": "reasoning_details", "deepseek.reasoning_content.v1": "reasoning_content"}.get(envelope.profile)
+        if field is None:
+            raise ProviderContinuationError("incompatible_continuation")
+        result[field] = envelope.payload()
     if message.tool_calls:
         result["tool_calls"] = [_format_tool_call_for_message(tc) for tc in message.tool_calls]
     if message.tool_call_id:
@@ -149,13 +167,24 @@ def _extract_usage_from_chunk(chunk: Any) -> dict[str, int] | None:
     Returns:
         Usage dictionary or None if not available.
     """
-    if hasattr(chunk, "usage") and chunk.usage:
-        return {
-            "prompt_tokens": chunk.usage.prompt_tokens,
-            "completion_tokens": chunk.usage.completion_tokens,
-            "total_tokens": chunk.usage.total_tokens,
-        }
-    return None
+    usage = usage_field(chunk, "usage")
+    if usage is None:
+        return None
+    input_details = usage_field(usage, "prompt_tokens_details")
+    output_details = usage_field(usage, "completion_tokens_details")
+    cached = token_count(input_details, "cached_tokens")
+    if cached is None:
+        cached = token_count(usage, "prompt_cache_hit_tokens")
+    report = UsageReport(
+        prompt_tokens=token_count(usage, "prompt_tokens"),
+        completion_tokens=token_count(usage, "completion_tokens"),
+        total_tokens=token_count(usage, "total_tokens"),
+        cached_tokens=cached,
+        cache_creation_tokens=token_count(input_details, "cache_write_tokens"),
+        reasoning_tokens=token_count(output_details, "reasoning_tokens"),
+        source="reported",
+    )
+    return report.to_counts() or None
 
 
 def _extract_reasoning_text(delta: Any) -> str | None:
@@ -169,6 +198,8 @@ def _extract_reasoning_text(delta: Any) -> str | None:
 
 class OpenAICompatibleProvider(ModelProvider):
     """Base provider for OpenAI-compatible APIs."""
+
+    supports_run_budget = True
 
     def __init__(
         self: OpenAICompatibleProvider,
@@ -255,7 +286,7 @@ class OpenAICompatibleProvider(ModelProvider):
         messages = self._repair_message_sequence_if_needed(messages)
         payload: dict[str, Any] = {"messages": [_format_message(message) for message in messages]}
         if tools:
-            payload["tools"] = [_format_tool(tool) for tool in tools]
+            payload["tools"] = [self._format_tool(tool) for tool in tools]
         for name in ("response_format", "tool_choice"):
             if name in options:
                 payload[name] = options[name]
@@ -276,7 +307,7 @@ class OpenAICompatibleProvider(ModelProvider):
         tool: ToolDeclaration,
     ) -> dict[str, Any]:
         """Format a tool declaration for the OpenAI API."""
-        return _format_tool(tool)
+        return _format_tool(tool, self.name)
 
     def _format_message(
         self: OpenAICompatibleProvider,
@@ -323,25 +354,47 @@ class OpenAICompatibleProvider(ModelProvider):
             len(messages),
         )
 
+        options = deepcopy({**self.request_defaults, **kwargs})
+        effective_model = (options.get("extra_body") or {}).get("model", options.get("model", self.default_model))
+        validate_continuations(messages, self, model=effective_model)
+        if any(message.continuation is not None for message in messages) and "messages" in options:
+            raise ProviderContinuationError("unverifiable_continuation_request")
         messages = self._repair_message_sequence_if_needed(messages)
-        params = self._build_request_params(messages, tools, kwargs)
-        response = await self._make_api_request(params)
+        params = self._build_request_params(messages, tools, options)
+        binding = request_continuation_binding(self, params)
+        validate_continuations(messages, self, model=effective_model, request_binding=binding)
+        operation = prepare_budget_operation(
+            self, params, output_fields=("max_tokens", "max_completion_tokens"),
+        )
+        from henchman.core.failure_evidence import failure_evidence_redactor
 
-        primary_error: BaseException | None = None
-        try:
-            async with aclosing(self._process_stream_response(response)) as chunks:
-                async for chunk in chunks:
-                    yield chunk
-        except BaseException as exc:
-            primary_error = exc
-            raise
-        finally:
+        evidence = failure_evidence_redactor(self)
+        with budget_attempt(operation) as attempt:
+            if attempt is not None:
+                attempt.start()
+            response = (
+                await self._make_api_request(params, accounted=True)
+                if operation is not None else await self._make_api_request(params)
+            )
+            primary_error: BaseException | None = None
             try:
-                await response.close()
-            except Exception:
-                if primary_error is None:
-                    raise
-                logger.exception("Failed to close provider stream after an error")
+                async with aclosing(self._process_stream_response(response, binding=binding)) as chunks:
+                    async for chunk in chunks:
+                        if attempt is not None:
+                            attempt.observe(chunk)
+                        yield chunk
+            except BaseException as exc:
+                primary_error = exc
+                raise
+            finally:
+                try:
+                    await response.close()
+                except Exception as error:
+                    if primary_error is None:
+                        raise
+                    logger.error("Failed to close provider stream after an error: %s", exception_text(
+                        error, failure_evidence_redactor(self, redactor=evidence), include_traceback=True,
+                    ))
 
     def _repair_message_sequence_if_needed(
         self: OpenAICompatibleProvider,
@@ -385,17 +438,22 @@ class OpenAICompatibleProvider(ModelProvider):
             "model": options.pop("model", self.default_model),
             "messages": [_format_message(m) for m in messages],
             "stream": True,
+            "stream_options": {"include_usage": True},
             **options,
         }
+        if params["stream_options"] is None:
+            # An explicit null opts out for servers without this optional field.
+            params.pop("stream_options")
 
         if tools:
-            params["tools"] = [_format_tool(t) for t in tools]
+            params["tools"] = [self._format_tool(t) for t in tools]
 
         return params
 
     async def _make_api_request(
         self: OpenAICompatibleProvider,
         params: dict[str, Any],
+        *, accounted: bool = False,
     ) -> Any:
         """Make the API request with error handling for context too large errors.
 
@@ -409,8 +467,9 @@ class OpenAICompatibleProvider(ModelProvider):
             ContextTooLargeError: If the request is too large (413 error).
             APIStatusError: For other API errors.
         """
+        client = self._client.with_options(max_retries=0) if accounted else self._client
         try:
-            return await self._client.chat.completions.create(**params)
+            return await client.chat.completions.create(**params)
         except APIStatusError as e:
             if e.status_code == _HTTP_REQUEST_TOO_LARGE:
                 msg = (
@@ -423,6 +482,7 @@ class OpenAICompatibleProvider(ModelProvider):
     async def _process_stream_response(
         self: OpenAICompatibleProvider,
         response: Any,
+        *, binding: dict[str, str] | None = None,
     ) -> AsyncGenerator[StreamChunk]:
         """Process the streaming response and yield StreamChunk objects.
 
@@ -433,42 +493,117 @@ class OpenAICompatibleProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         pending_tool_calls: dict[int, dict[str, Any]] = {}
+        usage_counts: dict[str, int] = {}
+        details: list[dict[str, Any]] = []
+        reasoning = ""
+        reasoning_present = False
+        reasoning_visible = False
+        held_finish: StreamChunk | None = None
+        marked_incomplete = False
+        opaque_observed = False
+        accumulator = ContinuationAccumulator()
 
-        async for chunk in response:
-            error = getattr(chunk, "error", None)
-            if isinstance(error, dict) and error:
-                raise RuntimeError("Provider stream reported an error")
-            if not chunk.choices:
+        try:
+            async for chunk in response:
+                error = getattr(chunk, "error", None)
+                if isinstance(error, dict) and error:
+                    raise RuntimeError("Provider stream reported an error")
                 usage = _extract_usage_from_chunk(chunk)
                 if usage is not None:
-                    yield StreamChunk(usage=usage)
-                continue
+                    usage_counts.update(usage)
+                    if "total_tokens" not in usage and {"prompt_tokens", "completion_tokens"} <= usage_counts.keys():
+                        usage_counts["total_tokens"] = usage_counts["prompt_tokens"] + usage_counts["completion_tokens"]
+                    usage = dict(usage_counts)
+                if not chunk.choices:
+                    if usage is not None:
+                        yield StreamChunk(usage=usage)
+                    continue
 
-            choice = chunk.choices[0]
-            if choice.finish_reason == "error":
-                raise RuntimeError("Provider stream reported an error")
-            delta = choice.delta
-            content = getattr(delta, "content", None)
-            thinking = _extract_reasoning_text(delta)
-            tool_calls = None
+                choice = chunk.choices[0]
+                if choice.finish_reason == "error":
+                    raise RuntimeError("Provider stream reported an error")
+                delta = choice.delta
+                content = getattr(delta, "content", None)
+                thinking = _extract_reasoning_text(delta)
+                reasoning_visible = reasoning_visible or bool(thinking)
+                received_details = vars(delta).get("reasoning_details")
+                extra_fields = getattr(delta, "model_extra", None)
+                if isinstance(extra_fields, dict):
+                    received_details = extra_fields.get("reasoning_details", received_details)
+                if held_finish is not None and (received_details is not None or thinking or content or getattr(delta, "tool_calls", None)):
+                    raise ProviderContinuationError("continuation_after_finish", continuation=ContinuationEnvelope.unavailable(binding).to_dict() if binding else None)
+                if received_details is not None:
+                    opaque_observed = True
+                    if self.name != "openrouter" or binding is None or not isinstance(received_details, list):
+                        raise ProviderContinuationError("unsupported_continuation_profile")
+                    accumulator.add(received_details)
+                    details.extend(deepcopy(received_details))
+                if self.name == "deepseek" and isinstance(getattr(delta, "reasoning_content", None), str):
+                    opaque_observed = True
+                    accumulator.add(delta.reasoning_content)
+                    reasoning_present = True
+                    reasoning += delta.reasoning_content
+                if not marked_incomplete and (details or reasoning_present) and binding is not None:
+                    marked_incomplete = True
+                    yield StreamChunk(continuation=ContinuationEnvelope.unavailable(binding).to_dict())
+                tool_calls = None
 
-            if hasattr(delta, "tool_calls") and delta.tool_calls:
-                _update_tool_call_accumulator(pending_tool_calls, delta.tool_calls)
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    _update_tool_call_accumulator(pending_tool_calls, delta.tool_calls)
 
-            finish_reason = parse_finish_reason(choice.finish_reason)
+                finish_reason = parse_finish_reason(choice.finish_reason)
+                if held_finish is not None:
+                    if finish_reason is not None and finish_reason != held_finish.finish_reason:
+                        raise ProviderContinuationError("inconsistent_stream_finish")
+                    if usage is not None:
+                        yield StreamChunk(usage=usage)
+                    continue
+                if (finish_reason == FinishReason.TOOL_CALLS and self.name == "deepseek"
+                        and reasoning_visible and not reasoning_present):
+                    raise ProviderContinuationError("unqualified_reasoning_alias",
+                        continuation=ContinuationEnvelope.unavailable(binding).to_dict() if binding else None)
 
-            if finish_reason and pending_tool_calls:
-                if finish_reason == FinishReason.TOOL_CALLS:
-                    tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
-                pending_tool_calls.clear()  # prevent re-yield if API sends multiple finish chunks
+                if finish_reason and pending_tool_calls:
+                    if finish_reason == FinishReason.TOOL_CALLS:
+                        tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
+                    pending_tool_calls.clear()  # prevent re-yield if API sends multiple finish chunks
 
-            yield StreamChunk(
-                content=content,
-                tool_calls=tool_calls,
-                finish_reason=finish_reason,
-                thinking=thinking,
-                usage=_extract_usage_from_chunk(chunk),
-            )
+                continuation = None
+                if finish_reason and (details or reasoning_present):
+                    if binding is None:
+                        raise ProviderContinuationError("unverifiable_continuation_binding")
+                    continuation = ContinuationEnvelope.from_payload(binding, details if self.name == "openrouter" else reasoning).to_dict()
+                result = StreamChunk(
+                    continuation=continuation,
+                    content=content,
+                    tool_calls=tool_calls,
+                    finish_reason=finish_reason,
+                    thinking=thinking,
+                    usage=usage,
+                )
+                if finish_reason is not None:
+                    if content is not None or thinking is not None:
+                        yield StreamChunk(content=content, thinking=thinking, usage=usage)
+                        result.content = None
+                        result.thinking = None
+                    held_finish = result
+                else:
+                    yield result
+            if held_finish is not None:
+                if usage_counts:
+                    held_finish.usage = dict(usage_counts)
+                    held_finish.usage_source = "reported"
+                yield held_finish
+            elif details or reasoning_present:
+                raise ProviderContinuationError("incomplete_continuation", continuation=ContinuationEnvelope.unavailable(binding).to_dict() if binding else None)
+        except BaseException as exc:
+            if opaque_observed and binding is not None:
+                unavailable = ContinuationEnvelope.unavailable(binding).to_dict()
+                if isinstance(exc, ProviderContinuationError):
+                    exc.continuation = unavailable
+                elif isinstance(exc, Exception):
+                    raise ProviderContinuationError("incomplete_continuation", continuation=unavailable) from None
+            raise
 
     def _build_tool_calls_from_pending(
         self: OpenAICompatibleProvider,

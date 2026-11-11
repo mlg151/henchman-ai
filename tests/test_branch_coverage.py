@@ -462,7 +462,7 @@ class TestGitFileIndexerShouldIndexFalse:
 
         mock_result = MagicMock()
         # One .py file (should index) and one .txt file (should not index)
-        mock_result.stdout = "main.py\nREADME.txt\n"
+        mock_result.stdout = "main.py\0README.txt\0"
 
         with patch("subprocess.run", return_value=mock_result), patch.object(
             indexer,

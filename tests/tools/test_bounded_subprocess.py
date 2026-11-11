@@ -124,7 +124,7 @@ async def test_interruption_reaps_process(tmp_path: Path, monkeypatch, interrupt
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group cleanup")
-async def test_descendant_holding_pipes_cannot_hang_timeout(tmp_path: Path) -> None:
+async def test_descendant_holding_pipes_cannot_hang_timeout(tmp_path: Path, monkeypatch) -> None:
     heartbeat = tmp_path / "heartbeat"
     pid_file = tmp_path / "descendant.pid"
     descendant = (
@@ -132,27 +132,57 @@ async def test_descendant_holding_pipes_cannot_hang_timeout(tmp_path: Path) -> N
         "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); "
         "path = pathlib.Path(sys.argv[2]); "
+        "path.write_text(str(time.monotonic_ns())); "
+        "os.write(1, b'descendant-ready\\n'); "
         "\nwhile True:\n path.write_text(str(time.monotonic_ns()))\n time.sleep(0.01)"
     )
     code = (
         "import subprocess,sys; "
         "subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2], sys.argv[3]])"
     )
+    command = [sys.executable, "-c", code, descendant, str(pid_file), str(heartbeat)]
+    # Establish the actual inherited-pipe premise before the tested deadline.
+    # Interpreter startup speed is independent of bounded capture/cleanup.
+    process = await asyncio.create_subprocess_exec(
+        *command, cwd=tmp_path, stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        start_new_session=True,
+    )
+    admissions = []
+
+    async def admitted(*args, **kwargs):
+        assert args == tuple(command)
+        assert kwargs["cwd"] == tmp_path and kwargs["start_new_session"] is True
+        assert not admissions, "The owned fixture process must be admitted exactly once"
+        admissions.append(process)
+        return process
+
     try:
+        assert process.stdout is not None
+        assert await asyncio.wait_for(process.stdout.readline(), 10) == b"descendant-ready\n"
+        assert pid_file.exists() and heartbeat.exists()
+        async with asyncio.timeout(10):
+            while process.returncode is None:
+                await asyncio.sleep(0.01)
+        assert process.returncode == 0  # Only the descendant still holds the pipes.
+        assert not process.stdout.at_eof()
+        assert process.stderr is not None and not process.stderr.at_eof()
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", admitted)
         async with asyncio.timeout(8):
             with pytest.raises(TimeoutError):
                 await subprocess_utils.run_bounded_subprocess(
-                    [sys.executable, "-c", code, descendant, str(pid_file), str(heartbeat)],
-                    cwd=tmp_path, timeout=0.5,
+                    command, cwd=tmp_path, timeout=0.5,
                 )
+        assert admissions == [process]
         assert pid_file.exists()
         before = heartbeat.read_text()
         await asyncio.sleep(0.1)
         assert heartbeat.read_text() == before, "descendant survived interrupted cleanup"
     finally:
-        if pid_file.exists():
-            with suppress(ProcessLookupError):
-                os.kill(int(pid_file.read_text()), 9)
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, 9)
+        subprocess_utils._close_output_pipes(process)
+        await asyncio.wait_for(process.wait(), 5)
 
 
 async def test_reader_failure_also_reaps_child(tmp_path: Path, monkeypatch) -> None:

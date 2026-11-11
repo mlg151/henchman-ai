@@ -1,0 +1,137 @@
+{
+  "kind": "staged_delegation_paired_audit",
+  "report_sha256": "891ed22a791c93b86b1dddac0cf9bcbae93dbb00230e5afd2871a18c666b60cd",
+  "plan_sha256": "2ad6873979579a3769bcaf15e1751ccb1afbef6192e6435107069540c0ef59ae",
+  "counts": {
+    "direct": {
+      "accepted": 6,
+      "failed": 0,
+      "unknown": 0,
+      "not_run": 0
+    },
+    "staged": {
+      "accepted": 4,
+      "failed": 2,
+      "unknown": 0,
+      "not_run": 0
+    }
+  },
+  "rows": [
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "addition",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "addition",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "failed",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "name_normalization",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 1,
+      "arm": "staged",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "staged",
+      "status": "failed",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    },
+    {
+      "case": "age_boundary",
+      "repeat": 2,
+      "arm": "direct",
+      "status": "accepted",
+      "input_matches": true,
+      "artifact_matches": true,
+      "route_observed": true
+    }
+  ],
+  "limitations": [
+    "Local provider route only; no hosted fallback.",
+    "Serialized test transport is not production provider scheduling.",
+    "Client peak RSS covers the worker process only; it excludes formatter subprocesses, the shared model server and GPU.",
+    "Request counts are recorded; complete token usage and hardware or electricity costs are not measured.",
+    "The AST oracle is deliberately narrow and does not execute generated code.",
+    "The shared server is checked for an idle slot but is not exclusively reserved."
+  ]
+}

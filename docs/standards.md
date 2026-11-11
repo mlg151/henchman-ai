@@ -1,6 +1,6 @@
 # Standards adoption RFC
 
-**Research date:** October 14, 2026 (America/New_York). **Status:** research complete; implementation proposed. This document is the canonical RFC for [issue #3](https://github.com/mlg151/henchman-ai/issues/3). Its gap analysis describes the inspected baseline; the adoption phases below remain future implementation work. It does not claim the proposed integrations have shipped.
+**Research date:** October 14, 2026 (America/New_York). **Status:** research complete; P0/P1 implemented, later phases retain explicit gates. This document is the canonical RFC for [issue #3](https://github.com/mlg151/henchman-ai/issues/3). Its gap analysis describes the inspected baseline; the current phase status below records subsequent implementation without rewriting that historical baseline.
 
 **Repository baseline:** [main at `b2ab5e5`](https://github.com/mlg151/henchman-ai/commit/b2ab5e507cb68cc072095a9230998aef6dd45712). The original research checkout was `d60e6fb`; its additional commits only changed CI, and the inspected source, tests, docs, roadmap, and dependency files matched this main baseline. Source links below are pinned to that baseline so later implementation changes do not rewrite this research evidence.
 
@@ -67,10 +67,138 @@ OpenAI strict tools require closed objects and all properties required, with nul
 
 ## Phased implementation roadmap
 
-All items below remain **implementation work**. Each phase should ship with focused tests and nearest-reference documentation; maintain roadmap state and changelog when behavior changes.
+### Implemented compatibility foundation (v0.4.2 work)
 
-- [ ] **P0 — Compatibility baseline and dependency bounds.** Record supported protocol/SDK versions, add a tested MCP major bound, and establish offline fixtures. Harmonize the effective settings model and legacy MCP config type when extending transport settings. **Exit:** locked and fresh installations import and pass existing checks; capability reporting identifies tested support rather than installed packages.
-- [ ] **P1 — Canonical schemas and MCP client fidelity.** Introduce input/output validation and provider projection diagnostics; retain typed/structured results and metadata; cover pagination and discovery refresh. **Exit:** fixtures cover missing/null, nested definitions/references, recursion, unions, constraints, malformed arguments, scalar/array/null outputs, output-schema errors, and provider rejection paths. Tool scopes survive catalog updates.
+The runtime pins `mcp==2.3.0` and tests native stdio revisions `2024-11-05`,
+`2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28`. Independent JSON-RPC
+subprocesses exercise legacy initialization, modern discovery, tool calls,
+unsupported-version rejection, cancellation and shutdown through the actual SDK.
+The SDK handles negotiation; `McpClient.protocol_version` exposes the negotiated
+version. The exact pin qualifies private process/shutdown helpers reused by the
+bounded frame adapter. See the [SDK release](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.3.0)
+and [modern versioning](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning).
+
+Real process launch now uses a pipe instead of an in-memory stderr object.
+Diagnostics drain without shared executor workers or unbounded line buffers;
+shutdown does not wait indefinitely for descendants retaining stderr. Configured
+environment credentials are redacted from stderr and SDK malformed-stdout logs
+before output. This does not establish OS containment or complete third-party
+logging coverage. Completed [native installed-service regressions](evaluations/2026-11-08-native-service-evidence.md)
+cover the P0/P1 compatibility profiles; their aggregate-CI failure and final release
+qualification remain explicit. OAuth remains under #25. The original research
+gap table above stays pinned to its baseline.
+
+An owned Streamable HTTP adapter now supports the four revisions from 2025-03-26
+through 2026-07-28. Independent HTTP/TLS peers cover JSON/SSE, parameter/session
+headers, bounded bodies, cancellation, deadlines, policy changes and single
+dispatch. HTTPS or literal loopback HTTP is required; redirects, inherited auth,
+cookies, compression and automatic resumption are refused. OAuth uses the
+separate explicit guarded path below. See [HTTP behavior and qualification limits](mcp.md#streamable-http).
+
+Typed OAuth configuration, guarded metadata discovery and a separate versioned
+credential store now provide a foundation for the pre-registered public native
+client profile. Exact issuer/resource binding, persistent generations and
+one-use login/refresh claims have focused local tests. Explicit library flows now
+own the loopback callback, S256 exchange and persisted-endpoint refresh, including
+bounded cancellation and generation races. Authenticated transport rechecks
+authority after connection setup and before headers. Fresh REPL/Textual commands
+own explicit login/refresh/status/logout and separate connection; automatic
+activation remains refused. Local TLS and frontend fixtures do not qualify real
+accounts or native desktop handoff. See [interactive OAuth and storage limits](mcp.md#interactive-oauth-commands).
+
+Explicit resource/template/prompt catalogs and previews now share bounded
+single-dispatch requests over both transports. The raw result boundary rejects
+continuation state before legacy normalization can hide it. Descriptions and
+retrieved content remain untrusted data with detached provenance; previews never
+change conversation or instruction state. A separate explicit attachment consumes
+a session-bound preview as user data, with idle checks, save-before-append and
+untrusted compaction. See [context previews](mcp.md#resource-and-prompt-previews)
+and [attachment](mcp.md#attach-a-reviewed-context-result).
+
+### Local schema contract foundation
+
+`henchman.tools.contracts.SchemaContract` snapshots and validates the canonical
+2020-12 dialect using `jsonschema>=4.23,<5` and an explicitly non-retrieving
+`referencing` registry. Inputs are never coerced and defaults are never inserted;
+missing properties remain distinct from explicit null. Output validation supports
+objects, arrays, scalars and null. Local pointers/anchors and productive recursive
+definitions are supported; dangling references, external references, resource IDs,
+custom vocabularies and other declared dialects fail explicitly. See the
+[validator's reference API](https://python-jsonschema.readthedocs.io/en/stable/referencing/).
+
+Schemas are limited to 64 KiB of serialized JSON; values to 1 MiB, depth 64 and
+16,384 nodes. Validation has a cooperative work/deadline budget. Regex support is
+deliberately restricted to literals/classes with at most one quantified atom,
+anchored at the start when quantified; groups, alternatives and backreferences
+are rejected. `format` remains an annotation. Unsupported contracts produce
+value-free diagnostics instead of changing meaning or disclosing rejected input.
+The original schema snapshot remains separate from its validation copy.
+
+Successful schema meta-validation is reused through a process-local LRU cache
+keyed by exact canonical JSON bytes. It retains at most 64 keys of 64 KiB each
+(4 MiB of key payload, plus object overhead), including schema annotations until
+eviction or process exit. Invalid schemas are not cached. Every contract still
+gets a detached validator and resolver, and local-reference restrictions, current
+arguments, validation budgets and live authorization are checked anew. This
+cache does not retain approvals or verification results. See the
+[offline attribution profile](evaluations/2026-11-07-schema-validation-profile.md).
+
+### Provider schema projections
+
+All five adapters now use versioned client profiles in
+`providers/schema_projections.py`: native Anthropic `input_schema` and compatible
+chat `function.parameters` for DeepSeek, Ollama, OpenRouter and `openai_compat`.
+Request construction and input estimation use the same detached projection.
+Local acyclic references are expanded with independent size/depth/work limits.
+Required lists and nullable types retain their canonical meaning. The adapters
+do not turn optional fields into required nullable fields or enable strict mode;
+Chat Completions' non-strict behavior is documented in the
+[official function-calling guide](https://developers.openai.com/api/docs/guides/function-calling#strict-mode).
+
+The shared conservative subset includes objects/properties, arrays/items, types,
+enums/constants, `anyOf`, additional-property rules, numeric/string/array/object
+constraints and annotations listed in the profile module. Recursive/dynamic
+references, assertion-bearing reference siblings, conditional/unevaluated schemas,
+unknown keywords and Boolean subschemas fail before transport. Original canonical
+schemas still govern local validation. These profiles are tested offline adapter
+contracts; they do not establish support by every remote endpoint or model.
+
+### MCP catalog and result foundation
+
+The native SDK client now stages bounded paginated catalogs, validates local
+input/output contracts and preserves detached output schemas, annotations,
+content blocks, structured-content presence/null and result metadata. Explicit
+`/mcp refresh <server>` and management-tool refresh replace owned registry entries
+without expanding scoped agent allowlists; stale wrappers and confirmation grants
+are invalidated. Native fixture processes cover refresh, collisions, cancellation,
+malformed catalogs and structured errors. See [MCP bounds and compatibility](mcp.md#refresh-a-connected-catalog).
+
+SDK 2.3.0 supports the tested modern scalar/array/null output forms; legacy
+revision restrictions remain explicit. Typed results propagate through agents, events, CLI/chat,
+provider text projections and session retention/export/restore. Binary blocks are
+summarized explicitly on provider wires; active-context omission retains a visible
+digest marker. Registry publication compiles input and optional output contracts
+before exposing any implementation. Approval binds detached input/output schemas;
+schema changes while approval is pending require fresh authority. Successful
+structured output is validated against the dispatch snapshot, with absent output
+distinct from explicit null. Invalid result evidence becomes a value-free failed
+observation after dispatch and never triggers an automatic replay. Tool failures
+need not satisfy a success-output schema. The [native service receipt](evaluations/2026-11-08-native-service-evidence.md)
+records the P0/P1 fixture evidence, including the separate overall-CI failure.
+OAuth and real-account qualification remain separate #25 work.
+Explicit resource/prompt previews and attachment are available. Native stdio now bounds raw frames
+before decoding/parsing, rejects unsupported multi-round input results without
+automatic replay, and blocks dispatch when SDK telemetry cannot remain private.
+See [wire limits](mcp.md#stdio-wire-limits-and-telemetry).
+
+### Phase status and remaining gates
+
+P0/P1 have implemented contracts and focused/native fixture evidence as described
+above. Later unchecked phases retain their own implementation or qualification
+requirements. Final release artifacts and clean aggregate CI remain separate gates.
+
+- [x] **P0 — Compatibility baseline and dependency bounds.** Record supported protocol/SDK versions, add a tested MCP major bound, and establish offline fixtures. Harmonize the effective settings model and legacy MCP config type when extending transport settings. **Exit:** locked and fresh installations import and pass existing checks; capability reporting identifies tested support rather than installed packages.
+- [x] **P1 — Canonical schemas and MCP client fidelity.** Introduce input/output validation and provider projection diagnostics; retain typed/structured results and metadata; cover pagination and discovery refresh. **Exit:** fixtures cover missing/null, nested definitions/references, recursion, unions, constraints, malformed arguments, scalar/array/null outputs, output-schema errors, and provider rejection paths. Tool scopes survive catalog updates.
 - [ ] **P2 — Modern MCP transport/auth/context.** Migrate SDK with explicit legacy/current protocol tests; add Streamable HTTP, OAuth integration, resources, and prompt retrieval. Keep stdio working. **Exit:** independent test servers exercise modern and supported legacy paths, JSON/SSE, headers, auth discovery/PKCE/issuer/resource checks, interruption, cancellation, timeouts, malicious metadata, and cleanup. No blind retry of mutating calls.
 - [ ] **P3 — Opt-in telemetry and evaluation artifacts.** Add spans/context propagation, pinned GenAI mapping, OTLP export, and versioned local evaluation exports. **Exit:** in-memory exporter/collector tests verify parentage, usage accuracy, failures/cancellation, score correlation, content-off defaults, redaction, and exporter failure isolation; evaluation artifacts round-trip with their rubric and evidence.
 - [ ] **P4 — Outbound A2A pilot.** Add configured remote-agent adapter using pinned released spec/SDK and one binding; handle cards, direct messages/tasks, polling, artifacts, interrupted states, and cancellation before SSE. **Exit:** independent agent implementation plus applicable pinned [A2A TCK](https://github.com/a2aproject/a2a-tck)/[ITK](https://github.com/a2aproject/a2a-itk) coverage; negative tests for versions, extensions, task ownership, destination changes, credential leakage, terminal-state transitions, oversized content, and reconnect races.
@@ -78,7 +206,7 @@ All items below remain **implementation work**. Each phase should ship with focu
 
 **Guardrails throughout:** new project writes target `.henchman/`; legacy casing stays read-only. Preserve the `config view/get/set/unset/import/export` contract and file-based settings import/export. Protocol credentials, data access, and telemetry export do not introduce backend settings sync. Discovery/help remains derived from the [shared capability matrix](https://github.com/mlg151/henchman-ai/blob/b2ab5e507cb68cc072095a9230998aef6dd45712/src/henchman/cli/commands/discovery_capabilities.py#L1) and only wired implementations are advertised.
 
-**Deferred decisions:** exact SDK pins are selected during P0 against the test matrix; JSON-RPC versus HTTP+JSON for the initial A2A binding is selected by the pilot; benchmark-specific adapters require a named consumer. Federation, public registries, experimental transports, webhook push, and deprecated MCP features are outside the initial implementation.
+**Deferred decisions:** the MCP SDK is pinned above; JSON-RPC versus HTTP+JSON for the initial A2A binding is selected by the pilot; benchmark-specific adapters require a named consumer. Federation, public registries, experimental transports, webhook push, and deprecated MCP features are outside the initial implementation.
 
 ## Research validation and completion
 

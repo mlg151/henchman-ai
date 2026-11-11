@@ -6,6 +6,7 @@ within the Henchman-AI CLI environment.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -83,7 +84,9 @@ class TestSerenaCliIntegration:
 
     @pytest.mark.integration
     def test_real_serena_installation(self) -> None:
-        """Test that Serena is actually installed and works."""
+        """Test that Serena is actually installed and works when explicitly enabled."""
+        if os.environ.get("HENCHMAN_RUN_LIVE_SERENA") != "1":
+            pytest.skip("Set HENCHMAN_RUN_LIVE_SERENA=1 to install and test live Serena")
         try:
             # Check if uv is installed
             subprocess.run(["uv", "--version"], capture_output=True, check=True)
@@ -97,7 +100,7 @@ class TestSerenaCliIntegration:
             )
 
             # Verify command works
-            assert result.returncode == 0 or "serena" in result.stdout
+            assert result.returncode == 0, result.stderr or result.stdout
             assert "Usage:" in result.stdout or "serena" in result.stdout
 
         except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError) as e:

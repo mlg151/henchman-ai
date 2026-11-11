@@ -9,17 +9,21 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from rich.markup import escape as _escape
-
+from henchman.cli.evidence import runtime_evidence_redactor, runtime_exception_text
 from henchman.cli.stream_event_handlers import (
-    MAX_RESULT_PREVIEW_LENGTH,
     StreamState,
+    _display_tool_result,
     build_confirmation_message,
     dispatch_event,
+    display_tool_request,
+    flush_stream_evidence,
     handle_post_stream_processing,
 )
 from henchman.core.events import EventType
+from henchman.core.operation_recovery import OperationRecoveryError
+from henchman.core.run_budget import BudgetControlError
 from henchman.providers.base import ToolCall
+from henchman.providers.continuation import ProviderContinuationError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -116,10 +120,9 @@ class ToolExecutor:
     ) -> None:
         """Execute *tc*, record the result, and mark it as responded."""
         tc_id, tc_name, tc_args = tc.id, tc.name, tc.arguments
+        runtime_evidence_redactor(self.output_handler).register_config(tc_args)
         if announce_request:
-            self.output_handler.muted(
-                f"\n\\[tool] {_escape(tc_name)}({_escape(str(tc_args))})",
-            )
+            display_tool_request(self.output_handler, tc)
         result = await agent.tool_registry.execute(tc_name, tc_args)
         responded_ids.add(tc_id)
         agent.turn.record_tool_call(
@@ -128,14 +131,13 @@ class ToolExecutor:
             arguments=tc_args,
             result=result,
         )
-        agent.submit_tool_result(tc_id, result.content)
-        self.output_handler.session_manager.record_tool_result(tc_id, result.content)
+        agent.submit_tool_result(tc_id, result)
+        self.output_handler.session_manager.record_tool_result(tc_id, result)
         if result.success:
-            self.output_handler.muted(
-                f"\\[result] {_escape(result.content[:MAX_RESULT_PREVIEW_LENGTH])}...",
-            )
+            _display_tool_result(self.output_handler, result.content, True)
         else:
-            self.output_handler.error(f"\\[error] {_escape(result.error or '')}")
+            error = runtime_evidence_redactor(self.output_handler).text(result.error or "")
+            self.output_handler.error(f"[error] {error}")
 
     def _split_tools_by_confirmation_requirement(
         self: ToolExecutor,
@@ -220,14 +222,20 @@ class ToolExecutor:
             )
             raise
         finally:
-            close = getattr(event_stream, "aclose", None)
-            if close is not None:
-                try:
-                    await close()
-                except Exception:
-                    if primary_error is None and not state.interrupted:
-                        raise
-                    logger.warning("Agent stream cleanup failed after interruption", exc_info=True)
+            try:
+                flush_stream_evidence(self.output_handler, state)
+            finally:
+                close = getattr(event_stream, "aclose", None)
+                if close is not None:
+                    try:
+                        await close()
+                    except Exception as cleanup_error:
+                        if primary_error is None and not state.interrupted:
+                            raise
+                        logger.warning(
+                            "Agent stream cleanup failed after interruption: %s",
+                            runtime_exception_text(self.output_handler, cleanup_error, include_traceback=True),
+                        )
 
         await handle_post_stream_processing(
             self.output_handler,
@@ -284,6 +292,9 @@ class ToolExecutor:
         valid_tool_calls = [tc for tc in tool_calls if isinstance(tc, ToolCall)]
         if not valid_tool_calls:
             return
+        policy = runtime_evidence_redactor(self.output_handler)
+        for tool_call in valid_tool_calls:
+            policy.register_config(tool_call.arguments)
 
         announced_ids = announced_tool_call_ids or set()
         agent.turn.increment_iteration()
@@ -291,6 +302,7 @@ class ToolExecutor:
         to_parallel, to_sequential = self._split_tools_by_confirmation_requirement(
             valid_tool_calls, agent.tool_registry,
         )
+        preserve_pending = False
         try:
             if to_parallel:
                 results = await asyncio.gather(
@@ -307,13 +319,11 @@ class ToolExecutor:
                 )
                 # Log any exceptions from individual parallel tool calls
                 for tc, result in zip(to_parallel, results, strict=True):
+                    if isinstance(result, (BudgetControlError, OperationRecoveryError, ProviderContinuationError)):
+                        raise result
                     if isinstance(result, BaseException):
-                        logger.warning(
-                            "Parallel tool call %s (%s) failed: %s",
-                            tc.id,
-                            tc.name,
-                            result,
-                        )
+                        diagnostic = runtime_exception_text(self.output_handler, result, include_traceback=True)
+                        logger.warning("%s", policy.text(f"Parallel tool call {tc.id} ({tc.name}) failed: {diagnostic}"))
             if to_sequential:
                 await self._run_sequential_tool_calls(
                     to_sequential,
@@ -321,12 +331,18 @@ class ToolExecutor:
                     responded_ids,
                     announced_ids,
                 )
+        except (BudgetControlError, OperationRecoveryError, ProviderContinuationError):
+            # Recovery must settle these outcomes; a synthetic cancellation
+            # response would falsely describe an uncertain external effect.
+            preserve_pending = True
+            raise
         finally:
-            self._ensure_all_tool_calls_have_response(
-                valid_tool_calls,
-                responded_ids,
-                agent,
-            )
+            if not preserve_pending:
+                self._ensure_all_tool_calls_have_response(
+                    valid_tool_calls,
+                    responded_ids,
+                    agent,
+                )
 
         self.output_handler.show_turn_status(agent, self.base_tool_iterations)
         self.output_handler.print_newline()
@@ -348,5 +364,5 @@ class ToolExecutor:
         Returns:
             True if approved, False otherwise.
         """
-        msg = build_confirmation_message(request)
+        msg = build_confirmation_message(request, redactor=runtime_evidence_redactor(self.output_handler))
         return await self.output_handler.renderer.confirm_tool_execution(msg)

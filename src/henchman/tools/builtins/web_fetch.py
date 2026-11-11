@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
+import base64
 from dataclasses import dataclass
 from typing import ClassVar
 
 from aiohttp import ClientResponse
 
+from henchman.tools.access_policy import check_network_access
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.http_security import checked_http_url, public_http_session, request_origin
 from henchman.tools.security import (
     SSRFError,
     sanitize_error_message,
@@ -18,6 +22,8 @@ from henchman.tools.utils import coerce_int
 _HTTP_ERROR_THRESHOLD = 400
 _DEFAULT_MAX_LENGTH = 10_000
 _DEFAULT_TIMEOUT_SECONDS = 30
+_MAX_REDIRECTS = 10
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
 
@@ -71,15 +77,44 @@ async def _fetch_content_with_aiohttp(params: FetchParams) -> ToolResult:
         )
 
     try:
-        async with (
-            aiohttp.ClientSession() as session,
-            session.get(
-                params.url,
-                timeout=aiohttp.ClientTimeout(total=params.timeout),
-            ) as response,
-        ):
-            return await _process_fetch_response(response, params.max_length)
+        url = checked_http_url(params.url)
+        headers = {}
+        if url.user is not None:
+            if ":" in url.user:
+                raise SSRFError("URL authentication username must not contain a colon")
+            credentials = f"{url.user}:{url.password or ''}".encode("latin1")
+            headers["Authorization"] = "Basic " + base64.b64encode(credentials).decode("ascii")
+        url = url.with_user(None)
+        async with asyncio.timeout(params.timeout if params.timeout > 0 else None):
+            for redirect_count in range(_MAX_REDIRECTS + 1):
+                assert url.raw_host is not None
+                check_network_access(url.raw_host)
+                async with public_http_session(authority=url) as session, session.get(
+                    url, headers=headers, allow_redirects=False,
+                    timeout=aiohttp.ClientTimeout(total=params.timeout),
+                ) as response:
+                    check_network_access(url.raw_host)
+                    if response.status not in _REDIRECT_STATUSES or not response.headers.get("Location"):
+                        result = await _process_fetch_response(response, params.max_length)
+                        check_network_access(url.raw_host)
+                        return result
+                    if redirect_count == _MAX_REDIRECTS:
+                        raise SSRFError("HTTP redirect limit exceeded")
+                    from yarl import URL
 
+                    destination = checked_http_url(str(url.join(URL(response.headers["Location"]))))
+                    if destination.user is not None:
+                        raise SSRFError("Redirect URLs must not introduce credentials")
+                    if request_origin(destination) != request_origin(url):
+                        # Once removed, auth stays absent even if a later hop
+                        # returns to the initial origin. Cookies are disabled.
+                        headers = {}
+                    url = destination
+        raise SSRFError("HTTP redirect limit exceeded")
+
+    except SSRFError as exc:
+        return ToolResult(content=f"Security validation failed: {exc}",
+                          success=False, error="URL security validation failed")
     except TimeoutError:
         error_msg = f"Request timeout after {params.timeout} seconds"
         return ToolResult(content=error_msg, success=False, error=error_msg)

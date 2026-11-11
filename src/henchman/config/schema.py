@@ -7,9 +7,27 @@ Settings are loaded from YAML/JSON files and environment variables.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from datetime import date
+from decimal import Decimal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
+
+from henchman.utils.network_hosts import canonical_network_hosts
+
+
+class _SettingsModel(BaseModel):
+    """Reject unknown fields in typed groups while preserving declared dictionaries."""
+
+    model_config = ConfigDict(extra="forbid")
+
 
 DEFAULT_SHELL_TIMEOUT = 3600
 """Default shell command timeout in seconds."""
@@ -45,7 +63,7 @@ DEFAULT_RAG_TOP_K = 5
 """Default number of results to return from RAG search."""
 
 
-class AgentConfig(BaseModel):
+class AgentConfig(_SettingsModel):
     """Configuration for an agent in the team."""
 
     name: str = Field(..., description="Display name of the agent")
@@ -85,7 +103,7 @@ class AgentConfig(BaseModel):
         return v
 
 
-class ProviderSettings(BaseModel):
+class ProviderSettings(_SettingsModel):
     """Settings for model providers.
 
     Attributes:
@@ -110,7 +128,123 @@ class ProviderSettings(BaseModel):
     fireworks: dict[str, object] = Field(default_factory=dict)
 
 
-class ToolSettings(BaseModel):
+_MoneyAmount = Annotated[Decimal, Field(ge=0, allow_inf_nan=False)]
+
+
+class _CurrencySettings(_SettingsModel):
+    """Accounting values carry an explicit currency without implicit conversion."""
+
+    currency: str = "USD"
+
+    @field_validator("currency")
+    @classmethod
+    def currency_is_uppercase_code(cls, value: str) -> str:
+        """Require a three-letter ASCII currency code."""
+        if len(value) != 3 or not value.isascii() or not value.isalpha() or not value.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        return value
+
+
+class RunBudgetSettings(_CurrencySettings):
+    """Shared admission limits; None is unlimited and zero remains a limit."""
+
+    max_requests: int | None = Field(default=None, ge=0, strict=True)
+    max_tokens: int | None = Field(default=None, ge=0, strict=True)
+    max_seconds: float | None = Field(default=None, ge=0, allow_inf_nan=False, strict=True)
+    max_cost: _MoneyAmount | None = None
+
+    @field_serializer("max_cost")
+    def serialize_max_cost(self, value: Decimal | None) -> str | None:
+        """Keep repository inspection and YAML/JSON writes lossless."""
+        return str(value) if value is not None else None
+
+
+class ModelPriceSettings(_CurrencySettings):
+    """Explicit price snapshot for one configured provider and effective model."""
+
+    provider: str
+    model: str
+    input_per_1k: _MoneyAmount | None = None
+    output_per_1k: _MoneyAmount | None = None
+    cache_read_per_1k: _MoneyAmount | None = None
+    cache_write_per_1k: _MoneyAmount | None = None
+    source: str = "configured"
+    as_of: date | None = None
+
+    @field_validator("provider", "model", "source")
+    @classmethod
+    def nonempty_exact_value(cls, value: str) -> str:
+        """Reject blank or padded identities instead of silently changing lookup."""
+        if not value or value != value.strip():
+            raise ValueError("value must be nonempty without surrounding whitespace")
+        return value
+
+    @field_validator("as_of", mode="before")
+    @classmethod
+    def price_date_is_explicit(cls, value: object) -> object:
+        """Accept a calendar date or ISO date text, never a numeric timestamp."""
+        if value is not None and type(value) not in (date, str):
+            raise ValueError("as_of must be a calendar date or ISO date string")
+        if isinstance(value, str):
+            date.fromisoformat(value)
+        return value
+
+    @field_serializer("input_per_1k", "output_per_1k", "cache_read_per_1k", "cache_write_per_1k")
+    def serialize_rate(self, value: Decimal | None) -> str | None:
+        """Preserve decimal digits in every settings serialization mode."""
+        return str(value) if value is not None else None
+
+    @field_serializer("as_of")
+    def serialize_date(self, value: date | None) -> str | None:
+        """Keep Python-mode inspections directly JSON/YAML serializable."""
+        return value.isoformat() if value is not None else None
+
+
+class UsageSettings(_SettingsModel):
+    """Accounting configuration separate from provider SDK request options."""
+
+    limits: RunBudgetSettings = Field(default_factory=RunBudgetSettings)
+    prices: list[ModelPriceSettings] = Field(default_factory=list)
+    persistence: Literal["process", "durable"] = "process"
+
+    @model_validator(mode="after")
+    def unique_price_identities(self) -> UsageSettings:
+        """Reject ambiguous catalog entries for the same provider and model."""
+        seen: set[tuple[str, str]] = set()
+        for price in self.prices:
+            identity = (price.provider, price.model)
+            if identity in seen:
+                raise ValueError(f"Duplicate price for provider/model {identity!r}")
+            seen.add(identity)
+        return self
+
+
+class VerificationSettings(_SettingsModel):
+    """Required checks copied into newly created project verification plans."""
+
+    checks: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
+
+    @field_validator("checks")
+    @classmethod
+    def validate_checks(cls, checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Reuse the executable assertion contract without capturing baselines."""
+        if checks:
+            from henchman.advanced.acceptance_checks import parse_checks
+
+            try:
+                parse_checks(checks)
+            except ValueError:
+                raise ValueError("Invalid configured verification checks") from None
+        return checks
+
+
+class OperationSettings(_SettingsModel):
+    """Interrupted-operation recovery, independent of model usage accounting."""
+
+    persistence: Literal["process", "durable"] = "process"
+
+
+class ToolSettings(_SettingsModel):
     """Settings for tool behavior.
 
     Attributes:
@@ -122,6 +256,25 @@ class ToolSettings(BaseModel):
     auto_approve_read: bool = True
     shell_timeout: int = Field(DEFAULT_SHELL_TIMEOUT, ge=1)
     sandbox: Literal["none", "docker"] = "none"
+    filesystem_read_roots: list[str] | None = None
+    filesystem_write_roots: list[str] | None = None
+    network_access: Literal["unrestricted", "disabled"] = "unrestricted"
+    network_allowed_hosts: list[str] | None = None
+
+    @field_validator("network_allowed_hosts")
+    @classmethod
+    def validate_network_hosts(cls, hosts: list[str] | None) -> list[str] | None:
+        """Keep null/empty policy meaning and canonicalize exact host names."""
+        result = canonical_network_hosts(hosts)
+        return list(result) if result is not None else None
+
+    @field_validator("filesystem_read_roots", "filesystem_write_roots")
+    @classmethod
+    def validate_filesystem_roots(cls, roots: list[str] | None) -> list[str] | None:
+        """Keep explicit empty denial lists and reject ambiguous root entries."""
+        if roots is not None and any(not root.strip() or "\0" in root for root in roots):
+            raise ValueError("Filesystem roots must be nonempty paths without null bytes")
+        return roots
 
 
 UI_OUTPUT_STYLES: list[str] = ["verbose", "concise", "minimal", "json"]
@@ -141,19 +294,48 @@ UI_THEME_NAMES: list[str] = [
 ]
 """Valid theme names for the UI."""
 
+UI_OUTPUT_MODES: list[str] = ["rich", "plain", "quiet"]
+"""Valid output modes for the UI (rich rendering, plain text, quiet status lines)."""
 
-class UISettings(BaseModel):
+UI_DETAIL_DENSITIES: list[str] = ["compact", "normal", "detailed"]
+"""Valid detail density levels for the UI."""
+
+UI_KEYBOARD_MODES: list[str] = ["standard", "vim"]
+"""Valid keyboard behavior modes for the UI."""
+
+
+class LayoutSettings(_SettingsModel):
+    """Optional UI layout controls.
+
+    Attributes:
+        compact_tables: Render denser tables and lists where supported.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    compact_tables: bool = False
+
+
+class UISettings(_SettingsModel):
     """Settings for terminal UI.
 
     Attributes:
         theme: UI color theme name.
         show_line_numbers: Whether to show line numbers in file output.
         mcp_logging: Whether to show MCP connection/logging messages in terminal.
-        output_style: Output verbosity style (verbose, concise, minimal).
+        output_style: Output verbosity style (verbose, concise, minimal, json).
         accessible_mode: Whether to enable accessibility mode.
         keybindings: Custom keybinding mappings.
         style_overrides: Custom style overrides.
+        output_mode: Rendering mode (rich, plain, quiet).
+        reduced_motion: Suppress non-essential animation and redraws.
+        detail_density: Density of presented information (compact, normal, detailed).
+        keyboard_mode: Keyboard behavior (standard, vim).
+        mouse_capture: Capture mouse events in the TUI; disable for native scrolling.
+        layout: Optional layout controls.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     theme: str = "dark"
     show_line_numbers: bool = True
@@ -167,6 +349,12 @@ class UISettings(BaseModel):
         },
     )
     style_overrides: dict[str, str] = Field(default_factory=dict)
+    output_mode: str = "rich"
+    reduced_motion: bool = False
+    detail_density: str = "normal"
+    keyboard_mode: str = "standard"
+    mouse_capture: bool = True
+    layout: LayoutSettings = Field(default_factory=LayoutSettings)
 
     @field_validator("theme")
     @classmethod
@@ -184,6 +372,48 @@ class UISettings(BaseModel):
         """
         if v not in UI_THEME_NAMES:
             raise ValueError(f"Unsupported theme '{v}'")
+        return v
+
+    @field_validator("output_style")
+    @classmethod
+    def output_style_must_be_known(cls, v: str) -> str:
+        """Reject unknown output styles.
+
+        Args:
+            v: The output style.
+
+        Returns:
+            The validated output style.
+
+        Raises:
+            ValueError: If the output style is not in the known list or is blank.
+        """
+        if v not in UI_OUTPUT_STYLES:
+            raise ValueError(f"Unsupported output style '{v}'")
+        return v
+
+    @field_validator("keyboard_mode")
+    @classmethod
+    def keyboard_mode_must_be_known(cls, v: str) -> str:
+        """Reject unsupported keyboard modes."""
+        if v not in UI_KEYBOARD_MODES:
+            raise ValueError(f"Unsupported keyboard mode '{v}'")
+        return v
+
+    @field_validator("detail_density")
+    @classmethod
+    def detail_density_must_be_known(cls, v: str) -> str:
+        """Reject unsupported detail density levels."""
+        if v not in UI_DETAIL_DENSITIES:
+            raise ValueError(f"Unsupported detail density '{v}'")
+        return v
+
+    @field_validator("output_mode")
+    @classmethod
+    def output_mode_must_be_known(cls, v: str) -> str:
+        """Reject unsupported output modes."""
+        if v not in UI_OUTPUT_MODES:
+            raise ValueError(f"Unsupported output mode '{v}'")
         return v
 
     @field_validator("keybindings")
@@ -206,7 +436,7 @@ class UISettings(BaseModel):
         return v
 
 
-class ContextSettings(BaseModel):
+class ContextSettings(_SettingsModel):
     """Settings for context management.
 
     Attributes:
@@ -228,7 +458,46 @@ class ContextSettings(BaseModel):
     adaptive_compression: bool = True
 
 
-class McpServerConfig(BaseModel):
+class McpOAuthConfig(_SettingsModel):
+    """Nonsecret authority for the pre-registered public native-client profile."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    issuer: str = Field(min_length=1, max_length=4096, strict=True)
+    client_id: str = Field(min_length=1, max_length=1024, strict=True)
+    resource: str | None = None
+    allowed_endpoint_origins: list[str] = Field(default_factory=list, max_length=16)
+
+    @field_validator("issuer")
+    @classmethod
+    def validate_issuer(cls, value: str) -> str:
+        from henchman.config.mcp import validate_oauth_url
+
+        return validate_oauth_url(value)
+
+    @field_validator("client_id")
+    @classmethod
+    def validate_client_id(cls, value: str) -> str:
+        if not value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("OAuth client identifier is invalid")
+        return value
+
+    @field_validator("resource")
+    @classmethod
+    def validate_resource(cls, value: str | None) -> str | None:
+        from henchman.config.mcp import canonical_oauth_resource
+
+        return canonical_oauth_resource(value) if value is not None else None
+
+    @field_validator("allowed_endpoint_origins")
+    @classmethod
+    def validate_origins(cls, value: list[str]) -> list[str]:
+        from henchman.config.mcp import validate_oauth_origin
+
+        return list(dict.fromkeys(validate_oauth_origin(origin) for origin in value))
+
+
+class McpServerConfig(_SettingsModel):
     """Configuration for an MCP server.
 
     Attributes:
@@ -238,14 +507,22 @@ class McpServerConfig(BaseModel):
         trusted: Whether to skip confirmation for this server's tools.
     """
 
-    command: str = Field(..., min_length=1)
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    transport: Literal["stdio", "streamable_http"] = "stdio"
+    command: str | None = Field(None, min_length=1)
+    url: str | None = None
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     trusted: bool = False
+    oauth: McpOAuthConfig | None = None
+    request_timeout_seconds: float = Field(30.0, gt=0, le=3600, strict=True)
+    negotiation_timeout_seconds: float = Field(40.0, gt=0, le=3600, strict=True)
+    catalog_timeout_seconds: float = Field(60.0, gt=0, le=3600, strict=True)
 
     @field_validator("command")
     @classmethod
-    def command_must_not_be_whitespace(cls, v: str) -> str:
+    def command_must_not_be_whitespace(cls, v: str | None) -> str | None:
         """Reject commands that are only whitespace.
 
         Args:
@@ -257,18 +534,38 @@ class McpServerConfig(BaseModel):
         Raises:
             ValueError: If the command is empty or only whitespace.
         """
-        if not v.strip():
+        if v is not None and not v.strip():
             raise ValueError("MCP server command must not be empty or whitespace")
         return v
 
+    @model_validator(mode="after")
+    def validate_transport(self) -> McpServerConfig:
+        """Keep stdio process settings separate from an explicit HTTP endpoint."""
+        from henchman.config.mcp import validate_mcp_endpoint
 
-class AgentSettings(BaseModel):
+        if self.transport == "stdio":
+            if self.oauth is not None:
+                raise ValueError("OAuth configuration is supported only for MCP Streamable HTTP")
+            if self.command is None or self.url is not None:
+                raise ValueError("MCP stdio requires command and does not accept url")
+        else:
+            if self.url is None or self.command is not None or self.args or self.env:
+                raise ValueError("MCP Streamable HTTP requires url and does not accept command/args/env")
+            validate_mcp_endpoint(self.url)
+        return self
+
+
+class AgentSettings(_SettingsModel):
     """Settings for the multi-agent system.
 
     Attributes:
         team_preset: Which preset team to use ("default").
         agents: Custom agent configurations or overrides.
         max_delegation_depth: Maximum recursive delegation depth.
+        allow_delegation: User/runtime opt-in to descendant execution, captured
+            at runtime construction; direct primary and direct roles excluded.
+        max_concurrent_delegations: Maximum executing descendants across all
+            delegation routes; zero disables descendants, not the primary.
         max_delegation_turns: Maximum tool-call turns per specialist delegation.
         shared_context_max_tokens: Max tokens for shared context between agents.
         max_delegation_retries: How many times to automatically retry a failed
@@ -278,6 +575,8 @@ class AgentSettings(BaseModel):
     team_preset: str = "default"
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     max_delegation_depth: int = Field(DEFAULT_MAX_DELEGATION_DEPTH, ge=1)
+    allow_delegation: bool = Field(False, strict=True)
+    max_concurrent_delegations: int = Field(4, ge=0, strict=True)
     max_delegation_turns: int = Field(DEFAULT_MAX_DELEGATION_TURNS, ge=1)
     shared_context_max_tokens: int = Field(DEFAULT_SHARED_CONTEXT_TOKENS, ge=1)
     max_delegation_retries: int = Field(DEFAULT_MAX_DELEGATION_RETRIES, ge=0)
@@ -299,7 +598,7 @@ class AgentSettings(BaseModel):
         }
 
 
-class RagSettings(BaseModel):
+class RagSettings(_SettingsModel):
     """Settings for RAG (Retrieval Augmented Generation).
 
     Attributes:
@@ -316,7 +615,7 @@ class RagSettings(BaseModel):
     enabled: bool = True
     chunk_size: int = Field(DEFAULT_RAG_CHUNK_SIZE, ge=1)
     chunk_overlap: int = Field(DEFAULT_RAG_CHUNK_OVERLAP, ge=0)
-    top_k: int = Field(DEFAULT_RAG_TOP_K, ge=1)
+    top_k: int = Field(DEFAULT_RAG_TOP_K, ge=1, le=20)
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     cache_dir: str | None = None
 
@@ -409,7 +708,7 @@ class RagSettings(BaseModel):
     )
 
 
-class ApiConfig(BaseModel):
+class ApiConfig(_SettingsModel):
     """API server configuration.
 
     Attributes:
@@ -436,7 +735,7 @@ class ApiConfig(BaseModel):
     )
 
 
-class DiscordSettings(BaseModel):
+class DiscordSettings(_SettingsModel):
     """Discord bot configuration.
 
     Attributes:
@@ -471,7 +770,7 @@ class DiscordSettings(BaseModel):
     )
 
 
-class SlackSettings(BaseModel):
+class SlackSettings(_SettingsModel):
     """Slack bot configuration.
 
     Attributes:
@@ -493,7 +792,7 @@ class SlackSettings(BaseModel):
     )
 
 
-class VoiceSettings(BaseModel):
+class VoiceSettings(_SettingsModel):
     """Voice integration configuration.
 
     Attributes:
@@ -511,7 +810,7 @@ class VoiceSettings(BaseModel):
     stt_command: list[str] = Field(default_factory=list, description="STT command template")
 
 
-class ChatConfig(BaseModel):
+class ChatConfig(_SettingsModel):
     """Chat integration configuration.
 
     Attributes:
@@ -523,11 +822,12 @@ class ChatConfig(BaseModel):
     slack: SlackSettings = Field(default_factory=SlackSettings)
 
 
-class Settings(BaseModel):
+class Settings(_SettingsModel):
     """Main settings model for henchman-cli.
 
     Attributes:
         providers: Provider configuration.
+        usage: Shared run limits and explicit provider/model prices.
         tools: Tool behavior configuration.
         ui: UI settings.
         context: Context management settings.
@@ -538,6 +838,9 @@ class Settings(BaseModel):
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
+    usage: UsageSettings = Field(default_factory=UsageSettings)
+    operations: OperationSettings = Field(default_factory=OperationSettings)
+    verification: VerificationSettings = Field(default_factory=VerificationSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
     ui: UISettings = Field(default_factory=UISettings)
     context: ContextSettings = Field(default_factory=ContextSettings)

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 import json
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from henchman.agents.identity import AgentIdentity
@@ -13,20 +14,33 @@ from henchman.agents.metrics_reporter import MetricsReporter
 from henchman.agents.orchestrator_components import AgentValidator
 from henchman.agents.orchestrator_execution import ExecutionController, closing_event_stream
 from henchman.agents.orchestrator_tools import ToolController
-from henchman.agents.orchestrator_types import AgentLoopParams, CompletionRequirement, LoopState
+from henchman.agents.orchestrator_types import (
+    AgentLoopParams,
+    CompletionRequirement,
+    CompletionStatus,
+    LoopState,
+)
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_budget import BudgetControlError
+from henchman.core.runtime_operations import current_operation_run
 from henchman.tools.scoped_registry import ScopedToolRegistry
 
 if TYPE_CHECKING:
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.agents.staged_delegation import StagedConversation
     from henchman.agents.subagents import SubagentNotification
+    from henchman.tools.registry import ToolRegistry
 
 
 def initialize_subagents(orchestrator: Orchestrator) -> None:
     """Bind one runtime-owned manager and its real builtin implementations."""
     from henchman.agents.subagents import BackgroundSubagentManager, current_subagent_actor
-    from henchman.tools.builtins.subagents import InvokeSubagentTool, ManageSubagentsTool
+    from henchman.tools.builtins.subagents import (
+        InvokeSubagentTool,
+        ManageSubagentsTool,
+        PublishSubagentProposalTool,
+    )
 
     conversations: dict[str, Orchestrator] = {}
 
@@ -48,6 +62,19 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             )
         parent = acting_agent()
         registry = ScopedToolRegistry(parent.tool_registry, tools, inherit_auto_approve=True)
+        snapshot = getattr(orchestrator, "instruction_snapshot", None)
+        if parent.instruction_context is not None:
+            snapshot = parent.instruction_context.snapshot
+        if snapshot is not None and snapshot.sources:
+            from henchman.core.instruction_provenance import render_delegation_appendix
+
+            prompt = f"{prompt}\n\n{render_delegation_appendix(snapshot)}"
+        if registry.is_plan_mode_active:
+            from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+
+            if PLAN_MODE_PROMPT not in prompt:
+                prompt = f"{prompt}{PLAN_MODE_PROMPT}"
+        prompt += "\n\n" + orchestrator.delegation_runner.admission.prompt_note()
         agent = Agent(
             provider=parent.provider,
             tool_registry=registry,
@@ -61,8 +88,19 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
             ),
             max_tokens=parent.max_tokens,
             context_window=parent.context_window,
+            auto_compact=parent.auto_compact,
+            intelligent_context=parent.intelligent_context,
+            importance_threshold=parent.importance_threshold,
+            cluster_similarity_threshold=parent.cluster_similarity_threshold,
+            adaptive_compression=parent.adaptive_compression,
+            summarize_dropped=parent.summarize_dropped,
+            max_protected_ratio=parent.max_protected_ratio,
             base_tool_iterations=parent.base_tool_iterations,
         )
+        if snapshot is not None:
+            from henchman.core.instruction_context import InstructionContext
+
+            InstructionContext.attach(agent, snapshot, orchestrator.pool.instruction_observer)
         facade = copy.copy(orchestrator)
         facade.tech_lead = agent
         facade.tool_registry = registry
@@ -88,14 +126,52 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         async for event in run_with_notifications(facade, params):
             yield event
 
+    def staged_factory(conversation_id: str, paths: list[str], tools: list[str],
+                       completed: Callable[[], bool]) -> StagedConversation:
+        from henchman.agents.staged_delegation import StagedConversation
+        from henchman.agents.workspace_ownership import WorkspaceBinding, WorkspaceOwnershipError
+
+        run = current_operation_run()
+        if run is None:
+            raise RuntimeError("Staged delegation requires a live operation session")
+        run._require_session()
+        admission = orchestrator.delegation_runner.admission
+        generation = admission.generation
+        parent_registry = acting_agent().tool_registry
+
+        def current_binding() -> WorkspaceBinding:
+            run._require_session()
+            admission.require(generation)
+            if current_operation_run() is not run:
+                raise WorkspaceOwnershipError("binding_changed")
+            if parent_registry._effective_access_policies or parent_registry._effective_read_confirmation:
+                raise WorkspaceOwnershipError("policy_changed")
+            return WorkspaceBinding(Path.cwd().resolve(), run.runtime.current_session, admission.generation)
+
+        def install(agent: Agent, registry: ToolRegistry) -> None:
+            agent.tool_registry = registry
+            conversations[conversation_id].tool_registry = registry
+
+        def staged_completed() -> bool:
+            facade = conversations.get(conversation_id)
+            state = getattr(facade.tech_lead, "_orchestrator_loop_state", None) if facade is not None else None
+            return (completed() and isinstance(state, LoopState) and state.response_complete
+                    and not state.failed and not state.timed_out and not state.tool_errors)
+
+        return StagedConversation(conversation_id=conversation_id, paths=paths, tools=tools,
+                                  parent_registry=parent_registry, run=run, generation=generation,
+                                  current_binding=current_binding, completed=staged_completed, install=install)
+
     manager = BackgroundSubagentManager(
         factory=factory,
         runner=runner,
         available_tools=lambda _actor: acting_agent().tool_registry.list_tools(),
         parent_id="tech_lead",
+        admission=orchestrator.delegation_runner.admission,
+        staged_factory=staged_factory,
     )
     orchestrator.subagents = manager
-    for tool in (InvokeSubagentTool(), ManageSubagentsTool()):
+    for tool in (InvokeSubagentTool(), ManageSubagentsTool(), PublishSubagentProposalTool()):
         if orchestrator.tool_registry.get(tool.name) is None:
             orchestrator.tool_registry.register(tool)
     message_tool = orchestrator.tool_registry.get("send_message")
@@ -119,7 +195,7 @@ def initialize_subagents(orchestrator: Orchestrator) -> None:
         bound_ask = copy.copy(ask_tool)
         bound_ask._subagent_manager = manager
         scoped.register(bound_ask)
-    for bound_tool in (InvokeSubagentTool(manager), ManageSubagentsTool(manager)):
+    for bound_tool in (InvokeSubagentTool(manager), ManageSubagentsTool(manager), PublishSubagentProposalTool(manager)):
         if scoped.get(bound_tool.name) is not None:
             scoped.register(bound_tool)
 
@@ -150,8 +226,18 @@ async def run_with_notifications(
                 async with closing_event_stream(
                     orchestrator.execution_controller.run_agent_loop(params)
                 ) as stream:
-                    async for event in stream:
+                    while True:
+                        with manager.accounting_guard():
+                            try:
+                                event = await anext(stream)
+                            except StopAsyncIteration:
+                                break
                         yield event
+                operation_run = current_operation_run()
+                if operation_run is not None:
+                    # A notification starts a new Agent.run list. Capture this
+                    # whole turn before it is replaced, including text-only turns.
+                    operation_run.capture_agent(params.agent)
             finally:
                 transcript.extend(params.agent.current_turn_messages)
                 state = getattr(params.agent, "_orchestrator_loop_state", None)
@@ -187,6 +273,11 @@ async def run_with_notifications(
             params.input_text = notification_text(notifications)
             params.prior_tool_rounds = aggregate.tool_round_count
             params.prior_tool_calls = aggregate.tool_call_count
+    except BudgetControlError:
+        aggregate.failed = True
+        observed_state = True
+        orchestrator.last_completion_status = CompletionStatus.FAILED
+        raise
     finally:
         params.agent.current_turn_messages = transcript
         if observed_state:

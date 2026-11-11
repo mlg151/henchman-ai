@@ -10,6 +10,8 @@ from click.testing import CliRunner
 
 from henchman.cli.app import cli
 from henchman.core.session import SessionManager, SessionMessage
+from henchman.core.session_context import SessionContextService
+from henchman.core.session_memory import SessionMemoryService
 
 
 def _configure_workspace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
@@ -64,6 +66,40 @@ def test_context_command_reports_current_session_as_json(
     assert payload["session_id"] == session_id
     assert payload["turn_count"] == 2
     assert payload["tool_usage"]["calls_by_name"]["read_file"] == 1
+
+
+def test_context_command_reports_retention_policy_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The headless context surface must report the same effective retention policy as the snapshot."""
+
+    runner = CliRunner()
+    project_root = _configure_workspace(monkeypatch, tmp_path)
+    manager, session_id = _create_saved_session(project_root)
+    service = SessionContextService(manager)
+    session = manager.load(session_id)
+    memory_service = SessionMemoryService()
+    memory_service.add_memory(session, content="Always prefer JSON output.", kind="preference")
+    memory_service.set_extraction_opt_out(session, True)
+    service.compact_session(session, preserve_turns=1)
+    manager.save(session)
+
+    result = runner.invoke(cli, ["context"])
+    result_json = runner.invoke(cli, ["context", "--format", "json"])
+
+    assert result.exit_code == 0
+    assert result_json.exit_code == 0
+    snapshot = service.build_snapshot(session).to_dict()
+    payload = json.loads(result_json.output)
+    assert payload["memory_extraction_opt_out"] is snapshot["memory_extraction_opt_out"]
+    assert payload["compacted_turn_count"] == snapshot["compacted_turn_count"]
+    assert f"Memories: {snapshot['memory_count']}" in result.output
+    assert (
+        f"Memory extraction: {'opted out' if snapshot['memory_extraction_opt_out'] else 'on'}"
+        in result.output
+    )
+    assert f"Compacted turns retained: {snapshot['compacted_turn_count']}" in result.output
 
 
 def test_context_playback_renders_recorded_events_as_json(
@@ -152,6 +188,82 @@ def test_memory_command_extracts_lists_and_deletes_session_memories(
     assert deleted.exit_code == 0
     deleted_payload = json.loads(deleted.output)
     assert deleted_payload["deleted"] is True
+
+
+def test_memory_edit_command_updates_and_reports_the_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``memory edit`` should mutate the stored record and persist it."""
+
+    runner = CliRunner()
+    project_root = _configure_workspace(monkeypatch, tmp_path)
+    _, _ = _create_saved_session(project_root)
+
+    extracted = runner.invoke(cli, ["memory", "extract", "--format", "json"])
+    memory_id = json.loads(extracted.output)["memories"][0]["id"]
+
+    edited = runner.invoke(
+        cli, ["memory", "edit", memory_id, "Edited preference.", "--format", "json"]
+    )
+    assert edited.exit_code == 0
+    edited_payload = json.loads(edited.output)
+    assert edited_payload["edited"] is True
+    assert edited_payload["memories"][0]["content"] == "Edited preference."
+
+    listed = runner.invoke(cli, ["memory", "list", "--format", "json"])
+    listed_payload = json.loads(listed.output)
+    assert listed_payload["memories"][0]["content"] == "Edited preference."
+
+
+def test_memory_clear_command_empties_the_store(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``memory clear`` should remove every stored memory and report the count."""
+
+    runner = CliRunner()
+    project_root = _configure_workspace(monkeypatch, tmp_path)
+    _, _ = _create_saved_session(project_root)
+
+    extracted = runner.invoke(cli, ["memory", "extract", "--format", "json"])
+    assert len(json.loads(extracted.output)["memories"]) >= 1
+
+    cleared = runner.invoke(cli, ["memory", "clear", "--format", "json"])
+    assert cleared.exit_code == 0
+    cleared_payload = json.loads(cleared.output)
+    assert cleared_payload["cleared"] >= 1
+
+    listed = runner.invoke(cli, ["memory", "list", "--format", "json"])
+    assert json.loads(listed.output)["memories"] == []
+
+
+def test_memory_extract_opt_out_flag_blocks_persistence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``memory extract --opt-out`` should persist nothing and keep the flag set."""
+
+    runner = CliRunner()
+    project_root = _configure_workspace(monkeypatch, tmp_path)
+    _, _ = _create_saved_session(project_root)
+
+    opted_out = runner.invoke(cli, ["memory", "extract", "--opt-out", "--format", "json"])
+    assert opted_out.exit_code == 0
+    opted_payload = json.loads(opted_out.output)
+    assert opted_payload["memories"] == []
+    assert opted_payload["opt_out"] is True
+
+    reextract = runner.invoke(cli, ["memory", "extract", "--format", "json"])
+    assert json.loads(reextract.output)["memories"] == []
+
+    reenabled = runner.invoke(
+        cli, ["memory", "extract", "--no-opt-out", "--format", "json"]
+    )
+    assert reenabled.exit_code == 0
+    reenabled_payload = json.loads(reenabled.output)
+    assert len(reenabled_payload["memories"]) >= 1
+    assert reenabled_payload["opt_out"] is False
 
 
 def test_teleport_command_branches_and_switches_current_session(

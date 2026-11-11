@@ -1,13 +1,15 @@
 """Tests for Phase 3 Textual TUI improvements."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+from textual.widgets import Tree
 
 from henchman.cli.textual_app import (
     HenchmanTextualApp,
     TextualConfig,
 )
+from henchman.config.schema import Settings
 
 
 class TestTextualPhase3:
@@ -23,7 +25,7 @@ class TestTextualPhase3:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock()
+        settings = Settings()
         settings.ui.theme = "dark"
         settings.ui.keybindings = {}
         return settings
@@ -39,20 +41,13 @@ class TestTextualPhase3:
         )
         return app
 
-    def test_context_viewer_structure(self, textual_app):
-        """Test that Context Viewer uses a Tree widget."""
-        # Verification similar to Phase 1, using mocks or inspecting compose
-        # We expect a Tree widget in the Context tab
-
-        # Manually inspect compose output or use patch
-        with (
-            patch("henchman.cli.textual_app.Tree") as mock_tree,
-            patch("henchman.cli.textual_app.TabbedContent"),
-            patch("henchman.cli.textual_app.TabPane"),
-        ):
-            list(textual_app.compose())
-            # Should verify Tree is called
-            mock_tree.assert_called()
+    async def test_context_viewer_structure(self, textual_app):
+        """The mounted Context tab contains the actual context tree."""
+        async with textual_app.run_test() as pilot:
+            await pilot.pause()
+            tree = textual_app.query_one("#context-tree", Tree)
+            assert tree.parent.id == "tab-context"
+            assert str(tree.root.label) == "Context Files"
 
     def test_status_bar_update(self, textual_app):
         """Test status bar updates with token info."""

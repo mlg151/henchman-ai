@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from henchman.agents.ledger import TaskLedger
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.run_accounting import budget_snapshot_payload
+from henchman.core.usage_summary import budget_evidence_redactor
+from henchman.providers.runtime_budget import RunBudgetScope
 
 from .orchestrator_anchoring import completion_evidence
 from .orchestrator_types import (
@@ -19,10 +23,41 @@ from .orchestrator_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 
     from henchman.agents.orchestrator import Orchestrator
+    from henchman.agents.orchestrator_types import AgentLoopParams
     from henchman.core.agent import Agent
+    from henchman.core.session_operations import OperationRun
+
+
+@dataclass
+class RunAdmission:
+    """The single existing public invocation claim and its settlement outcome."""
+
+    params: AgentLoopParams
+    operation: OperationRun
+    budget: RunBudgetScope | None
+    completed: bool = False
+
+
+async def primary_actor_events(stream: AsyncIterator[AgentEvent]) -> AsyncGenerator[AgentEvent, None]:
+    """Bind actor identity while producing/closing events, never in consumers."""
+    from henchman.agents.subagents import subagent_actor
+
+    try:
+        while True:
+            with subagent_actor("tech_lead"):
+                try:
+                    event = await anext(stream)
+                except StopAsyncIteration:
+                    return
+            yield event
+    finally:
+        with subagent_actor("tech_lead"):
+            close = getattr(stream, "aclose", None)
+            if close is not None:
+                await close()
 
 
 @contextmanager
@@ -48,6 +83,7 @@ def prepare_run(orch: Any, user_input: str) -> None:
         None: This function initializes orchestrator state but returns nothing.
     """
     orch.ledger = TaskLedger(goal=user_input)
+    budget_evidence_redactor(orch)
     orch.delegation_runner.ledger = orch.ledger
     orch.metrics.reset_for_run()
     orch.metrics.performance.task_start_time = time.time()
@@ -85,7 +121,9 @@ def finalize_run(
         AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": role_label, "scope": "run", "status": status.value,
-                  **completion_evidence(agent)},
+                  **completion_evidence(agent),
+                  **({"budget": budget_snapshot_payload(orch.last_budget_scope.ledger.snapshot(), redactor=budget_evidence_redactor(orch))}
+                     if isinstance(getattr(orch, "last_budget_scope", None), RunBudgetScope) else {})},
             source_agent="orchestrator",
         ),
     )

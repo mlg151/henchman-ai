@@ -1,0 +1,435 @@
+{
+  "schema_version": 1,
+  "source_commit": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+  "harness": "evals/ui_resource_baseline.py",
+  "harness_sha256": "051ffa1c1f9ce697988e94b6328230622e010423ffc7f17b554ed12baf6b4af3",
+  "offline": true,
+  "model_calls": 0,
+  "native_paint_qualified": false,
+  "source_tracked_files_unchanged": true,
+  "raw_evidence_directory": "/home/matthew/.cache/henchman-release-qualification/c8d67-ui-baseline-248sanr2-evidence",
+  "screening_budget": {
+    "applies_to": "Future same-hardware/Python/Textual headless rich 1000-message median of three fresh-process observations at matching dimensions",
+    "end_idle_pss_max": "reference end-idle PSS * 1.10",
+    "idle_cpu_one_core_percentage_max": "reference observed percent + 0.5 percentage points",
+    "consequence": "Investigate over-budget results; these screening limits do not establish native usability or model memory readiness."
+  },
+  "runs": [
+    {
+      "case": "80x24-40",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          3.4033203125,
+          3.52392578125,
+          3.70458984375
+        ],
+        "dimensions": [
+          80,
+          24
+        ],
+        "history_messages": 40,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 154732,
+          "Pss_kib": 140980,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 130064,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 0.11706254503224045,
+        "history_load_cpu_seconds": 0.07683205200000032,
+        "after_history": {
+          "Rss_kib": 156108,
+          "Pss_kib": 142356,
+          "Private_Clean_kib": 128,
+          "Private_Dirty_kib": 131376,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.001045331009664,
+        "idle_cpu_seconds": 0.03463120999999969,
+        "idle_cpu_one_core_percent": 0.6924794259564925,
+        "after_idle": {
+          "Rss_kib": 156116,
+          "Pss_kib": 142363,
+          "Private_Clean_kib": 128,
+          "Private_Dirty_kib": 131384,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 154368,
+        "after_unmount": {
+          "Rss_kib": 156136,
+          "Pss_kib": 142383,
+          "Private_Clean_kib": 128,
+          "Private_Dirty_kib": 131404,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "41d8b8751186a8df2631936f33f6ab48fd6033dd9e2712fc99b1270cef555a57",
+      "log_sha256": "07740620c1b6eea54868f10e6102667d969d52f064fa91b92d16065c1736cb46"
+    },
+    {
+      "case": "80x24-1000",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          3.08447265625,
+          3.419921875,
+          3.66015625
+        ],
+        "dimensions": [
+          80,
+          24
+        ],
+        "history_messages": 1000,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 150948,
+          "Pss_kib": 137075,
+          "Private_Clean_kib": 28,
+          "Private_Dirty_kib": 126216,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 2.037008869985584,
+        "history_load_cpu_seconds": 1.9966555609999999,
+        "after_history": {
+          "Rss_kib": 184660,
+          "Pss_kib": 168903,
+          "Private_Clean_kib": 68,
+          "Private_Dirty_kib": 159792,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.002266099036206,
+        "idle_cpu_seconds": 0.06112815999999999,
+        "idle_cpu_one_core_percent": 1.2220093611528913,
+        "after_idle": {
+          "Rss_kib": 184660,
+          "Pss_kib": 168884,
+          "Private_Clean_kib": 68,
+          "Private_Dirty_kib": 159792,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 183192,
+        "after_unmount": {
+          "Rss_kib": 184664,
+          "Pss_kib": 168888,
+          "Private_Clean_kib": 68,
+          "Private_Dirty_kib": 159796,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "7dcbac66aafa131d7e9e198d714907547c2775312fe26bfcb3ff39ab862b1b93",
+      "log_sha256": "303f0838ae161e5ba6100c27eb9f3d774646afc00764b2e63c58ba1ef3fcfd9a"
+    },
+    {
+      "case": "120x40-40",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          3.15185546875,
+          3.42236328125,
+          3.658203125
+        ],
+        "dimensions": [
+          120,
+          40
+        ],
+        "history_messages": 40,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 151112,
+          "Pss_kib": 135454,
+          "Private_Clean_kib": 12,
+          "Private_Dirty_kib": 126472,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 0.3230047940160148,
+        "history_load_cpu_seconds": 0.2827230110000003,
+        "after_history": {
+          "Rss_kib": 153444,
+          "Pss_kib": 137786,
+          "Private_Clean_kib": 76,
+          "Private_Dirty_kib": 128740,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.000826937961392,
+        "idle_cpu_seconds": 0.04358005699999978,
+        "idle_cpu_one_core_percent": 0.8714570118230361,
+        "after_idle": {
+          "Rss_kib": 153460,
+          "Pss_kib": 139613,
+          "Private_Clean_kib": 40,
+          "Private_Dirty_kib": 128704,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 152512,
+        "after_unmount": {
+          "Rss_kib": 153464,
+          "Pss_kib": 139617,
+          "Private_Clean_kib": 40,
+          "Private_Dirty_kib": 128708,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "df7041cec8dcc5a46f593a01d1d6a61a856a04f16269b80faa5a2868807792c0",
+      "log_sha256": "6fa104255e8d8312dd52a4e47e0c60354df3cdb32e493f8f49bd2b446b711b78"
+    },
+    {
+      "case": "120x40-1000",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          3.53564453125,
+          3.49169921875,
+          3.677734375
+        ],
+        "dimensions": [
+          120,
+          40
+        ],
+        "history_messages": 1000,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 150908,
+          "Pss_kib": 137136,
+          "Private_Clean_kib": 32,
+          "Private_Dirty_kib": 126240,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 1.976715527009219,
+        "history_load_cpu_seconds": 1.9363322459999996,
+        "after_history": {
+          "Rss_kib": 184700,
+          "Pss_kib": 170896,
+          "Private_Clean_kib": 32,
+          "Private_Dirty_kib": 159968,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.000456159003079,
+        "idle_cpu_seconds": 0.059549173999999816,
+        "idle_cpu_one_core_percent": 1.190874834344551,
+        "after_idle": {
+          "Rss_kib": 184832,
+          "Pss_kib": 169600,
+          "Private_Clean_kib": 0,
+          "Private_Dirty_kib": 160100,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 183808,
+        "after_unmount": {
+          "Rss_kib": 184836,
+          "Pss_kib": 169844,
+          "Private_Clean_kib": 0,
+          "Private_Dirty_kib": 160104,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "4901f1be2df64070b4de92ae4038d25cf8537326b128fba64dd69810b8d10499",
+      "log_sha256": "45c0c40f352057822c56798d2ef29a3d35b9f6ab65eef8cb884f441611d900ab"
+    },
+    {
+      "case": "160x50-40",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          3.84130859375,
+          3.55859375,
+          3.69775390625
+        ],
+        "dimensions": [
+          160,
+          50
+        ],
+        "history_messages": 40,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 151252,
+          "Pss_kib": 133774,
+          "Private_Clean_kib": 0,
+          "Private_Dirty_kib": 126248,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 0.25065659399842843,
+        "history_load_cpu_seconds": 0.21046720899999993,
+        "after_history": {
+          "Rss_kib": 154100,
+          "Pss_kib": 136590,
+          "Private_Clean_kib": 0,
+          "Private_Dirty_kib": 129032,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.000577484956011,
+        "idle_cpu_seconds": 0.03279439300000009,
+        "idle_cpu_one_core_percent": 0.6558121156738475,
+        "after_idle": {
+          "Rss_kib": 154112,
+          "Pss_kib": 140484,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 129748,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 153392,
+        "after_unmount": {
+          "Rss_kib": 154128,
+          "Pss_kib": 140500,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 129764,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "7ce8e9bfaf6600c2d3e2f046e918021f3e0d623c1f1ee415536e6669f46e94a3",
+      "log_sha256": "c2ced45a17c7a41ec1733bb8bb707bead9d16b6640652cdb4f1c973683e65657"
+    },
+    {
+      "case": "160x50-1000",
+      "observation": {
+        "workload_version": "UI-RESOURCE-0.1",
+        "revision": "c8d67a3b413efb5f36bb0c6c193278c328794df4",
+        "runtime_module_sha256": "27690cd118d66bba3685b7c1dddb3193734966cd3c56a2e32473cc0f6bf1453c",
+        "python": "3.12.13",
+        "textual": "8.0.0",
+        "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+        "terminal": "Textual headless driver; no emulator",
+        "cpu": "Intel(R) Xeon(R) Gold 6132 CPU @ 2.60GHz",
+        "host_memory_kib": 129111432,
+        "host_load_1_5_15": [
+          4.0869140625,
+          3.623046875,
+          3.7177734375
+        ],
+        "dimensions": [
+          160,
+          50
+        ],
+        "history_messages": 1000,
+        "mode": "rich/default density/default motion; idle empty focused composer",
+        "idle_seconds_requested": 5,
+        "limitations": [
+          "No input-to-paint or visible cancellation measurement",
+          "No terminal/clipboard/IME/AT/user qualification",
+          "Shared host, no affinity or load isolation",
+          "One observation per fresh process, not a statistical comparison"
+        ],
+        "before_history": {
+          "Rss_kib": 150968,
+          "Pss_kib": 137388,
+          "Private_Clean_kib": 0,
+          "Private_Dirty_kib": 126764,
+          "Swap_kib": 0
+        },
+        "history_load_wall_seconds": 1.9699083469458856,
+        "history_load_cpu_seconds": 1.929545868,
+        "after_history": {
+          "Rss_kib": 184252,
+          "Pss_kib": 170672,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 159984,
+          "Swap_kib": 0
+        },
+        "idle_wall_seconds": 5.000494817970321,
+        "idle_cpu_seconds": 0.06097368100000011,
+        "idle_cpu_one_core_percent": 1.219352948449791,
+        "after_idle": {
+          "Rss_kib": 184256,
+          "Pss_kib": 170676,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 159988,
+          "Swap_kib": 0
+        },
+        "peak_rss_kib": 182912,
+        "after_unmount": {
+          "Rss_kib": 184260,
+          "Pss_kib": 170681,
+          "Private_Clean_kib": 64,
+          "Private_Dirty_kib": 159992,
+          "Swap_kib": 0
+        },
+        "status": "observed"
+      },
+      "observation_sha256": "9b84072f9c593b5e0b76b24bb15e9bcffffd5ee92fc6f80f8c8980bd5dae714b",
+      "log_sha256": "12a1358288ea8287d62f1bf05148de9b9cbc74ca129b4da4e0f832b332583094"
+    }
+  ],
+  "published_harness_sha256": "cb50f91ca6e25d74f5ed5e384b652f9bfd0cb9201eee7191481296c0e214f420",
+  "published_harness_delta": "Added test function/dictionary type annotations and the Any import after measurement; executed harness is retained in raw_evidence_directory."
+}

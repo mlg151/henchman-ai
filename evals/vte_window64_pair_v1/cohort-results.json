@@ -1,0 +1,4124 @@
+{
+  "plan_sha256": "e5521aac67e1d039b41b25faef6d0c0f42a5120b86b8c2859cefd83016a644f5",
+  "started_utc": "2026-11-08T17:06:56Z",
+  "status": "COMPLETE",
+  "cases": [
+    {
+      "name": "case-00-baseline-80x24-40",
+      "arm": "baseline",
+      "columns": 80,
+      "rows": 24,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.57470703125,
+        3.9189453125,
+        3.58642578125
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 32.375278263993096,
+      "host_load_after": [
+        3.70361328125,
+        3.912109375,
+        3.59619140625
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.974731
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.545282
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 34.272831
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 33.482784
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 33.113193
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 33.150351
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.985913
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 32.823838
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 33.125822
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 33.238658
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 33.35116
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 33.917593
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 14.104002
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 31.138469
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 34.951388
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 33.038648
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 32.046162
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.66788
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 35.113924
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 31.751925
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 132.09722,
+            "joined_cleanup_ms": 1152.506713
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 122.319952,
+            "joined_cleanup_ms": 1142.416642
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 126.585731,
+            "joined_cleanup_ms": 1152.570469
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 125.704391,
+            "joined_cleanup_ms": 1142.966542
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 140.265044,
+            "joined_cleanup_ms": 1163.313604
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 133.438837,
+            "joined_cleanup_ms": 1170.71114
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 134.096792,
+            "joined_cleanup_ms": 1158.686377
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 129.324551,
+            "joined_cleanup_ms": 1157.835148
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 360.307524,
+            "joined_cleanup_ms": 1399.775304
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 129.945552,
+            "joined_cleanup_ms": 1157.554287
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 126.547043,
+            "joined_cleanup_ms": 1154.405835
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 138.920469,
+            "joined_cleanup_ms": 1157.452132
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 135.053609,
+            "joined_cleanup_ms": 1165.018971
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 131.79394,
+            "joined_cleanup_ms": 1155.753888
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 144.118323,
+            "joined_cleanup_ms": 1169.898688
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 135.54132,
+            "joined_cleanup_ms": 1166.212563
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 133.535973,
+            "joined_cleanup_ms": 1156.59701
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 152.65204,
+            "joined_cleanup_ms": 1172.254985
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 133.179429,
+            "joined_cleanup_ms": 1169.245685
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 132.253046,
+            "joined_cleanup_ms": 1165.860609
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 34.951388,
+          "max_ms": 35.113924,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 152.65204,
+          "max_ms": 360.307524,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-00-baseline-80x24-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3061027,
+          "birth": "42491536",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3061030,
+          "birth": "42491546",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3061043,
+          "birth": "42491570"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 32.322598211991135
+      }
+    },
+    {
+      "name": "case-01-candidate-80x24-40",
+      "arm": "candidate",
+      "columns": 80,
+      "rows": 24,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.70361328125,
+        3.912109375,
+        3.59619140625
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 31.726417444995604,
+      "host_load_after": [
+        3.08837890625,
+        3.7431640625,
+        3.548828125
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 29.540999
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.244774
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 35.590043
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 32.993246
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 35.09624
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 31.677342
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.951696
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 31.848942
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 32.733873
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 34.732097
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 31.888934
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 32.810185
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 32.693699
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 32.203183
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.123797
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 32.719445
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 33.198512
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.3816
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 31.983644
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 33.524633
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 127.172249,
+            "joined_cleanup_ms": 1156.689246
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 134.071451,
+            "joined_cleanup_ms": 1159.552261
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 138.703454,
+            "joined_cleanup_ms": 1166.899653
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 132.35103,
+            "joined_cleanup_ms": 1152.236721
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 130.027064,
+            "joined_cleanup_ms": 1155.211516
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 121.296938,
+            "joined_cleanup_ms": 1145.65548
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 335.925365,
+            "joined_cleanup_ms": 1330.898985
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 136.511279,
+            "joined_cleanup_ms": 1159.715583
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 130.470924,
+            "joined_cleanup_ms": 1161.275502
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 126.173431,
+            "joined_cleanup_ms": 1159.881627
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 129.44379,
+            "joined_cleanup_ms": 1164.592443
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 145.722308,
+            "joined_cleanup_ms": 1156.514809
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 140.524244,
+            "joined_cleanup_ms": 1146.792621
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 137.781865,
+            "joined_cleanup_ms": 1143.048909
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 139.800625,
+            "joined_cleanup_ms": 1149.744387
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 136.499122,
+            "joined_cleanup_ms": 1147.883062
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 134.858921,
+            "joined_cleanup_ms": 1147.165597
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 143.803964,
+            "joined_cleanup_ms": 1153.260377
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 146.022174,
+            "joined_cleanup_ms": 1151.142612
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 136.894911,
+            "joined_cleanup_ms": 1148.031046
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 35.09624,
+          "max_ms": 35.590043,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 146.022174,
+          "max_ms": 335.925365,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-01-candidate-80x24-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3063820,
+          "birth": "42494774",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3063832,
+          "birth": "42494784",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3063842,
+          "birth": "42494809"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 31.66879990801681
+      }
+    },
+    {
+      "name": "case-02-candidate-80x24-1000",
+      "arm": "candidate",
+      "columns": 80,
+      "rows": 24,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.08837890625,
+        3.7431640625,
+        3.548828125
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 31.95311743498314,
+      "host_load_after": [
+        2.513671875,
+        3.53173828125,
+        3.48486328125
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 31.599385
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.366941
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 33.336178
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 33.115889
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.867944
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.489669
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.505253
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 32.694331
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 32.165824
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 16.111861
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 32.644383
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 33.459256
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 33.523274
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 33.346157
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 33.235097
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 33.265985
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 32.991636
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 33.164354
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 32.534527
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 32.422949
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 128.620556,
+            "joined_cleanup_ms": 1144.246696
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 131.441168,
+            "joined_cleanup_ms": 1171.060933
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 141.414516,
+            "joined_cleanup_ms": 1150.694132
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 134.33156,
+            "joined_cleanup_ms": 1151.108199
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 132.30549,
+            "joined_cleanup_ms": 1137.988991
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 129.324824,
+            "joined_cleanup_ms": 1144.195826
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 131.859829,
+            "joined_cleanup_ms": 1145.187358
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 127.397871,
+            "joined_cleanup_ms": 1143.860467
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 126.059913,
+            "joined_cleanup_ms": 1140.070036
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 134.711959,
+            "joined_cleanup_ms": 1140.305129
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 132.03842,
+            "joined_cleanup_ms": 1169.398443
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 135.277461,
+            "joined_cleanup_ms": 1148.850857
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 151.784028,
+            "joined_cleanup_ms": 1167.011833
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 413.02521,
+            "joined_cleanup_ms": 1407.600059
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 146.287888,
+            "joined_cleanup_ms": 1169.553813
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 133.581021,
+            "joined_cleanup_ms": 1150.057258
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 134.497425,
+            "joined_cleanup_ms": 1145.498673
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 138.297979,
+            "joined_cleanup_ms": 1149.152084
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 154.522547,
+            "joined_cleanup_ms": 1165.501937
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 143.463037,
+            "joined_cleanup_ms": 1152.408253
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 33.459256,
+          "max_ms": 33.523274,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 154.522547,
+          "max_ms": 413.02521,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-02-candidate-80x24-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3065675,
+          "birth": "42497947",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3065678,
+          "birth": "42497957",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3065685,
+          "birth": "42497981"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 31.901865968946368
+      }
+    },
+    {
+      "name": "case-03-baseline-80x24-1000",
+      "arm": "baseline",
+      "columns": 80,
+      "rows": 24,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        2.513671875,
+        3.53173828125,
+        3.48486328125
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 33.07535413000733,
+      "host_load_after": [
+        2.3232421875,
+        3.38525390625,
+        3.4365234375
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          80,
+          24
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              400,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              438,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.994226
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 35.918948
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 31.452563
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 31.12736
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 34.661676
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 36.626215
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 34.308975
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 30.161089
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 28.891532
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 29.663292
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 37.266715
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 35.324006
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 35.177081
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 34.750914
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.189505
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 32.605608
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.523489
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 31.88451
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 32.229072
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 32.157976
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 143.3292,
+            "joined_cleanup_ms": 1158.310334
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 138.769022,
+            "joined_cleanup_ms": 1155.145742
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 138.812911,
+            "joined_cleanup_ms": 1146.04332
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 152.570913,
+            "joined_cleanup_ms": 1144.234429
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 139.749489,
+            "joined_cleanup_ms": 1143.074873
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 135.978027,
+            "joined_cleanup_ms": 1147.724282
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 156.166773,
+            "joined_cleanup_ms": 1154.795531
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 146.66247,
+            "joined_cleanup_ms": 1153.767693
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 161.089037,
+            "joined_cleanup_ms": 1139.255015
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 129.993192,
+            "joined_cleanup_ms": 1148.138144
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 190.409647,
+            "joined_cleanup_ms": 1194.275275
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 137.645026,
+            "joined_cleanup_ms": 1147.022186
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 473.641486,
+            "joined_cleanup_ms": 1502.336523
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 141.694579,
+            "joined_cleanup_ms": 1140.539403
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 208.312358,
+            "joined_cleanup_ms": 1180.29168
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 136.738835,
+            "joined_cleanup_ms": 1141.72205
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 140.453599,
+            "joined_cleanup_ms": 1144.355563
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 136.732515,
+            "joined_cleanup_ms": 1148.750752
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 141.965082,
+            "joined_cleanup_ms": 1151.479058
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 141.169459,
+            "joined_cleanup_ms": 1145.996901
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 36.626215,
+          "max_ms": 37.266715,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 208.312358,
+          "max_ms": 473.641486,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-03-baseline-80x24-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3067905,
+          "birth": "42501142",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3067911,
+          "birth": "42501152",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3067919,
+          "birth": "42501176"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 33.01974738994613
+      }
+    },
+    {
+      "name": "case-04-baseline-120x40-1000",
+      "arm": "baseline",
+      "columns": 120,
+      "rows": 40,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        2.3232421875,
+        3.38525390625,
+        3.4365234375
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 33.77930904098321,
+      "host_load_after": [
+        2.54833984375,
+        3.3251953125,
+        3.4150390625
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 38.919324
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 34.830259
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 33.326826
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 44.672005
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 39.345472
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 29.807252
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 47.91987
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 28.316789
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 21.977987
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 31.299508
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 62.394528
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 29.25187
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 33.918511
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 33.624501
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 31.575027
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 33.550229
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 32.673582
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 50.744302
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 32.406618
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 33.184035
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 132.841245,
+            "joined_cleanup_ms": 1149.376161
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 136.953657,
+            "joined_cleanup_ms": 1176.959669
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 141.124888,
+            "joined_cleanup_ms": 1147.668035
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 149.094305,
+            "joined_cleanup_ms": 1172.907903
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 126.861642,
+            "joined_cleanup_ms": 1140.216436
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 135.350903,
+            "joined_cleanup_ms": 1150.167575
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 140.496446,
+            "joined_cleanup_ms": 1138.01068
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 152.619593,
+            "joined_cleanup_ms": 1147.828723
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 160.647121,
+            "joined_cleanup_ms": 1188.052653
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 135.337667,
+            "joined_cleanup_ms": 1147.913085
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 144.619553,
+            "joined_cleanup_ms": 1147.405635
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 133.521713,
+            "joined_cleanup_ms": 1144.748559
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 142.453301,
+            "joined_cleanup_ms": 1150.677916
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 168.532396,
+            "joined_cleanup_ms": 1147.462673
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 142.254482,
+            "joined_cleanup_ms": 1159.203459
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 142.809528,
+            "joined_cleanup_ms": 1148.858572
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 139.624067,
+            "joined_cleanup_ms": 1146.464224
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 143.311808,
+            "joined_cleanup_ms": 1149.497533
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 146.711409,
+            "joined_cleanup_ms": 1145.223827
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 146.859241,
+            "joined_cleanup_ms": 1146.711349
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 50.744302,
+          "max_ms": 62.394528,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 160.647121,
+          "max_ms": 168.532396,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-04-baseline-120x40-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3070505,
+          "birth": "42504450",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3070528,
+          "birth": "42504460",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3070543,
+          "birth": "42504487"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 33.720646233996376
+      }
+    },
+    {
+      "name": "case-05-candidate-120x40-1000",
+      "arm": "candidate",
+      "columns": 120,
+      "rows": 40,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        2.54833984375,
+        3.3251953125,
+        3.4150390625
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 32.6379231599858,
+      "host_load_after": [
+        3.5087890625,
+        3.453125,
+        3.453125
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 29.813734
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 31.468089
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 32.303097
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 33.205954
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.414296
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 35.018644
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 31.858224
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 31.020854
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 33.092278
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 38.649512
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 35.026972
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 32.373011
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.304354
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 27.966355
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.005014
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 32.509513
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 27.347077
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.160916
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 33.311119
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 33.17328
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 140.108633,
+            "joined_cleanup_ms": 1154.24704
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 138.560109,
+            "joined_cleanup_ms": 1151.60468
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 139.114325,
+            "joined_cleanup_ms": 1397.45298
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 135.348643,
+            "joined_cleanup_ms": 1143.214606
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 141.682897,
+            "joined_cleanup_ms": 1141.997807
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 147.022422,
+            "joined_cleanup_ms": 1150.956247
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 141.214258,
+            "joined_cleanup_ms": 1150.668805
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 142.574689,
+            "joined_cleanup_ms": 1151.526813
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 145.795901,
+            "joined_cleanup_ms": 1150.86287
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 144.264953,
+            "joined_cleanup_ms": 1150.714023
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 133.646532,
+            "joined_cleanup_ms": 1142.115938
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 142.547482,
+            "joined_cleanup_ms": 1148.083991
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 360.598327,
+            "joined_cleanup_ms": 1391.978018
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 126.596629,
+            "joined_cleanup_ms": 1141.659589
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 139.273471,
+            "joined_cleanup_ms": 1148.662411
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 129.641477,
+            "joined_cleanup_ms": 1146.1915
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 140.289411,
+            "joined_cleanup_ms": 1174.381245
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 134.727944,
+            "joined_cleanup_ms": 1147.355318
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 136.06227,
+            "joined_cleanup_ms": 1147.936568
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 130.415042,
+            "joined_cleanup_ms": 1144.296624
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 35.026972,
+          "max_ms": 38.649512,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 147.022422,
+          "max_ms": 360.598327,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-05-candidate-120x40-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3073316,
+          "birth": "42507829",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3073320,
+          "birth": "42507839",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3073327,
+          "birth": "42507863"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 32.57792636600789
+      }
+    },
+    {
+      "name": "case-06-candidate-120x40-40",
+      "arm": "candidate",
+      "columns": 120,
+      "rows": 40,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.5087890625,
+        3.453125,
+        3.453125
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 32.36301924503641,
+      "host_load_after": [
+        3.6669921875,
+        3.4912109375,
+        3.46630859375
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.347585
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 29.020287
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 28.666867
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 32.6523
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 31.585399
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 30.819282
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 34.220406
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 27.062092
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 29.477357
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 37.31849
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 34.747195
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 34.812286
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 30.358993
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 32.721734
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.435454
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 34.490414
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.773899
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.894928
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 32.512045
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 30.927626
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 141.272225,
+            "joined_cleanup_ms": 1161.559004
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 133.291985,
+            "joined_cleanup_ms": 1155.597928
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 137.532309,
+            "joined_cleanup_ms": 1165.930379
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 147.78982,
+            "joined_cleanup_ms": 1165.557033
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 149.833076,
+            "joined_cleanup_ms": 1151.565188
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 130.585601,
+            "joined_cleanup_ms": 1158.127698
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 139.321022,
+            "joined_cleanup_ms": 1158.385686
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 144.891825,
+            "joined_cleanup_ms": 1171.394647
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 150.087088,
+            "joined_cleanup_ms": 1168.257262
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 140.946078,
+            "joined_cleanup_ms": 1174.298552
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 127.847206,
+            "joined_cleanup_ms": 1154.810012
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 167.888414,
+            "joined_cleanup_ms": 1175.402674
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 145.744324,
+            "joined_cleanup_ms": 1146.957292
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 153.033484,
+            "joined_cleanup_ms": 1148.53901
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 162.767011,
+            "joined_cleanup_ms": 1157.450812
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 144.46652,
+            "joined_cleanup_ms": 1146.59638
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 141.878039,
+            "joined_cleanup_ms": 1148.294831
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 138.816462,
+            "joined_cleanup_ms": 1149.320856
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 158.755773,
+            "joined_cleanup_ms": 1150.703504
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 143.231983,
+            "joined_cleanup_ms": 1155.735116
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 34.812286,
+          "max_ms": 37.31849,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 162.767011,
+          "max_ms": 167.888414,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-06-candidate-120x40-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3076189,
+          "birth": "42511092",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3076237,
+          "birth": "42511102",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3076364,
+          "birth": "42511131"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 32.31383148499299
+      }
+    },
+    {
+      "name": "case-07-baseline-120x40-40",
+      "arm": "baseline",
+      "columns": 120,
+      "rows": 40,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.6669921875,
+        3.4912109375,
+        3.46630859375
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 32.31957016699016,
+      "host_load_after": [
+        5.8037109375,
+        4.0576171875,
+        3.65673828125
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          120,
+          40
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              704,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              742,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                             ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 30.98075
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 34.961164
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 34.626943
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 34.459088
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 32.162582
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 30.948006
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 30.779718
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 33.571266
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 32.741262
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 31.468457
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 40.505097
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 34.19784
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.679751
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 30.684005
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.723958
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 30.996215
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 29.216574
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 33.782268
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 32.678387
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 31.483342
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 135.363874,
+            "joined_cleanup_ms": 1158.665931
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 132.419174,
+            "joined_cleanup_ms": 1161.195951
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 138.510274,
+            "joined_cleanup_ms": 1163.289566
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 146.369135,
+            "joined_cleanup_ms": 1157.924148
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 143.741634,
+            "joined_cleanup_ms": 1166.704051
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 130.971587,
+            "joined_cleanup_ms": 1156.865211
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 146.194432,
+            "joined_cleanup_ms": 1165.52083
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 148.403269,
+            "joined_cleanup_ms": 1166.67644
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 148.978787,
+            "joined_cleanup_ms": 1170.916156
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 137.306379,
+            "joined_cleanup_ms": 1167.540001
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 141.315289,
+            "joined_cleanup_ms": 1168.895619
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 126.702214,
+            "joined_cleanup_ms": 1145.564064
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 134.265326,
+            "joined_cleanup_ms": 1164.061157
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 124.815143,
+            "joined_cleanup_ms": 1146.953171
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 143.449753,
+            "joined_cleanup_ms": 1168.492426
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 143.409616,
+            "joined_cleanup_ms": 1171.392767
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 147.442064,
+            "joined_cleanup_ms": 1170.449059
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 143.330016,
+            "joined_cleanup_ms": 1167.707995
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 148.467185,
+            "joined_cleanup_ms": 1163.108863
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 153.690451,
+            "joined_cleanup_ms": 1169.223542
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 34.961164,
+          "max_ms": 40.505097,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 148.978787,
+          "max_ms": 153.690451,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-07-baseline-120x40-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3086120,
+          "birth": "42514329",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3086125,
+          "birth": "42514339",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3086162,
+          "birth": "42514367"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 32.27003589004744
+      }
+    },
+    {
+      "name": "case-08-baseline-160x50-40",
+      "arm": "baseline",
+      "columns": 160,
+      "rows": 50,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        5.8037109375,
+        4.0576171875,
+        3.65673828125
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 33.18400426500011,
+      "host_load_after": [
+        4.5771484375,
+        3.9404296875,
+        3.63134765625
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 47.071767
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 48.37136
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 32.595108
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 47.822682
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 38.265636
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 45.585109
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 29.015794
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 29.520867
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 31.014655
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 30.376363
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 31.320245
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 30.383904
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.584707
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 46.870837
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 31.253995
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 31.278775
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 30.063724
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.692726
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 30.350103
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 32.980493
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 135.608553,
+            "joined_cleanup_ms": 1164.231616
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 144.198246,
+            "joined_cleanup_ms": 1168.704311
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 135.974981,
+            "joined_cleanup_ms": 1162.678765
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 141.418504,
+            "joined_cleanup_ms": 1167.978607
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 155.923417,
+            "joined_cleanup_ms": 1161.006237
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 146.359406,
+            "joined_cleanup_ms": 1172.141761
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 164.247768,
+            "joined_cleanup_ms": 1160.59155
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 135.272032,
+            "joined_cleanup_ms": 1166.28463
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 158.90096,
+            "joined_cleanup_ms": 1160.168625
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 130.611473,
+            "joined_cleanup_ms": 1162.781087
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 149.413809,
+            "joined_cleanup_ms": 1162.211108
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 153.215827,
+            "joined_cleanup_ms": 1186.711357
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 149.990552,
+            "joined_cleanup_ms": 1170.204271
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 171.353581,
+            "joined_cleanup_ms": 1210.068717
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 153.600657,
+            "joined_cleanup_ms": 1171.877344
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 418.203225,
+            "joined_cleanup_ms": 1437.027539
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 165.726452,
+            "joined_cleanup_ms": 1169.683802
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 154.457703,
+            "joined_cleanup_ms": 1170.234595
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 149.30799,
+            "joined_cleanup_ms": 1159.147876
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 134.861317,
+            "joined_cleanup_ms": 1172.420116
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 47.822682,
+          "max_ms": 48.37136,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 171.353581,
+          "max_ms": 418.203225,
+          "criterion_ms": 250,
+          "criterion_passed": true
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-08-baseline-160x50-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3093128,
+          "birth": "42517562",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3093132,
+          "birth": "42517572",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3093143,
+          "birth": "42517597"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 33.12790128897177
+      }
+    },
+    {
+      "name": "case-09-candidate-160x50-40",
+      "arm": "candidate",
+      "columns": 160,
+      "rows": 50,
+      "history": 40,
+      "status": "COMPLETE",
+      "host_load_before": [
+        4.5771484375,
+        3.9404296875,
+        3.63134765625
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 33.28359091898892,
+      "host_load_after": [
+        4.25048828125,
+        3.9560546875,
+        3.6494140625
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 40,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 46.774454
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.631004
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 35.876359
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 30.693503
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 47.246393
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 32.245928
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 30.698171
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 53.353
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 31.143177
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 32.87624
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 33.251416
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 30.989788
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 47.476111
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 33.750243
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 32.129385
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 47.783836
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 35.897005
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.160353
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 33.216343
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 46.882987
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 145.399194,
+            "joined_cleanup_ms": 1161.892077
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 139.98192,
+            "joined_cleanup_ms": 1168.394167
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 152.19785,
+            "joined_cleanup_ms": 1164.721895
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 141.361653,
+            "joined_cleanup_ms": 1166.965998
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 147.39068,
+            "joined_cleanup_ms": 1168.343957
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 141.23641,
+            "joined_cleanup_ms": 1164.401855
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 356.767296,
+            "joined_cleanup_ms": 1345.165269
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 136.472736,
+            "joined_cleanup_ms": 1160.980827
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 141.437228,
+            "joined_cleanup_ms": 1181.803339
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 150.193128,
+            "joined_cleanup_ms": 1172.022553
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 157.063264,
+            "joined_cleanup_ms": 1166.77781
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 146.165601,
+            "joined_cleanup_ms": 1154.629785
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 143.52736,
+            "joined_cleanup_ms": 1143.852995
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 143.024255,
+            "joined_cleanup_ms": 1158.479566
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 148.386071,
+            "joined_cleanup_ms": 1164.837864
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 148.073598,
+            "joined_cleanup_ms": 1159.968612
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 132.491301,
+            "joined_cleanup_ms": 1152.197456
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 151.948808,
+            "joined_cleanup_ms": 1167.264009
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 132.98228,
+            "joined_cleanup_ms": 1143.966153
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 276.623742,
+            "joined_cleanup_ms": 1279.145501
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 47.783836,
+          "max_ms": 53.353,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 276.623742,
+          "max_ms": 356.767296,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-09-candidate-160x50-40",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3095934,
+          "birth": "42520880",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3095941,
+          "birth": "42520890",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3096001,
+          "birth": "42520916"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 33.23321210901486
+      }
+    },
+    {
+      "name": "case-10-candidate-160x50-1000",
+      "arm": "candidate",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        4.25048828125,
+        3.9560546875,
+        3.6494140625
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 33.236756013007835,
+      "host_load_after": [
+        3.5224609375,
+        3.82666015625,
+        3.6162109375
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 46.580298
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 31.759931
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 31.400844
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 29.283572
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 31.723137
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 31.137815
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 32.578004
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 30.721179
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 29.702001
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 28.627217
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 30.85816
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 31.693989
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 31.218869
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 31.317294
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 33.065566
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 30.144895
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.184235
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 31.311077
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 31.311593
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 31.839476
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 135.429398,
+            "joined_cleanup_ms": 1149.914189
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 140.750231,
+            "joined_cleanup_ms": 1153.035799
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 144.925925,
+            "joined_cleanup_ms": 1159.326566
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 134.637443,
+            "joined_cleanup_ms": 1147.823277
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 139.798535,
+            "joined_cleanup_ms": 1156.501043
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 144.17186,
+            "joined_cleanup_ms": 1154.114547
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 137.482192,
+            "joined_cleanup_ms": 1151.048154
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 137.877222,
+            "joined_cleanup_ms": 1147.601158
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 132.471585,
+            "joined_cleanup_ms": 1145.343448
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 403.829989,
+            "joined_cleanup_ms": 1428.401803
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 137.098258,
+            "joined_cleanup_ms": 1153.459562
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 128.808483,
+            "joined_cleanup_ms": 1144.576325
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 150.986921,
+            "joined_cleanup_ms": 1171.257074
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 135.579228,
+            "joined_cleanup_ms": 1150.050142
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 145.326991,
+            "joined_cleanup_ms": 1158.899071
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 323.298745,
+            "joined_cleanup_ms": 1308.949466
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 158.886693,
+            "joined_cleanup_ms": 1158.877731
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 146.702859,
+            "joined_cleanup_ms": 1152.104764
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 150.377247,
+            "joined_cleanup_ms": 1190.195187
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 158.496976,
+            "joined_cleanup_ms": 1159.698471
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 33.065566,
+          "max_ms": 46.580298,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 323.298745,
+          "max_ms": 403.829989,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-10-candidate-160x50-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/vte-window64-screen-v1/candidate",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3098933,
+          "birth": "42524209",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3098938,
+          "birth": "42524219",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3098946,
+          "birth": "42524245"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 33.17789387801895
+      }
+    },
+    {
+      "name": "case-11-baseline-160x50-1000",
+      "arm": "baseline",
+      "columns": 160,
+      "rows": 50,
+      "history": 1000,
+      "status": "COMPLETE",
+      "host_load_before": [
+        3.5224609375,
+        3.82666015625,
+        3.6162109375
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 34.7813496409799,
+      "host_load_after": [
+        3.50732421875,
+        3.78369140625,
+        3.60986328125
+      ],
+      "receipt": {
+        "version": 1,
+        "viewport": [
+          160,
+          50
+        ],
+        "history": 1000,
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "calibration": {
+          "input": {
+            "rect": [
+              31,
+              894,
+              20,
+              19
+            ],
+            "target_sha256": "42998a128294563d3ac7e187b1df7b85f980d37ef25bee97f233dccdca5cf7cc",
+            "empty_sha256": "e9cb05d8f8960f65447fb4789ccfa30c355c8706d5c6f923d7dd0d7857549496"
+          },
+          "cancel": {
+            "rect": [
+              1,
+              932,
+              120,
+              19
+            ],
+            "text": "Cancelling\u2026                                                                                                                                                     ",
+            "target_sha256": "efcc40250a6769185a89f07722c6ce3b7ac5e2a5b7aea949bf01f5894edad55a"
+          }
+        },
+        "input": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 35.310629
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 32.281194
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 31.946905
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 31.18251
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 31.101989
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 31.764695
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 33.024062
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 31.398432
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 30.178684
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 46.918368
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 31.481168
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 30.470536
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 30.043217
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 31.639806
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 31.613687
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 30.693939
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 31.439134
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 32.315871
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 28.98023
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 31.318987
+          }
+        ],
+        "cancel": [
+          {
+            "index": 0,
+            "status": "PASS",
+            "elapsed_ms": 132.646818,
+            "joined_cleanup_ms": 1151.90828
+          },
+          {
+            "index": 1,
+            "status": "PASS",
+            "elapsed_ms": 153.670499,
+            "joined_cleanup_ms": 1159.668613
+          },
+          {
+            "index": 2,
+            "status": "PASS",
+            "elapsed_ms": 357.348905,
+            "joined_cleanup_ms": 1356.838856
+          },
+          {
+            "index": 3,
+            "status": "PASS",
+            "elapsed_ms": 160.596875,
+            "joined_cleanup_ms": 1159.072871
+          },
+          {
+            "index": 4,
+            "status": "PASS",
+            "elapsed_ms": 139.83839,
+            "joined_cleanup_ms": 1160.5082
+          },
+          {
+            "index": 5,
+            "status": "PASS",
+            "elapsed_ms": 140.371377,
+            "joined_cleanup_ms": 1184.575059
+          },
+          {
+            "index": 6,
+            "status": "PASS",
+            "elapsed_ms": 478.684629,
+            "joined_cleanup_ms": 1455.354982
+          },
+          {
+            "index": 7,
+            "status": "PASS",
+            "elapsed_ms": 145.337951,
+            "joined_cleanup_ms": 1148.991565
+          },
+          {
+            "index": 8,
+            "status": "PASS",
+            "elapsed_ms": 164.318481,
+            "joined_cleanup_ms": 1159.900836
+          },
+          {
+            "index": 9,
+            "status": "PASS",
+            "elapsed_ms": 356.58377,
+            "joined_cleanup_ms": 1413.890319
+          },
+          {
+            "index": 10,
+            "status": "PASS",
+            "elapsed_ms": 140.820882,
+            "joined_cleanup_ms": 1151.439889
+          },
+          {
+            "index": 11,
+            "status": "PASS",
+            "elapsed_ms": 153.409736,
+            "joined_cleanup_ms": 1148.355646
+          },
+          {
+            "index": 12,
+            "status": "PASS",
+            "elapsed_ms": 158.179305,
+            "joined_cleanup_ms": 1150.222333
+          },
+          {
+            "index": 13,
+            "status": "PASS",
+            "elapsed_ms": 290.391044,
+            "joined_cleanup_ms": 1254.004959
+          },
+          {
+            "index": 14,
+            "status": "PASS",
+            "elapsed_ms": 144.522251,
+            "joined_cleanup_ms": 1198.510738
+          },
+          {
+            "index": 15,
+            "status": "PASS",
+            "elapsed_ms": 177.729468,
+            "joined_cleanup_ms": 1148.149128
+          },
+          {
+            "index": 16,
+            "status": "PASS",
+            "elapsed_ms": 164.730874,
+            "joined_cleanup_ms": 1157.020031
+          },
+          {
+            "index": 17,
+            "status": "PASS",
+            "elapsed_ms": 173.046494,
+            "joined_cleanup_ms": 1168.629996
+          },
+          {
+            "index": 18,
+            "status": "PASS",
+            "elapsed_ms": 180.251277,
+            "joined_cleanup_ms": 1145.586735
+          },
+          {
+            "index": 19,
+            "status": "PASS",
+            "elapsed_ms": 189.039929,
+            "joined_cleanup_ms": 1152.98036
+          }
+        ],
+        "method": "monotonic time before xdotool launch to first matching sampled native window pixels",
+        "limits": [
+          "Virtual X11 software display",
+          "Includes xdotool/process launch and sampling overhead",
+          "Scripted 1-second cleanup, no provider or model",
+          "Shared host without affinity or load isolation",
+          "Calibration excluded; exactly20 measured attempts per action, no replacement",
+          "No physical device/monitor, clipboard, remote, IME, screen reader or human qualification"
+        ],
+        "terminal": {
+          "vte": [
+            0,
+            84,
+            0
+          ],
+          "gtk": [
+            3,
+            24,
+            52
+          ],
+          "font": "Monospace12",
+          "cell": [
+            10,
+            19
+          ],
+          "xid": 2097156
+        },
+        "input_summary": {
+          "denominator": 20,
+          "p95_ms": 35.310629,
+          "max_ms": 46.918368,
+          "criterion_ms": 100,
+          "criterion_passed": true
+        },
+        "cancel_summary": {
+          "denominator": 20,
+          "p95_ms": 357.348905,
+          "max_ms": 478.684629,
+          "criterion_ms": 250,
+          "criterion_passed": false
+        },
+        "app_joined": true
+      },
+      "supervisor": {
+        "scenario": "case-11-baseline-160x50-1000",
+        "source": "/home/matthew/.cache/henchman-release-qualification/source-6db0adf/source",
+        "status": "COMPLETE",
+        "xvfb_identity": {
+          "pid": 3101584,
+          "birth": "42527533",
+          "state": "R"
+        },
+        "measurement_identity": {
+          "pid": 3101587,
+          "birth": "42527543",
+          "state": "R"
+        },
+        "measurement_returncode": 0,
+        "measurement_joined": true,
+        "app_identity": {
+          "pid": 3101594,
+          "birth": "42527566"
+        },
+        "app_identity_absent": true,
+        "xvfb_returncode": 0,
+        "xvfb_joined": true,
+        "elapsed_seconds": 34.723516907019075
+      }
+    }
+  ],
+  "finished_utc": "2026-11-08T17:13:30Z"
+}

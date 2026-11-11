@@ -761,12 +761,27 @@ class TeamMemorySyncService(_WorkspaceScopedService):
         self._session_memories = SessionMemoryService()
 
     def sync_session(self, *, workspace_id: str, session: Session) -> tuple[TeamMemoryRecord, ...]:
-        """Sync extracted session memories into a workspace-level store."""
+        """Sync extracted session memories into a workspace-level store.
+
+        Workspace records previously synced from this session are reconciled
+        first: any record whose content is no longer present in the session
+        store (deleted or edited) is removed, so edits propagate as a
+        stale-record removal followed by the existing content dedupe.
+        Extraction is deliberately not implicit here — it would re-derive
+        candidates from raw messages and resurrect content the user deleted
+        or edited out of the curated session store.
+        """
 
         normalized_workspace = self._require_workspace(workspace_id)
-        self._session_memories.extract_memories(session)
         session_records = self._session_memories.list_memories(session)
+        session_content = {record.content.casefold() for record in session_records}
         existing = self.list_memories(workspace_id=normalized_workspace)
+        existing = [
+            record
+            for record in existing
+            if record.source_session_id != session.id
+            or record.content.casefold() in session_content
+        ]
         existing_content = {record.content.casefold() for record in existing}
         created: list[TeamMemoryRecord] = []
         for session_record in session_records:
@@ -797,6 +812,23 @@ class TeamMemorySyncService(_WorkspaceScopedService):
         if not isinstance(payload, list):
             return []
         return [_memory_from_dict(record) for record in payload if isinstance(record, dict)]
+
+    def delete_memory(self, *, workspace_id: str, memory_id: str) -> bool:
+        """Remove one workspace memory record by id.
+
+        Returns ``True`` when a matching record was removed, ``False`` when
+        no record matches ``memory_id`` (in which case the store is
+        untouched).
+        """
+
+        normalized_workspace = self._require_workspace(workspace_id)
+        records = self.list_memories(workspace_id=normalized_workspace)
+        remaining = [record for record in records if record.memory_id != memory_id]
+        if len(remaining) == len(records):
+            return False
+        memories_path = self._workspace_dir(normalized_workspace) / "memories.json"
+        _write_json(memories_path, [record.to_dict() for record in remaining])
+        return True
 
 
 class WorkflowService(_WorkspaceScopedService):

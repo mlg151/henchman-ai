@@ -1,6 +1,9 @@
 """Tests for bugs in textual_widgets.py."""
 
+import asyncio
 from unittest.mock import MagicMock
+
+from textual.app import App
 
 from henchman.cli.textual_widgets import ChatPane
 
@@ -8,37 +11,34 @@ from henchman.cli.textual_widgets import ChatPane
 class TestChatPaneBugs:
     """Test bugs in ChatPane class."""
 
-    def test_bug4_double_scroll_on_new_agent_stream(self):
-        """Bug 4: Double scrolling when appending to new agent stream.
+    async def test_bug4_double_scroll_on_new_agent_stream(self):
+        """New streams and same-frame chunks share one post-layout live scroll."""
+        class ChatApp(App):
+            def compose(self):
+                yield ChatPane()
 
-        Severity: Low (UI glitch, performance)
-        Description: append_agent_chunk calls begin_agent_stream which scrolls,
-        then scrolls again, causing double scroll animation.
-        """
-        pane = ChatPane()
+        app = ChatApp()
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            pane = app.query_one(ChatPane)
 
-        # Mock the mount method
-        pane.mount = MagicMock()
+            async def after_layout():
+                refreshed = asyncio.Event()
+                pane.call_after_refresh(refreshed.set)
+                await asyncio.wait_for(refreshed.wait(), 2)
 
-        # Mock _scroll_to_bottom to track calls
-        scroll_calls = []
-        pane._scroll_to_bottom = lambda: scroll_calls.append(1)
-
-        # Initialize _active dict
-        pane._active = {}
-
-        # First call to append_agent_chunk for new agent
-        pane.append_agent_chunk("agent1", "Hello")
-
-        # Should have scrolled only once: in begin_agent_stream (fixed bug)
-        assert len(scroll_calls) == 1, f"Expected 1 scroll (fixed bug), got {len(scroll_calls)}"
-
-        # Test second chunk for same agent - should scroll
-        scroll_calls.clear()
-        pane.append_agent_chunk("agent1", " World")
-        assert len(scroll_calls) == 1, (
-            f"Expected 1 scroll for existing agent, got {len(scroll_calls)}"
-        )
+            # Mounting content queues another layout after the message pump
+            # becomes idle. Wait for that refresh, not just pilot.pause().
+            scroll = MagicMock(wraps=pane._scroll_to_bottom)
+            pane._scroll_to_bottom = scroll
+            pane.append_agent_chunk("agent1", "Hello")
+            pane.append_agent_chunk("agent1", " World")
+            await after_layout()
+            scroll.assert_called_once()
+            scroll.reset_mock()
+            pane.append_agent_chunk("agent1", " again")
+            await after_layout()
+            scroll.assert_called_once()
 
     def test_bug5_finish_agent_stream_silent_failure(self):
         """Bug 5: finish_agent_stream fails silently for non-existent agent.

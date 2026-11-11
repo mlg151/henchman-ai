@@ -1,0 +1,746 @@
+{
+  "commit": "929dfc00fe48fdd5140cd6f2332b7ff0ce115de8",
+  "checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+  "pr_base_commit": "3437c1c502c425f3d2754194ad46ea0094ee7cd1",
+  "run_id": 42452685938,
+  "run_url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938",
+  "event": "pull_request",
+  "attempt": 1,
+  "created_at": "2026-11-08T05:56:10Z",
+  "completed_at": "2026-11-08T06:46:22Z",
+  "scope": "Development CI checkpoint for this exact PR merge only; later changes are not qualified by this run.",
+  "overall_conclusion": "failure",
+  "primary_jobs": 19,
+  "aggregate_jobs": 1,
+  "duplicate_push": {
+    "id": 42452682341,
+    "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452682341",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "qualification": "Excluded entirely; partial completed jobs are not substituted for PR results."
+  },
+  "source_coverage_percent": 91.26,
+  "source_coverage_requirement_percent": 90,
+  "known_failures": [
+    {
+      "tests": [
+        "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]"
+      ],
+      "cause": "The fixture omitted the pool map of already-instantiated actors required by read-only Workspace inspection; the status and welcome paths used its resolver instead.",
+      "later_fix_commit": "c9b2b9b5d66be3db68a70e752cd8775be2cdfa15",
+      "repair_scope": "Test only: expose the instantiated map and assert Workspace does not resolve or construct an actor.",
+      "jobs": [
+        128645068671,
+        128645068917,
+        128645068995,
+        128645069015,
+        128645254168,
+        128645254181,
+        128645254184,
+        128645254185,
+        128645254190,
+        128645254196,
+        128645254209,
+        128645254229,
+        128645254234,
+        128645254235,
+        128645254238,
+        128645254293
+      ]
+    },
+    {
+      "tests": [
+        "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]"
+      ],
+      "cause": "Textual removes a screen from its stack before delivering Unmount. A joined check read could publish during that gap because the guard only observed the later closing flag.",
+      "later_fix_commit": "f19ee5dcb350c3104405d8c38e7695b003630432",
+      "repair_scope": "Runtime guard now checks mounted/current-screen ownership before publication. A deterministic mounted regression gates Unmount and retains the strict no-publication and joined-read assertions.",
+      "jobs": [
+        128645068671,
+        128645069015,
+        128645254168,
+        128645254209,
+        128645254229,
+        128645254234
+      ]
+    },
+    {
+      "tests": [
+        "tests/cli/test_textual_checkpoints.py::test_checkpoint_copy_refuses_stale_selected_runtime_or_project[root_replaced]"
+      ],
+      "cause": "The fixture tried to rename the current working directory, which Windows rejects with WinError32 before exercising the intended replacement-authority assertion.",
+      "later_fix_commit": "f19ee5dcb350c3104405d8c38e7695b003630432",
+      "repair_scope": "Test only: leave cwd before replacing the root, then return to the same canonical path and assert changed filesystem identity before copy. The no-copy assertion is preserved.",
+      "jobs": [
+        128645254184,
+        128645254196,
+        128645254238,
+        128645254293
+      ]
+    },
+    {
+      "tests": [
+        "tests/cli/test_textual_context.py::test_shared_usage_preserves_sources_coverage_currencies_and_session_scope[True]"
+      ],
+      "cause": "The global assertion banned 0.3 anywhere in the usage display; legitimate Time: 0.3s elapsed triggered it while billing correctly remained USD 0.1 and EUR 0.2.",
+      "later_fix_commit": "223bdc731d1805724b1f42bdea9fe123870018ff",
+      "repair_scope": "Test only: compare complete monetary display rows and inject elapsed 0.3 to preserve the failing timing condition deterministically. Request/source/currency/session assertions remain.",
+      "jobs": [
+        128645254196
+      ]
+    }
+  ],
+  "validated_distribution_artifacts": [
+    {
+      "id": 13605349625,
+      "name": "validated-distributions-f86fe0a413bd66b263fd6be15be61b7e362fe16a-attempt-1",
+      "url": "https://api.github.com/repos/mlg151/henchman-ai/actions/artifacts/13605349625",
+      "size_in_bytes": 9670758,
+      "github_reported_archive_digest": "sha256:f12cfc3643fd9f95c784f9e4881526711f309e35cee09327171e1dd224ae49fc",
+      "expired_at_inspection": false
+    }
+  ],
+  "artifact_note": "GitHub-reported artifact archive identity; no local artifact download/requalification occurred for this receipt.",
+  "jobs": [
+    {
+      "id": 128645068671,
+      "name": "Test (Python 3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:56:13Z",
+      "completed_at": "2026-11-08T06:16:53Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645068671",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "===== 2 failed, 12453 passed, 90 skipped, 4 warnings in 1221.05s (0:20:21) =====",
+      "test_counts": {
+        "failed": 2,
+        "passed": 12453,
+        "skipped": 90,
+        "warnings": 4,
+        "reported_total": 12545
+      },
+      "pytest_elapsed_seconds": 1221.05,
+      "test_environment": "platform linux -- Python 3.13.18, pytest-9.0.2, pluggy-1.6.0",
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645068671.log",
+        "sha256": "38eaeba986fbc0abe0823aa412363c744a355a4eda75e4017045de5399403b42",
+        "size_bytes": 142742
+      }
+    },
+    {
+      "id": 128645068917,
+      "name": "Test (Python 3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:56:14Z",
+      "completed_at": "2026-11-08T06:24:20Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645068917",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "===== 1 failed, 12453 passed, 91 skipped, 2 warnings in 1647.75s (0:27:27) =====",
+      "test_counts": {
+        "failed": 1,
+        "passed": 12453,
+        "skipped": 91,
+        "warnings": 2,
+        "reported_total": 12545
+      },
+      "pytest_elapsed_seconds": 1647.75,
+      "test_environment": "platform linux -- Python 3.14.10, pytest-9.0.2, pluggy-1.6.0",
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645068917.log",
+        "sha256": "d3207084be4752229ac0511fb41f50ef75fefb9576cfb3a4d39cf5516aeb2331",
+        "size_bytes": 133035
+      }
+    },
+    {
+      "id": 128645068943,
+      "name": "Type Check",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-08T05:56:14Z",
+      "completed_at": "2026-11-08T05:56:45Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645068943",
+      "failed_tests": [],
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645068943.log",
+        "sha256": "8ce75b017939e1373ca5287a07b669d39a408867fc9016b1c12f6172ba07eb98",
+        "size_bytes": 21746
+      }
+    },
+    {
+      "id": 128645068995,
+      "name": "Test (Python 3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:56:14Z",
+      "completed_at": "2026-11-08T06:21:40Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645068995",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "===== 1 failed, 12454 passed, 90 skipped, 5 warnings in 1511.06s (0:25:11) =====",
+      "test_counts": {
+        "failed": 1,
+        "passed": 12454,
+        "skipped": 90,
+        "warnings": 5,
+        "reported_total": 12545
+      },
+      "pytest_elapsed_seconds": 1511.06,
+      "test_environment": "platform linux -- Python 3.11.18, pytest-9.0.2, pluggy-1.6.0",
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645068995.log",
+        "sha256": "db42262886397f5436969beb43c2a406bf82cb8b3130fcf4e8fb3772875f3eda",
+        "size_bytes": 134800
+      }
+    },
+    {
+      "id": 128645069005,
+      "name": "Lint & Style",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-08T05:56:14Z",
+      "completed_at": "2026-11-08T05:56:26Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645069005",
+      "failed_tests": [],
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645069005.log",
+        "sha256": "1a1c6e737d58c16c27d104998ff484512098a2f72e6a3f4b2c1fc30f30486e87",
+        "size_bytes": 22294
+      }
+    },
+    {
+      "id": 128645069015,
+      "name": "Test (Python 3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:56:14Z",
+      "completed_at": "2026-11-08T06:46:14Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645069015",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "===== 2 failed, 12453 passed, 90 skipped, 8 warnings in 2982.99s (0:49:42) =====",
+      "test_counts": {
+        "failed": 2,
+        "passed": 12453,
+        "skipped": 90,
+        "warnings": 8,
+        "reported_total": 12545
+      },
+      "pytest_elapsed_seconds": 2982.99,
+      "coverage_summary": "Required test coverage of 90% reached. Total coverage: 91.26%",
+      "coverage_percent": 91.26,
+      "test_environment": "platform linux -- Python 3.12.16, pytest-9.0.2, pluggy-1.6.0",
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645069015.log",
+        "sha256": "1ff9b3d9dfa03aa3a14c6a47add09ec4b5c8df2d161ed38fa21c5723d5f8cffa",
+        "size_bytes": 216917
+      }
+    },
+    {
+      "id": 128645173919,
+      "name": "Build & Package Validation",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-08T05:56:48Z",
+      "completed_at": "2026-11-08T05:57:11Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645173919",
+      "failed_tests": [],
+      "test_summary": "============================== 35 passed in 1.13s ==============================",
+      "test_counts": {
+        "passed": 35,
+        "reported_total": 35
+      },
+      "pytest_elapsed_seconds": 1.13,
+      "test_environment": "platform linux -- Python 3.11.18, pytest-9.0.2, pluggy-1.6.0",
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645173919.log",
+        "sha256": "f2bef7c89ae8b9159cdebacf00b565e091651a098f1988ea7c635c102dc19b9e",
+        "size_bytes": 30169
+      }
+    },
+    {
+      "id": 128645254168,
+      "name": "Installed Wheel Smoke (macos-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:11:46Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254168",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "2 failed, 5906 passed, 83 skipped, 15 warnings in 796.76s (0:13:16)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5906,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 796.76,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254168.log",
+        "sha256": "e019d4affe264ecb0117f1e4e98cdcc3509b3cb911a9182d4355349fd29aeada",
+        "size_bytes": 87514
+      }
+    },
+    {
+      "id": 128645254181,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:10:33Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254181",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "1 failed, 5909 passed, 81 skipped, 15 warnings in 732.36s (0:12:12)",
+      "test_counts": {
+        "failed": 1,
+        "passed": 5909,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 732.36,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254181.log",
+        "sha256": "72900599b4c7b389e92655528262dbd10fb0112df4790cd86d50e346b3fa3bf8",
+        "size_bytes": 87403
+      }
+    },
+    {
+      "id": 128645254184,
+      "name": "Installed Wheel Smoke (windows-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:14Z",
+      "completed_at": "2026-11-08T06:17:06Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254184",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checkpoint_copy_refuses_stale_selected_runtime_or_project[root_replaced]",
+          "summary": "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5' -> 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5-old'"
+        }
+      ],
+      "test_summary": "2 failed, 5754 passed, 235 skipped, 15 warnings in 1086.19s (0:18:06)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5754,
+        "skipped": 235,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1086.19,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254184.log",
+        "sha256": "0f1729c79e988e60fd628e49faed9d22a08979910c7de59b1c1717674e2e8fee",
+        "size_bytes": 83097
+      }
+    },
+    {
+      "id": 128645254185,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.12)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:14Z",
+      "completed_at": "2026-11-08T06:12:28Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254185",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "1 failed, 5909 passed, 81 skipped, 15 warnings in 844.36s (0:14:04)",
+      "test_counts": {
+        "failed": 1,
+        "passed": 5909,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 844.36,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254185.log",
+        "sha256": "6d3d87b6eebbfccef08517e539ab9fc70d1378b5405fb016276bd5e2b7cf2630",
+        "size_bytes": 86887
+      }
+    },
+    {
+      "id": 128645254190,
+      "name": "Installed Wheel Smoke (macos-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:16Z",
+      "completed_at": "2026-11-08T06:16:15Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254190",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "1 failed, 5907 passed, 83 skipped, 16 warnings in 1018.53s (0:16:58)",
+      "test_counts": {
+        "failed": 1,
+        "passed": 5907,
+        "skipped": 83,
+        "warnings": 16,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1018.53,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254190.log",
+        "sha256": "5e6660c0ab9e9ac2eb093beadda0370ec41c20d498f9104fcbe569dbc9e01ddc",
+        "size_bytes": 84500
+      }
+    },
+    {
+      "id": 128645254196,
+      "name": "Installed Wheel Smoke (windows-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:24:01Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254196",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checkpoint_copy_refuses_stale_selected_runtime_or_project[root_replaced]",
+          "summary": "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5' -> 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5-old'"
+        },
+        {
+          "test": "tests/cli/test_textual_context.py::test_shared_usage_preserves_sources_coverage_currencies_and_session_scope[True]",
+          "summary": "AssertionError: assert ('Estimated cost: unavailable' in 'Task usage across all agents; not session-history tokens or task verification.\\nRun: 78ad296844db43bbb23f574b0f057fc4...ailable; 0/1 requests\\nPrice source: unavailable\\nCache and reasoning counts are subsets, not additional total tokens.' and '0.3' not in 'Task usage ...otal tokens.'"
+        }
+      ],
+      "test_summary": "3 failed, 5753 passed, 235 skipped, 15 warnings in 1465.74s (0:24:25)",
+      "test_counts": {
+        "failed": 3,
+        "passed": 5753,
+        "skipped": 235,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1465.74,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254196.log",
+        "sha256": "1d11e4b815397cdeeef36c37e67153f502d9e57c625d19af2941c6050dad15e1",
+        "size_bytes": 90372
+      }
+    },
+    {
+      "id": 128645254209,
+      "name": "Installed Wheel Smoke (macos-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:14Z",
+      "completed_at": "2026-11-08T06:11:27Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254209",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "2 failed, 5906 passed, 83 skipped, 15 warnings in 779.56s (0:12:59)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5906,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 779.56,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254209.log",
+        "sha256": "ebde543c4274a989eb5b1944f770a1c9b84df94cda567a46f8ea2ee3a07ff701",
+        "size_bytes": 86712
+      }
+    },
+    {
+      "id": 128645254229,
+      "name": "Installed Wheel Smoke (macos-latest-3.13)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:14Z",
+      "completed_at": "2026-11-08T06:14:23Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254229",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "2 failed, 5906 passed, 83 skipped, 15 warnings in 948.09s (0:15:48)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5906,
+        "skipped": 83,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 948.09,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254229.log",
+        "sha256": "1bdb7ae0068b501942aec936f80a2990182a5da7c4f2f2e4f121f8e1460d4680",
+        "size_bytes": 88227
+      }
+    },
+    {
+      "id": 128645254234,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:16:54Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254234",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checks_join_reads_and_refuse_stale_runtime_publication[close]",
+          "summary": "assert (True and 'PROJECT CHEC...have not run.' == ''"
+        }
+      ],
+      "test_summary": "2 failed, 5908 passed, 81 skipped, 15 warnings in 1095.69s (0:18:15)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5908,
+        "skipped": 81,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1095.69,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254234.log",
+        "sha256": "9b39344e615c4621e946bff813f64d70ed29629edd7e51b91424f09140fb64e1",
+        "size_bytes": 90878
+      }
+    },
+    {
+      "id": 128645254235,
+      "name": "Installed Wheel Smoke (ubuntu-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:17:24Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254235",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        }
+      ],
+      "test_summary": "1 failed, 5909 passed, 81 skipped, 16 warnings in 1117.48s (0:18:37)",
+      "test_counts": {
+        "failed": 1,
+        "passed": 5909,
+        "skipped": 81,
+        "warnings": 16,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1117.48,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254235.log",
+        "sha256": "afe61ad6329671c7bfd25fbcd3760caf5f23f091c9f724428f516df53cf3e23f",
+        "size_bytes": 87781
+      }
+    },
+    {
+      "id": 128645254238,
+      "name": "Installed Wheel Smoke (windows-latest-3.11)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:18:37Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254238",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checkpoint_copy_refuses_stale_selected_runtime_or_project[root_replaced]",
+          "summary": "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5' -> 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5-old'"
+        }
+      ],
+      "test_summary": "2 failed, 5754 passed, 235 skipped, 15 warnings in 1174.05s (0:19:34)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5754,
+        "skipped": 235,
+        "warnings": 15,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1174.05,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254238.log",
+        "sha256": "15f34827fd521a19160bee38fe68fbd48c70670bf1072c4b4033c9b75353963e",
+        "size_bytes": 83094
+      }
+    },
+    {
+      "id": 128645254293,
+      "name": "Installed Wheel Smoke (windows-latest-3.14)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T05:57:15Z",
+      "completed_at": "2026-11-08T06:20:02Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128645254293",
+      "failed_tests": [
+        {
+          "test": "tests/cli/test_active_provider_display.py::test_textual_status_welcome_and_workspace_use_actual_agent[True]",
+          "summary": "AssertionError: assert 'unavailable' == 'ollama'"
+        },
+        {
+          "test": "tests/cli/test_textual_checkpoints.py::test_checkpoint_copy_refuses_stale_selected_runtime_or_project[root_replaced]",
+          "summary": "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5' -> 'C:\\\\Users\\\\runneradmin\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-runneradmin\\\\pytest-0\\\\test_checkpoint_copy_refuses_s5-old'"
+        }
+      ],
+      "test_summary": "2 failed, 5754 passed, 235 skipped, 16 warnings in 1251.79s (0:20:51)",
+      "test_counts": {
+        "failed": 2,
+        "passed": 5754,
+        "skipped": 235,
+        "warnings": 16,
+        "reported_total": 5991
+      },
+      "pytest_elapsed_seconds": 1251.79,
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645254293.log",
+        "sha256": "60423c9ee3a3679c3a36471ad1aba4eaaafcbba0ea4a081286a4c57a5ca5c5fb",
+        "size_bytes": 84340
+      }
+    },
+    {
+      "id": 128655300753,
+      "name": "Aggregate Readiness Gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-08T06:46:17Z",
+      "completed_at": "2026-11-08T06:46:22Z",
+      "url": "https://github.com/mlg151/henchman-ai/actions/runs/42452685938/job/128655300753",
+      "failed_tests": [],
+      "observed_checkout_commit": "f86fe0a413bd66b263fd6be15be61b7e362fe16a",
+      "retained_log": {
+        "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128655300753.log",
+        "sha256": "8c11bbafe9f4ed216d71e4e168bef0a511b0a4ba31cdce1f7f01191b85e02448",
+        "size_bytes": 13061
+      }
+    }
+  ],
+  "retained_metadata": {
+    "run-final-candidate.json": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/run-final-candidate.json",
+      "sha256": "8091d40ad2f3c86a778ab48e5521ad325d501170d2d5a69fd3cec7cb18758654",
+      "size_bytes": 12420
+    },
+    "jobs-final-candidate.json": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/jobs-final-candidate.json",
+      "sha256": "9aa55176f42c6d6f76071414fd581fe43e57ab739e033d56ade5e3dd5a4ab5f8",
+      "size_bytes": 48768
+    },
+    "artifacts.json": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/artifacts.json",
+      "sha256": "93a99e52d4c7c184b92efb1c98c6634a35fd92addf3aa536365af696ce734f22",
+      "size_bytes": 781
+    },
+    "duplicate.json": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/duplicate.json",
+      "sha256": "1ce33563d8b3e50d36c4381b1dbc5e3f933de099e0c1ce0f3bc41cd14ef1aec6",
+      "size_bytes": 12449
+    }
+  },
+  "qualification_limits": [
+    "All failing tests are retained; later focused fixes do not change the failed CI outcome.",
+    "Build/package validation passing is not the separate release publication receipt.",
+    "Skipped tests, native interactive/accessibility behavior and model quality are not established.",
+    "No inference or CI reruns occurred while collecting this receipt; later local correction checks remain separate."
+  ],
+  "checkout_provenance": {
+    "source_log": {
+      "path": "/home/matthew/.cache/henchman-release-qualification/ci-929dfc0-review-42452685938/job-128645068671.log",
+      "sha256": "38eaeba986fbc0abe0823aa412363c744a355a4eda75e4017045de5399403b42",
+      "size_bytes": 142742
+    },
+    "observed_merge_line": "2026-11-08T05:56:17.2142183Z HEAD is now at f86fe0a Merge 929dfc00fe48fdd5140cd6f2332b7ff0ce115de8 into 3437c1c502c425f3d2754194ad46ea0094ee7cd1",
+    "method": "Checkout output and git log commit hash; independently checked against run pull-request metadata."
+  },
+  "recorded_at": "2026-11-08T06:47:50.504362+00:00"
+}

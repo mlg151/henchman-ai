@@ -13,6 +13,8 @@ import pytest
 
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
+from henchman.cli.ui_renderer import UIRenderer
+from henchman.config.schema import Settings
 from henchman.providers.base import ToolCall
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
@@ -26,6 +28,7 @@ class _FakeOutputHandler:
     """Test double for OutputHandler."""
 
     def __init__(self) -> None:
+        self.renderer = UIRenderer()
         self.errors: list[str] = []
         self.muted_messages: list[str] = []
         self.warnings: list[str] = []
@@ -91,8 +94,8 @@ class _FakeAgent:
         self.unlimited_mode = False
         self._tool_results: dict[str, str] = {}
 
-    def submit_tool_result(self, tool_call_id: str, result: str) -> None:
-        self._tool_results[tool_call_id] = result
+    def submit_tool_result(self, tool_call_id: str, result: str | ToolResult) -> None:
+        self._tool_results[tool_call_id] = result if isinstance(result, str) else result.content
 
     async def continue_with_tool_results(self):
         if False:
@@ -191,7 +194,7 @@ class TestParallelToolCallFailureHandling:
         if registry is None:
             registry = ToolRegistry()
             registry.register(_EchoTool())
-        tool_manager = ToolManager(MagicMock())
+        tool_manager = ToolManager(Settings())
         tool_manager.registry = registry
         provider = MagicMock()
         return ToolExecutor(

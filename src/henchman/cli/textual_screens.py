@@ -16,13 +16,13 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select
 
 from henchman.cli.textual_messages import SwitchProviderMessage
+from henchman.cli.textual_sessions import SessionScreen as SessionScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import Binding
 
     from henchman.cli.textual_app import HenchmanTextualApp
-    from henchman.core.session import SessionMetadata
     from henchman.tools.base import ConfirmationRequest
 
 # Map risk level to Rich colour for the confirmation dialog.
@@ -62,8 +62,9 @@ class ConfirmToolScreen(ModalScreen[bool]):
         border: solid $warning;
         background: $surface;
         width: 70;
+        max-width: 95%;
         height: auto;
-        max-height: 20;
+        max-height: 95%;
     }
     #confirm-title {
         text-style: bold;
@@ -72,6 +73,12 @@ class ConfirmToolScreen(ModalScreen[bool]):
     #confirm-details {
         margin-bottom: 1;
         color: $text-muted;
+        max-height: 3;
+        overflow: hidden;
+    }
+    #confirm-params {
+        max-height: 5;
+        overflow: hidden;
     }
     #confirm-buttons {
         align: right middle;
@@ -84,6 +91,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         ("y", "approve", "Yes"),
         ("n", "deny", "No"),
         ("escape", "deny", "No"),
+        ("f10", "review", "Inspect / Export"),
     ]
 
     def __init__(self: ConfirmToolScreen, request: ConfirmationRequest) -> None:
@@ -110,6 +118,17 @@ class ConfirmToolScreen(ModalScreen[bool]):
             Vertical container with the dialog layout.
         """
         from rich.markup import escape
+        from textual._context import NoActiveAppError
+
+        from henchman.cli.textual_context import _current_policy
+        from henchman.cli.textual_questions import _approval_evidence
+        from henchman.utils.evidence_redaction import EvidenceRedactor
+
+        try:
+            policy = _current_policy(self.app)
+        except NoActiveAppError:
+            policy = EvidenceRedactor()
+        self._request = _approval_evidence(self._request, policy)
 
         colour = _RISK_COLOURS.get(self._request.risk_level, _DEFAULT_RISK_COLOUR)
         tool = escape(self._request.tool_name)
@@ -133,13 +152,14 @@ class ConfirmToolScreen(ModalScreen[bool]):
             id="confirm-dialog",
         )
 
-    def _build_action_buttons(self: ConfirmToolScreen) -> Vertical:
+    def _build_action_buttons(self: ConfirmToolScreen) -> Horizontal:
         """Build the approve/deny button group.
 
         Returns:
-            Vertical container with Yes and No buttons.
+            Horizontal container with review, Yes and No buttons.
         """
-        return Vertical(
+        return Horizontal(
+            Button("Review (F10)", id="decision-review"),
             Button("Yes  (y)", variant="success", id="btn-yes"),
             Button("No   (n)", variant="error", id="btn-no"),
             id="confirm-buttons",
@@ -160,7 +180,12 @@ class ConfirmToolScreen(ModalScreen[bool]):
         except (TypeError, ValueError):
             # Handle non-JSON-serializable parameters
             text = str(self._request.params)
-        return [Label(f"[dim]Parameters:[/]\n[yellow]{escape(text)}[/]")]
+        return [
+            Label(
+                f"[dim]Parameter preview; Review (F10) shows retained details:[/]\n[yellow]{escape(text)}[/]",
+                id="confirm-params",
+            )
+        ]
 
     def on_button_pressed(self: ConfirmToolScreen, event: Button.Pressed) -> None:
         """Dismiss with the user's choice.
@@ -171,7 +196,16 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             None
         """
-        self.dismiss(event.button.id == "btn-yes")
+        if event.button.id == "decision-review":
+            event.stop()
+            self.action_review()
+        else:
+            self.dismiss(event.button.id == "btn-yes")
+
+    def action_review(self) -> None:
+        from henchman.cli.textual_review import open_decision_review
+
+        open_decision_review(self)
 
     def action_approve(self: ConfirmToolScreen) -> None:
         """Approve the tool call.
@@ -229,14 +263,21 @@ class HelpScreen(ModalScreen[None]):
             Label("  Shift+Enter    New line"),
             Label("  ↑ / ↓         Navigate history"),
             Label(""),
-            Label("[bold]Search[/bold]"),
-            Label("  Ctrl+F         Enter search mode"),
-            Label("  F3             Next match"),
-            Label("  Shift+F3       Previous match"),
+            Label("[bold]Search / transcript[/bold]"),
+            Label("  Ctrl+F Search; F3 / Shift+F3 Next / previous"),
+            Label("  Alt+PageUp / Alt+PageDown  Read transcript"),
+            Label("  Alt+End        Return to live"),
             Label("  Escape         Exit search / close modal"),
             Label(""),
             Label("[bold]App[/bold]"),
             Label("  Ctrl+Q / Ctrl+C    Quit"),
+            Label("  F4                Return to pending question or approval"),
+            Label("  F9                Inspect and control saved input queue"),
+            Label("  F8                Review captured file changes"),
+            Label("  F10              Inspect/export a pending decision"),
+            Label("  F11              Edit unsent draft in VISUAL/EDITOR"),
+            Label("  Context → Sessions    Search, inspect and explicitly resume"),
+            Label("  Workspace → Tasks and agents    Inspect observed work"),
             Label("  Ctrl+Shift+T       Clear thinking messages in chat"),
             Label("  Ctrl+Shift+Y       Clear tool messages in chat"),
             Label("  /               Slash command palette"),
@@ -392,123 +433,6 @@ class ProviderScreen(ModalScreen[None]):
 # ------------------------------------------------------------------ #
 # Session management screen                                            #
 # ------------------------------------------------------------------ #
-
-
-class SessionScreen(ModalScreen[str | None]):
-    """Session management modal.
-
-    Lists saved sessions and lets the user resume or delete them.
-    Dismisses with the session tag/id to resume, or ``None`` if cancelled.
-    """
-
-    DEFAULT_CSS = """
-    SessionScreen {
-        align: center middle;
-    }
-    #session-dialog {
-        padding: 2;
-        border: solid $accent;
-        background: $surface;
-        width: 75;
-        height: auto;
-        max-height: 30;
-    }
-    #session-list {
-        height: auto;
-        max-height: 18;
-        overflow-y: auto;
-        margin: 1 0;
-    }
-    .session-entry {
-        margin-bottom: 1;
-    }
-    """
-
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        ("escape", "cancel", "Close"),
-    ]
-
-    def __init__(self: SessionScreen, sessions: list[SessionMetadata] | None = None) -> None:
-        """Initialize with an optional pre-loaded session list.
-
-        Args:
-            sessions: List of ``SessionMetadata`` (or dicts) to display.
-                      Pass ``None`` to show an empty state.
-        """
-        super().__init__()
-        self._sessions: list[SessionMetadata] = sessions or []
-
-    def compose(self: SessionScreen) -> ComposeResult:
-        """Build the session management dialog.
-
-        Returns:
-            ComposeResult with session list and action buttons.
-        """
-        entries = self._build_entries()
-        options = [(label, sid) for label, sid in entries] if entries else []
-        select_value = Select.NULL
-
-        yield Vertical(
-            Label("[bold]Session Management[/bold]"),
-            Label(f"[dim]{len(self._sessions)} saved session(s)[/dim]"),
-            Select(
-                options or [("No sessions", "none")],
-                id="session-select",
-                allow_blank=True,
-                value=select_value,
-            ),
-            Vertical(
-                Button("Resume", variant="success", id="btn-resume"),
-                Button("Delete", variant="error", id="btn-delete"),
-                Button("Cancel", variant="default", id="btn-cancel"),
-            ),
-            id="session-dialog",
-        )
-
-    def _build_entries(self: SessionScreen) -> list[tuple[str, str]]:
-        """Build display entries from session list.
-
-        Returns:
-            List of (display_label, session_id) tuples.
-        """
-        entries: list[tuple[str, str]] = []
-        for sess in self._sessions:
-            tag = getattr(sess, "tag", None) or getattr(sess, "id", "unknown")
-            ts = getattr(sess, "updated_at", None) or getattr(sess, "created_at", "")
-            count = getattr(sess, "message_count", 0)
-            label = f"{tag}  [{ts}]  ({count} messages)"
-            sid = str(getattr(sess, "id", tag))
-            entries.append((label, sid))
-        return entries
-
-    def on_button_pressed(self: SessionScreen, event: Button.Pressed) -> None:
-        """Handle button presses.
-
-        Args:
-            event: Button press event.
-
-        Returns:
-            None
-        """
-        if event.button.id == "btn-cancel":
-            self.dismiss(None)
-            return
-        sel = self.query_one("#session-select", Select)
-        value = str(sel.value) if sel.value and sel.value != Select.BLANK else None
-        if event.button.id == "btn-resume" and value and value != "none":
-            self.dismiss(f"resume:{value}")
-        elif event.button.id == "btn-delete" and value and value != "none":
-            self.dismiss(f"delete:{value}")
-        else:
-            self.dismiss(None)
-
-    def action_cancel(self: SessionScreen) -> None:
-        """Cancel and close.
-
-        Returns:
-            None
-        """
-        self.dismiss(None)
 
 
 # ------------------------------------------------------------------ #

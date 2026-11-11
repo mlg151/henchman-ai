@@ -2,25 +2,57 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "henchman/contracts/api/usage-response/v1",
   "type": "object",
-  "required": ["total_tokens", "total_cost", "daily_usage"],
+  "required": [
+    "total_tokens",
+    "total_cost",
+    "daily_usage",
+    "budget",
+    "accounting_lifetime"
+  ],
   "properties": {
     "total_tokens": {
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
     },
     "total_cost": {
-      "type": "number"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "daily_usage": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["tokens", "cost"],
+        "required": [
+          "tokens",
+          "cost"
+        ],
         "properties": {
-          "tokens": { "type": "integer" },
-          "cost": { "type": "number" }
+          "tokens": {
+            "type": "integer"
+          },
+          "cost": {
+            "type": "number"
+          }
         },
         "additionalProperties": false
       }
+    },
+    "budget": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "accounting_lifetime": {
+      "type": "string",
+      "enum": [
+        "process"
+      ]
     }
   },
   "additionalProperties": false
